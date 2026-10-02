@@ -1,0 +1,235 @@
+import { existsSync, readFileSync, writeFileSync } from "node:fs";
+import path from "node:path";
+import type { Manifest, SettingsSchema } from "@plums/core";
+import { describe, expect, it } from "vitest";
+import { expectPlumsError, makeCore, manifestZip, validManifest } from "./package-helpers.js";
+
+/**
+ * Update paths that settings-validation.test.ts (from #13 @ 0ddb05db, which
+ * contains #18 @ f36f89f6) does not already pin. That file already covers the
+ * leftover import failures, including a JSON array, one stricter-schema update,
+ * and one update that drops settingsSchema.
+ *
+ * These tests assert the installed end state. They do not look for a backup
+ * directory: the leftover check runs before any files are moved.
+ *
+ * 基线不同、故意自包含、故意绕过 API。Leak checks use the local serializeError.
+ * @plums/core does not export that function. Nothing here imports checkSettings.
+ */
+
+const MARK = "plums-settings-LEAK-9f3a7c1e";
+
+function serializeError(err: unknown, seen = new WeakSet<object>()): string {
+  if (err === null || typeof err !== "object") return JSON.stringify(err) ?? String(err);
+  if (seen.has(err)) return "[circular]";
+  seen.add(err);
+  if (err instanceof Error) {
+    const own = Object.fromEntries(Object.getOwnPropertyNames(err).map((key) => [key, (err as never)[key]]));
+    return JSON.stringify({
+      ...Object.fromEntries(Object.entries(own).map(([key, value]) => [key, serializeError(value, seen)])),
+      name: err.name,
+      message: err.message,
+      stack: err.stack,
+      cause: err.cause === undefined ? undefined : serializeError(err.cause, seen),
+    });
+  }
+  return JSON.stringify(err, (_key, value: unknown) => (value instanceof Error ? serializeError(value, seen) : value));
+}
+
+function pack(settings: SettingsSchema | undefined, version: string): Manifest {
+  const manifest = validManifest();
+  manifest.version = version;
+  manifest.dependencies = [];
+  if (settings === undefined) delete manifest.settingsSchema;
+  else manifest.settingsSchema = settings;
+  return manifest;
+}
+
+const nickname = (type: "string" | "integer"): SettingsSchema => ({
+  type: "object",
+  required: type === "string" ? [] : ["nickname"],
+  properties: {
+    nickname: {
+      type,
+      title: "Nickname",
+      description: "What to call you.",
+    },
+  },
+});
+
+describe("updatePackage rolls back when leftover settings fail the new schema", () => {
+  it.each([
+    ["a missing required field", "REQUIRED", "/settings/nickname"],
+    ["a value of the wrong type", "TYPE", "/settings/nickname"],
+  ] as const)("%s restores the installed package and leaves settings.json", async (_name, reason) => {
+    const { core, dataDir } = makeCore();
+    const installed = pack(nickname("string"), "1.2.3");
+    await core.importPackage(await manifestZip(installed, [{ name: "old.txt", data: "old" }]));
+    await core.grantConsent(installed.id);
+    await core.enable(installed.id);
+    const saved = reason === "TYPE" ? { nickname: `${MARK}-TYPE` } : {};
+    await core.setSettings(installed.id, saved);
+    const file = path.join(dataDir, "data", installed.id, "settings.json");
+    const before = readFileSync(file);
+    const consent = await core.getConsent(installed.id);
+
+    const next = pack(nickname(reason === "TYPE" ? "integer" : "string"), "1.3.0");
+    if (reason === "REQUIRED") next.settingsSchema!.required = ["nickname"];
+    const err = await expectPlumsError(
+      core.updatePackage(await manifestZip(next, [{ name: "new.txt", data: "new" }])),
+      "IMPORT_INVALID",
+      "/settings/nickname",
+    );
+    expect(err.details).toEqual({ key: "nickname", reason });
+    expect(serializeError(err)).not.toContain(MARK);
+    expect(readFileSync(file)).toEqual(before);
+    expect(await core.listInstalled()).toEqual([
+      expect.objectContaining({ id: installed.id, version: "1.2.3", enabled: true, consented: true }),
+    ]);
+    expect(await core.getConsent(installed.id)).toEqual(consent);
+    const dir = path.join(dataDir, "packages", installed.id);
+    expect(readFileSync(path.join(dir, "old.txt"), "utf8")).toBe("old");
+    expect(existsSync(path.join(dir, "new.txt"))).toBe(false);
+    const onDisk = JSON.parse(readFileSync(path.join(dir, "manifest.json"), "utf8")) as Manifest;
+    expect(onDisk.version).toBe("1.2.3");
+  });
+
+  it("invalid leftover JSON is NOT_JSON at /settings, and the bytes stay", async () => {
+    const { core, dataDir } = makeCore();
+    const installed = pack(nickname("string"), "1.2.3");
+    await core.importPackage(await manifestZip(installed, [{ name: "old.txt", data: "old" }]));
+    await core.grantConsent(installed.id);
+    await core.enable(installed.id);
+    await core.setSettings(installed.id, { nickname: "Pat" });
+    const file = path.join(dataDir, "data", installed.id, "settings.json");
+    const broken = `{"nickname":"${MARK}-NOT-JSON"`;
+    writeFileSync(file, broken);
+    const consent = await core.getConsent(installed.id);
+
+    const err = await expectPlumsError(
+      core.updatePackage(await manifestZip(pack(nickname("string"), "1.3.0"), [{ name: "new.txt", data: "new" }])),
+      "IMPORT_INVALID",
+      "/settings",
+    );
+    expect(err.details).toEqual({ reason: "NOT_JSON" });
+    expect(serializeError(err)).not.toContain(MARK);
+    expect(readFileSync(file, "utf8")).toBe(broken);
+    expect(await core.listInstalled()).toEqual([
+      expect.objectContaining({ id: installed.id, version: "1.2.3", enabled: true, consented: true }),
+    ]);
+    expect(await core.getConsent(installed.id)).toEqual(consent);
+    const dir = path.join(dataDir, "packages", installed.id);
+    expect(readFileSync(path.join(dir, "old.txt"), "utf8")).toBe("old");
+    expect(existsSync(path.join(dir, "new.txt"))).toBe(false);
+  });
+
+  it.each([
+    ["a JSON array", "[]"],
+    ["a bare JSON string", `"${MARK}-BARE"`],
+  ])("%s is NOT_JSON on update and the installed package stays", async (_name, broken) => {
+    const { core, dataDir } = makeCore();
+    const installed = pack(nickname("string"), "1.2.3");
+    await core.importPackage(await manifestZip(installed, [{ name: "old.txt", data: "old" }]));
+    await core.grantConsent(installed.id);
+    await core.enable(installed.id);
+    await core.setSettings(installed.id, { nickname: "Pat" });
+    const file = path.join(dataDir, "data", installed.id, "settings.json");
+    writeFileSync(file, broken);
+    const consent = await core.getConsent(installed.id);
+
+    const err = await expectPlumsError(
+      core.updatePackage(await manifestZip(pack(nickname("string"), "1.3.0"), [{ name: "new.txt", data: "new" }])),
+      "IMPORT_INVALID",
+      "/settings",
+    );
+    expect(err.details).toEqual({ reason: "NOT_JSON" });
+    expect(serializeError(err)).not.toContain(MARK);
+    expect(readFileSync(file, "utf8")).toBe(broken);
+    expect(await core.listInstalled()).toEqual([
+      expect.objectContaining({ id: installed.id, version: "1.2.3", enabled: true, consented: true }),
+    ]);
+    expect(await core.getConsent(installed.id)).toEqual(consent);
+    const dir = path.join(dataDir, "packages", installed.id);
+    expect(readFileSync(path.join(dir, "old.txt"), "utf8")).toBe("old");
+    expect(existsSync(path.join(dir, "new.txt"))).toBe(false);
+    const onDisk = JSON.parse(readFileSync(path.join(dir, "manifest.json"), "utf8")) as Manifest;
+    expect(onDisk.version).toBe("1.2.3");
+  });
+});
+
+describe("a schema can return after an update that dropped it", () => {
+  /** Installs 1.2.3, saves a nickname, then updates to 1.3.0 with no settingsSchema. */
+  async function dropSchema() {
+    const { core, dataDir } = makeCore();
+    const installed = pack(nickname("string"), "1.2.3");
+    await core.importPackage(await manifestZip(installed, [{ name: "old.txt", data: "old" }]));
+    await core.grantConsent(installed.id);
+    await core.enable(installed.id);
+    const grantedAt = (await core.getConsent(installed.id))?.grantedAt;
+    await core.setSettings(installed.id, { nickname: `${MARK}-KEEP` });
+    const file = path.join(dataDir, "data", installed.id, "settings.json");
+    const before = readFileSync(file);
+    const updated = await core.updatePackage(
+      await manifestZip(pack(undefined, "1.3.0"), [{ name: "mid.txt", data: "mid" }]),
+    );
+    expect(updated.previousVersion).toBe("1.2.3");
+    expect(updated.manifest.settingsSchema).toBeUndefined();
+    expect(readFileSync(file)).toEqual(before);
+    expect(await core.listInstalled()).toEqual([
+      expect.objectContaining({ id: installed.id, version: "1.3.0", enabled: true, consented: true }),
+    ]);
+    // The consent record is rewritten for the new manifest. grantedAt stays when permissions do not grow.
+    expect((await core.getConsent(installed.id))?.version).toBe("1.3.0");
+    expect((await core.getConsent(installed.id))?.grantedAt).toBe(grantedAt);
+    const dir = path.join(dataDir, "packages", installed.id);
+    expect(readFileSync(path.join(dir, "mid.txt"), "utf8")).toBe("mid");
+    expect(existsSync(path.join(dir, "old.txt"))).toBe(false);
+    const onDisk = JSON.parse(readFileSync(path.join(dir, "manifest.json"), "utf8")) as Manifest;
+    expect(onDisk.version).toBe("1.3.0");
+    expect(onDisk.settingsSchema).toBeUndefined();
+    return { core, dataDir, id: installed.id, file, before, grantedAt };
+  }
+
+  it("accepts the leftover file when the later schema allows it, and does not rewrite the bytes", async () => {
+    const { core, dataDir, id, file, before, grantedAt } = await dropSchema();
+    const updated = await core.updatePackage(
+      await manifestZip(pack(nickname("string"), "1.4.0"), [{ name: "new.txt", data: "new" }]),
+    );
+    expect(updated.previousVersion).toBe("1.3.0");
+    expect(updated.manifest.settingsSchema?.properties.nickname?.type).toBe("string");
+    expect(readFileSync(file)).toEqual(before);
+    expect(await core.listInstalled()).toEqual([
+      expect.objectContaining({ id, version: "1.4.0", enabled: true, consented: true }),
+    ]);
+    expect((await core.getConsent(id))?.version).toBe("1.4.0");
+    expect((await core.getConsent(id))?.grantedAt).toBe(grantedAt);
+    const dir = path.join(dataDir, "packages", id);
+    expect(readFileSync(path.join(dir, "new.txt"), "utf8")).toBe("new");
+    expect(existsSync(path.join(dir, "mid.txt"))).toBe(false);
+  });
+
+  it("rejects the leftover file when the later schema is stricter, and stays on the no-schema version", async () => {
+    const dropped = await dropSchema();
+    const consent = await dropped.core.getConsent(dropped.id);
+    const err = await expectPlumsError(
+      dropped.core.updatePackage(
+        await manifestZip(pack(nickname("integer"), "1.4.0"), [{ name: "new.txt", data: "new" }]),
+      ),
+      "IMPORT_INVALID",
+      "/settings/nickname",
+    );
+    expect(err.details).toEqual({ key: "nickname", reason: "TYPE" });
+    expect(serializeError(err)).not.toContain(MARK);
+    expect(readFileSync(dropped.file)).toEqual(dropped.before);
+    expect(await dropped.core.listInstalled()).toEqual([
+      expect.objectContaining({ id: dropped.id, version: "1.3.0", enabled: true, consented: true }),
+    ]);
+    expect(await dropped.core.getConsent(dropped.id)).toEqual(consent);
+    const dir = path.join(dropped.dataDir, "packages", dropped.id);
+    expect(readFileSync(path.join(dir, "mid.txt"), "utf8")).toBe("mid");
+    expect(existsSync(path.join(dir, "new.txt"))).toBe(false);
+    const onDisk = JSON.parse(readFileSync(path.join(dir, "manifest.json"), "utf8")) as Manifest;
+    expect(onDisk.version).toBe("1.3.0");
+    expect(onDisk.settingsSchema).toBeUndefined();
+  });
+});

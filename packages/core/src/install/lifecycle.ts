@@ -51,7 +51,7 @@ function consentFor(manifest: Manifest): ConsentRecord {
   };
 }
 
-const LEVEL_RANK: Record<PermissionLevel, number> = { read: 0, write: 1, egress: 2 };
+export const LEVEL_RANK: Record<PermissionLevel, number> = { read: 0, write: 1, egress: 2 };
 
 /** Why a new permission is not covered by the old list, or `undefined` when it is covered. */
 function growth(old: Permission[], next: Permission): string | undefined {
@@ -178,11 +178,16 @@ export function disable(ctx: InstallContext, id: string): InstalledPackage {
 }
 
 /**
- * Removes the package's secret values, then its install record and consent, then
- * `packages/<id>` and `data/<id>` (including settings.json). Refs are read from the
- * manifest before the record goes, and the record goes before the files, so the package
- * does not stay listed once its files are gone.
- * A settings file left behind with no install record is handled by `importPackage`.
+ * Removes the package's secret values, then its install state, consent and MCP tool
+ * approvals, then its files and data folder. Values are read from the manifest before
+ * the record goes, and the record goes before the files, so the package does not stay
+ * listed once its files are gone.
+ * A crash midway stops in one of two places: the secrets are already deleted but the
+ * package still shows as installed, or the record is deleted and the files are still there.
+ * A settings file left behind with no install record is handled by import: it is checked
+ * against the new settingsSchema, and a package with no settingsSchema is refused until
+ * `data/<id>/settings.json` is deleted. An update that drops settingsSchema ignores that
+ * file: it is not read and not deleted, and the update succeeds.
  */
 export async function uninstall(ctx: InstallContext, id: string): Promise<void> {
   requireInstalled(ctx, id);

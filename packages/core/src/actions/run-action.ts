@@ -99,7 +99,8 @@ export async function runAction(
   return outbound === undefined ? { level } : { level, egress: await ctx.egress.send(outbound) };
 }
 
-function authorize(ctx: InstallContext, id: string, permissionId: string) {
+/** Installed, enabled, declared, consented. Shared with the MCP tool gate. */
+export function authorize(ctx: InstallContext, id: string, permissionId: string) {
   const installed = requireInstalled(ctx, id);
   if (!installed.enabled) {
     throw new PlumsError({

@@ -34,7 +34,10 @@ export { MAX_SHARE_BYTES } from "./share.js";
 
 export type { ActionResult, RunActionInput } from "./actions/run-action.js";
 
-export type { ConsentRecord, InstalledPackage } from "./install/store.js";
+export type { ConsentRecord, InstalledPackage, McpApproval } from "./install/store.js";
+
+export { mcpToolFingerprint } from "./mcp/tools.js";
+export type { McpApproveResult, McpServerState, McpTool, McpToolCheck, McpToolState } from "./mcp/tools.js";
 
 export { inspectPackage } from "./package/inspect.js";
 export type { PackageInspection } from "./package/inspect.js";

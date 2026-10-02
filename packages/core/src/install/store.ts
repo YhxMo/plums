@@ -1,7 +1,7 @@
 import { mkdirSync } from "node:fs";
 import path from "node:path";
 import Database from "better-sqlite3";
-import type { Manifest, PackageKind, Permission } from "../package/types.js";
+import type { Manifest, PackageKind, Permission, PermissionLevel } from "../package/types.js";
 
 export const DATABASE_FILE = "plums.db";
 
@@ -33,6 +33,24 @@ export interface ConsentRecord {
   grantedAt: string;
 }
 
+/** What the user approved for one MCP tool: the fingerprint of its name, description, and inputSchema. */
+export interface McpApproval {
+  tool: string;
+  /** SHA-256 hex of the name, description, and inputSchema at the moment of approval. */
+  fingerprint: string;
+  /** The level the user approved. For a connector it is the manifest permission's level. */
+  level: PermissionLevel;
+  /** ISO 8601 time. */
+  approvedAt: string;
+}
+
+interface McpApprovalRow {
+  tool: string;
+  fingerprint: string;
+  level: PermissionLevel;
+  approved_at: string;
+}
+
 interface InstalledRow {
   id: string;
   kind: PackageKind;
@@ -52,7 +70,7 @@ interface ConsentRow {
   granted_at: string;
 }
 
-const SCHEMA_VERSION = 1;
+const SCHEMA_VERSION = 2;
 
 const INSTALLED_SELECT = `
   SELECT p.id, p.kind, p.name, p.version, p.manifest, p.enabled, p.installed_at, p.enabled_at,
@@ -101,6 +119,8 @@ export class InstallStore {
   /**
    * Records a fresh install: not enabled, no consent.
    * An earlier record of the same id, and its consent, is dropped.
+   * Tool approvals are not deleted here. Why: uninstall already removed them, and import
+   * refuses an id that is still installed, so no approval row can be waiting.
    */
   recordInstall(manifest: Manifest): void {
     const db = this.connection();
@@ -173,12 +193,64 @@ export class InstallStore {
     }
   }
 
-  /** Removes the install state and the consent record of one package. */
+  /** Removes the install state, the consent record and the MCP tool approvals of one package. */
   remove(id: string): void {
     const db = this.connection();
     db.transaction(() => {
+      db.prepare("DELETE FROM mcp_tools WHERE server_id = ?").run(id);
       db.prepare("DELETE FROM consents WHERE package_id = ?").run(id);
       db.prepare("DELETE FROM packages WHERE id = ?").run(id);
+    })();
+  }
+
+  /** Approved MCP tools of one server (a connector id or `manual:<name>`), ordered by tool name. */
+  listMcpApprovals(serverId: string): McpApproval[] {
+    const rows = this.connection()
+      .prepare("SELECT tool, fingerprint, level, approved_at FROM mcp_tools WHERE server_id = ? ORDER BY tool")
+      .all(serverId) as McpApprovalRow[];
+    return rows.map((r) => ({ tool: r.tool, fingerprint: r.fingerprint, level: r.level, approvedAt: r.approved_at }));
+  }
+
+  /**
+   * Reads this server's approvals and deletes names that are not in `keep`, in one transaction.
+   * Returns the rows from before the delete, so the caller compares against the same list it dropped.
+   * An empty `keep` deletes every tool row for this server only. Package consent is another table.
+   * Why one transaction: the drop and the list it was compared with commit together.
+   * Why empty deletes: a tool that left the list must not keep a consent that returns with the name.
+   */
+  dropMcpApprovalsExcept(serverId: string, keep: readonly string[]): McpApproval[] {
+    const db = this.connection();
+    const select = db.prepare(
+      "SELECT tool, fingerprint, level, approved_at FROM mcp_tools WHERE server_id = ? ORDER BY tool",
+    );
+    const removeAll = db.prepare("DELETE FROM mcp_tools WHERE server_id = ?");
+    return db.transaction(() => {
+      const rows = (select.all(serverId) as McpApprovalRow[]).map((row) => ({
+        tool: row.tool,
+        fingerprint: row.fingerprint,
+        level: row.level,
+        approvedAt: row.approved_at,
+      }));
+      if (keep.length === 0) {
+        removeAll.run(serverId);
+      } else {
+        const marks = keep.map(() => "?").join(", ");
+        db.prepare(`DELETE FROM mcp_tools WHERE server_id = ? AND tool NOT IN (${marks})`).run(serverId, ...keep);
+      }
+      return rows;
+    })();
+  }
+
+  /** Saves the approvals in one transaction. A tool that already has one is replaced. */
+  saveMcpApprovals(serverId: string, approvals: McpApproval[]): void {
+    const db = this.connection();
+    const insert = db.prepare(
+      `INSERT OR REPLACE INTO mcp_tools (server_id, tool, fingerprint, level, approved_at) VALUES (?, ?, ?, ?, ?)`,
+    );
+    db.transaction(() => {
+      for (const a of approvals) {
+        insert.run(serverId, a.tool, a.fingerprint, a.level, a.approvedAt);
+      }
     })();
   }
 
@@ -209,22 +281,35 @@ function migrate(db: Database.Database): void {
   }
   if (current < SCHEMA_VERSION) {
     db.transaction(() => {
-      db.exec(`
-        CREATE TABLE packages (
-          id           TEXT PRIMARY KEY,
-          kind         TEXT NOT NULL,
-          name         TEXT NOT NULL,
-          version      TEXT NOT NULL,
-          manifest     TEXT NOT NULL,
-          enabled      INTEGER NOT NULL DEFAULT 0,
-          installed_at TEXT NOT NULL,
-          enabled_at   TEXT
-        );
-        CREATE TABLE consents (
-          package_id  TEXT PRIMARY KEY,
-          version     TEXT NOT NULL,
-          permissions TEXT NOT NULL,
-          granted_at  TEXT NOT NULL
+      if (current < 1) {
+        db.exec(`
+          CREATE TABLE packages (
+            id           TEXT PRIMARY KEY,
+            kind         TEXT NOT NULL,
+            name         TEXT NOT NULL,
+            version      TEXT NOT NULL,
+            manifest     TEXT NOT NULL,
+            enabled      INTEGER NOT NULL DEFAULT 0,
+            installed_at TEXT NOT NULL,
+            enabled_at   TEXT
+          );
+          CREATE TABLE consents (
+            package_id  TEXT PRIMARY KEY,
+            version     TEXT NOT NULL,
+            permissions TEXT NOT NULL,
+            granted_at  TEXT NOT NULL
+          );
+        `);
+      }
+      // Why a new table and not a column on consents: hand-added servers have no package row.
+      if (current < 2) db.exec(`
+        CREATE TABLE mcp_tools (
+          server_id   TEXT NOT NULL,
+          tool        TEXT NOT NULL,
+          fingerprint TEXT NOT NULL,
+          level       TEXT NOT NULL,
+          approved_at TEXT NOT NULL,
+          PRIMARY KEY (server_id, tool)
         );
       `);
       db.pragma(`user_version = ${SCHEMA_VERSION}`);

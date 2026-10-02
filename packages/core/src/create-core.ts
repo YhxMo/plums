@@ -7,6 +7,18 @@ import { acceptResidualSettings } from "./install/check-settings.js";
 import { setSettings, resolveSettings, knownSecrets } from "./install/settings.js";
 import { redact } from "./redact.js";
 import { InstallStore, type ConsentRecord, type InstalledPackage } from "./install/store.js";
+import {
+  approveMcpTools,
+  authorizeMcpTool,
+  checkMcpTools,
+  getMcpApprovals,
+  uninstallManualServer,
+  type McpApproveResult,
+  type McpServerState,
+  type McpTool,
+  type McpToolCheck,
+} from "./mcp/tools.js";
+import type { PermissionLevel } from "./package/types.js";
 import type { Confirm, EgressSink, ModelProvider, SecretStore } from "./types.js";
 import { exportPackage, type ExportInput, type ExportOptions } from "./package/export.js";
 import { fetchSharedPackage, shareToFile } from "./share.js";
@@ -110,7 +122,11 @@ export interface Core {
   enable(id: string): Promise<InstalledPackage>;
   /** Turns the package off. Install and consent stay. */
   disable(id: string): Promise<InstalledPackage>;
-  /** Removes files, data, settings, consent and secret references. The id can then be imported again. */
+  /**
+   * Removes files, data, settings, consent, MCP tool approvals and secret references. The id can then be imported again.
+   * A hand-added id (`manual:<name>`) only drops that service's tool approvals. Why: those rows are its
+   * fingerprints and its consent, and there is no package to remove.
+   */
   uninstall(id: string): Promise<void>;
   listInstalled(): Promise<InstalledPackage[]>;
   /**
@@ -121,6 +137,47 @@ export interface Core {
    * checks again. Egress `send` receives the request with `url` set to `new URL(url).href`.
    */
   runAction(input: RunActionInput): Promise<ActionResult>;
+  /**
+   * MCP tools. The core never connects to a server: the host passes the tool list it read.
+   * `serverId` is an installed connector package id, or `manual:<lowercase-name>` for a service the
+   * user added by hand (unverified: read-only until a tool is granted one by one).
+   * A tool name is 1-128 characters of `A-Za-z0-9_.-`, otherwise TypeError. For a connector the tool
+   * name must equal a manifest permission id, which sets its level.
+   * Why a hash: a changed name, description, or inputSchema can change what a tool does, so it counts as a new permission.
+   *
+   * Compares `tools` with the approvals. `ADDED`: never approved. `CHANGED`: the name, description, or inputSchema hash differs.
+   * A renamed tool is a new name (`ADDED`). A tool that is not in this list loses its approval, and an
+   * empty list drops every tool approval for this server. Package consent and other servers stay. A list
+   * that fails validation is not applied. Why: the old consent must not come back when that name returns,
+   * and a failed check is not a new list. The returned list does not include a tool that was dropped.
+   * The host must pass the full list. Do not pass `[]` or a subset when a fetch fails or only the first
+   * page arrived, or the other tools lose their fingerprint and consent. This call deletes tools that
+   * have disappeared (it has a delete side effect).
+   */
+  checkMcpTools(serverId: string, tools: McpTool[]): Promise<McpToolCheck[]>;
+  /**
+   * Records each tool's current fingerprint: the user's (re)consent to that name, description, and inputSchema. The host must
+   * call this only after the user has agreed. Why: the kernel does not connect to an MCP server, so it
+   * cannot check that agreement itself. `enable` and `grantConsent` do not record fingerprints.
+   * Replaces an earlier approval of the same tool. A connector tool without a matching manifest permission
+   * is skipped (`NOT_DECLARED`). A hand-added tool above `read` is skipped (`UNVERIFIED_READ_ONLY`)
+   * unless its name is in `allowNonRead` (a name not in `tools` is TypeError).
+   */
+  approveMcpTools(serverId: string, tools: McpTool[], allowNonRead?: string[]): Promise<McpApproveResult>;
+  /**
+   * Checks one call, runs nothing. Connector order: installed, enabled, declared, consented (as
+   * `runAction`); then the tool's hash. No approval is CONSENT_REQUIRED `reason: 'TOOL_ADDED'`, a different
+   * hash is `TOOL_CHANGED`; path `/tools/<name>`, details `{ id, tool, reason, fingerprint, approvedFingerprint? }`.
+   * Hand-added: an unapproved tool above `read` is PERMISSION_DENIED `UNVERIFIED_READ_ONLY`. After approval
+   * the recorded level is used; a different `level` on the call is PERMISSION_DENIED
+   * (`details.reason` is `LEVEL_MISMATCH`) and does not skip confirm. Then `confirm.ask` for write and
+   * egress (CONFIRMATION_DENIED). If the level changes before the second check, PERMISSION_DENIED with
+   * the same `LEVEL_MISMATCH` and the call does not succeed. Returns the level from that second
+   * check. The description and inputSchema are never shown in the confirm message.
+   */
+  authorizeMcpTool(serverId: string, tool: McpTool): Promise<{ level: PermissionLevel }>;
+  /** What is approved for the server, and whether it is unverified. Read-only. */
+  getMcpApprovals(serverId: string): Promise<McpServerState>;
   /**
    * Replaces the package's saved settings (`<dataDir>/data/<id>/settings.json`).
    * Values are checked against settingsSchema before anything is written: required and types,
@@ -221,9 +278,19 @@ export function createCore(options: CreateCoreOptions): Core {
     getConsent: guard(async (id) => lifecycle.getConsent(ctx, id)),
     enable: guard(async (id) => lifecycle.enable(ctx, id)),
     disable: guard(async (id) => lifecycle.disable(ctx, id)),
-    uninstall: guard((id) => lifecycle.uninstall(ctx, id)),
+    uninstall: guard(async (id) => {
+      if (typeof id === "string" && id.startsWith("manual:")) {
+        uninstallManualServer(ctx, id);
+        return;
+      }
+      return lifecycle.uninstall(ctx, id);
+    }),
     listInstalled: guard(async () => store.list()),
     runAction: guard((input) => runAction({ ...ctx, egress: options.egress, confirm: options.confirm }, input)),
+    checkMcpTools: guard(async (serverId, tools) => checkMcpTools(ctx, serverId, tools)),
+    approveMcpTools: guard(async (serverId, tools, allowNonRead) => approveMcpTools(ctx, serverId, tools, allowNonRead)),
+    authorizeMcpTool: guard((serverId, tool) => authorizeMcpTool({ ...ctx, confirm: options.confirm }, serverId, tool)),
+    getMcpApprovals: guard(async (serverId) => getMcpApprovals(ctx, serverId)),
     setSettings: guard((id, values) => setSettings(ctx, id, values)),
     resolveSettings: guard((id) => resolveSettings(ctx, id)),
     close() {
