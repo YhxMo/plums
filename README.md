@@ -3,7 +3,7 @@
 Plums 内核（Apache-2.0）。pnpm 单仓库，包含：
 
 - `@plums/core`：TypeScript 内核库
-- `plums`：命令行。只调用库的公开 API；当前运行后打印版本号
+- `plums`：里程碑 1 的命令行。只调用库的公开 API
 
 ## 环境
 
@@ -15,12 +15,25 @@ Node.js 22 或更新的 LTS，以及 pnpm 10。
 pnpm install
 pnpm build
 pnpm test
-pnpm exec plums
+pnpm exec plums --help
 ```
 
-`pnpm test` 会先构建，再跑 Vitest。`plums` 打印 `@plums/core` 的版本号。
+`pnpm test` 会先构建，再跑 Vitest。不带参数的 `plums` 打印 `@plums/core` 的版本号。
+
+里程碑 1 的命令行有 `import`、`inspect`、`enable`、`uninstall`、`export`。密钥只在内存里，没有真实外发。`share import`、真实的 `EgressSink` 和持久化 `SecretStore` 留到里程碑 2。
+
+数据目录默认是用户目录下的 `.plums`。`--home <目录>` 或环境变量 `PLUMS_HOME` 可以改掉。
 
 ## 已知限制
+
+命令行：
+
+- 密钥只在内存里，没有持久化的 SecretStore。进程结束密钥就没了，也没有读写密钥的子命令。
+- 没有真实的联网外发。内核要外发时用的是 `RecordingEgressSink`，不打开网络。
+- `enable` 必须带 `--yes`。这会同意 manifest 声明的全部权限，成功时输出列出这些权限。命令行读不到已安装包的权限清单，不能在这里交互同意。先 `inspect` 看 zip 里的权限，再 `enable --yes`。
+- `uninstall` 删掉的内容见下面内核那条。没有 `--yes` 时在标准错误上确认，拒绝则不卸载。管道里的 `y` 算同意，不要求 TTY。
+
+内核：
 
 - 更新一个包时，不检查别的包是否依赖它的旧版本（不检查反向依赖）。
 - 卸载一个包时，不检查别的包是否依赖它。依赖它的包会在下次启用时返回 `DEPENDENCY_MISSING`。

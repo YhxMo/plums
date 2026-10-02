@@ -8,6 +8,8 @@ export default defineConfig({
   test: {
     environment: "node",
     include: ["packages/*/test/**/*.test.ts"],
+    // Test timeout sits above the child process's 10s limit.
+    testTimeout: 20_000,
   },
   resolve: {
     alias: {
