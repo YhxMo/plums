@@ -45,6 +45,11 @@ const badManifests: [string, Mutate, string][] = [
   ["permissions that is not a list", (m) => (m.permissions = {}), "/permissions"],
   ["setting with an unknown type", (m) => (m.settingsSchema.properties.nickname.type = "color"), "/settingsSchema/properties/nickname/type"],
   ["setting without a type", (m) => delete m.settingsSchema.properties.retries.type, "/settingsSchema/properties/retries/type"],
+  ["setting without a title", (m) => delete m.settingsSchema.properties.nickname.title, "/settingsSchema/properties/nickname/title"],
+  ["setting without a description", (m) => delete m.settingsSchema.properties.retries.description, "/settingsSchema/properties/retries/description"],
+  ["setting default of the wrong type", (m) => (m.settingsSchema.properties.retries.default = "3"), "/settingsSchema/properties/retries/default"],
+  ["setting default above its maximum", (m) => (m.settingsSchema.properties.retries.maximum = 2), "/settingsSchema/properties/retries/default"],
+  ["minimum on a string setting", (m) => (m.settingsSchema.properties.nickname.minimum = 1), "/settingsSchema/properties/nickname/minimum"],
   ["setting that is not an object", (m) => (m.settingsSchema.properties.nickname = "string"), "/settingsSchema/properties/nickname"],
   ["settingsSchema that is not an object", (m) => (m.settingsSchema = "none"), "/settingsSchema"],
   ["settingsSchema without properties", (m) => delete m.settingsSchema.properties, "/settingsSchema/properties"],
@@ -125,7 +130,7 @@ describe("importPackage: MANIFEST_INVALID", () => {
   it("escapes special characters in JSON Pointer paths", async () => {
     const { core } = makeCore();
     const manifest = validManifest() as Record<string, any>;
-    manifest.settingsSchema.properties["a/b~c"] = { type: "nope" };
+    manifest.settingsSchema.properties["a/b~c"] = { type: "nope", title: "T", description: "D" };
     await expectPlumsError(
       core.importPackage(await manifestZip(manifest)),
       "MANIFEST_INVALID",

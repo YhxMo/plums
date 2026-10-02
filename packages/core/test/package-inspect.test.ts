@@ -371,6 +371,18 @@ describe("inspect: bad packages return the same PlumsError as import", () => {
   }
 });
 
+it.each(["share.example.", "localhost.", "a.localhost.", "*.foo.example.", "share.example.:443"])(
+  "egress target %s is TRAILING_DOT",
+  async (target) => {
+    const input = await broken((manifest) => (manifest.permissions[1].target = target));
+    const { core, dataDir } = makeCore();
+    const err = await expectPlumsError(core.importPackage(input), "MANIFEST_INVALID", "/permissions/1/target");
+    expect(err.details).toEqual({ reason: "TRAILING_DOT" });
+    expect(err.message).toBe("主机名不能以点结尾。");
+    expect(listAll(dataDir)).toEqual([]);
+  },
+);
+
 function broken(mutate: (manifest: Record<string, any>) => void): Promise<Uint8Array> {
   const manifest = validManifest() as Record<string, any>;
   mutate(manifest);

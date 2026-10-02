@@ -27,9 +27,9 @@ function manifestWith(extra: Partial<Manifest> = {}): Manifest {
     settingsSchema: {
       type: "object",
       properties: {
-        nickname: { type: "string" },
-        apiKey: { type: "string", "x-secret": true },
-        "team/token": { type: "string", "x-secret": true },
+        nickname: { type: "string", title: "Nickname", description: "What to call you." },
+        apiKey: { type: "string", title: "API key", description: "Secret key.", "x-secret": true },
+        "team/token": { type: "string", title: "Team token", description: "Secret token.", "x-secret": true },
       },
     },
     ...extra,
@@ -164,17 +164,32 @@ describe("export", () => {
     for (const text of [Buffer.from(bytes).toString("latin1"), JSON.stringify(manifest), ...Object.values(files).map((f) => Buffer.from(f).toString("latin1"))]) {
       expectNoSecret(text);
     }
-    expect(manifest.settingsSchema?.properties.apiKey).toEqual({ type: "string", "x-secret": true });
+    expect(manifest.settingsSchema?.properties.apiKey).toEqual({
+      type: "string",
+      title: "API key",
+      description: "Secret key.",
+      "x-secret": true,
+    });
   });
 
   const withLiteral = (keyword: string, value: unknown) =>
     manifestWith({
-      settingsSchema: { type: "object", properties: { apiKey: { type: "string", "x-secret": true, [keyword]: value } } },
+      settingsSchema: {
+        type: "object",
+        properties: {
+          apiKey: { type: "string", title: "API key", description: "Secret key.", "x-secret": true, [keyword]: value },
+        },
+      },
     });
   const rejected: [string, () => Parameters<Core["exportPackage"]>[0], string, string | undefined][] = [
-    ...(["default", "const", "enum", "examples"] as const).map((k) => [
+    ...(["default", "const", "enum", "examples", "minimum", "maximum"] as const).map((k) => [
       `an x-secret ${k} written in the manifest`,
-      () => ({ manifest: withLiteral(k, k === "enum" || k === "examples" ? ["sk-FAKE-unknown"] : "sk-FAKE-unknown") }),
+      () => ({
+        manifest: withLiteral(
+          k,
+          k === "enum" || k === "examples" ? ["sk-FAKE-unknown"] : k === "minimum" || k === "maximum" ? 1 : "sk-FAKE-unknown",
+        ),
+      }),
       "MANIFEST_INVALID",
       `/settingsSchema/properties/apiKey/${k}`,
     ] as [string, () => Parameters<Core["exportPackage"]>[0], string, string]),
@@ -190,6 +205,18 @@ describe("export", () => {
   it.each(rejected)("refuses %s", async (_name, input, code, at) => {
     const err = await expectPlumsError(core.exportPackage(input()), code, at);
     expectNoSecret(show(err));
+  });
+
+  it.each(["title", "description"] as const)("refuses an x-secret field without a %s", async (field) => {
+    const manifest = manifestWith();
+    const spec = manifest.settingsSchema?.properties.apiKey;
+    if (spec === undefined) throw new Error("missing apiKey");
+    delete spec[field];
+    await expectPlumsError(
+      core.importPackage(await manifestZip(manifest)),
+      "MANIFEST_INVALID",
+      `/settingsSchema/properties/apiKey/${field}`,
+    );
   });
 
   it("refuses to import a manifest that writes an x-secret value", async () => {

@@ -11,6 +11,7 @@ export {
   PERMISSION_DENIED,
   PlumsError,
   SECRET_NOT_FOUND,
+  SETTINGS_INVALID,
   SHARE_FETCH_FAILED,
 } from "./errors.js";
 export type { PlumsErrorCode, PlumsErrorOptions } from "./errors.js";
@@ -29,6 +30,7 @@ export type {
 
 export { createCore } from "./create-core.js";
 export type { Core, CreateCoreOptions, ImportedPackage, UpdatedPackage } from "./create-core.js";
+export { MAX_SHARE_BYTES } from "./share.js";
 
 export type { ActionResult, RunActionInput } from "./actions/run-action.js";
 

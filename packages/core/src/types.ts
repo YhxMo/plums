@@ -35,9 +35,9 @@ export interface EgressSink {
 
 export interface ConfirmRequest {
   message: string;
-  /** Where an egress goes: normalized host, with the port when it is not 443. */
+  /** Where an egress or share download goes: normalized host, with the port when it is not 443. */
   host?: string;
-  /** The `reason` of the manifest permission. */
+  /** Why this is being asked. An action uses the manifest permission's `reason`. */
   reason?: string;
 }
 

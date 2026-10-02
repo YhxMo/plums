@@ -1,14 +1,13 @@
 import { existsSync } from "node:fs";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
-import { PlumsError, SECRET_NOT_FOUND } from "../errors.js";
+import { PlumsError, SECRET_NOT_FOUND, SETTINGS_INVALID } from "../errors.js";
 import { escapePointer } from "../package/manifest.js";
 import type { Manifest } from "../package/types.js";
 import { secretKeys, secretRef } from "../secrets.js";
-import { PACKAGE_DATA_DIR, requireInstalled, requireManifest, type InstallContext } from "./lifecycle.js";
+import { checkSettings, settingsFilePath } from "./check-settings.js";
+import { requireInstalled, requireManifest, type InstallContext } from "./lifecycle.js";
 import { DATABASE_FILE } from "./store.js";
-
-const SETTINGS_FILE = "settings.json";
 
 type Settings = Record<string, unknown>;
 
@@ -39,13 +38,19 @@ async function resolveSecrets(ctx: InstallContext, manifest: Manifest, values: S
   return out;
 }
 
-/** Replaces the package's saved settings. Nothing is written when a secret field is not a stored ref. */
+/** Replaces the package's saved settings. Nothing is written when a value or a secret ref is rejected. */
 export async function setSettings(ctx: InstallContext, id: string, values: Settings): Promise<void> {
   requireInstalled(ctx, id);
-  await resolveSecrets(ctx, requireManifest(ctx, id), values);
-  const dir = path.join(ctx.dataDir, PACKAGE_DATA_DIR, id);
-  await mkdir(dir, { recursive: true });
-  await writeFile(path.join(dir, SETTINGS_FILE), JSON.stringify(values, null, 2));
+  const manifest = requireManifest(ctx, id);
+  if (values === null || typeof values !== "object" || Array.isArray(values)) {
+    throw new TypeError("setSettings values must be an object");
+  }
+  // Why SETTINGS_INVALID: the baseline only used SECRET_NOT_FOUND, and only for a bad secret ref.
+  const saving = manifest.settingsSchema === undefined ? values : checkSettings(manifest.settingsSchema, values, SETTINGS_INVALID);
+  await resolveSecrets(ctx, manifest, saving);
+  const file = settingsFilePath(ctx.dataDir, id);
+  await mkdir(path.dirname(file), { recursive: true });
+  await writeFile(file, JSON.stringify(saving, null, 2));
 }
 
 /** The saved settings with secret refs replaced by their values. `{}` when none were saved. */
@@ -53,7 +58,7 @@ export async function resolveSettings(ctx: InstallContext, id: string): Promise<
   requireInstalled(ctx, id);
   let text: string;
   try {
-    text = await readFile(path.join(ctx.dataDir, PACKAGE_DATA_DIR, id, SETTINGS_FILE), "utf8");
+    text = await readFile(settingsFilePath(ctx.dataDir, id), "utf8");
   } catch (err) {
     if ((err as NodeJS.ErrnoException).code === "ENOENT") return {};
     throw err;

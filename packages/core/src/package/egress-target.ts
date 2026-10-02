@@ -13,7 +13,6 @@ const IPV4_PATTERN = /^\d+(\.\d+){0,3}$/;
  * Reads an egress `target`: a host name with an optional port, or a leading `*.` plus a host name.
  * The host part needs at least two labels (`com`, `*.com` and any other `*` are refused).
  * IP literals, `localhost` and `*.localhost` are refused by the host string. No DNS lookup.
- * Share-link downloads use this same function on the URL host and refuse `undefined`.
  * Returns `undefined` when the text breaks a rule.
  */
 export function parseEgressTarget(target: string): EgressTarget | undefined {
@@ -67,4 +66,37 @@ export function matchEgressUrl(target: string, url: string): URL | undefined {
     parsed.password === "" &&
     (parsed.port || "443") === rule.port;
   return allowed ? parsed : undefined;
+}
+
+export type HttpsUrlFailure = "INVALID_URL" | "NOT_HTTPS" | "USERINFO" | "IP_LITERAL" | "TRAILING_DOT" | "LOCALHOST";
+
+/**
+ * Share-link check only: https, no username or password, host is not an IP literal,
+ * a name ending in `.`, or `localhost` / `*.localhost`. It does not match an egress target.
+ * A trailing dot is checked first, so `localhost.` is TRAILING_DOT, not LOCALHOST. No DNS.
+ */
+export function checkHttpsUrl(url: string): URL | HttpsUrlFailure {
+  let parsed: URL;
+  try {
+    parsed = new URL(url);
+  } catch {
+    return "INVALID_URL";
+  }
+  if (parsed.protocol !== "https:") return "NOT_HTTPS";
+  if (parsed.username !== "" || parsed.password !== "") return "USERINFO";
+  const host = parsed.hostname;
+  if (host.endsWith(".")) return "TRAILING_DOT";
+  if (host === "localhost" || host.endsWith(".localhost")) return "LOCALHOST";
+  if (isIpLiteral(host)) return "IP_LITERAL";
+  return parsed;
+}
+
+/** A declared egress target whose host ends in `.` (`share.example.`, `*.localhost.`). */
+export function isTrailingDotTarget(target: string): boolean {
+  return target.replace(/:\d{1,5}$/, "").endsWith(".");
+}
+
+function isIpLiteral(hostname: string): boolean {
+  const bare = hostname.startsWith("[") && hostname.endsWith("]") ? hostname.slice(1, -1) : hostname;
+  return bare.includes(":") || IPV4_PATTERN.test(bare);
 }

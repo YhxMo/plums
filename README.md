@@ -27,6 +27,15 @@ pnpm exec plums
 - 内核不做 DNS 解析。真实的 `EgressSink` 必须在解析后拒绝回环、内网和链路本地地址。
 - 通配符只数域名标签，`*.co.uk` 和 `*.github.io` 仍可通过；公共后缀由宿主限制，因为内核不维护一份会过期的公共后缀清单。
 - 内核不跟随重定向。`EgressSink` 返回 `redirectTo` 时，内核原样交还给调用方；要继续，调用方用新地址再调一次 `runAction`。
+- 以点结尾的主机名一律拒绝（reason 为 `TRAILING_DOT`）。
+
+## 残留设置
+
+导入时，如果 `data/<id>/settings.json` 已经在，按新包的 `settingsSchema` 校验。缺必填、类型不对、或比原值更严，是 `IMPORT_INVALID`，path 为 `/settings/<key>`，不写安装记录，包文件也不会留下。残留文件不是合法 JSON，或新包没有 `settingsSchema`，同样拒绝，path 为 `/settings`（没有设置项时不读取文件内容），文件原样留下。想导入一个没有 `settingsSchema` 的包，要先删掉 `data/<id>/settings.json`。
+
+更新到有 `settingsSchema` 的新版时，残留文件按同样的规则检查，不通过则已安装的旧版保持不变。更新到没有 `settingsSchema` 的新版时，这份文件不读不删，更新继续。
+
+`setSettings` 在写入前检查必填、类型、范围和 enum。失败是 `SETTINGS_INVALID`，path 为 `/settings/<key>`，文件不改，错误信息不含被拒的值。`x-secret` 引用不合法或密钥不存在仍是 `SECRET_NOT_FOUND`。错误码一共十个，多出来的就是 `SETTINGS_INVALID`。
 
 ## 宿主契约
 

@@ -6,6 +6,7 @@ import {
   createCore,
   FakeModelProvider,
   MemorySecretStore,
+  secretRef,
   PlumsError,
   RecordingEgressSink,
   ScriptedConfirm,
@@ -18,21 +19,22 @@ import { expectPlumsError, listAll, manifestZip, validManifest } from "./package
 
 const openCores: Core[] = [];
 
-function coreAt(dataDir: string): Core {
+function coreAt(dataDir: string, secrets: MemorySecretStore = new MemorySecretStore()): Core {
   const core = createCore({
     dataDir,
     model: new FakeModelProvider(),
     egress: new RecordingEgressSink(),
     confirm: new ScriptedConfirm(),
-    secrets: new MemorySecretStore(),
+    secrets,
   });
   openCores.push(core);
   return core;
 }
 
-function freshCore(): { core: Core; dataDir: string } {
+function freshCore(): { core: Core; dataDir: string; secrets: MemorySecretStore } {
   const dataDir = mkdtempSync(path.join(tmpdir(), "plums-t4-"));
-  return { core: coreAt(dataDir), dataDir };
+  const secrets = new MemorySecretStore();
+  return { core: coreAt(dataDir, secrets), dataDir, secrets };
 }
 
 afterEach(() => {
@@ -341,14 +343,31 @@ describe("uninstall", () => {
 });
 
 describe("importing an id that is already installed", () => {
-  it("replaces it and resets it to installed, not enabled, not consented", async () => {
-    const { core } = freshCore();
-    await importManifest(core, manifestWith());
+  it("refuses it and leaves the installed package, then allows a fresh import after uninstall", async () => {
+    const { core, dataDir, secrets } = freshCore();
+    await importManifest(core, manifestWith(), [{ name: "old.txt", data: "old" }]);
+    await secrets.set(secretRef("demo-ext", "token"), "sk-kept");
+    await core.setSettings("demo-ext", { nickname: "Pat" });
+    const settingsPath = path.join(dataDir, "data", "demo-ext", "settings.json");
+    const settingsBefore = readFileSync(settingsPath, "utf8");
     await core.grantConsent("demo-ext");
     await core.enable("demo-ext");
 
-    await importManifest(core, manifestWith({ version: "2.0.0", permissions: [] }));
+    const err = await expectPlumsError(
+      importManifest(core, manifestWith({ version: "2.0.0", permissions: [] }), [{ name: "new.txt", data: "new" }]),
+      "IMPORT_INVALID",
+    );
+    expect(err.details).toEqual({ id: "demo-ext", reason: "ALREADY_INSTALLED" });
+    expect(readFileSync(settingsPath, "utf8")).toBe(settingsBefore);
+    expect(await secrets.get(secretRef("demo-ext", "token"))).toBe("sk-kept");
+    expect(await core.listInstalled()).toMatchObject([
+      { id: "demo-ext", version: "1.2.3", enabled: true, consented: true },
+    ]);
+    expect(await core.getConsent("demo-ext")).not.toBeNull();
+    expect(listAll(path.join(dataDir, "packages", "demo-ext"))).toEqual(["manifest.json", "old.txt"]);
 
+    await core.uninstall("demo-ext");
+    await importManifest(core, manifestWith({ version: "2.0.0", permissions: [] }));
     expect(await core.listInstalled()).toMatchObject([
       { id: "demo-ext", version: "2.0.0", enabled: false, consented: false },
     ]);

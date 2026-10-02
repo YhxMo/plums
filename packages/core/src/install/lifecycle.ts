@@ -8,15 +8,13 @@ import {
   PERMISSION_DENIED,
   PlumsError,
 } from "../errors.js";
+import { acceptResidualSettings, PACKAGE_DATA_DIR } from "./check-settings.js";
 import { installPackage, PACKAGES_DIR } from "../package/install.js";
 import type { Dependency, Manifest, Permission, PermissionLevel } from "../package/types.js";
 import type { ValidatedPackage } from "../package/validate.js";
 import { secretKeys, secretRef } from "../secrets.js";
 import type { SecretStore } from "../types.js";
 import type { ConsentRecord, InstallStore, InstalledPackage } from "./store.js";
-
-/** Per-package data and settings live in `<dataDir>/data/<id>/`. Uninstall removes the folder. */
-export const PACKAGE_DATA_DIR = "data";
 
 export interface InstallContext {
   dataDir: string;
@@ -73,7 +71,10 @@ function growth(old: Permission[], next: Permission): string | undefined {
  * written: installed (PERMISSION_DENIED), same kind and a higher version (IMPORT_INVALID),
  * required dependencies of the new version (DEPENDENCY_MISSING), then each new permission
  * against the old list (CONSENT_REQUIRED unless `consent` is true).
- * Files are swapped with a backup that is restored if the database write fails.
+ * A leftover settings file is checked against the new manifest before any files move.
+ * No settingsSchema leaves that file unread. A mismatch throws before the swap, so the
+ * installed package stays. Files are swapped with a backup that is restored if the
+ * database write fails.
  * Enabled state stays. An existing consent record is replaced by one for the new list;
  * its `grantedAt` only moves when newly approved permissions were added.
  */
@@ -126,6 +127,9 @@ export async function updatePackage(
     previous === undefined
       ? undefined
       : { ...consentFor(manifest), grantedAt: first === undefined ? previous.grantedAt : new Date().toISOString() };
+  // Why before the rename: a settings mismatch must not move the installed files.
+  // Why "ignore": the install record is still here, so this file is not an orphan.
+  await acceptResidualSettings(ctx.dataDir, manifest, "ignore");
   const dir = path.join(ctx.dataDir, PACKAGES_DIR, installed.id);
   const backup = path.join(ctx.dataDir, PACKAGES_DIR, `.backup-${installed.id}`);
   await rm(backup, { recursive: true, force: true });
@@ -174,9 +178,11 @@ export function disable(ctx: InstallContext, id: string): InstalledPackage {
 }
 
 /**
- * Removes the package's secret values, then its install state and consent, then its
- * files and data folder. Values are read from the manifest before the record goes, and
- * the record goes before the files, so the package does not stay listed once its files are gone.
+ * Removes the package's secret values, then its install record and consent, then
+ * `packages/<id>` and `data/<id>` (including settings.json). Refs are read from the
+ * manifest before the record goes, and the record goes before the files, so the package
+ * does not stay listed once its files are gone.
+ * A settings file left behind with no install record is handled by `importPackage`.
  */
 export async function uninstall(ctx: InstallContext, id: string): Promise<void> {
   requireInstalled(ctx, id);

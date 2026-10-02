@@ -1,5 +1,6 @@
 import { Ajv, type ValidateFunction } from "ajv";
 import semver from "semver";
+import type { SettingSpec } from "./types.js";
 
 export const ID_PATTERN = "^[a-z0-9]+([._-][a-z0-9]+)*$";
 export const FORMAT_VERSION_PATTERN = "^[1-9][0-9]*\\.[0-9]+$";
@@ -70,11 +71,19 @@ export const MANIFEST_SCHEMA = {
           type: "object",
           additionalProperties: {
             type: "object",
-            required: ["type"],
+            // Why these three: a setting needs a type to check, a title to label it, and a description to explain it.
+            required: ["type", "title", "description"],
             properties: {
               type: { enum: ["string", "number", "integer", "boolean"] },
               title: { type: "string" },
               description: { type: "string" },
+              // Why open: the default is judged later against this property's type and bounds, not as a free-form blob here.
+              default: {},
+              // Why a number: a bound that is not a number is not a bound.
+              minimum: { type: "number" },
+              maximum: { type: "number" },
+              // Why a list: enum is the set of allowed values; membership is checked when the default or a saved value is judged.
+              enum: { type: "array", minItems: 1 },
               "x-secret": { type: "boolean" },
             },
           },
@@ -84,6 +93,40 @@ export const MANIFEST_SCHEMA = {
     },
   },
 } as const;
+
+const valueAjv = new Ajv({ allErrors: true, strict: false });
+
+export type SettingValueFailure = "TYPE" | "MINIMUM" | "MAXIMUM" | "ENUM";
+
+/**
+ * Judges one value against a setting.
+ * `constraints` is false for the first pass (type only) and true after defaults are filled.
+ * Why Ajv: the same keywords that describe the property (`type`, `minimum`, `maximum`, `enum`) judge the value.
+ * Why strict is off: an enum may list values of the declared type only, and strict mode rejects some of those schemas at compile time.
+ */
+export function settingValueFailure(
+  spec: SettingSpec,
+  value: unknown,
+  constraints: boolean,
+): SettingValueFailure | undefined {
+  const schema: Record<string, unknown> = { type: spec.type };
+  if (constraints) {
+    if (spec.minimum !== undefined) schema.minimum = spec.minimum;
+    if (spec.maximum !== undefined) schema.maximum = spec.maximum;
+    if (spec.enum !== undefined) schema.enum = spec.enum;
+  }
+  const validate = valueAjv.compile(schema);
+  const ok = validate(value);
+  const keywords = new Set((validate.errors ?? []).map((error) => error.keyword));
+  valueAjv.removeSchema(schema);
+  if (ok) return undefined;
+  // Why this order: a type mismatch is decided before a bound, which is the order setSettings uses across fields.
+  if (keywords.has("type")) return "TYPE";
+  if (keywords.has("minimum")) return "MINIMUM";
+  if (keywords.has("maximum")) return "MAXIMUM";
+  if (keywords.has("enum")) return "ENUM";
+  return "TYPE";
+}
 
 let compiled: ValidateFunction | undefined;
 

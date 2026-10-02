@@ -50,8 +50,8 @@ export function validManifest(kind: Manifest["kind"] = "character"): Manifest {
     settingsSchema: {
       type: "object",
       properties: {
-        nickname: { type: "string", title: "Nickname" },
-        retries: { type: "integer", default: 3 },
+        nickname: { type: "string", title: "Nickname", description: "What to call you." },
+        retries: { type: "integer", title: "Retries", description: "How many times to retry.", default: 3 },
       },
     },
     payload: { greeting: "hello", nested: { list: [1, 2, { three: 3 }], nothing: null } },

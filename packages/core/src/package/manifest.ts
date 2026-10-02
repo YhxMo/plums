@@ -1,8 +1,8 @@
 import type { ErrorObject } from "ajv";
 import { FORMAT_UNSUPPORTED, MANIFEST_INVALID, PlumsError } from "../errors.js";
 import { secretKeys } from "../secrets.js";
-import { parseEgressTarget } from "./egress-target.js";
-import { FORMAT_VERSION_PATTERN, manifestValidator } from "./schema.js";
+import { isTrailingDotTarget, parseEgressTarget } from "./egress-target.js";
+import { FORMAT_VERSION_PATTERN, manifestValidator, settingValueFailure } from "./schema.js";
 import { SUPPORTED_FORMAT_MAJOR, type Manifest } from "./types.js";
 
 /**
@@ -28,7 +28,7 @@ export function parseManifest(bytes: Uint8Array): Manifest {
   return checkManifest(value);
 }
 
-/** The only keys an `x-secret` field may have. Any other key could carry a value. */
+/** The only keys an `x-secret` field may have. Why: any other key (default, enum, a nested schema) could carry the secret itself. */
 const SECRET_FIELD_KEYS = new Set(["type", "title", "description", "x-secret"]);
 
 export function checkManifest(value: unknown): Manifest {
@@ -44,9 +44,18 @@ export function checkManifest(value: unknown): Manifest {
       (p) => p.level === "egress" && parseEgressTarget(p.target) === undefined,
     );
     if (bad !== -1) {
+      const at = `/permissions/${bad}/target`;
+      if (isTrailingDotTarget(manifest.permissions[bad]!.target)) {
+        throw new PlumsError({
+          code: MANIFEST_INVALID,
+          message: "主机名不能以点结尾。",
+          path: at,
+          details: { reason: "TRAILING_DOT" },
+        });
+      }
       throw invalid(
         "外发权限的 target 只能写主机名（可带端口），如 api.example.com、api.example.com:8443 或 *.example.com；至少两级域名（不能是 com 或 *.com）；不能带 https:// 、路径、IP 或 localhost。",
-        `/permissions/${bad}/target`,
+        at,
       );
     }
     const properties = manifest.settingsSchema?.properties ?? {};
@@ -59,6 +68,7 @@ export function checkManifest(value: unknown): Manifest {
         );
       }
     }
+    assertSettingDefaults(manifest);
     return manifest;
   }
   const first = validate.errors?.[0];
@@ -66,6 +76,31 @@ export function checkManifest(value: unknown): Manifest {
     throw invalid("manifest.json 的内容不符合包格式。");
   }
   throw toPlumsError(first);
+}
+
+function assertSettingDefaults(manifest: Manifest): void {
+  const properties = manifest.settingsSchema?.properties ?? {};
+  for (const [key, spec] of Object.entries(properties)) {
+    // Why skipped: a secret field is already limited to the whitelist, which rejects default and bounds.
+    if (spec["x-secret"] === true) continue;
+    const at = `/settingsSchema/properties/${escapePointer(key)}`;
+    if (
+      (spec.minimum !== undefined || spec.maximum !== undefined) &&
+      spec.type !== "number" &&
+      spec.type !== "integer"
+    ) {
+      // Why: minimum and maximum are numeric bounds. On text or a boolean they do not mean a range.
+      const keyword = spec.minimum !== undefined ? "minimum" : "maximum";
+      throw invalid(
+        `设置项「${key}」是${typeName(spec.type)}，minimum 和 maximum 只能用在数字上。`,
+        `${at}/${keyword}`,
+      );
+    }
+    if (spec.default !== undefined && settingValueFailure(spec, spec.default, true) !== undefined) {
+      // Why: a default is saved later without asking, so it has to already pass the same rules as a saved value.
+      throw invalid(`设置项「${key}」的默认值不符合它的类型或范围。`, `${at}/default`);
+    }
+  }
 }
 
 function assertFormatSupported(formatVersion: unknown): void {
@@ -142,7 +177,7 @@ function hint(field: string): string {
   }
 }
 
-function typeName(type: string): string {
+export function typeName(type: string): string {
   switch (type) {
     case "string":
       return "文字";

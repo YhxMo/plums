@@ -9,12 +9,13 @@ import {
   PERMISSION_DENIED,
   PlumsError,
   SECRET_NOT_FOUND,
+  SETTINGS_INVALID,
   SHARE_FETCH_FAILED,
 } from "@plums/core";
 import { describe, expect, it } from "vitest";
 
 describe("public error codes", () => {
-  it("imports the nine fixed codes from the package entry", () => {
+  it("imports the ten fixed codes from the package entry", () => {
     expect([
       MANIFEST_INVALID,
       FORMAT_UNSUPPORTED,
@@ -25,6 +26,7 @@ describe("public error codes", () => {
       SECRET_NOT_FOUND,
       IMPORT_INVALID,
       SHARE_FETCH_FAILED,
+      SETTINGS_INVALID,
     ]).toEqual([
       "MANIFEST_INVALID",
       "FORMAT_UNSUPPORTED",
@@ -35,6 +37,7 @@ describe("public error codes", () => {
       "SECRET_NOT_FOUND",
       "IMPORT_INVALID",
       "SHARE_FETCH_FAILED",
+      "SETTINGS_INVALID",
     ]);
     expect(ERROR_CODES).toEqual([
       MANIFEST_INVALID,
@@ -46,8 +49,9 @@ describe("public error codes", () => {
       SECRET_NOT_FOUND,
       IMPORT_INVALID,
       SHARE_FETCH_FAILED,
+      SETTINGS_INVALID,
     ]);
-    expect(new Set(ERROR_CODES).size).toBe(9);
+    expect(new Set(ERROR_CODES).size).toBe(10);
   });
 
   it("accepts each code on PlumsError", () => {

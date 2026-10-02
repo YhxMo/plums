@@ -22,9 +22,16 @@ export interface Dependency {
 
 export interface SettingSpec {
   type: "string" | "number" | "integer" | "boolean";
-  title?: string;
-  description?: string;
+  /** Shown as the label. Required so a setting can be displayed without inventing a name. */
+  title: string;
+  /** Shown as the help text. Required so a setting is not a bare field. */
+  description: string;
   default?: unknown;
+  /** Only meaningful when `type` is `number` or `integer`. */
+  minimum?: number;
+  /** Only meaningful when `type` is `number` or `integer`. */
+  maximum?: number;
+  enum?: unknown[];
   /** When true, the saved value must be this field's secretRef. Only a boolean is accepted. */
   "x-secret"?: boolean;
   [key: string]: unknown;

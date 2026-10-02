@@ -1,6 +1,6 @@
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
-import { PlumsError, type Manifest } from "@plums/core";
+import { MemorySecretStore, PlumsError, secretRef, type Manifest } from "@plums/core";
 import { describe, expect, it } from "vitest";
 import {
   buildZip,
@@ -67,13 +67,36 @@ describe("importPackage: valid packages", () => {
     await expect(core.importPackage(await manifestZip(manifest))).resolves.toBeDefined();
   });
 
-  it("replaces an earlier install of the same id", async () => {
-    const { core } = makeCore();
-    await core.importPackage(await manifestZip(validManifest(), [{ name: "old.txt", data: "old" }]));
-    const second = await core.importPackage(
-      await manifestZip({ ...validManifest(), version: "2.0.0" }, [{ name: "new.txt", data: "new" }]),
+  it("refuses an id that is already installed and leaves the old files", async () => {
+    const secrets = new MemorySecretStore();
+    const { core, dataDir } = makeCore({ secrets });
+    const first = await core.importPackage(await manifestZip(validManifest(), [{ name: "old.txt", data: "old" }]));
+    await secrets.set(secretRef("demo-character", "token"), "sk-kept");
+    await core.setSettings("demo-character", { nickname: "Pat" });
+    const settingsPath = path.join(dataDir, "data", "demo-character", "settings.json");
+    const settingsBefore = readFileSync(settingsPath, "utf8");
+    const err = await expectPlumsError(
+      core.importPackage(await manifestZip({ ...validManifest(), version: "2.0.0" }, [{ name: "new.txt", data: "new" }])),
+      "IMPORT_INVALID",
     );
-    expect(listAll(second.installDir)).toEqual(["manifest.json", "new.txt"]);
+    expect(err.details).toEqual({ id: "demo-character", reason: "ALREADY_INSTALLED" });
+    expect(listAll(first.installDir)).toEqual(["manifest.json", "old.txt"]);
+    expect(readFileSync(settingsPath, "utf8")).toBe(settingsBefore);
+    expect(await secrets.get(secretRef("demo-character", "token"))).toBe("sk-kept");
+    expect(await core.listInstalled()).toEqual([
+      expect.objectContaining({ id: "demo-character", version: "1.2.3", enabled: false, consented: false }),
+    ]);
+  });
+
+  it("imports the same id again after uninstall", async () => {
+    const { core } = makeCore();
+    await core.importPackage(await manifestZip(validManifest()));
+    await core.uninstall("demo-character");
+    const again = await core.importPackage(await manifestZip({ ...validManifest(), version: "2.0.0" }));
+    expect(again.manifest.version).toBe("2.0.0");
+    expect(await core.listInstalled()).toEqual([
+      expect.objectContaining({ id: "demo-character", version: "2.0.0", enabled: false, consented: false }),
+    ]);
   });
 
   it("validatePackage does not write anything, even for a good package", async () => {
