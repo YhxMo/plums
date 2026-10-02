@@ -21,9 +21,14 @@ export class FakeModelProvider implements ModelProvider {
   }
 }
 
-/** Records `send` calls and returns a local stub. Does not open a socket. */
+/**
+ * Records `send` calls and returns a local stub. Does not open a socket.
+ * `redirects` maps a 1-based call number to a URL: that call answers with `redirectTo`.
+ */
 export class RecordingEgressSink implements EgressSink {
   readonly records: EgressRequest[] = [];
+
+  constructor(private readonly redirects: Readonly<Record<number, string>> = {}) {}
 
   async send(req: EgressRequest): Promise<EgressResult> {
     const record: EgressRequest = { url: req.url };
@@ -34,7 +39,8 @@ export class RecordingEgressSink implements EgressSink {
       record.body = req.body;
     }
     this.records.push(record);
-    return { status: 200, body: "" };
+    const redirectTo = this.redirects[this.records.length];
+    return redirectTo === undefined ? { status: 200, body: "" } : { status: 302, body: "", redirectTo };
   }
 }
 
@@ -64,7 +70,7 @@ export class ScriptedConfirm implements Confirm {
   }
 
   async ask(req: ConfirmRequest): Promise<boolean> {
-    this.asked.push({ message: req.message });
+    this.asked.push({ ...req });
     const next = this.answers.shift();
     return next ?? false;
   }

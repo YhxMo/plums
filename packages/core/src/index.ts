@@ -28,7 +28,11 @@ export type {
 } from "./types.js";
 
 export { createCore } from "./create-core.js";
-export type { Core, CreateCoreOptions, ImportedPackage } from "./create-core.js";
+export type { Core, CreateCoreOptions, ImportedPackage, UpdatedPackage } from "./create-core.js";
+
+export type { ActionResult, RunActionInput } from "./actions/run-action.js";
+
+export type { ConsentRecord, InstalledPackage } from "./install/store.js";
 
 export { inspectPackage } from "./package/inspect.js";
 export type { PackageInspection } from "./package/inspect.js";
@@ -41,6 +45,7 @@ export {
 } from "./fakes.js";
 
 export { REDACTED, redact } from "./redact.js";
+export { secretRef } from "./secrets.js";
 
 export { validatePackage } from "./package/validate.js";
 export type { ValidatedPackage } from "./package/validate.js";

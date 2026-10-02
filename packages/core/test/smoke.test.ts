@@ -28,30 +28,30 @@ describe("createCore", () => {
 
     expect(core.version).toBe(VERSION);
     expect(core.dataDir).toBe(path.resolve(dataDir));
-    expect(core.model).toBe(model);
-    expect(core.egress).toBe(egress);
-    expect(core.confirm).toBe(confirm);
-    expect(core.secrets).toBe(secrets);
+    expect(core).not.toHaveProperty("model");
+    expect(core).not.toHaveProperty("egress");
+    expect(core).not.toHaveProperty("confirm");
+    expect(core).not.toHaveProperty("secrets");
 
-    await expect(core.model.complete({ prompt: "hi" })).resolves.toEqual({ text: "hello" });
+    await expect(model.complete({ prompt: "hi" })).resolves.toEqual({ text: "hello" });
     expect(model.calls).toEqual([{ prompt: "hi" }]);
 
-    await expect(core.confirm.ask({ message: "send the file?" })).resolves.toBe(true);
-    await expect(core.confirm.ask({ message: "send again?" })).resolves.toBe(false);
+    await expect(confirm.ask({ message: "send the file?" })).resolves.toBe(true);
+    await expect(confirm.ask({ message: "send again?" })).resolves.toBe(false);
     expect(confirm.asked.map((asked) => asked.message)).toEqual(["send the file?", "send again?"]);
 
     const request = { url: "https://example.test/share", method: "GET", body: "payload" };
-    await expect(core.egress.send(request)).resolves.toEqual({ status: 200, body: "" });
+    await expect(egress.send(request)).resolves.toEqual({ status: 200, body: "" });
     expect(egress.records).toEqual([request]);
     request.body = "changed";
     expect(egress.records[0]?.body).toBe("payload");
     expect(fetchSpy).not.toHaveBeenCalled();
 
-    await core.secrets.set("pkg/token", "s3cret");
-    await expect(core.secrets.get("pkg/token")).resolves.toBe("s3cret");
-    await core.secrets.delete("pkg/token");
-    await expect(core.secrets.get("pkg/token")).resolves.toBeUndefined();
-    await expect(core.secrets.get("missing")).resolves.toBeUndefined();
+    await secrets.set("pkg/token", "s3cret");
+    await expect(secrets.get("pkg/token")).resolves.toBe("s3cret");
+    await secrets.delete("pkg/token");
+    await expect(secrets.get("pkg/token")).resolves.toBeUndefined();
+    await expect(secrets.get("missing")).resolves.toBeUndefined();
   });
 
   it("denies confirmation when no answer was preset", async () => {

@@ -18,11 +18,15 @@ export interface ExportOptions {
 
 const FIXED_MTIME = new Date(1980, 0, 1);
 
-/** Builds the zip bytes. Same input always gives the same bytes. */
+/**
+ * Builds the zip bytes. Same input always gives the same bytes. Throws IMPORT_INVALID when
+ * a file name, file or the manifest contains one of `secrets` (known secret values).
+ */
 export async function exportPackage(
   input: ExportInput,
   limits: PackageLimits,
   options: ExportOptions = {},
+  secrets: readonly string[] = [],
 ): Promise<Uint8Array> {
   const manifestText = serializeManifest(input.manifest);
   checkManifest(JSON.parse(manifestText));
@@ -48,6 +52,13 @@ export async function exportPackage(
     }
     seen.add(path);
     total += data.length;
+  }
+  // The JSON-escaped form is what a value with quotes or non-ASCII characters looks like in manifest.json.
+  const needles = secrets.filter((s) => s !== "").flatMap((s) => [s, JSON.stringify(s).slice(1, -1)]);
+  for (const [path, data] of [[MANIFEST_FILE, Buffer.from(manifestText)] as const, ...files]) {
+    if (needles.some((needle) => path.includes(needle) || data.includes(needle))) {
+      throw importInvalid(`没有导出：${path} 里含有已保存的密钥。密钥不能放进包里，请先把它去掉。`);
+    }
   }
   if (total > limits.maxTotalBytes) {
     throw importInvalid("要导出的内容超过了大小上限，导入时会被拒绝。");

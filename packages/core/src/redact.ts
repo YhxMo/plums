@@ -49,32 +49,35 @@ function walk(value: unknown, secrets: readonly string[], seen: WeakSet<object>)
     return REDACTED;
   }
   seen.add(value);
-
-  if (value instanceof PlumsError) {
-    return redactPlumsError(value, secrets, seen);
-  }
-
-  if (value instanceof Error) {
-    const copy = new Error(replaceSecrets(value.message, secrets));
-    copy.name = replaceSecrets(value.name, secrets);
-    if (value.cause !== undefined) {
-      copy.cause = walk(value.cause, secrets, seen);
+  try {
+    if (value instanceof PlumsError) {
+      return redactPlumsError(value, secrets, seen);
     }
-    return copy;
-  }
 
-  if (Array.isArray(value)) {
-    return value.map((item) => walk(item, secrets, seen));
-  }
+    if (value instanceof Error) {
+      const copy = new Error(replaceSecrets(value.message, secrets));
+      copy.name = replaceSecrets(value.name, secrets);
+      if (value.cause !== undefined) {
+        copy.cause = walk(value.cause, secrets, seen);
+      }
+      return copy;
+    }
 
-  const prototype = Object.getPrototypeOf(value);
-  if (prototype !== Object.prototype && prototype !== null) {
-    return value;
-  }
+    if (Array.isArray(value)) {
+      return value.map((item) => walk(item, secrets, seen));
+    }
 
-  const out: Record<string, unknown> = {};
-  for (const [key, child] of Object.entries(value)) {
-    out[replaceSecrets(key, secrets)] = walk(child, secrets, seen);
+    const prototype = Object.getPrototypeOf(value);
+    if (prototype !== Object.prototype && prototype !== null) {
+      return value;
+    }
+
+    const out: Record<string, unknown> = {};
+    for (const [key, child] of Object.entries(value)) {
+      out[replaceSecrets(key, secrets)] = walk(child, secrets, seen);
+    }
+    return out;
+  } finally {
+    seen.delete(value);
   }
-  return out;
 }

@@ -48,6 +48,8 @@ const badManifests: [string, Mutate, string][] = [
   ["setting that is not an object", (m) => (m.settingsSchema.properties.nickname = "string"), "/settingsSchema/properties/nickname"],
   ["settingsSchema that is not an object", (m) => (m.settingsSchema = "none"), "/settingsSchema"],
   ["settingsSchema without properties", (m) => delete m.settingsSchema.properties, "/settingsSchema/properties"],
+  ["x-secret as the string true", (m) => (m.settingsSchema.properties.nickname["x-secret"] = "true"), "/settingsSchema/properties/nickname/x-secret"],
+  ["x-secret as the number 1", (m) => (m.settingsSchema.properties.nickname["x-secret"] = 1), "/settingsSchema/properties/nickname/x-secret"],
   ["dependency that is a string", (m) => (m.dependencies[0] = "base-pack@^1.0.0"), "/dependencies/0"],
   ["dependency that is null", (m) => (m.dependencies = [null]), "/dependencies/0"],
   ["second dependency that is a number", (m) => m.dependencies.push(3), "/dependencies/1"],
@@ -138,4 +140,16 @@ describe("importPackage: MANIFEST_INVALID", () => {
     const err = await expectPlumsError(core.importPackage(await manifestZip(manifest)), "MANIFEST_INVALID");
     expect(err.message).toBe("「permissions」第 1 项的「level」 的值不对，只能是 read、write、egress 之一。");
   });
+});
+
+describe("egress targets that are accepted", () => {
+  it.each(["api.example.com", "api.example.com:8443", "*.example.com", "API.Example.COM", "bücher.example"])(
+    "%s",
+    async (target) => {
+      const { core } = makeCore();
+      const manifest = validManifest();
+      manifest.permissions[1]!.target = target;
+      await expect(core.validatePackage(await manifestZip(manifest))).resolves.toBeDefined();
+    },
+  );
 });

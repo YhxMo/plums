@@ -1,0 +1,71 @@
+import { existsSync } from "node:fs";
+import { mkdir, readFile, writeFile } from "node:fs/promises";
+import path from "node:path";
+import { PlumsError, SECRET_NOT_FOUND } from "../errors.js";
+import { escapePointer } from "../package/manifest.js";
+import type { Manifest } from "../package/types.js";
+import { secretKeys, secretRef } from "../secrets.js";
+import { PACKAGE_DATA_DIR, requireInstalled, requireManifest, type InstallContext } from "./lifecycle.js";
+import { DATABASE_FILE } from "./store.js";
+
+const SETTINGS_FILE = "settings.json";
+
+type Settings = Record<string, unknown>;
+
+/**
+ * Checks every `x-secret` value against the SecretStore and returns the settings with
+ * those refs replaced by the real values. Throws SECRET_NOT_FOUND at `/settings/<key>`.
+ */
+async function resolveSecrets(ctx: InstallContext, manifest: Manifest, values: Settings): Promise<Settings> {
+  const out = { ...values };
+  for (const key of secretKeys(manifest).filter((k) => Object.hasOwn(values, k))) {
+    const ref = secretRef(manifest.id, key);
+    const fail = (reason: "NOT_A_SECRET_REF" | "NOT_FOUND", message: string) =>
+      new PlumsError({
+        code: SECRET_NOT_FOUND,
+        message,
+        path: `/settings/${escapePointer(key)}`,
+        details: { id: manifest.id, key, secretRef: ref, reason },
+      });
+    if (values[key] !== ref) {
+      throw fail("NOT_A_SECRET_REF", `设置项「${key}」是密钥，只能填引用 ${ref}，不能直接写密钥本身。`);
+    }
+    const value = await ctx.secrets.get(ref);
+    if (value === undefined) {
+      throw fail("NOT_FOUND", `设置项「${key}」引用的密钥 ${ref} 还没有保存。请先把密钥存进 SecretStore。`);
+    }
+    out[key] = value;
+  }
+  return out;
+}
+
+/** Replaces the package's saved settings. Nothing is written when a secret field is not a stored ref. */
+export async function setSettings(ctx: InstallContext, id: string, values: Settings): Promise<void> {
+  requireInstalled(ctx, id);
+  await resolveSecrets(ctx, requireManifest(ctx, id), values);
+  const dir = path.join(ctx.dataDir, PACKAGE_DATA_DIR, id);
+  await mkdir(dir, { recursive: true });
+  await writeFile(path.join(dir, SETTINGS_FILE), JSON.stringify(values, null, 2));
+}
+
+/** The saved settings with secret refs replaced by their values. `{}` when none were saved. */
+export async function resolveSettings(ctx: InstallContext, id: string): Promise<Settings> {
+  requireInstalled(ctx, id);
+  let text: string;
+  try {
+    text = await readFile(path.join(ctx.dataDir, PACKAGE_DATA_DIR, id, SETTINGS_FILE), "utf8");
+  } catch (err) {
+    if ((err as NodeJS.ErrnoException).code === "ENOENT") return {};
+    throw err;
+  }
+  return resolveSecrets(ctx, requireManifest(ctx, id), JSON.parse(text) as Settings);
+}
+
+/** Every secret value stored for an installed package. What `redact` is given. */
+export async function knownSecrets(ctx: InstallContext): Promise<string[]> {
+  if (!existsSync(path.join(ctx.dataDir, DATABASE_FILE))) return [];
+  const values = await Promise.all(
+    ctx.store.list().flatMap(({ id }) => secretKeys(requireManifest(ctx, id)).map((key) => ctx.secrets.get(secretRef(id, key)))),
+  );
+  return values.filter((value) => value !== undefined);
+}

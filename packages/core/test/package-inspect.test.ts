@@ -44,7 +44,7 @@ describe("inspect: valid packages", () => {
   it("lists read, write and egress in manifest order, each with level and reason", async () => {
     const { core, dataDir } = makeCore();
     const permissions: Manifest["permissions"] = [
-      { id: "send-hook", level: "egress", target: "https://hooks.example/plums", reason: "Notify the webhook." },
+      { id: "send-hook", level: "egress", target: "hooks.example", reason: "Notify the webhook." },
       { id: "read-notes", level: "read", target: "notes", reason: "Show your notes." },
       { id: "write-notes", level: "write", target: "notes", reason: "Save a draft.", note: "kept" },
       { id: "read-profile", level: "read", target: "profile", reason: "Show your display name." },
@@ -140,13 +140,16 @@ describe("inspect: valid packages", () => {
   });
 
   it("does not install, confirm, call the model, or send anything", async () => {
-    const { core, dataDir } = makeCore();
+    const model = new FakeModelProvider();
+    const egress = new RecordingEgressSink();
+    const confirm = new ScriptedConfirm();
+    const { core, dataDir } = makeCore({ model, egress, confirm });
     await core.inspect(await manifestZip(validManifest()));
 
     expect(listAll(dataDir)).toEqual([]);
-    expect((core.confirm as ScriptedConfirm).asked).toEqual([]);
-    expect((core.egress as RecordingEgressSink).records).toEqual([]);
-    expect((core.model as FakeModelProvider).calls).toEqual([]);
+    expect(confirm.asked).toEqual([]);
+    expect(egress.records).toEqual([]);
+    expect(model.calls).toEqual([]);
   });
 
   it("uses the limits configured on the core", async () => {
@@ -215,6 +218,114 @@ describe("inspect: bad packages return the same PlumsError as import", () => {
     [
       "permission with an empty target",
       () => broken((manifest) => (manifest.permissions[1].target = "")),
+      "MANIFEST_INVALID",
+      "/permissions/1/target",
+    ],
+    [
+      "egress target that is a wildcard on a top-level domain",
+      () => broken((manifest) => (manifest.permissions[1].target = '*.com')),
+      "MANIFEST_INVALID",
+      "/permissions/1/target",
+    ],
+    [
+      "egress target with an empty label",
+      () => broken((manifest) => (manifest.permissions[1].target = "a..good.com")),
+      "MANIFEST_INVALID",
+      "/permissions/1/target",
+    ],
+    [
+      "egress target that starts with a dot",
+      () => broken((manifest) => (manifest.permissions[1].target = ".good.com")),
+      "MANIFEST_INVALID",
+      "/permissions/1/target",
+    ],
+    [
+      "egress target that is a single label",
+      () => broken((manifest) => (manifest.permissions[1].target = 'com')),
+      "MANIFEST_INVALID",
+      "/permissions/1/target",
+    ],
+    [
+      "egress target with a scheme",
+      () => broken((manifest) => (manifest.permissions[1].target = 'https://stats.example')),
+      "MANIFEST_INVALID",
+      "/permissions/1/target",
+    ],
+    [
+      "egress target with a path",
+      () => broken((manifest) => (manifest.permissions[1].target = 'stats.example/upload')),
+      "MANIFEST_INVALID",
+      "/permissions/1/target",
+    ],
+    [
+      "egress target that is an IPv4 address",
+      () => broken((manifest) => (manifest.permissions[1].target = '1.2.3.4')),
+      "MANIFEST_INVALID",
+      "/permissions/1/target",
+    ],
+    [
+      "egress target that is an IPv6 address",
+      () => broken((manifest) => (manifest.permissions[1].target = '[::1]')),
+      "MANIFEST_INVALID",
+      "/permissions/1/target",
+    ],
+    [
+      "egress target that is localhost",
+      () => broken((manifest) => (manifest.permissions[1].target = 'localhost:8080')),
+      "MANIFEST_INVALID",
+      "/permissions/1/target",
+    ],
+    [
+      "egress target that is LOCALHOST",
+      () => broken((manifest) => (manifest.permissions[1].target = "LOCALHOST")),
+      "MANIFEST_INVALID",
+      "/permissions/1/target",
+    ],
+    [
+      "egress target under .localhost",
+      () => broken((manifest) => (manifest.permissions[1].target = "foo.localhost")),
+      "MANIFEST_INVALID",
+      "/permissions/1/target",
+    ],
+    [
+      "egress target *.localhost",
+      () => broken((manifest) => (manifest.permissions[1].target = "*.localhost")),
+      "MANIFEST_INVALID",
+      "/permissions/1/target",
+    ],
+    [
+      "egress target with a trailing wildcard",
+      () => broken((manifest) => (manifest.permissions[1].target = "example.com*")),
+      "MANIFEST_INVALID",
+      "/permissions/1/target",
+    ],
+    [
+      "egress target with user and password",
+      () => broken((manifest) => (manifest.permissions[1].target = 'user:pw@stats.example')),
+      "MANIFEST_INVALID",
+      "/permissions/1/target",
+    ],
+    [
+      "egress target with a bare wildcard",
+      () => broken((manifest) => (manifest.permissions[1].target = '*')),
+      "MANIFEST_INVALID",
+      "/permissions/1/target",
+    ],
+    [
+      "egress target with a wildcard in the middle",
+      () => broken((manifest) => (manifest.permissions[1].target = 'a.*.example.com')),
+      "MANIFEST_INVALID",
+      "/permissions/1/target",
+    ],
+    [
+      "egress target with port 0",
+      () => broken((manifest) => (manifest.permissions[1].target = 'stats.example:0')),
+      "MANIFEST_INVALID",
+      "/permissions/1/target",
+    ],
+    [
+      "egress target with a prefix wildcard",
+      () => broken((manifest) => (manifest.permissions[1].target = 'api*.example.com')),
       "MANIFEST_INVALID",
       "/permissions/1/target",
     ],

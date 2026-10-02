@@ -1,5 +1,7 @@
 import type { ErrorObject } from "ajv";
 import { FORMAT_UNSUPPORTED, MANIFEST_INVALID, PlumsError } from "../errors.js";
+import { secretKeys } from "../secrets.js";
+import { parseEgressTarget } from "./egress-target.js";
 import { FORMAT_VERSION_PATTERN, manifestValidator } from "./schema.js";
 import { SUPPORTED_FORMAT_MAJOR, type Manifest } from "./types.js";
 
@@ -26,6 +28,9 @@ export function parseManifest(bytes: Uint8Array): Manifest {
   return checkManifest(value);
 }
 
+/** The only keys an `x-secret` field may have. Any other key could carry a value. */
+const SECRET_FIELD_KEYS = new Set(["type", "title", "description", "x-secret"]);
+
 export function checkManifest(value: unknown): Manifest {
   if (value === null || typeof value !== "object" || Array.isArray(value)) {
     throw invalid("manifest.json 的内容必须是一个 JSON 对象（以 { 开头）。");
@@ -34,7 +39,27 @@ export function checkManifest(value: unknown): Manifest {
 
   const validate = manifestValidator();
   if (validate(value)) {
-    return value as Manifest;
+    const manifest = value as Manifest;
+    const bad = manifest.permissions.findIndex(
+      (p) => p.level === "egress" && parseEgressTarget(p.target) === undefined,
+    );
+    if (bad !== -1) {
+      throw invalid(
+        "外发权限的 target 只能写主机名（可带端口），如 api.example.com、api.example.com:8443 或 *.example.com；至少两级域名（不能是 com 或 *.com）；不能带 https:// 、路径、IP 或 localhost。",
+        `/permissions/${bad}/target`,
+      );
+    }
+    const properties = manifest.settingsSchema?.properties ?? {};
+    for (const key of secretKeys(manifest)) {
+      const extra = Object.keys(properties[key] ?? {}).find((name) => !SECRET_FIELD_KEYS.has(name));
+      if (extra !== undefined) {
+        throw invalid(
+          `设置项「${key}」是密钥，只能写 type、title、description 和 x-secret，不能写「${extra}」。`,
+          `/settingsSchema/properties/${escapePointer(key)}/${escapePointer(extra)}`,
+        );
+      }
+    }
+    return manifest;
   }
   const first = validate.errors?.[0];
   if (first === undefined) {

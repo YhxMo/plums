@@ -75,6 +75,7 @@ export const MANIFEST_SCHEMA = {
               type: { enum: ["string", "number", "integer", "boolean"] },
               title: { type: "string" },
               description: { type: "string" },
+              "x-secret": { type: "boolean" },
             },
           },
         },

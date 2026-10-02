@@ -19,15 +19,26 @@ export interface EgressRequest {
 export interface EgressResult {
   status: number;
   body: string;
+  /** Set when the answer is a redirect. The sink must not follow it, and the core does not follow it either. */
+  redirectTo?: string;
 }
 
-/** The only outbound exit, including share-link downloads. */
+/**
+ * The only outbound exit, including share-link downloads.
+ * A real sink limits how big a response it will read and how long it will wait.
+ * `EgressRequest` has no size or time fields. After DNS resolution the sink also refuses
+ * loopback, private-network and link-local addresses. The core does not resolve DNS.
+ */
 export interface EgressSink {
   send(req: EgressRequest): Promise<EgressResult>;
 }
 
 export interface ConfirmRequest {
   message: string;
+  /** Where an egress goes: normalized host, with the port when it is not 443. */
+  host?: string;
+  /** The `reason` of the manifest permission. */
+  reason?: string;
 }
 
 export interface Confirm {

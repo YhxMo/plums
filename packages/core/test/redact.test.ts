@@ -73,6 +73,17 @@ describe("redact", () => {
     expect(redact("untouched", [""])).toBe("untouched");
   });
 
+  it("redacts a shared object twice and stops on a real cycle", () => {
+    const shared = { token: secret };
+    const cycle: { token: string; self?: unknown } = { token: secret };
+    cycle.self = cycle;
+    expect(redact({ a: shared, b: shared }, [secret])).toEqual({
+      a: { token: REDACTED },
+      b: { token: REDACTED },
+    });
+    expect(redact(cycle, [secret])).toEqual({ token: REDACTED, self: REDACTED });
+  });
+
   it("drops a secret that is the entire path", () => {
     const pointer = "/settings/apiKey";
     const err = new PlumsError({

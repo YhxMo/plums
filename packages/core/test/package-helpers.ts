@@ -45,7 +45,7 @@ export function validManifest(kind: Manifest["kind"] = "character"): Manifest {
     dependencies: [{ kind: "extension", id: "base-pack", range: "^1.0.0", optional: false }],
     permissions: [
       { id: "read-notes", level: "read", target: "notes", reason: "Show your notes." },
-      { id: "send-stats", level: "egress", target: "https://stats.example", reason: "Upload usage." },
+      { id: "send-stats", level: "egress", target: "stats.example", reason: "Upload usage." },
     ],
     settingsSchema: {
       type: "object",

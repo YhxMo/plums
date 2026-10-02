@@ -25,6 +25,8 @@ export interface SettingSpec {
   title?: string;
   description?: string;
   default?: unknown;
+  /** When true, the saved value must be this field's secretRef. Only a boolean is accepted. */
+  "x-secret"?: boolean;
   [key: string]: unknown;
 }
 
