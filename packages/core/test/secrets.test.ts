@@ -228,17 +228,50 @@ describe("export", () => {
   });
 });
 
-describe("redaction falls back to the original error", () => {
-  it("returns the original error when listing secret values fails", async () => {
+describe("redaction when the secret store cannot be read", () => {
+  it("hides the network error and the store error when SecretStore.get rejects", async () => {
+    const secret = "REVIEW_FAKE_SECRET";
+    await secrets.set(API, secret);
+    await core.grantConsent(ID);
+    await core.enable(ID);
+
+    let unavailable = false;
     let reads = 0;
-    secrets.get = async () => {
+    const stored = secrets.get.bind(secrets);
+    secrets.get = async (ref: string) => {
       reads += 1;
-      throw new Error(`store down ${FAKE}`);
+      if (!unavailable) return stored(ref);
+      throw Object.assign(new Error(`keychain unavailable ${secret}`), {
+        cause: new Error(`keychain cause ${secret}`),
+        details: { secret },
+      });
     };
-    const err = await expectPlumsError(core.enable(ID), "CONSENT_REQUIRED");
+    egress.send = async () => {
+      unavailable = true;
+      throw Object.assign(new Error(`network failure with secret=${secret}`), {
+        cause: new Error(`socket cause ${secret}`),
+        details: { authorization: secret },
+      });
+    };
+
+    const err = await expectPlumsError(
+      core.runAction({ extensionId: ID, permissionId: "send", request: { url: "https://api.example.com/" } }),
+      "SECRET_NOT_FOUND",
+    );
     expect(reads).toBeGreaterThan(0);
-    expect(show(err)).not.toContain("store down");
-    expect(show(err)).not.toContain(FAKE);
+    expect(unavailable).toBe(true);
+    expect(err.message).toBe("读取密钥失败，原来的错误已隐藏，以免带出密钥。");
+    expect(err.cause).toBeUndefined();
+    expect(err.details).toBeUndefined();
+    expect(err.path).toBeUndefined();
+    const text = (value: unknown): string =>
+      value instanceof Error
+        ? `${value.message}\n${text(value.cause)}\n${JSON.stringify(value)}`
+        : (JSON.stringify(value) ?? "");
+    const exposed = [err.message, text(err.cause), text(err.details), JSON.stringify(err)].join("\n");
+    expect(exposed).not.toContain(secret);
+    expect(exposed).not.toContain("keychain");
+    expect(exposed).not.toContain("network failure");
   });
 });
 

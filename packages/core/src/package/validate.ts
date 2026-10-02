@@ -23,7 +23,6 @@ export async function validatePackage(
   limits: PackageLimits = DEFAULT_PACKAGE_LIMITS,
 ): Promise<ValidatedPackage> {
   const entries = await readZipEntries(input, limits);
-  assertNoFileDirectoryClash(entries.map((entry) => entry.path));
   const manifestEntry = entries.find((entry) => entry.path === MANIFEST_FILE);
   if (manifestEntry === undefined) {
     throw importInvalid(
@@ -35,16 +34,4 @@ export async function validatePackage(
     entries.filter((entry) => entry !== manifestEntry).map((entry) => [entry.path, entry.data]),
   );
   return { manifest, files, manifestBytes: manifestEntry.data };
-}
-
-function assertNoFileDirectoryClash(paths: string[]): void {
-  const all = new Set(paths);
-  for (const path of paths) {
-    for (let slash = path.indexOf("/"); slash !== -1; slash = path.indexOf("/", slash + 1)) {
-      const parent = path.slice(0, slash);
-      if (all.has(parent)) {
-        throw importInvalid(`压缩包里「${parent}」既是文件又是文件夹。`);
-      }
-    }
-  }
 }

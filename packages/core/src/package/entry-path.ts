@@ -1,5 +1,5 @@
 import { IMPORT_INVALID, PlumsError } from "../errors.js";
-import type { PackageLimits } from "./types.js";
+import { MANIFEST_FILE, type PackageLimits } from "./types.js";
 
 /** Throws IMPORT_INVALID when an entry name could escape the package directory. */
 export function assertSafeEntryPath(name: string, limits: PackageLimits): void {
@@ -30,8 +30,61 @@ export function assertSafeEntryPath(name: string, limits: PackageLimits): void {
   }
 }
 
-export function importInvalid(message: string): PlumsError {
-  return new PlumsError({ code: IMPORT_INVALID, message });
+export function importInvalid(message: string, entry?: string): PlumsError {
+  return new PlumsError({
+    code: IMPORT_INVALID,
+    message,
+    ...(entry === undefined ? {} : { path: `/${entry.replaceAll("~", "~0").replaceAll("/", "~1")}` }),
+  });
+}
+
+interface SeenPath {
+  name: string;
+  directory: boolean;
+}
+
+/**
+ * One check for import and export. Rejects a repeated path, two paths that differ
+ * only by case, a name that would overwrite `manifest.json` on a case-insensitive
+ * disk, and a path that is both a file and a directory.
+ */
+export function assertNoPathConflict(paths: readonly string[]): void {
+  const seen = new Map<string, SeenPath>();
+  const files = new Map<string, string>();
+  for (const raw of paths) {
+    const directory = raw.endsWith("/");
+    const name = directory ? raw.slice(0, -1) : raw;
+    const key = name.toLowerCase();
+    if (key === MANIFEST_FILE && name !== MANIFEST_FILE) {
+      throw importInvalid(`压缩包里的「${name}」会盖住 manifest.json。`, name);
+    }
+    const previous = seen.get(key);
+    if (previous !== undefined) {
+      if (previous.directory !== directory) {
+        const fileName = previous.directory ? name : previous.name;
+        throw importInvalid(`压缩包里「${fileName}」既是文件又是文件夹。`);
+      }
+      if (previous.name === name) {
+        throw importInvalid(`压缩包里有重复的文件路径：${name}`);
+      }
+      throw importInvalid(
+        `压缩包里「${previous.name}」和「${name}」只是大小写不同，在不区分大小写的磁盘上会互相覆盖。`,
+        name,
+      );
+    }
+    seen.set(key, { name, directory });
+    if (!directory) files.set(key, name);
+  }
+  for (const raw of paths) {
+    const name = raw.endsWith("/") ? raw.slice(0, -1) : raw;
+    const parts = name.split("/");
+    for (let index = 1; index < parts.length; index += 1) {
+      const parent = files.get(parts.slice(0, index).join("/").toLowerCase());
+      if (parent !== undefined) {
+        throw importInvalid(`压缩包里「${parent}」既是文件又是文件夹。`);
+      }
+    }
+  }
 }
 
 function shorten(text: string): string {

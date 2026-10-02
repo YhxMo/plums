@@ -1,5 +1,5 @@
 import { rm } from "node:fs/promises";
-import { IMPORT_INVALID, PlumsError } from "./errors.js";
+import { IMPORT_INVALID, PlumsError, SECRET_NOT_FOUND } from "./errors.js";
 import path from "node:path";
 import { runAction, type ActionResult, type RunActionInput } from "./actions/run-action.js";
 import * as lifecycle from "./install/lifecycle.js";
@@ -23,7 +23,7 @@ import type { Confirm, EgressSink, ModelProvider, SecretStore } from "./types.js
 import { exportPackage, type ExportInput, type ExportOptions } from "./package/export.js";
 import { fetchSharedPackage, shareToFile } from "./share.js";
 import { inspectPackage, type PackageInspection } from "./package/inspect.js";
-import { installPackage } from "./package/install.js";
+import { PACKAGES_DIR, publishStaged, stagePackage } from "./package/install.js";
 import {
   DEFAULT_PACKAGE_LIMITS,
   type PackageContents,
@@ -63,8 +63,11 @@ export interface Core {
    * Validates a zip, then writes it to the data directory and records it as installed:
    * not enabled, no consent. Writes nothing if it is invalid. An id that is already
    * installed is IMPORT_INVALID (`details.reason` is `ALREADY_INSTALLED`) and is left
-   * unchanged. Use `updatePackage` to move to a higher version. After uninstall, the
-   * same id can be imported again.
+   * unchanged. In one process and one data directory a second import of that id waits
+   * its turn and gets the same error. Why the queue is in memory: a second process
+   * is not ordered by it. That process still returns ALREADY_INSTALLED, and it does
+   * not remove or replace the winner's install directory. Use `updatePackage` to move
+   * to a higher version. After uninstall, the same id can be imported again.
    * If `data/<id>/settings.json` is already there, it is checked before any package
    * files are written. A missing required field, a wrong type, or a tighter bound is
    * IMPORT_INVALID at `/settings/<key>`. A file that is not JSON, or a package with no
@@ -213,25 +216,43 @@ export function createCore(options: CreateCoreOptions): Core {
   const ctx = { dataDir: resolvedDataDir, store, secrets: options.secrets };
   const importPackage = async (input: Uint8Array | string): Promise<ImportedPackage> => {
     const validated = await validatePackage(input, limits);
-    store.open();
-    if (store.get(validated.manifest.id) !== undefined) {
-      throw new PlumsError({
-        code: IMPORT_INVALID,
-        message: `「${validated.manifest.name}」已经安装了。要换版本请更新它，不要再次导入。`,
-        details: { id: validated.manifest.id, reason: "ALREADY_INSTALLED" },
-      });
-    }
-    // Why before installPackage: a leftover file must not leave a package directory behind.
-    // Why "reject": there is no install record yet, so the file is an orphan.
-    await acceptResidualSettings(resolvedDataDir, validated.manifest, "reject");
-    const installDir = await installPackage(resolvedDataDir, validated);
-    try {
-      store.recordInstall(validated.manifest);
-    } catch (err) {
-      await rm(installDir, { recursive: true, force: true });
-      throw err;
-    }
-    return { manifest: validated.manifest, files: validated.files, installDir };
+    // Why a per-id chain, and only inside this process: the map lives in memory, so
+    // it orders callers that share this process and this data directory. The later
+    // one gets ALREADY_INSTALLED. Two processes both pass the check below.
+    return enqueueById(validated.manifest.id, async () => {
+      store.open();
+      // Why before mkdir of packages/ or a staging directory: an id that is already
+      // installed is refused, and that refusal must not create an install root.
+      if (store.get(validated.manifest.id) !== undefined) {
+        throw alreadyInstalled(validated.manifest);
+      }
+      // Why before any package file is written: a leftover settings file must not
+      // leave a package directory behind.
+      // Why "reject": there is no install record yet, so the file is an orphan.
+      await acceptResidualSettings(resolvedDataDir, validated.manifest, "reject");
+      const staging = await stagePackage(resolvedDataDir, validated);
+      try {
+        store.recordInstall(validated.manifest);
+      } catch (err) {
+        // Why only the staging directory: packages/<id> may already be the winner's
+        // installDir. Deleting that path left a row whose directory was gone.
+        await rm(staging, { recursive: true, force: true });
+        if (isInstallKeyConflict(err)) throw alreadyInstalled(validated.manifest);
+        throw err;
+      }
+      const installDir = path.join(resolvedDataDir, PACKAGES_DIR, validated.manifest.id);
+      try {
+        // Why after the insert: only the process that owns the row may replace
+        // packages/<id>. The loser never reaches this line.
+        await publishStaged(staging, installDir);
+      } catch (err) {
+        // Why drop the row: the insert was ours and the files did not land, so a
+        // later import is not stuck with a record and no directory.
+        store.remove(validated.manifest.id);
+        throw err;
+      }
+      return { manifest: validated.manifest, files: validated.files, installDir };
+    });
   };
 
   const guard =
@@ -244,7 +265,11 @@ export function createCore(options: CreateCoreOptions): Core {
         try {
           secrets = await knownSecrets(ctx);
         } catch {
-          throw err;
+          // Why neither error: the failed read and the original error can both quote a secret.
+          throw new PlumsError({
+            code: SECRET_NOT_FOUND,
+            message: "读取密钥失败，原来的错误已隐藏，以免带出密钥。",
+          });
         }
         throw secrets.length > 0 ? redact(err, secrets) : err;
       }
@@ -297,6 +322,41 @@ export function createCore(options: CreateCoreOptions): Core {
       store.close();
     },
   };
+}
+
+const importQueue = new Map<string, Promise<void>>();
+
+function alreadyInstalled(manifest: { id: string; name: string }): PlumsError {
+  // Why this sentence and these details: the installed check already reports
+  // IMPORT_INVALID with reason ALREADY_INSTALLED and no path.
+  // Why no cause: the SQLite message names the table, and that string must not ride along.
+  return new PlumsError({
+    code: IMPORT_INVALID,
+    message: `「${manifest.name}」已经安装了。要换版本请更新它，不要再次导入。`,
+    details: { id: manifest.id, reason: "ALREADY_INSTALLED" },
+  });
+}
+
+function isInstallKeyConflict(err: unknown): boolean {
+  // Why the code only: PRIMARY KEY and UNIQUE are the constraint failures of an
+  // id that is already installed. The message is not copied onto the PlumsError.
+  if (typeof err !== "object" || err === null || !("code" in err)) return false;
+  const code = (err as { code?: unknown }).code;
+  return code === "SQLITE_CONSTRAINT_PRIMARYKEY" || code === "SQLITE_CONSTRAINT_UNIQUE";
+}
+
+function enqueueById<T>(id: string, task: () => Promise<T>): Promise<T> {
+  const previous = importQueue.get(id) ?? Promise.resolve();
+  const run = previous.then(task, task);
+  const settled = run.then(
+    () => undefined,
+    () => undefined,
+  );
+  importQueue.set(id, settled);
+  void settled.then(() => {
+    if (importQueue.get(id) === settled) importQueue.delete(id);
+  });
+  return run;
 }
 
 function resolveLimits(overrides: Partial<PackageLimits> | undefined): Readonly<PackageLimits> {

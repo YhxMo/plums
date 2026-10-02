@@ -1,7 +1,7 @@
 import { writeFile } from "node:fs/promises";
 import { Buffer } from "node:buffer";
 import { ZipFile } from "yazl";
-import { assertSafeEntryPath, importInvalid } from "./entry-path.js";
+import { assertNoPathConflict, assertSafeEntryPath, importInvalid } from "./entry-path.js";
 import { checkManifest } from "./manifest.js";
 import { MANIFEST_FILE, type Manifest, type PackageLimits } from "./types.js";
 
@@ -20,7 +20,8 @@ const FIXED_MTIME = new Date(1980, 0, 1);
 
 /**
  * Builds the zip bytes. Same input always gives the same bytes. Throws IMPORT_INVALID when
- * a file name, file or the manifest contains one of `secrets` (known secret values).
+ * paths collide (same check as import) or a file name, file or the manifest contains one of
+ * `secrets` (known secret values).
  */
 export async function exportPackage(
   input: ExportInput,
@@ -37,22 +38,18 @@ export async function exportPackage(
   if (files.length + 1 > limits.maxFiles) {
     throw importInvalid(`要导出的文件太多了（超过 ${limits.maxFiles} 个）。`);
   }
-  const seen = new Set<string>();
   let total = Buffer.byteLength(manifestText);
-  for (const [path, data] of files) {
-    assertSafeEntryPath(path, limits);
-    if (path === MANIFEST_FILE) {
+  for (const [filePath, data] of files) {
+    assertSafeEntryPath(filePath, limits);
+    if (filePath === MANIFEST_FILE) {
       throw importInvalid("files 里不能放 manifest.json，它由 manifest 生成。");
     }
-    if (path.endsWith("/")) {
-      throw importInvalid(`files 里的路径必须是文件，不能以 / 结尾：${path}`);
+    if (filePath.endsWith("/")) {
+      throw importInvalid(`files 里的路径必须是文件，不能以 / 结尾：${filePath}`);
     }
-    if (seen.has(path)) {
-      throw importInvalid(`重复的文件路径：${path}`);
-    }
-    seen.add(path);
     total += data.length;
   }
+  assertNoPathConflict([MANIFEST_FILE, ...files.map(([filePath]) => filePath)]);
   // The JSON-escaped form is what a value with quotes or non-ASCII characters looks like in manifest.json.
   const needles = secrets.filter((s) => s !== "").flatMap((s) => [s, JSON.stringify(s).slice(1, -1)]);
   for (const [path, data] of [[MANIFEST_FILE, Buffer.from(manifestText)] as const, ...files]) {

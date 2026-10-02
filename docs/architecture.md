@@ -69,10 +69,11 @@ createCore({ dataDir, model, egress, confirm, secrets })
 ## 9. 统一错误
 `PlumsError { code, message, path?, details? }`。`message` 是人话,`path` 是 JSON Pointer 格式的字段路径(带开头斜杠,如 `/permissions/0/level`、`/dependencies/0`)。
 固定错误码(10 个;SETTINGS_INVALID 为 M1 新增):MANIFEST_INVALID、FORMAT_UNSUPPORTED、DEPENDENCY_MISSING、CONSENT_REQUIRED、PERMISSION_DENIED、CONFIRMATION_DENIED、SECRET_NOT_FOUND、IMPORT_INVALID、SHARE_FETCH_FAILED、SETTINGS_INVALID。
+`SECRET_NOT_FOUND` 也用于读取密钥失败:此时只带固定码和固定文案「读取密钥失败，原来的错误已隐藏，以免带出密钥。」,不带 path、details、cause,不含底层错误内容。
 
 ## 10. 里程碑 1 验收(主线:导入角色卡 → 安装扩展并看到权限清单 → 同意并启用 → 卸载)
 里程碑 1 的命令行不含 `share import`,真实 EgressSink、持久化 SecretStore 和命令行 `share import` 留到里程碑 2。
-1. 导入合法包成功;坏包返回对应错误码和字段路径;导出再导入内容一致。已安装的 id 再次导入一律被拒,返回 IMPORT_INVALID(details.reason=ALREADY_INSTALLED)。
+1. 导入合法包成功;坏包返回对应错误码和字段路径;导出再导入内容一致。已安装的 id 再次导入一律被拒,返回 IMPORT_INVALID,`details` 为 `{id, reason: ALREADY_INSTALLED}`,不带 `path`。同 id 并发导入只会有一个成功,其余返回该错误。
 2. `inspect(包)` 不安装就返回权限清单,每条带 level 与 reason。
 3. 没同意就启用返回 CONSENT_REQUIRED;同意后启用成功,同意记录可查。
 4. 越权动作返回 PERMISSION_DENIED;没有 confirm 或被拒绝时外发被拦,且 RecordingEgressSink 没有记录。
@@ -95,7 +96,7 @@ createCore({ dataDir, model, egress, confirm, secrets })
 3. V2/V3 适配器排到里程碑 2。
 
 ## 12. 补充定论(v0.1.1)
-- 包的安全限制:解压后总大小 ≤ 20MB、文件数 ≤ 1000、单路径 ≤ 255 字符,宿主可配置。路径越界、绝对路径、超限都返回 IMPORT_INVALID,且校验通过前不写出任何文件。
+- 包的安全限制:解压后总大小 ≤ 20MB、文件数 ≤ 1000、单路径 ≤ 255 字符,宿主可配置。路径越界、绝对路径、超限都返回 IMPORT_INVALID,且校验通过前不写出任何文件。大小写不敏感碰撞(含 manifest 的大小写别名,如 `MANIFEST.JSON`)和「既是文件又是文件夹」的冲突,在导入(解压与落盘)和导出前都由同一个检查拒绝,统一归 IMPORT_INVALID。大小写碰撞的 `path` 为后出现的 zip 条目名(JSON Pointer,如 `/a.txt`;别名则为该条目,如 `/MANIFEST.JSON`),不带 details;「既是文件又是文件夹」不带 `path`(导入和导出都如此)。
 - 动作入口 `core.runAction({ extensionId, permissionId, request })`,检查顺序:
   1. 扩展未安装/未启用,或 permissionId 未在 manifest 声明 → PERMISSION_DENIED
   2. 已声明但无同意记录 → CONSENT_REQUIRED
@@ -140,6 +141,6 @@ M1 目标行为。
 - 可选 `minimum`、`maximum`、`enum`、`x-secret`。`minimum`/`maximum` 仅对 `number`/`integer`;声明在其他类型上则 MANIFEST_INVALID,`path` 为 `/settingsSchema/properties/<key>/minimum` 或 `/settingsSchema/properties/<key>/maximum`。
 - `default` 可选,存在时必须与 `type` 一致,还须满足该属性已声明的 `minimum`/`maximum`/`enum`。违反时 MANIFEST_INVALID,`path` 为 `/settingsSchema/properties/<key>/default`。
 - `x-secret` 属性的白名单仍是 `type`/`title`/`description`/`x-secret`。`default` 只对非 secret 属性开放;secret 属性带 `default` 一律 MANIFEST_INVALID。
-- `setSettings` 写入前用 Ajv 校验:先 `settingsSchema.required` 与类型,再回填 `default`,`default` 本身也要过校验。校验失败的 `path` 为 `/settings/<key>`,错误信息不得包含 secret 值;`details` 为 `{key, reason}`,不含被拒的值。`reason` 取 REQUIRED、TYPE、MINIMUM、MAXIMUM、ENUM,残留 settings 校验共用。SECRET_NOT_FOUND 只覆盖 x-secret 引用,schema 校验失败用 M1 新增的 SETTINGS_INVALID(见 §9)。在 settings 校验里 IMPORT_INVALID 只用于导入和更新时对残留 settings 的校验失败,且都在写盘前:import 不写任何包文件,update 旧版保持不变。残留文件整体问题的 `reason` 为 NOT_JSON(文件不是合法 JSON,或不是 JSON 对象,`path` 为 `/settings`)和 NO_SCHEMA(仅 import,新包无 schema 而文件存在,`path` 为 `/settings`);这两类没有 key,`details` 只有 `{reason}`。
+- `setSettings` 写入前用 Ajv 校验:先 `settingsSchema.required` 与类型,再回填 `default`,`default` 本身也要过校验。校验失败的 `path` 为 `/settings/<key>`,错误信息不得包含 secret 值;`details` 为 `{key, reason}`,不含被拒的值。`reason` 取 REQUIRED、TYPE、MINIMUM、MAXIMUM、ENUM,残留 settings 校验共用。SECRET_NOT_FOUND 覆盖 x-secret 引用。该码也用于读取密钥失败,此时只带固定码和固定文案,不带 path/details(见 §9)。schema 校验失败用 M1 新增的 SETTINGS_INVALID(见 §9)。在 settings 校验里 IMPORT_INVALID 只用于导入和更新时对残留 settings 的校验失败,且都在写盘前:import 不写任何包文件,update 旧版保持不变。残留文件整体问题的 `reason` 为 NOT_JSON(文件不是合法 JSON,或不是 JSON 对象,`path` 为 `/settings`)和 NO_SCHEMA(仅 import,新包无 schema 而文件存在,`path` 为 `/settings`);这两类没有 key,`details` 只有 `{reason}`。
 - `title` 即界面标签,不新增 `label` 字段。
 - `describeSettings` 接口与参考渲染器留给里程碑 2。

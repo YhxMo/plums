@@ -8,9 +8,10 @@
     "node": ">=22"
   },
   "bin": {
-    "plums": "./dist/main.js"
+    "plums": "./bin/plums.js"
   },
   "files": [
+    "bin",
     "dist"
   ],
   "scripts": {

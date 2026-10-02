@@ -2,7 +2,7 @@ import { Buffer } from "node:buffer";
 import type { Readable } from "node:stream";
 import yauzl from "yauzl";
 import { PlumsError } from "../errors.js";
-import { assertSafeEntryPath, importInvalid } from "./entry-path.js";
+import { assertNoPathConflict, assertSafeEntryPath, importInvalid } from "./entry-path.js";
 import type { PackageLimits } from "./types.js";
 
 export interface ZipEntryData {
@@ -67,7 +67,7 @@ async function listEntries(zip: yauzl.ZipFile, limits: PackageLimits): Promise<P
   if (zip.entryCount > limits.maxFiles) {
     throw importInvalid(`压缩包里的文件太多了（超过 ${limits.maxFiles} 个）。`);
   }
-  const seen = new Set<string>();
+  const paths: string[] = [];
   const out: PendingEntry[] = [];
   let declaredTotal = 0;
 
@@ -81,10 +81,8 @@ async function listEntries(zip: yauzl.ZipFile, limits: PackageLimits): Promise<P
         if (isSymlink(entry)) {
           throw importInvalid(`压缩包里不允许符号链接：${path}`);
         }
-        if (seen.has(path)) {
-          throw importInvalid(`压缩包里有重复的文件路径：${path}`);
-        }
-        seen.add(path);
+        paths.push(path);
+        assertNoPathConflict(paths);
         declaredTotal += entry.uncompressedSize;
         if (declaredTotal > limits.maxTotalBytes) {
           throw tooLarge(limits);

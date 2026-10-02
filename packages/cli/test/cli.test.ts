@@ -1,5 +1,5 @@
 import { spawn, spawnSync } from "node:child_process";
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
+import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, statSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -9,6 +9,7 @@ import { runCli, type CliOptions } from "../src/main.js";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const dist = path.join(here, "../dist/main.js");
+const launcher = path.join(here, "../bin/plums.js");
 const bin = path.join(here, "../../../node_modules/.bin/plums");
 
 const EXTENSION: Manifest = {
@@ -342,6 +343,28 @@ describe("plums", () => {
     expect(linked.status).toBe(0);
     expect(linked.stdout).toBe(`${VERSION}\n`);
     expect(linked.stderr).toBe("");
+
+    const viaLauncher = spawnSync(process.execPath, [launcher, "--version"], { encoding: "utf8" });
+    expect(viaLauncher.status).toBe(0);
+    expect(viaLauncher.stdout).toBe(`${VERSION}\n`);
+    expect(viaLauncher.stderr).toBe("");
+  });
+
+  it("the launcher asks for a build when dist is missing", () => {
+    const source = readFileSync(launcher, "utf8");
+    expect(source.startsWith("#!/usr/bin/env node\n")).toBe(true);
+    expect(statSync(launcher).mode & 0o111).not.toBe(0);
+    const pkg = JSON.parse(readFileSync(path.join(here, "../package.json"), "utf8")) as { bin: { plums: string } };
+    expect(pkg.bin.plums).toBe("./bin/plums.js");
+
+    const dir = mkdtempSync(path.join(tmpdir(), "plums-bin-"));
+    const copied = path.join(dir, "bin", "plums.js");
+    mkdirSync(path.dirname(copied), { recursive: true });
+    copyFileSync(launcher, copied);
+    const missing = spawnSync(process.execPath, [copied, "--version"], { encoding: "utf8" });
+    expect(missing.status).not.toBe(0);
+    expect(missing.stdout).toBe("");
+    expect(missing.stderr).toContain("pnpm build");
   });
 });
 

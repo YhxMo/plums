@@ -118,19 +118,18 @@ export class InstallStore {
 
   /**
    * Records a fresh install: not enabled, no consent.
-   * An earlier record of the same id, and its consent, is dropped.
-   * Tool approvals are not deleted here. Why: uninstall already removed them, and import
+   * Why insert only: import already refuses an id that is still installed, so there is
+   * no row to replace. Deleting first would wipe consent and the enabled flag.
+   * Tool approvals are not touched. Why: uninstall already removed them, and import
    * refuses an id that is still installed, so no approval row can be waiting.
    */
   recordInstall(manifest: Manifest): void {
-    const db = this.connection();
-    db.transaction(() => {
-      db.prepare("DELETE FROM consents WHERE package_id = ?").run(manifest.id);
-      db.prepare("DELETE FROM packages WHERE id = ?").run(manifest.id);
-      db.prepare(
+    this.connection()
+      .prepare(
         `INSERT INTO packages (id, kind, name, version, manifest, enabled, installed_at, enabled_at)
          VALUES (?, ?, ?, ?, ?, 0, ?, NULL)`,
-      ).run(
+      )
+      .run(
         manifest.id,
         manifest.kind,
         manifest.name,
@@ -138,7 +137,6 @@ export class InstallStore {
         JSON.stringify(manifest),
         new Date().toISOString(),
       );
-    })();
   }
 
   /**
