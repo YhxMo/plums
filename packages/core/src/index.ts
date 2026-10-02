@@ -28,7 +28,10 @@ export type {
 } from "./types.js";
 
 export { createCore } from "./create-core.js";
-export type { Core, CreateCoreOptions } from "./create-core.js";
+export type { Core, CreateCoreOptions, ImportedPackage } from "./create-core.js";
+
+export { inspectPackage } from "./package/inspect.js";
+export type { PackageInspection } from "./package/inspect.js";
 
 export {
   FakeModelProvider,
@@ -38,3 +41,24 @@ export {
 } from "./fakes.js";
 
 export { REDACTED, redact } from "./redact.js";
+
+export { validatePackage } from "./package/validate.js";
+export type { ValidatedPackage } from "./package/validate.js";
+export type { ExportInput, ExportOptions } from "./package/export.js";
+export {
+  DEFAULT_PACKAGE_LIMITS,
+  PACKAGE_FORMAT_VERSION,
+  SUPPORTED_FORMAT_MAJOR,
+} from "./package/types.js";
+export type {
+  Dependency,
+  Manifest,
+  PackageContents,
+  PackageFiles,
+  PackageKind,
+  PackageLimits,
+  Permission,
+  PermissionLevel,
+  SettingSpec,
+  SettingsSchema,
+} from "./package/types.js";
