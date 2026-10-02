@@ -1,0 +1,23 @@
+{
+  "name": "plums",
+  "version": "0.1.0",
+  "description": "Command-line shell for the Plums kernel.",
+  "license": "Apache-2.0",
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "bin": {
+    "plums": "./bin/plums.js"
+  },
+  "files": [
+    "bin",
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.json"
+  },
+  "dependencies": {
+    "@plums/core": "workspace:*"
+  }
+}
