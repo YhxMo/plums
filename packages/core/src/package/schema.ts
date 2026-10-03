@@ -94,6 +94,47 @@ export const MANIFEST_SCHEMA = {
   },
 } as const;
 
+const namedList = { type: "array", minItems: 1, uniqueItems: true, items: nonEmptyString } as const;
+
+/** Keep the common envelope and JSON representation; dispatch only the permissions schema. */
+export const MANIFEST_V2_SCHEMA = {
+  ...MANIFEST_SCHEMA,
+  properties: {
+    ...MANIFEST_SCHEMA.properties,
+    permissions: {
+      type: "array",
+      items: {
+        type: "object",
+        required: ["id", "kind", "target", "reason"],
+        properties: {
+          id: nonEmptyString,
+          kind: { enum: ["fs", "exec", "egress"] },
+          target: nonEmptyString,
+          reason: nonEmptyString,
+        },
+        allOf: [
+          {
+            if: { required: ["kind"], properties: { kind: { const: "fs" } } },
+            then: {
+              required: ["operations"],
+              properties: {
+                operations: {
+                  type: "array", minItems: 1, uniqueItems: true,
+                  items: { enum: ["read", "write", "list"] },
+                },
+              },
+            },
+          },
+          {
+            if: { required: ["kind"], properties: { kind: { const: "exec" } } },
+            then: { required: ["cwdRoots"], properties: { cwdRoots: namedList } },
+          },
+        ],
+      },
+    },
+  },
+} as const;
+
 const valueAjv = new Ajv({ allErrors: true, strict: false });
 
 export type SettingValueFailure = "TYPE" | "MINIMUM" | "MAXIMUM" | "ENUM";
@@ -128,16 +169,18 @@ export function settingValueFailure(
   return "TYPE";
 }
 
-let compiled: ValidateFunction | undefined;
+const compiled = new Map<1 | 2, ValidateFunction>();
 
-export function manifestValidator(): ValidateFunction {
-  if (compiled === undefined) {
+export function manifestValidator(major: 1 | 2): ValidateFunction {
+  let validate = compiled.get(major);
+  if (validate === undefined) {
     const ajv = new Ajv({ allErrors: false, strict: true });
     ajv.addFormat("semver-range", {
       type: "string",
       validate: (value: string) => semver.validRange(value) !== null,
     });
-    compiled = ajv.compile(MANIFEST_SCHEMA);
+    validate = ajv.compile(major === 2 ? MANIFEST_V2_SCHEMA : MANIFEST_SCHEMA);
+    compiled.set(major, validate);
   }
-  return compiled;
+  return validate;
 }

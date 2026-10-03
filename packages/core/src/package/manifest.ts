@@ -3,7 +3,7 @@ import { FORMAT_UNSUPPORTED, MANIFEST_INVALID, PlumsError } from "../errors.js";
 import { secretKeys } from "../secrets.js";
 import { isTrailingDotTarget, parseEgressTarget } from "./egress-target.js";
 import { FORMAT_VERSION_PATTERN, manifestValidator, settingValueFailure } from "./schema.js";
-import { SUPPORTED_FORMAT_MAJOR, type Manifest } from "./types.js";
+import { isManifestV1, SUPPORTED_FORMAT_MAJOR, type Manifest } from "./types.js";
 
 /**
  * Parses and checks the text of `manifest.json`.
@@ -37,11 +37,12 @@ export function checkManifest(value: unknown): Manifest {
   }
   assertFormatSupported((value as Record<string, unknown>).formatVersion);
 
-  const validate = manifestValidator();
+  const major = Number(String((value as Record<string, unknown>).formatVersion).split(".")[0]);
+  const validate = manifestValidator(major === 2 ? 2 : 1);
   if (validate(value)) {
     const manifest = value as Manifest;
     const bad = manifest.permissions.findIndex(
-      (p) => p.level === "egress" && parseEgressTarget(p.target) === undefined,
+      (p) => (isManifestV1(manifest) ? p.level === "egress" : p.kind === "egress") && parseEgressTarget(p.target) === undefined,
     );
     if (bad !== -1) {
       const at = `/permissions/${bad}/target`;
@@ -57,6 +58,20 @@ export function checkManifest(value: unknown): Manifest {
         "外发权限的 target 只能写主机名（可带端口），如 api.example.com、api.example.com:8443 或 *.example.com；至少两级域名（不能是 com 或 *.com）；不能带 https:// 、路径、IP 或 localhost。",
         at,
       );
+    }
+    if (!isManifestV1(manifest)) {
+      const seen = new Set<string>();
+      for (const [index, permission] of manifest.permissions.entries()) {
+        if (seen.has(permission.id)) {
+          throw new PlumsError({
+            code: MANIFEST_INVALID,
+            message: "同一包内的权限 id 不能重复。",
+            path: `/permissions/${index}/id`,
+            details: { reason: "DUPLICATE_PERMISSION_ID" },
+          });
+        }
+        seen.add(permission.id);
+      }
     }
     const properties = manifest.settingsSchema?.properties ?? {};
     for (const key of secretKeys(manifest)) {
@@ -111,7 +126,7 @@ function assertFormatSupported(formatVersion: unknown): void {
   if (major > SUPPORTED_FORMAT_MAJOR) {
     throw new PlumsError({
       code: FORMAT_UNSUPPORTED,
-      message: `这个包使用的格式版本是 ${formatVersion}，当前只支持 ${SUPPORTED_FORMAT_MAJOR}.x。请升级 Plums 后再导入。`,
+      message: `这个包使用的格式版本是 ${formatVersion}，当前支持 1.x 至 ${SUPPORTED_FORMAT_MAJOR}.x。请升级 Plums 后再导入。`,
       path: "/formatVersion",
     });
   }

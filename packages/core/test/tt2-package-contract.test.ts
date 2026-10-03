@@ -92,7 +92,7 @@ describe("T2: a bad manifest is MANIFEST_INVALID with a JSON Pointer path", () =
   });
 
   it("FORMAT_UNSUPPORTED for a higher format major", async () => {
-    await expectPlumsError(world().core.importPackage(fixturePath("invalid/format-major-2.zip")), "FORMAT_UNSUPPORTED");
+    await expectPlumsError(world().core.importPackage(fixturePath("invalid/format-major-3.zip")), "FORMAT_UNSUPPORTED");
   });
 });
 
@@ -153,6 +153,7 @@ describe("T3: inspect", () => {
     expect(fromBytes).toEqual(fromPath);
     expect(fromBytes).toEqual({
       kind: manifest.kind,
+      formatVersion: manifest.formatVersion,
       id: manifest.id,
       name: manifest.name,
       version: manifest.version,
@@ -185,7 +186,7 @@ describe("T3: inspect", () => {
 
   it.each([
     ["invalid/missing-name.zip", "MANIFEST_INVALID"],
-    ["invalid/format-major-2.zip", "FORMAT_UNSUPPORTED"],
+    ["invalid/format-major-3.zip", "FORMAT_UNSUPPORTED"],
     ["invalid/zip-slip.zip", "IMPORT_INVALID"],
   ])("%s throws %s and writes nothing", async (rel, code) => {
     const w = world();

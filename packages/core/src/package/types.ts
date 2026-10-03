@@ -2,13 +2,38 @@ export type PackageKind = "character" | "extension" | "connector";
 
 export type PermissionLevel = "read" | "write" | "egress";
 
-export interface Permission {
+interface PermissionBase {
   id: string;
-  level: PermissionLevel;
   target: string;
   reason: string;
   [key: string]: unknown;
 }
+
+/** Generic actions declared by a 1.x package. */
+export interface PermissionV1 extends PermissionBase {
+  level: PermissionLevel;
+}
+
+export type FsOperation = "read" | "write" | "list";
+
+export interface FsPermission extends PermissionBase {
+  kind: "fs";
+  /** Exact operations: write does not grant read. */
+  operations: FsOperation[];
+}
+
+export interface ExecPermission extends PermissionBase {
+  kind: "exec";
+  /** Logical root names registered by the host. */
+  cwdRoots: string[];
+}
+
+export interface EgressPermission extends PermissionBase {
+  kind: "egress";
+}
+
+export type PermissionV2 = FsPermission | ExecPermission | EgressPermission;
+export type Permission = PermissionV1 | PermissionV2;
 
 export interface Dependency {
   kind: "extension" | "connector";
@@ -45,8 +70,7 @@ export interface SettingsSchema {
 }
 
 /** The envelope of `manifest.json`. Unknown fields are kept as they were. */
-export interface Manifest {
-  formatVersion: string;
+interface ManifestBase {
   kind: PackageKind;
   id: string;
   name: string;
@@ -55,13 +79,33 @@ export interface Manifest {
   license?: string;
   author?: string;
   dependencies: Dependency[];
-  permissions: Permission[];
   settingsSchema?: SettingsSchema;
   /** Kept as-is. T2 neither checks nor produces signatures. */
   signature?: unknown;
   /** Kept as-is. Its meaning depends on `kind` and is not checked here. */
   payload: unknown;
   [key: string]: unknown;
+}
+
+export interface ManifestV1 extends ManifestBase {
+  formatVersion: `1.${number}`;
+  permissions: PermissionV1[];
+}
+
+export interface ManifestV2 extends ManifestBase {
+  formatVersion: `2.${number}`;
+  permissions: PermissionV2[];
+}
+
+export type Manifest = ManifestV1 | ManifestV2;
+
+/** Narrow a validated manifest by its envelope, never by unknown permission fields. */
+export function isManifestV1(manifest: Manifest): manifest is ManifestV1 {
+  return manifest.formatVersion.startsWith("1.");
+}
+
+export function isManifestV2(manifest: Manifest): manifest is ManifestV2 {
+  return manifest.formatVersion.startsWith("2.");
 }
 
 /** Everything in a package except `manifest.json`, by relative path with `/` separators. */
@@ -87,7 +131,7 @@ export const DEFAULT_PACKAGE_LIMITS: Readonly<PackageLimits> = Object.freeze({
 });
 
 /** Default envelope version for newly created packages. Export preserves the supplied version. */
-export const PACKAGE_FORMAT_VERSION = "1.0";
+export const PACKAGE_FORMAT_VERSION = "2.0";
 /** The highest readable major, derived from the default envelope version. */
 export const SUPPORTED_FORMAT_MAJOR = Number(PACKAGE_FORMAT_VERSION.split(".")[0]);
 export const MANIFEST_FILE = "manifest.json";

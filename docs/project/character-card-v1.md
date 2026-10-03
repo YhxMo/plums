@@ -38,7 +38,7 @@ inspect 返回该包自己的权限与依赖，不汇总依赖权限。必需依
 
 ## 当前版本行为
 
-内核接受 `1.x` 并保留同 major 的未知字段；更高 major 返回 `FORMAT_UNSUPPORTED`、`/formatVersion`。导出使用传入清单的 formatVersion，不总是改写成最新版本。M1 没有 major 格式迁移器，不能承诺所有旧 major 都可迁移。常量收口见 `task-package-format-version.md`。
+内核接受 `1.x` 与 `2.x`，保留同 major 的未知字段；`3.x` 及更高 major 返回 `FORMAT_UNSUPPORTED`、`/formatVersion`。导出使用传入清单的 formatVersion，不总是改写成最新版本。M1 没有 major 格式迁移器，不能承诺所有旧 major 都可迁移。常量收口见 `task-package-format-version.md`。
 
 ## V2/V3、PNG 与 Skills：M2 待设计
 

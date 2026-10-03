@@ -1,10 +1,10 @@
 本文是内核技术方案,以此为准;变更需经架构师批准
 
-# Plums 内核技术方案 v0.1(已通过)
+# Plums 内核技术方案（1.x 兼容与 2.x 能力调用）
 
 ## 1. 范围
 纯开源内核(Apache-2.0),不含界面、服务、托管、市场。交付物是一个 TypeScript 库 `@plums/core` 加一个命令行 `plums`。
-内核负责:包格式与加载、依赖解析、权限(读/写/外发)检查、密钥保管、外发确认、文件/链接分享。
+内核负责:包格式与加载、依赖解析、权限和同意检查、密钥引用、外发确认、文件/链接分享，以及 2.x 能力授权与审计。0.2.0 已提供 fs/exec/egress 统一入口与记录式执行，真实 I/O、进程隔离、联网及第三方代码运行后续开发。
 
 ## 2. 技术栈(推荐)
 - 语言与运行时:TypeScript,Node.js 当前 LTS,pnpm 单仓库。
@@ -19,7 +19,7 @@
 ## 3. 包格式
 一个包 = zip + 根目录 `manifest.json`。三种 kind:`character`、`extension`、`connector`。
 
-内核只规定"信封",不规定内容:
+内核只规定"信封",不规定内容。下面是仍可读取的 1.x 信封:
 ```jsonc
 {
   "formatVersion": "1.0",
@@ -37,30 +37,46 @@
 - 角色卡里的文字永远不授予权限,权限只来自 `permissions`。
 - `formatVersion` 同一 major 内只加可选字段,未知字段原样保留;读到更新的 major 就拒绝(`FORMAT_UNSUPPORTED`)。
 
+新包默认 `PACKAGE_FORMAT_VERSION = "2.0"`，支持 major 从它推导，目前读取 1.x/2.x，3.x 返回 `FORMAT_UNSUPPORTED`、`/formatVersion`。导出保留输入版本，不迁移包文件。2.x 仅替换权限结构，其余信封和 payload 契约保持：
+
+```json
+[
+  { "id": "files", "kind": "fs", "target": "workspace", "reason": "使用项目文件", "operations": ["read", "write", "list"] },
+  { "id": "tests", "kind": "exec", "target": "test", "reason": "运行测试", "cwdRoots": ["workspace"] },
+  { "id": "send", "kind": "egress", "target": "api.example.com:8443", "reason": "发送摘要" }
+]
+```
+
+id 在 2.x 包中唯一。operations、cwdRoots 是非空、无重复数组；fs 操作仅支持 read/write/list。target 是宿主绑定的逻辑根、登记程序或外发域名，清单不能凭此执行文件或命令。未知字段保留；选择 schema 和权限语义只看 formatVersion，不看未知 level/kind 字段。公开 `ManifestV1`/`ManifestV2`、`PermissionV1`/`PermissionV2` 类型和 `isManifestV1`/`isManifestV2` 支持宿主分支处理。inspect 返回 formatVersion 和全部声明字段。
+
 ## 4. 扩展(第一版只有声明式)
 - 扩展 = manifest + 设置 schema + 数据型内容(提示词片段、模板、任务配置等,放在 payload)。**不运行第三方代码**。
 - 需要代码的能力(记忆、自动化的执行)只由官方内置扩展提供,在内核外部的宿主里实现;内核只负责它们的权限与确认。
 - 第二阶段再评估沙箱运行第三方代码。
 
 ## 5. 权限与确认
-- 三档:read、write、egress。内核在每个动作执行前统一检查:有没有声明、用户有没有同意。
+- 1.x 三档:read、write、egress。内核在每个动作执行前统一检查:有没有声明、用户有没有同意。2.x 按 fs/exec/egress 分类，fs 的 write 不授予 read；不把类别转换为旧档位。
 - write 与 egress 的动作每次运行时都要确认;由宿主实现的 `confirm` 接口给出答案,没有就一律拒绝。
 - 更新时比较新旧权限,新增而没有重新同意就拒绝更新(`CONSENT_REQUIRED`),旧版本保持不变。
+- 同意记录保存完整权限声明和 formatVersion。2.x 更新新增权限、改变类别/目标、增加 fs 操作或 exec cwdRoots 时要求重新同意；范围收缩、reason 或未知字段变化不增权。跨 major 更新即便权限列表为空也要求重新同意（`CONSENT_REQUIRED`、`/formatVersion`、reason `FORMAT_CHANGED`）。拒绝时文件和记录不变；成功时保留启用状态，已有同意记录更新为新声明。
+- `runAction` 和现有包 MCP 入口仅解释 1.x；遇到 2.x 返回 `PERMISSION_DENIED`、`/formatVersion`、reason `FORMAT_API_MISMATCH`。手动 MCP 与有效的 1.x 调用保持既有行为。2.x 的 MCP 映射另行开发。
 - MCP 连接器:每个工具的名称、描述和 inputSchema(键递归排序的稳定序列化)记哈希,哈希变化等同增权,要重新同意。服务端只改参数定义而名称描述不变,同样改变工具能力,所以要重新同意。MCP 工具从宿主给出的列表中消失后,其指纹和同意随即作废;再次出现时按新工具处理(TOOL_ADDED),需要重新同意,不再保留到卸载。手动添加的 MCP 服务标"未验证",默认只读、逐项授权。
 
 ## 6. 密钥
 只存在内核管的存储里;扩展和包里只出现 `secretRef`。日志、错误、导出统一经过脱敏函数;导出包在结构上不含密钥。
-安装记录保留包曾声明过的密钥引用,不保存值。更新提交 manifest 时在同一事务内保留旧引用;若随后删除失败,返回 SECRET_NOT_FOUND(details 为 `{id, version, reason: SECRET_CLEANUP_FAILED}`),version 已安装。后续更新与卸载可重试,脱敏与导出检查也仍覆盖这些值。删除过程中即使值已删除而调用抛错,底层错误也不外露。数据库格式 2 自动迁移为 3;旧版内核拒绝打开升级后的目录。
+安装记录保留包曾声明过的密钥引用,不保存值。更新提交 manifest 时在同一事务内保留旧引用;若随后删除失败,返回 SECRET_NOT_FOUND(details 为 `{id, version, reason: SECRET_CLEANUP_FAILED}`),version 已安装。后续更新与卸载可重试,脱敏与导出检查也仍覆盖这些值。删除过程中即使值已删除而调用抛错,底层错误也不外露。数据库格式 2 经 3 自动迁移为 4，格式 3 升为 4；安装、启用、MCP、已有引用及权限 JSON 保持。schema 4 在 consents 增加 format_version，旧记录按已存清单补齐，不改写包文件；旧内核拒绝升级后的目录。schema 2 不能恢复以前已丢失的历史引用。
 
 ## 7. 可替换接口(便于测试)
 ```ts
 interface ModelProvider { complete(req): Promise<res> }
 interface EgressSink    { send(req): Promise<result> }   // 唯一的对外出口,含分享链接下载
+interface FsSink        { read/write/list(req): Promise<result> }
+interface ExecSink      { run(req): Promise<result> }
 interface Confirm       { ask(req): Promise<boolean> }
 interface SecretStore   { get/set/delete(ref) }
-createCore({ dataDir, model, egress, confirm, secrets })
+createCore({ dataDir, model, egress, secrets, confirm?, fs?, exec?, roots?, programs?, onAudit?, confirmTimeoutMs? })
 ```
-内核自带 FakeModelProvider、RecordingEgressSink、内存版 SecretStore 与脚本化 Confirm,测试全程不联网。
+内核自带 FakeModelProvider、RecordingEgressSink、RecordingFsSink、RecordingExecSink、内存版 SecretStore 与脚本化 Confirm，测试全程不联网、不开进程、不由 Sink 写文件。confirm 可省略，提供无效接口在构造时拒绝；新能力入口缺少审计不执行。
 
 ## 8. 兼容
 - 角色卡 V2/V3:做成**可选的导入导出适配器**,不在核心里。导入时映射成信封加 payload,聊天专用字段放进 payload 的约定位置;导出时内核特有字段写进 extensions.plums。适配器的字段映射由使用方的内容约定决定,不由内核规定。
@@ -69,13 +85,13 @@ createCore({ dataDir, model, egress, confirm, secrets })
 
 ## 9. 统一错误
 `PlumsError { code, message, path?, details? }`。`message` 是人话,`path` 是 JSON Pointer 格式的字段路径(带开头斜杠,如 `/permissions/0/level`、`/dependencies/0`)。
-固定错误码(10 个;SETTINGS_INVALID 为 M1 新增):MANIFEST_INVALID、FORMAT_UNSUPPORTED、DEPENDENCY_MISSING、CONSENT_REQUIRED、PERMISSION_DENIED、CONFIRMATION_DENIED、SECRET_NOT_FOUND、IMPORT_INVALID、SHARE_FETCH_FAILED、SETTINGS_INVALID。
+固定错误码(11 个):MANIFEST_INVALID、FORMAT_UNSUPPORTED、DEPENDENCY_MISSING、CONSENT_REQUIRED、PERMISSION_DENIED、CONFIRMATION_DENIED、SECRET_NOT_FOUND、IMPORT_INVALID、SHARE_FETCH_FAILED、SETTINGS_INVALID、CAPABILITY_FAILED。CAPABILITY_FAILED 用于能力 Sink/审计失败，details 为 callId、phase、executionState；不携带底层异常。not_started 为未调用 Sink，unknown 为已进入 Sink 但结果不确定，completed 为执行成功后结果审计失败；unknown/completed 禁止自动重试。
 `SECRET_NOT_FOUND` 也用于读取密钥失败:此时只带固定码和固定文案「读取密钥失败，原来的错误已隐藏，以免带出密钥。」,不带 path、details、cause,不含底层错误内容。
 
 ## 10. 里程碑 1 验收(主线:导入角色卡 → 安装扩展并看到权限清单 → 同意并启用 → 卸载)
 里程碑 1 的命令行不含 `share import`,真实 EgressSink、持久化 SecretStore 和命令行 `share import` 留到里程碑 2。
 1. 导入合法包成功;坏包返回对应错误码和字段路径;导出再导入内容一致。已安装的 id 再次导入一律被拒,返回 IMPORT_INVALID,`details` 为 `{id, reason: ALREADY_INSTALLED}`,不带 `path`。同 id 并发导入只会有一个成功,其余返回该错误,跨进程落败者也不删除或覆盖成功者的目录。内存排队只在同一进程内、同一数据目录生效:另一个数据目录里的同 id 不会被这次排队挡住。为什么:导入队列的键是数据目录加 id,而且队列只活在当前进程里;跨进程冲突由文件发布和数据库唯一键处理。
-2. `inspect(包)` 不安装就返回权限清单,每条带 level 与 reason。
+2. `inspect(包)` 不安装就返回 formatVersion 与完整权限清单；1.x 每条带 level 与 reason，2.x 带 kind、operations/cwdRoots 等原始声明。
 3. 没同意就启用返回 CONSENT_REQUIRED;同意后启用成功,同意记录可查。
 4. 越权动作返回 PERMISSION_DENIED;没有 confirm 或被拒绝时外发被拦,且 RecordingEgressSink 没有记录。
 5. 更新增权且未重新同意:更新被拒,旧版保持。
@@ -98,7 +114,7 @@ createCore({ dataDir, model, egress, confirm, secrets })
 
 ## 12. 补充定论(v0.1.1)
 - 包的安全限制:解压后总大小 ≤ 20MB、文件数 ≤ 1000、单路径 ≤ 255 字符,宿主可配置。路径越界、绝对路径、超限都返回 IMPORT_INVALID,且校验通过前不写出任何文件。大小写不敏感碰撞(含 manifest 的大小写别名,如 `MANIFEST.JSON`)和「既是文件又是文件夹」的冲突,在导入(解压与落盘)和导出前都由同一个检查拒绝,统一归 IMPORT_INVALID。大小写碰撞的 `path` 为后出现的 zip 条目名(JSON Pointer,如 `/a.txt`;别名则为该条目,如 `/MANIFEST.JSON`),不带 details;「既是文件又是文件夹」不带 `path`(导入和导出都如此)。包内目录条目在冲突检查时去掉尾部的一个斜杠(zip 用末尾 `/` 表示目录,比较的是去掉之后的名字,如 `dir/` 按 `dir`)。为什么:磁盘上的目录名不带这个斜杠,`dir/` 和 `dir` 会撞在一起。因此目录大小写碰撞的 `path` 是去掉斜杠后的条目(如 `/dir`),目录本身不写入包内文件列表。导出时 `files` 里放了精确文件名 `manifest.json`,是 IMPORT_INVALID,`path` 为 `/manifest.json`。为什么与别名同一写法:两条都是在指出那一个条目,别名已经是 `/MANIFEST.JSON`。
-- 动作入口 `core.runAction({ extensionId, permissionId, request })`,检查顺序:
+- 1.x 动作入口 `core.runAction({ extensionId, permissionId, request })`,检查顺序:
   1. 扩展未安装/未启用,或 permissionId 未在 manifest 声明 → PERMISSION_DENIED
   2. 已声明但无同意记录 → CONSENT_REQUIRED
   3. 档位取自 manifest 声明,调用方不能指定;write/egress 需 confirm.ask 通过,无 handler 或被拒 → CONFIRMATION_DENIED
@@ -145,3 +161,15 @@ M1 目标行为。
 - `setSettings` 写入前用 Ajv 校验:先 `settingsSchema.required` 与类型,再回填 `default`,`default` 本身也要过校验。校验失败的 `path` 为 `/settings/<key>`,错误信息不得包含 secret 值;`details` 为 `{key, reason}`,不含被拒的值。`reason` 取 REQUIRED、TYPE、MINIMUM、MAXIMUM、ENUM,残留 settings 校验共用。SECRET_NOT_FOUND 覆盖 x-secret 引用。该码也用于读取密钥失败,此时只带固定码和固定文案,不带 path/details(见 §9)。schema 校验失败用 M1 新增的 SETTINGS_INVALID(见 §9)。在 settings 校验里 IMPORT_INVALID 只用于导入和更新时对残留 settings 的校验失败,且都在写盘前:import 不写任何包文件,update 旧版保持不变。残留文件整体问题的 `reason` 为 NOT_JSON(文件不是合法 JSON,或不是 JSON 对象,`path` 为 `/settings`)和 NO_SCHEMA(仅 import,新包无 schema 而文件存在,`path` 为 `/settings`);这两类没有 key,`details` 只有 `{reason}`。
 - `title` 即界面标签,不新增 `label` 字段。
 - `describeSettings` 接口与参考渲染器留给里程碑 2。
+
+## 16. M2-A 能力总线（0.2.0）
+
+公开接口及完整宿主示例见 [capabilities.md](capabilities.md)。`runCapability({ extensionId, permissionId, request })` 只接受 2.x extension，按声明精确选择 fs/exec/egress。1.x 使用旧入口，2.x MCP 映射另行开发。
+
+- 顺序为请求校验/复制 → 已安装/启用/声明 → 同意 → 目标/操作范围 → 必要确认 → 重新授权/范围 → 放行审计 → 再次检查 → 单次 Sink → 结果审计。异步确认和审计均不能沿用过时授权。
+- roots/programs 创建时复制并固定；宿主让用户选择目录，登记程序。fs 只接受 `/` 相对路径，拒绝绝对路径、盘符、UNC、反斜杠、`..`、NUL，按 realpath 与目录边界检查，允许根内符号链接。read 要求文件，list 要求目录，write 允许创建/覆盖文件但父目录必须存在。
+- exec 只接受 args 数组与 cwd 的逻辑根和相对路径；程序来自登记绑定，cwd 必须在声明 cwdRoots 内并存在。不得传 shell、程序路径、env、stdin。非零退出作为结果返回。
+- read/list 不询问；write/exec/egress 逐次询问。只有布尔 true 放行，缺失/异常/非布尔/超时拒绝，迟到同意不执行。新能力默认超时 120000 ms，宿主可配置；旧入口原有确认行为保持。
+- 请求字节、参数、cwd 和外发字段在第一个 await 前复制。确认后重读权限与同意；停用、卸载、权限范围/理由或真实路径变化拒绝当前调用。放行审计后也重新检查。
+- 每次生成 callId；onAudit 记录确认请求/结果、放行、执行结果和执行前拒绝。只包含能力类别、操作、逻辑目标、状态与错误码，不含路径、URL、文件内容、请求体、参数值、环境变量、stdout/stderr。通过密钥引用脱敏并保留本次读到的值，审计回调收到冻结事件。缺少审计或执行前失败不执行，结果审计失败明确报告动作已完成。
+- 真实 FsSink 必须在执行时保证目录边界，元数据检查不能消除 TOCTOU；真实 ExecSink 提供命令隔离。首期只有记录式实现。范围预授权、生命周期审计、工具挂载/互调、模型循环与第三方代码运行属于后续。

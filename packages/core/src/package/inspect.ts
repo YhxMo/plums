@@ -5,13 +5,15 @@ import { validatePackage } from "./validate.js";
 /** A package summary. Nothing is installed and no file is written. */
 export interface PackageInspection {
   kind: PackageKind;
+  /** Envelope version; permissions must be interpreted using this format. */
+  formatVersion: string;
   id: string;
   name: string;
   version: string;
   description: string;
   /**
    * The manifest `permissions` list, in that order.
-   * Each item has `id`, `level` (`read` | `write` | `egress`), `target` and `reason`.
+   * 1.x items have level; 2.x items have kind and the complete operations/cwdRoots declaration.
    * Text elsewhere in the package is not a permission.
    */
   permissions: Permission[];
@@ -30,6 +32,7 @@ export async function inspectPackage(
   const { manifest } = await validatePackage(input, limits);
   return {
     kind: manifest.kind,
+    formatVersion: manifest.formatVersion,
     id: manifest.id,
     name: manifest.name,
     version: manifest.version,

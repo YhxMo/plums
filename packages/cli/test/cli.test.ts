@@ -3,7 +3,7 @@ import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, statSyn
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { FakeModelProvider, MemorySecretStore, RecordingEgressSink, ScriptedConfirm, VERSION, createCore, type Manifest } from "@plums/core";
+import { FakeModelProvider, MemorySecretStore, PACKAGE_FORMAT_VERSION, RecordingEgressSink, ScriptedConfirm, VERSION, createCore, type Manifest, type ManifestV2 } from "@plums/core";
 import { describe, expect, it } from "vitest";
 import { runCli, type CliOptions } from "../src/main.js";
 
@@ -76,6 +76,31 @@ function cli(dir: string, args: string[], extra: CliOptions = {}) {
 }
 
 describe("plums", () => {
+  it("shows full 2.x permissions through inspect, enable and exported packages", async () => {
+    const dir = home();
+    const manifest: ManifestV2 = {
+      ...EXTENSION, formatVersion: PACKAGE_FORMAT_VERSION,
+      permissions: [
+        { id: "files", kind: "fs", target: "workspace", reason: "Use files", operations: ["write", "list"] },
+        { id: "tests", kind: "exec", target: "test", reason: "Run tests", cwdRoots: ["workspace", "cache"] },
+        { id: "send", kind: "egress", target: "api.example.com:8443", reason: "Send results", future: true },
+      ],
+    };
+    const file = await writePackage(dir, manifest);
+    const inspection = await cli(dir, ["inspect", file]);
+    expect(inspection.exitCode).toBe(0);
+    expect(JSON.parse(inspection.stdout)).toMatchObject({ formatVersion: PACKAGE_FORMAT_VERSION, permissions: manifest.permissions });
+    expect((await cli(dir, ["import", file])).exitCode).toBe(0);
+    const enabled = await cli(dir, ["enable", manifest.id, "--yes"]);
+    expect(enabled.exitCode).toBe(0);
+    expect(JSON.parse(enabled.stdout)).toMatchObject({ enabled: true, permissions: manifest.permissions });
+    const out = path.join(dir, "out.zip");
+    expect((await cli(dir, ["export", manifest.id, "--out", out])).exitCode).toBe(0);
+    const exported = await cli(dir, ["inspect", out]);
+    expect(exported.exitCode).toBe(0);
+    expect(JSON.parse(exported.stdout)).toMatchObject({ formatVersion: PACKAGE_FORMAT_VERSION, permissions: manifest.permissions });
+    expect((await cli(dir, ["uninstall", manifest.id, "--yes"])).exitCode).toBe(0);
+  });
   it("prints the core version from one path", async () => {
     const printed = { exitCode: 0, stdout: `${VERSION}\n`, stderr: "" };
     expect(await runCli([])).toEqual(printed);

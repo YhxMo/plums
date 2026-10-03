@@ -30,6 +30,7 @@ describe("inspect: valid packages", () => {
 
       expect(result).toEqual({
         kind: manifest.kind,
+        formatVersion: manifest.formatVersion,
         id: manifest.id,
         name: manifest.name,
         version: manifest.version,
@@ -344,8 +345,8 @@ describe("inspect: bad packages return the same PlumsError as import", () => {
     ["manifest that is not JSON", () => buildZip([{ name: "manifest.json", data: "{ not json" }]), "MANIFEST_INVALID", undefined],
     ["manifest that is not an object", () => manifestZip(["not", "an", "object"]), "MANIFEST_INVALID", undefined],
     [
-      "formatVersion 2.0",
-      () => manifestZip({ formatVersion: "2.0", somethingNew: true }),
+      "formatVersion 3.0",
+      () => manifestZip({ formatVersion: "3.0", somethingNew: true }),
       "FORMAT_UNSUPPORTED",
       "/formatVersion",
     ],

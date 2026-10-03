@@ -9,6 +9,7 @@ OUT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "packages")
 FIXED_TIME = (1980, 1, 1, 0, 0, 0)
 
 def base(kind, id_, **kw):
+    # Historical M1 fixtures intentionally stay in format 1.x.
     m = {"formatVersion": "1.0", "kind": kind, "id": id_, "name": id_, "version": "1.0.0",
          "description": f"test {kind}", "dependencies": [], "permissions": [], "payload": {"text": "hello"}}
     m.update(kw); return m
@@ -63,7 +64,7 @@ bad("perm-missing-reason", lambda m: m.update(permissions=[{"id": "p", "level": 
 bad("settings-bad-type", lambda m: m.update(settingsSchema={"type": "object", "properties": {"n": {"type": "banana", "title": "N", "description": "Bad type on purpose."}}}))  # path: /settingsSchema/properties/n/type
 bad("dependencies-not-array", lambda m: m.update(dependencies="none"))  # path: /dependencies
 # 高 major:期望 FORMAT_UNSUPPORTED, path /formatVersion
-bad("format-major-2", lambda m: m.update(formatVersion="2.0"))
+bad("format-major-3", lambda m: m.update(formatVersion="3.0"))
 # 依赖缺失:导入成功,同意后 enable 才返回 DEPENDENCY_MISSING,path /dependencies/0
 write("invalid/dependency-missing.zip", base("extension", "test.ext.depmissing", dependencies=[{"kind": "extension", "id": "does.not.exist", "range": "^1.0.0", "optional": False}]))
 # manifest 不是 JSON:期望 MANIFEST_INVALID,没有 path(信封解析失败,不是 zip 结构问题)

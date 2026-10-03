@@ -1,4 +1,5 @@
 import {
+  CAPABILITY_FAILED,
   CONFIRMATION_DENIED,
   CONSENT_REQUIRED,
   DEPENDENCY_MISSING,
@@ -15,7 +16,7 @@ import {
 import { describe, expect, it } from "vitest";
 
 describe("public error codes", () => {
-  it("imports the ten fixed codes from the package entry", () => {
+  it("imports the eleven fixed codes from the package entry", () => {
     expect([
       MANIFEST_INVALID,
       FORMAT_UNSUPPORTED,
@@ -27,6 +28,7 @@ describe("public error codes", () => {
       IMPORT_INVALID,
       SHARE_FETCH_FAILED,
       SETTINGS_INVALID,
+      CAPABILITY_FAILED,
     ]).toEqual([
       "MANIFEST_INVALID",
       "FORMAT_UNSUPPORTED",
@@ -38,6 +40,7 @@ describe("public error codes", () => {
       "IMPORT_INVALID",
       "SHARE_FETCH_FAILED",
       "SETTINGS_INVALID",
+      "CAPABILITY_FAILED",
     ]);
     expect(ERROR_CODES).toEqual([
       MANIFEST_INVALID,
@@ -50,8 +53,9 @@ describe("public error codes", () => {
       IMPORT_INVALID,
       SHARE_FETCH_FAILED,
       SETTINGS_INVALID,
+      CAPABILITY_FAILED,
     ]);
-    expect(new Set(ERROR_CODES).size).toBe(10);
+    expect(new Set(ERROR_CODES).size).toBe(11);
   });
 
   it("accepts each code on PlumsError", () => {

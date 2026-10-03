@@ -1,6 +1,6 @@
 import { CONFIRMATION_DENIED, CONSENT_REQUIRED, PERMISSION_DENIED, PlumsError } from "../errors.js";
-import { requireInstalled, requireManifest, type InstallContext } from "../install/lifecycle.js";
-import type { Permission, PermissionLevel } from "../package/types.js";
+import { requireInstalled, requireLegacyManifest, type InstallContext } from "../install/lifecycle.js";
+import type { PermissionV1, PermissionLevel } from "../package/types.js";
 import { matchEgressUrl, parseEgressTarget } from "../package/egress-target.js";
 import type { Confirm, EgressRequest, EgressResult, EgressSink } from "../types.js";
 
@@ -117,9 +117,9 @@ export function authorize(ctx: InstallContext, id: string, permissionId: string)
       details: { id, reason: "NOT_ENABLED" },
     });
   }
-  const permissions = requireManifest(ctx, id).permissions;
+  const permissions = requireLegacyManifest(ctx, id).permissions;
   const index = permissions.findIndex((p) => p.id === permissionId);
-  const permission = permissions[index] as Permission | undefined;
+  const permission = permissions[index] as PermissionV1 | undefined;
   if (permission === undefined) {
     throw new PlumsError({
       code: PERMISSION_DENIED,
@@ -130,7 +130,7 @@ export function authorize(ctx: InstallContext, id: string, permissionId: string)
   }
 
   const consent = ctx.store.getConsent(id);
-  const covered = consent?.permissions.some(
+  const covered = consent?.formatVersion.startsWith("1.") && consent.permissions.some(
     (g) => g.id === permission.id && g.level === permission.level && g.target === permission.target,
   );
   if (!covered) {

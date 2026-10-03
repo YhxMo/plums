@@ -421,7 +421,7 @@ describe("importFromUrl: a zip that fails the package checks keeps its own error
     ["invalid/egress-target-wildcard-tld.zip", "MANIFEST_INVALID", "/permissions/0/target", "wildcard TLD"],
     ["invalid/egress-target-single-label.zip", "MANIFEST_INVALID", "/permissions/0/target", "single-label target"],
     ["invalid/manifest-not-json.zip", "MANIFEST_INVALID", undefined, "manifest not JSON"],
-    ["invalid/format-major-2.zip", "FORMAT_UNSUPPORTED", "/formatVersion", "format major 2"],
+    ["invalid/format-major-3.zip", "FORMAT_UNSUPPORTED", "/formatVersion", "format major 3"],
     ["invalid/no-manifest.zip", "IMPORT_INVALID", undefined, "no manifest"],
     ["invalid/zip-slip.zip", "IMPORT_INVALID", undefined, "zip slip"],
     ["invalid/absolute-path.zip", "IMPORT_INVALID", undefined, "absolute path"],

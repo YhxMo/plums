@@ -28,7 +28,8 @@ export interface InstalledPackage {
 export interface ConsentRecord {
   packageId: string;
   version: string;
-  /** Full permission items (`id`, `level`, `target`, `reason`), in manifest order. */
+  formatVersion: Manifest["formatVersion"];
+  /** Full permission declarations, including operations/cwdRoots and unknown fields. */
   permissions: Permission[];
   /** ISO 8601 time. */
   grantedAt: string;
@@ -69,9 +70,10 @@ interface ConsentRow {
   version: string;
   permissions: string;
   granted_at: string;
+  format_version: Manifest["formatVersion"];
 }
 
-const SCHEMA_VERSION = 3;
+const SCHEMA_VERSION = 4;
 
 const INSTALLED_SELECT = `
   SELECT p.id, p.kind, p.name, p.version, p.manifest, p.enabled, p.installed_at, p.enabled_at,
@@ -174,10 +176,10 @@ export class InstallStore {
   saveConsent(record: ConsentRecord): void {
     this.connection()
       .prepare(
-        `INSERT OR REPLACE INTO consents (package_id, version, permissions, granted_at)
-         VALUES (?, ?, ?, ?)`,
+        `INSERT OR REPLACE INTO consents (package_id, version, permissions, granted_at, format_version)
+         VALUES (?, ?, ?, ?, ?)`,
       )
-      .run(record.packageId, record.version, JSON.stringify(record.permissions), record.grantedAt);
+      .run(record.packageId, record.version, JSON.stringify(record.permissions), record.grantedAt, record.formatVersion);
   }
 
   getConsent(id: string): ConsentRecord | undefined {
@@ -190,6 +192,7 @@ export class InstallStore {
     return {
       packageId: row.package_id,
       version: row.version,
+      formatVersion: row.format_version,
       permissions: JSON.parse(row.permissions) as Permission[],
       grantedAt: row.granted_at,
     };
@@ -335,6 +338,14 @@ function migrate(db: Database.Database): void {
           const manifest = JSON.parse(row.manifest) as Manifest;
           save.run(JSON.stringify(secretKeys(manifest).map((key) => secretRef(row.id, key))), row.id);
         }
+      }
+      if (current < 4) {
+        // Keep the permissions JSON intact. Persist its format so old levels cannot consent to new capabilities.
+        db.exec("ALTER TABLE consents ADD COLUMN format_version TEXT NOT NULL DEFAULT '1.0'");
+        const rows = db.prepare("SELECT c.package_id, p.manifest FROM consents c JOIN packages p ON p.id = c.package_id")
+          .all() as { package_id: string; manifest: string }[];
+        const save = db.prepare("UPDATE consents SET format_version = ? WHERE package_id = ?");
+        for (const row of rows) save.run((JSON.parse(row.manifest) as Manifest).formatVersion, row.package_id);
       }
       db.pragma(`user_version = ${SCHEMA_VERSION}`);
     })();

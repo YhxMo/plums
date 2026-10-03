@@ -299,7 +299,7 @@ describe("importFromUrl download failures", () => {
 describe("importFromUrl package errors", () => {
   it.each([
     ["a bad manifest", () => manifestZip({ ...validManifest(), version: "one" }), "MANIFEST_INVALID", "/version"],
-    ["an unsupported format", () => manifestZip({ formatVersion: "2.0", somethingNew: true }), "FORMAT_UNSUPPORTED", "/formatVersion"],
+    ["an unsupported format", () => manifestZip({ formatVersion: "3.0", somethingNew: true }), "FORMAT_UNSUPPORTED", "/formatVersion"],
     ["no manifest", () => buildZip([{ name: "readme.txt", data: "hi" }]), "IMPORT_INVALID", undefined],
     [
       "a path that escapes",

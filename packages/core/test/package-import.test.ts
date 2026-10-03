@@ -148,7 +148,7 @@ describe("exportPackage", () => {
 
   it("refuses a too-new formatVersion with FORMAT_UNSUPPORTED", async () => {
     const { core } = makeCore();
-    const manifest = { ...validManifest(), formatVersion: "2.0" };
+    const manifest = { ...validManifest(), formatVersion: "3.0" };
     await expectPlumsError(core.exportPackage({ manifest }), "FORMAT_UNSUPPORTED", "/formatVersion");
   });
 
@@ -167,12 +167,12 @@ describe("exportPackage", () => {
 
 describe("importPackage: formatVersion", () => {
   it("exports the default format version and readable major", () => {
-    expect(PACKAGE_FORMAT_VERSION).toBe("1.0");
-    expect(SUPPORTED_FORMAT_MAJOR).toBe(1);
+    expect(PACKAGE_FORMAT_VERSION).toBe("2.0");
+    expect(SUPPORTED_FORMAT_MAJOR).toBe(2);
   });
   it("returns FORMAT_UNSUPPORTED when the major is higher than supported", async () => {
     const { core, dataDir } = makeCore();
-    const zip = await manifestZip({ formatVersion: "2.0", somethingNew: true });
+    const zip = await manifestZip({ formatVersion: "3.0", somethingNew: true });
     await expectPlumsError(core.importPackage(zip), "FORMAT_UNSUPPORTED", "/formatVersion");
     expect(listAll(dataDir)).toEqual([]);
   });

@@ -68,7 +68,9 @@ describe("createCore", () => {
       secrets: new MemorySecretStore(),
     };
     expect(() => createCore({ ...options, dataDir: "  " })).toThrow(TypeError);
-    expect(() => createCore({ ...options, confirm: undefined as never })).toThrow(/confirm/);
+    const withoutConfirm = createCore({ ...options, confirm: undefined });
+    withoutConfirm.close();
+    expect(() => createCore({ ...options, confirm: {} as never })).toThrow(/confirm/);
   });
 
   it("publishes the same version as the package", () => {

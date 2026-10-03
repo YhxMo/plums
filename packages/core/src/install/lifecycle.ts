@@ -11,7 +11,16 @@ import {
 } from "../errors.js";
 import { acceptResidualSettings, PACKAGE_DATA_DIR } from "./check-settings.js";
 import { installPackage, PACKAGES_DIR } from "../package/install.js";
-import type { Dependency, Manifest, Permission, PermissionLevel } from "../package/types.js";
+import {
+  isManifestV1,
+  type Dependency,
+  type Manifest,
+  type ManifestV1,
+  type Permission,
+  type PermissionV1,
+  type PermissionV2,
+  type PermissionLevel,
+} from "../package/types.js";
 import type { ValidatedPackage } from "../package/validate.js";
 import { secretKeys, secretRef } from "../secrets.js";
 import type { SecretStore } from "../types.js";
@@ -47,6 +56,7 @@ function consentFor(manifest: Manifest): ConsentRecord {
   return {
     packageId: manifest.id,
     version: manifest.version,
+    formatVersion: manifest.formatVersion,
     permissions: manifest.permissions,
     grantedAt: new Date().toISOString(),
   };
@@ -55,7 +65,7 @@ function consentFor(manifest: Manifest): ConsentRecord {
 export const LEVEL_RANK: Record<PermissionLevel, number> = { read: 0, write: 1, egress: 2 };
 
 /** Why a new permission is not covered by the old list, or `undefined` when it is covered. */
-function growth(old: Permission[], next: Permission): string | undefined {
+function growth(old: Permission[], next: Permission, legacy: boolean): string | undefined {
   const sameId = old.filter((p) => p.id === next.id);
   if (sameId.length === 0) {
     return "NEW_PERMISSION";
@@ -64,7 +74,22 @@ function growth(old: Permission[], next: Permission): string | undefined {
   if (sameTarget.length === 0) {
     return "TARGET_CHANGED";
   }
-  return sameTarget.some((p) => LEVEL_RANK[p.level] >= LEVEL_RANK[next.level]) ? undefined : "LEVEL_RAISED";
+  if (legacy) {
+    return (sameTarget as PermissionV1[]).some((p) => LEVEL_RANK[p.level] >= LEVEL_RANK[(next as PermissionV1).level])
+      ? undefined : "LEVEL_RAISED";
+  }
+  const incoming = next as PermissionV2;
+  const sameKind = (sameTarget as PermissionV2[]).filter((p) => p.kind === incoming.kind);
+  if (sameKind.length === 0) return "KIND_CHANGED";
+  if (incoming.kind === "fs") {
+    return sameKind.some((p) => p.kind === "fs" && incoming.operations.every((op) => p.operations.includes(op)))
+      ? undefined : "OPERATIONS_ADDED";
+  }
+  if (incoming.kind === "exec") {
+    return sameKind.some((p) => p.kind === "exec" && incoming.cwdRoots.every((root) => p.cwdRoots.includes(root)))
+      ? undefined : "CWD_ROOTS_ADDED";
+  }
+  return undefined;
 }
 
 /**
@@ -100,9 +125,19 @@ export async function updatePackage(
     throw mismatch("version", installed.version, manifest.version, `新版本 ${manifest.version} 必须高于已安装的 ${installed.version}，不能降级或重复更新。`);
   }
   assertDependencies(ctx, installed, manifest);
-  const old = requireManifest(ctx, installed.id).permissions;
+  const previousManifest = requireManifest(ctx, installed.id);
+  const formatChanged = isManifestV1(previousManifest) !== isManifestV1(manifest);
+  if (formatChanged && !consent) {
+    throw new PlumsError({
+      code: CONSENT_REQUIRED,
+      message: "包格式变化，需要重新同意新版权限后才能更新。旧版本保持不变。",
+      path: "/formatVersion",
+      details: { id: installed.id, reason: "FORMAT_CHANGED", installed: previousManifest.formatVersion, incoming: manifest.formatVersion },
+    });
+  }
+  const old = previousManifest.permissions;
   const added = manifest.permissions.flatMap((p, index) => {
-    const reason = growth(old, p);
+    const reason = formatChanged ? "FORMAT_CHANGED" : growth(old, p, isManifestV1(manifest));
     return reason === undefined ? [] : [{ index, id: p.id, reason }];
   });
   const first = added[0];
@@ -126,7 +161,7 @@ export async function updatePackage(
   const record =
     previous === undefined
       ? undefined
-      : { ...consentFor(manifest), grantedAt: first === undefined ? previous.grantedAt : new Date().toISOString() };
+      : { ...consentFor(manifest), grantedAt: first === undefined && !formatChanged ? previous.grantedAt : new Date().toISOString() };
   // Why before the rename: a settings mismatch must not move the installed files.
   await acceptResidualSettings(ctx.dataDir, manifest);
   const dir = path.join(ctx.dataDir, PACKAGES_DIR, installed.id);
@@ -215,6 +250,20 @@ export function requireManifest(ctx: InstallContext, id: string): Manifest {
   const manifest = ctx.store.getManifest(id);
   if (manifest === undefined) {
     throw new Error(`The install record of ${id} has no manifest.`);
+  }
+  return manifest;
+}
+
+/** Legacy action/MCP APIs must not infer a level from a 2.x permission's unknown fields. */
+export function requireLegacyManifest(ctx: InstallContext, id: string): ManifestV1 {
+  const manifest = requireManifest(ctx, id);
+  if (!isManifestV1(manifest)) {
+    throw new PlumsError({
+      code: PERMISSION_DENIED,
+      message: "这个包使用 2.x 权限，不能通过旧动作或 MCP 授权接口调用。",
+      path: "/formatVersion",
+      details: { id, reason: "FORMAT_API_MISMATCH", formatVersion: manifest.formatVersion },
+    });
   }
   return manifest;
 }

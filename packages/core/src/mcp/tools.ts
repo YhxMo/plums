@@ -26,7 +26,7 @@
 import { createHash } from "node:crypto";
 import { authorize } from "../actions/run-action.js";
 import { CONFIRMATION_DENIED, CONSENT_REQUIRED, PERMISSION_DENIED, PlumsError } from "../errors.js";
-import { LEVEL_RANK, requireInstalled, requireManifest, type InstallContext } from "../install/lifecycle.js";
+import { LEVEL_RANK, requireInstalled, requireLegacyManifest, type InstallContext } from "../install/lifecycle.js";
 import type { McpApproval } from "../install/store.js";
 import { ID_PATTERN } from "../package/schema.js";
 import type { PermissionLevel } from "../package/types.js";
@@ -193,7 +193,7 @@ export function approveMcpTools(
       throw new TypeError(`allowNonRead names a tool that is not in the list: ${name}`);
     }
   }
-  const declared = unverified ? [] : requireManifest(ctx, serverId).permissions;
+  const declared = unverified ? [] : requireLegacyManifest(ctx, serverId).permissions;
   const result: McpApproveResult = { approved: [], skipped: [] };
   const now = new Date().toISOString();
   for (const tool of list) {
@@ -344,6 +344,7 @@ function resolveServer(ctx: InstallContext, serverId: string): boolean {
       details: { id: serverId, reason: "NOT_A_CONNECTOR" },
     });
   }
+  requireLegacyManifest(ctx, serverId);
   return false;
 }
 

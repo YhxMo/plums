@@ -11,6 +11,8 @@ import {
   type Core,
   type CreateCoreOptions,
   type Manifest,
+  type ManifestV1,
+  type ManifestV2,
   PlumsError,
 } from "@plums/core";
 import { expect } from "vitest";
@@ -33,9 +35,10 @@ export function listAll(dir: string): string[] {
   return readdirSync(dir, { recursive: true }).map(String).sort();
 }
 
-export function validManifest(kind: Manifest["kind"] = "character"): Manifest {
+/** Historical 1.x contracts remain independent of the default for new packages. */
+export function validManifest(kind: Manifest["kind"] = "character"): ManifestV1 {
   return {
-    formatVersion: PACKAGE_FORMAT_VERSION,
+    formatVersion: "1.0",
     kind,
     id: `demo-${kind}`,
     name: `Demo ${kind}`,
@@ -56,6 +59,19 @@ export function validManifest(kind: Manifest["kind"] = "character"): Manifest {
       },
     },
     payload: { greeting: "hello", nested: { list: [1, 2, { three: 3 }], nothing: null } },
+  };
+}
+
+export function validManifestV2(kind: Manifest["kind"] = "extension"): ManifestV2 {
+  return {
+    ...validManifest(kind),
+    formatVersion: PACKAGE_FORMAT_VERSION,
+    dependencies: [],
+    permissions: [
+      { id: "files", kind: "fs", target: "workspace", reason: "Use project files.", operations: ["read", "write", "list"] },
+      { id: "test", kind: "exec", target: "test", reason: "Run project tests.", cwdRoots: ["workspace"] },
+      { id: "send", kind: "egress", target: "api.example.com", reason: "Send a summary." },
+    ],
   };
 }
 

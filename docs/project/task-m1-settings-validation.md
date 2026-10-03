@@ -31,7 +31,7 @@
 
 ## 已另行安排与延后项
 
-- 正常更新删除移除字段的密钥已有实现；清理失败与重启后清理由已合并 #28 增补，使用 schema 3 保存历史引用。参见 HANDOFF 的兼容性说明。
+- 正常更新删除移除字段的密钥已有实现；清理失败与重启后清理由已合并 #28 增补，使用 schema 3 保存历史引用。参见 HANDOFF_M1.md 的历史兼容性说明；当前数据库格式已升为 4。
 - `PACKAGE_FORMAT_VERSION` 已公开导出，export 已保存传入的 formatVersion。常量收口见 `task-package-format-version.md`；高 major 使用现有 `FORMAT_UNSUPPORTED`，不引入旧任务建议的另一错误契约。
 - `describeSettings`、参考表单渲染器、文件路径等新增类型留到 M2；它们目前不存在。路线图中的 `setSetting` 是设计提案，不能当作现有方法调用。
 - C1 已由 #26 与 #24 收口；独立公开校验/inspect API、insert-only 安装记录和残留设置的导入/更新差别保持。

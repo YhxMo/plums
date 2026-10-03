@@ -9,6 +9,8 @@ export const IMPORT_INVALID = "IMPORT_INVALID" as const;
 export const SHARE_FETCH_FAILED = "SHARE_FETCH_FAILED" as const;
 /** A saved value does not match settingsSchema. Secret refs stay on SECRET_NOT_FOUND. */
 export const SETTINGS_INVALID = "SETTINGS_INVALID" as const;
+/** Capability sink/audit failure; details report callId, phase and executionState. */
+export const CAPABILITY_FAILED = "CAPABILITY_FAILED" as const;
 
 export const ERROR_CODES = Object.freeze([
   MANIFEST_INVALID,
@@ -21,6 +23,7 @@ export const ERROR_CODES = Object.freeze([
   IMPORT_INVALID,
   SHARE_FETCH_FAILED,
   SETTINGS_INVALID,
+  CAPABILITY_FAILED,
 ] as const);
 
 export type PlumsErrorCode = (typeof ERROR_CODES)[number];

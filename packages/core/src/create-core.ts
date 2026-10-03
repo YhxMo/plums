@@ -2,6 +2,8 @@ import { rm } from "node:fs/promises";
 import { IMPORT_INVALID, PlumsError, SECRET_NOT_FOUND } from "./errors.js";
 import path from "node:path";
 import { runAction, type ActionResult, type RunActionInput } from "./actions/run-action.js";
+import { runCapability } from "./capabilities/run-capability.js";
+import { DEFAULT_CONFIRM_TIMEOUT_MS, type AuditHandler, type CapabilityResult, type ExecSink, type FsSink, type RunCapabilityInput } from "./capabilities/types.js";
 import * as lifecycle from "./install/lifecycle.js";
 import { acceptResidualSettings, refuseOrphanSettings } from "./install/check-settings.js";
 import { setSettings, resolveSettings, knownSecrets } from "./install/settings.js";
@@ -36,8 +38,19 @@ export interface CreateCoreOptions {
   dataDir: string;
   model: ModelProvider;
   egress: EgressSink;
-  confirm: Confirm;
+  /** Missing confirmation denies every action that needs it. */
+  confirm?: Confirm;
   secrets: SecretStore;
+  /** Logical directory names to host-selected paths; copied at creation. */
+  roots?: Readonly<Record<string, string>>;
+  /** Program identifiers to host-selected executable bindings; copied at creation. */
+  programs?: Readonly<Record<string, string>>;
+  fs?: FsSink;
+  exec?: ExecSink;
+  /** Required to execute new capabilities. Events contain no request/result content. */
+  onAudit?: AuditHandler;
+  /** Capability confirmation only. Defaults to 120000 ms. */
+  confirmTimeoutMs?: number;
   /** Overrides for the package import limits. Anything left out keeps its default. */
   limits?: Partial<PackageLimits>;
 }
@@ -57,7 +70,7 @@ export interface Core {
   readonly limits: Readonly<PackageLimits>;
   /** Checks a zip (bytes or file path) and returns its content. Writes nothing. */
   validatePackage(input: Uint8Array | string): Promise<PackageContents>;
-  /** Returns a package summary and its permission list. Does not install or write any file. */
+  /** Returns formatVersion, a package summary and its full permission declarations. Writes nothing. */
   inspect(input: Uint8Array | string): Promise<PackageInspection>;
   /**
    * Validates a zip, then writes it to the data directory and records it as installed:
@@ -103,7 +116,10 @@ export interface Core {
    * PERMISSION_DENIED (not installed), IMPORT_INVALID at `/kind` (kind changed) or `/version`
    * (not higher), DEPENDENCY_MISSING (a required dependency of the new version), or
    * CONSENT_REQUIRED at `/permissions/<i>` when the new version adds or raises a permission
-   * and `options.consent` is not true. A leftover settings file is checked against this
+   * and `options.consent` is not true. Crossing format majors requires consent even for empty permission lists
+   * (CONSENT_REQUIRED at `/formatVersion`, reason FORMAT_CHANGED). For 2.x, added operations,
+   * changed kinds/targets and added cwdRoots require consent; write never implies read.
+   * A leftover settings file is checked against this
    * manifest before any files are replaced. No settingsSchema leaves the file unread and
    * the update continues. A mismatch is IMPORT_INVALID and the installed package stays.
    * On success the files are replaced; enabled state stays and an existing consent record
@@ -140,7 +156,9 @@ export interface Core {
   uninstall(id: string): Promise<void>;
   listInstalled(): Promise<InstalledPackage[]>;
   /**
-   * Runs one permission-checked action of an installed extension. The level (read, write,
+   * Runs one permission-checked action of an installed 1.x extension. A 2.x package is
+   * PERMISSION_DENIED at `/formatVersion` (reason FORMAT_API_MISMATCH).
+   * The level (read, write,
    * egress) comes from the extension's manifest. Check order: installed, enabled and declared
    * (PERMISSION_DENIED); consent (CONSENT_REQUIRED); the egress url against the permission
    * (PERMISSION_DENIED); confirm.ask for write and egress (CONFIRMATION_DENIED); then those
@@ -150,7 +168,19 @@ export interface Core {
    */
   runAction(input: RunActionInput): Promise<ActionResult>;
   /**
+   * Executes one 2.x extension capability through an injected sink. Validates and copies
+   * the request, checks installation/enabling/declaration/consent and scope, asks for each
+   * write/exec/egress call, rechecks authorization and real paths, audits allow, executes
+   * once and audits the result. 1.x uses runAction. Read/list do not prompt.
+   * Missing/failing pre-execution audit prevents execution. CAPABILITY_FAILED includes callId, phase
+   * and executionState; completed or unknown must never be automatically retried.
+   * Filesystem checks read metadata only; the host sink enforces boundaries during I/O.
+   */
+  runCapability(input: RunCapabilityInput): Promise<CapabilityResult>;
+  /**
    * MCP tools. The core never connects to a server: the host passes the tool list it read.
+   * Package MCP APIs only accept 1.x connectors; 2.x returns PERMISSION_DENIED at
+   * `/formatVersion` with reason FORMAT_API_MISMATCH. Hand-added services are unchanged.
    * `serverId` is an installed connector package id, or `manual:<lowercase-name>` for a service the
    * user added by hand (unverified: read-only until a tool is granted one by one).
    * A tool name is 1-128 characters of `A-Za-z0-9_.-`, otherwise TypeError. For a connector the tool
@@ -214,15 +244,27 @@ export function createCore(options: CreateCoreOptions): Core {
   const dataDir = requireNonEmptyString(options.dataDir, "dataDir");
   requireMethod(options.model, "model", "complete");
   requireMethod(options.egress, "egress", "send");
-  requireMethod(options.confirm, "confirm", "ask");
+  if (options.confirm !== undefined) requireMethod(options.confirm, "confirm", "ask");
   requireMethod(options.secrets, "secrets", "get");
   requireMethod(options.secrets, "secrets", "set");
   requireMethod(options.secrets, "secrets", "delete");
+  if (options.fs !== undefined) {
+    for (const method of ["read", "write", "list"]) requireMethod(options.fs, "fs", method);
+  }
+  if (options.exec !== undefined) requireMethod(options.exec, "exec", "run");
+  if (options.onAudit !== undefined && typeof options.onAudit !== "function") throw new TypeError("createCore onAudit must be a function");
+  const confirmTimeoutMs = options.confirmTimeoutMs === undefined ? DEFAULT_CONFIRM_TIMEOUT_MS : options.confirmTimeoutMs;
+  if (!Number.isInteger(confirmTimeoutMs) || confirmTimeoutMs <= 0 || confirmTimeoutMs > 2_147_483_647) throw new TypeError("createCore confirmTimeoutMs must be a positive timer integer");
+  const roots = copyBindings(options.roots, "roots", true);
+  const programs = copyBindings(options.programs, "programs", false);
+  const confirm: Confirm = options.confirm ?? { async ask() { return false; } };
 
   const limits = resolveLimits(options.limits);
   const resolvedDataDir = path.resolve(dataDir);
   const store = new InstallStore(resolvedDataDir);
   const ctx = { dataDir: resolvedDataDir, store, secrets: options.secrets };
+  const capabilityCtx = { ...ctx, roots, programs, fs: options.fs, exec: options.exec,
+    egress: options.egress, confirm: options.confirm, confirmTimeoutMs, onAudit: options.onAudit };
   const importPackage = async (input: Uint8Array | string): Promise<ImportedPackage> => {
     const validated = await validatePackage(input, limits);
     // Why a per-id chain, and only inside this process: the map lives in memory
@@ -298,7 +340,7 @@ export function createCore(options: CreateCoreOptions): Core {
     }),
     inspect: guard((input) => inspectPackage(input, limits)),
     importPackage: guard(importPackage),
-    importFromUrl: guard(async (url) => importPackage(await fetchSharedPackage(url, options.egress, options.confirm))),
+    importFromUrl: guard(async (url) => importPackage(await fetchSharedPackage(url, options.egress, confirm))),
     updatePackage: guard(async (input, updateOptions) => {
       const validated = await validatePackage(input, limits);
       const { installDir, previousVersion } = await lifecycle.updatePackage(
@@ -324,10 +366,12 @@ export function createCore(options: CreateCoreOptions): Core {
       return lifecycle.uninstall(ctx, id);
     }),
     listInstalled: guard(async () => store.list()),
-    runAction: guard((input) => runAction({ ...ctx, egress: options.egress, confirm: options.confirm }, input)),
+    runAction: guard((input) => runAction({ ...ctx, egress: options.egress, confirm }, input)),
+    // This entry point owns its redaction so an audit failure cannot obscure executionState.
+    runCapability: (input) => runCapability(capabilityCtx, input),
     checkMcpTools: guard(async (serverId, tools) => checkMcpTools(ctx, serverId, tools)),
     approveMcpTools: guard(async (serverId, tools, allowNonRead) => approveMcpTools(ctx, serverId, tools, allowNonRead)),
-    authorizeMcpTool: guard((serverId, tool) => authorizeMcpTool({ ...ctx, confirm: options.confirm }, serverId, tool)),
+    authorizeMcpTool: guard((serverId, tool) => authorizeMcpTool({ ...ctx, confirm }, serverId, tool)),
     getMcpApprovals: guard(async (serverId) => getMcpApprovals(ctx, serverId)),
     setSettings: guard((id, values) => setSettings(ctx, id, values)),
     resolveSettings: guard((id) => resolveSettings(ctx, id)),
@@ -400,4 +444,15 @@ function requireMethod(value: unknown, name: string, method: string): void {
   ) {
     throw new TypeError(`createCore ${name} must implement ${method}()`);
   }
+}
+
+function copyBindings(value: Readonly<Record<string, string>> | undefined, name: string, directory: boolean): ReadonlyMap<string, string> {
+  if (value === undefined) return new Map();
+  if (value === null || typeof value !== "object" || Array.isArray(value)) throw new TypeError(`createCore ${name} must be a binding record`);
+  const bindings = new Map<string, string>();
+  for (const [key, binding] of Object.entries(value)) {
+    if (key.trim() === "" || key.includes("\0") || typeof binding !== "string" || binding.trim() === "" || binding.includes("\0")) throw new TypeError(`createCore ${name} must contain non-empty names and bindings`);
+    bindings.set(key, directory ? path.resolve(binding) : binding);
+  }
+  return bindings;
 }
