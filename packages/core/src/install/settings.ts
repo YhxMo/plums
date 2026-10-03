@@ -70,7 +70,7 @@ export async function resolveSettings(ctx: InstallContext, id: string): Promise<
 export async function knownSecrets(ctx: InstallContext): Promise<string[]> {
   if (!existsSync(path.join(ctx.dataDir, DATABASE_FILE))) return [];
   const values = await Promise.all(
-    ctx.store.list().flatMap(({ id }) => ctx.store.getSecretRefs(id).map((ref) => ctx.secrets.get(ref))),
+    ctx.store.listSecretRefs().map((ref) => ctx.secrets.get(ref)),
   );
   return values.filter((value) => value !== undefined);
 }

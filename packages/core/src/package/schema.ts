@@ -136,6 +136,34 @@ export const MANIFEST_V2_SCHEMA = {
 } as const;
 
 const valueAjv = new Ajv({ allErrors: true, strict: false });
+const SETTING_CACHE_SIZE = 256;
+const MAX_CACHED_SETTING_BYTES = 16 * 1024;
+const settingValidators = new Map<string, ValidateFunction>();
+
+function settingValidator(schema: Record<string, unknown>): ValidateFunction {
+  const key = JSON.stringify(schema);
+  let validate = settingValidators.get(key);
+  if (validate !== undefined) {
+    settingValidators.delete(key);
+    settingValidators.set(key, validate);
+    return validate;
+  }
+  // Own the enum array and nested values so callers cannot mutate a cached validator.
+  const snapshot = JSON.parse(key) as Record<string, unknown>;
+  try {
+    validate = valueAjv.compile(snapshot);
+  } finally {
+    // Compiled functions retain what they need; Ajv must not keep an unbounded second cache.
+    valueAjv.removeSchema(snapshot);
+  }
+  if (Buffer.byteLength(key) <= MAX_CACHED_SETTING_BYTES) {
+    settingValidators.set(key, validate);
+    if (settingValidators.size > SETTING_CACHE_SIZE) {
+      settingValidators.delete(settingValidators.keys().next().value!);
+    }
+  }
+  return validate;
+}
 
 export type SettingValueFailure = "TYPE" | "MINIMUM" | "MAXIMUM" | "ENUM";
 
@@ -156,11 +184,10 @@ export function settingValueFailure(
     if (spec.maximum !== undefined) schema.maximum = spec.maximum;
     if (spec.enum !== undefined) schema.enum = spec.enum;
   }
-  const validate = valueAjv.compile(schema);
+  const validate = settingValidator(schema);
   const ok = validate(value);
-  const keywords = new Set((validate.errors ?? []).map((error) => error.keyword));
-  valueAjv.removeSchema(schema);
   if (ok) return undefined;
+  const keywords = new Set((validate.errors ?? []).map((error) => error.keyword));
   // Why this order: a type mismatch is decided before a bound, which is the order setSettings uses across fields.
   if (keywords.has("type")) return "TYPE";
   if (keywords.has("minimum")) return "MINIMUM";

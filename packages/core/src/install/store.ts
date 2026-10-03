@@ -58,7 +58,6 @@ interface InstalledRow {
   kind: PackageKind;
   name: string;
   version: string;
-  manifest: string;
   enabled: number;
   installed_at: string;
   enabled_at: string | null;
@@ -76,7 +75,7 @@ interface ConsentRow {
 const SCHEMA_VERSION = 4;
 
 const INSTALLED_SELECT = `
-  SELECT p.id, p.kind, p.name, p.version, p.manifest, p.enabled, p.installed_at, p.enabled_at,
+  SELECT p.id, p.kind, p.name, p.version, p.enabled, p.installed_at, p.enabled_at,
          EXISTS (SELECT 1 FROM consents c WHERE c.package_id = p.id) AS consented
   FROM packages p`;
 
@@ -86,12 +85,14 @@ const INSTALLED_SELECT = `
  */
 export class InstallStore {
   private db: Database.Database | undefined;
+  private readonly statements = new Map<string, Database.Statement>();
 
   constructor(private readonly dataDir: string) {}
 
   close(): void {
     this.db?.close();
     this.db = undefined;
+    this.statements.clear();
   }
 
   /** Opens the database now, so callers can fail before they write anything else. */
@@ -100,20 +101,20 @@ export class InstallStore {
   }
 
   get(id: string): InstalledPackage | undefined {
-    const row = this.connection().prepare(`${INSTALLED_SELECT} WHERE p.id = ?`).get(id) as
+    const row = this.statement(`${INSTALLED_SELECT} WHERE p.id = ?`).get(id) as
       | InstalledRow
       | undefined;
     return row === undefined ? undefined : toInstalled(row);
   }
 
   list(): InstalledPackage[] {
-    const rows = this.connection().prepare(`${INSTALLED_SELECT} ORDER BY p.id`).all() as InstalledRow[];
+    const rows = this.statement(`${INSTALLED_SELECT} ORDER BY p.id`).all() as InstalledRow[];
     return rows.map(toInstalled);
   }
 
   /** The manifest as it was when the package was imported. */
   getManifest(id: string): Manifest | undefined {
-    const row = this.connection().prepare("SELECT manifest FROM packages WHERE id = ?").get(id) as
+    const row = this.statement("SELECT manifest FROM packages WHERE id = ?").get(id) as
       | { manifest: string }
       | undefined;
     return row === undefined ? undefined : (JSON.parse(row.manifest) as Manifest);
@@ -121,10 +122,16 @@ export class InstallStore {
 
   /** Includes removed fields. Why: deletion can fail after an update changes the manifest. */
   getSecretRefs(id: string): string[] {
-    const row = this.connection().prepare("SELECT secret_refs FROM packages WHERE id = ?").get(id) as
+    const row = this.statement("SELECT secret_refs FROM packages WHERE id = ?").get(id) as
       | { secret_refs: string }
       | undefined;
     return row === undefined ? [] : JSON.parse(row.secret_refs) as string[];
+  }
+
+  /** All current and historical references, in the same order as list() then getSecretRefs(). */
+  listSecretRefs(): string[] {
+    const rows = this.statement("SELECT secret_refs FROM packages ORDER BY id").all() as { secret_refs: string }[];
+    return rows.flatMap((row) => JSON.parse(row.secret_refs) as string[]);
   }
 
   /**
@@ -135,11 +142,10 @@ export class InstallStore {
    * refuses an id that is still installed, so no approval row can be waiting.
    */
   recordInstall(manifest: Manifest): void {
-    this.connection()
-      .prepare(
-        `INSERT INTO packages (id, kind, name, version, manifest, enabled, installed_at, enabled_at, secret_refs)
-         VALUES (?, ?, ?, ?, ?, 0, ?, NULL, ?)`,
-      )
+    this.statement(
+      `INSERT INTO packages (id, kind, name, version, manifest, enabled, installed_at, enabled_at, secret_refs)
+       VALUES (?, ?, ?, ?, ?, 0, ?, NULL, ?)`,
+    )
       .run(
         manifest.id,
         manifest.kind,
@@ -163,8 +169,7 @@ export class InstallStore {
         ...this.getSecretRefs(manifest.id),
         ...secretKeys(manifest).map((key) => secretRef(manifest.id, key)),
       ])];
-      this.connection()
-        .prepare("UPDATE packages SET kind = ?, name = ?, version = ?, manifest = ?, secret_refs = ? WHERE id = ?")
+      this.statement("UPDATE packages SET kind = ?, name = ?, version = ?, manifest = ?, secret_refs = ? WHERE id = ?")
         .run(manifest.kind, manifest.name, manifest.version, JSON.stringify(manifest), JSON.stringify(refs), manifest.id);
       if (consent !== undefined) {
         this.saveConsent(consent);
@@ -174,16 +179,15 @@ export class InstallStore {
 
   /** Saves the record, replacing an earlier one for the same package. */
   saveConsent(record: ConsentRecord): void {
-    this.connection()
-      .prepare(
-        `INSERT OR REPLACE INTO consents (package_id, version, permissions, granted_at, format_version)
-         VALUES (?, ?, ?, ?, ?)`,
-      )
+    this.statement(
+      `INSERT OR REPLACE INTO consents (package_id, version, permissions, granted_at, format_version)
+       VALUES (?, ?, ?, ?, ?)`,
+    )
       .run(record.packageId, record.version, JSON.stringify(record.permissions), record.grantedAt, record.formatVersion);
   }
 
   getConsent(id: string): ConsentRecord | undefined {
-    const row = this.connection().prepare("SELECT * FROM consents WHERE package_id = ?").get(id) as
+    const row = this.statement("SELECT * FROM consents WHERE package_id = ?").get(id) as
       | ConsentRow
       | undefined;
     if (row === undefined) {
@@ -199,14 +203,13 @@ export class InstallStore {
   }
 
   setEnabled(id: string, enabled: boolean): void {
-    const db = this.connection();
     if (enabled) {
-      db.prepare("UPDATE packages SET enabled = 1, enabled_at = ? WHERE id = ?").run(
+      this.statement("UPDATE packages SET enabled = 1, enabled_at = ? WHERE id = ?").run(
         new Date().toISOString(),
         id,
       );
     } else {
-      db.prepare("UPDATE packages SET enabled = 0 WHERE id = ?").run(id);
+      this.statement("UPDATE packages SET enabled = 0 WHERE id = ?").run(id);
     }
   }
 
@@ -214,16 +217,15 @@ export class InstallStore {
   remove(id: string): void {
     const db = this.connection();
     db.transaction(() => {
-      db.prepare("DELETE FROM mcp_tools WHERE server_id = ?").run(id);
-      db.prepare("DELETE FROM consents WHERE package_id = ?").run(id);
-      db.prepare("DELETE FROM packages WHERE id = ?").run(id);
+      this.statement("DELETE FROM mcp_tools WHERE server_id = ?").run(id);
+      this.statement("DELETE FROM consents WHERE package_id = ?").run(id);
+      this.statement("DELETE FROM packages WHERE id = ?").run(id);
     })();
   }
 
   /** Approved MCP tools of one server (a connector id or `manual:<name>`), ordered by tool name. */
   listMcpApprovals(serverId: string): McpApproval[] {
-    const rows = this.connection()
-      .prepare("SELECT tool, fingerprint, level, approved_at FROM mcp_tools WHERE server_id = ? ORDER BY tool")
+    const rows = this.statement("SELECT tool, fingerprint, level, approved_at FROM mcp_tools WHERE server_id = ? ORDER BY tool")
       .all(serverId) as McpApprovalRow[];
     return rows.map((r) => ({ tool: r.tool, fingerprint: r.fingerprint, level: r.level, approvedAt: r.approved_at }));
   }
@@ -237,10 +239,10 @@ export class InstallStore {
    */
   dropMcpApprovalsExcept(serverId: string, keep: readonly string[]): McpApproval[] {
     const db = this.connection();
-    const select = db.prepare(
+    const select = this.statement(
       "SELECT tool, fingerprint, level, approved_at FROM mcp_tools WHERE server_id = ? ORDER BY tool",
     );
-    const removeAll = db.prepare("DELETE FROM mcp_tools WHERE server_id = ?");
+    const removeAll = this.statement("DELETE FROM mcp_tools WHERE server_id = ?");
     return db.transaction(() => {
       const rows = (select.all(serverId) as McpApprovalRow[]).map((row) => ({
         tool: row.tool,
@@ -252,6 +254,7 @@ export class InstallStore {
         removeAll.run(serverId);
       } else {
         const marks = keep.map(() => "?").join(", ");
+        // Tool counts change the SQL text; keep these statements out of the fixed cache.
         db.prepare(`DELETE FROM mcp_tools WHERE server_id = ? AND tool NOT IN (${marks})`).run(serverId, ...keep);
       }
       return rows;
@@ -261,7 +264,7 @@ export class InstallStore {
   /** Saves the approvals in one transaction. A tool that already has one is replaced. */
   saveMcpApprovals(serverId: string, approvals: McpApproval[]): void {
     const db = this.connection();
-    const insert = db.prepare(
+    const insert = this.statement(
       `INSERT OR REPLACE INTO mcp_tools (server_id, tool, fingerprint, level, approved_at) VALUES (?, ?, ?, ?, ?)`,
     );
     db.transaction(() => {
@@ -269,6 +272,17 @@ export class InstallStore {
         insert.run(serverId, a.tool, a.fingerprint, a.level, a.approvedAt);
       }
     })();
+  }
+
+  /** Fixed SQL only. Each execution still reads the database's current state. */
+  private statement(sql: string): Database.Statement {
+    const db = this.connection();
+    let statement = this.statements.get(sql);
+    if (statement === undefined) {
+      statement = db.prepare(sql);
+      this.statements.set(sql, statement);
+    }
+    return statement;
   }
 
   private connection(): Database.Database {

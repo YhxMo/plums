@@ -9,7 +9,8 @@
   },
   "scripts": {
     "build": "tsc -p packages/core/tsconfig.json && tsc -p packages/cli/tsconfig.json",
-    "test": "pnpm run build && vitest run"
+    "test": "pnpm run build && vitest run",
+    "bench:performance": "pnpm build && node --expose-gc scripts/bench-performance.mjs"
   },
   "devDependencies": {
     "@types/node": "^22.15.30",
