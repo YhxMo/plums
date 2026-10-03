@@ -50,6 +50,7 @@
 
 ## 6. 密钥
 只存在内核管的存储里;扩展和包里只出现 `secretRef`。日志、错误、导出统一经过脱敏函数;导出包在结构上不含密钥。
+安装记录保留包曾声明过的密钥引用,不保存值。更新提交 manifest 时在同一事务内保留旧引用;若随后删除失败,返回 SECRET_NOT_FOUND(details 为 `{id, version, reason: SECRET_CLEANUP_FAILED}`),version 已安装。后续更新与卸载可重试,脱敏与导出检查也仍覆盖这些值。删除过程中即使值已删除而调用抛错,底层错误也不外露。数据库格式 2 自动迁移为 3;旧版内核拒绝打开升级后的目录。
 
 ## 7. 可替换接口(便于测试)
 ```ts
@@ -73,7 +74,7 @@ createCore({ dataDir, model, egress, confirm, secrets })
 
 ## 10. 里程碑 1 验收(主线:导入角色卡 → 安装扩展并看到权限清单 → 同意并启用 → 卸载)
 里程碑 1 的命令行不含 `share import`,真实 EgressSink、持久化 SecretStore 和命令行 `share import` 留到里程碑 2。
-1. 导入合法包成功;坏包返回对应错误码和字段路径;导出再导入内容一致。已安装的 id 再次导入一律被拒,返回 IMPORT_INVALID,`details` 为 `{id, reason: ALREADY_INSTALLED}`,不带 `path`。同 id 并发导入只会有一个成功,其余返回该错误。
+1. 导入合法包成功;坏包返回对应错误码和字段路径;导出再导入内容一致。已安装的 id 再次导入一律被拒,返回 IMPORT_INVALID,`details` 为 `{id, reason: ALREADY_INSTALLED}`,不带 `path`。同 id 并发导入只会有一个成功,其余返回该错误,跨进程落败者也不删除或覆盖成功者的目录。内存排队只在同一进程内、同一数据目录生效:另一个数据目录里的同 id 不会被这次排队挡住。为什么:导入队列的键是数据目录加 id,而且队列只活在当前进程里;跨进程冲突由文件发布和数据库唯一键处理。
 2. `inspect(包)` 不安装就返回权限清单,每条带 level 与 reason。
 3. 没同意就启用返回 CONSENT_REQUIRED;同意后启用成功,同意记录可查。
 4. 越权动作返回 PERMISSION_DENIED;没有 confirm 或被拒绝时外发被拦,且 RecordingEgressSink 没有记录。
@@ -96,7 +97,7 @@ createCore({ dataDir, model, egress, confirm, secrets })
 3. V2/V3 适配器排到里程碑 2。
 
 ## 12. 补充定论(v0.1.1)
-- 包的安全限制:解压后总大小 ≤ 20MB、文件数 ≤ 1000、单路径 ≤ 255 字符,宿主可配置。路径越界、绝对路径、超限都返回 IMPORT_INVALID,且校验通过前不写出任何文件。大小写不敏感碰撞(含 manifest 的大小写别名,如 `MANIFEST.JSON`)和「既是文件又是文件夹」的冲突,在导入(解压与落盘)和导出前都由同一个检查拒绝,统一归 IMPORT_INVALID。大小写碰撞的 `path` 为后出现的 zip 条目名(JSON Pointer,如 `/a.txt`;别名则为该条目,如 `/MANIFEST.JSON`),不带 details;「既是文件又是文件夹」不带 `path`(导入和导出都如此)。
+- 包的安全限制:解压后总大小 ≤ 20MB、文件数 ≤ 1000、单路径 ≤ 255 字符,宿主可配置。路径越界、绝对路径、超限都返回 IMPORT_INVALID,且校验通过前不写出任何文件。大小写不敏感碰撞(含 manifest 的大小写别名,如 `MANIFEST.JSON`)和「既是文件又是文件夹」的冲突,在导入(解压与落盘)和导出前都由同一个检查拒绝,统一归 IMPORT_INVALID。大小写碰撞的 `path` 为后出现的 zip 条目名(JSON Pointer,如 `/a.txt`;别名则为该条目,如 `/MANIFEST.JSON`),不带 details;「既是文件又是文件夹」不带 `path`(导入和导出都如此)。包内目录条目在冲突检查时去掉尾部的一个斜杠(zip 用末尾 `/` 表示目录,比较的是去掉之后的名字,如 `dir/` 按 `dir`)。为什么:磁盘上的目录名不带这个斜杠,`dir/` 和 `dir` 会撞在一起。因此目录大小写碰撞的 `path` 是去掉斜杠后的条目(如 `/dir`),目录本身不写入包内文件列表。导出时 `files` 里放了精确文件名 `manifest.json`,是 IMPORT_INVALID,`path` 为 `/manifest.json`。为什么与别名同一写法:两条都是在指出那一个条目,别名已经是 `/MANIFEST.JSON`。
 - 动作入口 `core.runAction({ extensionId, permissionId, request })`,检查顺序:
   1. 扩展未安装/未启用,或 permissionId 未在 manifest 声明 → PERMISSION_DENIED
   2. 已声明但无同意记录 → CONSENT_REQUIRED

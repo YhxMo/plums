@@ -5,6 +5,7 @@ import {
   createCore,
   FakeModelProvider,
   MemorySecretStore,
+  PACKAGE_FORMAT_VERSION,
   RecordingEgressSink,
   ScriptedConfirm,
   type Core,
@@ -34,7 +35,7 @@ export function listAll(dir: string): string[] {
 
 export function validManifest(kind: Manifest["kind"] = "character"): Manifest {
   return {
-    formatVersion: "1.0",
+    formatVersion: PACKAGE_FORMAT_VERSION,
     kind,
     id: `demo-${kind}`,
     name: `Demo ${kind}`,
@@ -63,6 +64,8 @@ export interface ZipSpec {
   data?: Uint8Array | string;
   /** Skips the compression so the entry is stored as-is. */
   store?: boolean;
+  /** Empty directory entry. A trailing slash on `name` means the same thing. */
+  directory?: boolean;
 }
 
 export function buildZip(entries: ZipSpec[]): Promise<Uint8Array> {
@@ -73,8 +76,12 @@ export function buildZip(entries: ZipSpec[]): Promise<Uint8Array> {
     zip.outputStream.on("error", reject);
     zip.outputStream.on("end", () => resolve(new Uint8Array(Buffer.concat(chunks))));
     for (const entry of entries) {
-      const data = typeof entry.data === "string" ? Buffer.from(entry.data) : Buffer.from(entry.data ?? "");
-      zip.addBuffer(data, entry.name, { compress: entry.store !== true });
+      if (entry.directory === true || entry.name.endsWith("/")) {
+        zip.addEmptyDirectory(entry.name.endsWith("/") ? entry.name : `${entry.name}/`);
+      } else {
+        const data = typeof entry.data === "string" ? Buffer.from(entry.data) : Buffer.from(entry.data ?? "");
+        zip.addBuffer(data, entry.name, { compress: entry.store !== true });
+      }
     }
     zip.end();
   });

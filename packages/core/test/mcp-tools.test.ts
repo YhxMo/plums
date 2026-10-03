@@ -566,7 +566,7 @@ describe("database", () => {
 
     const again = new Database(path.join(dataDir, "plums.db"));
     try {
-      expect(again.pragma("user_version", { simple: true })).toBe(2);
+      expect(again.pragma("user_version", { simple: true })).toBe(3);
     } finally {
       again.close();
     }

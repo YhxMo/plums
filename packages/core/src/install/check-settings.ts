@@ -71,27 +71,28 @@ export function checkSettings(schema: SettingsSchema, values: Settings, code: Pl
 }
 
 /**
- * Checks an existing settings file against `manifest` before package files are written.
- * `missingSchema` is `reject` for import and `ignore` for update.
- * Why they differ: import has no install record, so the file is an orphan; update still has one.
+ * Refuses import when a package with no settingsSchema already has settings.json.
+ * Why existsSync and not readFile: a package with no settings has nothing to check, so the bytes stay unread.
+ * Why import only: an update still has an install record, so that file is not an orphan and is left unread.
  */
-export async function acceptResidualSettings(
-  dataDir: string,
-  manifest: Manifest,
-  missingSchema: "reject" | "ignore",
-): Promise<void> {
+export function refuseOrphanSettings(dataDir: string, id: string): void {
+  const file = settingsFilePath(dataDir, id);
+  if (!existsSync(file)) return;
+  throw settingsError(
+    IMPORT_INVALID,
+    "/settings",
+    "这个包没有设置项，但已经有一份设置文件。没有读取它。要导入这个包，请先删掉这份文件。",
+    { reason: "NO_SCHEMA" },
+  );
+}
+
+/**
+ * Checks a leftover settings file against `manifest.settingsSchema` before package files are written.
+ * No schema returns without reading. Why: import uses `refuseOrphanSettings` for that case, and update leaves the file unread.
+ */
+export async function acceptResidualSettings(dataDir: string, manifest: Manifest): Promise<void> {
+  if (manifest.settingsSchema === undefined) return;
   const file = settingsFilePath(dataDir, manifest.id);
-  if (manifest.settingsSchema === undefined) {
-    if (missingSchema === "ignore") return;
-    // Why existsSync and not readFile: a package with no settings has nothing to check, so the bytes stay unread.
-    if (!existsSync(file)) return;
-    throw settingsError(
-      IMPORT_INVALID,
-      "/settings",
-      "这个包没有设置项，但已经有一份设置文件。没有读取它。要导入这个包，请先删掉这份文件。",
-      { reason: "NO_SCHEMA" },
-    );
-  }
   let text: string;
   try {
     text = await readFile(file, "utf8");

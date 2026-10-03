@@ -2,6 +2,7 @@ import { mkdirSync } from "node:fs";
 import path from "node:path";
 import Database from "better-sqlite3";
 import type { Manifest, PackageKind, Permission, PermissionLevel } from "../package/types.js";
+import { secretKeys, secretRef } from "../secrets.js";
 
 export const DATABASE_FILE = "plums.db";
 
@@ -70,7 +71,7 @@ interface ConsentRow {
   granted_at: string;
 }
 
-const SCHEMA_VERSION = 2;
+const SCHEMA_VERSION = 3;
 
 const INSTALLED_SELECT = `
   SELECT p.id, p.kind, p.name, p.version, p.manifest, p.enabled, p.installed_at, p.enabled_at,
@@ -116,6 +117,14 @@ export class InstallStore {
     return row === undefined ? undefined : (JSON.parse(row.manifest) as Manifest);
   }
 
+  /** Includes removed fields. Why: deletion can fail after an update changes the manifest. */
+  getSecretRefs(id: string): string[] {
+    const row = this.connection().prepare("SELECT secret_refs FROM packages WHERE id = ?").get(id) as
+      | { secret_refs: string }
+      | undefined;
+    return row === undefined ? [] : JSON.parse(row.secret_refs) as string[];
+  }
+
   /**
    * Records a fresh install: not enabled, no consent.
    * Why insert only: import already refuses an id that is still installed, so there is
@@ -126,8 +135,8 @@ export class InstallStore {
   recordInstall(manifest: Manifest): void {
     this.connection()
       .prepare(
-        `INSERT INTO packages (id, kind, name, version, manifest, enabled, installed_at, enabled_at)
-         VALUES (?, ?, ?, ?, ?, 0, ?, NULL)`,
+        `INSERT INTO packages (id, kind, name, version, manifest, enabled, installed_at, enabled_at, secret_refs)
+         VALUES (?, ?, ?, ?, ?, 0, ?, NULL, ?)`,
       )
       .run(
         manifest.id,
@@ -136,6 +145,7 @@ export class InstallStore {
         manifest.version,
         JSON.stringify(manifest),
         new Date().toISOString(),
+        JSON.stringify(secretKeys(manifest).map((key) => secretRef(manifest.id, key))),
       );
   }
 
@@ -145,9 +155,15 @@ export class InstallStore {
    */
   recordUpdate(manifest: Manifest, consent?: ConsentRecord): void {
     this.connection().transaction(() => {
+      // Why retain old refs in this transaction: once the manifest changes, it cannot tell
+      // redaction or uninstall which removed values still need to be read or deleted.
+      const refs = [...new Set([
+        ...this.getSecretRefs(manifest.id),
+        ...secretKeys(manifest).map((key) => secretRef(manifest.id, key)),
+      ])];
       this.connection()
-        .prepare("UPDATE packages SET kind = ?, name = ?, version = ?, manifest = ? WHERE id = ?")
-        .run(manifest.kind, manifest.name, manifest.version, JSON.stringify(manifest), manifest.id);
+        .prepare("UPDATE packages SET kind = ?, name = ?, version = ?, manifest = ?, secret_refs = ? WHERE id = ?")
+        .run(manifest.kind, manifest.name, manifest.version, JSON.stringify(manifest), JSON.stringify(refs), manifest.id);
       if (consent !== undefined) {
         this.saveConsent(consent);
       }
@@ -310,6 +326,16 @@ function migrate(db: Database.Database): void {
           PRIMARY KEY (server_id, tool)
         );
       `);
+      if (current < 3) {
+        // Why refs rather than values: the SecretStore remains the only place for secret values.
+        db.exec("ALTER TABLE packages ADD COLUMN secret_refs TEXT NOT NULL DEFAULT '[]'");
+        const rows = db.prepare("SELECT id, manifest FROM packages").all() as { id: string; manifest: string }[];
+        const save = db.prepare("UPDATE packages SET secret_refs = ? WHERE id = ?");
+        for (const row of rows) {
+          const manifest = JSON.parse(row.manifest) as Manifest;
+          save.run(JSON.stringify(secretKeys(manifest).map((key) => secretRef(row.id, key))), row.id);
+        }
+      }
       db.pragma(`user_version = ${SCHEMA_VERSION}`);
     })();
   }

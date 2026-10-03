@@ -42,7 +42,9 @@ export async function exportPackage(
   for (const [filePath, data] of files) {
     assertSafeEntryPath(filePath, limits);
     if (filePath === MANIFEST_FILE) {
-      throw importInvalid("files 里不能放 manifest.json，它由 manifest 生成。");
+      // Why a path: a case-different alias is already IMPORT_INVALID at that entry
+      // (for example `/MANIFEST.JSON`). The exact name is the same kind of pointer.
+      throw importInvalid("files 里不能放 manifest.json，它由 manifest 生成。", filePath);
     }
     if (filePath.endsWith("/")) {
       throw importInvalid(`files 里的路径必须是文件，不能以 / 结尾：${filePath}`);

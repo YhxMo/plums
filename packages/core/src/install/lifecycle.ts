@@ -7,6 +7,7 @@ import {
   IMPORT_INVALID,
   PERMISSION_DENIED,
   PlumsError,
+  SECRET_NOT_FOUND,
 } from "../errors.js";
 import { acceptResidualSettings, PACKAGE_DATA_DIR } from "./check-settings.js";
 import { installPackage, PACKAGES_DIR } from "../package/install.js";
@@ -119,17 +120,15 @@ export async function updatePackage(
     });
   }
 
-  const droppedSecrets = secretKeys(requireManifest(ctx, installed.id)).filter(
-    (key) => !secretKeys(manifest).includes(key),
-  );
+  const activeSecrets = new Set(secretKeys(manifest).map((key) => secretRef(installed.id, key)));
+  const droppedSecrets = ctx.store.getSecretRefs(installed.id).filter((ref) => !activeSecrets.has(ref));
   const previous = ctx.store.getConsent(installed.id);
   const record =
     previous === undefined
       ? undefined
       : { ...consentFor(manifest), grantedAt: first === undefined ? previous.grantedAt : new Date().toISOString() };
   // Why before the rename: a settings mismatch must not move the installed files.
-  // Why "ignore": the install record is still here, so this file is not an orphan.
-  await acceptResidualSettings(ctx.dataDir, manifest, "ignore");
+  await acceptResidualSettings(ctx.dataDir, manifest);
   const dir = path.join(ctx.dataDir, PACKAGES_DIR, installed.id);
   const backup = path.join(ctx.dataDir, PACKAGES_DIR, `.backup-${installed.id}`);
   await rm(backup, { recursive: true, force: true });
@@ -143,7 +142,7 @@ export async function updatePackage(
     throw err;
   }
   await rm(backup, { recursive: true, force: true });
-  await Promise.all(droppedSecrets.map((key) => ctx.secrets.delete(secretRef(installed.id, key))));
+  await deleteSecrets(ctx, installed.id, manifest.version, droppedSecrets);
   return { installDir: dir, previousVersion: installed.version };
 }
 
@@ -179,8 +178,8 @@ export function disable(ctx: InstallContext, id: string): InstalledPackage {
 
 /**
  * Removes the package's secret values, then its install state, consent and MCP tool
- * approvals, then its files and data folder. Values are read from the manifest before
- * the record goes, and the record goes before the files, so the package does not stay
+ * approvals, then its files and data folder. Secret references include fields removed
+ * by earlier updates. The record goes before the files, so the package does not stay
  * listed once its files are gone.
  * A crash midway stops in one of two places: the secrets are already deleted but the
  * package still shows as installed, or the record is deleted and the files are still there.
@@ -190,12 +189,26 @@ export function disable(ctx: InstallContext, id: string): InstalledPackage {
  * file: it is not read and not deleted, and the update succeeds.
  */
 export async function uninstall(ctx: InstallContext, id: string): Promise<void> {
-  requireInstalled(ctx, id);
-  const keys = secretKeys(requireManifest(ctx, id));
-  await Promise.all(keys.map((key) => ctx.secrets.delete(secretRef(id, key))));
+  const installed = requireInstalled(ctx, id);
+  await deleteSecrets(ctx, id, installed.version, ctx.store.getSecretRefs(id));
   ctx.store.remove(id);
   await rm(path.join(ctx.dataDir, PACKAGES_DIR, id), { recursive: true, force: true });
   await rm(path.join(ctx.dataDir, PACKAGE_DATA_DIR, id), { recursive: true, force: true });
+}
+
+async function deleteSecrets(ctx: InstallContext, id: string, version: string, refs: readonly string[]): Promise<void> {
+  // Why wait for every deletion: a partial failure must not leave more deletions racing
+  // the error handler or a retry. References stay until uninstall removes the record.
+  const results = await Promise.allSettled(refs.map(async (ref) => ctx.secrets.delete(ref)));
+  if (results.some((result) => result.status === "rejected")) {
+    // Why no underlying error: a store can delete a value and then throw it in an error,
+    // leaving nothing that knownSecrets could read back for redaction.
+    throw new PlumsError({
+      code: SECRET_NOT_FOUND,
+      message: `「${id}」当前安装版本为 ${version}。密钥未能全部清理，已保留引用，请在后续版本更新时清理，或重试卸载。`,
+      details: { id, version, reason: "SECRET_CLEANUP_FAILED" },
+    });
+  }
 }
 
 export function requireManifest(ctx: InstallContext, id: string): Manifest {

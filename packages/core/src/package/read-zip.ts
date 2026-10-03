@@ -82,7 +82,6 @@ async function listEntries(zip: yauzl.ZipFile, limits: PackageLimits): Promise<P
           throw importInvalid(`压缩包里不允许符号链接：${path}`);
         }
         paths.push(path);
-        assertNoPathConflict(paths);
         declaredTotal += entry.uncompressedSize;
         if (declaredTotal > limits.maxTotalBytes) {
           throw tooLarge(limits);
@@ -97,6 +96,10 @@ async function listEntries(zip: yauzl.ZipFile, limits: PackageLimits): Promise<P
     });
     zip.readEntry();
   });
+  // Why once, after every name is known: checking the growing list on each entry
+  // rescans every earlier path, which is O(n²). One pass still throws the same
+  // IMPORT_INVALID (code, path, details) for a collision.
+  assertNoPathConflict(paths);
   return out;
 }
 

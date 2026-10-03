@@ -121,7 +121,11 @@ async function dispatch(args: readonly string[], options: CliOptions): Promise<C
   const plan = planCommand(command, rest, flags);
 
   if (plan.kind === "uninstall" && !plan.yes) {
-    const agreedTo = await agreed(options, `要卸载「${plan.id}」。这会删掉它的文件、同意记录和数据。允许吗?`);
+    // Why name secrets and MCP approvals: uninstall deletes them too, and this line does not look up their names.
+    const agreedTo = await agreed(
+      options,
+      `要卸载「${plan.id}」。这会删掉它的文件、数据、同意记录、密钥和 MCP 批准。允许吗?`,
+    );
     if (!agreedTo) stop("你没有确认，所以没有卸载。");
   }
 

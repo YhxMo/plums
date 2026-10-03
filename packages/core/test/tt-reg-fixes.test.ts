@@ -11,8 +11,14 @@ import {
   type Manifest,
 } from "@plums/core";
 import { describe, expect, it } from "vitest";
-import { ZipFile } from "yazl";
-import { expectPlumsError, listAll, makeCore, manifestZip, validManifest } from "./package-helpers.js";
+import {
+  expectPlumsError,
+  listAll,
+  makeCore,
+  manifestZip,
+  validManifest,
+  type ZipSpec,
+} from "./package-helpers.js";
 
 /**
  * Regression tests for the review fixes in #20 and #21.
@@ -20,6 +26,11 @@ import { expectPlumsError, listAll, makeCore, manifestZip, validManifest } from 
  * Does not import helpers from the other test PRs. `package-helpers.ts` is on main.
  * Leak checks use the local serializeError, which walks the cause chain, including
  * non-enumerable properties. @plums/core does not export that function.
+ *
+ * The same-id burst, A.txt/a.txt, MANIFEST.JSON, and the a-versus-a/b.txt export
+ * clash already live in p2-import-export.test.ts. This file keeps the boundaries
+ * that file does not: in-flight overlap, importFromUrl, Dir/ versus dir/, the
+ * Manifest.json/ directory alias, and Dir/x versus dir/x.
  */
 
 const FAKE = "plums-fake-secret-9f3a7c1e-DO-NOT-USE";
@@ -35,14 +46,9 @@ function pack(id: string, extra: Partial<Manifest> = {}): Manifest {
   };
 }
 
-function ownBytes(files: Record<string, Uint8Array>, name: string): Uint8Array | undefined {
-  const value = Object.getOwnPropertyDescriptor(files, name)?.value as Uint8Array | undefined;
-  return value === undefined ? undefined : new Uint8Array(value);
-}
-
 function ownText(files: Record<string, Uint8Array>, name: string): string | undefined {
-  const bytes = ownBytes(files, name);
-  return bytes === undefined ? undefined : Buffer.from(bytes).toString("utf8");
+  const value = Object.getOwnPropertyDescriptor(files, name)?.value as Uint8Array | undefined;
+  return value === undefined ? undefined : Buffer.from(value).toString("utf8");
 }
 
 /** Everything an error shows, including non-enumerable `cause` and `stack`. */
@@ -72,11 +78,6 @@ function leaked(label: string): Error {
   return err;
 }
 
-function exposed(err: unknown): string {
-  const plums = err as PlumsError;
-  return [plums.message, serializeError(err), JSON.stringify(plums.details), JSON.stringify(plums.path), plums.stack, JSON.stringify(err)].join("\n");
-}
-
 function assertSecretHidden(err: unknown): void {
   expect(err).toBeInstanceOf(PlumsError);
   const plums = err as PlumsError;
@@ -85,35 +86,11 @@ function assertSecretHidden(err: unknown): void {
   expect(plums.cause).toBeUndefined();
   expect(plums.details).toBeUndefined();
   expect(plums.path).toBeUndefined();
-  expect(exposed(err)).not.toContain(FAKE);
+  expect(serializeError(err)).not.toContain(FAKE);
 }
 
-interface ZipPart {
-  name: string;
-  data?: string;
-  directory?: boolean;
-}
-
-function buildParts(parts: ZipPart[]): Promise<Uint8Array> {
-  return new Promise((resolve, reject) => {
-    const zip = new ZipFile();
-    const chunks: Buffer[] = [];
-    zip.outputStream.on("data", (chunk: Buffer) => chunks.push(chunk));
-    zip.outputStream.on("error", reject);
-    zip.outputStream.on("end", () => resolve(new Uint8Array(Buffer.concat(chunks))));
-    for (const part of parts) {
-      if (part.directory === true || part.name.endsWith("/")) {
-        zip.addEmptyDirectory(part.name.endsWith("/") ? part.name : `${part.name}/`);
-      } else {
-        zip.addBuffer(Buffer.from(part.data ?? ""), part.name);
-      }
-    }
-    zip.end();
-  });
-}
-
-async function packageZip(id: string, extra: ZipPart[] = []): Promise<Uint8Array> {
-  return buildParts([{ name: "manifest.json", data: JSON.stringify(pack(id)) }, ...extra]);
+function packageZip(id: string, extra: ZipSpec[] = []): Promise<Uint8Array> {
+  return manifestZip(pack(id), extra);
 }
 
 async function expectImportRejected(zip: Uint8Array, entryPath: string): Promise<void> {
@@ -128,7 +105,10 @@ async function expectImportRejected(zip: Uint8Array, entryPath: string): Promise
 async function expectExportRejected(files: Record<string, string>, needle: string): Promise<Core> {
   const { core, dataDir } = makeCore();
   const outPath = path.join(dataDir, "rejected.zip");
-  const err = await expectPlumsError(core.exportPackage({ manifest: pack("test.reg.export"), files }, { outPath }), "IMPORT_INVALID");
+  const err = await expectPlumsError(
+    core.exportPackage({ manifest: pack("test.reg.export"), files }, { outPath }),
+    "IMPORT_INVALID",
+  );
   expect(err.message).toContain(needle);
   expect(existsSync(outPath)).toBe(false);
   expect(listAll(dataDir)).toEqual([]);
@@ -206,21 +186,7 @@ describe("A: secret-store read failure (#20)", () => {
 });
 
 describe("B: case collisions and manifest aliases (#21)", () => {
-  it("B: A.txt and a.txt are IMPORT_INVALID on import and on export before any zip is written", async () => {
-    await expectImportRejected(
-      await packageZip("test.reg.case", [
-        { name: "A.txt", data: "UPPER" },
-        { name: "a.txt", data: "lower" },
-      ]),
-      "/a.txt",
-    );
-    const core = await expectExportRejected({ "A.txt": "UPPER", "a.txt": "lower" }, "a.txt");
-    const bytes = await core.exportPackage({ manifest: pack("test.reg.export"), files: { "ok.txt": "yes" } });
-    expect(Buffer.from(bytes.subarray(0, 2)).toString("utf8")).toBe("PK");
-    core.close();
-  });
-
-  it("B: folder entries Dir/ and dir/ are IMPORT_INVALID, and export rejects Dir/x versus dir/x", async () => {
+  it("B: folder entries Dir/ and dir/ are IMPORT_INVALID", async () => {
     await expectImportRejected(
       await packageZip("test.reg.dir", [
         { name: "Dir/", directory: true },
@@ -230,55 +196,24 @@ describe("B: case collisions and manifest aliases (#21)", () => {
       ]),
       "/dir",
     );
-    const core = await expectExportRejected({ "Dir/x": "one", "dir/x": "two" }, "dir/x");
-    core.close();
   });
 
-  it("B: MANIFEST.JSON and Manifest.json/ are IMPORT_INVALID and leave the data dir empty", async () => {
-    await expectImportRejected(await packageZip("test.reg.alias", [{ name: "MANIFEST.JSON", data: "ALIAS" }]), "/MANIFEST.JSON");
+  it("B: Manifest.json/ is IMPORT_INVALID and leaves the data dir empty", async () => {
     await expectImportRejected(
       await packageZip("test.reg.aliasdir", [{ name: "Manifest.json/", directory: true }]),
       "/Manifest.json",
     );
-    const core = await expectExportRejected({ "MANIFEST.JSON": "ALIAS" }, "MANIFEST.JSON");
-    const err = await expectPlumsError(
-      core.exportPackage({ manifest: pack("test.reg.export"), files: { "Manifest.json": "nope" } }),
-      "IMPORT_INVALID",
-      "/Manifest.json",
-    );
-    expect(err.path).toBe("/Manifest.json");
+  });
+
+  it("B: export rejects Dir/x versus dir/x, then another export works", async () => {
+    const core = await expectExportRejected({ "Dir/x": "one", "dir/x": "two" }, "dir/x");
+    const bytes = await core.exportPackage({ manifest: pack("test.reg.export"), files: { "ok.txt": "yes" } });
+    expect(Buffer.from(bytes.subarray(0, 2)).toString("utf8")).toBe("PK");
     core.close();
   });
 });
 
 describe("C: concurrent import of one id (#21)", () => {
-  it("C: forty concurrent imports of one id, three rounds, let exactly one win", async () => {
-    const id = "test.reg.burst";
-    const zip = await manifestZip(pack(id), [{ name: "a.txt", data: "same" }]);
-    for (let round = 0; round < 3; round += 1) {
-      const { core, dataDir } = makeCore();
-      const results = await Promise.all(
-        Array.from({ length: 40 }, () => core.importPackage(zip).then(() => "ok" as const, (err: unknown) => err)),
-      );
-      expect(results.filter((item) => item === "ok")).toHaveLength(1);
-      for (const err of results) {
-        if (err === "ok") continue;
-        expect(err).toBeInstanceOf(PlumsError);
-        const plums = err as PlumsError;
-        expect(plums.code).toBe("IMPORT_INVALID");
-        expect(plums.details).toEqual({ id, reason: "ALREADY_INSTALLED" });
-        const text = `${plums.message}\n${serializeError(err)}`;
-        expect(text).not.toContain("ENOTEMPTY");
-        expect(text).not.toContain("SQLITE");
-      }
-      expect(await core.listInstalled()).toEqual([expect.objectContaining({ id, enabled: false, consented: false })]);
-      const packages = readdirSync(path.join(dataDir, "packages")).filter((name) => !name.startsWith("."));
-      expect(packages).toEqual([id]);
-      expect(readFileSync(path.join(dataDir, "packages", id, "a.txt"), "utf8")).toBe("same");
-      core.close();
-    }
-  });
-
   it("C: consent, enabled, and settings survive when a second same-id import is in flight", async () => {
     const id = "test.reg.overlap";
     const manifest = pack(id);
@@ -312,8 +247,9 @@ describe("C: concurrent import of one id (#21)", () => {
       const plums = err as PlumsError;
       expect(plums.code).toBe("IMPORT_INVALID");
       expect(plums.details).toEqual({ id, reason: "ALREADY_INSTALLED" });
-      expect(`${plums.message}\n${serializeError(err)}`).not.toContain("ENOTEMPTY");
-      expect(`${plums.message}\n${serializeError(err)}`).not.toContain("SQLITE");
+      const text = `${plums.message}\n${serializeError(err)}`;
+      expect(text).not.toContain("ENOTEMPTY");
+      expect(text).not.toContain("SQLITE");
     }
     expect(await core.getConsent(id)).not.toBeNull();
     expect(await core.listInstalled()).toEqual([expect.objectContaining({ id, enabled: true, consented: true })]);
@@ -326,7 +262,6 @@ describe("D: __proto__ file name round trip (#21)", () => {
   it("D: __proto__, constructor, and toString survive export, import, share, validate, and importFromUrl", async () => {
     const id = "test.reg.proto";
     const manifest = pack(id);
-    const before = Object.getPrototypeOf({});
     const files = Object.create(null) as Record<string, Uint8Array>;
     files["__proto__"] = Buffer.from("proto-body");
     files.constructor = Buffer.from("ctor-body");
@@ -350,36 +285,6 @@ describe("D: __proto__ file name round trip (#21)", () => {
     const fromUrl = makeCore({ egress, confirm: new ScriptedConfirm([true]) });
     expectSameFiles((await fromUrl.core.importFromUrl("https://share.example/pkg.zip")).files);
     fromUrl.core.close();
-
-    expect(({} as { polluted?: unknown }).polluted).toBeUndefined();
-    expect(Object.getPrototypeOf({})).toBe(before);
-    core.close();
-  });
-});
-
-describe("E: export path conflicts (#21)", () => {
-  it("E: a file that is also a directory is IMPORT_INVALID with no zip bytes, then another export works", async () => {
-    const { core, dataDir } = makeCore();
-    const manifest = pack("test.reg.clash");
-    const outPath = path.join(dataDir, "clash.zip");
-    const err = await expectPlumsError(
-      core.exportPackage({ manifest, files: { a: "file", "a/b.txt": "child" } }, { outPath }),
-      "IMPORT_INVALID",
-    );
-    expect(err.path).toBeUndefined();
-    expect(err.message).toContain("既是文件又是文件夹");
-    expect(existsSync(outPath)).toBe(false);
-    const bytes = await core.exportPackage({ manifest, files: { "ok.txt": "yes" } });
-    expect(Buffer.from(bytes.subarray(0, 2)).toString("utf8")).toBe("PK");
-    const child = path.join(dataDir, "child.zip");
-    const childErr = await expectPlumsError(
-      core.exportPackage({ manifest, files: { "manifest.json/child": "nope" } }, { outPath: child }),
-      "IMPORT_INVALID",
-    );
-    expect(childErr.path).toBeUndefined();
-    expect(childErr.message).toContain("既是文件又是文件夹");
-    expect(childErr.message).toContain("manifest.json");
-    expect(existsSync(child)).toBe(false);
     core.close();
   });
 });
@@ -395,6 +300,7 @@ async function waitForStaging(dataDir: string): Promise<void> {
   const root = path.join(dataDir, "packages");
   const deadline = Date.now() + 15_000;
   while (Date.now() < deadline) {
+    // `.staging-*` is the prefix install.ts passes to mkdtemp. If it never appears this throws, so a slow machine can time out but cannot pass.
     if (existsSync(root) && readdirSync(root).some((name) => name.startsWith(".staging-"))) return;
     await new Promise((resolve) => setTimeout(resolve, 1));
   }

@@ -212,11 +212,19 @@ describe("export", () => {
     const spec = manifest.settingsSchema?.properties.apiKey;
     if (spec === undefined) throw new Error("missing apiKey");
     delete spec[field];
-    await expectPlumsError(
-      core.importPackage(await manifestZip(manifest)),
-      "MANIFEST_INVALID",
-      `/settingsSchema/properties/apiKey/${field}`,
-    );
+    // A fresh directory: the shared core above already installed demo-ext.
+    const fresh = makeCore();
+    try {
+      await expectPlumsError(
+        fresh.core.importPackage(await manifestZip(manifest)),
+        "MANIFEST_INVALID",
+        `/settingsSchema/properties/apiKey/${field}`,
+      );
+      expect(listAll(fresh.dataDir)).toEqual([]);
+      expect(await fresh.core.listInstalled()).toEqual([]);
+    } finally {
+      fresh.core.close();
+    }
   });
 
   it("refuses to import a manifest that writes an x-secret value", async () => {

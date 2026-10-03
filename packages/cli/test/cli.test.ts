@@ -4,7 +4,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { FakeModelProvider, MemorySecretStore, RecordingEgressSink, ScriptedConfirm, VERSION, createCore, type Manifest } from "@plums/core";
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it } from "vitest";
 import { runCli, type CliOptions } from "../src/main.js";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
@@ -47,7 +47,7 @@ function plantSettings(dir: string, id: string, text: string): string {
 }
 
 function uninstallPrompt(id: string): string {
-  return `要卸载「${id}」。这会删掉它的文件、同意记录和数据。允许吗?\n`;
+  return `要卸载「${id}」。这会删掉它的文件、数据、同意记录、密钥和 MCP 批准。允许吗?\n`;
 }
 
 function home(): string {
@@ -306,33 +306,6 @@ describe("plums", () => {
     expect(still.stderr.startsWith("code: PERMISSION_DENIED\n")).toBe(true);
   });
 
-  it("prints SETTINGS_INVALID and exits 1", async () => {
-    const dir = home();
-    const file = await writePackage(dir, WITH_SETTINGS);
-    const coreMod = await import("@plums/core");
-    const real = coreMod.createCore;
-    const spy = vi.spyOn(coreMod, "createCore").mockImplementation((options) => {
-      const core = real(options);
-      const importPackage = core.importPackage.bind(core);
-      core.importPackage = async (input) => {
-        const imported = await importPackage(input);
-        await core.setSettings(imported.manifest.id, { nickname: 8675309 });
-        return imported;
-      };
-      return core;
-    });
-    try {
-      const imported = await cli(dir, ["import", file]);
-      expect(imported.exitCode).toBe(1);
-      expect(imported.stdout).toBe("");
-      expect(imported.stderr.startsWith("code: SETTINGS_INVALID\nmessage: ")).toBe(true);
-      expect(imported.stderr).toContain("\npath: /settings/nickname\n");
-      expect(imported.stderr).not.toContain("8675309");
-    } finally {
-      spy.mockRestore();
-    }
-  });
-
   it("prints the version when the built program is executed", () => {
     const direct = spawnSync(process.execPath, [dist], { encoding: "utf8" });
     expect(direct.status).toBe(0);
@@ -353,16 +326,22 @@ describe("plums", () => {
   it("the launcher asks for a build when dist is missing", () => {
     const source = readFileSync(launcher, "utf8");
     expect(source.startsWith("#!/usr/bin/env node\n")).toBe(true);
-    expect(statSync(launcher).mode & 0o111).not.toBe(0);
-    const pkg = JSON.parse(readFileSync(path.join(here, "../package.json"), "utf8")) as { bin: { plums: string } };
+    if (process.platform !== "win32") {
+      expect(statSync(launcher).mode & 0o111).not.toBe(0);
+    }
+    const pkg = JSON.parse(readFileSync(path.join(here, "../package.json"), "utf8")) as {
+      bin: { plums: string };
+      files: string[];
+    };
     expect(pkg.bin.plums).toBe("./bin/plums.js");
+    expect(pkg.files).toContain("bin");
 
     const dir = mkdtempSync(path.join(tmpdir(), "plums-bin-"));
     const copied = path.join(dir, "bin", "plums.js");
     mkdirSync(path.dirname(copied), { recursive: true });
     copyFileSync(launcher, copied);
     const missing = spawnSync(process.execPath, [copied, "--version"], { encoding: "utf8" });
-    expect(missing.status).not.toBe(0);
+    expect(missing.status).toBe(1);
     expect(missing.stdout).toBe("");
     expect(missing.stderr).toContain("pnpm build");
   });

@@ -84,6 +84,14 @@ export async function runAction(
     }
     // The answer can take a while. Check again, and match the url against the permission as it is now.
     const again = authorize(ctx, extensionId, permissionId);
+    if (outbound === undefined && again.permission.level !== level) {
+      throw new PlumsError({
+        code: PERMISSION_DENIED,
+        message: `「${again.name}」的权限在确认期间已变化，这次动作没有执行。请重新发起。`,
+        path: `/permissions/${again.index}`,
+        details: { id: extensionId, permissionId, reason: "LEVEL_MISMATCH" },
+      });
+    }
     if (outbound !== undefined) {
       if (again.permission.level !== level) {
         throw new PlumsError({

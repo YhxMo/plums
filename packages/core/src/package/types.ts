@@ -86,8 +86,8 @@ export const DEFAULT_PACKAGE_LIMITS: Readonly<PackageLimits> = Object.freeze({
   maxPathLength: 255,
 });
 
-/** The highest `formatVersion` major this build can read. */
-export const SUPPORTED_FORMAT_MAJOR = 1;
-/** The `formatVersion` that `exportPackage` is expected to be given. */
+/** Default envelope version for newly created packages. Export preserves the supplied version. */
 export const PACKAGE_FORMAT_VERSION = "1.0";
+/** The highest readable major, derived from the default envelope version. */
+export const SUPPORTED_FORMAT_MAJOR = Number(PACKAGE_FORMAT_VERSION.split(".")[0]);
 export const MANIFEST_FILE = "manifest.json";

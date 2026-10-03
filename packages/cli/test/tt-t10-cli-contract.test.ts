@@ -44,7 +44,7 @@ const ENABLE_YES =
   "message: enable 需要 --yes。这会同意 manifest 声明的全部权限。请先 inspect 查看权限，再带 --yes 启用。\n";
 
 function uninstallPrompt(id: string): string {
-  return `要卸载「${id}」。这会删掉它的文件、同意记录和数据。允许吗?\n`;
+  return `要卸载「${id}」。这会删掉它的文件、数据、同意记录、密钥和 MCP 批准。允许吗?\n`;
 }
 
 interface Out {

@@ -12,7 +12,8 @@ import { expectPlumsError, manifestZip, validManifest } from "./package-helpers.
  * or above its maximum, setSettings TYPE / REQUIRED / MAXIMUM / ENUM, leftover
  * import rollbacks including a JSON array, and an update that drops
  * settingsSchema. The x-secret whitelist, including a secret `default`, already
- * lives in tt2-secrets-contract.test.ts. This file does not repeat those.
+ * lives in tt2-secrets-contract.test.ts. An x-secret field missing title or
+ * description is secrets.test.ts. This file does not repeat those.
  *
  * 基线不同、故意自包含、故意绕过 API。Leak checks use the local serializeError.
  * @plums/core does not export that function.
@@ -38,21 +39,19 @@ const text = (extra: Partial<SettingSpec> = {}): SettingSpec => ({
   ...extra,
 });
 
-describe("manifest: an x-secret property still needs type, title and description", () => {
-  it.each(["type", "title", "description"] as const)("missing %s is MANIFEST_INVALID at that keyword", async (missing) => {
+describe("manifest: an x-secret property still needs a type", () => {
+  it("missing type is MANIFEST_INVALID at that keyword", async () => {
     const w = world();
     const field: Record<string, unknown> = {
-      type: "string",
       title: "API key",
       description: "Secret key.",
       "x-secret": true,
     };
-    delete field[missing];
     const manifest = pack({ type: "object", properties: { apiKey: field as SettingSpec } });
     await expectPlumsError(
       w.core.importPackage(await manifestZip(manifest)),
       "MANIFEST_INVALID",
-      `/settingsSchema/properties/apiKey/${missing}`,
+      "/settingsSchema/properties/apiKey/type",
     );
     expectNothingWritten(w);
   });

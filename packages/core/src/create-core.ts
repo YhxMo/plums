@@ -3,7 +3,7 @@ import { IMPORT_INVALID, PlumsError, SECRET_NOT_FOUND } from "./errors.js";
 import path from "node:path";
 import { runAction, type ActionResult, type RunActionInput } from "./actions/run-action.js";
 import * as lifecycle from "./install/lifecycle.js";
-import { acceptResidualSettings } from "./install/check-settings.js";
+import { acceptResidualSettings, refuseOrphanSettings } from "./install/check-settings.js";
 import { setSettings, resolveSettings, knownSecrets } from "./install/settings.js";
 import { redact } from "./redact.js";
 import { InstallStore, type ConsentRecord, type InstalledPackage } from "./install/store.js";
@@ -63,11 +63,12 @@ export interface Core {
    * Validates a zip, then writes it to the data directory and records it as installed:
    * not enabled, no consent. Writes nothing if it is invalid. An id that is already
    * installed is IMPORT_INVALID (`details.reason` is `ALREADY_INSTALLED`) and is left
-   * unchanged. In one process and one data directory a second import of that id waits
-   * its turn and gets the same error. Why the queue is in memory: a second process
-   * is not ordered by it. That process still returns ALREADY_INSTALLED, and it does
-   * not remove or replace the winner's install directory. Use `updatePackage` to move
-   * to a higher version. After uninstall, the same id can be imported again.
+   * unchanged. Same-id imports are serialized only in this process and this data
+   * directory. Why: the queue is in memory and keyed by data directory plus id, so
+   * another data directory must not wait, and a second process is not ordered by it.
+   * That process still returns ALREADY_INSTALLED, and it does not remove or replace
+   * the winner's install directory. Use `updatePackage` to move to a higher version.
+   * After uninstall, the same id can be imported again.
    * If `data/<id>/settings.json` is already there, it is checked before any package
    * files are written. A missing required field, a wrong type, or a tighter bound is
    * IMPORT_INVALID at `/settings/<key>`. A file that is not JSON, or a package with no
@@ -107,6 +108,9 @@ export interface Core {
    * the update continues. A mismatch is IMPORT_INVALID and the installed package stays.
    * On success the files are replaced; enabled state stays and an existing consent record
    * is rewritten for the new list.
+   * If removed secrets cannot be deleted after that commit, SECRET_NOT_FOUND reports
+   * `details: { id, version, reason: SECRET_CLEANUP_FAILED }`. The reported version is
+   * already installed. References stay for redaction and a later update or uninstall.
    */
   updatePackage(input: Uint8Array | string, options?: { consent?: boolean }): Promise<UpdatedPackage>;
   /** Builds a package zip. Also writes it to `options.outPath` when given. */
@@ -126,7 +130,10 @@ export interface Core {
   /** Turns the package off. Install and consent stay. */
   disable(id: string): Promise<InstalledPackage>;
   /**
-   * Removes files, data, settings, consent, MCP tool approvals and secret references. The id can then be imported again.
+   * Removes files, data, settings, consent, MCP tool approvals and secret references,
+   * including fields removed by earlier updates. A failed secret deletion is SECRET_NOT_FOUND
+   * with `reason: SECRET_CLEANUP_FAILED`; the install record stays for a retry.
+   * The id can then be imported again.
    * A hand-added id (`manual:<name>`) only drops that service's tool approvals. Why: those rows are its
    * fingerprints and its consent, and there is no package to remove.
    */
@@ -138,6 +145,8 @@ export interface Core {
    * (PERMISSION_DENIED); consent (CONSENT_REQUIRED); the egress url against the permission
    * (PERMISSION_DENIED); confirm.ask for write and egress (CONFIRMATION_DENIED); then those
    * checks again. Egress `send` receives the request with `url` set to `new URL(url).href`.
+   * A write whose level changes during confirmation is PERMISSION_DENIED at
+   * `/permissions/<i>` with `reason: LEVEL_MISMATCH`.
    */
   runAction(input: RunActionInput): Promise<ActionResult>;
   /**
@@ -216,10 +225,11 @@ export function createCore(options: CreateCoreOptions): Core {
   const ctx = { dataDir: resolvedDataDir, store, secrets: options.secrets };
   const importPackage = async (input: Uint8Array | string): Promise<ImportedPackage> => {
     const validated = await validatePackage(input, limits);
-    // Why a per-id chain, and only inside this process: the map lives in memory, so
-    // it orders callers that share this process and this data directory. The later
-    // one gets ALREADY_INSTALLED. Two processes both pass the check below.
-    return enqueueById(validated.manifest.id, async () => {
+    // Why a per-id chain, and only inside this process: the map lives in memory
+    // and is keyed by data directory plus id, so it orders callers that share
+    // this process and this data directory. Another data directory must not wait.
+    // The later caller gets ALREADY_INSTALLED. Two processes both pass the check below.
+    return enqueueById(resolvedDataDir, validated.manifest.id, async () => {
       store.open();
       // Why before mkdir of packages/ or a staging directory: an id that is already
       // installed is refused, and that refusal must not create an install root.
@@ -228,8 +238,11 @@ export function createCore(options: CreateCoreOptions): Core {
       }
       // Why before any package file is written: a leftover settings file must not
       // leave a package directory behind.
-      // Why "reject": there is no install record yet, so the file is an orphan.
-      await acceptResidualSettings(resolvedDataDir, validated.manifest, "reject");
+      if (validated.manifest.settingsSchema === undefined) {
+        refuseOrphanSettings(resolvedDataDir, validated.manifest.id);
+      } else {
+        await acceptResidualSettings(resolvedDataDir, validated.manifest);
+      }
       const staging = await stagePackage(resolvedDataDir, validated);
       try {
         store.recordInstall(validated.manifest);
@@ -345,16 +358,18 @@ function isInstallKeyConflict(err: unknown): boolean {
   return code === "SQLITE_CONSTRAINT_PRIMARYKEY" || code === "SQLITE_CONSTRAINT_UNIQUE";
 }
 
-function enqueueById<T>(id: string, task: () => Promise<T>): Promise<T> {
-  const previous = importQueue.get(id) ?? Promise.resolve();
+function enqueueById<T>(dataDir: string, id: string, task: () => Promise<T>): Promise<T> {
+  // Why NUL: a resolved data directory and a package id cannot contain it, so two pairs cannot share a key.
+  const key = `${dataDir}\0${id}`;
+  const previous = importQueue.get(key) ?? Promise.resolve();
   const run = previous.then(task, task);
   const settled = run.then(
     () => undefined,
     () => undefined,
   );
-  importQueue.set(id, settled);
+  importQueue.set(key, settled);
   void settled.then(() => {
-    if (importQueue.get(id) === settled) importQueue.delete(id);
+    if (importQueue.get(key) === settled) importQueue.delete(key);
   });
   return run;
 }

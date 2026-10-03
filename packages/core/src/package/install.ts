@@ -8,12 +8,13 @@ export const PACKAGES_DIR = "packages";
 
 /**
  * Writes an already validated package to `<dataDir>/packages/<id>/`.
- * Files go to a staging directory first and are moved into place at the end,
- * so a failure never leaves a half-written package. An existing install of the
- * same id is replaced.
- * Why replace in this function: update has already moved the old tree aside and
- * needs the new tree at `packages/<id>`. A concurrent import must not use this
- * until its insert has won, because the replace deletes whatever is at that path.
+ * This is `stagePackage` then `publishStaged`: files land in a staging directory,
+ * then that directory replaces `packages/<id>` when one is already there.
+ * It does not check whether the id is installed.
+ * Why the callers differ: `updatePackage` moves the old directory aside and then
+ * calls this to put the new tree in place. Import does not call this. It uses
+ * `stagePackage`, and it calls `publishStaged` only after the install row is
+ * inserted, so a loser does not delete the winner's directory.
  */
 export async function installPackage(dataDir: string, pkg: ValidatedPackage): Promise<string> {
   const staging = await stagePackage(dataDir, pkg);

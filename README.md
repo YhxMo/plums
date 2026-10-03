@@ -24,7 +24,12 @@ pnpm exec plums --help
 
 数据目录默认是用户目录下的 `.plums`。`--home <目录>` 或环境变量 `PLUMS_HOME` 可以改掉。
 
+新建清单可使用 `@plums/core` 导出的 `PACKAGE_FORMAT_VERSION` 作为 `formatVersion` 默认值（当前为 `"1.0"`）；`SUPPORTED_FORMAT_MAJOR` 从它推导。导出保留传入的版本，例如 `1.7`，不会改写为默认版本。
+
 ## 已知限制
+
+- 数据库格式现为 3，首次打开旧数据目录会从格式 2 自动升级，保留包、同意和启用状态。升级后，旧版内核会拒绝打开该目录。
+- 更新删除旧密钥失败时，新版本已经安装，返回 `SECRET_NOT_FOUND`，`details` 为 `{ id, version, reason: SECRET_CLEANUP_FAILED }`。包记录保留曾声明的密钥引用，后续更新或卸载会再次清理；底层删除错误不会外露。升级前已失去记录的孤儿引用无法自动找回。
 
 命令行：
 
@@ -41,7 +46,7 @@ pnpm exec plums --help
 - 通配符只数域名标签，`*.co.uk` 和 `*.github.io` 仍可通过；公共后缀由宿主限制，因为内核不维护一份会过期的公共后缀清单。
 - 内核不跟随重定向。`EgressSink` 返回 `redirectTo` 时，内核原样交还给调用方；要继续，调用方用新地址再调一次 `runAction`。
 - 以点结尾的主机名一律拒绝（reason 为 `TRAILING_DOT`）。
-- `uninstall` 删掉该包的文件、数据、同意记录、密钥和 MCP 批准。`manual:<名>` 只清该服务的工具批准。
+- `uninstall` 删掉哪些内容，以及 `manual:<名>` 为什么只清工具批准，见 `Core.uninstall` 的注释（`packages/core/src/create-core.ts`）。
 - 卸载若中途崩溃，会停在两处之一：密钥已删但包仍显示已安装，或记录已删、文件还在。为什么：密钥先删，安装记录（含同意和 MCP 批准）后删，文件和数据最后删，这三步不是同一次写入。残留 settings 在导入和更新时的处理见下面「残留设置」。
 - `approveMcpTools` 不核对宿主期望的指纹，记下的是这次传入列表算出来的指纹。为什么：内核看不到用户刚才同意的那一版；工具若在同意和这次调用之间变了，新指纹会被当成已同意。
 

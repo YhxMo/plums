@@ -1,6 +1,6 @@
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
-import { MemorySecretStore, PlumsError, secretRef, type Manifest } from "@plums/core";
+import { MemorySecretStore, PACKAGE_FORMAT_VERSION, SUPPORTED_FORMAT_MAJOR, PlumsError, secretRef, type Manifest } from "@plums/core";
 import { describe, expect, it } from "vitest";
 import {
   buildZip,
@@ -112,6 +112,7 @@ describe("exportPackage", () => {
     const { core } = makeCore();
     const manifest = {
       ...validManifest("connector"),
+      formatVersion: "1.7",
       futureField: { keep: "me" },
       signature: "opaque",
     } as Manifest;
@@ -159,11 +160,16 @@ describe("exportPackage", () => {
     await expectPlumsError(
       core.exportPackage({ manifest, files: { "manifest.json": "{}" } }),
       "IMPORT_INVALID",
+      "/manifest.json",
     );
   });
 });
 
 describe("importPackage: formatVersion", () => {
+  it("exports the default format version and readable major", () => {
+    expect(PACKAGE_FORMAT_VERSION).toBe("1.0");
+    expect(SUPPORTED_FORMAT_MAJOR).toBe(1);
+  });
   it("returns FORMAT_UNSUPPORTED when the major is higher than supported", async () => {
     const { core, dataDir } = makeCore();
     const zip = await manifestZip({ formatVersion: "2.0", somethingNew: true });
