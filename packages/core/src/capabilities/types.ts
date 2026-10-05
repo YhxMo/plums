@@ -1,4 +1,3 @@
-import type { FsOperation } from "../package/types.js";
 import type { EgressRequest, EgressResult } from "../types.js";
 
 export type FsRequest =
@@ -9,11 +8,52 @@ export interface ExecRequest {
   args: string[];
   cwd: { root: string; path: string };
 }
-export type CapabilityRequest = FsRequest | ExecRequest | (EgressRequest & { kind: "egress" });
+export type JsonValue = null | boolean | number | string | JsonValue[] | { [key: string]: JsonValue };
+export interface ServiceRequest {
+  kind: "service";
+  operation: string;
+  binding: string;
+  sources: string[];
+  input: JsonValue;
+}
+export type ServiceEffect = "read" | "instance-write" | "egress" | "model-egress" | "external-write";
+export interface ServiceBinding { fingerprint: string; sources: string[]; host?: string }
+export interface ServiceInvocation {
+  instanceId: string;
+  packageId: string;
+  binding: string;
+  operation: string;
+  sources: readonly string[];
+  input: JsonValue;
+  signal?: AbortSignal;
+  assertActive(): Promise<void>;
+}
+/** Registered only by the trusted host. No extension-supplied code or risk classification. */
+export interface HostService {
+  ownerId?: string;
+  operations: Readonly<Record<string, ServiceEffect>>;
+  getBinding(instanceId: string, binding: string): ServiceBinding | undefined | Promise<ServiceBinding | undefined>;
+  invoke(request: ServiceInvocation): Promise<JsonValue>;
+}
+export interface BackgroundConsentInput {
+  extensionId: string;
+  permissionId: string;
+  operation: string;
+  binding: string;
+  sources: string[];
+}
+export interface BackgroundConsent extends BackgroundConsentInput {
+  instanceId: string;
+  fingerprint: string;
+  revision: string;
+  grantedAt: string;
+}
+export type CapabilityRequest = FsRequest | ExecRequest | ServiceRequest | (EgressRequest & { kind: "egress" });
 export interface RunCapabilityInput {
   extensionId: string;
   permissionId: string;
   request: CapabilityRequest;
+  signal?: AbortSignal;
 }
 export interface CapabilityCaller { packageId: string; permissionId: string }
 export interface RunDelegatedCapabilityInput {
@@ -21,6 +61,7 @@ export interface RunDelegatedCapabilityInput {
   permissionId: string;
   callers: CapabilityCaller[];
   request: CapabilityRequest;
+  signal?: AbortSignal;
   /** Required for a call of an approved remote MCP tool. */
   mcpTool?: { name: string; description: string; inputSchema?: unknown };
 }
@@ -65,7 +106,8 @@ export type CapabilityResult =
   | { callId: string; kind: "fs"; operation: "write"; completed: true }
   | { callId: string; kind: "fs"; operation: "list"; entries: FsEntry[] }
   | { callId: string; kind: "exec"; result: ExecResult }
-  | { callId: string; kind: "egress"; result: EgressResult };
+  | { callId: string; kind: "egress"; result: EgressResult }
+  | { callId: string; kind: "service"; operation: string; result: JsonValue };
 
 export type ExecutionState = "not_started" | "completed" | "unknown";
 export interface AuditEvent {
@@ -78,10 +120,10 @@ export interface AuditEvent {
   callerIds?: string[];
   permissionId?: string;
   kind?: CapabilityRequest["kind"];
-  operation?: FsOperation | "run" | "send";
+  operation?: string;
   /** Logical directory/program name or declared egress target; no physical path or URL. */
   target?: string;
-  phase: "task" | "confirmation" | "allow" | "result" | "denied";
+  phase: "grant" | "revoke" | "task" | "confirmation" | "allow" | "result" | "denied";
   outcome: "requested" | "allowed" | "denied" | "timeout" | "error" | "missing" | "invalid" | "completed" | "failed";
   executionState: ExecutionState;
   code?: string;

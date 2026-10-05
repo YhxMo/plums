@@ -1,3 +1,5 @@
+import { validateDesktopV2, type ConnectionDeclaration, type ConnectionDescription, type EngineDeclaration, type EngineSdk } from "./desktop-v2.js";
+export type { ConnectionDeclaration, ConnectionDescription, ConnectionCredential, EngineDeclaration, EngineSdk, EngineStatus } from "./desktop-v2.js";
 import {
   createArchive,
   readArchiveDetails,
@@ -5,6 +7,7 @@ import {
   DEFAULT_PACKAGE_LIMITS,
   IMPORT_INVALID,
   PlumsError,
+  isManifestV2,
   type Manifest,
   type PackageContents,
   type PackageFiles,
@@ -12,7 +15,7 @@ import {
 } from "@plums/core";
 import semver from "semver";
 
-export const SDK_VERSION = "1";
+export const SDK_VERSION = "2";
 
 export { missingRequiredSettings } from "./settings.js";
 export interface Contribution {
@@ -22,10 +25,18 @@ export interface Contribution {
 }
 export type ContributionKind = "commands" | "tools" | "connectors";
 export interface DesktopContribution {
-  sdkVersion: "1";
+  sdkVersion: "1" | "2";
+  connections?: ConnectionDeclaration[];
+  engines?: EngineDeclaration[];
   runtime?: string;
   frontend?: string;
   contributes?: Partial<Record<ContributionKind, Contribution[]>>;
+  model?: {
+    protocolSetting?: string;
+    endpointSetting: string;
+    modelSetting: string;
+    keySetting: string;
+  };
   credentials?: {
     permissionId: string;
     setting: string;
@@ -70,6 +81,10 @@ export interface PlumsSdk {
   character(packageId?: string): Promise<unknown | null>;
   characters(): Promise<{ id: string; name: string; version: string }[]>;
   settings(): Promise<Record<string, unknown>>;
+  context(): Promise<{ agentId: string; componentId: string; invocationId: string }>;
+  connection(id: string): Promise<ConnectionDescription>;
+  failResponse(callId: string, reason: "RESPONSE_INVALID" | "HTTP_REJECTED"): Promise<never>;
+  engine: EngineSdk;
   emit(topic: string, data: unknown): Promise<void>;
   onEvent(
     topic: string,
@@ -112,10 +127,10 @@ export function desktopContribution(
   const c = (payload as { plumsDesktop: DesktopContribution }).plumsDesktop;
   if (
     !c ||
-    c.sdkVersion !== SDK_VERSION ||
+    !["1", "2"].includes(c.sdkVersion) ||
     !manifest.formatVersion.startsWith("2.")
   )
-    invalid("可运行组件必须使用 2.x 清单与 SDK v1。");
+    invalid("可运行组件必须使用 2.x 清单与支持的 SDK 版本。");
   for (const at of [c.runtime, c.frontend])
     if (
       at !== undefined &&
@@ -153,6 +168,39 @@ export function desktopContribution(
       names.add(d.name);
     }
   }
+  if (c.model !== undefined) {
+    const properties = manifest.settingsSchema?.properties;
+    const fields = c.model && [
+      c.model.endpointSetting,
+      c.model.modelSetting,
+      c.model.keySetting,
+      ...(c.model.protocolSetting === undefined
+        ? []
+        : [c.model.protocolSetting]),
+    ];
+    if (
+      !c.model ||
+      manifest.kind !== "connector" ||
+      !fields!.every(
+        (key) =>
+          typeof key === "string" && properties?.[key]?.type === "string",
+      ) ||
+      new Set(fields).size !== fields!.length ||
+      properties?.[c.model.endpointSetting]?.["x-secret"] ||
+      properties?.[c.model.modelSetting]?.["x-secret"] ||
+      (c.model.protocolSetting !== undefined &&
+        properties?.[c.model.protocolSetting]?.["x-secret"]) ||
+      !properties?.[c.model.keySetting]?.["x-secret"] ||
+      !isManifestV2(manifest) ||
+      !manifest.permissions.some(
+        (p) =>
+          p.kind === "service" &&
+          p.target === "model" &&
+          p.operations.includes("complete"),
+      )
+    )
+      invalid("模型绑定必须引用本连接器的地址、模型名称、密钥和模型服务权限。");
+  }
   if (c.credentials !== undefined) {
     if (!Array.isArray(c.credentials)) invalid("凭据绑定无效。");
     for (const b of c.credentials) {
@@ -173,6 +221,7 @@ export function desktopContribution(
     }
     if (manifest.kind !== "connector") invalid("只有连接器可以绑定网络凭据。");
   }
+  validateDesktopV2(manifest, c, safePath, files);
   return c;
 }
 export async function validateAgentBundle(

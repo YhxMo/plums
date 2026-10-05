@@ -4,9 +4,11 @@ import { Icon } from "./Icon.js";
 export function PermissionList({
   permissions,
   formatVersion,
+  serviceTargets,
 }: {
   permissions: Permission[];
   formatVersion?: string;
+  serviceTargets?: Record<string, string[]>;
 }) {
   return (
     <div className="permission-list">
@@ -15,7 +17,13 @@ export function PermissionList({
           <div key={`${permission.id}-${index}`}>
             <Icon name="shield" size={16} />
             <div>
-              <strong>{permissionCopy(permission, formatVersion)}</strong>
+              <strong>
+                {permissionCopy(
+                  permission,
+                  formatVersion,
+                  serviceTargets?.[permission.id],
+                )}
+              </strong>
               <p>
                 <span>作者说明：</span>
                 {permission.reason}
@@ -33,11 +41,19 @@ export function PermissionList({
 export function PermissionSummary({
   permissions,
 }: {
-  permissions: { permission: Permission; formatVersion: string }[];
+  permissions: {
+    permission: Permission;
+    formatVersion: string;
+    serviceTargets?: string[];
+  }[];
 }) {
   const groups = new Map<
     string,
-    { permission: Permission; formatVersion: string }[]
+    {
+      permission: Permission;
+      formatVersion: string;
+      serviceTargets?: string[];
+    }[]
   >();
   for (const entry of permissions)
     groups.set(entry.permission.target, [
@@ -52,14 +68,20 @@ export function PermissionSummary({
             <Icon name="shield" size={16} />
             <div>
               <strong>
-                {target.startsWith("*.")
-                  ? `${target.slice(2)} 及其子站`
-                  : target}
+                {target === "model"
+                  ? "当前模型服务"
+                  : target.startsWith("*.")
+                    ? `${target.slice(2)} 及其子站`
+                    : target}
               </strong>
               {Array.from(
                 new Set(
                   entries.map((entry) =>
-                    permissionCopy(entry.permission, entry.formatVersion),
+                    permissionCopy(
+                      entry.permission,
+                      entry.formatVersion,
+                      entry.serviceTargets,
+                    ),
                   ),
                 ),
               ).map((description) => (

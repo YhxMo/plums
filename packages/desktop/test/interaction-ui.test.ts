@@ -6,6 +6,84 @@ import os from "node:os";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 
+it("uses plain text by default, opts into tools and keeps chat controls usable at narrow widths", async () => {
+  const f = await fixture();
+  try {
+    await f.page.addInitScript(() => {
+      const state = {
+        calls: [] as any[],
+        finish: undefined as any,
+        reject: undefined as any,
+      };
+      (window as any).chatFixture = state;
+      (window as any).plums = {
+        openManager: async () => {},
+        invoke: async (kind: string, name: string, input: unknown) => {
+          if (name === "history") return [];
+          state.calls.push({ kind, name, input });
+          return new Promise((resolve, reject) => {
+            state.finish = resolve;
+            state.reject = reject;
+          });
+        },
+      };
+    });
+    await f.page.goto(
+      pathToFileURL(path.resolve("examples/chat-ui/ui/index.html")).href,
+    );
+    const checkbox = f.page.getByLabel("使用工作目录工具"),
+      send = f.page.getByRole("button", { name: "发送 ↗" });
+    expect(await checkbox.isChecked()).toBe(false);
+    await f.page.locator("#text").fill("普通文本问题");
+    await send.click();
+    expect(await checkbox.isDisabled()).toBe(true);
+    await f.page.evaluate(() =>
+      document.querySelector("form")!.requestSubmit(),
+    );
+    expect(
+      await f.page.evaluate(() => (window as any).chatFixture.calls),
+    ).toEqual([
+      {
+        kind: "commands",
+        name: "chat",
+        input: { text: "普通文本问题", useTools: false },
+      },
+    ]);
+    await f.page.evaluate(() =>
+      (window as any).chatFixture.finish({ text: "文本回复" }),
+    );
+    await f.page.getByText("文本回复", { exact: true }).waitFor();
+    await checkbox.check();
+    await f.page.locator("#text").fill("使用目录工具");
+    await send.click();
+    expect(
+      await f.page.evaluate(
+        () => (window as any).chatFixture.calls[1].input.useTools,
+      ),
+    ).toBe(true);
+    await f.page.evaluate(() =>
+      (window as any).chatFixture.reject({
+        message: "服务拒绝了请求（HTTP 401）",
+      }),
+    );
+    await f.page
+      .getByText("服务拒绝了请求（HTTP 401）", { exact: true })
+      .waitFor();
+    expect(await send.isEnabled()).toBe(true);
+    expect(await checkbox.isEnabled()).toBe(true);
+    for (const width of [1180, 760, 375, 320]) {
+      await f.page.setViewportSize({ width, height: 800 });
+      expect(
+        await f.page.evaluate(
+          () => document.documentElement.scrollWidth <= innerWidth,
+        ),
+      ).toBe(true);
+    }
+  } finally {
+    await f.close();
+  }
+});
+
 async function fixture(holdRuntime = false) {
   const temporary = await mkdtemp(path.join(os.tmpdir(), "plums-interaction-"));
   const main = path.join(temporary, "main.cjs");
@@ -714,6 +792,63 @@ it("keeps stop-and-revoke visible, suppresses duplicate clicks and shows retryab
       .waitFor();
     await revoke.click();
     await expect.poll(() => f.page.getByRole("alert").count()).toBe(0);
+  } finally {
+    await f.close();
+  }
+});
+
+it("displays the current model service in component permissions and refreshes it after configuration", async () => {
+  const f = await fixture();
+  const { page } = f;
+  try {
+    await page.evaluate(() => {
+      const s = (window as any).interaction,
+        p = s.packages.a[0];
+      p.manifest.permissions = [
+        {
+          id: "model-access",
+          kind: "service",
+          target: "model",
+          operations: ["complete"],
+          reason: "使用配置的模型",
+        },
+      ];
+      p.serviceTargets = { "model-access": ["opencode.ai（custom-model）"] };
+      s.refresh();
+    });
+    await page.getByTestId("agent-card").filter({ hasText: "助手 a" }).click();
+    const component = page
+      .getByTestId("component-row")
+      .filter({ hasText: "工具甲" });
+    await component.locator("summary").click();
+    await expect
+      .poll(() =>
+        component
+          .getByText(
+            "使用当前 Agent 配置的模型服务：opencode.ai（custom-model）",
+            { exact: true },
+          )
+          .isVisible(),
+      )
+      .toBe(true);
+    await page.evaluate(() => {
+      const s = (window as any).interaction;
+      s.packages.a[0].serviceTargets = {
+        "model-access": ["custom.example（new-model）"],
+      };
+      s.refresh();
+    });
+    await expect
+      .poll(() =>
+        component
+          .getByText(
+            "使用当前 Agent 配置的模型服务：custom.example（new-model）",
+            { exact: true },
+          )
+          .isVisible(),
+      )
+      .toBe(true);
+    await expect.poll(() => component.getByText(/opencode.ai/).count()).toBe(0);
   } finally {
     await f.close();
   }

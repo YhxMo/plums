@@ -1,5 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { TaskScopes, type TaskScopePlan, type TaskScopeState, type TaskScopeSelection } from "./capabilities/task-scope.js";
+import { registerServices, grantBackgroundConsent, revokeBackgroundConsent, hasBackgroundConsent } from "./capabilities/services.js";
+import type { HostService, BackgroundConsent, BackgroundConsentInput } from "./capabilities/types.js";
 import * as mcpV2 from "./mcp/tools-v2.js";
 import type { McpApprovalV2 } from "./install/store.js";
 import { requireInstalled, requireManifest } from "./install/lifecycle.js";
@@ -50,6 +52,8 @@ export interface CreateCoreOptions {
   /** Missing confirmation denies every action that needs it. */
   confirm?: Confirm;
   /** Host policy: require a task grant or single-use confirmation, including read/list. */
+  instanceId?: string;
+  services?: Readonly<Record<string, HostService>>;
   capabilityApproval?: "legacy" | "task-or-confirm";
   secrets: SecretStore;
   /** Logical directory names to host-selected paths; copied at creation. */
@@ -76,6 +80,8 @@ export interface UpdatedPackage extends ImportedPackage {
 }
 
 export interface Core {
+  /** Trusted host binding epoch. Includes saves where only a secret changed. */
+  settingsRevision(id: string): Promise<number>;
   /** Trusted host only: preview and approve a finite task; not an SDK interface. */
   taskScopePlan(): Promise<TaskScopePlan>;
   grantTaskScope(fingerprint: string, durationMs: number, selection?: TaskScopeSelection[]): Promise<TaskScopeState>;
@@ -201,6 +207,10 @@ export interface Core {
    * and executionState; completed or unknown must never be automatically retried.
    * Filesystem checks read metadata only; the host sink enforces boundaries during I/O.
    */
+  grantBackgroundConsent(input: BackgroundConsentInput): Promise<BackgroundConsent>;
+  hasBackgroundConsent(input: BackgroundConsentInput): Promise<boolean>;
+  revokeBackgroundConsent(extensionId: string, binding?: string): Promise<void>;
+  listBackgroundConsents(extensionId?: string): Promise<BackgroundConsent[]>;
   runCapability(input: RunCapabilityInput): Promise<CapabilityResult>;
   /**
    * MCP tools. The core never connects to a server: the host passes the tool list it read.
@@ -291,7 +301,7 @@ export function createCore(options: CreateCoreOptions): Core {
   const store = new InstallStore(resolvedDataDir);
   const ctx = { dataDir: resolvedDataDir, store, secrets: options.secrets };
   const tasks = new TaskScopes(ctx, roots, capabilityApproval === "task-or-confirm");
-  const capabilityCtx = { ...ctx, roots, programs, fs: options.fs, exec: options.exec,
+  const capabilityCtx = { ...ctx, instanceId: options.instanceId ?? resolvedDataDir, services: registerServices(options.services), roots, programs, fs: options.fs, exec: options.exec,
     egress: options.egress, confirm: options.confirm, confirmTimeoutMs, onAudit: options.onAudit, tasks };
   const importPackage = async (input: Uint8Array | string): Promise<ImportedPackage> => {
     const validated = await validatePackage(input, limits);
@@ -386,7 +396,7 @@ export function createCore(options: CreateCoreOptions): Core {
     grantConsent: guard(async (id) => lifecycle.grantConsent(ctx, id)),
     getConsent: guard(async (id) => lifecycle.getConsent(ctx, id)),
     enable: guard(async (id) => lifecycle.enable(ctx, id)),
-    disable: guard(async (id) => { tasks.revoke(); return lifecycle.disable(ctx, id); }),
+    disable: guard(async (id) => { tasks.revoke(); store.revokeBackgroundConsents(id); return lifecycle.disable(ctx, id); }),
     uninstall: guard(async (id) => {
       tasks.revoke();
       if (typeof id === "string" && id.startsWith("manual:")) {
@@ -410,7 +420,7 @@ export function createCore(options: CreateCoreOptions): Core {
     runDelegatedCapability: (raw) => {
       const input = copyDelegatedInput(raw);
       const gate = input.mcpTool ? () => mcpV2.authorizeMcpToolV2(ctx, input.packageId, input.permissionId, input.mcpTool!) : undefined;
-      return runCapability(capabilityCtx, { extensionId: input.packageId, permissionId: input.permissionId, request: input.request }, input.callers, true, gate);
+      return runCapability(capabilityCtx, { extensionId: input.packageId, permissionId: input.permissionId, request: input.request, signal: input.signal }, input.callers, true, gate);
     },
     checkMcpToolsV2: guard(async (id, tools) => mcpV2.checkMcpToolsV2(ctx, id, tools)),
     approveMcpToolsV2: guard(async (id, permissionId, tools) => mcpV2.approveMcpToolsV2(ctx, id, permissionId, tools)),
@@ -446,12 +456,17 @@ export function createCore(options: CreateCoreOptions): Core {
       return tasks.grant(fingerprint, durationMs, taskId, chosen);
     }),
     // This entry point owns its redaction so an audit failure cannot obscure executionState.
+    grantBackgroundConsent: guard((input) => grantBackgroundConsent(capabilityCtx, input)),
+    hasBackgroundConsent: guard((input) => hasBackgroundConsent(capabilityCtx, input)),
+    revokeBackgroundConsent: guard((id, binding) => revokeBackgroundConsent(capabilityCtx, id, binding)),
+    listBackgroundConsents: guard(async (id) => store.listBackgroundConsents(id)),
     runCapability: (input) => runCapability(capabilityCtx, input),
     checkMcpTools: guard(async (serverId, tools) => checkMcpTools(ctx, serverId, tools)),
     approveMcpTools: guard(async (serverId, tools, allowNonRead) => approveMcpTools(ctx, serverId, tools, allowNonRead)),
     authorizeMcpTool: guard((serverId, tool) => authorizeMcpTool({ ...ctx, confirm }, serverId, tool)),
     getMcpApprovals: guard(async (serverId) => getMcpApprovals(ctx, serverId)),
-    setSettings: guard((id, values) => { tasks.revoke(); return setSettings(ctx, id, values); }),
+    settingsRevision: guard(async (id) => { requireInstalled(ctx, id); return store.settingsRevision(id); }),
+    setSettings: guard(async (id, values) => { tasks.revoke(); await setSettings(ctx, id, values); store.bumpSettingsRevision(id); }),
     resolveSettings: guard((id) => resolveSettings(ctx, id)),
     close() {
       tasks.revoke();

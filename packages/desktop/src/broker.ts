@@ -1,4 +1,4 @@
-import { DesktopHost, EncryptedSecretStore, ioContext } from "@plums/host";
+import { DesktopHost, LocalSecretStore, ioContext } from "@plums/host";
 import path from "node:path";
 import { PlumsError } from "@plums/core";
 const pending = new Map<
@@ -59,16 +59,9 @@ const host = new DesktopHost({
     },
   },
   secretStore: (id) =>
-    new EncryptedSecretStore(
+    new LocalSecretStore(
+      path.join(dataDir, "instances", id, "secrets"),
       path.join(dataDir, "instances", id, "secrets.enc.json"),
-      {
-        async encrypt(v) {
-          return (await parent("encrypt", v)) as string;
-        },
-        async decrypt(v) {
-          return (await parent("decrypt", v)) as string;
-        },
-      },
     ),
   event: (instanceId, packageId, topic, data) =>
     process.send?.({ type: "event", instanceId, packageId, topic, data }),
@@ -176,7 +169,12 @@ process.on("message", async (raw: unknown) => {
         await host.enableAgent(id, a.fingerprint as string);
         break;
       case "enable":
-        await host.enable(id, pkg, a.expected as string | undefined);
+        await host.enable(
+          id,
+          pkg,
+          a.expected as string | undefined,
+          a.expectedAccess as string | undefined,
+        );
         break;
       case "disable":
         await host.disable(id, pkg);

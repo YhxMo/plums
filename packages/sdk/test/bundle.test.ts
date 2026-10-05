@@ -148,3 +148,112 @@ it("roundtrips empty bundles and multiple cards without requiring a default", as
     createAgentBundle({ ...empty, characters: ["../escape.zip"] }, {}),
   ).rejects.toMatchObject({ code: "IMPORT_INVALID" });
 });
+
+it("validates model binding metadata against declared service and secret schema", () => {
+  const manifest: ManifestV2 = {
+    ...card,
+    id: "model",
+    kind: "connector",
+    permissions: [
+      {
+        id: "model-api",
+        kind: "service",
+        target: "model",
+        operations: ["complete"],
+        reason: "Model",
+      },
+    ],
+    settingsSchema: {
+      type: "object",
+      properties: {
+        endpoint: { type: "string" },
+        model: { type: "string" },
+        apiKey: { type: "string", "x-secret": true },
+      },
+    },
+    payload: {
+      plumsDesktop: {
+        sdkVersion: "1",
+        model: {
+          endpointSetting: "endpoint",
+          modelSetting: "model",
+          keySetting: "apiKey",
+        },
+      },
+    },
+  };
+  expect(desktopContribution(manifest)?.model?.endpointSetting).toBe(
+    "endpoint",
+  );
+  const withProtocol = {
+    ...manifest,
+    settingsSchema: {
+      ...manifest.settingsSchema!,
+      properties: {
+        ...manifest.settingsSchema!.properties,
+        protocol: {
+          type: "string" as const,
+          title: "Protocol",
+          description: "Protocol",
+        },
+      },
+    },
+    payload: {
+      plumsDesktop: {
+        sdkVersion: "1",
+        model: {
+          ...(manifest.payload as any).plumsDesktop.model,
+          protocolSetting: "protocol",
+        },
+      },
+    },
+  };
+  expect(desktopContribution(withProtocol)?.model?.protocolSetting).toBe(
+    "protocol",
+  );
+  expect(() =>
+    desktopContribution({
+      ...withProtocol,
+      payload: {
+        plumsDesktop: {
+          sdkVersion: "1",
+          model: {
+            ...(withProtocol.payload as any).plumsDesktop.model,
+            protocolSetting: "apiKey",
+          },
+        },
+      },
+    }),
+  ).toThrow();
+  expect(() =>
+    desktopContribution({
+      ...withProtocol,
+      payload: {
+        plumsDesktop: {
+          sdkVersion: "1",
+          model: {
+            ...(withProtocol.payload as any).plumsDesktop.model,
+            protocolSetting: "unknown",
+          },
+        },
+      },
+    }),
+  ).toThrow();
+  expect(() =>
+    desktopContribution({ ...manifest, kind: "extension" }),
+  ).toThrow();
+  expect(() => desktopContribution({ ...manifest, permissions: [] })).toThrow();
+  expect(() =>
+    desktopContribution({
+      ...manifest,
+      settingsSchema: {
+        type: "object",
+        properties: {
+          endpoint: { type: "string" },
+          model: { type: "string" },
+          apiKey: { type: "string" },
+        },
+      },
+    }),
+  ).toThrow();
+});

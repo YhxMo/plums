@@ -9,6 +9,8 @@ import type { DesktopContribution } from "@plums/sdk";
 
 export type Resource = InstalledPackage & {
   manifest: Manifest;
+  serviceTargets?: Record<string, string[]>;
+  needsApproval?: boolean;
   settings: SettingsDescription;
   desktop?: DesktopContribution;
   mcpTools?: { tool: McpTool; state: string }[];

@@ -4,6 +4,7 @@ import os from "node:os";
 import path from "node:path";
 import assert from "node:assert/strict";
 import { crc32, deflateSync } from "node:zlib";
+import { createHash } from "node:crypto";
 const root = process.cwd(),
   temporary = await mkdtemp(path.join(os.tmpdir(), "plums-app-smoke-"));
 const output = path.join(root, "release", "smoke");
@@ -88,10 +89,13 @@ try {
       },
       [method, args],
     );
-    if (r.error) throw Error(JSON.stringify(r.error));
+    if (r.error)
+      throw Error(
+        `${method}${args?.packageId ? ` (${args.packageId})` : ""}: ${JSON.stringify(r.error)}`,
+      );
     return r.value;
   };
-  await call("setDesktopSettings", { dnsMode: "cloudflare" });
+  assert.equal((await call("desktopSettings")).dnsMode, "auto");
   async function drop(file, surface = manager, button = "导入并配置") {
     const cdp = await surface.context().newCDPSession(surface);
     const data = { items: [], files: [file], dragOperationsMask: 1 };
@@ -212,6 +216,9 @@ try {
     .getByTestId("setup-dialog")
     .getByRole("button", { name: "开始使用" })
     .click();
+  await expect
+    .poll(() => application.evaluate(() => globalThis.plumsSmoke.enablePrompts))
+    .toBe(1);
   await expect(
     manager
       .getByTestId("setup-dialog")
@@ -229,6 +236,9 @@ try {
     .getByTestId("setup-dialog")
     .getByRole("button", { name: "开始使用" })
     .click();
+  await expect
+    .poll(() => application.evaluate(() => globalThis.plumsSmoke.enablePrompts))
+    .toBe(2);
   await expect(manager.getByTestId("setup-dialog")).toHaveCount(0);
   assert(
     (await call("resources", { instanceId: board.instanceId })).packages.every(
@@ -355,8 +365,19 @@ try {
     "type",
     "password",
   );
-  await expect(manager.getByLabel("接口地址", { exact: true })).toHaveValue(
-    "https://api.openai.com/v1/chat/completions",
+  await expect(manager.getByLabel("协议", { exact: true })).toHaveValue(
+    "OpenAI Chat Completions",
+  );
+  await expect(
+    manager.getByLabel("协议", { exact: true }).locator("option"),
+  ).toHaveCount(5);
+  assert(
+    await manager
+      .getByLabel("Base URL", { exact: true })
+      .evaluate((el) => !el.closest("details")),
+  );
+  await expect(manager.getByLabel("Base URL", { exact: true })).toHaveValue(
+    "https://api.openai.com/v1",
   );
   await manager.screenshot({ path: path.join(output, "import-setup.png") });
   await manager.getByRole("button", { name: "开始使用" }).click();
@@ -366,6 +387,28 @@ try {
     ),
   );
   await manager.getByRole("button", { name: "稍后配置" }).click();
+  await call("settings", {
+    instanceId: chat.instanceId,
+    packageId: "model",
+    values: {
+      model: "test-model",
+      endpoint: "https://api.openai.com/v1/chat/completions",
+    },
+    secrets: { apiKey: "fake-smoke-credential" },
+  });
+  const secretFile = path.join(
+    temporary,
+    "library/instances",
+    chat.instanceId,
+    "secrets",
+    createHash("sha256").update("secret:model/apiKey").digest("hex"),
+  );
+  assert.equal(await readFile(secretFile, "utf8"), "fake-smoke-credential");
+  assert(
+    !JSON.stringify(
+      await call("resources", { instanceId: chat.instanceId }),
+    ).includes("fake-smoke-credential"),
+  );
   for (const packageId of [
     "persona",
     "model",
@@ -374,31 +417,12 @@ try {
     "remote-mcp",
   ])
     await call("enable", { instanceId: chat.instanceId, packageId });
-  let keychainEncryption = "not-requested";
-  if (process.env.PLUMS_TEST_KEYCHAIN === "1") {
-    await call("settings", {
-      instanceId: chat.instanceId,
-      packageId: "model",
-      values: { model: "test-model" },
-      secrets: { apiKey: "fake-smoke-credential" },
-    });
-    const cipherText = await readFile(
-      path.join(
-        temporary,
-        "library/instances",
-        chat.instanceId,
-        "secrets.enc.json",
-      ),
-      "utf8",
-    );
-    assert(!cipherText.includes("fake-smoke-credential"));
-    assert(
-      !JSON.stringify(
-        await call("resources", { instanceId: chat.instanceId }),
-      ).includes("fake-smoke-credential"),
-    );
-    keychainEncryption = "passed";
-  }
+  assert(
+    (await call("resources", { instanceId: chat.instanceId })).packages.every(
+      (p) => p.enabled && p.consented,
+    ),
+    "all chat components must be enabled before packaged I/O validation",
+  );
   const workspace = path.join(temporary, "workspace");
   await mkdir(workspace);
   await writeFile(path.join(workspace, "source.txt"), "真实选定目录");
@@ -474,13 +498,13 @@ try {
   await expect(
     manager.getByRole("button", { name: "更换", exact: true }),
   ).toBeVisible();
+  await application.evaluate(() => {
+    globalThis.plumsSmoke.allow = true;
+  });
   assert.equal(
     (await invoke("chat", "tools", "read_file", { path: "source.txt" })).text,
     "真实选定目录",
   );
-  await application.evaluate(() => {
-    globalThis.plumsSmoke.allow = true;
-  });
   const https = await invoke("http-example", "connectors", "inspect");
   assert.equal(https.status, 200);
   const tools = await invoke("remote-mcp", "connectors", "discover");
@@ -507,6 +531,7 @@ try {
       predicate: (p) => p.url().startsWith("plums-agent:"),
     });
   await expect(guest.locator("h1")).toContainText(/plum\s*chat/i);
+  await expect(guest.getByLabel("使用工作目录工具")).not.toBeChecked();
   await guest.screenshot({ path: path.join(output, "chat.png") });
   await application.evaluate(({ webContents, Menu }) => {
     const guest = webContents
@@ -656,7 +681,8 @@ try {
         genericStatus: true,
         distinctFrontends: true,
         filesystem: true,
-        keychainEncryption,
+        localSecretStorage: true,
+        automaticDns: true,
         httpsStatus: https.status,
         mcpTools: tools.map((t) => t.name),
         rendererRecovery: true,

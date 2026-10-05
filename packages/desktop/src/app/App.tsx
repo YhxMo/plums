@@ -215,7 +215,10 @@ export function App() {
       setTab("status");
       if (
         detail.packages.every(
-          (p) => p.enabled && !missingRequiredSettings(p.settings).length,
+          (p) =>
+            p.enabled &&
+            !p.needsApproval &&
+            !missingRequiredSettings(p.settings).length,
         )
       )
         await window.manager.call("openAgent", { instanceId: id });

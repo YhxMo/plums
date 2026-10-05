@@ -7,7 +7,6 @@ import {
   Menu,
   protocol,
   session,
-  safeStorage,
   nativeTheme,
 } from "electron";
 import { fork, type ChildProcess } from "node:child_process";
@@ -75,6 +74,7 @@ function consent(
     name: string;
     permissions: Permission[];
     formatVersion?: string;
+    serviceTargets?: Record<string, string[]>;
   }[],
 ) {
   return prompter.ask({
@@ -86,7 +86,7 @@ function consent(
       descriptions: entry.permissions.length
         ? entry.permissions.map(
             (permission) =>
-              `${permissionCopy(permission, entry.formatVersion)}。${permission.reason}`,
+              `${permissionCopy(permission, entry.formatVersion, entry.serviceTargets?.[permission.id])}。${permission.reason}`,
           )
         : ["不访问外部资源"],
     })),
@@ -191,10 +191,18 @@ async function openAgent(instanceId: string): Promise<boolean | null> {
       ),
     );
     const choice = await prompter.askTask({
-      scopeOptions: selections.map((selection, index) => ({
-        key: String(index),
-        label: `${task.entries.find((e) => e.packageId === selection.packageId)!.name} · ${task.entries.find((e) => e.packageId === selection.packageId)!.permissions.find((p) => p.id === selection.permissionId)!.target} · ${{ read: "读取", list: "列出", write: "写入", send: "联网" }[selection.operation]}`,
-      })),
+      scopeOptions: selections.map((selection, index) => {
+        const entry = task.entries.find(
+          (e) => e.packageId === selection.packageId,
+        )!;
+        const permission = entry.permissions.find(
+          (p) => p.id === selection.permissionId,
+        )!;
+        return {
+          key: String(index),
+          label: `${entry.name} · ${entry.serviceTargets?.[permission.id]?.join("、") || permission.target} · ${{ read: "读取", list: "列出", write: "写入", send: "联网" }[selection.operation]}`,
+        };
+      }),
       kind: "task",
       subject: task.name,
       action: "选择本次工作范围和有效期。范围内连续执行，停止即撤权。",
@@ -202,7 +210,8 @@ async function openAgent(instanceId: string): Promise<boolean | null> {
         ...task.entries.map((entry) => ({
           name: entry.name,
           descriptions: entry.permissions.map(
-            (p) => `${permissionCopy(p, "2.0")}。${p.reason}`,
+            (p) =>
+              `${permissionCopy(p, "2.0", entry.serviceTargets?.[p.id])}。${p.reason}`,
           ),
         })),
         ...Object.entries(task.roots).map(([name, directory]) => ({
@@ -448,17 +457,6 @@ app.whenReady().then(async () => {
             },
             AbortSignal.any([AbortSignal.timeout(120_000), controller.signal]),
           );
-        } else if (m.method === "encrypt") {
-          if (!(await safeStorage.isAsyncEncryptionAvailable())) throw Error();
-          value = (
-            await safeStorage.encryptStringAsync(m.args as string)
-          ).toString("base64");
-        } else if (m.method === "decrypt") {
-          value = (
-            await safeStorage.decryptStringAsync(
-              Buffer.from(m.args as string, "base64"),
-            )
-          ).result;
         } else throw Error();
         replyService(m.id, true, value);
       } catch {
@@ -524,11 +522,11 @@ app.whenReady().then(async () => {
           try {
             const plan = (await rpc("agentEnablePlan", args)) as {
               missing: unknown[];
-              entries: { enabled: boolean }[];
+              entries: { enabled: boolean; needsApproval: boolean }[];
             };
             value = plan.missing.length
               ? "needs-config"
-              : plan.entries.some((entry) => !entry.enabled)
+              : plan.entries.some((entry) => entry.needsApproval)
                 ? "disabled"
                 : "ready";
           } catch {
@@ -543,6 +541,8 @@ app.whenReady().then(async () => {
               packageId: string;
               name: string;
               enabled: boolean;
+              needsApproval: boolean;
+              serviceTargets: Record<string, string[]>;
               permissions: {
                 id: string;
                 kind?: string;
@@ -557,7 +557,7 @@ app.whenReady().then(async () => {
             window.webContents.send("manager-select", args.instanceId);
             value = { needsSetup: true };
           } else {
-            const disabled = plan.entries.filter((p) => !p.enabled);
+            const disabled = plan.entries.filter((p) => p.needsApproval);
             let approved = true;
             if (disabled.length) {
               const detail = (await rpc("resources", args)) as {
@@ -643,6 +643,8 @@ app.whenReady().then(async () => {
             packages: {
               id: string;
               name: string;
+              fingerprint: string;
+              serviceTargets: Record<string, string[]>;
               manifest: { permissions: unknown[]; formatVersion: string };
             }[];
           };
@@ -658,6 +660,7 @@ app.whenReady().then(async () => {
                 name: component.name,
                 permissions: component.manifest.permissions as Permission[],
                 formatVersion: component.manifest.formatVersion,
+                serviceTargets: component.serviceTargets,
               },
             ],
           );
@@ -665,6 +668,7 @@ app.whenReady().then(async () => {
             await rpc("enable", {
               ...args,
               expected: JSON.stringify(component.manifest),
+              expectedAccess: component.fingerprint,
             });
           value = null;
         } else if (method === "export" || method === "exportLibrary") {

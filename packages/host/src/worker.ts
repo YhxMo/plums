@@ -15,6 +15,15 @@ const bootstrap = String.raw`
     const id = ++next; pending.set(id, {resolve, reject}); out.push({type:'rpc', id, method, args});
   });
   const sdk = Object.freeze({
+    context: () => rpc('context', {}), connection: (id) => rpc('connection', {id}),
+    failResponse: (callId, reason) => rpc('failResponse', {callId, reason}),
+    engine: Object.freeze({
+      start: (engineId) => rpc('engine.start', {engineId}),
+      request: (engineId, method, input, requestId) => rpc('engine.request', {engineId, method, input, requestId}),
+      cancel: (engineId, requestId) => rpc('engine.cancel', {engineId, requestId}),
+      stop: (engineId) => rpc('engine.stop', {engineId}),
+      status: (engineId) => rpc('engine.status', {engineId})
+    }),
     register(kind, name, fn) { if(typeof fn !== 'function') throw Error('Invalid handler'); handlers.set(kind+':'+name, fn); },
     invoke: (packageId, kind, name, input) => rpc('invoke', {packageId, kind, name, input}),
     capability: (permissionId, request, mcpTool) => rpc('capability', {permissionId, request, mcpTool}),

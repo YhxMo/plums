@@ -198,6 +198,7 @@ export function AgentDetailView({
                   p.manifest.permissions.map((permission) => ({
                     permission,
                     formatVersion: p.manifest.formatVersion,
+                    serviceTargets: p.serviceTargets?.[permission.id],
                   })),
                 )}
             />

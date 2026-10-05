@@ -35,10 +35,12 @@ export { MAX_SHARE_BYTES } from "./share.js";
 
 export type { ActionResult, RunActionInput } from "./actions/run-action.js";
 export { DEFAULT_CONFIRM_TIMEOUT_MS } from "./capabilities/types.js";
+export { SinkFailure } from "./capabilities/sink-failure.js";
+export type { SinkFailureReason } from "./capabilities/sink-failure.js";
 export type {
   AuditEvent, AuditHandler, CapabilityRequest, CapabilityResult, ExecutionState,
   ExecInvocation, ExecRequest, ExecResult, ExecSink, FsEntry, FsLocation, FsRequest,
-  FsSink, RunCapabilityInput,
+  FsSink, RunCapabilityInput, HostService, ServiceBinding, ServiceInvocation, ServiceEffect, ServiceRequest, JsonValue, BackgroundConsent, BackgroundConsentInput,
 } from "./capabilities/types.js";
 
 export type { ConsentRecord, InstalledPackage, McpApproval } from "./install/store.js";
@@ -83,6 +85,8 @@ export type {
   Permission,
   PermissionV1,
   PermissionV2,
+  ServicePermission,
+  EnginePermission,
   FsPermission,
   FsOperation,
   ExecPermission,

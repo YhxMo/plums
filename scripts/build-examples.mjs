@@ -81,7 +81,7 @@ try {
       bundleVersion: "1.0",
       id: name,
       name: title,
-      version: "1.0.0",
+      version: name === "plum-chat" ? "2.0.0" : "1.0.0",
       character: "components/character.zip",
       extensions: extensions.map((n) => "components/" + n + ".zip"),
       connectors: connectors.map((n) => "components/" + n + ".zip"),

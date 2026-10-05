@@ -8,6 +8,8 @@ import {
 } from "@plums/core";
 import { desktopContribution, type ContributionKind } from "@plums/sdk";
 import { ioContext } from "./io.js";
+import { configuredConnection } from "./connection-service.js";
+import { CAPABILITY_FAILED, SinkFailure } from "@plums/core";
 import type { Session, HostOptions } from "./host.js";
 import type { ExtensionRuntime, InvocationContext } from "./runtime.js";
 function denied(): never {
@@ -32,7 +34,24 @@ export async function dispatchSdk(
   if (context.signal.aborted || s.controller.signal.aborted) denied();
   const current = await s.core.getPackage(packageId);
   if (!current.installed.enabled) denied();
+  if (["context", "connection", "failResponse"].includes(method) && desktopContribution(current.manifest)?.sdkVersion !== "2") denied();
   switch (method) {
+    case "context": return { agentId: s.record.instanceId, componentId: packageId, invocationId: context.invocationId };
+    case "connection": {
+      if (typeof args.id !== "string") denied();
+      const b = await configuredConnection(s.core, packageId, args.id);
+      if (!b) denied();
+      return { binding: b.binding, baseURL: b.baseURL, origin: b.origin, basePath: new URL(b.baseURL).pathname, fingerprint: b.fingerprint, ready: b.ready };
+    }
+    case "failResponse": {
+      if (typeof args.callId !== "string" || !["RESPONSE_INVALID", "HTTP_REJECTED"].includes(args.reason as string)) denied();
+      const receipt = s.receipts.get(args.callId);
+      if (!receipt || receipt.packageId !== packageId || receipt.invocationId !== context.invocationId ||
+        (args.reason === "HTTP_REJECTED" && receipt.status >= 200 && receipt.status < 300)) denied();
+      s.receipts.delete(args.callId);
+      const error = new SinkFailure(args.reason as "RESPONSE_INVALID" | "HTTP_REJECTED", receipt.status);
+      throw new PlumsError({ code: CAPABILITY_FAILED, message: error.message, details: { callId: args.callId, phase: "sink", executionState: "completed", reason: args.reason, httpStatus: receipt.status } });
+    }
     case "characters": {
       const cards = (await s.core.listInstalled()).filter(
         (p) => p.kind === "character" && p.enabled,
@@ -130,7 +149,10 @@ export async function dispatchSdk(
             p.kind === request.kind &&
             p.target === target &&
             (request.kind !== "fs" ||
-              (p.kind === "fs" && p.operations.includes(request.operation))),
+              (p.kind === "fs" && p.operations.includes(request.operation))) &&
+            (request.kind !== "service" ||
+              (p.kind === "service" &&
+                p.operations.includes(request.operation))),
         );
         if (!selected) denied();
         callers.push({ packageId: c.packageId, permissionId: selected.id });
@@ -177,8 +199,15 @@ export async function dispatchSdk(
             permissionId,
             callers,
             request,
+            signal,
             ...(mcpTool ? { mcpTool } : {}),
           });
+          if (request.kind === "service" && result.kind === "service" && result.operation === "request" &&
+            current.manifest.permissions.some(p => "kind" in p && p.id === permissionId && p.kind === "service" && p.target === "https")) {
+            const status = (result.result as { status: number }).status;
+            if (s.receipts.size >= 128) s.receipts.delete(s.receipts.keys().next().value!);
+            s.receipts.set(result.callId, { packageId, invocationId: context.invocationId!, status });
+          }
           chunk("", true);
           if (result.kind === "fs" && result.operation === "read")
             return { ...result, data: [...result.data] };

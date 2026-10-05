@@ -10,6 +10,7 @@ export interface InvocationContext {
   callers: CapabilityCaller[];
   ancestry: string[];
   signal: AbortSignal;
+  invocationId?: string;
 }
 export type RuntimeBridge = (
   method: string,
@@ -122,7 +123,7 @@ export class ExtensionRuntime {
         id,
         resolve,
         reject,
-        context: { ...context, signal: controller.signal },
+        context: { ...context, invocationId: id, signal: controller.signal },
         cleanup,
       };
       this.failures.clear();
@@ -175,7 +176,7 @@ export class ExtensionRuntime {
         // Activation registers interfaces; I/O and delegated work require an invocation context.
         if (
           pending.id === "start" &&
-          ["capability", "invoke", "mcpCheck"].includes(m.method)
+          (["capability", "invoke", "mcpCheck", "failResponse"].includes(m.method) || m.method.startsWith("engine."))
         )
           throw Error();
         this.inflight++;

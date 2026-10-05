@@ -15,22 +15,29 @@ document.querySelector("#manager").onclick = () => window.plums.openManager();
 document.querySelector("form").onsubmit = async (event) => {
   event.preventDefault();
   const input = document.querySelector("#text"),
-    button = document.querySelector("#send");
+    button = document.querySelector("#send"),
+    toolMode = document.querySelector("#use-tools");
+  if (button.disabled) return;
   const text = input.value.trim();
   if (!text) return;
   document.querySelector(".welcome")?.remove();
   add("user", text);
   input.value = "";
   button.disabled = true;
+  toolMode.disabled = true;
   status.textContent = "运行中；如出现授权窗口，请确认这次请求。";
   try {
-    const result = await window.plums.invoke("commands", "chat", { text });
+    const result = await window.plums.invoke("commands", "chat", {
+      text,
+      useTools: toolMode.checked,
+    });
     add("assistant", result.text);
     status.textContent = "";
   } catch (error) {
     status.textContent = error.message || "调用未完成，请检查连接器配置。";
   } finally {
     button.disabled = false;
+    toolMode.disabled = false;
   }
 };
 window.plums

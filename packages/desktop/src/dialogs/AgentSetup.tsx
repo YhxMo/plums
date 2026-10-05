@@ -43,7 +43,7 @@ export function AgentSetup({
     );
   const [submitting, setSubmitting] = useState(false);
   const working = busy || submitting;
-  const fields = (p: Resource, requiredOnly: boolean) => (
+  const fields = (p: Resource, requiredOnly?: boolean) => (
     <SettingsFields
       settings={p.settings}
       values={values[p.id] ?? {}}
@@ -130,21 +130,22 @@ export function AgentSetup({
               <KindIcon kind={p.kind} size={24} />
               {p.name}
             </h3>
-            {fields(p, true)}
-            {Object.keys(p.settings.schema!.properties).some(
-              (key) => !p.settings.schema!.required?.includes(key),
-            ) && (
-              <details
-                open={Object.keys(p.settings.schema!.properties).some(
-                  (key) =>
-                    !!p.settings.schema!.required?.length &&
-                    /endpoint|url|baseurl/i.test(key),
-                )}
-              >
-                <summary>接口地址与其他设置</summary>
-                {fields(p, false)}
-              </details>
-            )}
+            {fields(p, p.desktop?.model ? undefined : true)}
+            {!p.desktop?.model &&
+              Object.keys(p.settings.schema!.properties).some(
+                (key) => !p.settings.schema!.required?.includes(key),
+              ) && (
+                <details
+                  open={Object.keys(p.settings.schema!.properties).some(
+                    (key) =>
+                      !!p.settings.schema!.required?.length &&
+                      /endpoint|url|baseurl/i.test(key),
+                  )}
+                >
+                  <summary>接口地址与其他设置</summary>
+                  {fields(p, false)}
+                </details>
+              )}
           </section>
         ))}
         {!configurable.length && <p>此 Agent 没有必填配置，可以直接启用。</p>}

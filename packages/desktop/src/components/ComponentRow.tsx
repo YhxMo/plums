@@ -103,6 +103,7 @@ export function ComponentRow({
         <PermissionList
           permissions={p.manifest.permissions}
           formatVersion={p.manifest.formatVersion}
+          serviceTargets={p.serviceTargets}
         />
       </details>
       {p.mcpTools?.map(({ tool, state }) => (

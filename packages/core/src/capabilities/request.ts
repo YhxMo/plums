@@ -1,3 +1,4 @@
+import { copyJson } from "./services.js";
 import { PERMISSION_DENIED, PlumsError } from "../errors.js";
 import type { CapabilityRequest, RunCapabilityInput, RunDelegatedCapabilityInput, CapabilityCaller } from "./types.js";
 
@@ -47,6 +48,14 @@ export function copyInput(input: RunCapabilityInput): RunCapabilityInput {
   const req = record(value.request);
   let request: CapabilityRequest;
   switch (req.kind) {
+    case "service": {
+      keys(req, ["kind", "operation", "binding", "sources", "input"]);
+      if (!text(req.operation) || !text(req.binding)) invalid();
+      const sources = copyJson(req.sources);
+      if (!Array.isArray(sources) || !sources.every((s) => text(s)) || new Set(sources).size !== sources.length) invalid();
+      request = {kind:"service", operation:req.operation, binding:req.binding, sources:sources as string[], input:copyJson(req.input)};
+      break;
+    }
     case "fs": {
       keys(req, req.operation === "write" ? ["kind", "operation", "path", "data"] : ["kind", "operation", "path"]);
       const at = relativePath(req.path);
@@ -89,16 +98,17 @@ export function copyInput(input: RunCapabilityInput): RunCapabilityInput {
       break;
     default: invalid();
   }
-  return { extensionId: value.extensionId, permissionId: value.permissionId, request };
+  if (value.signal !== undefined && !(value.signal instanceof AbortSignal)) invalid();
+  return { ...(value.signal ? {signal:value.signal as AbortSignal} : {}), extensionId: value.extensionId, permissionId: value.permissionId, request };
 }
 /** Host-provided identities and tool metadata follow the same defensive copy rules. */
 export function copyDelegatedInput(input:RunDelegatedCapabilityInput):RunDelegatedCapabilityInput{
   const value=record(input);
-  const call=copyInput({extensionId:value.packageId,permissionId:value.permissionId,request:value.request} as RunCapabilityInput);
+  const call=copyInput({extensionId:value.packageId,permissionId:value.permissionId,request:value.request,signal:value.signal} as RunCapabilityInput);
   const callers=fromCaller(()=>{
     if(!Array.isArray(value.callers)||value.callers.length>16)invalid();
     return Array.from(value.callers,(raw)=>{const caller=record(raw);if(!text(caller.packageId)||!text(caller.permissionId))invalid();return{packageId:caller.packageId,permissionId:caller.permissionId} as CapabilityCaller;});
   });
   const mcpTool=value.mcpTool===undefined?undefined:fromCaller(()=>JSON.parse(JSON.stringify(record(value.mcpTool))) as RunDelegatedCapabilityInput['mcpTool']);
-  return{packageId:call.extensionId,permissionId:call.permissionId,callers,request:call.request,...(mcpTool?{mcpTool}:{})};
+  return{...(call.signal?{signal:call.signal}:{}),packageId:call.extensionId,permissionId:call.permissionId,callers,request:call.request,...(mcpTool?{mcpTool}:{})};
 }

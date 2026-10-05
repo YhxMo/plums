@@ -5,6 +5,7 @@ import net from "node:net";
 import path from "node:path";
 import { AsyncLocalStorage } from "node:async_hooks";
 import { fileURLToPath } from "node:url";
+import { SinkFailure } from "@plums/core";
 import type {
   EgressSink,
   EgressRequest,
@@ -25,7 +26,7 @@ export interface IoContext {
   onChunk?: (chunk: string) => void;
 }
 export const ioContext = new AsyncLocalStorage<IoContext>();
-export type DnsMode = "system" | "cloudflare";
+export type DnsMode = "auto" | "system" | "cloudflare";
 const LIMIT = 20 * 1024 * 1024;
 export function publicAddress(address: string): boolean {
   if (net.isIP(address) === 4) {
@@ -60,25 +61,49 @@ export function publicAddress(address: string): boolean {
   return false;
 }
 export class HttpsSink implements EgressSink {
-  constructor(private dnsMode: DnsMode = "system") {}
+  constructor(private dnsMode: DnsMode = "auto") {}
   async send(request: EgressRequest): Promise<EgressResult> {
     const context = ioContext.getStore();
     if (!context || context.signal.aborted)
-      throw Error("Transport context missing");
-    const url = new URL(request.url);
+      throw new SinkFailure("REQUEST_INVALID");
+    let url: URL;
+    try {
+      url = new URL(request.url);
+    } catch {
+      throw new SinkFailure("DESTINATION_REFUSED");
+    }
     if (
       url.protocol !== "https:" ||
       url.username ||
       url.password ||
-      net.isIP(url.hostname)
+      net.isIP(url.hostname.replace(/^\[|\]$/g, "")) ||
+      !url.hostname.includes(".") ||
+      url.hostname.endsWith(".localhost") ||
+      url.hostname.endsWith(".")
     )
-      throw Error("Destination refused");
-    const resolved =
-      this.dnsMode === "cloudflare"
-        ? await encryptedLookup(url.hostname, context.signal)
-        : await lookup(url.hostname, { all: true });
+      throw new SinkFailure("DESTINATION_REFUSED");
+    let resolved: { address: string; family: number }[];
+    try {
+      if (this.dnsMode === "cloudflare")
+        resolved = await encryptedLookup(url.hostname, context.signal);
+      else {
+        try {
+          resolved = await lookup(url.hostname, { all: true });
+        } catch (error) {
+          if (this.dnsMode !== "auto") throw error;
+          resolved = [];
+        }
+        if (
+          this.dnsMode === "auto" &&
+          (!resolved.length || resolved.some((a) => !publicAddress(a.address)))
+        )
+          resolved = await encryptedLookup(url.hostname, context.signal);
+      }
+    } catch {
+      throw new SinkFailure("DNS_FAILED");
+    }
     if (!resolved.length || resolved.some((a) => !publicAddress(a.address)))
-      throw Error("Destination refused");
+      throw new SinkFailure("DNS_RESERVED_ADDRESS");
     const pinned = resolved[0]!;
     const headers: Record<string, string> = { ...request.headers };
     for (const k of Object.keys(headers))
@@ -87,20 +112,24 @@ export class HttpsSink implements EgressSink {
           k,
         )
       )
-        throw Error("Header refused");
+        throw new SinkFailure("REQUEST_INVALID");
     for (const binding of context.contribution?.credentials ?? [])
       if (binding.permissionId === context.permissionId) {
         const secret = await context.secrets.get(
           `secret:${context.packageId}/${binding.setting}`,
         );
         if (secret === undefined || /[\r\n\0]/.test(secret))
-          throw Error("Credential unavailable");
+          throw new SinkFailure("REQUEST_INVALID");
         for (const name of Object.keys(headers))
           if (name.toLowerCase() === binding.header.toLowerCase())
             delete headers[name];
         headers[binding.header] = (binding.prefix ?? "") + secret;
       }
-    if (context.signal.aborted) throw Error("Cancelled");
+    if (
+      context.signal.aborted ||
+      (request.body !== undefined && Buffer.byteLength(request.body) > LIMIT)
+    )
+      throw new SinkFailure("REQUEST_INVALID");
     return new Promise((resolve, reject) => {
       const fail = () => reject(Error("HTTPS request failed"));
       const req = https.request(
@@ -168,11 +197,6 @@ export class HttpsSink implements EgressSink {
       req.on("close", () => clearTimeout(timer));
       req.on("error", fail);
       if (request.body !== undefined) {
-        if (Buffer.byteLength(request.body) > LIMIT) {
-          req.destroy();
-          fail();
-          return;
-        }
         req.write(request.body);
       }
       req.end();
@@ -280,7 +304,9 @@ async function encryptedLookup(
                     if (data.Status !== 0) throw Error();
                     resolve(
                       (data.Answer ?? [])
-                        .filter((a) => a.type === type)
+                        .filter(
+                          (a) => a.type === type && typeof a.data === "string",
+                        )
                         .map((a) => ({
                           address: a.data,
                           family: type === 1 ? 4 : 6,

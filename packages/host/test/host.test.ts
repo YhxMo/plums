@@ -46,6 +46,15 @@ async function fixture() {
   await host.initialize();
   return { host, dir, fs };
 }
+it("defaults to automatic DNS and preserves explicit network preferences across restart", async () => {
+  const { host } = await fixture();
+  expect(host.getDesktopSettings()).toEqual({ dnsMode: "auto" });
+  for (const dnsMode of ["system", "cloudflare", "auto"]) {
+    await host.setDesktopSettings(dnsMode);
+    await host.initialize();
+    expect(host.getDesktopSettings()).toEqual({ dnsMode });
+  }
+});
 async function bundle(dir: string) {
   const core = createCore({
     dataDir: path.join(dir, "builder"),

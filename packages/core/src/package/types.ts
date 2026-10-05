@@ -32,7 +32,14 @@ export interface EgressPermission extends PermissionBase {
   kind: "egress";
 }
 
-export type PermissionV2 = FsPermission | ExecPermission | EgressPermission;
+export interface ServicePermission extends PermissionBase {
+  kind: "service";
+  operations: string[];
+}
+export interface EnginePermission extends PermissionBase {
+  kind: "engine";
+}
+export type PermissionV2 = FsPermission | ExecPermission | EgressPermission | ServicePermission | EnginePermission;
 export type Permission = PermissionV1 | PermissionV2;
 
 export interface Dependency {

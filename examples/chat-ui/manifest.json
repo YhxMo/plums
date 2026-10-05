@@ -3,13 +3,13 @@
   "kind": "extension",
   "id": "chat",
   "name": "Plum Chat",
-  "version": "1.0.0",
+  "version": "2.0.0",
   "description": "聊天界面、工具循环与会话保存，由外装扩展提供。",
   "dependencies": [
     {
       "kind": "connector",
       "id": "model",
-      "range": "^1.0.0"
+      "range": "^1.2.0 || ^2.0.0"
     }
   ],
   "permissions": [
@@ -17,27 +17,37 @@
       "id": "workspace",
       "kind": "fs",
       "target": "workspace",
-      "operations": ["read", "write", "list"],
+      "operations": [
+        "read",
+        "write",
+        "list"
+      ],
       "reason": "使用你选定的工作目录"
     },
     {
       "id": "history",
       "kind": "fs",
       "target": "agent-data",
-      "operations": ["read", "write"],
+      "operations": [
+        "read",
+        "write"
+      ],
       "reason": "读取和保存此 Agent 的会话"
     },
     {
       "id": "model-access",
-      "kind": "egress",
-      "target": "api.openai.com",
-      "reason": "通过模型连接器发送会话"
+      "kind": "service",
+      "target": "https",
+      "reason": "通过模型连接器发送会话",
+      "operations": [
+        "request"
+      ]
     }
   ],
   "license": "Apache-2.0",
   "payload": {
     "plumsDesktop": {
-      "sdkVersion": "1",
+      "sdkVersion": "2",
       "runtime": "runtime/main.js",
       "frontend": "ui/index.html",
       "contributes": {
@@ -52,7 +62,9 @@
                   "type": "string"
                 }
               },
-              "required": ["text"],
+              "required": [
+                "text"
+              ],
               "additionalProperties": false
             }
           },
@@ -72,7 +84,9 @@
                   "type": "string"
                 }
               },
-              "required": ["path"],
+              "required": [
+                "path"
+              ],
               "additionalProperties": false
             }
           },
@@ -86,7 +100,9 @@
                   "type": "string"
                 }
               },
-              "required": ["path"],
+              "required": [
+                "path"
+              ],
               "additionalProperties": false
             }
           },
@@ -103,7 +119,10 @@
                   "type": "string"
                 }
               },
-              "required": ["path", "text"],
+              "required": [
+                "path",
+                "text"
+              ],
               "additionalProperties": false
             }
           }

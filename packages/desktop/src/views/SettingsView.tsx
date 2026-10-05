@@ -36,8 +36,8 @@ export function SettingsView({
           <div>
             <strong>域名解析</strong>
             <p>
-              加密 DNS 将域名查询发送到
-              Cloudflare，两种模式均拒绝内网与保留地址。
+              自动模式遇到代理返回的保留地址时，会用 Cloudflare 加密 DNS
+              查询公网地址。只发送域名，不发送 API Key 或会话内容。
             </p>
           </div>
           <select
@@ -46,6 +46,7 @@ export function SettingsView({
             disabled={busy}
             onChange={(event) => onDns(event.target.value)}
           >
+            <option value="auto">自动（适配代理网络）</option>
             <option value="system">系统 DNS</option>
             <option value="cloudflare">公共加密 DNS (Cloudflare)</option>
           </select>

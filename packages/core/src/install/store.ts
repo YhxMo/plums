@@ -4,6 +4,7 @@ import Database from "better-sqlite3";
 import type { Manifest, PackageKind, Permission, PermissionLevel } from "../package/types.js";
 import { secretKeys, secretRef } from "../secrets.js";
 
+import type { BackgroundConsent } from "../capabilities/types.js";
 export const DATABASE_FILE = "plums.db";
 
 /** A package that is in the install list. */
@@ -227,6 +228,7 @@ export class InstallStore {
     db.transaction(() => {
       this.statement("DELETE FROM mcp_tools WHERE server_id = ?").run(id);
       this.statement("DELETE FROM mcp_tools_v2 WHERE server_id = ?").run(id);
+      this.revokeBackgroundConsents(id);
       this.statement("DELETE FROM consents WHERE package_id = ?").run(id);
       this.statement("DELETE FROM packages WHERE id = ?").run(id);
     })();
@@ -294,6 +296,51 @@ export class InstallStore {
     })();
   }
 
+  listBackgroundConsents(packageId?: string): BackgroundConsent[] {
+    const rows = (packageId === undefined
+      ? this.statement("SELECT record FROM background_consents ORDER BY grant_key").all()
+      : this.statement("SELECT record FROM background_consents WHERE package_id = ? ORDER BY grant_key").all(packageId)) as { record: string }[];
+    return rows.map((row) => JSON.parse(row.record) as BackgroundConsent);
+  }
+
+  settingsRevision(id: string): number {
+    return (this.statement("SELECT revision FROM settings_revisions WHERE package_id = ?").get(id) as { revision: number } | undefined)?.revision ?? 0;
+  }
+  bumpSettingsRevision(id: string): void {
+    this.statement("INSERT INTO settings_revisions (package_id, revision) VALUES (?, 1) ON CONFLICT(package_id) DO UPDATE SET revision = revision + 1").run(id);
+  }
+  saveBackgroundConsent(record: BackgroundConsent): void {
+    const key = JSON.stringify([record.extensionId, record.permissionId, record.instanceId, record.operation, record.binding]);
+    this.statement("INSERT OR REPLACE INTO background_consents (grant_key, package_id, record) VALUES (?, ?, ?)")
+      .run(key, record.extensionId, JSON.stringify(record));
+  }
+  backgroundRevision(): number {
+    return (this.statement("SELECT revision FROM background_revisions WHERE package_id = ''").get() as { revision: number } | undefined)?.revision ?? 0;
+  }
+  saveBackgroundConsentIfCurrent(record: BackgroundConsent, revision: number): boolean {
+    return this.connection().transaction(() => {
+      if (this.backgroundRevision() !== revision) return false;
+      this.saveBackgroundConsent(record); return true;
+    })();
+  }
+  revokeBackgroundConsents(packageId: string, binding?: string): void {
+    this.connection().transaction(() => {
+      // One monotonic revocation epoch prevents uninstall/reinstall from reviving pending grants,
+      // without retaining a deleted package's identity as a database tombstone.
+      this.statement("INSERT INTO background_revisions (package_id, revision) VALUES ('', 1) ON CONFLICT(package_id) DO UPDATE SET revision = revision + 1").run();
+    if (binding === undefined) {
+      this.statement("DELETE FROM background_consents WHERE package_id = ?").run(packageId);
+    } else {
+      const remove = this.statement("DELETE FROM background_consents WHERE grant_key = ?");
+      this.connection().transaction(() => {
+        for (const record of this.listBackgroundConsents(packageId)) if (record.binding === binding) {
+          remove.run(JSON.stringify([record.extensionId, record.permissionId, record.instanceId, record.operation, record.binding]));
+        }
+      })();
+    }
+    })();
+  }
+
   /** Fixed SQL only. Each execution still reads the database's current state. */
   private statement(sql: string): Database.Statement {
     const db = this.connection();
@@ -330,7 +377,6 @@ function migrate(db: Database.Database): void {
       `The data directory was written by a newer Plums (database version ${current}, this build reads ${SCHEMA_VERSION}).`,
     );
   }
-  if (current < SCHEMA_VERSION) {
     db.transaction(() => {
       if (current < 1) {
         db.exec(`
@@ -388,9 +434,11 @@ function migrate(db: Database.Database): void {
           PRIMARY KEY (server_id, tool)
         );
       `);
-      db.pragma(`user_version = ${SCHEMA_VERSION}`);
+      // Additive service state leaves the public schema-5 records and legacy readers intact.
+      db.exec("CREATE TABLE IF NOT EXISTS background_consents (grant_key TEXT PRIMARY KEY, package_id TEXT NOT NULL, record TEXT NOT NULL); CREATE TABLE IF NOT EXISTS background_revisions (package_id TEXT PRIMARY KEY, revision INTEGER NOT NULL)");
+      db.exec("CREATE TABLE IF NOT EXISTS settings_revisions (package_id TEXT PRIMARY KEY, revision INTEGER NOT NULL)");
+      if (current < SCHEMA_VERSION) db.pragma(`user_version = ${SCHEMA_VERSION}`);
     })();
-  }
 }
 
 function toInstalled(row: InstalledRow): InstalledPackage {

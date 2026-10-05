@@ -47,7 +47,9 @@ export function activate(sdk) {
         operation: "read",
         path: "conversation.json",
       });
-      messages.push(...JSON.parse(decode(previous.data)).slice(-30));
+      const recent = JSON.parse(decode(previous.data)).slice(-30);
+      const firstUser = recent.findIndex((m) => m.role === "user");
+      if (firstUser >= 0) messages.push(...recent.slice(firstUser));
     } catch {}
     messages.push({ role: "user", content: input.text });
     const tools = [
@@ -94,7 +96,7 @@ export function activate(sdk) {
     for (let step = 0; step < 8; step++) {
       const response = await sdk.invoke("model", "connectors", "complete", {
         messages,
-        tools,
+        ...(input.useTools === true ? { tools } : {}),
       });
       const message = response.choices?.[0]?.message;
       if (!message) throw Error("Model response unavailable");

@@ -1,5 +1,7 @@
 import type { TaskScopes } from "./task-scope.js";
+import { copyJson, resolveService, type RegisteredService, type ServiceScope } from "./services.js";
 import { randomUUID } from "node:crypto";
+import { SinkFailure } from "./sink-failure.js";
 import { CAPABILITY_FAILED, CONFIRMATION_DENIED, CONSENT_REQUIRED, PERMISSION_DENIED, PlumsError } from "../errors.js";
 import { requireInstalled, requireManifest, type InstallContext } from "../install/lifecycle.js";
 import { knownSecrets } from "../install/settings.js";
@@ -12,6 +14,8 @@ import { copyInput } from "./request.js";
 import type { AuditEvent, AuditHandler, CapabilityResult, ExecutionState, ExecSink, FsLocation, FsSink, RunCapabilityInput, CapabilityCaller } from "./types.js";
 
 export interface CapabilityContext extends InstallContext {
+  instanceId: string;
+  services: ReadonlyMap<string, RegisteredService>;
   tasks?: TaskScopes;
   roots: ReadonlyMap<string, string>;
   programs: ReadonlyMap<string, string>;
@@ -28,6 +32,7 @@ interface Authorized {
   name: string;
 }
 interface Scope {
+  service?: ServiceScope;
   location?: FsLocation;
   program?: string;
   url?: string;
@@ -50,13 +55,19 @@ function authorize(ctx: CapabilityContext, input: RunCapabilityInput, allowConne
   const covered = consent?.formatVersion.startsWith("2.") && (consent.permissions as PermissionV2[]).some((p) =>
     p.id === permission.id && p.target === permission.target && p.kind === permission.kind &&
     (permission.kind !== "fs" || (p.kind === "fs" && permission.operations.every((op) => p.operations.includes(op)))) &&
-    (permission.kind !== "exec" || (p.kind === "exec" && permission.cwdRoots.every((root) => p.cwdRoots.includes(root)))));
+    (permission.kind !== "exec" || (p.kind === "exec" && permission.cwdRoots.every((root) => p.cwdRoots.includes(root)))) &&
+    (permission.kind !== "service" || (p.kind === "service" && permission.operations.every((op) => p.operations.includes(op)))));
   if (!covered) throw new PlumsError({ code: CONSENT_REQUIRED, message: "这次能力调用还没有得到对当前权限的同意。", path: `/permissions/${index}`, details: { reason: consent === undefined ? "NO_CONSENT" : "PERMISSION_NOT_CONSENTED" } });
   return { permission, index, name: installed.name };
 }
 
-async function scope(ctx: CapabilityContext, { permission, index }: Authorized, { request }: RunCapabilityInput): Promise<Scope> {
+async function scope(ctx: CapabilityContext, { permission, index }: Authorized, input: RunCapabilityInput): Promise<Scope> {
+  const {request} = input;
   if (request.kind !== permission.kind) refuse("KIND_MISMATCH", `/permissions/${index}/kind`);
+  if (request.kind === "service" && permission.kind === "service") {
+    const service = await resolveService(ctx, input, permission);
+    return { service, ...(service.host ? {host:service.host} : {}) };
+  }
   if (request.kind === "fs" && permission.kind === "fs") {
     if (!permission.operations.includes(request.operation)) refuse("OPERATION_NOT_ALLOWED", "/request/operation");
     const root = ctx.roots.get(permission.target);
@@ -83,14 +94,15 @@ async function scope(ctx: CapabilityContext, { permission, index }: Authorized, 
 
 function declaration(permission: PermissionV2): string {
   return JSON.stringify([permission.kind, permission.target, permission.reason,
-    permission.kind === "fs" ? [...permission.operations].sort() : permission.kind === "exec" ? [...permission.cwdRoots].sort() : []]);
+    (permission.kind === "fs" || permission.kind === "service") ? [...permission.operations].sort() : permission.kind === "exec" ? [...permission.cwdRoots].sort() : []]);
 }
 function sameScope(first: Scope, next: Scope): boolean {
-  return first.program === next.program && first.url === next.url &&
+  return first.service?.service === next.service?.service && first.service?.bindingFingerprint === next.service?.bindingFingerprint && first.service?.effect === next.service?.effect && first.host === next.host && first.program === next.program && first.url === next.url &&
     first.location?.rootPath === next.location?.rootPath && first.location?.path === next.location?.path;
 }
 
 type Answer = "allowed" | "denied" | "timeout" | "error" | "missing" | "invalid";
+const outbound = (effect: string | undefined) => effect === "egress" || effect === "model-egress";
 async function ask(confirm: Confirm | undefined, request: ConfirmRequest, timeoutMs: number): Promise<Answer> {
   if (confirm === undefined) return "missing";
   let timer: ReturnType<typeof setTimeout> | undefined;
@@ -104,11 +116,11 @@ async function ask(confirm: Confirm | undefined, request: ConfirmRequest, timeou
   } finally { if (timer !== undefined) clearTimeout(timer); }
 }
 
-function failure(callId: string, phase: string, executionState: ExecutionState): PlumsError {
+function failure(callId: string, phase: string, executionState: ExecutionState, known?: NonNullable<ReturnType<typeof SinkFailure.describe>>): PlumsError {
   return new PlumsError({
     code: CAPABILITY_FAILED,
-    message: executionState === "completed" ? "动作已完成，但结果审计失败。请勿自动重试。" : executionState === "unknown" ? "执行结果无法确定，请核对宿主记录，勿自动重试。" : "能力调用失败，动作没有执行。",
-    details: { callId, phase, executionState },
+    message: known?.message ?? (executionState === "completed" ? "动作已完成，但结果审计失败。请勿自动重试。" : executionState === "unknown" ? "执行结果无法确定，请核对宿主记录，勿自动重试。" : "能力调用失败，动作没有执行。"),
+    details: { callId, phase, executionState, ...(known ? { reason: known.reason, ...(known.httpStatus === undefined ? {} : {httpStatus:known.httpStatus}) } : {}) },
   });
 }
 
@@ -143,7 +155,7 @@ export async function runCapability(ctx: CapabilityContext, rawInput: RunCapabil
     }
     copied = true;
     meta = { extensionId: input.extensionId, permissionId: input.permissionId, kind: input.request.kind,
-      operation: input.request.kind === "fs" ? input.request.operation : input.request.kind === "exec" ? "run" : "send" };
+      operation: (input.request.kind === "fs" || input.request.kind === "service") ? input.request.operation : input.request.kind === "exec" ? "run" : "send" };
     // Start reading while references still exist, before metadata checks can yield to uninstall.
     // Consume failures immediately; emit reports them with its phase and execution state.
     firstSecrets = knownSecrets(ctx).catch(() => undefined);
@@ -151,6 +163,7 @@ export async function runCapability(ctx: CapabilityContext, rawInput: RunCapabil
     const initial = authorize(ctx, input, allowConnector);
     additionalGate?.();
     const initialDelegates = delegates.map((caller) => authorize(ctx, { ...input, extensionId: caller.packageId, permissionId: caller.permissionId }, true));
+    const delegateScopes = new Map<number, Scope>();
     const checkDelegates = async (): Promise<void> => {
       for (let i = 0; i < delegates.length; i += 1) {
         const caller = delegates[i]!;
@@ -158,6 +171,9 @@ export async function runCapability(ctx: CapabilityContext, rawInput: RunCapabil
         const next = authorize(ctx, call, true);
         if (declaration(next.permission) !== declaration(initialDelegates[i]!.permission)) refuse("PERMISSION_CHANGED");
         const allowed = await scope(ctx, next, call);
+        const previous = delegateScopes.get(i);
+        if (previous && (previous.service?.fingerprint !== allowed.service?.fingerprint || previous.service?.revision !== allowed.service?.revision)) refuse("DELEGATION_SCOPE_CHANGED");
+        delegateScopes.set(i, allowed);
         if (!sameScope(initialScope, allowed)) refuse("DELEGATION_SCOPE_MISMATCH");
       }
       for (let i = 0; i < delegates.length; i += 1) {
@@ -172,7 +188,7 @@ export async function runCapability(ctx: CapabilityContext, rawInput: RunCapabil
     const initialScope = await scope(ctx, initial, input);
     await checkDelegates();
     const principals = [{ packageId: input.extensionId, permissionId: input.permissionId }, ...delegates];
-    const task = input.request.kind === "exec" ? undefined : ctx.tasks?.covers(principals, input.request);
+    const task = (input.request.kind === "exec" || (input.request.kind === "service" && !outbound(initialScope.service?.effect))) ? undefined : ctx.tasks?.covers(principals, input.request);
     if (task) meta.taskId = task.taskId;
     const recheck = async (): Promise<Scope> => {
       taskCheckpoint?.();
@@ -180,6 +196,7 @@ export async function runCapability(ctx: CapabilityContext, rawInput: RunCapabil
       const next = authorize(ctx, input, allowConnector);
       if (declaration(next.permission) !== declaration(initial.permission)) refuse("PERMISSION_CHANGED", `/permissions/${next.index}`);
       const checked = await scope(ctx, next, input);
+      if (checked.service?.fingerprint !== initialScope.service?.fingerprint || checked.service?.revision !== initialScope.service?.revision) refuse("SERVICE_SCOPE_CHANGED");
       if (!sameScope(initialScope, checked)) refuse("PATH_CHANGED", input.request.kind === "exec" ? "/request/cwd/path" : "/request/path");
       // scope reads metadata asynchronously, so check state once more after it returns.
       await checkDelegates();
@@ -189,10 +206,10 @@ export async function runCapability(ctx: CapabilityContext, rawInput: RunCapabil
       if (task && ctx.tasks?.covers(principals, input.request)?.taskId !== task.taskId) refuse("TASK_SCOPE_CHANGED");
       return checked;
     };
-    if (!task && (ctx.tasks?.requiresApproval() || input.request.kind !== "fs" || input.request.operation === "write")) {
+    if (input.request.kind === "service" ? initialScope.service?.effect === "external-write" || (outbound(initialScope.service?.effect) && !task) : !task && (ctx.tasks?.requiresApproval() || input.request.kind !== "fs" || input.request.operation === "write")) {
       await emit("confirmation", "requested");
       const { permission, name } = initial;
-      const action = permission.kind === "fs" ? `${input.request.kind === "fs" ? { read: "读取", list: "列出", write: "写入" }[input.request.operation] : "访问"}目录 ${permission.target} 内的文件` : permission.kind === "exec" ? `运行程序 ${permission.target}` : `把数据发送到 ${initialScope.host}`;
+      const action = permission.kind === "fs" ? `${input.request.kind === "fs" ? { read: "读取", list: "列出", write: "写入" }[input.request.operation] : "访问"}目录 ${permission.target} 内的文件` : permission.kind === "service" ? outbound(initialScope.service?.effect) ? `把数据发送到 ${initialScope.host ?? permission.target}` : `通过服务 ${permission.target} 修改外部数据` : permission.kind === "exec" ? `运行程序 ${permission.target}` : `把数据发送到 ${initialScope.host}`;
       const safeRequest = redact({ subject: name, action: `「${name}」想${action}。`, message: `「${name}」想${action}。原因:${permission.reason}。允许吗?`, reason: permission.reason, ...(initialScope.host ? { host: initialScope.host } : {}) }, [...secrets]) as ConfirmRequest;
       const answer = await ask(ctx.confirm, safeRequest, ctx.confirmTimeoutMs);
       await emit("confirmation", answer);
@@ -204,12 +221,15 @@ export async function runCapability(ctx: CapabilityContext, rawInput: RunCapabil
     const allowed = await recheck();
     state = "unknown";
     let result: CapabilityResult;
-    try { result = await execute(ctx, input, allowed, callId); } catch {
-      await emit("result", "failed", CAPABILITY_FAILED, "SINK_FAILED");
-      throw failure(callId, "sink", state);
+    try { result = await execute(ctx, input, allowed, callId, recheck); } catch (error) {
+      const known = SinkFailure.describe(error);
+      if (known) state = known.executionState;
+      await emit("result", "failed", CAPABILITY_FAILED, known?.reason ?? "SINK_FAILED");
+      throw failure(callId, "sink", state, known);
     }
     state = "completed";
     await emit("result", "completed");
+    if (input.request.kind === "service") { try { await recheck(); } catch { throw failure(callId,"result_authorization",state); } }
     return result;
   } catch (error) {
     if (error instanceof PlumsError && error.code === CAPABILITY_FAILED) throw secrets.size === 0 ? error : redact(error, [...secrets]);
@@ -220,7 +240,13 @@ export async function runCapability(ctx: CapabilityContext, rawInput: RunCapabil
   }
 }
 
-async function execute(ctx: CapabilityContext, { request }: RunCapabilityInput, allowed: Scope, callId: string): Promise<CapabilityResult> {
+async function execute(ctx: CapabilityContext, input: RunCapabilityInput, allowed: Scope, callId: string, recheck: () => Promise<Scope>): Promise<CapabilityResult> {
+  const {request} = input;
+  if (request.kind === "service") {
+    const result = await allowed.service!.service.invoke({instanceId:ctx.instanceId, packageId:input.extensionId, operation:request.operation, binding:request.binding, sources:Object.freeze([...request.sources]), input:request.input, signal:input.signal, assertActive:async()=>{await recheck();}});
+    await recheck();
+    return {callId,kind:"service",operation:request.operation,result:copyJson(result)};
+  }
   if (request.kind === "fs") {
     const location = allowed.location!;
     if (request.operation === "write") {

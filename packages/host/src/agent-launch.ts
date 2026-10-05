@@ -7,6 +7,7 @@ import {
 } from "@plums/core";
 import type { AgentRecord } from "./host.js";
 import { missingRequiredSettings } from "@plums/sdk/settings";
+import { connectionAccess, grantConnectionAccess } from "./connection-service.js";
 export async function enablePlan(core: Core, record: AgentRecord) {
   const installed = await core.listInstalled(),
     order: string[] = [],
@@ -40,7 +41,9 @@ export async function enablePlan(core: Core, record: AgentRecord) {
   for (const id of order) {
     const detail = await core.getPackage(id),
       settings = await core.describeSettings(id);
+    const access = await connectionAccess(core, id);
     source += JSON.stringify(detail);
+    source += JSON.stringify(access);
     const fields = missingRequiredSettings(settings);
     if (fields.length)
       missing.push({ packageId: id, name: detail.manifest.name, fields });
@@ -49,6 +52,8 @@ export async function enablePlan(core: Core, record: AgentRecord) {
       name: detail.manifest.name,
       enabled: detail.installed.enabled,
       permissions: detail.manifest.permissions,
+      needsApproval: !detail.installed.enabled || access.needsApproval,
+      serviceTargets: access.serviceTargets,
     });
   }
   return {
@@ -82,6 +87,7 @@ export async function enablePrepared(
         await core.enable(p.packageId);
         changed.push(p.packageId);
       }
+    for (const p of plan.entries) await grantConnectionAccess(core, p.packageId);
   } catch (e) {
     for (const id of changed.reverse()) await core.disable(id);
     throw e;

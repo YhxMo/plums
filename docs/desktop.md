@@ -36,7 +36,7 @@ macOS 系统标题栏隐藏，红绿灯与品牌图标、五项导航合入 56px
 
 在角色卡、扩展页面导入组件到**公共库**，无需先创建 Agent。统一文件选择与拖拽支持独立 Plums ZIP、角色 JSON、带角色数据的 PNG，以及完整 Agent 组合 ZIP。公共库只保存组件和元信息，不启动代码、不授予权限。
 
-主要流程面向非程序员：导入第三方 Agent ZIP，选择「这是完整的 Agent，直接使用」，导入完成立即弹出配置页。宿主根据组件自己的设置表单集中展示模型名称、API Key、接口地址等必要设置；保存后用独立的宿主安全窗口集中确认权限，并按依赖顺序统一启用已组装组件、打开工作界面。拒绝权限时保留配置页，未填写必要配置时不启用；已经配置并启用的 Agent 点击「开始使用」直接打开。
+主要流程面向非程序员：导入第三方 Agent ZIP，选择「这是完整的 Agent，直接使用」，导入完成立即弹出配置页。宿主根据组件自己的设置表单集中展示必要设置；模型配置将协议、模型名称、Base URL、API Key 四项直接展示在一起。保存后用独立的宿主安全窗口集中确认权限，并按依赖顺序统一启用已组装组件、打开工作界面。拒绝权限时保留配置页，未填写必要配置时不启用；已经配置并启用的 Agent 点击「开始使用」直接打开。
 
 ZIP 导入也可选择「我还要补充功能，继续组装」：仅将包内组件登记公共库，不创建、不运行 Agent；保留名称、组件选择、默认卡和工作界面进入创建流程。缺少依赖的组合 ZIP 仍必须通过所有路径、累计大小、清单和入口检查，只能先收藏组件并补齐；完整安装路径拒绝缺依赖组合。
 
@@ -50,7 +50,11 @@ JSON 角色卡仅要求有效对象，不解释业务字段；PNG 按公开规�
 
 Agent 详情页可绑定、更换或解除组件声明的逻辑目录名（示例使用 `workspace`）、查看执行记录和原始审计（开发者模式），并导出和删除 Agent。`agent-data` 为实例私有目录，不能由用户覆盖；桌面库目录及其父子目录不能作为工作目录授权。工作目录更换或解除绑定会停止相关运行并重新建立 core；解除后不再允许访问该逻辑目录，目录内文件保留。
 
-默认使用系统 DNS。若代理把公网域名解析为保留地址，可以在设置中选择「公共加密 DNS (Cloudflare)」。此选项把**域名查询**发送到 Cloudflare，采用固定公共地址和 TLS 验证；不发送组件请求体或凭据。系统和加密 DNS 模式都拒绝内网、回环、链路本地、保留、映射与过渡地址，不把代理假 IP 视为可授权公网地址。[Cloudflare DoH 接口](https://developers.cloudflare.com/1.1.1.1/encryption/dns-over-https/make-api-requests/dns-json/)
+默认自动解析：先使用系统 DNS；若代理返回保留地址或没有地址，再使用 Cloudflare 加密 DNS 查询真实公网地址。用户仍可明确选择严格系统 DNS 或固定公共加密 DNS。加密查询只把**域名**发送到 Cloudflare，采用固定公共地址和 TLS 验证，不发送组件请求体或凭据。所有模式都拒绝内网、回环、链路本地、保留、映射与过渡地址，重新解析不改变组件授权目标，也不自动重发模型请求。[Cloudflare DoH 接口](https://developers.cloudflare.com/1.1.1.1/encryption/dns-over-https/make-api-requests/dns-json/)
+
+可信宿主的 `SinkFailure` 只接受固定原因及可选 HTTP 状态码。DNS 和请求检查失败报告 `not_started`；已收到的服务拒绝或无效响应报告 `completed`。普通传输异常继续报告 `unknown`，不附远程响应正文或底层异常，也不自动重试。
+
+对 OpenCode Go 请求，宿主附带当前 Agent 的稳定 `x-opencode-session` 标识，并使用自己的 User-Agent；无需用户填写额外请求头。[OpenCode Go 客户端要求](https://opencode.ai/docs/go/#where-can-i-use-it)
 
 运行界面顶部保留 40px 宿主栏，提供返回和停止，并将原生红绿灯移到栏内；返回管理后恢复导航栏位置。薄荷圆点表示运行中，减少动态效果偏好会关闭呼吸动画。返回管理仅隐藏工作视图，调用和事件继续运行，可通过运行中的入口继续；停止会销毁工作视图并取消该 Agent 的运行。SDK 的 `openManager()` 和返回管理菜单也保留运行。原生菜单始终提供返回管理、切换 Agent、停止运行和恢复界面。快捷键为 `Cmd+Shift+M` 和 `Cmd+.`。扩展崩溃/超时只影响自己的子进程；前端崩溃或无响应会撤下工作视图并返回管理。
 
@@ -134,19 +138,40 @@ SDK 包 `@plums/sdk` 提供类型、声明验证、组合包创建与验证。�
 
 HTTPS 只允许清单域名，检查所有解析地址，连接时固定地址并保留 TLS 主机验证；不自动跟随重定向。支持请求/响应头、取消和有限流式事件（`io.chunk`），请求/响应各 20 MiB、总时限 120 秒。流式事件包含实例、扩展身份；宿主跨数据块脱敏。响应完成后返回汇总结果。持续不结束的 SSE 会到期取消，示例只使用有限响应。
 
-连接器可声明 `credentials: [{permissionId, setting, header, prefix}]`。setting 必须是自己的 x-secret 设置，permissionId 必须是自己的 egress 权限。宿主按绑定注入请求头；普通前端和扩展不能读取密钥明文。密钥使用 Electron safeStorage 异步加密，只把密文写入实例私有文件；系统加密不可用时拒绝保存，没有明文回退。
+连接器可声明 `credentials: [{permissionId, setting, header, prefix}]`。setting 必须是自己的 x-secret 设置，permissionId 必须是自己的 egress 权限。宿主按绑定注入请求头；普通前端和扩展不能读取密钥明文。桌面端将密钥以明文存入实例私有 `secrets/` 目录，每个引用对应一个文件，目录权限为 0700、文件权限为 0600（POSIX）。写入通过独立临时文件和原子重命名完成，不同引用的并发写入不会相互覆盖。保存、读取与重启不访问系统钥匙串；设置、数据库、日志和组件导出继续只保留引用或脱敏状态。密钥只在实际请求已授权的服务时由宿主注入，不自动上传或同步。
+
+旧版 `secrets.enc.json` 不自动解密，因此不会触发钥匙串授权。升级后需在配置页重新填写一次原 API Key；旧文件保留，删除对应密钥时也清理其旧密文引用。库中仍保留 `EncryptedSecretStore`，供主动选择加密存储的其他宿主使用。
+
+可配置的文本模型连接器使用逻辑服务权限 `{kind: "service", target: "model", operations: ["complete"]}`，并在 `plumsDesktop.model` 声明 `endpointSetting`、`modelSetting`、`keySetting` 和可选的 `protocolSetting` 对应的 schema 字段。地址、模型名称和协议是字符串，Key 必须为 x-secret；调用链各方仍须声明模型服务权限。用户只需选择协议、填写任意模型名称、Base URL 和 API Key，无需改包或权限声明。没有提供协议字段的旧组件继续使用 Chat Completions。当前支持的文本协议如下：
+
+| 协议                    | 请求路径                                    | 鉴权请求头                                  |
+| ----------------------- | ------------------------------------------- | ------------------------------------------- |
+| OpenAI Chat Completions | `/v1/chat/completions`                      | `Authorization: Bearer …`                   |
+| OpenAI Responses        | `/v1/responses`                             | `Authorization: Bearer …`                   |
+| Anthropic Messages      | `/v1/messages`                              | `x-api-key`，以及固定的 `anthropic-version` |
+| Gemini                  | `/v1beta/models/{模型名称}:generateContent` | `x-goog-api-key`                            |
+
+Base URL 可包含服务商路径前缀或版本路径；没有版本路径时按协议补全默认版本。Chat Completions、Responses、Messages 也保留完整请求地址的兼容配置。Gemini 的模型路径始终使用配置的模型名称。只允许受控 HTTPS，不维护服务商或模型名称白名单。适配依据分别为 [OpenAI 函数调用文档](https://developers.openai.com/api/docs/guides/function-calling)、[Anthropic Messages API](https://platform.claude.com/docs/en/api/messages/create) 和 [Gemini generateContent API](https://ai.google.dev/api/generate-content)。
+
+管理页和启用确认显示当前服务域名及模型。模型配置变化会停止运行、撤销相关绑定授权；再次开始时统一确认新目标，确认期间配置变化会拒绝旧计划。确认后模型调用使用此 Agent 的绑定，逐次审计；模型外发仍须获得有限任务范围批准或逐次确认，任务范围与确认显示实际模型目标。工作目录和其他外发继续遵守各自授权。
+
+连接器通过 `sdk.capability(permissionId, {kind: "service", operation: "complete", binding: "本连接器包 id", sources: [], input: {messages, tools}})` 请求模型，`tools` 可省略。宿主从配置构造目标、协议、模型和鉴权头，扩展不能覆盖这些值；按协议转换文本历史、函数声明与工具结果，将回复统一为 Chat Completions 消息结构。Responses 的原生输出项、Anthropic 的签名思考块、Gemini 的原生 parts 随历史保存在实例本地，后续请求仅在相同模型绑定下回传，以保持工具调用和多轮上下文；不把思考块当作聊天正文。配置、Key 和授权按 Agent 隔离；默认导出不包含模型设置、Key 或绑定授权。
+
+当前适配范围是文本消息和函数工具调用，不包含生图、TTS、文件上传或流式展示。实际服务和模型须支持所选协议；普通文本模型不要求支持工具调用，主动开启工具模式时才需要对应能力。HTTP 拒绝、协议回复无法解析等错误使用已知执行状态返回，不自动重试或切换协议。
+
+请求 OpenCode Go 时，宿主附带自身 User-Agent 和按 Agent 保持稳定的 `x-opencode-session`，用户无需填写额外请求头。参见 [OpenCode Go 接入说明](https://opencode.ai/docs/go/)。
 
 数据库升级为 5，新增 2.x MCP 批准表；迁移保留已有安装、同意、启用、历史密钥引用和旧 MCP 数据。2.x 用 `checkMcpToolsV2`（必须提供完整列表）、`approveMcpToolsV2` 和 `runDelegatedCapability(...mcpTool)`；指纹包含名称、描述和 inputSchema，消失/变化撤销批准。旧动作、旧 MCP、原 extension-only `runCapability` 契约保持。
 
 ## 外装示例与验收
 
-- `plum-chat.zip`：独立聊天界面、角色解释、模型适配、工具循环和会话保存。模型连接器配置支持 Chat Completions 的模型名称及有效 API 密钥。模型未配置时不发起请求；真实模型对话需要用户凭据。
+- `plum-chat.zip`：独立聊天界面、角色解释、模型适配、工具循环和会话保存。模型连接器配置只有协议、模型名称、Base URL、API Key 四项。聊天默认只请求文本，勾选「使用工作目录工具」后才发送函数工具声明；没有工具能力的文本模型也可普通对话。模型未配置时不发起请求；真实模型对话需要用户凭据。
 - `paper-board.zip`：另一套纸上看板界面和实例私有 JSON 数据。
 - 单独的角色卡、聊天/看板扩展、HTTPS 与远程 MCP 连接器 ZIP 可先独立导入公共库，再加入 Agent；不随桌面自动安装。
 - HTTPS 示例访问 example.com。MCP 示例为 Streamable HTTP，默认 DeepWiki 公共服务器，完整分页发现、指纹批准后工具调用；远程端点域名仍受组件权限限制。
 
-`pnpm desktop:smoke` 启动打包后的实际应用，在独立临时库中分别拖拽 JSON、PNG、扩展和连接器，手动创建空 Agent 及看板 Agent，验证自动选择角色卡与工作界面、统一启用拒绝与通过，再导入聊天组合 ZIP，检查立即弹出的模型配置及必填校验，并验证 ZIP 继续组装分支、组合偏好即时保存、返回保留运行、SDK 返回、继续及停止后重新打开。测试通过真实安全窗口按钮分别允许和拒绝确认，验证真实目录读/列/写、目录解绑的取消与确认、解绑后拒绝访问且文件保留、重新绑定恢复访问，以及实例数据、HTTPS、远程 MCP、直接联网拒绝及渲染进程崩溃恢复。测试会显式选择公共加密 DNS，输出截图及结果到 `release/smoke/`。内核和宿主 Vitest 使用假/记录 Sink 隔离业务外发；Electron UI 测试验证主题、四种宽度、焦点、操作状态隔离与请求竞态，独立确认测试验证发送者、令牌、按键默认拒绝、延迟允许、FIFO 和取消；示例模型工具循环也用记录响应回归。
+`pnpm desktop:smoke` 启动打包后的实际应用，在独立临时库中分别拖拽 JSON、PNG、扩展和连接器，手动创建空 Agent 及看板 Agent，验证自动选择角色卡与工作界面、统一启用拒绝与通过，再导入聊天组合 ZIP，检查立即弹出的模型配置及必填校验，并验证 ZIP 继续组装分支、组合偏好即时保存、返回保留运行、SDK 返回、继续及停止后重新打开。测试通过真实安全窗口按钮分别允许和拒绝确认，验证真实目录读/列/写、目录解绑的取消与确认、解绑后拒绝访问且文件保留、重新绑定恢复访问，以及实例数据、HTTPS、远程 MCP、直接联网拒绝及渲染进程崩溃恢复。测试使用默认自动域名解析，输出截图及结果到 `release/smoke/`。内核和宿主 Vitest 使用假/记录 Sink 隔离业务外发；Electron UI 测试验证主题、四种宽度、焦点、操作状态隔离与请求竞态，独立确认测试验证发送者、令牌、按键默认拒绝、延迟允许、FIFO 和取消；示例模型工具循环也用记录响应回归。
 
-系统钥匙串实测单独执行 `PLUMS_TEST_KEYCHAIN=1 pnpm desktop:smoke`，仅保存自造测试密钥。macOS 可能要求用户处理系统授权；自动化不能代替此授权。默认 smoke 不访问钥匙串，存储接口拒绝不可用的加密服务并限制等待时间，没有明文回退。
+`desktop:smoke` 在临时数据目录保存自造测试密钥，检查本地持久化及管理接口脱敏，不访问系统钥匙串或使用真实凭据。
 
 桌面每次构造执行 core 都固定采用 `capabilityApproval: "task-or-confirm"`：未被有效范围覆盖的读取和列目录也单次确认。停止、前端 cancel、配置/目录变化或宿主重启会丢弃临时 grants；内部 core 重建不会恢复独立核心的隐式只读默认。

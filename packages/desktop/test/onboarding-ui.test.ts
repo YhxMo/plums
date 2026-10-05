@@ -37,19 +37,40 @@ it("guides a ready Agent through configuration, keeps failed saves reviewable an
         name: "模型连接器",
         version: "1.0.0",
         enabled: false,
+        desktop: {
+          sdkVersion: "1",
+          model: {
+            protocolSetting: "protocol",
+            endpointSetting: "endpoint",
+            modelSetting: "model",
+            keySetting: "apiKey",
+          },
+        },
         settings: {
           schema: {
             type: "object",
             properties: {
+              protocol: property("string", "协议", {
+                enum: [
+                  "OpenAI Chat Completions",
+                  "OpenAI Responses",
+                  "Anthropic Messages",
+                  "Gemini",
+                ],
+                default: "OpenAI Chat Completions",
+              }),
               model: property("string", "模型名称"),
               apiKey: property("string", "API Key", { "x-secret": true }),
-              endpoint: property("string", "接口地址"),
+              endpoint: property("string", "Base URL"),
               mode: property("integer", "处理模式", { enum: [1, 2] }),
               enabledFlag: property("boolean", "开启附加功能"),
             },
             required: ["model", "apiKey", "mode", "enabledFlag"],
           },
-          values: { endpoint: "https://example.com/model" },
+          values: {
+            protocol: "OpenAI Chat Completions",
+            endpoint: "https://example.com/model",
+          },
           secrets: {},
         },
         manifest: { dependencies: [], permissions: [] },
@@ -200,8 +221,19 @@ it("guides a ready Agent through configuration, keeps failed saves reviewable an
     await page.getByRole("button", { name: "导入并配置" }).click();
     await page.getByLabel("模型名称", { exact: true }).waitFor();
     expect(
-      await page.getByLabel("接口地址", { exact: true }).inputValue(),
+      await page.getByLabel("Base URL", { exact: true }).inputValue(),
     ).toBe("https://example.com/model");
+    expect(await page.getByLabel("协议", { exact: true }).inputValue()).toBe(
+      "OpenAI Chat Completions",
+    );
+    await page
+      .getByLabel("协议", { exact: true })
+      .selectOption("Anthropic Messages");
+    expect(
+      await page
+        .getByLabel("Base URL", { exact: true })
+        .evaluate((el) => !!el.closest("details")),
+    ).toBe(false);
     expect(
       await page.getByLabel("API Key", { exact: true }).getAttribute("type"),
     ).toBe("password");
@@ -216,7 +248,7 @@ it("guides a ready Agent through configuration, keeps failed saves reviewable an
     await page.getByLabel("模型名称", { exact: true }).fill("demo-model");
     await page.getByLabel("API Key", { exact: true }).fill("fake-form-key");
     await page
-      .getByLabel("接口地址", { exact: true })
+      .getByLabel("Base URL", { exact: true })
       .fill("https://example.com/custom");
     await page.getByLabel("处理模式", { exact: true }).selectOption("2");
     await page.getByRole("button", { name: "开始使用" }).click();
@@ -253,6 +285,7 @@ it("guides a ready Agent through configuration, keeps failed saves reviewable an
       instanceId: "fixture-agent",
       packageId: "model",
       values: {
+        protocol: "Anthropic Messages",
         model: "demo-model",
         endpoint: "https://example.com/custom",
         mode: 2,

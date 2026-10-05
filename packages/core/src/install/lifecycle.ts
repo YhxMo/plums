@@ -81,6 +81,9 @@ function growth(old: Permission[], next: Permission, legacy: boolean): string | 
   const incoming = next as PermissionV2;
   const sameKind = (sameTarget as PermissionV2[]).filter((p) => p.kind === incoming.kind);
   if (sameKind.length === 0) return "KIND_CHANGED";
+  if (incoming.kind === "service") {
+    return sameKind.some((p) => p.kind === "service" && incoming.operations.every((op) => p.operations.includes(op))) ? undefined : "SERVICE_OPERATIONS_CHANGED";
+  }
   if (incoming.kind === "fs") {
     return sameKind.some((p) => p.kind === "fs" && incoming.operations.every((op) => p.operations.includes(op)))
       ? undefined : "OPERATIONS_ADDED";

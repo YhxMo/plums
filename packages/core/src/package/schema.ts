@@ -94,6 +94,7 @@ const MANIFEST_SCHEMA = {
   },
 } as const;
 
+export const SERVICE_NAME_PATTERN = "^[a-zA-Z0-9][a-zA-Z0-9_.-]{0,63}$";
 const namedList = { type: "array", minItems: 1, uniqueItems: true, items: nonEmptyString } as const;
 
 /** Keep the common envelope and JSON representation; dispatch only the permissions schema. */
@@ -108,11 +109,14 @@ const MANIFEST_V2_SCHEMA = {
         required: ["id", "kind", "target", "reason"],
         properties: {
           id: nonEmptyString,
-          kind: { enum: ["fs", "exec", "egress"] },
+          kind: { enum: ["fs", "exec", "egress", "service", "engine"] },
           target: nonEmptyString,
           reason: nonEmptyString,
         },
         allOf: [
+          { if: { required: ["kind"], properties: { kind: { const: "engine" } } }, then: { properties: { target: { type: "string", pattern: ID_PATTERN } } } },
+          { if: { required: ["kind"], properties: { kind: { const: "service" } } },
+            then: { required: ["operations"], properties: { target: {type:"string",pattern:SERVICE_NAME_PATTERN}, operations: {type:"array",minItems:1,uniqueItems:true,items:{type:"string",pattern:SERVICE_NAME_PATTERN}} } } },
           {
             if: { required: ["kind"], properties: { kind: { const: "fs" } } },
             then: {

@@ -3,21 +3,24 @@
   "kind": "connector",
   "id": "model",
   "name": "模型连接器",
-  "version": "1.0.0",
-  "description": "宿主注入凭据的 Chat Completions 模型适配。",
+  "version": "2.0.0",
+  "description": "配置协议、模型名称、Base URL 和 API Key，连接文本模型服务。",
   "dependencies": [],
   "permissions": [
     {
       "id": "model-api",
-      "kind": "egress",
-      "target": "api.openai.com",
-      "reason": "请求配置的模型服务"
+      "kind": "service",
+      "target": "https",
+      "reason": "请求配置的模型服务",
+      "operations": [
+        "request"
+      ]
     }
   ],
   "license": "Apache-2.0",
   "payload": {
     "plumsDesktop": {
-      "sdkVersion": "1",
+      "sdkVersion": "2",
       "runtime": "runtime/main.js",
       "contributes": {
         "connectors": [
@@ -27,12 +30,41 @@
           }
         ]
       },
-      "credentials": [
+      "connections": [
         {
+          "id": "api",
           "permissionId": "model-api",
-          "setting": "apiKey",
-          "header": "Authorization",
-          "prefix": "Bearer "
+          "baseURLSetting": "endpoint",
+          "labelSetting": "model",
+          "selectorSetting": "protocol",
+          "credentialProfiles": {
+            "OpenAI Chat Completions": [
+              {
+                "setting": "apiKey",
+                "header": "Authorization",
+                "prefix": "Bearer "
+              }
+            ],
+            "OpenAI Responses": [
+              {
+                "setting": "apiKey",
+                "header": "Authorization",
+                "prefix": "Bearer "
+              }
+            ],
+            "Anthropic Messages": [
+              {
+                "setting": "apiKey",
+                "header": "x-api-key"
+              }
+            ],
+            "Gemini": [
+              {
+                "setting": "apiKey",
+                "header": "x-goog-api-key"
+              }
+            ]
+          }
         }
       ]
     }
@@ -40,16 +72,28 @@
   "settingsSchema": {
     "type": "object",
     "properties": {
-      "endpoint": {
+      "protocol": {
         "type": "string",
-        "title": "接口地址",
-        "description": "域名必须在此组件声明的权限范围内。",
-        "default": "https://api.openai.com/v1/chat/completions"
+        "title": "协议",
+        "description": "选择服务商提供的文本模型接口协议。",
+        "enum": [
+          "OpenAI Chat Completions",
+          "OpenAI Responses",
+          "Anthropic Messages",
+          "Gemini"
+        ],
+        "default": "OpenAI Chat Completions"
       },
       "model": {
         "type": "string",
         "title": "模型名称",
-        "description": "填写支持 Chat Completions 的模型名称。"
+        "description": "填写服务商提供的模型名称，无需选择预设模型。"
+      },
+      "endpoint": {
+        "type": "string",
+        "title": "Base URL",
+        "description": "填写服务商提供的 HTTPS 基础地址，例如 https://api.openai.com/v1；请求路径按协议自动补全。",
+        "default": "https://api.openai.com/v1"
       },
       "apiKey": {
         "type": "string",
@@ -58,6 +102,9 @@
         "x-secret": true
       }
     },
-    "required": ["model", "apiKey"]
+    "required": [
+      "model",
+      "apiKey"
+    ]
   }
 }

@@ -1,4 +1,5 @@
 import { enablePlan, enablePrepared } from "./agent-launch.js";
+import { httpsService, connectionAccess, grantConnectionAccess, validateConnectionSettings } from "./connection-service.js";
 import { planAssembly } from "./assembly-plan.js";
 import { dispatchSdk } from "./sdk-bridge.js";
 import {
@@ -104,6 +105,7 @@ export interface Session {
   runtimes: Map<string, ExtensionRuntime>;
   mcpTools: Map<string, { tool: McpTool; state: string }[]>;
   controller: AbortController;
+  receipts: Map<string, { packageId: string; invocationId: string; status: number }>;
 }
 function denied(): never {
   throw new PlumsError({
@@ -126,7 +128,7 @@ export class DesktopHost {
   >();
   private previews = new Map<string, AgentBundle>();
   readonly library: ComponentLibrary;
-  private dnsMode: DnsMode = "system";
+  private dnsMode: DnsMode = "auto";
   constructor(readonly options: HostOptions) {
     this.library = new ComponentLibrary(path.join(options.dataDir, "library"));
   }
@@ -139,7 +141,8 @@ export class DesktopHost {
       const settings = JSON.parse(
         await readFile(path.join(this.options.dataDir, "desktop.json"), "utf8"),
       );
-      if (settings.dnsMode === "cloudflare") this.dnsMode = "cloudflare";
+      if (["auto", "system", "cloudflare"].includes(settings.dnsMode))
+        this.dnsMode = settings.dnsMode;
     } catch (error) {
       if ((error as NodeJS.ErrnoException).code !== "ENOENT")
         throw Error("Desktop settings unavailable");
@@ -214,7 +217,8 @@ export class DesktopHost {
     return { dnsMode: this.dnsMode };
   }
   async setDesktopSettings(dnsMode: unknown): Promise<void> {
-    if (dnsMode !== "system" && dnsMode !== "cloudflare") denied();
+    if (dnsMode !== "auto" && dnsMode !== "system" && dnsMode !== "cloudflare")
+      denied();
     this.close();
     const file = path.join(this.options.dataDir, "desktop.json");
     await writeFile(file + ".pending", JSON.stringify({ dnsMode }));
@@ -496,11 +500,14 @@ export class DesktopHost {
     if (record.instanceId !== id) denied();
     const secrets = this.options.secretStore(id),
       controller = new AbortController();
-    const core = createCore({
+    const egress = this.options.egress ?? new HttpsSink(this.dnsMode);
+    const core: Core = createCore({
       capabilityApproval: "task-or-confirm",
+      instanceId: id,
+      services: { https: httpsService(() => core, egress) },
       dataDir: path.join(dir, "core"),
       secrets,
-      egress: this.options.egress ?? new HttpsSink(this.dnsMode),
+      egress,
       fs: this.options.fs ?? new SecureFsSink(),
       confirm: this.options.confirm,
       roots: { "agent-data": path.join(dir, "agent-data"), ...record.roots },
@@ -520,6 +527,7 @@ export class DesktopHost {
       secrets,
       controller,
       runtimes: new Map(),
+      receipts: new Map(),
       mcpTools: new Map(),
     };
     if ((this.epochs.get(id) ?? 0) !== epoch) {
@@ -557,6 +565,7 @@ export class DesktopHost {
           manifest,
           settings: await s.core.describeSettings(p.id),
           desktop: desktopContribution(manifest),
+          ...(await connectionAccess(s.core, p.id)),
           mcpTools: s.mcpTools.get(p.id),
         };
       }),
@@ -568,9 +577,18 @@ export class DesktopHost {
   }
   async taskScopePlan(id: string) {
     const s = await this.session(id);
+    const plan = await s.core.taskScopePlan();
+    const entries = await Promise.all(
+      plan.entries.map(async (entry) => ({
+        ...entry,
+        serviceTargets: (await connectionAccess(s.core, entry.packageId))
+          .serviceTargets,
+      })),
+    );
     return redact(
       {
-        ...(await s.core.taskScopePlan()),
+        ...plan,
+        entries,
         name: s.record.name,
         active: s.core.taskScopeState(),
       },
@@ -629,6 +647,7 @@ export class DesktopHost {
     id: string,
     packageId: string,
     expected?: string,
+    expectedAccess?: string,
   ): Promise<void> {
     return this.serial(id, async () => {
       const s = await this.session(id);
@@ -638,8 +657,14 @@ export class DesktopHost {
           expected
       )
         denied();
+      if (
+        expectedAccess !== undefined &&
+        (await connectionAccess(s.core, packageId)).fingerprint !== expectedAccess
+      )
+        denied();
       await s.core.grantConsent(packageId);
       await s.core.enable(packageId);
+      await grantConnectionAccess(s.core, packageId);
     });
   }
   async disable(id: string, packageId: string): Promise<void> {
@@ -892,8 +917,10 @@ export class DesktopHost {
   ): Promise<void> {
     return this.serial(id, async () => {
       const s = await this.session(id);
-      this.stopRuntimes(s);
       const { manifest } = await s.core.getPackage(packageId);
+      const connections = desktopContribution(manifest)?.connections ?? [];
+      validateConnectionSettings(connections, values, manifest.settingsSchema?.properties ?? {});
+      this.stopRuntimes(s);
       const description = await s.core.describeSettings(packageId);
       const saving = { ...values };
       const undo = new Map<string, string | undefined>();
@@ -916,6 +943,21 @@ export class DesktopHost {
           else await s.secrets.set(ref, value);
         }
         throw error;
+      }
+      if (connections.length) {
+        let failure: unknown;
+        for (const owner of new Set(
+          (await s.core.listBackgroundConsents())
+            .filter((g) => g.binding.startsWith(packageId + "/"))
+            .map((g) => g.extensionId),
+        )) {
+          try {
+            for (const connection of connections) await s.core.revokeBackgroundConsent(owner, packageId + "/" + connection.id);
+          } catch (error) {
+            failure ??= error;
+          }
+        }
+        if (failure) throw failure;
       }
     });
   }
@@ -973,6 +1015,7 @@ export class DesktopHost {
     s.controller.abort();
     for (const runtime of s.runtimes.values()) runtime.stop();
     s.runtimes.clear();
+    s.receipts.clear();
     s.controller = new AbortController();
   }
   private async commitRecord(id: string, record: AgentRecord): Promise<void> {

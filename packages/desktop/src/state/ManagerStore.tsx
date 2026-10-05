@@ -48,7 +48,7 @@ const initialState: ManagerState = {
   agents: [],
   library: [],
   resources: [],
-  dnsMode: "system",
+  dnsMode: "auto",
   loading: true,
   initialized: false,
   loadError: "",
