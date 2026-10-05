@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
-import type { ConfirmationView } from "./confirm-window.js";
+import type { ConfirmationView, TaskChoice } from "./confirm-window.js";
 import { Icon } from "./components/Icon.js";
 import "./styles/tokens.css";
 import "./styles/base.css";
@@ -9,20 +9,28 @@ declare global {
   interface Window {
     confirmation: {
       load: () => Promise<ConfirmationView & { token: string }>;
-      answer: (token: string, allow: boolean) => Promise<boolean>;
+      answer: (
+        token: string,
+        allow: boolean,
+        choice?: TaskChoice,
+      ) => Promise<boolean>;
     };
   }
 }
 function Confirmation() {
   const [view, setView] = useState<ConfirmationView & { token: string }>();
+  const [selected, setSelected] = useState<string[]>([]);
+  const [durationMs, setDuration] = useState(900_000);
   const [ready, setReady] = useState(false);
   const deny = useRef<HTMLButtonElement>(null);
+  const dialog = useRef<HTMLElement>(null);
   useEffect(() => {
     let alive = true;
     let timer: ReturnType<typeof setTimeout>;
     void window.confirmation.load().then((value) => {
       if (!alive) return;
       setView(value);
+      setSelected(value.scopeOptions?.map((option) => option.key) ?? []);
       timer = setTimeout(() => setReady(true), 700);
     });
     return () => {
@@ -33,6 +41,29 @@ function Confirmation() {
   useEffect(() => {
     if (view) deny.current?.focus();
   }, [view]);
+  useEffect(() => {
+    if (!view) return;
+    const restoreFocus = (event: FocusEvent) => {
+      if (!dialog.current?.contains(event.target as Node))
+        deny.current?.focus();
+    };
+    const outsideKey = (event: KeyboardEvent) => {
+      if (dialog.current?.contains(event.target as Node)) return;
+      if (event.key === "Tab") {
+        event.preventDefault();
+        deny.current?.focus();
+      } else if (event.key === "Enter" || event.key === "Escape") {
+        event.preventDefault();
+        void window.confirmation.answer(view.token, false);
+      }
+    };
+    document.addEventListener("focusin", restoreFocus);
+    document.addEventListener("keydown", outsideKey);
+    return () => {
+      document.removeEventListener("focusin", restoreFocus);
+      document.removeEventListener("keydown", outsideKey);
+    };
+  }, [view]);
   if (!view)
     return (
       <p className="confirmation-loading" role="status">
@@ -40,10 +71,15 @@ function Confirmation() {
       </p>
     );
   const answer = (allow: boolean) => {
-    void window.confirmation.answer(view.token, allow);
+    void window.confirmation.answer(
+      view.token,
+      allow,
+      view.scopeOptions ? { selected, durationMs } : undefined,
+    );
   };
   return (
     <section
+      ref={dialog}
       className="confirmation-page"
       role="alertdialog"
       aria-modal="true"
@@ -52,19 +88,39 @@ function Confirmation() {
       data-kind={view.kind}
       data-operation={view.operation}
       onKeyDown={(event) => {
-        if (event.key === "Escape" || event.key === "Enter") {
+        if (
+          event.key === "Escape" ||
+          (event.key === "Enter" &&
+            !(
+              view.kind === "task" && event.target instanceof HTMLSelectElement
+            ))
+        ) {
           event.preventDefault();
           answer(false);
         }
         if (event.key === "Tab") {
           event.preventDefault();
-          const target =
-            document.activeElement === deny.current && ready
-              ? document.querySelector<HTMLButtonElement>(
-                  '[data-testid="confirm-allow"]',
-                )
-              : deny.current;
-          target?.focus();
+          const controls = Array.from(
+            event.currentTarget.querySelectorAll<HTMLElement>(
+              "button, input, select, textarea, a[href], [tabindex]",
+            ),
+          ).filter(
+            (element) =>
+              element.tabIndex >= 0 &&
+              !element.matches(":disabled") &&
+              !element.closest('[hidden], [inert], [aria-hidden="true"]') &&
+              element.getClientRects().length > 0 &&
+              getComputedStyle(element).visibility === "visible",
+          );
+          const index = controls.indexOf(document.activeElement as HTMLElement);
+          const next =
+            index < 0
+              ? event.shiftKey
+                ? controls.length - 1
+                : 0
+              : (index + (event.shiftKey ? -1 : 1) + controls.length) %
+                controls.length;
+          controls[next]?.focus();
         }
       }}
     >
@@ -78,7 +134,11 @@ function Confirmation() {
           <Icon name="shield" size={28} />
         </span>
         <h1 id="confirmation-title">
-          {view.kind === "capability" ? "允许这次操作？" : "同意组件权限？"}
+          {view.kind === "task"
+            ? "批准本次工作范围？"
+            : view.kind === "capability"
+              ? "允许这次操作？"
+              : "同意组件权限？"}
         </h1>
       </header>
       <div className="confirmation-body">
@@ -108,10 +168,44 @@ function Confirmation() {
             </ul>
           </div>
         ))}
+        {view.scopeOptions && (
+          <fieldset>
+            <legend>本次任务范围（可缩小）</legend>
+            {view.scopeOptions.map((option) => (
+              <label key={option.key} style={{ display: "block" }}>
+                <input
+                  type="checkbox"
+                  checked={selected.includes(option.key)}
+                  onChange={(e) =>
+                    setSelected((old) =>
+                      e.target.checked
+                        ? [...old, option.key]
+                        : old.filter((key) => key !== option.key),
+                    )
+                  }
+                />
+                {option.label}
+              </label>
+            ))}
+            <label>
+              有效期{" "}
+              <select
+                value={durationMs}
+                onChange={(e) => setDuration(Number(e.target.value))}
+              >
+                <option value={900_000}>15 分钟</option>
+                <option value={3_600_000}>1 小时</option>
+              </select>
+            </label>
+            <p>未选中的读写或联网需单独确认。范围外声明仍直接拒绝。</p>
+          </fieldset>
+        )}
         <p className="confirmation-note">
-          {view.kind === "capability"
-            ? "仅允许这一次操作。后续写入、运行或联网仍会询问。"
-            : "写入、运行或联网请求仍会逐次确认。"}
+          {view.kind === "task"
+            ? "授权仅属于当前 Agent，本次任务最长 1 小时。可随时停止并撤权；升级、配置或目录变更后重新批准。目录授权不等于系统沙箱。"
+            : view.kind === "capability"
+              ? "仅允许这一次操作。未被有效工作范围覆盖的后续操作仍会询问。"
+              : "开始使用时可批准有限期工作范围；未覆盖的读写、列目录或联网仍需确认。"}
         </p>
       </div>
       <footer className="confirmation-footer">

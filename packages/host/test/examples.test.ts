@@ -187,7 +187,8 @@ it("runs the external model/tool loop, records data writes and enforces a clean 
   ).toHaveLength(3);
   expect(f.fs.records.some((r) => r.operation === "list")).toBe(true);
   expect(f.fs.records.filter((r) => r.operation === "write")).toHaveLength(2);
-  expect(f.confirmed()).toBe(4);
+  // No task grant: both read and list now require single-use desktop approval.
+  expect(f.confirmed()).toBe(6);
   const exported = await validateAgentBundle(
     await f.host.exportAgent(f.record.instanceId),
   );

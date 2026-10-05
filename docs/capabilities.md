@@ -82,7 +82,7 @@ FsSink.read/list 接受 `{ rootPath, path }`，write 额外接受复制的 data�
 
 顺序：校验并复制请求 → 已安装/启用/声明 → 同意 → 目标与操作范围 → 必要确认 → 重新授权和范围检查 → 放行审计 → 再次检查 → Sink → 结果审计。
 
-read/list 不询问，write/exec/egress 每次询问。只有布尔 true 放行，缺失、false、异常、非布尔或超时均拒绝。能力确认默认超时 `DEFAULT_CONFIRM_TIMEOUT_MS = 120000`，`confirmTimeoutMs` 可设置为 1 至 2147483647 的整数毫秒。迟到同意或异常不会执行。本超时选项只作用于新能力入口，1.x/MCP/分享的既有确认行为保持。
+独立 `createCore` 的兼容默认（`capabilityApproval: "legacy"`）在未进入任务模式时不询问 read/list，write/exec/egress 每次询问。可信宿主可在构造时选择 `capabilityApproval: "task-or-confirm"`，所有未被有效任务覆盖的能力（包括 read/list）都需要单次确认。DesktopHost 的每次 core 构造固定选择此策略，首次调用、停止后再次调用、配置/目录变更重建和宿主重启均保持；策略不依赖是否存在临时 grant，扩展和 SDK 不能修改。只有布尔 true 放行，缺失、false、异常、非布尔或超时均拒绝。能力确认默认超时 `DEFAULT_CONFIRM_TIMEOUT_MS = 120000`，`confirmTimeoutMs` 可设置为 1 至 2147483647 的整数毫秒。迟到同意或异常不会执行。本超时选项只作用于新能力入口，1.x/MCP/分享的既有确认行为保持。
 
 在第一个 await 前复制路径、字节、args、cwd 和外发请求字段。确认期间或异步审计期间停用、卸载、同意丢失、权限范围/理由变化或真实路径变化，本次调用被拒；重新发起后才按当前状态授权。
 
@@ -98,7 +98,7 @@ Sink 或审计失败使用 `CAPABILITY_FAILED`，details 为 `{ callId, phase, e
 | unknown | 已进入 Sink，但抛错或返回值不符合接口；可能已有副作用，核对宿主记录，勿自动重试 |
 | completed | Sink 已返回，结果审计失败；动作已完成，勿自动重试 |
 
-本入口每次只调用一次 Sink，不自动重试。审计实现与存储可靠性由宿主负责，生命周期审计尚未实现；桌面首版不提供范围预授权。
+本入口每次只调用一次 Sink，不自动重试。审计实现与存储可靠性由宿主负责；任务范围的批准与显式停止/撤权有审计记录，其他生命周期操作尚无完整审计。
 
 
 ## 桌面宿主与调用链
@@ -120,3 +120,13 @@ await core.runDelegatedCapability({
 `checkMcpToolsV2(id, completeTools)` 核对完整列表并撤销消失或变化的批准；`approveMcpToolsV2(id, permissionId, tools)` 仅由宿主在用户批准后调用。`authorizeMcpToolV2` 只检查、不执行；实际工具请求使用 `runDelegatedCapability` 的 mcpTool，在确认和审计后复核同一指纹。新版批准存于数据库 5 独立表，旧 MCP 表和旧入口不变。
 
 真实适配器、隔离和外装包约定见 [desktop.md](desktop.md)。core 仍不解释 payload、不运行第三方代码，不负责网络解析或真实 I/O 隔离。
+
+## 宿主签发的任务范围
+
+独立核心入口保持上述兼容默认，桌面固定使用 `task-or-confirm` 策略。可信宿主可通过 `taskScopePlan()` 获取当前实例预览，然后在用户确认后调用 `grantTaskScope(fingerprint, durationMs, selection)`。`selection` 为 `{packageId, permissionId, operation}` 列表，操作是 `read/list/write/send`，必须是预览中的明确声明子集；省略表示选中预览全部 fs/egress 权限，不包括 exec。有效期必须大于零且最多一小时。角色卡、未启用组件、未绑定目录不进入范围。SDK 不暴露这些管理方法。
+
+范围仅存当前 core 实例内存，绑定实例随机身份、安装/启用记录、清单与版本、同意记录、目录绑定及目录实体身份和外部数据库连接变更版本。升级、设置改变、停用、关闭、`revokeTaskScope()` 均失效；宿主另外在停止、组装与目录绑定变更时撤销并终止运行。`taskScopeState()` 返回 taskId 与到期时间。撤销不撤回已经完成的 I/O。
+
+范围内的每次能力调用仍经过声明、同意、真实路径边界、调用链权限交集、MCP 指纹及执行前后审计。只有调用链全部主体均获批对应操作时免除重复确认。有效任务内未选中的 read/list 也需要单次确认；未覆盖的 write/egress 继续单次确认，单次同意不会扩大任务。声明外路径/域名直接拒绝。任务在确认或审计等待中撤销、到期、变更时，尚未开始的范围内调用不能执行。独立 core 曾进入任务模式后，在该 core 的任务到期/撤销后仍要求读取确认。桌面确认策略跨内部 core 重建保留，而 grants 仅属于当前 core 内存，销毁后不会持久化或复活；已开始的 I/O 不能被追溯撤回，宿主停止信号用于取消尚在执行的工作。
+
+授权审计使用 `phase: task`；能力审计携带 `taskId` 关联本次任务，不包含物理路径、内容或凭据。任务范围不是 OS 沙箱；桌面仍不执行 exec 或本地 stdio MCP。

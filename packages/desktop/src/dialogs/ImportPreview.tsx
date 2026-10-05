@@ -109,7 +109,7 @@ export function ImportPreview({
               <div>
                 <Icon name="extension" size={40} />
                 <strong>我还要补充功能，继续组装</strong>
-                <p>收藏包内组件，再添加或更换角色卡、扩展和连接器。</p>
+                <p>收藏包内组件，再添加或更换角色卡和扩展（含服务接入）。</p>
               </div>
             </label>
           </div>
@@ -121,7 +121,7 @@ export function ImportPreview({
             ? "角色卡"
             : preview.components[0]?.kind === "extension"
               ? "功能扩展"
-              : "连接器"}
+              : "扩展 · 服务接入"}
           。导入公共库后，可以用于你自己的 Agent。
         </p>
       )}
@@ -142,7 +142,7 @@ export function ImportPreview({
                 ? "角色卡"
                 : p.kind === "extension"
                   ? "功能扩展"
-                  : "连接器"}{" "}
+                  : "扩展 · 服务接入"}{" "}
               · v{p.version}
             </span>
             <PermissionList permissions={p.permissions} />

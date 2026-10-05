@@ -11,7 +11,7 @@ async function fixture(holdRuntime = false) {
   const main = path.join(temporary, "main.cjs");
   await writeFile(
     main,
-    `const { app, BrowserWindow } = require('electron'); app.setPath('userData', __dirname); app.whenReady().then(() => new BrowserWindow({ show: false, webPreferences: { sandbox: true, contextIsolation: true, nodeIntegration: false } }).loadURL('about:blank'));`,
+    `const { app, BrowserWindow } = require('electron'); app.setPath('userData', __dirname); app.whenReady().then(() => new BrowserWindow({ show: process.platform === 'linux', webPreferences: { sandbox: true, contextIsolation: true, nodeIntegration: false } }).loadURL('about:blank'));`,
   );
   const require = createRequire(path.resolve("packages/desktop/package.json"));
   const application = await electron.launch({
@@ -136,6 +136,8 @@ async function fixture(holdRuntime = false) {
         )!;
         const resources = state.packages[args.instanceId as "a" | "b"];
         switch (method) {
+          case "revokeTaskScope":
+            return null;
           case "agentState":
             return null;
           case "windowState":
@@ -314,7 +316,7 @@ it("isolates pending component operations, rejects duplicate submissions and kee
       s.refresh();
     });
     await page.getByTestId("nav-tab-extension").click();
-    await page.getByRole("button", { name: "当前 Agent", exact: true }).click();
+    await page.getByRole("button", { name: /管理当前 Agent/ }).click();
     const alpha = page
       .getByTestId("component-row")
       .filter({ hasText: "工具甲" });
@@ -487,8 +489,7 @@ it("updates from an imported library version and confirms disabling and unbindin
           ).args.digest,
       ),
     ).toBe("alpha-v2");
-    await alpha.getByRole("button", { name: "工具甲 的更多操作" }).click();
-    await page.getByRole("button", { name: "停用", exact: true }).click();
+    await alpha.getByRole("button", { name: "停用", exact: true }).click();
     const confirm = page.getByTestId("delete-dialog");
     await confirm.waitFor();
     expect(
@@ -499,8 +500,7 @@ it("updates from an imported library version and confirms disabling and unbindin
       ),
     ).toBe(false);
     await confirm.getByRole("button", { name: "取消", exact: true }).click();
-    await alpha.getByRole("button", { name: "工具甲 的更多操作" }).click();
-    await page.getByRole("button", { name: "停用", exact: true }).click();
+    await alpha.getByRole("button", { name: "停用", exact: true }).click();
     await confirm.getByRole("button", { name: "停用", exact: true }).click();
     await confirm.waitFor({ state: "detached" });
     await alpha.getByRole("button", { name: "启用", exact: true }).waitFor();
@@ -530,7 +530,7 @@ it("drops stale invocation results after switching Agents and separates committe
     await page.getByTestId("nav-tab-settings").click();
     await page.getByRole("switch", { name: "开发者模式" }).click();
     await page.getByTestId("nav-tab-extension").click();
-    await page.getByRole("button", { name: "当前 Agent", exact: true }).click();
+    await page.getByRole("button", { name: /管理当前 Agent/ }).click();
     const alpha = page
       .getByTestId("component-row")
       .filter({ hasText: "工具甲" });
@@ -543,7 +543,7 @@ it("drops stale invocation results after switching Agents and separates committe
       () => (window as any).interaction.waiting.length === 1,
     );
     await page.getByTestId("agent-switcher").selectOption("b");
-    await page.getByRole("heading", { name: "当前 Agent · 助手 b" }).waitFor();
+    await page.getByRole("heading", { name: "助手 b", exact: true }).waitFor();
     await page.evaluate(() => (window as any).interaction.waiting[0].resolve());
     expect(
       await page
@@ -668,6 +668,52 @@ it("does not invite duplicate creation when the Agent was committed before a ref
           ).length,
       ),
     ).toBe(1);
+  } finally {
+    await f.close();
+  }
+});
+
+it("keeps stop-and-revoke visible, suppresses duplicate clicks and shows retryable failures", async () => {
+  const f = await fixture();
+  try {
+    await f.page
+      .getByTestId("agent-card")
+      .filter({ hasText: "助手 a" })
+      .click();
+    await f.page.evaluate(() => {
+      (window as any).interaction.hold = ["revokeTaskScope:"];
+    });
+    const revoke = f.page.getByRole("button", {
+      name: "停止并撤权",
+      exact: true,
+    });
+    await revoke.evaluate((button: HTMLButtonElement) => {
+      button.click();
+      button.click();
+    });
+    await f.page.waitForFunction(
+      () => (window as any).interaction.waiting.length === 1,
+    );
+    expect(await revoke.isDisabled()).toBe(true);
+    expect(
+      await f.page.evaluate(
+        () =>
+          (window as any).interaction.calls.filter(
+            (c: any) => c.method === "revokeTaskScope",
+          ).length,
+      ),
+    ).toBe(1);
+    await f.page.evaluate(() =>
+      (window as any).interaction.waiting[0].reject({
+        message: "撤权记录暂时不可用",
+      }),
+    );
+    await f.page
+      .getByRole("alert")
+      .filter({ hasText: "撤权记录暂时不可用" })
+      .waitFor();
+    await revoke.click();
+    await expect.poll(() => f.page.getByRole("alert").count()).toBe(0);
   } finally {
     await f.close();
   }

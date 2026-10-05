@@ -1,9 +1,11 @@
+import { randomUUID } from "node:crypto";
+import { TaskScopes, type TaskScopePlan, type TaskScopeState, type TaskScopeSelection } from "./capabilities/task-scope.js";
 import * as mcpV2 from "./mcp/tools-v2.js";
 import type { McpApprovalV2 } from "./install/store.js";
 import { requireInstalled, requireManifest } from "./install/lifecycle.js";
 import type { Manifest } from "./package/types.js";
 import { rm } from "node:fs/promises";
-import { IMPORT_INVALID, PlumsError, SECRET_NOT_FOUND } from "./errors.js";
+import { CAPABILITY_FAILED, IMPORT_INVALID, PlumsError, SECRET_NOT_FOUND } from "./errors.js";
 import path from "node:path";
 import { runAction, type ActionResult, type RunActionInput } from "./actions/run-action.js";
 import { runCapability } from "./capabilities/run-capability.js";
@@ -47,6 +49,8 @@ export interface CreateCoreOptions {
   egress: EgressSink;
   /** Missing confirmation denies every action that needs it. */
   confirm?: Confirm;
+  /** Host policy: require a task grant or single-use confirmation, including read/list. */
+  capabilityApproval?: "legacy" | "task-or-confirm";
   secrets: SecretStore;
   /** Logical directory names to host-selected paths; copied at creation. */
   roots?: Readonly<Record<string, string>>;
@@ -72,6 +76,11 @@ export interface UpdatedPackage extends ImportedPackage {
 }
 
 export interface Core {
+  /** Trusted host only: preview and approve a finite task; not an SDK interface. */
+  taskScopePlan(): Promise<TaskScopePlan>;
+  grantTaskScope(fingerprint: string, durationMs: number, selection?: TaskScopeSelection[]): Promise<TaskScopeState>;
+  taskScopeState(): TaskScopeState | undefined;
+  revokeTaskScope(): void;
   readonly version: string;
   readonly dataDir: string;
   readonly limits: Readonly<PackageLimits>;
@@ -257,6 +266,8 @@ export function createCore(options: CreateCoreOptions): Core {
   if (options === null || typeof options !== "object") {
     throw new TypeError("createCore options are required");
   }
+  const capabilityApproval = options.capabilityApproval;
+  if (capabilityApproval !== undefined && capabilityApproval !== "legacy" && capabilityApproval !== "task-or-confirm") throw new TypeError("createCore capabilityApproval must be legacy or task-or-confirm");
   const dataDir = requireNonEmptyString(options.dataDir, "dataDir");
   if (options.model !== undefined) requireMethod(options.model, "model", "complete");
   requireMethod(options.egress, "egress", "send");
@@ -279,8 +290,9 @@ export function createCore(options: CreateCoreOptions): Core {
   const resolvedDataDir = path.resolve(dataDir);
   const store = new InstallStore(resolvedDataDir);
   const ctx = { dataDir: resolvedDataDir, store, secrets: options.secrets };
+  const tasks = new TaskScopes(ctx, roots, capabilityApproval === "task-or-confirm");
   const capabilityCtx = { ...ctx, roots, programs, fs: options.fs, exec: options.exec,
-    egress: options.egress, confirm: options.confirm, confirmTimeoutMs, onAudit: options.onAudit };
+    egress: options.egress, confirm: options.confirm, confirmTimeoutMs, onAudit: options.onAudit, tasks };
   const importPackage = async (input: Uint8Array | string): Promise<ImportedPackage> => {
     const validated = await validatePackage(input, limits);
     // Why a per-id chain, and only inside this process: the map lives in memory
@@ -358,6 +370,7 @@ export function createCore(options: CreateCoreOptions): Core {
     importPackage: guard(importPackage),
     importFromUrl: guard(async (url) => importPackage(await fetchSharedPackage(url, options.egress, confirm))),
     updatePackage: guard(async (input, updateOptions) => {
+      tasks.revoke();
       const validated = await validatePackage(input, limits);
       const { installDir, previousVersion } = await lifecycle.updatePackage(
         ctx,
@@ -373,8 +386,9 @@ export function createCore(options: CreateCoreOptions): Core {
     grantConsent: guard(async (id) => lifecycle.grantConsent(ctx, id)),
     getConsent: guard(async (id) => lifecycle.getConsent(ctx, id)),
     enable: guard(async (id) => lifecycle.enable(ctx, id)),
-    disable: guard(async (id) => lifecycle.disable(ctx, id)),
+    disable: guard(async (id) => { tasks.revoke(); return lifecycle.disable(ctx, id); }),
     uninstall: guard(async (id) => {
+      tasks.revoke();
       if (typeof id === "string" && id.startsWith("manual:")) {
         uninstallManualServer(ctx, id);
         return;
@@ -403,15 +417,44 @@ export function createCore(options: CreateCoreOptions): Core {
     authorizeMcpToolV2: guard(async (id, permissionId, tool) => mcpV2.authorizeMcpToolV2(ctx, id, permissionId, tool)),
     getMcpApprovalsV2: guard(async (id) => { requireInstalled(ctx, id); return store.listMcpV2(id); }),
     runAction: guard((input) => runAction({ ...ctx, egress: options.egress, confirm }, input)),
+    taskScopePlan: guard(async () => tasks.plan()),
+    taskScopeState: () => tasks.state(),
+    revokeTaskScope: () => tasks.revoke(),
+    grantTaskScope: guard(async (fingerprint, durationMs, selection) => {
+      const chosen = selection === undefined ? tasks.selections() : structuredClone(selection);
+      tasks.validate(fingerprint, durationMs, chosen);
+      const check = tasks.checkpoint();
+      const taskId = randomUUID();
+      const emit = async (outcome: "requested" | "allowed") => {
+        try {
+          if (!options.onAudit) throw new Error();
+          const event = redact({ callId: taskId, taskId, taskScope: chosen, durationMs,
+            timestamp: new Date().toISOString(), phase: "task", outcome, executionState: "not_started" }, await knownSecrets(ctx));
+          const safe = event as import("./capabilities/types.js").AuditEvent;
+          safe.taskScope?.forEach(Object.freeze);
+          if (safe.taskScope) Object.freeze(safe.taskScope);
+          await options.onAudit(Object.freeze(safe));
+        } catch {
+          throw new PlumsError({ code: CAPABILITY_FAILED, message: "任务授权审计失败，没有发布新授权。", details: { callId: taskId, phase: "audit_task", executionState: "not_started" } });
+        }
+      };
+      await emit("requested");
+      check();
+      tasks.validate(fingerprint, durationMs, chosen);
+      await emit("allowed");
+      check();
+      return tasks.grant(fingerprint, durationMs, taskId, chosen);
+    }),
     // This entry point owns its redaction so an audit failure cannot obscure executionState.
     runCapability: (input) => runCapability(capabilityCtx, input),
     checkMcpTools: guard(async (serverId, tools) => checkMcpTools(ctx, serverId, tools)),
     approveMcpTools: guard(async (serverId, tools, allowNonRead) => approveMcpTools(ctx, serverId, tools, allowNonRead)),
     authorizeMcpTool: guard((serverId, tool) => authorizeMcpTool({ ...ctx, confirm }, serverId, tool)),
     getMcpApprovals: guard(async (serverId) => getMcpApprovals(ctx, serverId)),
-    setSettings: guard((id, values) => setSettings(ctx, id, values)),
+    setSettings: guard((id, values) => { tasks.revoke(); return setSettings(ctx, id, values); }),
     resolveSettings: guard((id) => resolveSettings(ctx, id)),
     close() {
+      tasks.revoke();
       store.close();
     },
   };

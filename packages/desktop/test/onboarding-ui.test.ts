@@ -11,7 +11,7 @@ it("guides a ready Agent through configuration, keeps failed saves reviewable an
   const fixture = path.join(temporary, "main.cjs");
   await writeFile(
     fixture,
-    `const { app, BrowserWindow } = require('electron'); app.setPath('userData', __dirname); app.whenReady().then(() => { const w = new BrowserWindow({ show: false, webPreferences: { sandbox: true, nodeIntegration: false, contextIsolation: true } }); w.loadURL('about:blank'); });`,
+    `const { app, BrowserWindow } = require('electron'); app.setPath('userData', __dirname); app.whenReady().then(() => { const w = new BrowserWindow({ show: process.platform === 'linux', webPreferences: { sandbox: true, nodeIntegration: false, contextIsolation: true } }); w.loadURL('about:blank'); });`,
   );
   const require = createRequire(path.resolve("packages/desktop/package.json"));
   const application = await electron.launch({
@@ -20,6 +20,7 @@ it("guides a ready Agent through configuration, keeps failed saves reviewable an
   });
   try {
     const page = await application.firstWindow();
+    page.setDefaultTimeout(5_000);
     await page.setViewportSize({ width: 1180, height: 850 });
     const errors: string[] = [];
     page.on("pageerror", (e) => errors.push(e.message));
@@ -204,7 +205,7 @@ it("guides a ready Agent through configuration, keeps failed saves reviewable an
     expect(
       await page.getByLabel("API Key", { exact: true }).getAttribute("type"),
     ).toBe("password");
-    await page.getByRole("button", { name: "保存并启用" }).click();
+    await page.getByRole("button", { name: "开始使用" }).click();
     expect(
       await page.evaluate(() =>
         (window as any).uiFixture.calls.some(
@@ -218,7 +219,7 @@ it("guides a ready Agent through configuration, keeps failed saves reviewable an
       .getByLabel("接口地址", { exact: true })
       .fill("https://example.com/custom");
     await page.getByLabel("处理模式", { exact: true }).selectOption("2");
-    await page.getByRole("button", { name: "保存并启用" }).click();
+    await page.getByRole("button", { name: "开始使用" }).click();
     await page.getByTestId("setup-dialog").getByRole("alert").waitFor();
     expect(
       await page.getByLabel("模型名称", { exact: true }).inputValue(),
@@ -236,7 +237,7 @@ it("guides a ready Agent through configuration, keeps failed saves reviewable an
     await page.evaluate(() => {
       (window as any).uiFixture.fail = false;
     });
-    await page.getByRole("button", { name: "保存并启用" }).click();
+    await page.getByRole("button", { name: "开始使用" }).click();
     await page.getByTestId("setup-dialog").waitFor({ state: "detached" });
     const result = await page.evaluate(() =>
       (window as any).uiFixture.calls.filter(
@@ -306,14 +307,16 @@ async function launchFixture() {
   const fixture = path.join(temporary, "main.cjs");
   await writeFile(
     fixture,
-    `const { app, BrowserWindow } = require('electron'); app.setPath('userData', __dirname); app.whenReady().then(() => { new BrowserWindow({ show: false, webPreferences: { sandbox: true, nodeIntegration: false, contextIsolation: true } }).loadURL('about:blank'); });`,
+    `const { app, BrowserWindow } = require('electron'); app.setPath('userData', __dirname); app.whenReady().then(() => { new BrowserWindow({ show: process.platform === 'linux', webPreferences: { sandbox: true, nodeIntegration: false, contextIsolation: true } }).loadURL('about:blank'); });`,
   );
   const require = createRequire(path.resolve("packages/desktop/package.json"));
   const application = await electron.launch({
     executablePath: require("electron"),
     args: [fixture],
   });
-  return { application, page: await application.firstWindow(), temporary };
+  const page = await application.firstWindow();
+  page.setDefaultTimeout(5_000);
+  return { application, page, temporary };
 }
 const rendererUrl = pathToFileURL(
   path.resolve("packages/desktop/dist/renderer/index.html"),
@@ -427,9 +430,7 @@ it("keeps initial loading and failure distinct and rejects outdated Agent and li
       (window as any).shellFixture.waiting.some((w: any) => w.id === "b"),
     );
     await page.getByTestId("agent-switcher").selectOption("c");
-    await page
-      .getByRole("button", { name: "当前 Agent", exact: true })
-      .waitFor();
+    await page.getByRole("button", { name: /管理当前 Agent/ }).waitFor();
     await page.evaluate(() =>
       (window as any).shellFixture.waiting
         .find((w: any) => w.id === "b")
@@ -445,9 +446,7 @@ it("keeps initial loading and failure distinct and rejects outdated Agent and li
     );
     expect(await page.getByTestId("agent-switcher").inputValue()).toBe("c");
     expect(
-      await page
-        .getByRole("button", { name: "当前 Agent", exact: true })
-        .count(),
+      await page.getByRole("button", { name: /管理当前 Agent/ }).count(),
     ).toBe(1);
     // An older refresh's library snapshot must not replace a newer refresh.
     await page.evaluate(() => {
@@ -635,7 +634,6 @@ it("renders the shell and dialogs in both themes at desktop and narrow widths wi
       "Agent",
       "角色卡",
       "扩展",
-      "连接器",
       "设置",
     ]);
     const checkLayout = async () => {
@@ -686,18 +684,12 @@ it("renders the shell and dialogs in both themes at desktop and narrow widths wi
       await page.emulateMedia({ colorScheme });
       for (const width of [1180, 760, 375, 320]) {
         await page.setViewportSize({ width, height: 900 });
-        for (const tab of [
-          "home",
-          "character",
-          "extension",
-          "connector",
-          "settings",
-        ]) {
+        for (const tab of ["home", "character", "extension", "settings"]) {
           await page.getByTestId(`nav-tab-${tab}`).click();
           await checkLayout();
           if (tab === "extension") {
             await page
-              .getByRole("button", { name: "当前 Agent", exact: false })
+              .getByRole("button", { name: /管理当前 Agent/ })
               .last()
               .click();
             await checkLayout();
@@ -720,9 +712,7 @@ it("renders the shell and dialogs in both themes at desktop and narrow widths wi
             await page
               .getByRole("button", { name: "取消", exact: true })
               .click();
-            await page
-              .getByRole("button", { name: "公共库", exact: true })
-              .click();
+            await page.getByTestId("nav-tab-extension").click();
             const search = page.getByLabel("搜索公共库");
             await search.fill("不存在的名称");
             await page.getByText("没有匹配的组件。", { exact: true }).waitFor();
@@ -783,14 +773,14 @@ it("renders the shell and dialogs in both themes at desktop and narrow widths wi
         await screenshot({
           path: path.join(screenshots, `${colorScheme}-setup-${width}.png`),
         });
-        await setup.getByRole("button", { name: "保存并启用" }).focus();
+        await setup.getByRole("button", { name: "开始使用" }).focus();
         await page.keyboard.press("Tab");
         expect(
           await setup.evaluate((el) => el.contains(document.activeElement)),
         ).toBe(true);
         expect(
           await setup
-            .getByRole("button", { name: "保存并启用" })
+            .getByRole("button", { name: "开始使用" })
             .evaluate((el) => {
               const r = el.getBoundingClientRect();
               return r.bottom <= innerHeight && r.top >= 0;
@@ -930,8 +920,12 @@ it("renders the shell and dialogs in both themes at desktop and narrow widths wi
     ).toBe("false");
     await page.getByRole("switch", { name: "开发者模式" }).click();
     await page.getByTestId("nav-tab-extension").click();
-    await page.getByRole("button", { name: "当前 Agent", exact: true }).click();
-    await page.getByText("开发者信息与调用", { exact: true }).click();
+    await page.getByRole("button", { name: /管理当前 Agent/ }).click();
+    await page
+      .getByTestId("component-row")
+      .filter({ hasText: "extension 组件名称与边界内容" })
+      .getByText("开发者信息与调用", { exact: true })
+      .click();
     await page.getByRole("button", { name: "检查", exact: true }).click();
     const invocation = page.getByRole("dialog", { name: "检查", exact: true });
     await invocation.getByLabel("调用参数").fill("{");
@@ -1020,6 +1014,7 @@ it("integrates native window chrome, fullscreen events and theme updates", async
   });
   try {
     const page = await application.firstWindow();
+    page.setDefaultTimeout(5_000);
     await page.emulateMedia({ colorScheme: null });
     await page.getByTestId("nav-tab-home").waitFor();
     for (const method of [
@@ -1043,7 +1038,10 @@ it("integrates native window chrome, fullscreen events and theme updates", async
       return {
         frame: window.getBounds(),
         content: window.getContentBounds(),
-        buttons: window.getWindowButtonPosition(),
+        buttons:
+          typeof window.getWindowButtonPosition === "function"
+            ? window.getWindowButtonPosition()
+            : undefined,
       };
     });
     if (process.platform === "darwin") {

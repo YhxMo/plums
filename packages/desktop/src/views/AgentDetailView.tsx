@@ -64,6 +64,7 @@ export function AgentDetailView({
   onUnbind: (name: string) => Promise<unknown>;
 }) {
   const exportAction = useAction(record?.instanceId);
+  const revokeAction = useAction(record?.instanceId);
   if (!record) return <EmptyState description="选择一个 Agent 查看详情。" />;
   const roots = Array.from(
     new Set(
@@ -104,6 +105,14 @@ export function AgentDetailView({
           <button className="cta lg" disabled={busy} onClick={onStart}>
             {startLabel(status)}
           </button>
+          <button
+            disabled={busy || revokeAction.pending}
+            onClick={() =>
+              void revokeAction.run(() => onAction("revokeTaskScope"))
+            }
+          >
+            停止并撤权
+          </button>
           <button disabled={busy} onClick={onEdit}>
             编辑组合
           </button>
@@ -122,6 +131,11 @@ export function AgentDetailView({
           </Popover>
         </div>
       </div>
+      {revokeAction.error && (
+        <p role="alert" className="notice error">
+          {revokeAction.error}
+        </p>
+      )}
       {exportAction.error && (
         <p role="alert" className="notice error">
           {exportAction.error}
@@ -134,36 +148,38 @@ export function AgentDetailView({
       )}
       <div className="detail-layout">
         <div>
-          <h2>组件</h2>
+          <h2>组件管理</h2>
           {resources.length ? (
-            (["character", "extension", "connector"] as ComponentKind[]).map(
-              (kind) => {
-                const entries = resources.filter((p) => p.kind === kind);
-                return entries.length ? (
-                  <section
-                    className="component-group"
-                    data-kind={kind}
-                    key={kind}
-                  >
-                    <h3>
-                      <i className="kind-dot" />
-                      {kindLabel[kind]} · {entries.length}
-                    </h3>
-                    {entries.map((p) => (
-                      <ComponentRow
-                        key={`${record.instanceId}:${p.id}`}
-                        resource={p}
-                        update={latestUpdate(library, p.id, p.version)}
-                        developer={developer}
-                        onConfig={() => onConfig(p)}
-                        onAction={(method, extra) => onAction(method, p, extra)}
-                        onInvoke={(type, item) => onInvoke(p, type, item)}
-                      />
-                    ))}
-                  </section>
-                ) : null;
-              },
-            )
+            (["character", "extension"] as ComponentKind[]).map((kind) => {
+              const entries = resources.filter(
+                (p) =>
+                  p.kind === kind ||
+                  (kind === "extension" && p.kind === "connector"),
+              );
+              return entries.length ? (
+                <section
+                  className="component-group"
+                  data-kind={kind}
+                  key={kind}
+                >
+                  <h3>
+                    <i className="kind-dot" />
+                    {kindLabel[kind]} · {entries.length}
+                  </h3>
+                  {entries.map((p) => (
+                    <ComponentRow
+                      key={`${record.instanceId}:${p.id}`}
+                      resource={p}
+                      update={latestUpdate(library, p.id, p.version)}
+                      developer={developer}
+                      onConfig={() => onConfig(p)}
+                      onAction={(method, extra) => onAction(method, p, extra)}
+                      onInvoke={(type, item) => onInvoke(p, type, item)}
+                    />
+                  ))}
+                </section>
+              ) : null;
+            })
           ) : (
             <EmptyState
               illustration="components"
@@ -174,6 +190,7 @@ export function AgentDetailView({
         <aside className="detail-sidebar">
           <section className="panel">
             <h2>权限摘要</h2>
+            <p>开始使用时确认本次范围；有效期最长 1 小时，停止即撤销。</p>
             <PermissionSummary
               permissions={resources
                 .filter((p) => p.enabled)

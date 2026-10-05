@@ -40,6 +40,9 @@ export function ComponentRow({
         <div className="component-copy">
           <h3>
             {p.name} <small>v{p.version}</small>
+            {p.kind === "connector" && (
+              <span className="version-label"> · 服务接入</span>
+            )}
             {update && <span className="new-version">有新版本</span>}
           </h3>
           <p>
@@ -57,6 +60,15 @@ export function ComponentRow({
           >
             {p.enabled ? "配置" : "启用"}
           </button>
+          {p.enabled && (
+            <button
+              className="sm"
+              disabled={busy}
+              onClick={() => run("disable")}
+            >
+              停用
+            </button>
+          )}
           <Popover
             label={`${p.name} 的更多操作`}
             disabled={busy}
@@ -75,7 +87,6 @@ export function ComponentRow({
                 有新版本 · 更新到 v{update.manifest.version}
               </button>
             )}
-            {p.enabled && <button onClick={() => run("disable")}>停用</button>}
             <button className="danger" onClick={() => run("uninstall")}>
               从 Agent 移出
             </button>

@@ -43,7 +43,7 @@ export function LibraryView({
           description={
             items.length
               ? "没有匹配的组件。"
-              : "这里还没有组件。导入角色卡、扩展或连接器后，就可以用它们组装 Agent。"
+              : "这里还没有组件。导入角色卡或扩展后，就可以用它们组装 Agent。"
           }
         />
       )}
@@ -107,6 +107,9 @@ function LibraryCard({
         </span>
       </div>
       <h3>{p.manifest.name}</h3>
+      {p.manifest.kind === "connector" && (
+        <span className="version-label">服务接入</span>
+      )}
       <p className="library-description">
         {p.manifest.description || "可用于组装自己的 Agent。"}
       </p>

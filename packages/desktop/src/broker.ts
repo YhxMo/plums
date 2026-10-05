@@ -155,6 +155,20 @@ process.on("message", async (raw: unknown) => {
       case "resources":
         value = await host.resources(id);
         break;
+      case "taskScopePlan":
+        value = await host.taskScopePlan(id);
+        break;
+      case "grantTaskScope":
+        value = await host.grantTaskScope(
+          id,
+          a.fingerprint as string,
+          a.durationMs as number,
+          a.selection as import("@plums/core").TaskScopeSelection[],
+        );
+        break;
+      case "revokeTaskScope":
+        await host.revokeTaskScope(id);
+        break;
       case "agentEnablePlan":
         value = await host.agentEnablePlan(id);
         break;
@@ -202,7 +216,7 @@ process.on("message", async (raw: unknown) => {
         await host.removeAgent(id);
         break;
       case "stop":
-        host.stopSession(id);
+        await host.revokeTaskScope(id);
         break;
       case "frontend": {
         const f = await host.frontend(id);

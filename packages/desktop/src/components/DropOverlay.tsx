@@ -5,7 +5,7 @@ export function DropOverlay() {
       <div>
         <Icon name="upload" size={40} />
         <h2>松开即可导入</h2>
-        <p>Agent ZIP、角色卡、扩展或连接器</p>
+        <p>Agent ZIP、角色卡或扩展（含服务接入）</p>
       </div>
     </div>
   );

@@ -91,6 +91,11 @@ export class InstallStore {
 
   constructor(private readonly dataDir: string) {}
 
+  /** Changes on commits by another connection, including disable/re-enable ABA. */
+  externalChangeVersion(): number {
+    return this.connection().pragma("data_version", { simple: true }) as number;
+  }
+
   close(): void {
     this.db?.close();
     this.db = undefined;

@@ -31,6 +31,7 @@ export async function recoverComponentMutation(
     throw Error("Component recovery failed");
   }
   const core = createCore({
+    capabilityApproval: "task-or-confirm",
     dataDir: path.join(dir, "core"),
     secrets,
     egress,

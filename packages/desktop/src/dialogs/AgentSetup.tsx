@@ -84,8 +84,8 @@ export function AgentSetup({
             {working
               ? "正在准备…"
               : configurable.length
-                ? "保存并启用"
-                : "启用并打开"}
+                ? "开始使用"
+                : "开始使用"}
           </button>
         </div>
       }
@@ -158,7 +158,7 @@ export function AgentSetup({
                   ? "角色卡"
                   : p.kind === "extension"
                     ? "扩展"
-                    : "连接器"}
+                    : "扩展 · 服务接入"}
                 {p.enabled ? " · 已启用" : ""}
               </li>
             ))}

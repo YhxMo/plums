@@ -28,7 +28,9 @@ await copyFile(
   root + "packages/host/dist/worker.js",
   root + "packages/desktop/dist/worker.js",
 );
-await copyFile(
-  root + "packages/host/dist/secure-fs",
-  root + "packages/desktop/dist/secure-fs",
-);
+// The secure file helper is macOS-only; Linux builds can validate JS/UI without it.
+if (process.platform === "darwin")
+  await copyFile(
+    root + "packages/host/dist/secure-fs",
+    root + "packages/desktop/dist/secure-fs",
+  );

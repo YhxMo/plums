@@ -162,6 +162,7 @@ export class DesktopHost {
             this.options.egress ?? new HttpsSink(),
           );
           const core = createCore({
+            capabilityApproval: "task-or-confirm",
             dataDir: path.join(dir, "core"),
             secrets,
             egress: this.options.egress ?? new HttpsSink(),
@@ -380,6 +381,7 @@ export class DesktopHost {
     await mkdir(root, { recursive: true });
     const staging = await mkdtemp(path.join(root, ".staging-"));
     const core = createCore({
+      capabilityApproval: "task-or-confirm",
       dataDir: path.join(staging, "core"),
       secrets: this.options.secretStore(instanceId),
       egress: new HttpsSink(),
@@ -495,6 +497,7 @@ export class DesktopHost {
     const secrets = this.options.secretStore(id),
       controller = new AbortController();
     const core = createCore({
+      capabilityApproval: "task-or-confirm",
       dataDir: path.join(dir, "core"),
       secrets,
       egress: this.options.egress ?? new HttpsSink(this.dnsMode),
@@ -562,6 +565,51 @@ export class DesktopHost {
       { record: s.record, packages: details },
       await this.secretValues(s),
     );
+  }
+  async taskScopePlan(id: string) {
+    const s = await this.session(id);
+    return redact(
+      {
+        ...(await s.core.taskScopePlan()),
+        name: s.record.name,
+        active: s.core.taskScopeState(),
+      },
+      await this.secretValues(s),
+    );
+  }
+  async grantTaskScope(
+    id: string,
+    fingerprint: string,
+    durationMs: number,
+    selection?: import("@plums/core").TaskScopeSelection[],
+  ) {
+    return this.serial(id, async () => {
+      const s = await this.session(id);
+      await this.assertCoherent(id);
+      return s.core.grantTaskScope(fingerprint, durationMs, selection);
+    });
+  }
+  async revokeTaskScope(id: string) {
+    const s = await this.session(id);
+    const taskId = s.core.taskScopeState()?.taskId;
+    s.core.revokeTaskScope();
+    this.stopSession(id);
+    const event: AuditEvent = {
+      callId: randomUUID(),
+      timestamp: new Date().toISOString(),
+      phase: "task",
+      outcome: "denied",
+      executionState: "not_started",
+      reason: "TASK_REVOKED",
+      ...(taskId ? { taskId } : {}),
+    };
+    if (this.options.audit) await this.options.audit(id, event);
+    else
+      await appendFile(
+        path.join(this.directory(id), "audit.jsonl"),
+        JSON.stringify(event) + "\n",
+        { mode: 0o600 },
+      );
   }
   async agentEnablePlan(id: string) {
     const s = await this.session(id);
@@ -921,6 +969,7 @@ export class DesktopHost {
     );
   }
   private stopRuntimes(s: Session): void {
+    s.core.revokeTaskScope();
     s.controller.abort();
     for (const runtime of s.runtimes.values()) runtime.stop();
     s.runtimes.clear();

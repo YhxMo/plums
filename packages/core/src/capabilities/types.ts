@@ -70,6 +70,9 @@ export type CapabilityResult =
 export type ExecutionState = "not_started" | "completed" | "unknown";
 export interface AuditEvent {
   callId: string;
+  taskId?: string;
+  taskScope?: import("./task-scope.js").TaskScopeSelection[];
+  durationMs?: number;
   timestamp: string;
   extensionId?: string;
   callerIds?: string[];
@@ -78,7 +81,7 @@ export interface AuditEvent {
   operation?: FsOperation | "run" | "send";
   /** Logical directory/program name or declared egress target; no physical path or URL. */
   target?: string;
-  phase: "confirmation" | "allow" | "result" | "denied";
+  phase: "task" | "confirmation" | "allow" | "result" | "denied";
   outcome: "requested" | "allowed" | "denied" | "timeout" | "error" | "missing" | "invalid" | "completed" | "failed";
   executionState: ExecutionState;
   code?: string;

@@ -42,15 +42,17 @@ export function AgentCard({
       <h3 title={agent.name}>{agent.name}</h3>
       <div className="card-meta">
         <span>v{agent.agent.version}</span>
-        {(["character", "extension", "connector"] as ComponentKind[]).map(
-          (kind) => (
-            <span key={kind} data-kind={kind}>
-              <i className="kind-dot" />
-              {kindLabel[kind]}{" "}
-              {agent.components?.filter((p) => p.kind === kind).length ?? 0}
-            </span>
-          ),
-        )}
+        {(["character", "extension"] as ComponentKind[]).map((kind) => (
+          <span key={kind} data-kind={kind}>
+            <i className="kind-dot" />
+            {kindLabel[kind]}{" "}
+            {agent.components?.filter(
+              (p) =>
+                p.kind === kind ||
+                (kind === "extension" && p.kind === "connector"),
+            ).length ?? 0}
+          </span>
+        ))}
       </div>
       {agent.recoveryError && (
         <p className="error-text" role="alert">

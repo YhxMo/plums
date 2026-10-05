@@ -96,3 +96,5 @@ export { readArchive, readArchiveDetails, createArchive } from "./package/archiv
 export type { SettingsDescription } from "./install/settings.js";
 export type { McpApprovalV2 } from "./install/store.js";
 export type { CapabilityCaller, RunDelegatedCapabilityInput } from "./capabilities/types.js";
+
+export type { TaskScopePlan, TaskScopeState, TaskScopeSelection } from "./capabilities/task-scope.js";

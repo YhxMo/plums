@@ -19,7 +19,12 @@ try {
     timeout: 30000,
   });
   await application.evaluate(() => {
-    globalThis.plumsSmoke = { allow: true, confirmations: 0, enablePrompts: 0 };
+    globalThis.plumsSmoke = {
+      allow: true,
+      confirmations: 0,
+      enablePrompts: 0,
+      taskPrompts: 0,
+    };
   });
   const confirmationErrors = [];
   application.on("window", (page) => {
@@ -32,6 +37,7 @@ try {
       });
       const allow = await application.evaluate((_electron, kind) => {
         if (kind === "capability") globalThis.plumsSmoke.confirmations++;
+        else if (kind === "task") globalThis.plumsSmoke.taskPrompts++;
         else globalThis.plumsSmoke.enablePrompts++;
         return globalThis.plumsSmoke.allow;
       }, kind);
@@ -63,13 +69,7 @@ try {
   const initialChrome = await windowChrome();
   assert.equal(initialChrome.content.y, initialChrome.frame.y);
   assert.deepEqual(initialChrome.buttons, { x: 20, y: 21 });
-  for (const tab of [
-    "character",
-    "extension",
-    "connector",
-    "settings",
-    "home",
-  ]) {
+  for (const tab of ["character", "extension", "settings", "home"]) {
     await manager.getByTestId(`nav-tab-${tab}`).click();
     await expect(manager.getByTestId(`nav-tab-${tab}`)).toHaveAttribute(
       "aria-current",
@@ -210,12 +210,12 @@ try {
   });
   await manager
     .getByTestId("setup-dialog")
-    .getByRole("button", { name: "启用并打开" })
+    .getByRole("button", { name: "开始使用" })
     .click();
   await expect(
     manager
       .getByTestId("setup-dialog")
-      .getByRole("button", { name: "启用并打开" }),
+      .getByRole("button", { name: "开始使用" }),
   ).toBeEnabled();
   assert(
     (await call("resources", { instanceId: board.instanceId })).packages.every(
@@ -227,7 +227,7 @@ try {
   });
   await manager
     .getByTestId("setup-dialog")
-    .getByRole("button", { name: "启用并打开" })
+    .getByRole("button", { name: "开始使用" })
     .click();
   await expect(manager.getByTestId("setup-dialog")).toHaveCount(0);
   assert(
@@ -257,6 +257,9 @@ try {
       .evaluate((el) => el.getBoundingClientRect().height),
     40,
   );
+  const beforeTaskWrite = await application.evaluate(
+    () => globalThis.plumsSmoke.confirmations,
+  );
   await guest.locator("#text").fill("实际应用数据写入");
   await guest.getByRole("button", { name: "＋ 添加卡片" }).click();
   await expect(
@@ -272,6 +275,20 @@ try {
     "utf8",
   );
   assert(saved.includes("实际应用数据写入"));
+  await guest.locator("#text").fill("同范围连续写入");
+  await guest.getByRole("button", { name: "＋ 添加卡片" }).click();
+  await expect(
+    guest.getByText("同范围连续写入", { exact: true }),
+  ).toBeVisible();
+  assert.equal(
+    await application.evaluate(() => globalThis.plumsSmoke.confirmations),
+    beforeTaskWrite,
+  );
+  assert(
+    (await call("audit", { instanceId: board.instanceId })).some(
+      (event) => event.taskId && event.phase === "result",
+    ),
+  );
   await guest.screenshot({ path: path.join(output, "board.png") });
   await manager
     .getByTestId("running-bar")
@@ -342,7 +359,7 @@ try {
     "https://api.openai.com/v1/chat/completions",
   );
   await manager.screenshot({ path: path.join(output, "import-setup.png") });
-  await manager.getByRole("button", { name: "保存并启用" }).click();
+  await manager.getByRole("button", { name: "开始使用" }).click();
   assert(
     (await call("resources", { instanceId: chat.instanceId })).packages.every(
       (p) => !p.enabled && !p.consented,

@@ -59,7 +59,6 @@ export function App() {
     }>();
   const [assembling, setAssembling] = useState<"new" | string>(),
     [setup, setSetup] = useState<string>(),
-    [scope, setScope] = useState<"library" | "agent">("library"),
     [assemblySeed, setAssemblySeed] = useState<AssemblyDraft>();
   const [developer, setDeveloper] = useDeveloperMode();
   const [search, setSearch] = useState("");
@@ -135,7 +134,7 @@ export function App() {
   }, [toast]);
   useEffect(() => {
     setSearch("");
-  }, [tab, scope]);
+  }, [tab]);
   useEffect(() => {
     setAudit(null);
     setAuditError("");
@@ -481,21 +480,15 @@ export function App() {
           ) : (
             <ComponentsView
               kind={tab}
-              scope={scope}
-              onScope={setScope}
               search={search}
               onSearch={setSearch}
               selected={selected}
               record={record}
-              resources={resources}
               library={library}
               agents={agents}
               developer={developer}
               loading={loading}
               output={output}
-              onConfig={openConfig}
-              onAction={componentAction}
-              onInvoke={invoke}
               onOpen={(id) => void openDetail(id)}
               onUse={async (item) => {
                 const owner = selectedRef.current;
@@ -511,7 +504,7 @@ export function App() {
                 else {
                   await addSelectedComponent(selected, item.digest);
                   if (selectedRef.current === owner) {
-                    setScope("agent");
+                    await openDetail(selected);
                     setToast("组件已加入");
                   }
                 }
@@ -530,7 +523,7 @@ export function App() {
             />
           )}
           <p className="local-hint">
-            组件在本机运行，联网与写入请求会逐次确认。
+            组件在已批准的任务范围内运行，未覆盖的操作需再次确认。
           </p>
         </main>
       </div>
@@ -677,7 +670,7 @@ export function App() {
                     token: preview.token,
                   });
                   setTab(componentTab(preview.components[0]!.kind));
-                  setScope("library");
+
                   if (resumeAssembly.current) {
                     setAssembling(resumeAssembly.current);
                     resumeAssembly.current = undefined;

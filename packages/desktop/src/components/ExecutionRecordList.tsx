@@ -32,25 +32,35 @@ export function ExecutionRecordList({
             </time>
             <div>
               <strong>
-                {resources.find((r) => r.id === event.extensionId)?.name ??
-                  "组件调用"}
+                {event.phase === "task"
+                  ? "任务范围"
+                  : (resources.find((r) => r.id === event.extensionId)?.name ??
+                    "组件调用")}
               </strong>
               <span>
-                {event.kind === "fs"
-                  ? event.operation === "write"
-                    ? "写入"
-                    : "读取"
-                  : event.kind === "egress"
-                    ? "联网"
-                    : "运行"}{" "}
+                {event.phase === "task"
+                  ? event.reason === "TASK_REVOKED"
+                    ? "停止并撤权"
+                    : "授权"
+                  : event.kind === "fs"
+                    ? event.operation === "write"
+                      ? "写入"
+                      : "读取"
+                    : event.kind === "egress"
+                      ? "联网"
+                      : "运行"}{" "}
                 ·{" "}
-                {event.executionState === "completed"
-                  ? "已完成"
-                  : event.outcome === "denied"
-                    ? "已拒绝"
-                    : event.outcome === "failed"
-                      ? "未完成"
-                      : "已记录"}
+                {event.phase === "task" && event.outcome === "allowed"
+                  ? "已批准"
+                  : event.phase === "task" && event.reason === "TASK_REVOKED"
+                    ? "已撤销"
+                    : event.executionState === "completed"
+                      ? "已完成"
+                      : event.outcome === "denied"
+                        ? "已拒绝"
+                        : event.outcome === "failed"
+                          ? "未完成"
+                          : "已记录"}
               </span>
             </div>
           </li>

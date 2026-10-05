@@ -54,15 +54,17 @@ function sendRuntime() {
 function hideAgent() {
   if (agentView && agentVisible) window.contentView.removeChildView(agentView);
   agentVisible = false;
-  window.setWindowButtonPosition(MANAGER_BUTTONS);
+  if (process.platform === "darwin")
+    window.setWindowButtonPosition(MANAGER_BUTTONS);
   sendRuntime();
 }
 function showAgent() {
   if (agentView && !agentVisible) window.contentView.addChildView(agentView);
   agentVisible = !!agentView;
-  window.setWindowButtonPosition(
-    agentVisible ? RUNNING_BUTTONS : MANAGER_BUTTONS,
-  );
+  if (process.platform === "darwin")
+    window.setWindowButtonPosition(
+      agentVisible ? RUNNING_BUTTONS : MANAGER_BUTTONS,
+    );
   resize();
   sendRuntime();
 }
@@ -150,7 +152,8 @@ async function recover(cancelOpening = true): Promise<void> {
     agentView = undefined;
   }
   agentVisible = false;
-  window.setWindowButtonPosition(MANAGER_BUTTONS);
+  if (process.platform === "darwin")
+    window.setWindowButtonPosition(MANAGER_BUTTONS);
   sendRuntime();
   if (previous) await rpc("stop", { instanceId: previous.instanceId });
   window.webContents.send("manager-refresh");
@@ -164,10 +167,63 @@ const resize = () => {
     height: Math.max(0, height - RUNNING_BAR),
   });
 };
-async function openAgent(instanceId: string): Promise<boolean> {
+async function openAgent(instanceId: string): Promise<boolean | null> {
   const epoch = ++viewEpoch;
   await recover(false);
   if (epoch !== viewEpoch) return false;
+  const task = (await rpc("taskScopePlan", {
+    instanceId,
+  })) as import("@plums/core").TaskScopePlan & {
+    name: string;
+    active?: import("@plums/core").TaskScopeState;
+  };
+  if (epoch !== viewEpoch) return false;
+  if (!task.active && task.entries.length) {
+    const selections = task.entries.flatMap((entry) =>
+      entry.permissions.flatMap((p) =>
+        (p.kind === "fs" ? p.operations : ["send" as const]).map(
+          (operation) => ({
+            packageId: entry.packageId,
+            permissionId: p.id,
+            operation,
+          }),
+        ),
+      ),
+    );
+    const choice = await prompter.askTask({
+      scopeOptions: selections.map((selection, index) => ({
+        key: String(index),
+        label: `${task.entries.find((e) => e.packageId === selection.packageId)!.name} · ${task.entries.find((e) => e.packageId === selection.packageId)!.permissions.find((p) => p.id === selection.permissionId)!.target} · ${{ read: "读取", list: "列出", write: "写入", send: "联网" }[selection.operation]}`,
+      })),
+      kind: "task",
+      subject: task.name,
+      action: "选择本次工作范围和有效期。范围内连续执行，停止即撤权。",
+      permissions: [
+        ...task.entries.map((entry) => ({
+          name: entry.name,
+          descriptions: entry.permissions.map(
+            (p) => `${permissionCopy(p, "2.0")}。${p.reason}`,
+          ),
+        })),
+        ...Object.entries(task.roots).map(([name, directory]) => ({
+          name: `目录 · ${name}`,
+          descriptions: [directory],
+        })),
+      ],
+    });
+    if (!choice) return null;
+    if (epoch !== viewEpoch) return false;
+    await rpc("grantTaskScope", {
+      instanceId,
+      fingerprint: task.fingerprint,
+      durationMs: choice.durationMs,
+      selection: choice.selected.map((key) => selections[Number(key)]!),
+    });
+    if (epoch !== viewEpoch) {
+      await rpc("revokeTaskScope", { instanceId });
+      return false;
+    }
+  }
   const frontend = (await rpc("frontend", { instanceId })) as {
     packageId: string;
     entry: string;
@@ -446,6 +502,8 @@ app.whenReady().then(async () => {
           ].includes(method)
         )
           await recover();
+        if (["grantTaskScope", "taskScopePlan"].includes(method))
+          throw Error("Internal authorization method");
         if (method === "windowState")
           value = { fullscreen: window.isFullScreen() };
         else if (method === "agentState") value = runtimeState();
@@ -454,6 +512,10 @@ app.whenReady().then(async () => {
           value = null;
         } else if (method === "showAgent") {
           showAgent();
+          value = null;
+        } else if (method === "revokeTaskScope") {
+          if (active?.instanceId === args.instanceId) await recover();
+          else await rpc("revokeTaskScope", args);
           value = null;
         } else if (method === "stopAgent") {
           await recover();
@@ -518,7 +580,8 @@ app.whenReady().then(async () => {
                 ...args,
                 fingerprint: plan.fingerprint,
               });
-              value = { opened: await openAgent(args.instanceId as string) };
+              const opened = await openAgent(args.instanceId as string);
+              value = { opened, cancelled: opened === null };
             } else value = { cancelled: true };
           }
         } else if (method === "chooseImport") {

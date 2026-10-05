@@ -33,12 +33,7 @@ const groups = [
   {
     kind: "extension",
     title: "扩展",
-    description: "提供工作界面、工具和处理流程。",
-  },
-  {
-    kind: "connector",
-    title: "连接器",
-    description: "连接模型和其他服务，必需的连接器会自动加入。",
+    description: "提供工作界面、工具、处理流程和服务接入，必需依赖会自动加入。",
   },
 ] as const;
 export function AssemblyEditor({
@@ -344,7 +339,14 @@ export function AssemblyEditor({
             >
               {group.title}
               <span>
-                {chosen.filter((p) => p.manifest.kind === group.kind).length}
+                {
+                  chosen.filter(
+                    (p) =>
+                      p.manifest.kind === group.kind ||
+                      (group.kind === "extension" &&
+                        p.manifest.kind === "connector"),
+                  ).length
+                }
               </span>
             </button>
           ))}
@@ -353,7 +355,9 @@ export function AssemblyEditor({
           {groups.map((group) => {
             const items = library.filter(
               (p) =>
-                p.manifest.kind === group.kind &&
+                (p.manifest.kind === group.kind ||
+                  (group.kind === "extension" &&
+                    p.manifest.kind === "connector")) &&
                 `${p.manifest.name} ${p.manifest.description}`
                   .toLowerCase()
                   .includes(search.toLowerCase()),
@@ -370,8 +374,12 @@ export function AssemblyEditor({
                   <span className="badge">
                     已选{" "}
                     {
-                      chosen.filter((p) => p.manifest.kind === group.kind)
-                        .length
+                      chosen.filter(
+                        (p) =>
+                          p.manifest.kind === group.kind ||
+                          (group.kind === "extension" &&
+                            p.manifest.kind === "connector"),
+                      ).length
                     }
                   </span>
                 </div>
@@ -401,6 +409,7 @@ export function AssemblyEditor({
                         <strong>{p.manifest.name}</strong>
                         <small>
                           v{p.manifest.version}
+                          {p.manifest.kind === "connector" ? " · 服务接入" : ""}
                           {checked
                             ? automatic
                               ? " · 随所选功能自动加入"
@@ -446,6 +455,9 @@ export function AssemblyEditor({
                             }
                           >
                             有新版本 · 更新到 v{p.manifest.version}
+                            {p.manifest.kind === "connector"
+                              ? " · 服务接入"
+                              : ""}
                           </button>
                         ) : installed ? (
                           <span>其他版本</span>

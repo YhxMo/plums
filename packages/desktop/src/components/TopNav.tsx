@@ -8,7 +8,6 @@ const icons: Record<NavTab, IconName> = {
   home: "agent",
   character: "character",
   extension: "extension",
-  connector: "connector",
   settings: "settings",
 };
 export function TopNav({
@@ -84,6 +83,12 @@ export function TopNav({
                 className={active ? "active" : ""}
                 data-kind={key}
                 aria-current={active ? "page" : undefined}
+                onFocus={(event) =>
+                  event.currentTarget.scrollIntoView({
+                    block: "nearest",
+                    inline: "nearest",
+                  })
+                }
                 onClick={() => onTab(key)}
               >
                 <Icon name={icons[key]} size={16} />

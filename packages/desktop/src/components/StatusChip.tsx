@@ -26,7 +26,7 @@ export function startLabel(status?: AgentStatus) {
   return status === "needs-config"
     ? "去配置"
     : status === "disabled"
-      ? "启用"
+      ? "开始使用"
       : status === "running"
         ? "继续"
         : "开始使用";

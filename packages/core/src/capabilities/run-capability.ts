@@ -1,3 +1,4 @@
+import type { TaskScopes } from "./task-scope.js";
 import { randomUUID } from "node:crypto";
 import { CAPABILITY_FAILED, CONFIRMATION_DENIED, CONSENT_REQUIRED, PERMISSION_DENIED, PlumsError } from "../errors.js";
 import { requireInstalled, requireManifest, type InstallContext } from "../install/lifecycle.js";
@@ -11,6 +12,7 @@ import { copyInput } from "./request.js";
 import type { AuditEvent, AuditHandler, CapabilityResult, ExecutionState, ExecSink, FsLocation, FsSink, RunCapabilityInput, CapabilityCaller } from "./types.js";
 
 export interface CapabilityContext extends InstallContext {
+  tasks?: TaskScopes;
   roots: ReadonlyMap<string, string>;
   programs: ReadonlyMap<string, string>;
   fs?: FsSink;
@@ -116,7 +118,7 @@ export async function runCapability(ctx: CapabilityContext, rawInput: RunCapabil
   let state: ExecutionState = "not_started";
   let input: RunCapabilityInput;
   let copied = false;
-  let meta: Pick<AuditEvent, "callerIds" | "extensionId" | "permissionId" | "kind" | "operation" | "target"> = {};
+  let meta: Pick<AuditEvent, "taskId" | "callerIds" | "extensionId" | "permissionId" | "kind" | "operation" | "target"> = {};
   const secrets = new Set<string>();
   let firstSecrets: Promise<string[] | undefined> | undefined;
   const emit = async (phase: AuditEvent["phase"], outcome: AuditEvent["outcome"], code?: string, reason?: string): Promise<void> => {
@@ -145,6 +147,7 @@ export async function runCapability(ctx: CapabilityContext, rawInput: RunCapabil
     // Start reading while references still exist, before metadata checks can yield to uninstall.
     // Consume failures immediately; emit reports them with its phase and execution state.
     firstSecrets = knownSecrets(ctx).catch(() => undefined);
+    const taskCheckpoint = ctx.tasks?.checkpoint();
     const initial = authorize(ctx, input, allowConnector);
     additionalGate?.();
     const initialDelegates = delegates.map((caller) => authorize(ctx, { ...input, extensionId: caller.packageId, permissionId: caller.permissionId }, true));
@@ -168,7 +171,12 @@ export async function runCapability(ctx: CapabilityContext, rawInput: RunCapabil
     if (delegates.length) meta.callerIds = delegates.map((c) => c.packageId);
     const initialScope = await scope(ctx, initial, input);
     await checkDelegates();
+    const principals = [{ packageId: input.extensionId, permissionId: input.permissionId }, ...delegates];
+    const task = input.request.kind === "exec" ? undefined : ctx.tasks?.covers(principals, input.request);
+    if (task) meta.taskId = task.taskId;
     const recheck = async (): Promise<Scope> => {
+      taskCheckpoint?.();
+      if (task && ctx.tasks?.covers(principals, input.request)?.taskId !== task.taskId) refuse("TASK_SCOPE_CHANGED");
       const next = authorize(ctx, input, allowConnector);
       if (declaration(next.permission) !== declaration(initial.permission)) refuse("PERMISSION_CHANGED", `/permissions/${next.index}`);
       const checked = await scope(ctx, next, input);
@@ -177,12 +185,14 @@ export async function runCapability(ctx: CapabilityContext, rawInput: RunCapabil
       await checkDelegates();
       const final = authorize(ctx, input, allowConnector);
       if (declaration(final.permission) !== declaration(initial.permission)) refuse("PERMISSION_CHANGED", `/permissions/${final.index}`);
+      taskCheckpoint?.();
+      if (task && ctx.tasks?.covers(principals, input.request)?.taskId !== task.taskId) refuse("TASK_SCOPE_CHANGED");
       return checked;
     };
-    if (input.request.kind !== "fs" || input.request.operation === "write") {
+    if (!task && (ctx.tasks?.requiresApproval() || input.request.kind !== "fs" || input.request.operation === "write")) {
       await emit("confirmation", "requested");
       const { permission, name } = initial;
-      const action = permission.kind === "fs" ? `写入目录 ${permission.target} 内的文件` : permission.kind === "exec" ? `运行程序 ${permission.target}` : `把数据发送到 ${initialScope.host}`;
+      const action = permission.kind === "fs" ? `${input.request.kind === "fs" ? { read: "读取", list: "列出", write: "写入" }[input.request.operation] : "访问"}目录 ${permission.target} 内的文件` : permission.kind === "exec" ? `运行程序 ${permission.target}` : `把数据发送到 ${initialScope.host}`;
       const safeRequest = redact({ subject: name, action: `「${name}」想${action}。`, message: `「${name}」想${action}。原因:${permission.reason}。允许吗?`, reason: permission.reason, ...(initialScope.host ? { host: initialScope.host } : {}) }, [...secrets]) as ConfirmRequest;
       const answer = await ask(ctx.confirm, safeRequest, ctx.confirmTimeoutMs);
       await emit("confirmation", answer);

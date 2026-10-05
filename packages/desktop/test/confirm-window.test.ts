@@ -18,7 +18,7 @@ it("isolates confirmation, defaults to deny, validates sender and token, and can
   const base = path.resolve("packages/desktop/dist");
   await writeFile(
     path.join(directory, "main.cjs"),
-    `const {app,BrowserWindow}=require('electron'); app.setPath('userData',__dirname); app.whenReady().then(async()=>{const {ConfirmPrompter}=await import(${JSON.stringify(pathToFileURL(path.join(base, "confirm-window.js")).href)}); const parent=new BrowserWindow({show:true,webPreferences:{preload:${JSON.stringify(path.join(base, "confirm-preload.cjs"))},sandbox:true,contextIsolation:true,nodeIntegration:false}}); await parent.loadURL('about:blank'); const prompter=new ConfirmPrompter(parent,${JSON.stringify(base)}); global.confirmResults={}; global.confirmControllers={}; global.askConfirmation=(id,kind='capability')=>{const controller=new AbortController();global.confirmControllers[id]=controller; void prompter.ask({kind,subject:id,action:'把数据发送到 example.com。',host:'example.com',reason:'测试说明'},controller.signal).then(value=>global.confirmResults[id]=value);}; global.prompter=prompter;});`,
+    `const {app,BrowserWindow}=require('electron'); app.setPath('userData',__dirname); app.whenReady().then(async()=>{const {ConfirmPrompter}=await import(${JSON.stringify(pathToFileURL(path.join(base, "confirm-window.js")).href)}); const parent=new BrowserWindow({show:true,webPreferences:{preload:${JSON.stringify(path.join(base, "confirm-preload.cjs"))},sandbox:true,contextIsolation:true,nodeIntegration:false}}); await parent.loadURL('about:blank'); const prompter=new ConfirmPrompter(parent,${JSON.stringify(base)}); global.confirmResults={}; global.confirmControllers={}; global.askConfirmation=(id,kind='capability')=>{const controller=new AbortController();global.confirmControllers[id]=controller; void prompter.ask({kind,subject:id,action:'把数据发送到 example.com。',host:'example.com',reason:'测试说明',...(kind==='task'?{scopeOptions:[{key:'read',label:'读取项目'}]}:{})},controller.signal).then(value=>global.confirmResults[id]=value);}; global.prompter=prompter;});`,
   );
   const require = createRequire(path.resolve("packages/desktop/package.json"));
   const application = await electron.launch({
@@ -188,6 +188,109 @@ it("isolates confirmation, defaults to deny, validates sender and token, and can
       if (!String(error).includes("closed")) throw error;
     });
     await expect.poll(() => result("allow-test")).toBe(true);
+    await application.evaluate(() => {
+      const globals = globalThis as any;
+      void globals.prompter
+        .askTask({
+          kind: "task",
+          subject: "Task selection",
+          action: "Choose scope",
+          scopeOptions: [
+            { key: "read", label: "读取项目" },
+            { key: "write", label: "写入项目" },
+          ],
+        })
+        .then((choice: unknown) => (globals.confirmResults.task = choice));
+    });
+    const task = await findConfirmation(application, "Task selection");
+    const read = task.getByLabel("读取项目", { exact: true });
+    const write = task.getByLabel("写入项目", { exact: true });
+    const duration = task.getByLabel("有效期", { exact: false });
+    const deny = task.getByRole("button", { name: "不允许", exact: true });
+    const allow = task.getByTestId("confirm-allow");
+    await uiExpect(deny).toBeFocused();
+    await uiExpect(allow).toBeDisabled();
+    // Real key events: disabled Allow is skipped in both wrapping directions.
+    await task.keyboard.press("Tab");
+    await uiExpect(read).toBeFocused();
+    await task.keyboard.press("Shift+Tab");
+    await uiExpect(deny).toBeFocused();
+    await task.keyboard.press("Shift+Tab");
+    await uiExpect(duration).toBeFocused();
+    await task.keyboard.press("Shift+Tab");
+    await uiExpect(write).toBeFocused();
+    await task.keyboard.press("Space");
+    await uiExpect(write).not.toBeChecked();
+    await task.keyboard.press("Tab");
+    await uiExpect(duration).toBeFocused();
+    await task.keyboard.press("Enter");
+    expect(await result("task")).toBeUndefined();
+    await task.keyboard.press("ArrowDown");
+    await task.keyboard.press("Enter");
+    await uiExpect(duration).toHaveValue("3600000");
+    expect(await result("task")).toBeUndefined();
+    await task.keyboard.press("Tab");
+    await uiExpect(deny).toBeFocused();
+    await uiExpect(allow).toBeEnabled();
+    for (const control of [allow, read, write, duration, deny]) {
+      await task.keyboard.press("Tab");
+      await uiExpect(control).toBeFocused();
+    }
+    for (const control of [duration, write, read, allow, deny]) {
+      await task.keyboard.press("Shift+Tab");
+      await uiExpect(control).toBeFocused();
+    }
+    await uiExpect(task.getByTestId("confirm-allow")).toBeEnabled();
+    expect(
+      await task.evaluate(async () => {
+        const api = (window as any).confirmation;
+        const data = await api.load();
+        return api.answer(data.token, true, {
+          selected: ["exec"],
+          durationMs: 3600000,
+        });
+      }),
+    ).toBe(false);
+    await task.evaluate(() => {
+      const dialog = document.querySelector('[role="alertdialog"]')!;
+      for (const attrs of ["disabled", "hidden", "inert", 'tabindex="-1"']) {
+        dialog.insertAdjacentHTML(
+          "afterbegin",
+          `<button ${attrs}>Unreachable</button>`,
+        );
+      }
+      const outside = document.createElement("button");
+      outside.textContent = "Outside";
+      document.body.append(outside);
+      outside.focus();
+    });
+    await uiExpect(deny).toBeFocused();
+    await task.evaluate(() => (document.activeElement as HTMLElement).blur());
+    await task.keyboard.press("Tab");
+    await uiExpect(deny).toBeFocused();
+    await task.keyboard.press("Tab");
+    await uiExpect(allow).toBeFocused();
+    await task.keyboard.press("Tab");
+    await uiExpect(read).toBeFocused();
+    await task.keyboard.press("Shift+Tab");
+    await uiExpect(allow).toBeFocused();
+    await task.keyboard.press("Space").catch((error) => {
+      if (!String(error).includes("closed")) throw error;
+    });
+    await expect
+      .poll(() => result("task"))
+      .toEqual({ selected: ["read"], durationMs: 3600000 });
+    for (const target of ["不允许", "允许"]) {
+      const id = `task-enter-${target}`;
+      const page = await ask(id, "task");
+      const button = page.getByRole("button", { name: target, exact: true });
+      await uiExpect(button).toBeEnabled();
+      await button.focus();
+      await page.keyboard.press("Enter").catch((error) => {
+        if (!String(error).includes("closed")) throw error;
+      });
+      await expect.poll(() => result(id)).toBe(false);
+    }
     const escape = await ask("escape-test");
     await escape.keyboard.press("Escape").catch((error) => {
       if (!String(error).includes("closed")) throw error;

@@ -3,15 +3,21 @@ import { randomUUID } from "node:crypto";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 export interface ConfirmationView {
-  kind: "capability" | "consent";
+  kind: "capability" | "consent" | "task";
   subject: string;
   action: string;
   reason?: string;
   host?: string;
   operation?: "egress" | "write" | "exec";
+  scopeOptions?: { key: string; label: string }[];
   permissions?: { name: string; descriptions: string[] }[];
 }
+export interface TaskChoice {
+  selected: string[];
+  durationMs: number;
+}
 interface Pending {
+  choose?: (choice: TaskChoice) => void;
   view: ConfirmationView;
   signal: AbortSignal;
   resolve: (allowed: boolean) => void;
@@ -26,6 +32,7 @@ export class ConfirmPrompter {
     readyAt: number;
     view: ConfirmationView;
     finish: (allowed: boolean) => void;
+    choose?: (choice: TaskChoice) => void;
   };
   private disposed = false;
   constructor(
@@ -44,7 +51,10 @@ export class ConfirmPrompter {
     });
     ipcMain.handle(
       "confirm:answer",
-      (event, answer: { token?: unknown; allow?: unknown }) => {
+      (
+        event,
+        answer: { token?: unknown; allow?: unknown; choice?: TaskChoice },
+      ) => {
         const current = this.current;
         if (
           !current ||
@@ -54,6 +64,22 @@ export class ConfirmPrompter {
         )
           return false;
         if (answer.allow === true && Date.now() < current.readyAt) return false;
+        if (answer.allow === true && current.view.scopeOptions) {
+          const choice = answer.choice;
+          if (
+            !choice ||
+            ![900_000, 3_600_000].includes(choice.durationMs) ||
+            !Array.isArray(choice.selected) ||
+            choice.selected.some(
+              (key) =>
+                !current.view.scopeOptions!.some(
+                  (option) => option.key === key,
+                ),
+            )
+          )
+            return false;
+          current.choose?.(structuredClone(choice));
+        }
         current.finish(answer.allow === true);
         return true;
       },
@@ -63,11 +89,13 @@ export class ConfirmPrompter {
   ask(
     view: ConfirmationView,
     signal: AbortSignal = AbortSignal.timeout(120_000),
+    choose?: (choice: TaskChoice) => void,
   ): Promise<boolean> {
     if (this.disposed || signal.aborted || this.parent.isDestroyed())
       return Promise.resolve(false);
     return new Promise((resolve) => {
       const pending: Pending = {
+        choose,
         view: structuredClone(view),
         signal,
         resolve,
@@ -84,6 +112,17 @@ export class ConfirmPrompter {
       this.queue.push(pending);
       this.next();
     });
+  }
+  async askTask(view: ConfirmationView): Promise<TaskChoice | undefined> {
+    let choice: TaskChoice | undefined;
+    const allowed = await this.ask(
+      view,
+      AbortSignal.timeout(120_000),
+      (value) => {
+        choice = value;
+      },
+    );
+    return allowed ? choice : undefined;
   }
   dispose(): void {
     if (this.disposed) return;
@@ -162,6 +201,7 @@ export class ConfirmPrompter {
       token: randomUUID(),
       readyAt: Infinity,
       view: pending.view,
+      choose: pending.choose,
       finish,
     };
     pending.signal.addEventListener("abort", abort, { once: true });
@@ -179,10 +219,12 @@ export class ConfirmPrompter {
     child.on("blur", () => {
       if (focused) finish(false);
     });
+    // Task Enter is handled by the trusted renderer so native selects remain usable.
     child.webContents.on("before-input-event", (event, input) => {
       if (
         input.type === "keyDown" &&
-        (input.key === "Enter" || input.key === "Escape")
+        (input.key === "Escape" ||
+          (input.key === "Enter" && pending.view.kind !== "task"))
       ) {
         event.preventDefault();
         finish(false);
