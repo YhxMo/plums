@@ -26,7 +26,14 @@ async function call(method: string, args: unknown = {}) {
 contextBridge.exposeInMainWorld(
   "plums",
   Object.freeze({
-    sdkVersion: "1",
+    sdkVersion: "2",
+    engine: Object.freeze({
+      start:(engineId:string)=>call("engine",{operation:"start",engineId}),
+      request:(engineId:string,method:string,input:unknown,requestId?:string)=>call("engine",{operation:"request",engineId,method,input,requestId}),
+      cancel:(engineId:string,requestId:string)=>call("engine",{operation:"cancel",engineId,requestId}),
+      stop:(engineId:string)=>call("engine",{operation:"stop",engineId}),
+      status:(engineId:string)=>call("engine",{operation:"status",engineId}),
+    }),
     context: () => call("context"),
     invoke: (kind: string, name: string, input: unknown, packageId?: string) =>
       call("invoke", { kind, name, input, packageId }),

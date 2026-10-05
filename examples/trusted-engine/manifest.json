@@ -1,0 +1,60 @@
+{
+  "formatVersion": "2.0",
+  "kind": "extension",
+  "id": "engine-demo",
+  "name": "本机引擎示例",
+  "version": "1.0.0",
+  "description": "由外装扩展实现的可信引擎示例，可自主操作本机或选择外装连接器。",
+  "license": "Apache-2.0",
+  "dependencies": [
+    { "kind": "connector", "id": "model", "range": "^2.0.0", "optional": true }
+  ],
+  "permissions": [
+    {
+      "id": "local-engine",
+      "kind": "engine",
+      "target": "local",
+      "reason": "在用户信任后运行本机引擎"
+    },
+    {
+      "id": "connector-access",
+      "kind": "service",
+      "target": "https",
+      "operations": ["request"],
+      "reason": "主动选择模型连接器时发送请求"
+    }
+  ],
+  "payload": {
+    "plumsDesktop": {
+      "sdkVersion": "2",
+      "runtime": "runtime/main.js",
+      "frontend": "ui/index.html",
+      "engines": [
+        {
+          "id": "local",
+          "title": "本机引擎示例",
+          "entry": "engine/main.mjs",
+          "runtime": "node",
+          "platforms": [
+            "darwin-arm64",
+            "darwin-x64",
+            "linux-arm64",
+            "linux-x64",
+            "win32-arm64",
+            "win32-x64"
+          ],
+          "protocol": "jsonrpc-jsonl-v1"
+        }
+      ],
+      "contributes": {
+        "commands": [
+          { "name": "start", "title": "信任并启动引擎" },
+          { "name": "status", "title": "查看引擎状态" },
+          { "name": "run", "title": "执行本机任务" },
+          { "name": "cancel", "title": "取消任务" },
+          { "name": "stop", "title": "停止引擎" }
+        ]
+      }
+    }
+  }
+}

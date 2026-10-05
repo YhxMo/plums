@@ -904,6 +904,10 @@ it("revokes all model consumers after a committed key change even when revocatio
 it("updates existing chat components while retaining the configured endpoint, model and key", async () => {
   const f = await fixture(true),
     id = f.record.instanceId;
+  const history=[{role:"user",content:"retained old conversation"},{role:"assistant",content:"retained reply"}];
+  const historyFile=path.join(f.host.options.dataDir,"instances",id,"agent-data","conversation.json");
+  await writeFile(historyFile,JSON.stringify(history));
+  vi.spyOn(f.fs,"read").mockImplementation(async request=>{f.fs.records.push({operation:"read",...request});return new Uint8Array(await readFile(request.path));});
   await expect(
     f.host.invoke(id, "chat", "model", "connectors", "complete", {
       messages: [{ role: "user", content: "fixture" }],
@@ -937,6 +941,8 @@ it("updates existing chat components while retaining the configured endpoint, mo
     endpoint: "https://opencode.ai/zen/go",
   });
   expect(model.settings.secrets.apiKey).toBe(true);
+  expect(await readFile(historyFile,"utf8")).toBe(JSON.stringify(history));
+  expect(await f.host.invoke(id,"chat","chat","commands","history",{})).toEqual(history);
   const plan = await f.host.agentEnablePlan(id);
   await f.host.enableAgent(id, plan.fingerprint);
   await f.host.invoke(id, "chat", "model", "connectors", "complete", {

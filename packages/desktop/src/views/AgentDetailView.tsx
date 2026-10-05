@@ -146,6 +146,34 @@ export function AgentDetailView({
           {record.recoveryError}
         </p>
       )}
+      {resources
+        .filter((p) => p.compatibility)
+        .map((p) => (
+          <p key={p.id} className="notice" role="status">
+            {p.name}{" "}
+            需要升级到外装连接器版本。请先升级聊天扩展，再升级模型连接器；配置、密钥与历史会保留。
+          </p>
+        ))}
+      {resources.some((p) => p.engines?.length) && (
+        <section className="panel" aria-label="本机引擎管理">
+          <h2>本机引擎</h2>
+          <p>
+            引擎以普通本机程序权限运行。关闭业务界面后仍可在这里停止或撤销信任。
+          </p>
+          {resources.flatMap((p) =>
+            (p.engines ?? []).map((engine) => (
+              <EngineRow
+                key={`${p.id}:${engine.engineId}`}
+                resource={p}
+                engine={engine}
+                onAction={(method) =>
+                  onAction(method, p, { engineId: engine.engineId })
+                }
+              />
+            )),
+          )}
+        </section>
+      )}
       <div className="detail-layout">
         <div>
           <h2>组件管理</h2>
@@ -205,7 +233,9 @@ export function AgentDetailView({
           </section>
           <section className="panel">
             <h2>工作目录</h2>
-            <p>组件只能访问已绑定并同意的目录。</p>
+            <p>
+              普通扩展只能访问已绑定并同意的目录。本机引擎的文件访问由引擎自行管理。
+            </p>
             {roots.length ? (
               roots.map((name) => (
                 <RootRow
@@ -287,6 +317,65 @@ function RootRow({
           </button>
         )}
       </div>
+    </div>
+  );
+}
+
+function EngineRow({
+  resource,
+  engine,
+  onAction,
+}: {
+  resource: Resource;
+  engine: NonNullable<Resource["engines"]>[number];
+  onAction: (method: string) => Promise<unknown>;
+}) {
+  const action = useAction(`${resource.id}:${engine.engineId}`);
+  const states = {
+    stopped: "已停止",
+    starting: "启动中",
+    running: "运行中",
+    stopping: "停止中",
+    crashed: "已崩溃",
+  };
+  return (
+    <div className="panel">
+      <strong>
+        {resource.desktop?.engines?.find((d) => d.id === engine.engineId)
+          ?.title ?? engine.engineId}
+      </strong>
+      <p role="status">
+        {states[engine.state]} · {engine.trusted ? "已信任" : "尚未信任"}
+      </p>
+      <div className="inline-actions">
+        <button
+          disabled={
+            action.pending ||
+            !resource.enabled ||
+            ["running", "starting", "stopping"].includes(engine.state)
+          }
+          onClick={() => void action.run(() => onAction("startEngine"))}
+        >
+          启动引擎
+        </button>
+        <button
+          disabled={action.pending || engine.state === "stopped"}
+          onClick={() => void action.run(() => onAction("stopEngine"))}
+        >
+          停止引擎
+        </button>
+        <button
+          disabled={action.pending || !engine.trusted}
+          onClick={() => void action.run(() => onAction("revokeEngine"))}
+        >
+          撤销信任
+        </button>
+      </div>
+      {action.error && (
+        <p role="alert" className="notice error">
+          {action.error}
+        </p>
+      )}
     </div>
   );
 }

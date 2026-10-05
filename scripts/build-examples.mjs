@@ -44,6 +44,7 @@ async function component(name) {
 try {
   const names = [
     "character",
+    "trusted-engine",
     "chat-ui",
     "board-ui",
     "model-connector",
@@ -92,6 +93,7 @@ try {
       await createAgentBundle(agent, paths),
     );
   }
+  await writeFile(path.join(output,"trusted-engine-agent.zip"),await createAgentBundle({bundleVersion:"1.0",id:"trusted-engine-agent",name:"\u672c\u673a\u5f15\u64ce\u793a\u4f8b",version:"1.0.0",extensions:["components/trusted-engine.zip"],connectors:[],startup:"engine-demo"},{"components/trusted-engine.zip":zipped["trusted-engine"]}));
   console.log("Example ZIPs: " + path.resolve(output));
 } finally {
   core.close();

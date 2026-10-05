@@ -1,3 +1,4 @@
+import { EngineCoordinator } from "./engine-coordinator.js";
 import { enablePlan, enablePrepared } from "./agent-launch.js";
 import { httpsService, connectionAccess, grantConnectionAccess, validateConnectionSettings } from "./connection-service.js";
 import { planAssembly } from "./assembly-plan.js";
@@ -105,6 +106,7 @@ export interface Session {
   runtimes: Map<string, ExtensionRuntime>;
   mcpTools: Map<string, { tool: McpTool; state: string }[]>;
   controller: AbortController;
+  engineController: AbortController;
   receipts: Map<string, { packageId: string; invocationId: string; status: number }>;
 }
 function denied(): never {
@@ -128,9 +130,16 @@ export class DesktopHost {
   >();
   private previews = new Map<string, AgentBundle>();
   readonly library: ComponentLibrary;
+  private engines: EngineCoordinator;
+  private closing = new Map<string, Promise<void>>();
   private dnsMode: DnsMode = "auto";
   constructor(readonly options: HostOptions) {
     this.library = new ComponentLibrary(path.join(options.dataDir, "library"));
+    this.engines = new EngineCoordinator({nodePath:options.nodePath,library:this.library,confirm:options.confirm,
+      audit:(id,event)=>this.writeAudit(id,event),
+      sanitize:async(s,value)=>redact(value,await this.secretValues(s)),
+      event:(id,pkg,topic,data)=>{const s=this.sessions.get(id);if(s) void this.secretValues(s).then(values=>options.event?.(id,pkg,topic,redact(data,values))).catch(()=>{});},
+      invoke:(id,owner,target,kind,name,input,signal)=>this.invoke(id,owner,target,kind,name,input,signal)});
   }
   private directory(id: string): string {
     uuid(id);
@@ -219,7 +228,7 @@ export class DesktopHost {
   async setDesktopSettings(dnsMode: unknown): Promise<void> {
     if (dnsMode !== "auto" && dnsMode !== "system" && dnsMode !== "cloudflare")
       denied();
-    this.close();
+    await this.close();
     const file = path.join(this.options.dataDir, "desktop.json");
     await writeFile(file + ".pending", JSON.stringify({ dnsMode }));
     await rename(file + ".pending", file);
@@ -490,6 +499,7 @@ export class DesktopHost {
     return opening;
   }
   private async openSession(id: string): Promise<Session> {
+    await this.closing.get(id);
     if (this.recoveryErrors.has(id))
       importInvalid(this.recoveryErrors.get(id)!);
     const epoch = this.epochs.get(id) ?? 0;
@@ -526,6 +536,7 @@ export class DesktopHost {
       core,
       secrets,
       controller,
+      engineController: new AbortController(),
       runtimes: new Map(),
       receipts: new Map(),
       mcpTools: new Map(),
@@ -567,6 +578,8 @@ export class DesktopHost {
           desktop: desktopContribution(manifest),
           ...(await connectionAccess(s.core, p.id)),
           mcpTools: s.mcpTools.get(p.id),
+          engines: await Promise.all((desktopContribution(manifest)?.engines ?? []).map(d=>this.engines.status(s,p.id,d.id))),
+          compatibility: desktopContribution(manifest)?.model ? "This component requires an explicit upgrade to an external SDK v2 connector." : undefined,
         };
       }),
     );
@@ -581,14 +594,13 @@ export class DesktopHost {
     const entries = await Promise.all(
       plan.entries.map(async (entry) => ({
         ...entry,
-        serviceTargets: (await connectionAccess(s.core, entry.packageId))
-          .serviceTargets,
+        serviceTargets: (await connectionAccess(s.core, entry.packageId)).serviceTargets,
       })),
     );
     return redact(
       {
         ...plan,
-        entries,
+        entries:entries.map(e=>({...e,permissions:e.permissions.filter(p=>p.kind!=="service" || p.target!=="https" || e.serviceTargets[p.id]?.length)})).filter(e=>e.permissions.length),
         name: s.record.name,
         active: s.core.taskScopeState(),
       },
@@ -611,7 +623,7 @@ export class DesktopHost {
     const s = await this.session(id);
     const taskId = s.core.taskScopeState()?.taskId;
     s.core.revokeTaskScope();
-    this.stopSession(id);
+    this.stopOrdinary(s);
     const event: AuditEvent = {
       callId: randomUUID(),
       timestamp: new Date().toISOString(),
@@ -670,7 +682,7 @@ export class DesktopHost {
   async disable(id: string, packageId: string): Promise<void> {
     return this.serial(id, async () => {
       const s = await this.session(id);
-      this.stopSession(id);
+      await this.stopSession(id);
       await s.core.disable(packageId);
     });
   }
@@ -862,7 +874,7 @@ export class DesktopHost {
     operation: () => Promise<T>,
   ): Promise<T> {
     await this.assertCoherent(id);
-    this.stopRuntimes(s);
+    await this.stopRuntimes(s);
     try {
       return await mutateAssembly(
         this.directory(id),
@@ -873,7 +885,7 @@ export class DesktopHost {
         operation,
       );
     } finally {
-      this.stopSession(id);
+      await this.stopSession(id);
     }
   }
   async bindRoot(id: string, name: string, selected: string): Promise<void> {
@@ -920,7 +932,7 @@ export class DesktopHost {
       const { manifest } = await s.core.getPackage(packageId);
       const connections = desktopContribution(manifest)?.connections ?? [];
       validateConnectionSettings(connections, values, manifest.settingsSchema?.properties ?? {});
-      this.stopRuntimes(s);
+      await this.stopRuntimes(s);
       const description = await s.core.describeSettings(packageId);
       const saving = { ...values };
       const undo = new Map<string, string | undefined>();
@@ -1002,7 +1014,7 @@ export class DesktopHost {
     return this.serial("library", () =>
       this.serial(id, async () => {
         const s = await this.session(id);
-        this.stopSession(id);
+        await this.stopSession(id);
         for (const p of await s.core.listInstalled())
           await s.core.uninstall(p.id);
         s.core.close();
@@ -1010,36 +1022,52 @@ export class DesktopHost {
       }),
     );
   }
-  private stopRuntimes(s: Session): void {
-    s.core.revokeTaskScope();
-    s.controller.abort();
+  private stopOrdinary(s: Session): void {
+    s.core.revokeTaskScope(); s.controller.abort();
     for (const runtime of s.runtimes.values()) runtime.stop();
-    s.runtimes.clear();
-    s.receipts.clear();
-    s.controller = new AbortController();
+    s.runtimes.clear(); s.receipts.clear(); s.controller = new AbortController();
+  }
+  private async stopRuntimes(s: Session): Promise<void> {
+    this.stopOrdinary(s); s.engineController.abort();
+    try { await this.engines.stopAgent(s); } finally { s.engineController = new AbortController(); }
   }
   private async commitRecord(id: string, record: AgentRecord): Promise<void> {
-    this.stopSession(id);
-    try {
-      await saveAgentRecord(this.directory(id), record);
-    } finally {
-      // Readers may have opened the previous record while its replacement was pending.
-      this.stopSession(id);
+    await this.stopSession(id);
+    try { await saveAgentRecord(this.directory(id),record); }
+    finally { await this.stopSession(id); }
+  }
+  stopSession(id: string): Promise<void> {
+    this.epochs.set(id,(this.epochs.get(id) ?? 0)+1);
+    const s=this.sessions.get(id);
+    this.sessions.delete(id);
+    if(!s) return this.closing.get(id) ?? Promise.resolve();
+    const stopping=this.stopRuntimes(s).finally(()=>{s.core.close();if(this.closing.get(id)===stopping)this.closing.delete(id);});
+    this.closing.set(id,stopping); return stopping;
+  }
+  async close(): Promise<void> {
+    await Promise.all([...new Set([...this.sessions.keys(),...this.opening.keys(),...this.closing.keys()])].map(id=>this.stopSession(id)));
+  }
+  private async writeAudit(id:string,event:AuditEvent):Promise<void> {
+    if(this.options.audit) await this.options.audit(id,event);
+    else await appendFile(path.join(this.directory(id),"audit.jsonl"),JSON.stringify(event)+"\n",{mode:0o600});
+  }
+  async engineCall(id:string,pkg:string,method:string,args:Record<string,unknown>) {
+    const s=await this.session(id);
+    if(desktopContribution((await s.core.getPackage(pkg)).manifest)?.sdkVersion !== "2") denied();
+    const engine=args.engineId as string;
+    switch(method) {
+      case "start":return this.engines.start(s,pkg,engine);
+      case "request":return redact(await this.engines.request(s,pkg,engine,args.method as string,args.input,args.requestId as string | undefined),await this.secretValues(s));
+      case "cancel":return this.engines.cancel(s,pkg,engine,args.requestId as string);
+      case "stop":return this.engines.stop(s,pkg,engine);
+      case "status":return this.engines.status(s,pkg,engine);
+      default:return denied();
     }
   }
-  stopSession(id: string): void {
-    this.epochs.set(id, (this.epochs.get(id) ?? 0) + 1);
-    const s = this.sessions.get(id);
-    if (s) {
-      this.stopRuntimes(s);
-      s.core.close();
-      this.sessions.delete(id);
-    }
-  }
-  close(): void {
-    for (const id of new Set([...this.sessions.keys(), ...this.opening.keys()]))
-      this.stopSession(id);
-  }
+  async engineStatus(id:string,pkg:string,engine:string) {return this.engines.status(await this.session(id),pkg,engine);}
+  async startEngine(id:string,pkg:string,engine:string) {return this.engines.start(await this.session(id),pkg,engine);}
+  async stopEngine(id:string,pkg:string,engine:string) {return this.serial(id,async()=>this.engines.stop(await this.session(id),pkg,engine));}
+  async revokeEngine(id:string,pkg:string,engine:string) {return this.serial(id,async()=>this.engines.revoke(await this.session(id),pkg,engine));}
   private async runtime(
     s: Session,
     packageId: string,
@@ -1083,6 +1111,18 @@ export class DesktopHost {
       secretValues: () => this.secretValues(s),
       event: this.options.event,
       runtime: (target) => this.runtime(s, target),
+      audit:(event)=>this.writeAudit(s.record.instanceId,event),
+      engine:async(method,args)=>{
+        const engine=args.engineId as string;
+        switch(method) {
+          case "engine.start":return this.engines.start(s,packageId,engine);
+          case "engine.status":return this.engines.status(s,packageId,engine);
+          case "engine.stop":return this.engines.stop(s,packageId,engine);
+          case "engine.cancel":return this.engines.cancel(s,packageId,engine,args.requestId as string);
+          case "engine.request":return this.engines.request(s,packageId,engine,args.method as string,args.input,args.requestId as string | undefined);
+          default:return denied();
+        }
+      },
     });
   }
   async invoke(
@@ -1092,6 +1132,7 @@ export class DesktopHost {
     kind: ContributionKind,
     name: string,
     input: unknown,
+    signal?: AbortSignal,
   ): Promise<unknown> {
     const s = await this.session(id);
     if (!(await s.core.getPackage(ownerId)).installed.enabled) denied();
@@ -1105,7 +1146,7 @@ export class DesktopHost {
     const result = await runtime.invoke(kind, name, input, {
       callers,
       ancestry: ownerId === targetId ? [targetId] : [ownerId, targetId],
-      signal: s.controller.signal,
+      signal: signal ? AbortSignal.any([signal,s.controller.signal]) : s.controller.signal,
     });
     return redact(result, await this.secretValues(s));
   }

@@ -134,7 +134,9 @@ function Confirmation() {
           <Icon name="shield" size={28} />
         </span>
         <h1 id="confirmation-title">
-          {view.kind === "task"
+          {view.kind === "engine-trust"
+            ? "信任并启动本机引擎？"
+            : view.kind === "task"
             ? "批准本次工作范围？"
             : view.kind === "capability"
               ? "允许这次操作？"
@@ -201,7 +203,9 @@ function Confirmation() {
           </fieldset>
         )}
         <p className="confirmation-note">
-          {view.kind === "task"
+          {view.kind === "engine-trust"
+            ? "信任将保留，直到你撤销授权或删除这个 Agent。"
+            : view.kind === "task"
             ? "授权仅属于当前 Agent，本次任务最长 1 小时。可随时停止并撤权；升级、配置或目录变更后重新批准。目录授权不等于系统沙箱。"
             : view.kind === "capability"
               ? "仅允许这一次操作。未被有效工作范围覆盖的后续操作仍会询问。"
@@ -210,7 +214,7 @@ function Confirmation() {
       </div>
       <footer className="confirmation-footer">
         <button ref={deny} onClick={() => answer(false)}>
-          不允许
+          {view.kind === "engine-trust" ? "暂不启动" : "不允许"}
         </button>
         <button
           className="primary"
@@ -218,7 +222,7 @@ function Confirmation() {
           disabled={!ready}
           onClick={() => answer(true)}
         >
-          允许
+          {view.kind === "engine-trust" ? "信任并启动" : "允许"}
         </button>
       </footer>
     </section>

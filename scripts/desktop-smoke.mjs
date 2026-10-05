@@ -33,6 +33,12 @@ try {
       await page.waitForLoadState("domcontentloaded");
       if (!page.url().endsWith("confirm.html")) return;
       const kind = await page.locator("[data-kind]").getAttribute("data-kind");
+      await application.evaluate(({ app, BrowserWindow }) => {
+        app.focus({ steal: true });
+        BrowserWindow.getAllWindows()
+          .find((w) => w.getTitle() === "Plums · 安全确认")
+          ?.focus();
+      });
       await page.screenshot({
         path: path.join(output, `confirmation-${kind}.png`),
       });

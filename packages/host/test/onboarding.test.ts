@@ -424,6 +424,7 @@ it("rolls back only newly enabled components when a later enable fails", async (
       installed: { enabled: id === "a" },
     }),
     describeSettings: async () => ({ values: {}, secrets: {} }),
+    listBackgroundConsents: async () => [],
     grantConsent: vi.fn(async () => {}),
     enable: vi.fn(async (id: string) => {
       if (id === "c") throw Error("failed");

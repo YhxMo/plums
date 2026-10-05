@@ -238,6 +238,11 @@ process.on("message", async (raw: unknown) => {
           a.input,
         );
         break;
+      case "engine": value=await host.engineCall(id,pkg,a.operation as string,a);break;
+      case "engineStatus": value=await host.engineStatus(id,pkg,a.engineId as string);break;
+      case "startEngine": value=await host.startEngine(id,pkg,a.engineId as string);break;
+      case "stopEngine": await host.stopEngine(id,pkg,a.engineId as string);break;
+      case "revokeEngine": await host.revokeEngine(id,pkg,a.engineId as string);break;
       case "audit":
         value = await host.audit(id);
         break;
@@ -274,7 +279,7 @@ process.on("message", async (raw: unknown) => {
     });
   }
 });
-process.on("disconnect", () => {
-  host.close();
-  process.exit();
-});
+let shuttingDown=false;
+const shutdown=()=>{if(shuttingDown)return;shuttingDown=true;void host.close().catch(()=>{}).finally(()=>process.exit());};
+process.on("disconnect",shutdown);
+process.on("SIGTERM",shutdown);

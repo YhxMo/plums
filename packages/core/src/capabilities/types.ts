@@ -119,7 +119,7 @@ export interface AuditEvent {
   extensionId?: string;
   callerIds?: string[];
   permissionId?: string;
-  kind?: CapabilityRequest["kind"];
+  kind?: CapabilityRequest["kind"] | "engine";
   operation?: string;
   /** Logical directory/program name or declared egress target; no physical path or URL. */
   target?: string;

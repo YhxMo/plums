@@ -68,8 +68,8 @@ export function PermissionSummary({
             <Icon name="shield" size={16} />
             <div>
               <strong>
-                {target === "model"
-                  ? "当前模型服务"
+                {target === "https"
+                  ? "当前 HTTPS 服务"
                   : target.startsWith("*.")
                     ? `${target.slice(2)} 及其子站`
                     : target}

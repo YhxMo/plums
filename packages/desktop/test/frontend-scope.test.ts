@@ -150,6 +150,13 @@ it("frontend cancel cannot restore implicit reads through main IPC, broker and a
         .windows()
         .find((p) => p.url().endsWith("confirm.html"))!;
       await page.getByRole("alertdialog").waitFor();
+      await page.bringToFront();
+      await application.evaluate(({ app, BrowserWindow }) => {
+        app.focus({ steal: true });
+        BrowserWindow.getAllWindows()
+          .find((window) => window.getTitle() === "Plums · 安全确认")
+          ?.focus();
+      });
       return page;
     };
     const task = await confirmation();

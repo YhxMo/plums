@@ -5,6 +5,7 @@ import {
   PERMISSION_DENIED,
   type CapabilityRequest,
   type McpTool,
+  type AuditEvent,
 } from "@plums/core";
 import { desktopContribution, type ContributionKind } from "@plums/sdk";
 import { ioContext } from "./io.js";
@@ -20,6 +21,8 @@ function denied(): never {
 }
 interface Hooks {
   secretValues: () => Promise<string[]>;
+  engine:(method:string,args:Record<string,unknown>)=>Promise<unknown>;
+  audit:(event:AuditEvent)=>Promise<void>;
   event: HostOptions["event"];
   runtime: (packageId: string) => Promise<ExtensionRuntime>;
 }
@@ -35,6 +38,7 @@ export async function dispatchSdk(
   const current = await s.core.getPackage(packageId);
   if (!current.installed.enabled) denied();
   if (["context", "connection", "failResponse"].includes(method) && desktopContribution(current.manifest)?.sdkVersion !== "2") denied();
+  if(method.startsWith("engine.")) {if(desktopContribution(current.manifest)?.sdkVersion!=="2") denied();return redact(await hooks.engine(method,args),await hooks.secretValues());}
   switch (method) {
     case "context": return { agentId: s.record.instanceId, componentId: packageId, invocationId: context.invocationId };
     case "connection": {
@@ -49,6 +53,7 @@ export async function dispatchSdk(
       if (!receipt || receipt.packageId !== packageId || receipt.invocationId !== context.invocationId ||
         (args.reason === "HTTP_REJECTED" && receipt.status >= 200 && receipt.status < 300)) denied();
       s.receipts.delete(args.callId);
+      try { await hooks.audit({callId:args.callId,timestamp:new Date().toISOString(),extensionId:packageId,kind:"service",operation:"request",phase:"result",outcome:"failed",executionState:"completed",reason:args.reason as string}); } catch { throw new PlumsError({code:CAPABILITY_FAILED,message:"Response failure audit could not be saved.",details:{callId:args.callId,phase:"audit",executionState:"completed",reason:"AUDIT_FAILED",httpStatus:receipt.status}}); }
       const error = new SinkFailure(args.reason as "RESPONSE_INVALID" | "HTTP_REJECTED", receipt.status);
       throw new PlumsError({ code: CAPABILITY_FAILED, message: error.message, details: { callId: args.callId, phase: "sink", executionState: "completed", reason: args.reason, httpStatus: receipt.status } });
     }

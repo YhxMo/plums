@@ -130,8 +130,8 @@ export function AgentSetup({
               <KindIcon kind={p.kind} size={24} />
               {p.name}
             </h3>
-            {fields(p, p.desktop?.model ? undefined : true)}
-            {!p.desktop?.model &&
+            {fields(p, (p.desktop?.model || p.desktop?.connections?.length) ? undefined : true)}
+            {!p.desktop?.model && !p.desktop?.connections?.length &&
               Object.keys(p.settings.schema!.properties).some(
                 (key) => !p.settings.schema!.required?.includes(key),
               ) && (

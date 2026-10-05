@@ -116,6 +116,9 @@ export function desktopContribution(
   manifest: Manifest,
   files?: PackageFiles,
 ): DesktopContribution | undefined {
+  if (isManifestV2(manifest) && manifest.permissions.some(p => p.kind === "engine") &&
+    (manifest.kind !== "extension" || !manifest.payload || typeof manifest.payload !== "object" || !Object.hasOwn(manifest.payload, "plumsDesktop")))
+    invalid("引擎权限必须对应扩展的 SDK v2 引擎声明。");
   if (manifest.kind === "character") return undefined;
   const payload = manifest.payload;
   if (

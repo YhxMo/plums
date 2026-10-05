@@ -1,3 +1,4 @@
+import { enginePermissionKey, type EngineTrust } from "./engine-trust.js";
 import { mkdirSync } from "node:fs";
 import path from "node:path";
 import Database from "better-sqlite3";
@@ -180,6 +181,11 @@ export class InstallStore {
       this.statement("UPDATE packages SET kind = ?, name = ?, version = ?, manifest = ?, secret_refs = ? WHERE id = ?")
         .run(manifest.kind, manifest.name, manifest.version, JSON.stringify(manifest), JSON.stringify(refs), manifest.id);
       this.statement("DELETE FROM mcp_tools_v2 WHERE server_id = ?").run(manifest.id);
+      this.invalidatePendingEngineTrust();
+      for (const trust of this.listEngineTrust(manifest.id)) {
+        const permission = manifest.permissions.find(p => "kind" in p && p.kind === "engine" && p.target === trust.engineId);
+        if (!permission || enginePermissionKey(permission) !== trust.permission) this.removeEngineTrust(manifest.id, trust.engineId);
+      }
       if (consent !== undefined) {
         this.saveConsent(consent);
       }
@@ -212,6 +218,7 @@ export class InstallStore {
   }
 
   setEnabled(id: string, enabled: boolean): void {
+    this.bumpSettingsRevision(id);
     if (enabled) {
       this.statement("UPDATE packages SET enabled = 1, enabled_at = ? WHERE id = ?").run(
         new Date().toISOString(),
@@ -229,6 +236,8 @@ export class InstallStore {
       this.statement("DELETE FROM mcp_tools WHERE server_id = ?").run(id);
       this.statement("DELETE FROM mcp_tools_v2 WHERE server_id = ?").run(id);
       this.revokeBackgroundConsents(id);
+      this.removeEngineTrust(id);
+      this.statement("DELETE FROM settings_revisions WHERE package_id = ?").run(id);
       this.statement("DELETE FROM consents WHERE package_id = ?").run(id);
       this.statement("DELETE FROM packages WHERE id = ?").run(id);
     })();
@@ -301,6 +310,30 @@ export class InstallStore {
       ? this.statement("SELECT record FROM background_consents ORDER BY grant_key").all()
       : this.statement("SELECT record FROM background_consents WHERE package_id = ? ORDER BY grant_key").all(packageId)) as { record: string }[];
     return rows.map((row) => JSON.parse(row.record) as BackgroundConsent);
+  }
+
+  listEngineTrust(packageId: string): EngineTrust[] {
+    return (this.statement("SELECT record FROM engine_trust WHERE package_id = ?").all(packageId) as {record:string}[]).map(r => JSON.parse(r.record));
+  }
+  engineTrustRevision(): number {
+    return (this.statement("SELECT revision FROM engine_trust_revision WHERE id = 1").get() as {revision:number} | undefined)?.revision ?? 0;
+  }
+  invalidatePendingEngineTrust(): void {
+    this.statement("INSERT INTO engine_trust_revision (id,revision) VALUES (1,1) ON CONFLICT(id) DO UPDATE SET revision = revision + 1").run();
+  }
+  saveEngineTrust(record: EngineTrust, revision: number): boolean {
+    return this.connection().transaction(() => {
+      if (this.engineTrustRevision() !== revision) return false;
+      this.statement("INSERT OR REPLACE INTO engine_trust (package_id,engine_id,record) VALUES (?,?,?)").run(record.packageId, record.engineId, JSON.stringify(record));
+      return true;
+    })();
+  }
+  removeEngineTrust(packageId: string, engineId?: string): void {
+    this.connection().transaction(() => {
+      this.invalidatePendingEngineTrust();
+      if (engineId === undefined) this.statement("DELETE FROM engine_trust WHERE package_id = ?").run(packageId);
+      else this.statement("DELETE FROM engine_trust WHERE package_id = ? AND engine_id = ?").run(packageId, engineId);
+    })();
   }
 
   settingsRevision(id: string): number {
@@ -437,6 +470,7 @@ function migrate(db: Database.Database): void {
       // Additive service state leaves the public schema-5 records and legacy readers intact.
       db.exec("CREATE TABLE IF NOT EXISTS background_consents (grant_key TEXT PRIMARY KEY, package_id TEXT NOT NULL, record TEXT NOT NULL); CREATE TABLE IF NOT EXISTS background_revisions (package_id TEXT PRIMARY KEY, revision INTEGER NOT NULL)");
       db.exec("CREATE TABLE IF NOT EXISTS settings_revisions (package_id TEXT PRIMARY KEY, revision INTEGER NOT NULL)");
+      db.exec("CREATE TABLE IF NOT EXISTS engine_trust (package_id TEXT NOT NULL, engine_id TEXT NOT NULL, record TEXT NOT NULL, PRIMARY KEY(package_id,engine_id)); CREATE TABLE IF NOT EXISTS engine_trust_revision (id INTEGER PRIMARY KEY CHECK(id = 1), revision INTEGER NOT NULL)");
       if (current < SCHEMA_VERSION) db.pragma(`user_version = ${SCHEMA_VERSION}`);
     })();
 }

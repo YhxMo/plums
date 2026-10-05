@@ -14,7 +14,8 @@
     "desktop:dev": "pnpm build && node scripts/run-desktop.mjs",
     "desktop:package": "pnpm build && node scripts/package-desktop.mjs",
     "examples:build": "pnpm build && node scripts/build-examples.mjs",
-    "desktop:smoke": "node scripts/desktop-smoke.mjs"
+    "desktop:smoke": "node scripts/desktop-smoke.mjs",
+    "desktop:engine-smoke": "node scripts/engine-smoke.mjs"
   },
   "devDependencies": {
     "@electron/packager": "20.3.0",

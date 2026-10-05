@@ -808,8 +808,8 @@ it("displays the current model service in component permissions and refreshes it
         {
           id: "model-access",
           kind: "service",
-          target: "model",
-          operations: ["complete"],
+          target: "https",
+          operations: ["request"],
           reason: "使用配置的模型",
         },
       ];
@@ -825,7 +825,7 @@ it("displays the current model service in component permissions and refreshes it
       .poll(() =>
         component
           .getByText(
-            "使用当前 Agent 配置的模型服务：opencode.ai（custom-model）",
+            "连接当前 Agent 配置的 HTTPS 服务：opencode.ai（custom-model）",
             { exact: true },
           )
           .isVisible(),
@@ -842,7 +842,7 @@ it("displays the current model service in component permissions and refreshes it
       .poll(() =>
         component
           .getByText(
-            "使用当前 Agent 配置的模型服务：custom.example（new-model）",
+            "连接当前 Agent 配置的 HTTPS 服务：custom.example（new-model）",
             { exact: true },
           )
           .isVisible(),

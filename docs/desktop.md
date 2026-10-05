@@ -142,26 +142,17 @@ HTTPS 只允许清单域名，检查所有解析地址，连接时固定地址�
 
 旧版 `secrets.enc.json` 不自动解密，因此不会触发钥匙串授权。升级后需在配置页重新填写一次原 API Key；旧文件保留，删除对应密钥时也清理其旧密文引用。库中仍保留 `EncryptedSecretStore`，供主动选择加密存储的其他宿主使用。
 
-可配置的文本模型连接器使用逻辑服务权限 `{kind: "service", target: "model", operations: ["complete"]}`，并在 `plumsDesktop.model` 声明 `endpointSetting`、`modelSetting`、`keySetting` 和可选的 `protocolSetting` 对应的 schema 字段。地址、模型名称和协议是字符串，Key 必须为 x-secret；调用链各方仍须声明模型服务权限。用户只需选择协议、填写任意模型名称、Base URL 和 API Key，无需改包或权限声明。没有提供协议字段的旧组件继续使用 Chat Completions。当前支持的文本协议如下：
+模型协议全部由可选外装 `model-connector` 实现。宿主注册通用 `service / https / request`，仅管理批准的 HTTPS origin、声明绑定的凭据、任务范围、确认、取消与审计。协议名称和模型名称对宿主没有特殊含义，增加协议只需升级连接器。连接声明与调用见 [SDK v2](sdk-v2.md)。
 
-| 协议                    | 请求路径                                    | 鉴权请求头                                  |
-| ----------------------- | ------------------------------------------- | ------------------------------------------- |
-| OpenAI Chat Completions | `/v1/chat/completions`                      | `Authorization: Bearer …`                   |
-| OpenAI Responses        | `/v1/responses`                             | `Authorization: Bearer …`                   |
-| Anthropic Messages      | `/v1/messages`                              | `x-api-key`，以及固定的 `anthropic-version` |
-| Gemini                  | `/v1beta/models/{模型名称}:generateContent` | `x-goog-api-key`                            |
+模型连接器、聊天扩展及完整聊天 Agent 版本为 2.0.0，包 id 保留。连接器配置仍为协议、模型名称、Base URL、API Key 四项；模型名称自由填写，聊天默认关闭工具。连接器保留 Chat Completions、Responses、Anthropic Messages、Gemini 四种文本协议，处理路径、消息、函数工具、鉴权声明与回复解析。宿主不保留内置适配兜底。
 
-Base URL 可包含服务商路径前缀或版本路径；没有版本路径时按协议补全默认版本。Chat Completions、Responses、Messages 也保留完整请求地址的兼容配置。Gemini 的模型路径始终使用配置的模型名称。只允许受控 HTTPS，不维护服务商或模型名称白名单。适配依据分别为 [OpenAI 函数调用文档](https://developers.openai.com/api/docs/guides/function-calling)、[Anthropic Messages API](https://platform.claude.com/docs/en/api/messages/create) 和 [Gemini generateContent API](https://ai.google.dev/api/generate-content)。
+多轮历史、工具结果及原生协议块由聊天扩展与连接器处理；原生块仅在绑定指纹匹配时回传。调用输入不能替换保存的协议、模型、地址或凭据。HTTP 拒绝、解析失败保留实际 callId、状态及已完成执行状态，不自动重试。生图、TTS、文件上传和流式展示不在本轮范围。
 
-管理页和启用确认显示当前服务域名及模型。模型配置变化会停止运行、撤销相关绑定授权；再次开始时统一确认新目标，确认期间配置变化会拒绝旧计划。确认后模型调用使用此 Agent 的绑定，逐次审计；模型外发仍须获得有限任务范围批准或逐次确认，任务范围与确认显示实际模型目标。工作目录和其他外发继续遵守各自授权。
+旧 1.2.0 Agent 先在现有管理界面显式升级聊天扩展，再升级模型连接器；聊天扩展依赖范围允许这个过渡顺序。升级保留设置、密钥和历史，需重新批准新的服务权限及绑定。未升级的组件显示兼容提示。SDK v1 普通扩展继续运行。
 
-连接器通过 `sdk.capability(permissionId, {kind: "service", operation: "complete", binding: "本连接器包 id", sources: [], input: {messages, tools}})` 请求模型，`tools` 可省略。宿主从配置构造目标、协议、模型和鉴权头，扩展不能覆盖这些值；按协议转换文本历史、函数声明与工具结果，将回复统一为 Chat Completions 消息结构。Responses 的原生输出项、Anthropic 的签名思考块、Gemini 的原生 parts 随历史保存在实例本地，后续请求仅在相同模型绑定下回传，以保持工具调用和多轮上下文；不把思考块当作聊天正文。配置、Key 和授权按 Agent 隔离；默认导出不包含模型设置、Key 或绑定授权。
+可信引擎采用独立长期信任和普通本机进程机制，公共模型连接器完全可选；具体声明、用户授权、受控贡献桥、进程组监管和自造示例见 [可信引擎](engine.md)。
 
-当前适配范围是文本消息和函数工具调用，不包含生图、TTS、文件上传或流式展示。实际服务和模型须支持所选协议；普通文本模型不要求支持工具调用，主动开启工具模式时才需要对应能力。HTTP 拒绝、协议回复无法解析等错误使用已知执行状态返回，不自动重试或切换协议。
-
-请求 OpenCode Go 时，宿主附带自身 User-Agent 和按 Agent 保持稳定的 `x-opencode-session`，用户无需填写额外请求头。参见 [OpenCode Go 接入说明](https://opencode.ai/docs/go/)。
-
-数据库升级为 5，新增 2.x MCP 批准表；迁移保留已有安装、同意、启用、历史密钥引用和旧 MCP 数据。2.x 用 `checkMcpToolsV2`（必须提供完整列表）、`approveMcpToolsV2` 和 `runDelegatedCapability(...mcpTool)`；指纹包含名称、描述和 inputSchema，消失/变化撤销批准。旧动作、旧 MCP、原 extension-only `runCapability` 契约保持。
+数据库格式为 5，2.x MCP 使用 `checkMcpToolsV2`（必须提供完整列表）、`approveMcpToolsV2` 和 `runDelegatedCapability(...mcpTool)`；指纹包含名称、描述和 inputSchema，工具消失或变化后撤销批准。迁移保留安装、同意、启用、历史密钥引用和旧 MCP 数据；旧动作、旧 MCP 与 extension-only `runCapability` 契约保持。
 
 ## 外装示例与验收
 

@@ -1,3 +1,4 @@
+import { enginePermissionKey, type EngineTrustSnapshot } from "./install/engine-trust.js";
 import { randomUUID } from "node:crypto";
 import { TaskScopes, type TaskScopePlan, type TaskScopeState, type TaskScopeSelection } from "./capabilities/task-scope.js";
 import { registerServices, grantBackgroundConsent, revokeBackgroundConsent, hasBackgroundConsent } from "./capabilities/services.js";
@@ -80,6 +81,10 @@ export interface UpdatedPackage extends ImportedPackage {
 }
 
 export interface Core {
+  /** User trust: trusted management entry points only, never exposed through ordinary SDK calls. */
+  engineTrustSnapshot(packageId: string, engineId: string): Promise<EngineTrustSnapshot>;
+  grantEngineTrust(snapshot: EngineTrustSnapshot): Promise<boolean>;
+  revokeEngineTrust(packageId: string, engineId?: string): Promise<void>;
   /** Trusted host binding epoch. Includes saves where only a secret changed. */
   settingsRevision(id: string): Promise<number>;
   /** Trusted host only: preview and approve a finite task; not an SDK interface. */
@@ -368,8 +373,24 @@ export function createCore(options: CreateCoreOptions): Core {
       }
     };
 
+  const engineSnapshot = (packageId: string, engineId: string): EngineTrustSnapshot => {
+    const installed = requireInstalled(ctx, packageId), manifest = requireManifest(ctx, packageId);
+    const declaration = manifest.permissions.find(p => "kind" in p && p.kind === "engine" && p.target === engineId);
+    if (!declaration) throw new PlumsError({code: "PERMISSION_DENIED", message: "Engine permission is not declared."});
+    const permission = enginePermissionKey(declaration), record = store.listEngineTrust(packageId).find(r => r.engineId === engineId);
+    return {instanceId: capabilityCtx.instanceId, packageId, engineId, installedAt: installed.installedAt, version: installed.version,
+      permission, revision: store.engineTrustRevision(), trusted: !!record && record.instanceId === capabilityCtx.instanceId && record.installedAt === installed.installedAt && record.permission === permission};
+  };
   return {
     version: VERSION,
+    engineTrustSnapshot: guard(async (id, engineId) => engineSnapshot(id, engineId)),
+    grantEngineTrust: guard(async (snapshot) => {
+      const current = engineSnapshot(snapshot.packageId, snapshot.engineId);
+      if ((["instanceId","packageId","engineId","installedAt","version","permission","revision"] as const).some(key=>current[key]!==snapshot[key])) return false;
+      return store.saveEngineTrust({instanceId: current.instanceId, packageId: current.packageId, engineId: current.engineId,
+        installedAt: current.installedAt, permission: current.permission, grantedAt: new Date().toISOString()}, current.revision);
+    }),
+    revokeEngineTrust: guard(async (id, engineId) => { requireInstalled(ctx,id); store.removeEngineTrust(id,engineId); }),
     dataDir: resolvedDataDir,
     limits,
     validatePackage: guard(async (input) => {

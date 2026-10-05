@@ -35,6 +35,14 @@ it("requires public engine permission and a package-owned entry", async () => {
   const checked = await validatePackage(zip);
   expect(desktopContribution(checked.manifest, checked.files)?.engines?.[0]?.id).toBe("agent");
   expect(() => desktopContribution(m, {})).toThrowError();
+  const contribution = (m.payload as any).plumsDesktop;
+  contribution.engines = [];
+  expect(() => desktopContribution(m, files)).toThrowError();
+  delete contribution.engines;
+  expect(() => desktopContribution(m, files)).toThrowError();
+  m.payload = {};
+  expect(() => desktopContribution(m, files)).toThrowError();
+  m.payload = {plumsDesktop: {...contribution, engines: [{id: "agent", title: "Agent", entry: "engine/main.js", runtime: "node", platforms: ["darwin-arm64"], protocol: "jsonrpc-jsonl-v1"}]}};
   m.permissions = [];
   expect(() => desktopContribution(m, files)).toThrowError();
 });

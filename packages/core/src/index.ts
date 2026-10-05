@@ -102,3 +102,5 @@ export type { McpApprovalV2 } from "./install/store.js";
 export type { CapabilityCaller, RunDelegatedCapabilityInput } from "./capabilities/types.js";
 
 export type { TaskScopePlan, TaskScopeState, TaskScopeSelection } from "./capabilities/task-scope.js";
+
+export type { EngineTrust, EngineTrustSnapshot } from "./install/engine-trust.js";

@@ -34,3 +34,5 @@ if (process.platform === "darwin")
     root + "packages/host/dist/secure-fs",
     root + "packages/desktop/dist/secure-fs",
   );
+
+await copyFile(root + "packages/host/dist/engine-supervisor.js", root + "packages/desktop/dist/engine-supervisor.js");

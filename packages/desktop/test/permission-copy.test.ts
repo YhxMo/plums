@@ -43,12 +43,12 @@ it("names the configured model target without a provider whitelist", () => {
   const permission = {
     id: "model",
     kind: "service" as const,
-    target: "model",
-    operations: ["complete"],
+    target: "https",
+    operations: ["request"],
     reason: "模型调用",
   };
-  expect(permissionCopy(permission)).toBe("使用当前 Agent 配置的模型服务");
+  expect(permissionCopy(permission)).toBe("连接当前 Agent 配置的 HTTPS 服务");
   expect(
     permissionCopy(permission, "2.0", ["opencode.ai（custom-model）"]),
-  ).toBe("使用当前 Agent 配置的模型服务：opencode.ai（custom-model）");
+  ).toBe("连接当前 Agent 配置的 HTTPS 服务：opencode.ai（custom-model）");
 });

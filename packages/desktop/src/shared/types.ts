@@ -5,13 +5,15 @@ import type {
   SettingsDescription,
   McpTool,
 } from "@plums/core";
-import type { DesktopContribution } from "@plums/sdk";
+import type { DesktopContribution, EngineStatus } from "@plums/sdk";
 
 export type Resource = InstalledPackage & {
   manifest: Manifest;
   serviceTargets?: Record<string, string[]>;
   needsApproval?: boolean;
   settings: SettingsDescription;
+  engines?: EngineStatus[];
+  compatibility?: string;
   desktop?: DesktopContribution;
   mcpTools?: { tool: McpTool; state: string }[];
 };

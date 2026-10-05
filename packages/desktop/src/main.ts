@@ -386,6 +386,7 @@ app.whenReady().then(async () => {
     execArgv: ["--no-node-snapshot"],
     stdio: ["ignore", "ignore", "ignore", "ipc"],
     env: {
+      ...Object.fromEntries(["PATH","HOME","TMPDIR","LANG","LC_ALL","USER","LOGNAME"].filter(k=>process.env[k]!==undefined).map(k=>[k,process.env[k]!])),
       PLUMS_DATA_DIR:
         process.env.PLUMS_DATA_DIR ??
         path.join(app.getPath("userData"), "library"),
@@ -432,7 +433,7 @@ app.whenReady().then(async () => {
           topic: m.topic,
           data: m.data,
         });
-      if (m.topic === "mcp.updated") window.webContents.send("manager-refresh");
+      if (["mcp.updated","engine.status"].includes(m.topic)) window.webContents.send("manager-refresh");
     } else if (m.type === "service-cancel") {
       approvals.get(m.id)?.abort();
     } else if (m.type === "service") {
@@ -444,7 +445,7 @@ app.whenReady().then(async () => {
           const args = m.args as ConfirmRequest;
           value = await prompter.ask(
             {
-              kind: "capability",
+              kind: args.presentation === "engine-trust" ? "engine-trust" : "capability",
               operation: args.host
                 ? "egress"
                 : args.action?.includes("运行程序")
@@ -702,6 +703,10 @@ app.whenReady().then(async () => {
             "preview",
             "install",
             "resources",
+            "engineStatus",
+            "startEngine",
+            "stopEngine",
+            "revokeEngine",
             "disable",
             "unbindRoot",
             "settings",
@@ -743,7 +748,11 @@ app.whenReady().then(async () => {
           return { ok: true, value: null };
         }
         if (method === "context")
-          return { ok: true, value: { ...bound, sdkVersion: "1" } };
+          return { ok: true, value: { ...bound, sdkVersion: "2" } };
+        if(method === "engine") {
+          const value=await rpc("engine",{...args,instanceId:bound.instanceId,packageId:bound.ownerId});
+          return {ok:true,value};
+        }
         if (method === "invoke") {
           const value = await rpc("invoke", {
             instanceId: bound.instanceId,
