@@ -12,6 +12,7 @@ import {
 export interface ValidatedPackage extends PackageContents {
   /** The bytes of `manifest.json` exactly as they were in the zip. */
   manifestBytes: Uint8Array;
+  archiveStatistics: { totalFiles: number; totalBytes: number };
 }
 
 /**
@@ -33,5 +34,5 @@ export async function validatePackage(
   const files: PackageFiles = Object.fromEntries(
     entries.filter((entry) => entry !== manifestEntry).map((entry) => [entry.path, entry.data]),
   );
-  return { manifest, files, manifestBytes: manifestEntry.data };
+  return { manifest, files, manifestBytes: manifestEntry.data, archiveStatistics: entries.statistics };
 }

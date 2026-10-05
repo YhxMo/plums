@@ -1,3 +1,4 @@
+import { redact } from "../redact.js";
 import { existsSync } from "node:fs";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
@@ -73,4 +74,27 @@ export async function knownSecrets(ctx: InstallContext): Promise<string[]> {
     ctx.store.listSecretRefs().map((ref) => ctx.secrets.get(ref)),
   );
   return values.filter((value) => value !== undefined);
+}
+
+export interface SettingsDescription {
+  schema: Manifest["settingsSchema"];
+  values: Record<string, unknown>;
+  secrets: Record<string, boolean>;
+}
+/** Secret values and references never cross this read interface. */
+export async function describeSettings(ctx: InstallContext, id: string): Promise<SettingsDescription> {
+  requireInstalled(ctx, id);
+  const manifest = requireManifest(ctx, id);
+  const values: Settings = {};
+  const configured: Record<string, boolean> = {};
+  if (manifest.settingsSchema) {
+    for (const [key, spec] of Object.entries(manifest.settingsSchema.properties)) if (spec.default !== undefined) values[key] = spec.default;
+    try { Object.assign(values, JSON.parse(await readFile(settingsFilePath(ctx.dataDir, id), "utf8"))); }
+    catch (error) { if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw new PlumsError({ code: SETTINGS_INVALID, message: "无法读取设置。", path: "/settings" }); }
+    for (const key of secretKeys(manifest)) {
+      delete values[key];
+      configured[key] = (await ctx.secrets.get(secretRef(id, key))) !== undefined;
+    }
+  }
+  return redact({ schema: manifest.settingsSchema, values, secrets: configured }, await knownSecrets(ctx)) as SettingsDescription;
 }

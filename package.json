@@ -8,17 +8,22 @@
     "node": ">=22"
   },
   "scripts": {
-    "build": "tsc -p packages/core/tsconfig.json && tsc -p packages/cli/tsconfig.json",
+    "build": "pnpm --filter @plums/core build && pnpm --filter plums build && pnpm --filter @plums/sdk build && pnpm --filter @plums/host build && pnpm --filter @plums/desktop build",
     "test": "pnpm run build && vitest run",
-    "bench:performance": "pnpm build && node --expose-gc scripts/bench-performance.mjs"
+    "bench:performance": "pnpm build && node --expose-gc scripts/bench-performance.mjs",
+    "desktop:dev": "pnpm build && node scripts/run-desktop.mjs",
+    "desktop:package": "pnpm build && node scripts/package-desktop.mjs",
+    "examples:build": "pnpm build && node scripts/build-examples.mjs",
+    "desktop:smoke": "node scripts/desktop-smoke.mjs"
   },
   "devDependencies": {
+    "@electron/packager": "20.3.0",
+    "@playwright/test": "1.63.0",
     "@types/node": "^22.15.30",
+    "esbuild": "^0.25.0",
     "plums": "workspace:*",
+    "prettier": "3.6.2",
     "typescript": "^5.9.2",
     "vitest": "^3.2.4"
-  },
-  "pnpm": {
-    "onlyBuiltDependencies": ["esbuild"]
   }
 }

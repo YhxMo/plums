@@ -3,3 +3,7 @@ dist/
 *.tsbuildinfo
 coverage/
 .DS_Store
+release/
+.artifacts/
+playwright-report/
+test-results/

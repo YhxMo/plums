@@ -45,6 +45,8 @@ export async function fetchSharedPackage(url: string, egress: EgressSink, confir
   try {
     yes =
       (await confirm.ask({
+        subject: "Plums",
+        action: `从 ${parsed.host} 下载分享的包。`,
         message: `要从 ${parsed.host} 下载别人分享的包。原因:${SHARE_CONFIRM_REASON}。允许吗?`,
         host: parsed.host,
         reason: SHARE_CONFIRM_REASON,
@@ -139,7 +141,7 @@ function shareFailed(rawUrl: string, reason: keyof typeof SHARE_MESSAGES, status
   });
 }
 
-async function readInstalledFiles(dir: string): Promise<PackageFiles> {
+export async function readInstalledFiles(dir: string): Promise<PackageFiles> {
   const files: PackageFiles = Object.create(null);
   const walk = async (relative: string): Promise<void> => {
     const entries = await readdir(path.join(dir, ...relative.split("/").filter(Boolean)), { withFileTypes: true });

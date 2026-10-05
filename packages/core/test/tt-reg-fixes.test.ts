@@ -11,6 +11,7 @@ import {
   type Manifest,
 } from "@plums/core";
 import { describe, expect, it } from "vitest";
+import { serializeError } from "./contract-helpers.js";
 import {
   expectPlumsError,
   listAll,
@@ -22,10 +23,8 @@ import {
 
 /**
  * Regression tests for the review fixes in #20 and #21.
- * 基线不同、故意自包含、故意绕过 API。
- * Does not import helpers from the other test PRs. `package-helpers.ts` is on main.
- * Leak checks use the local serializeError, which walks the cause chain, including
- * non-enumerable properties. @plums/core does not export that function.
+ * Leak checks use the shared serializeError helper, which walks the cause chain,
+ * including non-enumerable properties.
  *
  * The same-id burst, A.txt/a.txt, MANIFEST.JSON, and the a-versus-a/b.txt export
  * clash already live in p2-import-export.test.ts. This file keeps the boundaries
@@ -49,24 +48,6 @@ function pack(id: string, extra: Partial<Manifest> = {}): Manifest {
 function ownText(files: Record<string, Uint8Array>, name: string): string | undefined {
   const value = Object.getOwnPropertyDescriptor(files, name)?.value as Uint8Array | undefined;
   return value === undefined ? undefined : Buffer.from(value).toString("utf8");
-}
-
-/** Everything an error shows, including non-enumerable `cause` and `stack`. */
-function serializeError(err: unknown, seen = new WeakSet<object>()): string {
-  if (err === null || typeof err !== "object") return JSON.stringify(err) ?? String(err);
-  if (seen.has(err)) return "[circular]";
-  seen.add(err);
-  if (err instanceof Error) {
-    const own = Object.fromEntries(Object.getOwnPropertyNames(err).map((key) => [key, (err as never)[key]]));
-    return JSON.stringify({
-      ...Object.fromEntries(Object.entries(own).map(([key, value]) => [key, serializeError(value, seen)])),
-      name: err.name,
-      message: err.message,
-      stack: err.stack,
-      cause: err.cause === undefined ? undefined : serializeError(err.cause, seen),
-    });
-  }
-  return JSON.stringify(err, (_key, value: unknown) => (value instanceof Error ? serializeError(value, seen) : value));
 }
 
 function leaked(label: string): Error {

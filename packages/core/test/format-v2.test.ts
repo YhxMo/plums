@@ -199,7 +199,7 @@ describe("2.x update consent", () => {
 });
 
 describe("database migration keeps the 1.x records intact", () => {
-  it.each([2, 3])("migrates schema %s to 4, retaining install/enable/consent/MCP and available refs", async (schema) => {
+  it.each([2, 3])("migrates schema %s to 5, retaining install/enable/consent/MCP and available refs", async (schema) => {
     const secrets = new MemorySecretStore();
     const { core, dataDir } = world({ secrets });
     const manifest = { ...validManifest("connector"), formatVersion: "1.7", dependencies: [], permissions: [{ id: "search", level: "read", target: "notes", reason: "Search" }], future: true,
@@ -223,6 +223,7 @@ describe("database migration keeps the 1.x records intact", () => {
       db.prepare("UPDATE packages SET manifest = ?, secret_refs = ? WHERE id = ?").run(rawManifest, JSON.stringify([active, historical]), manifest.id);
       db.prepare("UPDATE consents SET permissions = ? WHERE package_id = ?").run(rawPermissions, manifest.id);
       db.exec("ALTER TABLE consents DROP COLUMN format_version");
+      db.exec("DROP TABLE mcp_tools_v2");
       if (schema === 2) db.exec("ALTER TABLE packages DROP COLUMN secret_refs");
       db.pragma(`user_version = ${schema}`);
     } finally { db.close(); }
@@ -236,7 +237,7 @@ describe("database migration keeps the 1.x records intact", () => {
     reopened.close();
     const migrated = new Database(path.join(dataDir, "plums.db"));
     try {
-      expect(migrated.pragma("user_version", { simple: true })).toBe(4);
+      expect(migrated.pragma("user_version", { simple: true })).toBe(5);
       expect(migrated.prepare("SELECT manifest FROM packages WHERE id = ?").get(manifest.id)).toEqual({ manifest: rawManifest });
       expect(migrated.prepare("SELECT permissions FROM consents WHERE package_id = ?").get(manifest.id)).toEqual({ permissions: rawPermissions });
       const row = migrated.prepare("SELECT secret_refs FROM packages WHERE id = ?").get(manifest.id) as { secret_refs: string };

@@ -8,7 +8,7 @@ import { redact } from "../redact.js";
 import type { Confirm, ConfirmRequest, EgressSink } from "../types.js";
 import { resolveLocation } from "./fs-boundary.js";
 import { copyInput } from "./request.js";
-import type { AuditEvent, AuditHandler, CapabilityResult, ExecutionState, ExecSink, FsLocation, FsSink, RunCapabilityInput } from "./types.js";
+import type { AuditEvent, AuditHandler, CapabilityResult, ExecutionState, ExecSink, FsLocation, FsSink, RunCapabilityInput, CapabilityCaller } from "./types.js";
 
 export interface CapabilityContext extends InstallContext {
   roots: ReadonlyMap<string, string>;
@@ -35,12 +35,12 @@ interface Scope {
 function refuse(reason: string, at = "/permissions"): never {
   throw new PlumsError({ code: PERMISSION_DENIED, message: "这次能力调用不在当前授权范围内，没有执行。", path: at, details: { reason } });
 }
-function authorize(ctx: CapabilityContext, input: RunCapabilityInput): Authorized {
+function authorize(ctx: CapabilityContext, input: RunCapabilityInput, allowConnector = false): Authorized {
   const installed = requireInstalled(ctx, input.extensionId);
   if (!installed.enabled) refuse("NOT_ENABLED");
   const manifest = requireManifest(ctx, input.extensionId);
   if (!isManifestV2(manifest)) refuse("FORMAT_API_MISMATCH", "/formatVersion");
-  if (manifest.kind !== "extension") refuse("NOT_EXTENSION", "/kind");
+  if (manifest.kind !== "extension" && !(allowConnector && manifest.kind === "connector")) refuse("NOT_EXTENSION", "/kind");
   const index = manifest.permissions.findIndex((p) => p.id === input.permissionId);
   const permission = manifest.permissions[index];
   if (permission === undefined) refuse("PERMISSION_NOT_DECLARED");
@@ -111,12 +111,12 @@ function failure(callId: string, phase: string, executionState: ExecutionState):
 }
 
 /** No model loop or third-party execution: authorization and one injected sink call. */
-export async function runCapability(ctx: CapabilityContext, rawInput: RunCapabilityInput): Promise<CapabilityResult> {
+export async function runCapability(ctx: CapabilityContext, rawInput: RunCapabilityInput, delegates: readonly CapabilityCaller[] = [], allowConnector = false, additionalGate?: () => void): Promise<CapabilityResult> {
   const callId = randomUUID();
   let state: ExecutionState = "not_started";
   let input: RunCapabilityInput;
   let copied = false;
-  let meta: Pick<AuditEvent, "extensionId" | "permissionId" | "kind" | "operation" | "target"> = {};
+  let meta: Pick<AuditEvent, "callerIds" | "extensionId" | "permissionId" | "kind" | "operation" | "target"> = {};
   const secrets = new Set<string>();
   let firstSecrets: Promise<string[] | undefined> | undefined;
   const emit = async (phase: AuditEvent["phase"], outcome: AuditEvent["outcome"], code?: string, reason?: string): Promise<void> => {
@@ -129,7 +129,9 @@ export async function runCapability(ctx: CapabilityContext, rawInput: RunCapabil
       }
       for (const secret of await knownSecrets(ctx)) secrets.add(secret);
       const event: AuditEvent = { ...meta, callId, timestamp: new Date().toISOString(), phase, outcome, executionState: state, ...(code ? { code } : {}), ...(reason ? { reason } : {}) };
-      await ctx.onAudit(Object.freeze(redact(event, [...secrets]) as AuditEvent));
+      const safeEvent=redact(event, [...secrets]) as AuditEvent;
+      if(safeEvent.callerIds)Object.freeze(safeEvent.callerIds);
+      await ctx.onAudit(Object.freeze(safeEvent));
     } catch { throw failure(callId, `audit_${phase}`, state); }
   };
   try {
@@ -143,16 +145,37 @@ export async function runCapability(ctx: CapabilityContext, rawInput: RunCapabil
     // Start reading while references still exist, before metadata checks can yield to uninstall.
     // Consume failures immediately; emit reports them with its phase and execution state.
     firstSecrets = knownSecrets(ctx).catch(() => undefined);
-    const initial = authorize(ctx, input);
+    const initial = authorize(ctx, input, allowConnector);
+    additionalGate?.();
+    const initialDelegates = delegates.map((caller) => authorize(ctx, { ...input, extensionId: caller.packageId, permissionId: caller.permissionId }, true));
+    const checkDelegates = async (): Promise<void> => {
+      for (let i = 0; i < delegates.length; i += 1) {
+        const caller = delegates[i]!;
+        const call = { ...input, extensionId: caller.packageId, permissionId: caller.permissionId };
+        const next = authorize(ctx, call, true);
+        if (declaration(next.permission) !== declaration(initialDelegates[i]!.permission)) refuse("PERMISSION_CHANGED");
+        const allowed = await scope(ctx, next, call);
+        if (!sameScope(initialScope, allowed)) refuse("DELEGATION_SCOPE_MISMATCH");
+      }
+      for (let i = 0; i < delegates.length; i += 1) {
+        const caller = delegates[i]!;
+        const next = authorize(ctx, { ...input, extensionId: caller.packageId, permissionId: caller.permissionId }, true);
+        if (declaration(next.permission) !== declaration(initialDelegates[i]!.permission)) refuse("PERMISSION_CHANGED");
+      }
+      additionalGate?.();
+    };
     meta.target = initial.permission.target;
+    if (delegates.length) meta.callerIds = delegates.map((c) => c.packageId);
     const initialScope = await scope(ctx, initial, input);
+    await checkDelegates();
     const recheck = async (): Promise<Scope> => {
-      const next = authorize(ctx, input);
+      const next = authorize(ctx, input, allowConnector);
       if (declaration(next.permission) !== declaration(initial.permission)) refuse("PERMISSION_CHANGED", `/permissions/${next.index}`);
       const checked = await scope(ctx, next, input);
       if (!sameScope(initialScope, checked)) refuse("PATH_CHANGED", input.request.kind === "exec" ? "/request/cwd/path" : "/request/path");
       // scope reads metadata asynchronously, so check state once more after it returns.
-      const final = authorize(ctx, input);
+      await checkDelegates();
+      const final = authorize(ctx, input, allowConnector);
       if (declaration(final.permission) !== declaration(initial.permission)) refuse("PERMISSION_CHANGED", `/permissions/${final.index}`);
       return checked;
     };
@@ -160,7 +183,7 @@ export async function runCapability(ctx: CapabilityContext, rawInput: RunCapabil
       await emit("confirmation", "requested");
       const { permission, name } = initial;
       const action = permission.kind === "fs" ? `写入目录 ${permission.target} 内的文件` : permission.kind === "exec" ? `运行程序 ${permission.target}` : `把数据发送到 ${initialScope.host}`;
-      const safeRequest = redact({ message: `「${name}」想${action}。原因:${permission.reason}。允许吗?`, reason: permission.reason, ...(initialScope.host ? { host: initialScope.host } : {}) }, [...secrets]) as ConfirmRequest;
+      const safeRequest = redact({ subject: name, action: `「${name}」想${action}。`, message: `「${name}」想${action}。原因:${permission.reason}。允许吗?`, reason: permission.reason, ...(initialScope.host ? { host: initialScope.host } : {}) }, [...secrets]) as ConfirmRequest;
       const answer = await ask(ctx.confirm, safeRequest, ctx.confirmTimeoutMs);
       await emit("confirmation", answer);
       if (answer !== "allowed") throw new PlumsError({ code: CONFIRMATION_DENIED, message: "没有得到明确确认，这次能力调用没有执行。", path: `/permissions/${initial.index}`, details: { reason: answer.toUpperCase() } });
@@ -213,7 +236,8 @@ async function execute(ctx: CapabilityContext, { request }: RunCapabilityInput, 
     if (!Number.isInteger(result.exitCode) || typeof result.stdout !== "string" || typeof result.stderr !== "string") throw new TypeError();
     return { callId, kind: "exec", result: { exitCode: result.exitCode, stdout: result.stdout, stderr: result.stderr } };
   }
-  const result = await ctx.egress.send({ url: allowed.url!, ...(request.method !== undefined ? { method: request.method } : {}), ...(request.body !== undefined ? { body: request.body } : {}) });
+  const result = await ctx.egress.send({ url: allowed.url!, ...(request.method !== undefined ? { method: request.method } : {}), ...(request.body !== undefined ? { body: request.body } : {}), ...(request.headers ? { headers: { ...request.headers } } : {}), ...(request.stream !== undefined ? { stream: request.stream } : {}) });
   if (!Number.isInteger(result.status) || typeof result.body !== "string" || (result.redirectTo !== undefined && typeof result.redirectTo !== "string")) throw new TypeError();
-  return { callId, kind: "egress", result: { status: result.status, body: result.body, ...(result.redirectTo !== undefined ? { redirectTo: result.redirectTo } : {}) } };
+  if (result.headers && Object.values(result.headers).some((v) => typeof v !== "string")) throw new TypeError();
+  return { callId, kind: "egress", result: { ...(result.headers ? { headers: { ...result.headers } } : {}), status: result.status, body: result.body, ...(result.redirectTo !== undefined ? { redirectTo: result.redirectTo } : {}) } };
 }

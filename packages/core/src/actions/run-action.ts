@@ -2,7 +2,9 @@ import { CONFIRMATION_DENIED, CONSENT_REQUIRED, PERMISSION_DENIED, PlumsError } 
 import { requireInstalled, requireLegacyManifest, type InstallContext } from "../install/lifecycle.js";
 import type { PermissionV1, PermissionLevel } from "../package/types.js";
 import { matchEgressUrl, parseEgressTarget } from "../package/egress-target.js";
-import type { Confirm, EgressRequest, EgressResult, EgressSink } from "../types.js";
+import { knownSecrets } from "../install/settings.js";
+import { redact } from "../redact.js";
+import type { ConfirmRequest, Confirm, EgressRequest, EgressResult, EgressSink } from "../types.js";
 
 export interface RunActionInput {
   extensionId: string;
@@ -70,7 +72,7 @@ export async function runAction(
         level === "egress"
           ? `「${name}」想把数据发送到 ${where}。原因:${permission.reason}。允许吗?`
           : `「${name}」想修改你的数据。原因:${permission.reason}。允许吗?`;
-      yes = (await ctx.confirm.ask({ message, reason: permission.reason, ...(host ? { host } : {}) })) === true;
+      yes = (await ctx.confirm.ask(redact({ subject: name, action: level === "egress" ? `「${name}」想把数据发送到 ${where}。` : `「${name}」想修改你的数据。`, message, reason: permission.reason, ...(host ? { host } : {}) }, await knownSecrets(ctx)) as ConfirmRequest)) === true;
     } catch {
       // A missing or failing confirm counts as "no".
     }

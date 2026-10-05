@@ -46,6 +46,8 @@ export interface McpApproval {
   approvedAt: string;
 }
 
+export interface McpApprovalV2 { tool: string; fingerprint: string; permissionId: string; approvedAt: string }
+
 interface McpApprovalRow {
   tool: string;
   fingerprint: string;
@@ -72,7 +74,7 @@ interface ConsentRow {
   format_version: Manifest["formatVersion"];
 }
 
-const SCHEMA_VERSION = 4;
+const SCHEMA_VERSION = 5;
 
 const INSTALLED_SELECT = `
   SELECT p.id, p.kind, p.name, p.version, p.enabled, p.installed_at, p.enabled_at,
@@ -171,6 +173,7 @@ export class InstallStore {
       ])];
       this.statement("UPDATE packages SET kind = ?, name = ?, version = ?, manifest = ?, secret_refs = ? WHERE id = ?")
         .run(manifest.kind, manifest.name, manifest.version, JSON.stringify(manifest), JSON.stringify(refs), manifest.id);
+      this.statement("DELETE FROM mcp_tools_v2 WHERE server_id = ?").run(manifest.id);
       if (consent !== undefined) {
         this.saveConsent(consent);
       }
@@ -218,6 +221,7 @@ export class InstallStore {
     const db = this.connection();
     db.transaction(() => {
       this.statement("DELETE FROM mcp_tools WHERE server_id = ?").run(id);
+      this.statement("DELETE FROM mcp_tools_v2 WHERE server_id = ?").run(id);
       this.statement("DELETE FROM consents WHERE package_id = ?").run(id);
       this.statement("DELETE FROM packages WHERE id = ?").run(id);
     })();
@@ -239,17 +243,9 @@ export class InstallStore {
    */
   dropMcpApprovalsExcept(serverId: string, keep: readonly string[]): McpApproval[] {
     const db = this.connection();
-    const select = this.statement(
-      "SELECT tool, fingerprint, level, approved_at FROM mcp_tools WHERE server_id = ? ORDER BY tool",
-    );
     const removeAll = this.statement("DELETE FROM mcp_tools WHERE server_id = ?");
     return db.transaction(() => {
-      const rows = (select.all(serverId) as McpApprovalRow[]).map((row) => ({
-        tool: row.tool,
-        fingerprint: row.fingerprint,
-        level: row.level,
-        approvedAt: row.approved_at,
-      }));
+      const rows = this.listMcpApprovals(serverId);
       if (keep.length === 0) {
         removeAll.run(serverId);
       } else {
@@ -271,6 +267,25 @@ export class InstallStore {
       for (const a of approvals) {
         insert.run(serverId, a.tool, a.fingerprint, a.level, a.approvedAt);
       }
+    })();
+  }
+
+  listMcpV2(serverId: string): McpApprovalV2[] {
+    return this.statement("SELECT tool, fingerprint, permission_id AS permissionId, approved_at AS approvedAt FROM mcp_tools_v2 WHERE server_id = ? ORDER BY tool").all(serverId) as McpApprovalV2[];
+  }
+  saveMcpV2(serverId: string, approvals: McpApprovalV2[]): void {
+    const insert = this.statement("INSERT OR REPLACE INTO mcp_tools_v2 (server_id, tool, fingerprint, permission_id, approved_at) VALUES (?, ?, ?, ?, ?)");
+    this.connection().transaction(() => { for (const a of approvals) insert.run(serverId, a.tool, a.fingerprint, a.permissionId, a.approvedAt); })();
+  }
+  checkMcpV2(serverId: string, tools: { name: string; fingerprint: string }[]): McpApprovalV2[] {
+    return this.connection().transaction(() => {
+      const rows = this.listMcpV2(serverId);
+      for (const row of rows) {
+        if (!tools.some((t) => t.name === row.tool && t.fingerprint === row.fingerprint)) {
+          this.statement("DELETE FROM mcp_tools_v2 WHERE server_id = ? AND tool = ?").run(serverId, row.tool);
+        }
+      }
+      return rows;
     })();
   }
 
@@ -361,6 +376,13 @@ function migrate(db: Database.Database): void {
         const save = db.prepare("UPDATE consents SET format_version = ? WHERE package_id = ?");
         for (const row of rows) save.run((JSON.parse(row.manifest) as Manifest).formatVersion, row.package_id);
       }
+      if (current < 5) db.exec(`
+        CREATE TABLE mcp_tools_v2 (
+          server_id TEXT NOT NULL, tool TEXT NOT NULL, fingerprint TEXT NOT NULL,
+          permission_id TEXT NOT NULL, approved_at TEXT NOT NULL,
+          PRIMARY KEY (server_id, tool)
+        );
+      `);
       db.pragma(`user_version = ${SCHEMA_VERSION}`);
     })();
   }

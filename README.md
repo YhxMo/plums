@@ -3,11 +3,15 @@
 Plums 内核（Apache-2.0）。pnpm 单仓库，包含：
 
 - `@plums/core`：TypeScript 内核库
-- `plums`：只调用库公开 API 的命令行。core、CLI 与运行时版本为 0.2.0
+- `@plums/sdk`、`@plums/host`：外装包 SDK、隔离运行与受控 I/O
+- `@plums/desktop`：Electron/React 桌面安装、管理与安全底座（0.1.0）
+- `plums`：只调用库公开 API 的命令行。core 与 CLI 版本为 0.2.0
 
 ## 环境
 
-Node.js 22 或更新的 LTS，以及 pnpm 10。
+全仓及桌面构建使用 Node.js 26.5.1、pnpm 10 和 macOS Xcode Command Line Tools。单独使用 core/CLI 仍支持 Node.js 22+。
+
+桌面不内置聊天、模型、工具或业务页面；角色卡、扩展和连接器可分别导入公共库，再由用户自由组装 Agent；也可批量导入组合 ZIP。完整使用、组合包格式、SDK、安全与验收说明见 [桌面宿主](docs/desktop.md)。
 
 ## 命令
 
@@ -20,7 +24,7 @@ pnpm exec plums --help
 
 `pnpm test` 会先构建，再跑 Vitest。不带参数的 `plums` 打印 `@plums/core` 的版本号。
 
-里程碑 1 的命令行有 `import`、`inspect`、`enable`、`uninstall`、`export`。密钥只在内存里，没有真实外发。`share import`、真实的 `EgressSink` 和持久化 `SecretStore` 留到里程碑 2。
+里程碑 1 的命令行有 `import`、`inspect`、`enable`、`uninstall`、`export`。密钥只在内存里，没有真实外发。CLI 尚无 `share import`；真实 HTTPS、文件 I/O 与加密密钥存储由独立桌面宿主提供。
 
 数据目录默认是用户目录下的 `.plums`。`--home <目录>` 或环境变量 `PLUMS_HOME` 可以改掉。
 
@@ -34,7 +38,7 @@ pnpm exec plums --help
 
 ## 已知限制
 
-- 数据库格式现为 4，首次打开旧数据目录会从格式 2 经 3 自动升级，或从 3 升为 4，保留安装、同意、启用、MCP 和已有密钥引用。权限 JSON 不改写，同意记录另存清单格式版本；包文件不自动升级。旧内核拒绝打开升级后的目录。
+- 数据库格式现为 5，首次打开旧数据目录会按 2→3→4→5 自动升级，保留安装、同意、启用、MCP 和已有密钥引用。新增 2.x MCP 批准表；权限 JSON 不改写，同意记录另存清单格式版本；包文件不自动升级。旧内核拒绝打开升级后的目录。
 - 更新删除旧密钥失败时，新版本已经安装，返回 `SECRET_NOT_FOUND`，`details` 为 `{ id, version, reason: SECRET_CLEANUP_FAILED }`。包记录保留曾声明的密钥引用，后续更新或卸载会再次清理；底层删除错误不会外露。升级前已失去记录的孤儿引用无法自动找回。
 
 命令行：

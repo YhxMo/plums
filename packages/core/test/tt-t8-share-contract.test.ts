@@ -12,15 +12,14 @@ import {
   type EgressResult,
 } from "@plums/core";
 import { afterEach, describe, expect, it } from "vitest";
+import { serializeError } from "./contract-helpers.js";
 import { expectPlumsError, listAll, makeCore, manifestZip, validManifest } from "./package-helpers.js";
 
 /**
  * Share and URL import contract.
- * 基线不同、故意自包含、故意绕过 API。
- * The other test PRs sit on different baselines, so this file keeps its own world()
- * and does not import their helpers. Leak checks use the local serializeError, which
- * walks the whole cause chain, including non-enumerable error properties.
- * @plums/core does not export that function. One case clears confirm.ask after createCore.
+ * Leak checks use the shared serializeError helper, which walks the whole cause
+ * chain, including non-enumerable error properties.
+ * One case clears confirm.ask after createCore.
  */
 
 const FIXTURES = path.join(path.dirname(fileURLToPath(import.meta.url)), "fixtures", "packages");
@@ -75,24 +74,6 @@ function diskFiles(dir: string): Record<string, string> {
       .filter((name) => statSync(path.join(dir, name)).isFile())
       .map((name) => [name, readFileSync(path.join(dir, name)).toString("latin1")]),
   );
-}
-
-/** Everything an error shows a caller, including the whole `cause` chain. `JSON.stringify` on an Error is `{}`, so a secret sitting only in `cause` would otherwise slip past. */
-function serializeError(err: unknown, seen = new WeakSet<object>()): string {
-  if (err === null || typeof err !== "object") return JSON.stringify(err) ?? String(err);
-  if (seen.has(err)) return "[circular]";
-  seen.add(err);
-  if (err instanceof Error) {
-    const own = Object.fromEntries(Object.getOwnPropertyNames(err).map((key) => [key, (err as never)[key]]));
-    return JSON.stringify({
-      ...Object.fromEntries(Object.entries(own).map(([key, value]) => [key, serializeError(value, seen)])),
-      name: err.name,
-      message: err.message,
-      stack: err.stack,
-      cause: err.cause === undefined ? undefined : serializeError(err.cause, seen),
-    });
-  }
-  return JSON.stringify(err, (_key, value: unknown) => (value instanceof Error ? serializeError(value, seen) : value));
 }
 
 /** Every byte value, so a text round trip that is not latin1 would corrupt it. */

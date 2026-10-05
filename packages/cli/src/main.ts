@@ -5,7 +5,6 @@ import path from "node:path";
 import { parseArgs } from "node:util";
 import { fileURLToPath } from "node:url";
 import {
-  FakeModelProvider,
   MemorySecretStore,
   PlumsError,
   RecordingEgressSink,
@@ -224,15 +223,8 @@ function imported(pkg: ImportedPackage) {
 function openCore(dataDir: string): Core {
   return createCore({
     dataDir,
-    model: new FakeModelProvider(),
     // The kernel exports no real sink. This one never opens a socket.
     egress: new RecordingEgressSink(),
-    // This milestone never calls a confirming action. A kernel prompt here would be a blind yes.
-    confirm: {
-      async ask() {
-        return false;
-      },
-    },
     secrets: new MemorySecretStore(),
   });
 }

@@ -1,12 +1,17 @@
+import * as mcpV2 from "./mcp/tools-v2.js";
+import type { McpApprovalV2 } from "./install/store.js";
+import { requireInstalled, requireManifest } from "./install/lifecycle.js";
+import type { Manifest } from "./package/types.js";
 import { rm } from "node:fs/promises";
 import { IMPORT_INVALID, PlumsError, SECRET_NOT_FOUND } from "./errors.js";
 import path from "node:path";
 import { runAction, type ActionResult, type RunActionInput } from "./actions/run-action.js";
 import { runCapability } from "./capabilities/run-capability.js";
-import { DEFAULT_CONFIRM_TIMEOUT_MS, type AuditHandler, type CapabilityResult, type ExecSink, type FsSink, type RunCapabilityInput } from "./capabilities/types.js";
+import { copyDelegatedInput } from "./capabilities/request.js";
+import { DEFAULT_CONFIRM_TIMEOUT_MS, type AuditHandler, type CapabilityResult, type ExecSink, type FsSink, type RunCapabilityInput, type RunDelegatedCapabilityInput } from "./capabilities/types.js";
 import * as lifecycle from "./install/lifecycle.js";
 import { acceptResidualSettings, refuseOrphanSettings } from "./install/check-settings.js";
-import { setSettings, resolveSettings, knownSecrets } from "./install/settings.js";
+import { setSettings, resolveSettings, knownSecrets, describeSettings, type SettingsDescription } from "./install/settings.js";
 import { redact } from "./redact.js";
 import { InstallStore, type ConsentRecord, type InstalledPackage } from "./install/store.js";
 import {
@@ -22,12 +27,14 @@ import {
 } from "./mcp/tools.js";
 import type { PermissionLevel } from "./package/types.js";
 import type { Confirm, EgressSink, ModelProvider, SecretStore } from "./types.js";
-import { exportPackage, type ExportInput, type ExportOptions } from "./package/export.js";
-import { fetchSharedPackage, shareToFile } from "./share.js";
+import { exportPackage, preparePackage, type ExportInput, type ExportOptions } from "./package/export.js";
+import { assertSafeEntryPath } from "./package/entry-path.js";
+import { fetchSharedPackage, shareToFile, readInstalledFiles } from "./share.js";
 import { inspectPackage, type PackageInspection } from "./package/inspect.js";
 import { PACKAGES_DIR, publishStaged, stagePackage } from "./package/install.js";
 import {
   DEFAULT_PACKAGE_LIMITS,
+  MANIFEST_FILE,
   type PackageContents,
   type PackageLimits,
 } from "./package/types.js";
@@ -36,7 +43,7 @@ import { VERSION } from "./version.js";
 
 export interface CreateCoreOptions {
   dataDir: string;
-  model: ModelProvider;
+  model?: ModelProvider;
   egress: EgressSink;
   /** Missing confirmation denies every action that needs it. */
   confirm?: Confirm;
@@ -155,6 +162,15 @@ export interface Core {
    */
   uninstall(id: string): Promise<void>;
   listInstalled(): Promise<InstalledPackage[]>;
+  getSecretReferences(id: string): Promise<string[]>;
+  getPackageContents(id: string): Promise<PackageContents>;
+  getPackage(id: string): Promise<{ installed: InstalledPackage; manifest: Manifest }>;
+  describeSettings(id: string): Promise<SettingsDescription>;
+  runDelegatedCapability(input: RunDelegatedCapabilityInput): Promise<CapabilityResult>;
+  checkMcpToolsV2(id: string, tools: McpTool[]): Promise<McpToolCheck[]>;
+  approveMcpToolsV2(id: string, permissionId: string, tools: McpTool[]): Promise<McpApprovalV2[]>;
+  authorizeMcpToolV2(id: string, permissionId: string, tool: McpTool): Promise<void>;
+  getMcpApprovalsV2(id: string): Promise<McpApprovalV2[]>;
   /**
    * Runs one permission-checked action of an installed 1.x extension. A 2.x package is
    * PERMISSION_DENIED at `/formatVersion` (reason FORMAT_API_MISMATCH).
@@ -242,7 +258,7 @@ export function createCore(options: CreateCoreOptions): Core {
     throw new TypeError("createCore options are required");
   }
   const dataDir = requireNonEmptyString(options.dataDir, "dataDir");
-  requireMethod(options.model, "model", "complete");
+  if (options.model !== undefined) requireMethod(options.model, "model", "complete");
   requireMethod(options.egress, "egress", "send");
   if (options.confirm !== undefined) requireMethod(options.confirm, "confirm", "ask");
   requireMethod(options.secrets, "secrets", "get");
@@ -366,6 +382,26 @@ export function createCore(options: CreateCoreOptions): Core {
       return lifecycle.uninstall(ctx, id);
     }),
     listInstalled: guard(async () => store.list()),
+    getSecretReferences: guard(async (id) => { requireInstalled(ctx, id); return store.getSecretRefs(id); }),
+    getPackageContents: guard(async (id) => {
+      requireInstalled(ctx, id);
+      const manifest = requireManifest(ctx, id);
+      const files = await readInstalledFiles(path.join(resolvedDataDir, PACKAGES_DIR, id));
+      const checked = preparePackage({ manifest, files }, limits, await knownSecrets(ctx));
+      assertSafeEntryPath(MANIFEST_FILE, limits);
+      return { manifest: checked.manifest, files: Object.fromEntries(checked.files.map(([name, data]) => [name, new Uint8Array(data)])) };
+    }),
+    getPackage: guard(async (id) => ({ installed: requireInstalled(ctx, id), manifest: requireManifest(ctx, id) })),
+    describeSettings: guard((id) => describeSettings(ctx, id)),
+    runDelegatedCapability: (raw) => {
+      const input = copyDelegatedInput(raw);
+      const gate = input.mcpTool ? () => mcpV2.authorizeMcpToolV2(ctx, input.packageId, input.permissionId, input.mcpTool!) : undefined;
+      return runCapability(capabilityCtx, { extensionId: input.packageId, permissionId: input.permissionId, request: input.request }, input.callers, true, gate);
+    },
+    checkMcpToolsV2: guard(async (id, tools) => mcpV2.checkMcpToolsV2(ctx, id, tools)),
+    approveMcpToolsV2: guard(async (id, permissionId, tools) => mcpV2.approveMcpToolsV2(ctx, id, permissionId, tools)),
+    authorizeMcpToolV2: guard(async (id, permissionId, tool) => mcpV2.authorizeMcpToolV2(ctx, id, permissionId, tool)),
+    getMcpApprovalsV2: guard(async (id) => { requireInstalled(ctx, id); return store.listMcpV2(id); }),
     runAction: guard((input) => runAction({ ...ctx, egress: options.egress, confirm }, input)),
     // This entry point owns its redaction so an audit failure cannot obscure executionState.
     runCapability: (input) => runCapability(capabilityCtx, input),

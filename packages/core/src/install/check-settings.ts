@@ -15,7 +15,7 @@ type Settings = Record<string, unknown>;
 
 type BoundFailure = Exclude<SettingValueFailure, "TYPE">;
 
-export type SettingsFailureReason = BoundFailure | "REQUIRED" | "TYPE" | "NOT_JSON" | "NO_SCHEMA";
+type SettingsFailureReason = BoundFailure | "REQUIRED" | "TYPE" | "NOT_JSON" | "NO_SCHEMA";
 
 /** One place for `<dataDir>/data/<id>/settings.json`. Why: the path used to be joined twice, and the two copies could drift. */
 export function settingsFilePath(dataDir: string, id: string): string {

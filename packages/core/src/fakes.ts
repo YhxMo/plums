@@ -65,7 +65,7 @@ export class RecordingEgressSink implements EgressSink {
 
   constructor(
     private readonly redirects: Readonly<Record<number, string>> = {},
-    private readonly response: { status?: number; body?: string; error?: unknown } = {},
+    private readonly response: { status?: number; body?: string; headers?:Record<string,string>; error?: unknown } = {},
   ) {}
 
   async send(req: EgressRequest): Promise<EgressResult> {
@@ -76,13 +76,15 @@ export class RecordingEgressSink implements EgressSink {
     if (req.body !== undefined) {
       record.body = req.body;
     }
+    if(req.headers!==undefined)record.headers={...req.headers};
+    if(req.stream!==undefined)record.stream=req.stream;
     this.records.push(record);
     if (this.response.error !== undefined) {
       throw this.response.error;
     }
     const redirectTo = this.redirects[this.records.length];
     return redirectTo === undefined
-      ? { status: this.response.status ?? 200, body: this.response.body ?? "" }
+      ? { status: this.response.status ?? 200, body: this.response.body ?? "", ...(this.response.headers?{headers:{...this.response.headers}}:{}) }
       : { status: 302, body: "", redirectTo };
   }
 }

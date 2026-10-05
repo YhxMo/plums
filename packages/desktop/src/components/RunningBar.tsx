@@ -1,0 +1,30 @@
+import { Icon } from "./Icon.js";
+import type { AgentRuntimeState } from "../shared/types.js";
+export function RunningBar({
+  runtime,
+  busy,
+  onReturn,
+  onStop,
+}: {
+  runtime: NonNullable<AgentRuntimeState>;
+  busy: boolean;
+  onReturn: () => void;
+  onStop: () => void;
+}) {
+  return (
+    <div className="running-bar" data-testid="running-bar">
+      <button className="ghost sm" disabled={busy} onClick={onReturn}>
+        <Icon name="back" size={16} />
+        返回
+      </button>
+      <span>
+        <span className="mini-avatar">{runtime.name.slice(0, 1)}</span>
+        <span className="running-name">{runtime.name}</span>
+        <i className="running-dot" />
+      </span>
+      <button className="ghost sm danger" disabled={busy} onClick={onStop}>
+        停止
+      </button>
+    </div>
+  );
+}

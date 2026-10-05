@@ -10,7 +10,7 @@ import {
   SECRET_NOT_FOUND,
 } from "../errors.js";
 import { acceptResidualSettings, PACKAGE_DATA_DIR } from "./check-settings.js";
-import { installPackage, PACKAGES_DIR } from "../package/install.js";
+import { PACKAGES_DIR, publishStaged, stagePackage } from "../package/install.js";
 import {
   isManifestV1,
   type Dependency,
@@ -169,7 +169,8 @@ export async function updatePackage(
   await rm(backup, { recursive: true, force: true });
   await rename(dir, backup);
   try {
-    await installPackage(ctx.dataDir, pkg);
+    const staging = await stagePackage(ctx.dataDir, pkg);
+    await publishStaged(staging, dir);
     ctx.store.recordUpdate(manifest, record);
   } catch (err) {
     await rm(dir, { recursive: true, force: true });

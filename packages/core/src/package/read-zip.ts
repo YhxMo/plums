@@ -9,6 +9,8 @@ export interface ZipEntryData {
   path: string;
   data: Uint8Array;
 }
+export interface ArchiveStatistics { totalFiles: number; totalBytes: number }
+export type ZipEntries = ZipEntryData[] & { statistics: ArchiveStatistics };
 
 const S_IFMT = 0o170000;
 const S_IFLNK = 0o120000;
@@ -21,11 +23,12 @@ const S_IFLNK = 0o120000;
 export async function readZipEntries(
   input: Uint8Array | string,
   limits: PackageLimits,
-): Promise<ZipEntryData[]> {
+): Promise<ZipEntries> {
   const zip = await openZip(input);
   try {
     const entries = await listEntries(zip, limits);
-    return await readEntries(zip, entries, limits);
+    const files = await readEntries(zip, entries, limits);
+    return Object.assign(files, { statistics: { totalFiles: zip.entryCount, totalBytes: files.reduce((n, e) => n + e.data.length, 0) } });
   } finally {
     zip.close();
   }
@@ -81,6 +84,7 @@ async function listEntries(zip: yauzl.ZipFile, limits: PackageLimits): Promise<P
         if (isSymlink(entry)) {
           throw importInvalid(`压缩包里不允许符号链接：${path}`);
         }
+        if(path.endsWith('/')&&entry.uncompressedSize!==0)throw importInvalid('压缩包目录条目不能携带文件内容。');
         paths.push(path);
         declaredTotal += entry.uncompressedSize;
         if (declaredTotal > limits.maxTotalBytes) {

@@ -14,11 +14,15 @@ export interface EgressRequest {
   url: string;
   method?: string;
   body?: string;
+  headers?: Record<string, string>;
+  /** The host may deliver chunks through its bound event channel. */
+  stream?: boolean;
 }
 
 export interface EgressResult {
   status: number;
   body: string;
+  headers?: Record<string, string>;
   /** Set when the answer is a redirect. The sink must not follow it, and the core does not follow it either. */
   redirectTo?: string;
 }
@@ -35,6 +39,9 @@ export interface EgressSink {
 
 export interface ConfirmRequest {
   message: string;
+  /** Optional presentation fields; never determine authorization. */
+  subject?: string;
+  action?: string;
   /** Where an egress or share download goes: normalized host, with the port when it is not 443. */
   host?: string;
   /** Why this is being asked. An action uses the manifest permission's `reason`. */

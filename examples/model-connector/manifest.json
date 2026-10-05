@@ -1,0 +1,63 @@
+{
+  "formatVersion": "2.0",
+  "kind": "connector",
+  "id": "model",
+  "name": "模型连接器",
+  "version": "1.0.0",
+  "description": "宿主注入凭据的 Chat Completions 模型适配。",
+  "dependencies": [],
+  "permissions": [
+    {
+      "id": "model-api",
+      "kind": "egress",
+      "target": "api.openai.com",
+      "reason": "请求配置的模型服务"
+    }
+  ],
+  "license": "Apache-2.0",
+  "payload": {
+    "plumsDesktop": {
+      "sdkVersion": "1",
+      "runtime": "runtime/main.js",
+      "contributes": {
+        "connectors": [
+          {
+            "name": "complete",
+            "title": "模型请求"
+          }
+        ]
+      },
+      "credentials": [
+        {
+          "permissionId": "model-api",
+          "setting": "apiKey",
+          "header": "Authorization",
+          "prefix": "Bearer "
+        }
+      ]
+    }
+  },
+  "settingsSchema": {
+    "type": "object",
+    "properties": {
+      "endpoint": {
+        "type": "string",
+        "title": "接口地址",
+        "description": "域名必须在此组件声明的权限范围内。",
+        "default": "https://api.openai.com/v1/chat/completions"
+      },
+      "model": {
+        "type": "string",
+        "title": "模型名称",
+        "description": "填写支持 Chat Completions 的模型名称。"
+      },
+      "apiKey": {
+        "type": "string",
+        "title": "API Key",
+        "description": "填写模型服务提供的 API Key，保存后不会向扩展显示。",
+        "x-secret": true
+      }
+    },
+    "required": ["model", "apiKey"]
+  }
+}

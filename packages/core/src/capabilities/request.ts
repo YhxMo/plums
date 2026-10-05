@@ -1,5 +1,5 @@
 import { PERMISSION_DENIED, PlumsError } from "../errors.js";
-import type { CapabilityRequest, RunCapabilityInput } from "./types.js";
+import type { CapabilityRequest, RunCapabilityInput, RunDelegatedCapabilityInput, CapabilityCaller } from "./types.js";
 
 function record(value: unknown): Record<string, unknown> {
   return fromCaller(() => {
@@ -29,7 +29,7 @@ function keys(value: Record<string, unknown>, allowed: string[]): void {
 }
 
 /** `/` is the only separator, on every host OS. Values never appear in errors. */
-export function relativePath(value: unknown): string {
+function relativePath(value: unknown): string {
   if (!text(value)) invalid();
   if (value.includes("\0") || value.includes("\\") || value.startsWith("/") || /^[a-z]:/i.test(value) || value.split("/").includes("..")) {
     throw new PlumsError({
@@ -80,11 +80,25 @@ export function copyInput(input: RunCapabilityInput): RunCapabilityInput {
       break;
     }
     case "egress":
-      keys(req, ["kind", "url", "method", "body"]);
+      keys(req, ["kind", "url", "method", "body", "headers", "stream"]);
       if (!text(req.url) || (req.method !== undefined && typeof req.method !== "string") || (req.body !== undefined && typeof req.body !== "string")) invalid();
-      request = { kind: "egress", url: req.url, ...(req.method !== undefined ? { method: req.method as string } : {}), ...(req.body !== undefined ? { body: req.body as string } : {}) };
+      if (req.stream !== undefined && typeof req.stream !== "boolean") invalid();
+      const headers = req.headers === undefined ? undefined : record(req.headers);
+      if (headers && Object.entries(headers).some(([k, v]) => !/^[!#$%&'*+.^_`|~0-9A-Za-z-]+$/.test(k) || typeof v !== "string" || /[\r\n\0]/.test(v))) invalid();
+      request = { kind: "egress", url: req.url, ...(req.method !== undefined ? { method: req.method as string } : {}), ...(req.body !== undefined ? { body: req.body as string } : {}), ...(headers ? { headers: headers as Record<string, string> } : {}), ...(req.stream !== undefined ? { stream: req.stream as boolean } : {}) };
       break;
     default: invalid();
   }
   return { extensionId: value.extensionId, permissionId: value.permissionId, request };
+}
+/** Host-provided identities and tool metadata follow the same defensive copy rules. */
+export function copyDelegatedInput(input:RunDelegatedCapabilityInput):RunDelegatedCapabilityInput{
+  const value=record(input);
+  const call=copyInput({extensionId:value.packageId,permissionId:value.permissionId,request:value.request} as RunCapabilityInput);
+  const callers=fromCaller(()=>{
+    if(!Array.isArray(value.callers)||value.callers.length>16)invalid();
+    return Array.from(value.callers,(raw)=>{const caller=record(raw);if(!text(caller.packageId)||!text(caller.permissionId))invalid();return{packageId:caller.packageId,permissionId:caller.permissionId} as CapabilityCaller;});
+  });
+  const mcpTool=value.mcpTool===undefined?undefined:fromCaller(()=>JSON.parse(JSON.stringify(record(value.mcpTool))) as RunDelegatedCapabilityInput['mcpTool']);
+  return{packageId:call.extensionId,permissionId:call.permissionId,callers,request:call.request,...(mcpTool?{mcpTool}:{})};
 }

@@ -155,6 +155,6 @@ it("migrates schema 2 without losing an installed package, consent or enabled st
   await core.uninstall(ID);
   expect(await secrets.get(REF)).toBeUndefined();
   const migrated = new Database(file);
-  try { expect(migrated.pragma("user_version", { simple: true })).toBe(4); }
+  try { expect(migrated.pragma("user_version", { simple: true })).toBe(5); }
   finally { migrated.close(); }
 });

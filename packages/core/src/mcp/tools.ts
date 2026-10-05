@@ -30,7 +30,9 @@ import { LEVEL_RANK, requireInstalled, requireLegacyManifest, type InstallContex
 import type { McpApproval } from "../install/store.js";
 import { ID_PATTERN } from "../package/schema.js";
 import type { PermissionLevel } from "../package/types.js";
-import type { Confirm } from "../types.js";
+import { knownSecrets } from "../install/settings.js";
+import { redact } from "../redact.js";
+import type { ConfirmRequest, Confirm } from "../types.js";
 
 /** Server ids of hand-added MCP services start with this. Package ids cannot contain a colon. */
 const MANUAL_PREFIX = "manual:";
@@ -160,8 +162,8 @@ export function getMcpApprovals(ctx: InstallContext, serverId: string): McpServe
 export function checkMcpTools(ctx: InstallContext, serverId: string, tools: McpTool[]): McpToolCheck[] {
   requireToolArray(tools);
   resolveServer(ctx, serverId);
-  const list = validTools(tools);
-  const hashed = list.map((tool) => ({ name: tool.name, fingerprint: mcpToolFingerprint(tool) }));
+  assertValidTools(tools);
+  const hashed = tools.map((tool) => ({ name: tool.name, fingerprint: mcpToolFingerprint(tool) }));
   const approved = new Map(
     ctx.store.dropMcpApprovalsExcept(serverId, hashed.map((tool) => tool.name)).map((row) => [row.tool, row.fingerprint]),
   );
@@ -187,16 +189,16 @@ export function approveMcpTools(
 ): McpApproveResult {
   requireToolArray(tools);
   const unverified = resolveServer(ctx, serverId);
-  const list = validTools(tools);
+  assertValidTools(tools);
   for (const name of allowNonRead) {
-    if (!list.some((t) => t.name === name)) {
+    if (!tools.some((t) => t.name === name)) {
       throw new TypeError(`allowNonRead names a tool that is not in the list: ${name}`);
     }
   }
   const declared = unverified ? [] : requireLegacyManifest(ctx, serverId).permissions;
   const result: McpApproveResult = { approved: [], skipped: [] };
   const now = new Date().toISOString();
-  for (const tool of list) {
+  for (const tool of tools) {
     const level = unverified ? (tool.level ?? "write") : declared.find((p) => p.id === tool.name)?.level;
     if (level === undefined) {
       result.skipped.push({ tool: tool.name, reason: "NOT_DECLARED" });
@@ -221,32 +223,32 @@ export async function authorizeMcpTool(
   serverId: string,
   tool: McpTool,
 ): Promise<{ level: PermissionLevel }> {
-  const [checked] = validTools([tool]) as [McpTool];
-  const first = gate(ctx, serverId, checked);
+  assertValidTools([tool]);
+  const first = gate(ctx, serverId, tool);
   if (first.level === "read") {
     return { level: first.level };
   }
   let yes = false;
   try {
     const what = first.level === "egress" ? "把数据发送到外部服务" : "修改你的数据";
-    const message = `「${first.name}」想用工具「${checked.name}」${what}。允许吗?`;
+    const message = `「${first.name}」想用工具「${tool.name}」${what}。允许吗?`;
     // The description and inputSchema are left out: both are untrusted and can be arbitrarily long.
-    yes = (await ctx.confirm.ask({ message, ...(first.reason ? { reason: first.reason } : {}) })) === true;
+    yes = (await ctx.confirm.ask(redact({ subject: first.name, action: `「${first.name}」想用工具「${tool.name}」${what}。`, message, ...(first.reason ? { reason: first.reason } : {}) }, await knownSecrets(ctx)) as ConfirmRequest)) === true;
   } catch {
     // A missing or failing confirm counts as "no".
   }
   if (!yes) {
     throw new PlumsError({
       code: CONFIRMATION_DENIED,
-      message: `你没有确认，「${first.name}」的工具「${checked.name}」没有执行。`,
-      path: toolPath(checked.name),
-      details: { id: serverId, tool: checked.name },
+      message: `你没有确认，「${first.name}」的工具「${tool.name}」没有执行。`,
+      path: toolPath(tool.name),
+      details: { id: serverId, tool: tool.name },
     });
   }
   // The answer can take a while. A different level now must not run as the one the user saw.
-  const second = gate(ctx, serverId, checked);
+  const second = gate(ctx, serverId, tool);
   if (second.level !== first.level) {
-    throw levelMismatch(second.name, serverId, checked.name, toolPath(checked.name));
+    throw levelMismatch(second.name, serverId, tool.name, toolPath(tool.name));
   }
   return { level: second.level };
 }
@@ -355,7 +357,7 @@ function requireToolArray(tools: McpTool[]): void {
   }
 }
 
-function validTools(tools: McpTool[]): McpTool[] {
+function assertValidTools(tools: McpTool[]): void {
   const seen = new Set<string>();
   for (const tool of tools) {
     if (tool === null || typeof tool !== "object" || typeof tool.name !== "string" || !TOOL_NAME.test(tool.name)) {
@@ -372,7 +374,6 @@ function validTools(tools: McpTool[]): McpTool[] {
     }
     seen.add(tool.name);
   }
-  return tools;
 }
 
 function toolPath(name: string): string {

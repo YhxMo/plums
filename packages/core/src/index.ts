@@ -91,3 +91,8 @@ export type {
   SettingSpec,
   SettingsSchema,
 } from "./package/types.js";
+
+export { readArchive, readArchiveDetails, createArchive } from "./package/archive.js";
+export type { SettingsDescription } from "./install/settings.js";
+export type { McpApprovalV2 } from "./install/store.js";
+export type { CapabilityCaller, RunDelegatedCapabilityInput } from "./capabilities/types.js";

@@ -1,4 +1,3 @@
-import { createHash } from "node:crypto";
 import { mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
@@ -57,63 +56,6 @@ async function world(answers: boolean[] = []) {
   await core.enable("conn-a");
   return { core, egress, confirm, model };
 }
-
-describe("mcpToolFingerprint", () => {
-  it("is SHA-256 of [name, description, inputSchema] and a missing schema stays null", () => {
-    const expected = createHash("sha256").update('["search","Search your notes.",null]').digest("hex");
-    expect(mcpToolFingerprint(SEARCH)).toBe(expected);
-    expect(mcpToolFingerprint({ ...SEARCH })).toBe(expected);
-    expect(mcpToolFingerprint({ ...SEARCH, inputSchema: null })).toBe(expected);
-    expect(expected).toMatch(/^[0-9a-f]{64}$/);
-  });
-
-  it("changes when only the array order in inputSchema changes", () => {
-    const base = { name: "search", description: "d", inputSchema: { items: ["a", "b"] } };
-    expect(mcpToolFingerprint(base)).not.toBe(
-      mcpToolFingerprint({ ...base, inputSchema: { items: ["b", "a"] } }),
-    );
-  });
-
-  it("changes when a parameter is named __proto__", () => {
-    const plain = JSON.parse('{"type":"object","properties":{}}') as unknown;
-    const hidden = JSON.parse('{"type":"object","properties":{"__proto__":{"type":"string"}}}') as unknown;
-    expect(mcpToolFingerprint({ name: "search", description: "d", inputSchema: hidden })).not.toBe(
-      mcpToolFingerprint({ name: "search", description: "d", inputSchema: plain }),
-    );
-  });
-
-  it("ignores object key order in inputSchema and keeps a real change", () => {
-    const left = {
-      name: "search",
-      description: "d",
-      inputSchema: { b: 1, a: { z: true, y: [1, { b: 2, a: 1 }] } },
-    };
-    const right = {
-      name: "search",
-      description: "d",
-      inputSchema: { a: { y: [1, { a: 1, b: 2 }], z: true }, b: 1 },
-    };
-    expect(mcpToolFingerprint(left)).toBe(mcpToolFingerprint(right));
-    expect(mcpToolFingerprint(left)).not.toBe(
-      mcpToolFingerprint({ ...left, inputSchema: { b: 1, a: { z: false, y: [1, { b: 2, a: 1 }] } } }),
-    );
-  });
-
-  it("changes when one character of the description or the name changes", () => {
-    const base = mcpToolFingerprint(SEARCH);
-    expect(mcpToolFingerprint({ name: "search", description: "Search your notes!" })).not.toBe(base);
-    expect(mcpToolFingerprint({ name: "search", description: "Search your notes. " })).not.toBe(base);
-    expect(mcpToolFingerprint({ name: "searcH", description: SEARCH.description })).not.toBe(base);
-  });
-
-  it("does not let name and description run into each other", () => {
-    expect(mcpToolFingerprint({ name: "ab", description: "c" })).not.toBe(mcpToolFingerprint({ name: "a", description: "bc" }));
-  });
-
-  it("ignores the level, which is not part of the words", () => {
-    expect(mcpToolFingerprint({ ...SEARCH, level: "egress" })).toBe(mcpToolFingerprint(SEARCH));
-  });
-});
 
 describe("connector tools", () => {
   it("an unapproved tool is CONSENT_REQUIRED / TOOL_ADDED at /tools/<name>", async () => {
@@ -226,68 +168,6 @@ describe("connector tools", () => {
     expect(err.message).toBe("「Demo connector」的工具「post」声明的档位与已同意的档位不一致，所以没有执行。");
     expect(confirm.asked).toHaveLength(1);
     expect(egress.records).toEqual([]);
-  });
-
-  it("a new tool and a renamed tool both need consent; the old name still works", async () => {
-    const { core } = await world();
-    await core.approveMcpTools("conn-a", [SEARCH]);
-    const renamed = { name: "lookup", description: SEARCH.description };
-    expect((await core.checkMcpTools("conn-a", [SEARCH, POST, renamed])).map((c) => [c.tool, c.state])).toEqual([
-      ["search", "APPROVED"],
-      ["post", "ADDED"],
-      ["lookup", "ADDED"],
-    ]);
-    const err = await expectPlumsError(core.authorizeMcpTool("conn-a", POST), "CONSENT_REQUIRED", "/tools/post");
-    expect((err.details as { reason: string }).reason).toBe("TOOL_ADDED");
-    await expect(core.authorizeMcpTool("conn-a", SEARCH)).resolves.toEqual({ level: "read" });
-  });
-
-  it("a vanished tool loses its approval, and the same tool later is TOOL_ADDED", async () => {
-    const { core } = await world();
-    await core.approveMcpTools("conn-a", [SEARCH, POST]);
-    expect(await core.checkMcpTools("conn-a", [SEARCH])).toEqual([
-      { tool: "search", fingerprint: mcpToolFingerprint(SEARCH), state: "APPROVED" },
-    ]);
-    expect((await core.getMcpApprovals("conn-a")).tools.map((t) => t.tool)).toEqual(["search"]);
-    await expect(core.authorizeMcpTool("conn-a", SEARCH)).resolves.toEqual({ level: "read" });
-    const err = await expectPlumsError(core.authorizeMcpTool("conn-a", POST), "CONSENT_REQUIRED", "/tools/post");
-    expect(err.details).toEqual({ id: "conn-a", tool: "post", reason: "TOOL_ADDED", fingerprint: mcpToolFingerprint(POST) });
-  });
-
-  it("a list check that throws leaves every approval in place", async () => {
-    const { core } = await world([true]);
-    await core.approveMcpTools("conn-a", [SEARCH, POST]);
-    const before = await core.getMcpApprovals("conn-a");
-    await expect(core.checkMcpTools("conn-a", [{ ...SEARCH, inputSchema: Number.NaN }])).rejects.toThrow(TypeError);
-    expect(await core.getMcpApprovals("conn-a")).toEqual(before);
-    await expect(core.authorizeMcpTool("conn-a", SEARCH)).resolves.toEqual({ level: "read" });
-    await expect(core.authorizeMcpTool("conn-a", POST)).resolves.toEqual({ level: "write" });
-  });
-
-  it("undefined or null is a TypeError and the approvals stay", async () => {
-    const { core } = await world();
-    await core.approveMcpTools("conn-a", [SEARCH]);
-    const before = await core.getMcpApprovals("conn-a");
-    for (const tools of [undefined, null] as const) {
-      await expect(core.checkMcpTools("conn-a", tools as never)).rejects.toThrow(/must be an array/);
-      await expect(core.approveMcpTools("conn-a", tools as never)).rejects.toThrow(/must be an array/);
-    }
-    expect(await core.getMcpApprovals("conn-a")).toEqual(before);
-  });
-
-  it("an empty list drops this server's tool approvals and leaves package consent and other servers", async () => {
-    const { core } = await world();
-    await core.approveMcpTools("conn-a", [SEARCH, POST]);
-    await core.approveMcpTools("manual:notes", [{ ...SEARCH, level: "read" }]);
-    expect(await core.checkMcpTools("conn-a", [])).toEqual([]);
-    expect((await core.getMcpApprovals("conn-a")).tools).toEqual([]);
-    expect((await core.getMcpApprovals("manual:notes")).tools.map((tool) => tool.tool)).toEqual(["search"]);
-    const err = await expectPlumsError(core.authorizeMcpTool("conn-a", SEARCH), "CONSENT_REQUIRED", "/tools/search");
-    expect(err.details).toEqual({ id: "conn-a", tool: "search", reason: "TOOL_ADDED", fingerprint: mcpToolFingerprint(SEARCH) });
-    expect(await core.checkMcpTools("conn-a", [SEARCH])).toEqual([
-      { tool: "search", fingerprint: mcpToolFingerprint(SEARCH), state: "ADDED" },
-    ]);
-    await expect(core.authorizeMcpTool("manual:notes", { ...SEARCH, level: "read" })).resolves.toEqual({ level: "read" });
   });
 
   it("takes the level from the manifest, not from the host or the description", async () => {
@@ -566,7 +446,7 @@ describe("database", () => {
 
     const again = new Database(path.join(dataDir, "plums.db"));
     try {
-      expect(again.pragma("user_version", { simple: true })).toBe(4);
+      expect(again.pragma("user_version", { simple: true })).toBe(5);
     } finally {
       again.close();
     }

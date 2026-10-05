@@ -13,7 +13,7 @@ const nonEmptyString = { type: "string", minLength: 1 } as const;
  * The envelope schema. It deliberately does not set `additionalProperties: false`
  * so unknown fields survive an import and export round trip.
  */
-export const MANIFEST_SCHEMA = {
+const MANIFEST_SCHEMA = {
   type: "object",
   required: [
     "formatVersion",
@@ -97,7 +97,7 @@ export const MANIFEST_SCHEMA = {
 const namedList = { type: "array", minItems: 1, uniqueItems: true, items: nonEmptyString } as const;
 
 /** Keep the common envelope and JSON representation; dispatch only the permissions schema. */
-export const MANIFEST_V2_SCHEMA = {
+const MANIFEST_V2_SCHEMA = {
   ...MANIFEST_SCHEMA,
   properties: {
     ...MANIFEST_SCHEMA.properties,

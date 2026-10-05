@@ -1,6 +1,6 @@
 # 2.x 能力调用与宿主执行接口
 
-`@plums/core` 0.2.0 提供 `core.runCapability({ extensionId, permissionId, request })`，只接受已安装、已同意并启用的 2.x extension。清单中的 `payload` 不参与授权。1.x 继续使用 `runAction` 和原 MCP 入口；2.x MCP 映射后续开发。
+`@plums/core` 0.2.0 提供 `core.runCapability({ extensionId, permissionId, request })`，只接受已安装、已同意并启用的 2.x extension。清单中的 `payload` 不参与授权。1.x 继续使用 `runAction` 和原 MCP 入口；2.x 连接器与调用链通过新增 `runDelegatedCapability` 和 MCP v2 批准接口运行，见文末。
 
 ## 创建与绑定
 
@@ -98,4 +98,25 @@ Sink 或审计失败使用 `CAPABILITY_FAILED`，details 为 `{ callId, phase, e
 | unknown | 已进入 Sink，但抛错或返回值不符合接口；可能已有副作用，核对宿主记录，勿自动重试 |
 | completed | Sink 已返回，结果审计失败；动作已完成，勿自动重试 |
 
-本入口每次只调用一次 Sink，不自动重试。审计实现与存储可靠性由宿主负责，生命周期审计、范围预授权和 2.x MCP 留到后续。
+本入口每次只调用一次 Sink，不自动重试。审计实现与存储可靠性由宿主负责，生命周期审计尚未实现；桌面首版不提供范围预授权。
+
+
+## 桌面宿主与调用链
+
+`createCore` 的 `model` 为可选，原调用兼容；core 不运行模型循环。新增 `getPackage(id)`、`getPackageContents(id)`、`describeSettings(id)` 和 `getSecretReferences(id)` 供可信宿主读取。`describeSettings` 返回 schema、脱敏 values 和字段是否已配置的 secrets 布尔映射，不返回密钥值或引用；历史密钥引用仍参与脱敏、卸载和导出检查。
+
+```ts
+await core.runDelegatedCapability({
+  packageId: 'connector', permissionId: 'send',
+  callers: [{ packageId: 'extension', permissionId: 'model-access' }],
+  request: { kind: 'egress', url: 'https://api.example.com',
+    headers: { Accept: 'application/json' }, stream: true },
+  mcpTool: { name: 'lookup', description: 'Lookup', inputSchema: { type: 'object' } }
+});
+```
+
+新入口接受 2.x extension/connector，最多 16 个调用者。身份链必须由可信宿主建立，每层检查安装/启用/声明/同意和相同请求范围；确认后及异步审计后再次检查。`callerIds` 仅记录包标识，审计不带调用内容。headers、stream、调用链和工具 schema 在等待前复制；结果可带响应头。
+
+`checkMcpToolsV2(id, completeTools)` 核对完整列表并撤销消失或变化的批准；`approveMcpToolsV2(id, permissionId, tools)` 仅由宿主在用户批准后调用。`authorizeMcpToolV2` 只检查、不执行；实际工具请求使用 `runDelegatedCapability` 的 mcpTool，在确认和审计后复核同一指纹。新版批准存于数据库 5 独立表，旧 MCP 表和旧入口不变。
+
+真实适配器、隔离和外装包约定见 [desktop.md](desktop.md)。core 仍不解释 payload、不运行第三方代码，不负责网络解析或真实 I/O 隔离。

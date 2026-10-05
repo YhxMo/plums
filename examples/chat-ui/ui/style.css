@@ -1,0 +1,148 @@
+* {
+  box-sizing: border-box;
+}
+body {
+  margin: 0;
+  background: #f8f6fb;
+  color: #332842;
+  font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+  display: flex;
+  height: 100vh;
+}
+aside {
+  width: 230px;
+  background: #eae2f3;
+  padding: 38px 28px;
+  display: flex;
+  flex-direction: column;
+}
+h1 {
+  font-size: 30px;
+  letter-spacing: -1px;
+  color: #714b91;
+}
+h1 span {
+  font-weight: 300;
+  display: block;
+  font-size: 22px;
+}
+aside button {
+  margin-top: 25px;
+  border: 0;
+  background: #f7f2fc;
+  padding: 12px;
+  border-radius: 9px;
+  color: #826198;
+  cursor: pointer;
+}
+.hint {
+  margin-top: auto;
+  font-size: 11px;
+  line-height: 2;
+  color: #9b85ac;
+}
+main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  padding: 30px 55px;
+}
+header {
+  display: flex;
+  justify-content: space-between;
+  gap: 25px;
+  font-size: 13px;
+  border-bottom: 1px solid #e8dfef;
+  padding-bottom: 23px;
+}
+header span {
+  font-size: 11px;
+  color: #a38eaf;
+}
+#messages {
+  flex: 1;
+  overflow: auto;
+  padding: 30px 0;
+}
+.welcome {
+  margin-top: 12vh;
+  text-align: center;
+}
+h2 {
+  font-size: 28px;
+  font-weight: 500;
+}
+.welcome p {
+  font-size: 13px;
+  line-height: 2;
+  color: #a68db5;
+}
+.orb {
+  margin: auto;
+  width: 70px;
+  height: 70px;
+  border-radius: 22px;
+  background: #e9ddf3;
+  color: #9d77b5;
+  display: grid;
+  place-items: center;
+  font-size: 36px;
+}
+form {
+  display: flex;
+  background: white;
+  border: 1px solid #ded0e9;
+  border-radius: 13px;
+  padding: 15px;
+  gap: 15px;
+}
+textarea {
+  border: 0;
+  resize: none;
+  font: inherit;
+  font-size: 13px;
+  flex: 1;
+  outline: none;
+  color: #483453;
+  background: transparent;
+}
+form button {
+  border: 0;
+  border-radius: 8px;
+  background: #83559e;
+  color: white;
+  padding: 12px 20px;
+  cursor: pointer;
+}
+button:disabled {
+  opacity: 0.5;
+}
+#status {
+  height: 25px;
+  font-size: 11px;
+  color: #ab8095;
+}
+article {
+  padding: 18px 22px;
+  border-radius: 12px;
+  margin-bottom: 18px;
+  font-size: 13px;
+  line-height: 1.8;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+article.user {
+  background: #eee6f5;
+  margin-left: 15%;
+}
+article.assistant {
+  background: white;
+  border: 1px solid #eee8f4;
+  margin-right: 15%;
+}
+article small {
+  font-size: 10px;
+  color: #ad90bf;
+  display: block;
+  margin-bottom: 7px;
+}

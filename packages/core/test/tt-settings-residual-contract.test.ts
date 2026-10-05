@@ -2,6 +2,7 @@ import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import type { Manifest, SettingsSchema } from "@plums/core";
 import { describe, expect, it } from "vitest";
+import { serializeError } from "./contract-helpers.js";
 import { expectPlumsError, makeCore, manifestZip, validManifest } from "./package-helpers.js";
 
 /**
@@ -13,28 +14,11 @@ import { expectPlumsError, makeCore, manifestZip, validManifest } from "./packag
  * These tests assert the installed end state. They do not look for a backup
  * directory: the leftover check runs before any files are moved.
  *
- * 基线不同、故意自包含、故意绕过 API。Leak checks use the local serializeError.
- * @plums/core does not export that function. Nothing here imports checkSettings.
+ * Leak checks use the shared serializeError helper, including non-enumerable
+ * error properties and the whole cause chain.
  */
 
 const MARK = "plums-settings-LEAK-9f3a7c1e";
-
-function serializeError(err: unknown, seen = new WeakSet<object>()): string {
-  if (err === null || typeof err !== "object") return JSON.stringify(err) ?? String(err);
-  if (seen.has(err)) return "[circular]";
-  seen.add(err);
-  if (err instanceof Error) {
-    const own = Object.fromEntries(Object.getOwnPropertyNames(err).map((key) => [key, (err as never)[key]]));
-    return JSON.stringify({
-      ...Object.fromEntries(Object.entries(own).map(([key, value]) => [key, serializeError(value, seen)])),
-      name: err.name,
-      message: err.message,
-      stack: err.stack,
-      cause: err.cause === undefined ? undefined : serializeError(err.cause, seen),
-    });
-  }
-  return JSON.stringify(err, (_key, value: unknown) => (value instanceof Error ? serializeError(value, seen) : value));
-}
 
 function pack(settings: SettingsSchema | undefined, version: string): Manifest {
   const manifest = validManifest();

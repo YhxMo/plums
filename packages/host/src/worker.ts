@@ -1,0 +1,163 @@
+import ivm from "isolated-vm";
+import path from "node:path";
+
+const send = (value: unknown) => process.send?.(value);
+let isolate: ivm.Isolate;
+let context: ivm.Context;
+let timer: ReturnType<typeof setTimeout> | undefined;
+let disposed = false;
+let active = "";
+let cpuMs = 0;
+const bootstrap = String.raw`
+(() => {
+  const out = [], pending = new Map(), handlers = new Map(), failures=new WeakMap(), events=new Map(); let next = 0;
+  const rpc = (method, args) => new Promise((resolve, reject) => {
+    const id = ++next; pending.set(id, {resolve, reject}); out.push({type:'rpc', id, method, args});
+  });
+  const sdk = Object.freeze({
+    register(kind, name, fn) { if(typeof fn !== 'function') throw Error('Invalid handler'); handlers.set(kind+':'+name, fn); },
+    invoke: (packageId, kind, name, input) => rpc('invoke', {packageId, kind, name, input}),
+    capability: (permissionId, request, mcpTool) => rpc('capability', {permissionId, request, mcpTool}),
+    character: (packageId) => rpc('character', {packageId}), characters: () => rpc('characters', {}), settings: () => rpc('settings', {}),
+    emit: (topic, data) => rpc('emit', {topic, data}), mcpCheck: (tools) => rpc('mcpCheck', {tools})
+    ,onEvent(topic,fn){if(typeof topic!=='string'||typeof fn!=='function')throw Error('Invalid listener');let listeners=events.get(topic);if(!listeners){listeners=new Set();events.set(topic,listeners);}listeners.add(fn);return()=>listeners.delete(fn);}
+  });
+  Object.defineProperty(globalThis, 'plums', {value:sdk});
+  globalThis.__drain = () => out.splice(0);
+  globalThis.__settle = (id, ok, value) => { const p=pending.get(id); if(p){pending.delete(id); if(ok)p.resolve(value);else{const error=Object.assign(Error(value?.message || 'Host request denied'),{code:value?.code,path:value?.path,details:value?.details});failures.set(error,value?.failureId);p.reject(error);}} };
+  globalThis.__done = (id, ok, value) => out.push({type:'result', id, ok, value});
+  globalThis.__event = (id, topic, event) => {Promise.all([...(events.get(topic)||[])].map(fn=>Promise.resolve().then(()=>fn(event)))).then(()=>__done(id,true,null),()=>__done(id,false,null));};
+  globalThis.__invoke = (id, kind, name, input) => {
+    const fn=handlers.get(kind+':'+name);
+    Promise.resolve().then(()=>{if(!fn)throw Error('Handler not registered');return fn(input)}).then(v=>__done(id,true,v===undefined?null:v),error=>__done(id,false,{failureId:failures.get(error)}));
+  };
+})();`;
+async function evaluate(source: string): Promise<unknown> {
+  const start = performance.now();
+  const result = await context.eval(source, { timeout: 5000, copy: true });
+  if (active) {
+    cpuMs += performance.now() - start;
+    if (cpuMs > 5000) throw Error("CPU budget exceeded");
+  }
+  return result;
+}
+async function pump(): Promise<void> {
+  if (disposed) return;
+  try {
+    const wire = (await evaluate("JSON.stringify(__drain())")) as string;
+    if (Buffer.byteLength(wire) > 1024 * 1024) throw Error("Message limit");
+    for (const item of JSON.parse(wire)) {
+      if (item.type === "result" && item.id === active) {
+        active = "";
+        cpuMs = 0;
+      }
+      send(item);
+    }
+    send({ type: "heartbeat", rss: process.memoryUsage().rss });
+    timer = setTimeout(() => {
+      void pump();
+    }, 10);
+  } catch {
+    disposed = true;
+    send({ type: "fatal" });
+    process.exit(1);
+  }
+}
+process.on("message", async (raw: unknown) => {
+  const m = raw as {
+    type: string;
+    files: Record<string, string>;
+    entry: string;
+    id: string;
+    kind: string;
+    name: string;
+    input: unknown;
+    ok: boolean;
+    value: unknown;
+    topic: string;
+    event: unknown;
+  };
+  try {
+    if (m.type === "start") {
+      isolate = new ivm.Isolate({
+        memoryLimit: 64,
+        onCatastrophicError: () => process.abort(),
+      });
+      context = await isolate.createContext();
+      await evaluate(bootstrap);
+      const modules = new Map<string, ivm.Module>();
+      const load = async (at: string): Promise<ivm.Module> => {
+        if (!Object.hasOwn(m.files, at)) throw Error("Module missing");
+        let module = modules.get(at);
+        if (!module) {
+          module = await isolate.compileModule(m.files[at]!);
+          modules.set(at, module);
+        }
+        return module;
+      };
+      const entry = await load(m.entry);
+      await entry.instantiate(context, async (specifier, referrer) => {
+        if (!specifier.startsWith("./") && !specifier.startsWith("../"))
+          throw Error("External imports denied");
+        const owner = [...modules].find(([, mod]) => mod === referrer)?.[0];
+        if (!owner) throw Error("Unknown module");
+        const at = path.posix.normalize(
+          path.posix.join(path.posix.dirname(owner), specifier),
+        );
+        if (at.startsWith("../") || at.startsWith("/"))
+          throw Error("Module escape");
+        return load(at);
+      });
+      active = "start";
+      await entry.evaluate({ timeout: 5000 });
+      const activate = await entry.namespace.get("activate", {
+        reference: true,
+      });
+      await context.global.set("__activate", activate.derefInto());
+      const deactivate = await entry.namespace.get("deactivate", {
+        reference: true,
+      });
+      if ((await deactivate.typeof) === "function")
+        await context.global.set("__deactivate", deactivate.derefInto());
+      await evaluate(
+        "Promise.resolve().then(()=>__activate(plums)).then(()=>__done('start',true,null),()=>__done('start',false,null));void 0",
+      );
+      void pump();
+    } else if (m.type === "stop") {
+      if (timer) clearTimeout(timer);
+      await context.eval(
+        "if(typeof __deactivate==='function')__deactivate();void 0",
+        { timeout: 500 },
+      );
+      disposed = true;
+      isolate.dispose();
+      process.exit();
+    } else if (m.type === "event") {
+      active = m.id;
+      cpuMs = 0;
+      await evaluate(
+        `__event(${JSON.stringify(m.id)},${JSON.stringify(m.topic)},${JSON.stringify(m.event)});void 0`,
+      );
+    } else if (m.type === "invoke") {
+      active = m.id;
+      cpuMs = 0;
+      await evaluate(
+        `__invoke(${JSON.stringify(m.id)},${JSON.stringify(m.kind)},${JSON.stringify(m.name)},${JSON.stringify(m.input)});void 0`,
+      );
+    } else if (m.type === "reply") {
+      await evaluate(
+        `__settle(${JSON.stringify(m.id)},${m.ok === true},${JSON.stringify(m.value ?? null)});void 0`,
+      );
+    }
+  } catch {
+    disposed = true;
+    send({ type: "fatal" });
+    process.exit(1);
+  }
+});
+process.on("disconnect", () => {
+  disposed = true;
+  if (timer) clearTimeout(timer);
+  isolate?.dispose();
+  process.exit();
+});

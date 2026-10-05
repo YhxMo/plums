@@ -1,0 +1,32 @@
+{
+  "formatVersion": "2.0",
+  "kind": "connector",
+  "id": "http-example",
+  "name": "HTTPS 连接测试",
+  "version": "1.0.0",
+  "description": "通过受控 HTTPS 请求检验连接。",
+  "dependencies": [],
+  "permissions": [
+    {
+      "id": "example-api",
+      "kind": "egress",
+      "target": "example.com",
+      "reason": "读取公开示例网页用于连接测试"
+    }
+  ],
+  "license": "Apache-2.0",
+  "payload": {
+    "plumsDesktop": {
+      "sdkVersion": "1",
+      "runtime": "runtime/main.js",
+      "contributes": {
+        "connectors": [
+          {
+            "name": "inspect",
+            "title": "测试 HTTPS 连接"
+          }
+        ]
+      }
+    }
+  }
+}

@@ -1,4 +1,3 @@
-import { createHash } from "node:crypto";
 import { mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -17,20 +16,17 @@ import {
   type PlumsError,
 } from "@plums/core";
 import { afterEach, describe, expect, it } from "vitest";
+import { serializeError } from "./contract-helpers.js";
 import { expectPlumsError, listAll, makeCore, manifestZip } from "./package-helpers.js";
 
 /**
- * Contract tests for T9 (baseline 43d5be88). The kernel never connects to an MCP server:
+ * MCP approval contract tests. The kernel never connects to an MCP server:
  * every tool list is data passed in by the test.
- * 基线不同、故意自包含、故意绕过 API。
- * The other test PRs sit on different baselines, so this file keeps its own world() and
- * bypass() and does not import their helpers. Leak checks use the local serializeError,
- * which walks the whole cause chain, including non-enumerable error properties.
- * @plums/core does not export that function.
+ * Leak checks use the shared serializeError helper, which walks the whole cause
+ * chain, including non-enumerable error properties.
  *
  * A few states have no public way to build them (enabled with no consent, a consent that
- * no longer matches). Those two rows edit `packages` / `consents` and are marked in the
- * PR as sensitive to the table layout.
+ * no longer matches). Those two rows edit `packages` / `consents` directly.
  */
 
 const FIXTURES = path.join(path.dirname(fileURLToPath(import.meta.url)), "fixtures", "packages");
@@ -118,106 +114,10 @@ async function snap(w: World, ids: string[]) {
   };
 }
 
-/** Everything an error shows a caller, including the whole `cause` chain. `JSON.stringify` on an Error is `{}`, so a secret sitting only in a non-enumerable `cause` would otherwise slip past. */
-function serializeError(err: unknown, seen = new WeakSet<object>()): string {
-  if (err === null || typeof err !== "object") return JSON.stringify(err) ?? String(err);
-  if (seen.has(err)) return "[circular]";
-  seen.add(err);
-  if (err instanceof Error) {
-    const own = Object.fromEntries(Object.getOwnPropertyNames(err).map((key) => [key, (err as never)[key]]));
-    return JSON.stringify({
-      ...Object.fromEntries(Object.entries(own).map(([key, value]) => [key, serializeError(value, seen)])),
-      name: err.name,
-      message: err.message,
-      stack: err.stack,
-      cause: err.cause === undefined ? undefined : serializeError(err.cause, seen),
-    });
-  }
-  return JSON.stringify(err, (_key, value: unknown) => (value instanceof Error ? serializeError(value, seen) : value));
-}
-
 function expectNoLeak(err: PlumsError, asked: readonly { message: string; reason?: string }[] = []): void {
   const text = `${serializeError(err)}\n${JSON.stringify(asked)}`;
   expect(text).not.toContain(LEAK);
 }
-
-describe("mcpToolFingerprint", () => {
-  /** Missing schema and explicit null are both the JSON null in the hashed triple. */
-  const hash = (name: string, description: string, schema: unknown = null) =>
-    createHash("sha256").update(JSON.stringify([name, description, schema])).digest("hex");
-
-  it("is SHA-256 of [name, description, inputSchema], and a missing schema hashes as null", () => {
-    const once = mcpToolFingerprint(SEARCH);
-    expect(once).toBe(hash(SEARCH.name, SEARCH.description, null));
-    expect(once).toBe(mcpToolFingerprint({ ...SEARCH, inputSchema: null }));
-    expect(once).toBe(mcpToolFingerprint({ name: SEARCH.name, description: SEARCH.description }));
-    expect(once).toMatch(/^[0-9a-f]{64}$/);
-  });
-
-  const changed: [string, McpTool][] = [
-    ["one character in the description", { name: "search", description: `${LEAK} search!` }],
-    ["a trailing space", { name: "search", description: `${LEAK} search ` }],
-    ["different case in the name", { name: "Search", description: SEARCH.description }],
-    ["different case in the description", { name: "search", description: SEARCH.description.replace("LEAK", "leak") }],
-    ["a quote inside the description", { name: "search", description: `${LEAK} "quoted"` }],
-    ["only the inputSchema", { ...SEARCH, inputSchema: { type: "object" } }],
-  ];
-  it.each(changed)("changes when %s", (_name, next) => {
-    expect(mcpToolFingerprint(next)).not.toBe(mcpToolFingerprint(SEARCH));
-  });
-
-  it("sorts object keys and keeps array order, and ignores level", () => {
-    const nested = { b: 1, a: { d: true, c: ["x", "y"] } };
-    const sorted = { a: { c: ["x", "y"], d: true }, b: 1 };
-    expect(mcpToolFingerprint({ ...SEARCH, inputSchema: nested })).toBe(hash(SEARCH.name, SEARCH.description, sorted));
-    expect(mcpToolFingerprint({ ...SEARCH, inputSchema: { a: 1, b: undefined } })).toBe(
-      hash(SEARCH.name, SEARCH.description, { a: 1 }),
-    );
-    expect(mcpToolFingerprint({ ...SEARCH, inputSchema: ["x", "y"] })).not.toBe(
-      mcpToolFingerprint({ ...SEARCH, inputSchema: ["y", "x"] }),
-    );
-    const withLevel: McpTool = { ...SEARCH, level: "egress" };
-    expect(mcpToolFingerprint(withLevel)).toBe(mcpToolFingerprint(SEARCH));
-    expect(mcpToolFingerprint({ name: "ab", description: "c" })).not.toBe(mcpToolFingerprint({ name: "a", description: "bc" }));
-  });
-
-  it("keeps a __proto__ key on a null-prototype object in the hash", () => {
-    const hidden = Object.create(null) as Record<string, unknown>;
-    hidden.type = "object";
-    const properties = Object.create(null) as Record<string, unknown>;
-    properties.__proto__ = { type: "string" };
-    hidden.properties = properties;
-    const plain = { type: "object", properties: {} };
-    expect(mcpToolFingerprint({ ...SEARCH, inputSchema: hidden })).not.toBe(
-      mcpToolFingerprint({ ...SEARCH, inputSchema: plain }),
-    );
-  });
-
-  /** Depth starts at 1 on the root. A value at depth 64 is the last one accepted. */
-  const nest = (depth: number): unknown => {
-    let node: unknown = "x";
-    for (let i = 1; i < depth; i += 1) node = { n: node };
-    return node;
-  };
-
-  it("accepts a schema of exactly 64 levels and exactly 256 KiB", () => {
-    expect(() => mcpToolFingerprint({ ...SEARCH, inputSchema: nest(64) })).not.toThrow();
-    const room = 256 * 1024 - Buffer.byteLength(JSON.stringify({ blob: "" }));
-    const exact = { blob: "x".repeat(room) };
-    expect(Buffer.byteLength(JSON.stringify(exact))).toBe(256 * 1024);
-    expect(() => mcpToolFingerprint({ ...SEARCH, inputSchema: exact })).not.toThrow();
-  });
-
-  it("rejects NaN, Infinity, a non-plain object, 65 levels, or more than 256 KiB", () => {
-    class Box {
-      n = 1;
-    }
-    const bad = [Number.NaN, Number.POSITIVE_INFINITY, new Date(), new Map(), new Box(), nest(65), { blob: "x".repeat(256 * 1024) }];
-    for (const inputSchema of bad) {
-      expect(() => mcpToolFingerprint({ ...SEARCH, inputSchema })).toThrow(TypeError);
-    }
-  });
-});
 
 describe("acceptance 9: a changed tool description must be approved again", () => {
   it("one changed character is CONSENT_REQUIRED / TOOL_CHANGED, and approving the new words allows it", async () => {
@@ -614,7 +514,7 @@ describe("approvals: unchanged, added, removed, uninstalled", () => {
   it("a new tool and a renamed tool are ADDED; the old name still works", async () => {
     const w = await ready();
     await w.core.approveMcpTools(ID, [SEARCH]);
-    const renamed = tool("lookup");
+    const renamed = { ...SEARCH, name: "lookup" };
     expect((await w.core.checkMcpTools(ID, [SEARCH, POST, renamed])).map((c) => [c.tool, c.state])).toEqual([
       ["search", "APPROVED"],
       ["post", "ADDED"],
@@ -624,7 +524,8 @@ describe("approvals: unchanged, added, removed, uninstalled", () => {
     const err = await expectPlumsError(w.core.authorizeMcpTool(ID, renamed), "PERMISSION_DENIED", "/permissions");
     expect(err.details).toMatchObject({ reason: "PERMISSION_NOT_DECLARED" });
     expect(await snap(w, [ID])).toEqual(before);
-    await expectPlumsError(w.core.authorizeMcpTool(ID, POST), "CONSENT_REQUIRED", "/tools/post");
+    const added = await expectPlumsError(w.core.authorizeMcpTool(ID, POST), "CONSENT_REQUIRED", "/tools/post");
+    expect(added.details).toMatchObject({ reason: "TOOL_ADDED" });
     expect(await w.core.authorizeMcpTool(ID, SEARCH)).toEqual({ level: "read" });
   });
 
@@ -653,7 +554,7 @@ describe("approvals: unchanged, added, removed, uninstalled", () => {
 
   it("an empty list drops this server's tool approvals and leaves package consent and other servers", async () => {
     const w = await ready();
-    await w.core.approveMcpTools(ID, [SEARCH]);
+    await w.core.approveMcpTools(ID, [SEARCH, POST]);
     await w.core.approveMcpTools(MANUAL, [{ ...SEARCH, level: "read" }]);
     const consent = await w.core.getConsent(ID);
     expect(await w.core.checkMcpTools(ID, [])).toEqual([]);
@@ -661,6 +562,12 @@ describe("approvals: unchanged, added, removed, uninstalled", () => {
     expect(await w.core.getConsent(ID)).toEqual(consent);
     expect(await w.core.listInstalled()).toMatchObject([{ id: ID, enabled: true, consented: true }]);
     expect((await w.core.getMcpApprovals(MANUAL)).tools.map((t) => t.tool)).toEqual(["search"]);
+    const err = await expectPlumsError(w.core.authorizeMcpTool(ID, SEARCH), "CONSENT_REQUIRED", "/tools/search");
+    expect(err.details).toEqual({ id: ID, tool: "search", reason: "TOOL_ADDED", fingerprint: mcpToolFingerprint(SEARCH) });
+    expect(await w.core.checkMcpTools(ID, [SEARCH])).toEqual([
+      { tool: "search", fingerprint: mcpToolFingerprint(SEARCH), state: "ADDED" },
+    ]);
+    await expect(w.core.authorizeMcpTool(MANUAL, { ...SEARCH, level: "read" })).resolves.toEqual({ level: "read" });
   });
 
   it("a list check that throws leaves every approval in place", async () => {

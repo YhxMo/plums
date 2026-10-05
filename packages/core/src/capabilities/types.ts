@@ -15,6 +15,15 @@ export interface RunCapabilityInput {
   permissionId: string;
   request: CapabilityRequest;
 }
+export interface CapabilityCaller { packageId: string; permissionId: string }
+export interface RunDelegatedCapabilityInput {
+  packageId: string;
+  permissionId: string;
+  callers: CapabilityCaller[];
+  request: CapabilityRequest;
+  /** Required for a call of an approved remote MCP tool. */
+  mcpTool?: { name: string; description: string; inputSchema?: unknown };
+}
 
 /** Canonical absolute paths, checked against the logical root by the core. */
 export interface FsLocation {
@@ -63,6 +72,7 @@ export interface AuditEvent {
   callId: string;
   timestamp: string;
   extensionId?: string;
+  callerIds?: string[];
   permissionId?: string;
   kind?: CapabilityRequest["kind"];
   operation?: FsOperation | "run" | "send";

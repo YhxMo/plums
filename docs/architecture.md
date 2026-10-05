@@ -4,7 +4,7 @@
 
 ## 1. 范围
 纯开源内核(Apache-2.0),不含界面、服务、托管、市场。交付物是一个 TypeScript 库 `@plums/core` 加一个命令行 `plums`。
-内核负责:包格式与加载、依赖解析、权限和同意检查、密钥引用、外发确认、文件/链接分享，以及 2.x 能力授权与审计。0.2.0 已提供 fs/exec/egress 统一入口与记录式执行，真实 I/O、进程隔离、联网及第三方代码运行后续开发。
+内核负责:包格式与加载、依赖解析、权限和同意检查、密钥引用、外发确认、文件/链接分享，以及 2.x 能力授权与审计。0.2.0 已提供 fs/exec/egress 统一入口与记录式执行，真实 I/O、进程隔离、联网及第三方代码由独立 `@plums/host` / Electron 桌面实现，见 [desktop.md](desktop.md)。
 
 ## 2. 技术栈(推荐)
 - 语言与运行时:TypeScript,Node.js 当前 LTS,pnpm 单仓库。
@@ -49,22 +49,22 @@
 
 id 在 2.x 包中唯一。operations、cwdRoots 是非空、无重复数组；fs 操作仅支持 read/write/list。target 是宿主绑定的逻辑根、登记程序或外发域名，清单不能凭此执行文件或命令。未知字段保留；选择 schema 和权限语义只看 formatVersion，不看未知 level/kind 字段。公开 `ManifestV1`/`ManifestV2`、`PermissionV1`/`PermissionV2` 类型和 `isManifestV1`/`isManifestV2` 支持宿主分支处理。inspect 返回 formatVersion 和全部声明字段。
 
-## 4. 扩展(第一版只有声明式)
+## 4. 扩展与宿主
 - 扩展 = manifest + 设置 schema + 数据型内容(提示词片段、模板、任务配置等,放在 payload)。**不运行第三方代码**。
-- 需要代码的能力(记忆、自动化的执行)只由官方内置扩展提供,在内核外部的宿主里实现;内核只负责它们的权限与确认。
-- 第二阶段再评估沙箱运行第三方代码。
+- 可运行扩展在自己的 payload 命名空间登记桌面 SDK 与运行/前端入口，由独立宿主隔离运行；core 保持 payload 不透明，只负责权限、确认与审计。
+- 桌面不内置业务扩展、模型适配或 Agent 循环，全部通过外装 ZIP 提供。
 
 ## 5. 权限与确认
 - 1.x 三档:read、write、egress。内核在每个动作执行前统一检查:有没有声明、用户有没有同意。2.x 按 fs/exec/egress 分类，fs 的 write 不授予 read；不把类别转换为旧档位。
 - write 与 egress 的动作每次运行时都要确认;由宿主实现的 `confirm` 接口给出答案,没有就一律拒绝。
 - 更新时比较新旧权限,新增而没有重新同意就拒绝更新(`CONSENT_REQUIRED`),旧版本保持不变。
 - 同意记录保存完整权限声明和 formatVersion。2.x 更新新增权限、改变类别/目标、增加 fs 操作或 exec cwdRoots 时要求重新同意；范围收缩、reason 或未知字段变化不增权。跨 major 更新即便权限列表为空也要求重新同意（`CONSENT_REQUIRED`、`/formatVersion`、reason `FORMAT_CHANGED`）。拒绝时文件和记录不变；成功时保留启用状态，已有同意记录更新为新声明。
-- `runAction` 和现有包 MCP 入口仅解释 1.x；遇到 2.x 返回 `PERMISSION_DENIED`、`/formatVersion`、reason `FORMAT_API_MISMATCH`。手动 MCP 与有效的 1.x 调用保持既有行为。2.x 的 MCP 映射另行开发。
+- `runAction` 和现有包 MCP 入口仅解释 1.x；遇到 2.x 返回 `PERMISSION_DENIED`、`/formatVersion`、reason `FORMAT_API_MISMATCH`。手动 MCP 与有效的 1.x 调用保持既有行为。2.x 使用独立的 MCP v2 批准接口和带工具指纹的 delegated capability 入口。
 - MCP 连接器:每个工具的名称、描述和 inputSchema(键递归排序的稳定序列化)记哈希,哈希变化等同增权,要重新同意。服务端只改参数定义而名称描述不变,同样改变工具能力,所以要重新同意。MCP 工具从宿主给出的列表中消失后,其指纹和同意随即作废;再次出现时按新工具处理(TOOL_ADDED),需要重新同意,不再保留到卸载。手动添加的 MCP 服务标"未验证",默认只读、逐项授权。
 
 ## 6. 密钥
 只存在内核管的存储里;扩展和包里只出现 `secretRef`。日志、错误、导出统一经过脱敏函数;导出包在结构上不含密钥。
-安装记录保留包曾声明过的密钥引用,不保存值。更新提交 manifest 时在同一事务内保留旧引用;若随后删除失败,返回 SECRET_NOT_FOUND(details 为 `{id, version, reason: SECRET_CLEANUP_FAILED}`),version 已安装。后续更新与卸载可重试,脱敏与导出检查也仍覆盖这些值。删除过程中即使值已删除而调用抛错,底层错误也不外露。数据库格式 2 经 3 自动迁移为 4，格式 3 升为 4；安装、启用、MCP、已有引用及权限 JSON 保持。schema 4 在 consents 增加 format_version，旧记录按已存清单补齐，不改写包文件；旧内核拒绝升级后的目录。schema 2 不能恢复以前已丢失的历史引用。
+安装记录保留包曾声明过的密钥引用,不保存值。更新提交 manifest 时在同一事务内保留旧引用;若随后删除失败,返回 SECRET_NOT_FOUND(details 为 `{id, version, reason: SECRET_CLEANUP_FAILED}`),version 已安装。后续更新与卸载可重试,脱敏与导出检查也仍覆盖这些值。删除过程中即使值已删除而调用抛错,底层错误也不外露。数据库格式按 2→3→4→5 自动迁移；安装、启用、MCP、已有引用及权限 JSON 保持。schema 5 增加独立 MCP v2 批准表，schema 4 在 consents 增加 format_version，旧记录按已存清单补齐，不改写包文件；旧内核拒绝升级后的目录。schema 2 不能恢复以前已丢失的历史引用。
 
 ## 7. 可替换接口(便于测试)
 ```ts
@@ -74,7 +74,7 @@ interface FsSink        { read/write/list(req): Promise<result> }
 interface ExecSink      { run(req): Promise<result> }
 interface Confirm       { ask(req): Promise<boolean> }
 interface SecretStore   { get/set/delete(ref) }
-createCore({ dataDir, model, egress, secrets, confirm?, fs?, exec?, roots?, programs?, onAudit?, confirmTimeoutMs? })
+createCore({ dataDir, model?, egress, secrets, confirm?, fs?, exec?, roots?, programs?, onAudit?, confirmTimeoutMs? })
 ```
 内核自带 FakeModelProvider、RecordingEgressSink、RecordingFsSink、RecordingExecSink、内存版 SecretStore 与脚本化 Confirm，测试全程不联网、不开进程、不由 Sink 写文件。confirm 可省略，提供无效接口在构造时拒绝；新能力入口缺少审计不执行。
 
@@ -164,7 +164,7 @@ M1 目标行为。
 
 ## 16. M2-A 能力总线（0.2.0）
 
-公开接口及完整宿主示例见 [capabilities.md](capabilities.md)。`runCapability({ extensionId, permissionId, request })` 只接受 2.x extension，按声明精确选择 fs/exec/egress。1.x 使用旧入口，2.x MCP 映射另行开发。
+公开接口及完整宿主示例见 [capabilities.md](capabilities.md)。`runCapability({ extensionId, permissionId, request })` 只接受 2.x extension，按声明精确选择 fs/exec/egress。1.x 使用旧入口，2.x MCP 使用独立批准接口与 delegated capability。
 
 - 顺序为请求校验/复制 → 已安装/启用/声明 → 同意 → 目标/操作范围 → 必要确认 → 重新授权/范围 → 放行审计 → 再次检查 → 单次 Sink → 结果审计。异步确认和审计均不能沿用过时授权。
 - roots/programs 创建时复制并固定；宿主让用户选择目录，登记程序。fs 只接受 `/` 相对路径，拒绝绝对路径、盘符、UNC、反斜杠、`..`、NUL，按 realpath 与目录边界检查，允许根内符号链接。read 要求文件，list 要求目录，write 允许创建/覆盖文件但父目录必须存在。
@@ -172,4 +172,4 @@ M1 目标行为。
 - read/list 不询问；write/exec/egress 逐次询问。只有布尔 true 放行，缺失/异常/非布尔/超时拒绝，迟到同意不执行。新能力默认超时 120000 ms，宿主可配置；旧入口原有确认行为保持。
 - 请求字节、参数、cwd 和外发字段在第一个 await 前复制。确认后重读权限与同意；停用、卸载、权限范围/理由或真实路径变化拒绝当前调用。放行审计后也重新检查。
 - 每次生成 callId；onAudit 记录确认请求/结果、放行、执行结果和执行前拒绝。只包含能力类别、操作、逻辑目标、状态与错误码，不含路径、URL、文件内容、请求体、参数值、环境变量、stdout/stderr。通过密钥引用脱敏并保留本次读到的值，审计回调收到冻结事件。缺少审计或执行前失败不执行，结果审计失败明确报告动作已完成。
-- 真实 FsSink 必须在执行时保证目录边界，元数据检查不能消除 TOCTOU；真实 ExecSink 提供命令隔离。首期只有记录式实现。范围预授权、生命周期审计、工具挂载/互调、模型循环与第三方代码运行属于后续。
+- 真实 FsSink 必须在执行时保证目录边界，元数据检查不能消除 TOCTOU；真实 ExecSink 提供命令隔离。core 自带记录式实现，桌面宿主提供真实文件/HTTPS 适配及扩展互调。范围预授权不在桌面首版范围，生命周期审计尚未交付；模型循环由外装示例扩展提供。
