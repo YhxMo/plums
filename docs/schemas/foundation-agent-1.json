@@ -31,7 +31,10 @@
               "maxLength": 128
             }
           },
-          "required": ["id", "version"],
+          "required": [
+            "id",
+            "version"
+          ],
           "additionalProperties": true
         },
         "features": {
@@ -63,7 +66,12 @@
           "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$"
         }
       },
-      "required": ["requirementVersion", "protocolRange", "sdk", "features"],
+      "required": [
+        "requirementVersion",
+        "protocolRange",
+        "sdk",
+        "features"
+      ],
       "additionalProperties": true
     },
     "selection": {
@@ -76,7 +84,10 @@
           "pattern": "^1\\.(0|[1-9][0-9]*)$"
         },
         "source": {
-          "enum": ["builtin", "library"]
+          "enum": [
+            "builtin",
+            "library"
+          ]
         },
         "id": {
           "type": "string",
@@ -93,10 +104,28 @@
           "pattern": "^[a-f0-9]{64}$"
         }
       },
-      "required": ["selectionVersion", "source", "id", "version", "digest"],
+      "required": [
+        "selectionVersion",
+        "source",
+        "id",
+        "version",
+        "digest"
+      ],
       "additionalProperties": true
     }
   },
-  "required": ["requirement"],
-  "additionalProperties": true
+  "required": [],
+  "additionalProperties": true,
+  "anyOf": [
+    {
+      "required": [
+        "requirement"
+      ]
+    },
+    {
+      "required": [
+        "selection"
+      ]
+    }
+  ]
 }

@@ -39,6 +39,13 @@ export const foundationProviderSchema = schema(
       },
       features,
       hostFeatures: features,
+      dataFormats: {
+        type: "array",
+        minItems: 1,
+        maxItems: 32,
+        uniqueItems: true,
+        items: { type: "string", minLength: 1, maxLength: 128 },
+      },
       sdks: {
         type: "array",
         minItems: 1,
@@ -105,16 +112,16 @@ export const foundationSelectionSchema = schema(
   ),
 );
 /** Schemas preserve unknown fields. Semantic entry/range/version checks also apply. */
-export const foundationAgentSchema = schema(
-  "agent",
-  object(
+export const foundationAgentSchema = schema("agent", {
+  ...object(
     {
       requirement: foundationRequirementSchema,
       selection: foundationSelectionSchema,
     },
-    ["requirement"],
+    [],
   ),
-);
+  anyOf: [{ required: ["requirement"] }, { required: ["selection"] }],
+});
 const methods = [
   "settings",
   "context",

@@ -34,6 +34,9 @@ export interface FoundationSessionOptions {
   bridge: RuntimeBridge;
   assertActive(): Promise<void>;
   assertCurrent(): void;
+  /** Trusted process observer; never supplied by a component. */
+  trackProcess?: (child: import("node:child_process").ChildProcess) => void;
+  allocateSnapshot?: () => { root: string; release(): void };
   beforeInvoke?: (
     kind: ContributionKind,
     name: string,

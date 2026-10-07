@@ -1,4 +1,4 @@
-import { expect, it } from "vitest";
+import { expect, it, vi } from "vitest";
 import { CAPABILITY_FAILED, PlumsError } from "@plums/core";
 import {
   parseCommonEnvelope,
@@ -33,6 +33,27 @@ const declaration: CommonDeclaration = {
     },
   ],
 };
+it("preserves common declaration validation after schema mutation before and after first use", async () => {
+  vi.resetModules();
+  const api = await import("../src/common-contract.js");
+  const { commonDeclarationSchema } = await import("../src/common-schema.js");
+  const schema = commonDeclarationSchema as any;
+  const original = schema.properties.runtime.enum;
+  try {
+    schema.properties.runtime.enum = [...original, "shell"];
+    expect(() =>
+      api.parseCommonDeclaration({ ...declaration, runtime: "shell" }),
+    ).toThrow();
+    expect(api.parseCommonDeclaration(declaration)).toEqual(declaration);
+    schema.properties.runtime.enum = ["shell"];
+    expect(api.parseCommonDeclaration(declaration)).toEqual(declaration);
+    expect(() =>
+      api.parseCommonDeclaration({ ...declaration, runtime: "shell" }),
+    ).toThrow();
+  } finally {
+    schema.properties.runtime.enum = original;
+  }
+});
 function rejected(value: unknown) {
   try {
     parseCommonEnvelope(value);

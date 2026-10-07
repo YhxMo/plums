@@ -1,4 +1,4 @@
-import { Ajv } from "ajv";
+import { Ajv, type ValidateFunction } from "ajv";
 import { CAPABILITY_FAILED, PlumsError } from "@plums/core";
 import {
   commonEnvelopeSchema,
@@ -274,9 +274,12 @@ const ajv = new Ajv({
   allErrors: false,
   validateFormats: false,
 });
-const envelope = ajv.compile(commonEnvelopeSchema);
-const declaration = ajv.compile(commonDeclarationSchema);
-const policyDecision = ajv.compile(commonPolicyDecisionSchema);
+const envelopeSchema = structuredClone(commonEnvelopeSchema);
+const declarationSchema = structuredClone(commonDeclarationSchema);
+const policyDecisionSchema = structuredClone(commonPolicyDecisionSchema);
+let envelope: ValidateFunction | undefined;
+let declaration: ValidateFunction | undefined;
+let policyDecision: ValidateFunction | undefined;
 const maxBytes = 1024 * 1024;
 function invalid(path: string): never {
   throw new PlumsError({
@@ -339,6 +342,7 @@ function jsonCopy(value: unknown): unknown {
 /** Copies the message, validates recognized fields, preserves same-major unknown fields. */
 export function parseCommonEnvelope(value: unknown): CommonEnvelope {
   const copy = jsonCopy(value);
+  envelope ??= ajv.getSchema(envelopeSchema.$id) ?? ajv.compile(envelopeSchema);
   if (!envelope(copy)) invalid(envelope.errors?.[0]?.instancePath ?? "");
   if (
     (copy as CommonEnvelope).kind === "event" &&
@@ -349,6 +353,8 @@ export function parseCommonEnvelope(value: unknown): CommonEnvelope {
 }
 export function parseCommonDeclaration(value: unknown): CommonDeclaration {
   const copy = jsonCopy(value);
+  declaration ??=
+    ajv.getSchema(declarationSchema.$id) ?? ajv.compile(declarationSchema);
   if (!declaration(copy)) invalid(declaration.errors?.[0]?.instancePath ?? "");
   const d = copy as CommonDeclaration;
   const ids = new Set<string>();
@@ -363,6 +369,9 @@ export function parseCommonPolicyDecision(
   value: unknown,
 ): CommonPolicyDecision {
   const copy = jsonCopy(value);
+  policyDecision ??=
+    ajv.getSchema(policyDecisionSchema.$id) ??
+    ajv.compile(policyDecisionSchema);
   if (!policyDecision(copy))
     invalid(policyDecision.errors?.[0]?.instancePath ?? "");
   return copy as CommonPolicyDecision;

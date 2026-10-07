@@ -1,3 +1,4 @@
+import { useSourceOfficialFixture } from "./official-fixture.js";
 import { fixture as commonFixture } from "./common-fixture.js";
 import { afterEach, expect, it } from "vitest";
 import { mkdtemp, rm, mkdir, writeFile, readFile } from "node:fs/promises";
@@ -499,6 +500,9 @@ it("replacement of a trusted command directory before submission is refused", as
     .poll(
       async () =>
         ((await rpc("status", { taskId: call.taskId })) as any).result,
+      // Wait for asynchronous preparation to publish the refusal. The security
+      // assertion below still requires the command never to succeed.
+      { timeout: 5_000 },
     )
     .toBeDefined();
   expect(
@@ -582,21 +586,26 @@ it("pending controlled preparation excludes a legacy engine and revocation preve
     (await f.host.importLibrary(preview.token)).digest,
   );
   await f.host.enable(f.a.instanceId, "legacy");
-  const original = ControlledExecution.prototype.prepare;
   let reached!: () => void,
     release!: () => void,
-    snapshot = "";
+    snapshot = "",
+    observed = false;
   const ready = new Promise<void>((r) => (reached = r)),
-    gate = new Promise<void>((r) => (release = r));
-  const spy = vi
-    .spyOn(ControlledExecution.prototype, "prepare")
-    .mockImplementationOnce(async function (files) {
-      const p = await original.call(this, files);
+    gate = new Promise<void>((r) => (release = r)),
+    spy = vi.fn();
+  await useSourceOfficialFixture(f.host, (controlled, componentId) => {
+    if (componentId !== "provider" || observed) return;
+    observed = true;
+    const prepare = controlled.prepare.bind(controlled);
+    controlled.prepare = async (files) => {
+      spy();
+      const p = await prepare(files);
       snapshot = p.snapshot;
       reached();
       await gate;
       return p;
-    });
+    };
+  });
   try {
     const pending = f.host.invoke(
       f.a.instanceId,
@@ -643,11 +652,16 @@ it("post-launch authorization exceptions wait for the actual process and snapsho
     binding = await f.sdk.binding("backend"),
     original = ControlledExecution.prototype.launchNode;
   let processHandle: Awaited<ReturnType<typeof original>> | undefined,
-    cleaned = false;
-  const spy = vi
-    .spyOn(ControlledExecution.prototype, "launchNode")
-    .mockImplementationOnce(async function (...args) {
-      const p = await original.apply(this, args);
+    cleaned = false,
+    observed = false;
+  const spy = vi.fn();
+  await useSourceOfficialFixture(f.host, (controlled, componentId) => {
+    if (componentId !== "provider" || observed) return;
+    observed = true;
+    const launch = controlled.launchNode.bind(controlled);
+    controlled.launchNode = async (...args) => {
+      spy();
+      const p = await launch(...args);
       processHandle = p;
       void p.cleaned?.then(() => {
         cleaned = true;
@@ -664,7 +678,8 @@ it("post-launch authorization exceptions wait for the actual process and snapsho
         core.close();
       }
       return p;
-    });
+    };
+  });
   try {
     const call = await f.sdk.invoke(binding!.handle, "echo", null);
     await expect(call.result).rejects.toBeDefined();

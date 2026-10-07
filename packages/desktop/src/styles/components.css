@@ -1815,3 +1815,30 @@ html[data-fullscreen] .running-bar {
   gap: 8px;
   margin-top: 12px;
 }
+
+.foundation-manager {
+  margin-block: var(--space-6, 24px);
+}
+.foundation-catalog {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr));
+  gap: 16px;
+}
+.foundation-item,
+.foundation-agent {
+  padding: 16px;
+  margin-block: 12px;
+  border: 1px solid var(--line-subtle);
+  border-radius: 8px;
+  overflow-wrap: anywhere;
+}
+.foundation-manager .inline-actions {
+  flex-wrap: wrap;
+}
+.foundation-manager select {
+  max-width: 100%;
+}
+.foundation-plan pre {
+  overflow: auto;
+  max-height: 240px;
+}

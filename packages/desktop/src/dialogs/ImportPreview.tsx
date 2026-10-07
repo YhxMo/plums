@@ -6,7 +6,7 @@ import type { AgentBundleManifest } from "@plums/sdk";
 import { ManagedDialog } from "../managed-dialog.js";
 export type ImportPreviewData = {
   token: string;
-  type: "agent" | "component";
+  type: "agent" | "component" | "foundation";
   incomplete?: boolean;
   agent?: AgentBundleManifest;
   components: {
@@ -60,7 +60,9 @@ export function ImportPreview({
                 ? "导入并配置"
                 : mode === "assemble"
                   ? "导入并继续组装"
-                  : "导入公共库"}
+                  : preview.type === "foundation"
+                    ? "导入底座"
+                    : "导入公共库"}
           </button>
         </div>
       }
@@ -91,7 +93,7 @@ export function ImportPreview({
                 <strong>这是完整的 Agent，直接使用</strong>
                 <p>导入后填写必要配置，确认权限即可开始。</p>
                 {preview.incomplete && (
-                  <small>包中缺少必需组件，请先继续组装。</small>
+                  <small>请继续组装，补齐组件或明确选择满足需求的底座。</small>
                 )}
               </div>
             </label>
@@ -114,6 +116,11 @@ export function ImportPreview({
             </label>
           </div>
         </>
+      ) : preview.type === "foundation" ? (
+        <p>
+          这是一份已验证的官方底座制品。导入会保留代码，不会授予组件权限或改变现有
+          Agent 的选择。
+        </p>
       ) : (
         <p>
           这是一份

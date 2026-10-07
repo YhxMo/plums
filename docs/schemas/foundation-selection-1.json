@@ -8,7 +8,10 @@
       "pattern": "^1\\.(0|[1-9][0-9]*)$"
     },
     "source": {
-      "enum": ["builtin", "library"]
+      "enum": [
+        "builtin",
+        "library"
+      ]
     },
     "id": {
       "type": "string",
@@ -25,6 +28,12 @@
       "pattern": "^[a-f0-9]{64}$"
     }
   },
-  "required": ["selectionVersion", "source", "id", "version", "digest"],
+  "required": [
+    "selectionVersion",
+    "source",
+    "id",
+    "version",
+    "digest"
+  ],
   "additionalProperties": true
 }

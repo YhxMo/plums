@@ -53,6 +53,7 @@ it("reports factory-owned cleanup failure when shutdown invalidates a not-yet-re
   registry.register({
     provider: OFFICIAL_FOUNDATION_PROVIDER,
     version: "1.0.0",
+    selection: f.a.foundation!.selection,
     create: async (options) => {
       const owned = options.actor.componentId === "provider";
       if (!owned) {
@@ -200,7 +201,13 @@ it("routes the official controlled and isolate components of two Agents through 
   const spy = vi
     .spyOn(FoundationRegistry.prototype, "create")
     .mockImplementation(async function (reference, options) {
-      expect(reference).toEqual(OFFICIAL_FOUNDATION_REFERENCE);
+      expect(reference).toEqual({
+        ...OFFICIAL_FOUNDATION_REFERENCE,
+        digest:
+          options.actor.agentId === f.a.instanceId
+            ? f.a.foundation!.selection.digest
+            : f.b.foundation!.selection.digest,
+      });
       const session = await original.call(this, reference, options);
       // Expose only the public interface, with no Runtime controller, mode or transport.
       const facade: HostFoundationSession = {
@@ -315,3 +322,71 @@ it("retains a failed public-session cleanup for awaited shutdown instead of sile
   hosts.splice(hosts.indexOf(f.host), 1);
   spy.mockRestore();
 }, 20000);
+
+it("reopening while a session closes keeps the new owner and still excludes another host", async () => {
+  const f = await setup();
+  let release!: () => void,
+    entered!: () => void,
+    blocking = true;
+  const gate = new Promise<void>((resolve) => {
+      release = resolve;
+    }),
+    reached = new Promise<void>((resolve) => {
+      entered = resolve;
+    }),
+    original = FoundationRegistry.prototype.create;
+  vi.spyOn(FoundationRegistry.prototype, "create").mockImplementation(
+    async function (reference, options) {
+      const session = await original.call(this, reference, options);
+      const close = session.close.bind(session);
+      session.close = async () => {
+        if (blocking && options.actor.agentId === f.a.instanceId) {
+          entered();
+          await gate;
+        }
+        await close();
+      };
+      return session;
+    },
+  );
+  try {
+    await f.host.invoke(
+      f.a.instanceId,
+      "provider",
+      "provider",
+      "tools",
+      "test",
+      { operation: "echo", input: 1 },
+    );
+    const stopping = f.host.stopSession(f.a.instanceId);
+    await reached;
+    const reopening = f.host.foundationStatus(f.a.instanceId);
+    void reopening.catch(() => {});
+    blocking = false;
+    release();
+    await stopping;
+    expect(await reopening).toEqual(f.a.foundation);
+    await expect(
+      f.host.invoke(f.a.instanceId, "provider", "provider", "tools", "test", {
+        operation: "echo",
+        input: 2,
+      }),
+    ).resolves.toEqual({ value: 2 });
+    const { DesktopHost } = await import("../src/host.js");
+    const { MemorySecretStore } = await import("@plums/core");
+    const other = new DesktopHost({
+      dataDir: f.dir,
+      nodePath: process.execPath,
+      confirm: { ask: async () => true },
+      secretStore: () => new MemorySecretStore(),
+    });
+    hosts.push(other);
+    await other.initialize();
+    await expect(
+      other.setFoundationEnabled(f.a.instanceId, false),
+    ).rejects.toMatchObject({ details: { reason: "FOUNDATION_BUSY" } });
+  } finally {
+    blocking = false;
+    release();
+  }
+});

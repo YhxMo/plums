@@ -14,9 +14,17 @@
       "pattern": "^[a-f0-9]{64}$"
     },
     "decision": {
-      "enum": ["allow", "deny", "confirm"]
+      "enum": [
+        "allow",
+        "deny",
+        "confirm"
+      ]
     }
   },
-  "required": ["assessmentId", "operationFingerprint", "decision"],
+  "required": [
+    "assessmentId",
+    "operationFingerprint",
+    "decision"
+  ],
   "additionalProperties": false
 }

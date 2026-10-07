@@ -137,7 +137,21 @@ export class ControlledProcess {
 }
 export class ControlledExecution {
   private processes = new Set<ControlledProcess>();
-  constructor(readonly nodePath: string) {}
+  private pendingCleanups = new Set<Promise<void>>();
+  constructor(
+    readonly nodePath: string,
+    private trackProcess?: (child: ChildProcess) => void,
+    private allocateSnapshot?: () => { root: string; release(): void },
+  ) {}
+  private cleanup(remove: () => Promise<void>) {
+    const pending = Promise.resolve().then(remove);
+    this.pendingCleanups.add(pending);
+    void pending.then(
+      () => this.pendingCleanups.delete(pending),
+      () => {},
+    );
+    return pending;
+  }
   private async fixedRuntime() {
     if (
       process.platform !== "darwin" ||
@@ -236,10 +250,17 @@ export class ControlledExecution {
   }
   async prepare(files: PackageFiles) {
     const node = await this.fixedRuntime(),
-      root = await realpath(
-        await mkdtemp(path.join(tmpdir(), "plums-controlled-")),
-      );
+      allocation = this.allocateSnapshot?.(),
+      temporary =
+        allocation?.root ??
+        (await mkdtemp(path.join(tmpdir(), "plums-controlled-")));
+    const remove = async () => {
+      await rm(temporary, { recursive: true, force: true });
+      allocation?.release();
+    };
     try {
+      if (allocation) await mkdir(temporary, { recursive: true, mode: 0o700 });
+      const root = await realpath(temporary);
       await this.probe(node, root);
       const snapshot = path.join(root, "snapshot"),
         scratch = path.join(root, "work");
@@ -265,10 +286,10 @@ export class ControlledExecution {
         node,
         snapshot,
         scratch,
-        cleanup: () => rm(root, { recursive: true, force: true }),
+        cleanup: remove,
       };
     } catch (e) {
-      await rm(root, { recursive: true, force: true });
+      await this.cleanup(remove);
       throw e;
     }
   }
@@ -283,7 +304,7 @@ export class ControlledExecution {
     try {
       check();
     } catch (error) {
-      await prepared.cleanup();
+      await this.cleanup(prepared.cleanup);
       throw error;
     }
     const p = new ControlledProcess(
@@ -305,9 +326,11 @@ export class ControlledExecution {
     );
     this.processes.add(p);
     p.cleaned = p.done.then(async () => {
-      await prepared.cleanup();
+      await this.cleanup(prepared.cleanup);
       this.processes.delete(p);
     });
+    void p.cleaned.catch(() => {});
+    await this.observeProcess(p);
     return p;
   }
   /** Public foundation protocol carrier. Author entry is verified by the session factory;
@@ -345,12 +368,24 @@ export class ControlledExecution {
       );
       this.processes.add(p);
       p.cleaned = p.done.then(async () => {
-        await prepared.cleanup();
+        await this.cleanup(prepared.cleanup);
         this.processes.delete(p);
       });
+      void p.cleaned.catch(() => {});
+      await this.observeProcess(p);
       return p;
     } catch (error) {
-      await prepared.cleanup();
+      await this.cleanup(prepared.cleanup);
+      throw error;
+    }
+  }
+  private async observeProcess(p: ControlledProcess) {
+    try {
+      this.trackProcess?.(p.supervisor);
+    } catch (error) {
+      await p.stop();
+      await p.cleaned;
+      this.processes.delete(p);
       throw error;
     }
   }
@@ -377,6 +412,7 @@ export class ControlledExecution {
       },
     );
     this.processes.add(p);
+    await this.observeProcess(p);
     const abort = () => void p.stop(),
       timer = setTimeout(abort, timeout);
     signal?.addEventListener("abort", abort, { once: true });
@@ -440,7 +476,7 @@ export class ControlledExecution {
           );
         })
     ) {
-      await prepared.cleanup();
+      await this.cleanup(prepared.cleanup);
       throw resourceFailure("RUNTIME_UNAVAILABLE");
     }
     const sign = spawnSync(
@@ -449,7 +485,7 @@ export class ControlledExecution {
       { env: {}, stdio: "ignore" },
     );
     if (sign.status !== 0) {
-      await prepared.cleanup();
+      await this.cleanup(prepared.cleanup);
       throw resourceFailure("RUNTIME_UNAVAILABLE");
     }
     await chmod(command, 0o500);
@@ -470,15 +506,23 @@ export class ControlledExecution {
         signal,
       );
     } finally {
-      await prepared.cleanup();
+      await this.cleanup(prepared.cleanup);
     }
   }
   async close() {
-    await Promise.all(
+    const processes = await Promise.allSettled(
       [...this.processes].map(async (p) => {
         await p.stop();
         await p.cleaned;
       }),
     );
+    const cleanups = await Promise.allSettled([...this.pendingCleanups]);
+    if ([...processes, ...cleanups].some((r) => r.status === "rejected"))
+      throw resourceFailure(
+        "RUNTIME_UNAVAILABLE",
+        undefined,
+        "not_started",
+        "cleanup",
+      );
   }
 }

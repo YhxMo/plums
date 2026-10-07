@@ -2,6 +2,7 @@ import { bootstrap } from "./sdk-bootstrap.js";
 import ivm from "isolated-vm";
 import path from "node:path";
 
+process.on("disconnect", () => process.exit());
 const send = (value: unknown) => process.send?.(value);
 let isolate: ivm.Isolate;
 let context: ivm.Context;

@@ -648,6 +648,8 @@ async function fixture(holdRuntime = false) {
         )!;
         const resources = state.packages[args.instanceId as "a" | "b"];
         switch (method) {
+          case "foundationManagement":
+            return { catalog: [], agents: [], catalogFailure: false };
           case "revokeTaskScope":
             return null;
           case "agentState":
@@ -884,8 +886,15 @@ async function fixture(holdRuntime = false) {
         return () => {};
       },
       onRefresh(fn: () => void) {
-        state.refresh = fn;
-        return () => {};
+        const listeners: Set<() => void> = ((state as any).refreshListeners ??=
+          new Set());
+        listeners.add(fn);
+        state.refresh = () => {
+          for (const listener of listeners) listener();
+        };
+        return () => {
+          listeners.delete(fn);
+        };
       },
       filePath() {
         return "fixture.zip";

@@ -40,10 +40,14 @@ it("closing an ordinary provider view preserves a common task using it through a
       { fixture: true },
     );
     await expect
-      .poll(() =>
-        f.events.some(
-          (e) => e.packageId === "backend-b" && e.topic === "startup",
-        ),
+      .poll(
+        () =>
+          f.events.some(
+            (e) => e.packageId === "backend-b" && e.topic === "startup",
+          ),
+        // Two real runtimes may start in sequence; readiness is a precondition
+        // for the closure assertion, rather than a one-second performance limit.
+        { timeout: 5_000 },
       )
       .toBe(true);
     await new Promise((r) => setTimeout(r, 150));

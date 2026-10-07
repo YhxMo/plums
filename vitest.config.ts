@@ -4,6 +4,7 @@ import { defineConfig } from "vitest/config";
 
 const root = path.dirname(fileURLToPath(import.meta.url));
 const electronTests = [
+  "foundation-ui",
   "common-runtime-ui",
   "workspace-ui",
   "platform-conformance-ui",
@@ -28,6 +29,9 @@ export default defineConfig({
         extends: true,
         test: {
           name: "unit",
+          // Real Node children and OS sandbox probes share machine resources.
+          // Bound file concurrency while keeping assertions and runtime budgets unchanged.
+          maxWorkers: 4,
           include: ["packages/*/test/**/*.test.ts"],
           exclude: electronTests.map(
             (name) => `packages/desktop/test/${name}.test.ts`,

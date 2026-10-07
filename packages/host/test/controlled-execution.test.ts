@@ -205,3 +205,28 @@ it("self-exec of the same fixed image stays in the same PID and cannot read outs
     await rm(root, { recursive: true, force: true });
   }
 }, 15000);
+
+it("awaits actual supervisor exit and snapshot cleanup when trusted process tracking fails", async () => {
+  let child: import("node:child_process").ChildProcess | undefined;
+  const x = new ControlledExecution(node, (p) => {
+    child = p;
+    throw Error("tracking failed");
+  });
+  try {
+    await expect(
+      x.launchFoundation(
+        { "entry.mjs": Buffer.from("setInterval(()=>{},1000)") },
+        "entry.mjs",
+        () => {},
+        async () => {},
+      ),
+    ).rejects.toThrow("tracking failed");
+    expect(child).toBeDefined();
+    expect(child!.exitCode !== null || child!.signalCode !== null).toBe(true);
+    expect(() => process.kill(child!.pid!, 0)).toThrow();
+    expect((x as any).processes.size).toBe(0);
+    expect((x as any).pendingCleanups.size).toBe(0);
+  } finally {
+    await x.close();
+  }
+});

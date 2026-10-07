@@ -5,6 +5,7 @@ import {
   PlumsError,
   CAPABILITY_FAILED,
   type PackageFiles,
+  type PackageContents,
 } from "@plums/core";
 import {
   desktopContribution,
@@ -116,10 +117,61 @@ export async function startFoundationSession(
     selection.digest !== digest(providerBytes)
   )
     throw failure("STALE_BINDING");
+  return startVerifiedFoundationSession({
+    nodePath: fixed.nodePath,
+    provider: p,
+    selection,
+    component: c,
+    requirement,
+    actor: Object.freeze({
+      agentId: fixed.component.agentId,
+      componentId: c.manifest.id,
+      installationId: fixed.component.installationId,
+      componentVersion: c.manifest.version,
+      componentDigest: digest(componentBytes),
+      instanceId: randomUUID(),
+    }),
+    bridge: fixed.bridge,
+    assertActive: fixed.assertActive,
+    hostFeatures: fixed.hostFeatures,
+    handshakeTimeoutMs: handshake,
+    callTimeoutMs: call,
+  });
+}
+interface ProcessOptions {
+  trackProcess?: (child: import("node:child_process").ChildProcess) => void;
+  allocateSnapshot?: () => { root: string; release(): void };
+  nodePath: string;
+  requirement: FoundationRequirement;
+  bridge: FoundationStartOptions["bridge"];
+  assertActive: FoundationStartOptions["assertActive"];
+}
+/** Internal adapter seam. Inputs have already been copied and checked by trusted factories. */
+export async function startVerifiedFoundationSession(
+  options: ProcessOptions & {
+    provider: PackageContents;
+    selection: FoundationSelection;
+    component: PackageContents;
+    actor: Readonly<FoundationActor>;
+    hostFeatures?: readonly string[];
+    handshakeTimeoutMs?: number;
+    callTimeoutMs?: number;
+    deferStart?: boolean;
+  },
+): Promise<FoundationProcessSession> {
+  const fixed = options,
+    { component, actor, requirement, selection } = options;
+  const p = options.provider;
+  const provider = foundationProvider(p.manifest, p.files);
+  const desktop = desktopContribution(component.manifest, component.files);
+  if (!provider || !desktop?.runtime) throw failure("INVALID_REQUEST");
+  const handshake = budget(options.handshakeTimeoutMs, 10000),
+    call = budget(options.callTimeoutMs, 120000);
   // SDK identity is not inferred from common.runtime, engine declarations or package entry paths.
   if (
     requirement.sdk.id !== "org.plums.sdk" ||
-    requirement.sdk.version !== desktop.sdkVersion + ".0.0"
+    requirement.sdk.version !==
+      (desktop.sdkVersion === "2" ? "2" : "1") + ".0.0"
   )
     throw failure("INCOMPATIBLE");
   const requirements = [
@@ -132,7 +184,7 @@ export async function startFoundationSession(
       provider,
       r,
       process.platform + "-" + process.arch,
-      fixed.hostFeatures,
+      fixed.hostFeatures ?? [],
     );
     if (
       r.sdk.id !== requirement.sdk.id ||
@@ -150,16 +202,8 @@ export async function startFoundationSession(
   }
   if (desktop.engines?.length) throw failure("INCOMPATIBLE");
   const negotiatedFeatures = [...features];
-  const actor = Object.freeze({
-    agentId: fixed.component.agentId,
-    componentId: c.manifest.id,
-    installationId: fixed.component.installationId,
-    componentVersion: c.manifest.version,
-    componentDigest: digest(componentBytes),
-    instanceId: randomUUID(),
-  });
   const files = Object.fromEntries(
-    Object.entries(c.files).map(([name, bytes]) => [
+    Object.entries(component.files).map(([name, bytes]) => [
       name,
       Buffer.from(bytes).toString("utf8"),
     ]),
@@ -199,7 +243,8 @@ export async function startFoundationSession(
     handshake,
     call,
   );
-  await session.start(p.files, provider.entry, prepare);
+  session.prepare(p.files, provider.entry, prepare);
+  if (!options.deferStart) await session.start();
   return session;
 }
 export interface FoundationProcessSession
@@ -237,14 +282,18 @@ class ProcessSession implements FoundationSession<InvocationContext> {
   private timer?: NodeJS.Timeout;
   private launchDone: Promise<void> = Promise.resolve();
   constructor(
-    private options: FoundationStartOptions,
+    private options: ProcessOptions,
     readonly actor: Readonly<FoundationActor>,
     private declaration: DesktopContribution,
     private features: string[],
     private handshakeMs: number,
     private callMs: number,
   ) {
-    this.execution = new ControlledExecution(options.nodePath);
+    this.execution = new ControlledExecution(
+      options.nodePath,
+      options.trackProcess,
+      options.allocateSnapshot,
+    );
     this.readiness = new Promise((resolve, reject) => {
       this.readyResolve = resolve;
       this.readyReject = reject;
@@ -260,7 +309,16 @@ class ProcessSession implements FoundationSession<InvocationContext> {
   get pid() {
     return this.process?.pid;
   }
-  async start(files: PackageFiles, entry: string, prepare: unknown) {
+  private preparation!: { files: PackageFiles; entry: string; frame: unknown };
+  private launchStarted = false;
+  prepare(files: PackageFiles, entry: string, frame: unknown) {
+    this.preparation = { files, entry, frame };
+  }
+  async start() {
+    if (this.stopped) throw failure("CANCELLED");
+    if (this.launchStarted) return this.launchDone;
+    this.launchStarted = true;
+    const { files, entry, frame: prepare } = this.preparation;
     this.launchDone = (async () => {
       this.process = await this.execution.launchFoundation(
         files,
@@ -285,11 +343,13 @@ class ProcessSession implements FoundationSession<InvocationContext> {
       await this.launchDone;
     } catch {
       this.fail("RUNTIME_UNAVAILABLE");
-      await this.execution.close();
+      await this.close();
       throw failure("RUNTIME_UNAVAILABLE");
     }
   }
-  ready() {
+  async ready() {
+    if (this.stopped) return this.readiness;
+    await this.start();
     return this.readiness;
   }
   async activate() {
@@ -366,9 +426,9 @@ class ProcessSession implements FoundationSession<InvocationContext> {
     };
     const task = this.queue.then(async () => {
       if (this.stopped || context.signal.aborted) throw failure("CANCELLED");
+      await context.assertActive?.();
       try {
         await this.assertBound();
-        await context.assertActive?.();
       } catch {
         this.fail("STALE_BINDING");
         throw failure("STALE_BINDING");
@@ -418,9 +478,9 @@ class ProcessSession implements FoundationSession<InvocationContext> {
           this.fail("RUNTIME_UNAVAILABLE");
         }
       });
+      await context.assertActive?.();
       try {
         await this.assertBound();
-        await context.assertActive?.();
       } catch {
         this.fail("STALE_BINDING");
         throw failure("STALE_BINDING", "completed", id);
@@ -588,12 +648,14 @@ class ProcessSession implements FoundationSession<InvocationContext> {
     void callback.catch(() => this.fail("INVALID_REQUEST"));
   }
   private async assertBound() {
+    if (this.stopped) throw failure("CANCELLED");
     try {
       await this.options.assertActive();
     } catch {
       this.fail("STALE_BINDING");
       throw failure("STALE_BINDING");
     }
+    if (this.stopped) throw failure("CANCELLED");
   }
   private fail(reason: string) {
     if (this.stopped) return;
@@ -607,7 +669,7 @@ class ProcessSession implements FoundationSession<InvocationContext> {
     this.readyReject(failure(reason));
     this.activation?.reject(failure(reason));
     this.activation = undefined;
-    void this.process?.stop();
+    void this.process?.stop().catch(() => {});
   }
   stop() {
     this.fail("CANCELLED");
@@ -619,6 +681,10 @@ class ProcessSession implements FoundationSession<InvocationContext> {
   async close() {
     this.stop();
     await this.launchDone.catch(() => {});
-    await this.execution.close();
+    try {
+      await this.execution.close();
+    } catch {
+      throw failure("CLEANUP_FAILED");
+    }
   }
 }

@@ -19,7 +19,10 @@
       }
     },
     "runtime": {
-      "enum": ["isolate", "controlled-node"]
+      "enum": [
+        "isolate",
+        "controlled-node"
+      ]
     },
     "background": {
       "type": "boolean"
@@ -48,14 +51,22 @@
             "maxItems": 3,
             "uniqueItems": true,
             "items": {
-              "enum": ["read", "write", "delete"]
+              "enum": [
+                "read",
+                "write",
+                "delete"
+              ]
             }
           },
           "optional": {
             "type": "boolean"
           }
         },
-        "required": ["id", "permissionId", "operations"],
+        "required": [
+          "id",
+          "permissionId",
+          "operations"
+        ],
         "additionalProperties": true
       }
     },
@@ -69,10 +80,16 @@
           "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$"
         }
       },
-      "required": ["provideId"],
+      "required": [
+        "provideId"
+      ],
       "additionalProperties": true
     }
   },
-  "required": ["commonVersion", "features", "runtime"],
+  "required": [
+    "commonVersion",
+    "features",
+    "runtime"
+  ],
   "additionalProperties": true
 }

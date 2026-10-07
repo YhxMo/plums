@@ -256,7 +256,7 @@ export class SecureFsSink implements FsSink {
         child.kill("SIGKILL");
         fail();
       }, 30_000);
-      child.on("exit", (code) => {
+      child.on("close", (code) => {
         clearTimeout(timer);
         if (code === 0) resolve(Buffer.concat(chunks));
         else fail();

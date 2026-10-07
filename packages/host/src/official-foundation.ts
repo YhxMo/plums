@@ -86,6 +86,7 @@ class OfficialSession implements HostFoundationSession {
     private options: FoundationAdapterOptions,
     private nodePath: string,
     private controlled: ControlledExecution,
+    private ownsControlled = false,
   ) {
     this.instanceId = options.binding.instanceId;
     this.declaration = desktopContribution(
@@ -178,6 +179,7 @@ class OfficialSession implements HostFoundationSession {
         undefined,
         this.instanceId,
         false,
+        this.options.trackProcess,
       );
       await this.runtime.ready();
       await this.options.assertActive();
@@ -244,8 +246,24 @@ class OfficialSession implements HostFoundationSession {
         await this.process.stop();
         await this.process.cleaned;
       }
+      if (this.ownsControlled) await this.controlled.close();
     })());
   }
+}
+export function createOfficialFoundationSession(
+  options: FoundationAdapterOptions,
+  nodePath = process.execPath,
+): HostFoundationSession {
+  return new OfficialSession(
+    options,
+    nodePath,
+    new ControlledExecution(
+      nodePath,
+      options.trackProcess,
+      options.allocateSnapshot,
+    ),
+    true,
+  );
 }
 export function createOfficialFoundationRegistry(
   nodePath = process.execPath,
@@ -256,7 +274,18 @@ export function createOfficialFoundationRegistry(
     provider: OFFICIAL_FOUNDATION_PROVIDER,
     version: OFFICIAL_FOUNDATION_REFERENCE.version,
     create: async (options) =>
-      new OfficialSession(options, nodePath, controlled),
+      new OfficialSession(
+        options,
+        nodePath,
+        options.trackProcess
+          ? new ControlledExecution(
+              nodePath,
+              options.trackProcess,
+              options.allocateSnapshot,
+            )
+          : controlled,
+        !!options.trackProcess,
+      ),
   });
   return registry;
 }

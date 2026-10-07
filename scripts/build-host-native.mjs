@@ -38,3 +38,9 @@ await build({
   external: ["isolated-vm"],
   target: "node26",
 });
+
+// A single trusted host build runs in both the library and desktop broker.
+// It is an internal artifact, separate from a public provider ZIP.
+await import("./build-host-adapter.mjs");
+
+await import("./build-official-foundation.mjs");

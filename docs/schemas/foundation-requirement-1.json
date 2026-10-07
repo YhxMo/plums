@@ -26,7 +26,10 @@
           "maxLength": 128
         }
       },
-      "required": ["id", "version"],
+      "required": [
+        "id",
+        "version"
+      ],
       "additionalProperties": true
     },
     "features": {
@@ -58,6 +61,11 @@
       "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$"
     }
   },
-  "required": ["requirementVersion", "protocolRange", "sdk", "features"],
+  "required": [
+    "requirementVersion",
+    "protocolRange",
+    "sdk",
+    "features"
+  ],
   "additionalProperties": true
 }

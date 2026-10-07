@@ -14,7 +14,13 @@
       "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$"
     },
     "kind": {
-      "enum": ["invoke", "cancel", "accepted", "event", "result"]
+      "enum": [
+        "invoke",
+        "cancel",
+        "accepted",
+        "event",
+        "result"
+      ]
     },
     "binding": {
       "type": "string",
@@ -35,7 +41,11 @@
       "maximum": 3600000
     },
     "reason": {
-      "enum": ["user", "deadline", "owner_closed"]
+      "enum": [
+        "user",
+        "deadline",
+        "owner_closed"
+      ]
     },
     "sequence": {
       "type": "integer",
@@ -56,7 +66,11 @@
     },
     "data": {},
     "executionState": {
-      "enum": ["not_started", "unknown", "completed"]
+      "enum": [
+        "not_started",
+        "unknown",
+        "completed"
+      ]
     },
     "outcome": {
       "type": "object",
@@ -92,11 +106,15 @@
               "pattern": "^(?:/(?:[^~]|~[01])*)*$"
             }
           },
-          "required": ["code"],
+          "required": [
+            "code"
+          ],
           "additionalProperties": false
         }
       },
-      "required": ["ok"],
+      "required": [
+        "ok"
+      ],
       "additionalProperties": true,
       "allOf": [
         {
@@ -106,25 +124,39 @@
                 "const": true
               }
             },
-            "required": ["ok"]
+            "required": [
+              "ok"
+            ]
           },
           "then": {
-            "required": ["value"],
+            "required": [
+              "value"
+            ],
             "not": {
-              "required": ["error"]
+              "required": [
+                "error"
+              ]
             }
           },
           "else": {
-            "required": ["error"],
+            "required": [
+              "error"
+            ],
             "not": {
-              "required": ["value"]
+              "required": [
+                "value"
+              ]
             }
           }
         }
       ]
     }
   },
-  "required": ["commonVersion", "callId", "kind"],
+  "required": [
+    "commonVersion",
+    "callId",
+    "kind"
+  ],
   "additionalProperties": true,
   "allOf": [
     {
@@ -134,32 +166,52 @@
             "const": "invoke"
           }
         },
-        "required": ["kind"]
+        "required": [
+          "kind"
+        ]
       },
       "then": {
-        "required": ["binding", "operation", "input"],
+        "required": [
+          "binding",
+          "operation",
+          "input"
+        ],
         "not": {
           "anyOf": [
             {
-              "required": ["reason"]
+              "required": [
+                "reason"
+              ]
             },
             {
-              "required": ["sequence"]
+              "required": [
+                "sequence"
+              ]
             },
             {
-              "required": ["taskId"]
+              "required": [
+                "taskId"
+              ]
             },
             {
-              "required": ["channel"]
+              "required": [
+                "channel"
+              ]
             },
             {
-              "required": ["data"]
+              "required": [
+                "data"
+              ]
             },
             {
-              "required": ["executionState"]
+              "required": [
+                "executionState"
+              ]
             },
             {
-              "required": ["outcome"]
+              "required": [
+                "outcome"
+              ]
             }
           ]
         }
@@ -172,41 +224,65 @@
             "const": "cancel"
           }
         },
-        "required": ["kind"]
+        "required": [
+          "kind"
+        ]
       },
       "then": {
-        "required": ["reason"],
+        "required": [
+          "reason"
+        ],
         "not": {
           "anyOf": [
             {
-              "required": ["binding"]
+              "required": [
+                "binding"
+              ]
             },
             {
-              "required": ["operation"]
+              "required": [
+                "operation"
+              ]
             },
             {
-              "required": ["input"]
+              "required": [
+                "input"
+              ]
             },
             {
-              "required": ["timeoutMs"]
+              "required": [
+                "timeoutMs"
+              ]
             },
             {
-              "required": ["sequence"]
+              "required": [
+                "sequence"
+              ]
             },
             {
-              "required": ["taskId"]
+              "required": [
+                "taskId"
+              ]
             },
             {
-              "required": ["channel"]
+              "required": [
+                "channel"
+              ]
             },
             {
-              "required": ["data"]
+              "required": [
+                "data"
+              ]
             },
             {
-              "required": ["executionState"]
+              "required": [
+                "executionState"
+              ]
             },
             {
-              "required": ["outcome"]
+              "required": [
+                "outcome"
+              ]
             }
           ]
         }
@@ -219,38 +295,61 @@
             "const": "accepted"
           }
         },
-        "required": ["kind"]
+        "required": [
+          "kind"
+        ]
       },
       "then": {
-        "required": ["sequence", "taskId"],
+        "required": [
+          "sequence",
+          "taskId"
+        ],
         "not": {
           "anyOf": [
             {
-              "required": ["binding"]
+              "required": [
+                "binding"
+              ]
             },
             {
-              "required": ["operation"]
+              "required": [
+                "operation"
+              ]
             },
             {
-              "required": ["input"]
+              "required": [
+                "input"
+              ]
             },
             {
-              "required": ["timeoutMs"]
+              "required": [
+                "timeoutMs"
+              ]
             },
             {
-              "required": ["reason"]
+              "required": [
+                "reason"
+              ]
             },
             {
-              "required": ["channel"]
+              "required": [
+                "channel"
+              ]
             },
             {
-              "required": ["data"]
+              "required": [
+                "data"
+              ]
             },
             {
-              "required": ["executionState"]
+              "required": [
+                "executionState"
+              ]
             },
             {
-              "required": ["outcome"]
+              "required": [
+                "outcome"
+              ]
             }
           ]
         }
@@ -263,35 +362,57 @@
             "const": "event"
           }
         },
-        "required": ["kind"]
+        "required": [
+          "kind"
+        ]
       },
       "then": {
-        "required": ["sequence", "channel", "data"],
+        "required": [
+          "sequence",
+          "channel",
+          "data"
+        ],
         "not": {
           "anyOf": [
             {
-              "required": ["binding"]
+              "required": [
+                "binding"
+              ]
             },
             {
-              "required": ["operation"]
+              "required": [
+                "operation"
+              ]
             },
             {
-              "required": ["input"]
+              "required": [
+                "input"
+              ]
             },
             {
-              "required": ["timeoutMs"]
+              "required": [
+                "timeoutMs"
+              ]
             },
             {
-              "required": ["reason"]
+              "required": [
+                "reason"
+              ]
             },
             {
-              "required": ["taskId"]
+              "required": [
+                "taskId"
+              ]
             },
             {
-              "required": ["executionState"]
+              "required": [
+                "executionState"
+              ]
             },
             {
-              "required": ["outcome"]
+              "required": [
+                "outcome"
+              ]
             }
           ]
         }
@@ -304,35 +425,57 @@
             "const": "result"
           }
         },
-        "required": ["kind"]
+        "required": [
+          "kind"
+        ]
       },
       "then": {
-        "required": ["sequence", "executionState", "outcome"],
+        "required": [
+          "sequence",
+          "executionState",
+          "outcome"
+        ],
         "not": {
           "anyOf": [
             {
-              "required": ["binding"]
+              "required": [
+                "binding"
+              ]
             },
             {
-              "required": ["operation"]
+              "required": [
+                "operation"
+              ]
             },
             {
-              "required": ["input"]
+              "required": [
+                "input"
+              ]
             },
             {
-              "required": ["timeoutMs"]
+              "required": [
+                "timeoutMs"
+              ]
             },
             {
-              "required": ["reason"]
+              "required": [
+                "reason"
+              ]
             },
             {
-              "required": ["taskId"]
+              "required": [
+                "taskId"
+              ]
             },
             {
-              "required": ["channel"]
+              "required": [
+                "channel"
+              ]
             },
             {
-              "required": ["data"]
+              "required": [
+                "data"
+              ]
             }
           ]
         }
@@ -351,10 +494,15 @@
                 "const": true
               }
             },
-            "required": ["ok"]
+            "required": [
+              "ok"
+            ]
           }
         },
-        "required": ["kind", "outcome"]
+        "required": [
+          "kind",
+          "outcome"
+        ]
       },
       "then": {
         "properties": {

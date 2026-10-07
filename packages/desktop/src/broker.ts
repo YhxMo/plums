@@ -101,6 +101,51 @@ process.on("message", async (raw: unknown) => {
   try {
     let value: unknown;
     switch (m.method) {
+      case "foundationManagement":
+        value = await host.foundationManagement(
+          a.instanceId as string | undefined,
+        );
+        break;
+      case "listFoundations":
+        value = await host.listFoundations();
+        break;
+      case "foundationPlan":
+        value = await host.foundationPlan(
+          id,
+          a.selection as import("@plums/sdk").FoundationSelection | undefined,
+        );
+        break;
+      case "foundationStatus":
+        value = await host.foundationStatus(id);
+        break;
+      case "switchFoundation":
+        value = await host.switchFoundation(
+          id,
+          a.fingerprint as string,
+          a.selection as import("@plums/sdk").FoundationSelection,
+        );
+        break;
+      case "setFoundationEnabled":
+        value = await host.setFoundationEnabled(id, a.enabled as boolean);
+        break;
+      case "retryFoundationRecovery":
+        await host.retryFoundationRecovery(id);
+        break;
+      case "restoreBuiltinFoundation":
+        value = await host.restoreBuiltinFoundation();
+        break;
+      case "removeFoundation":
+        await host.removeFoundation(
+          a.selection as import("@plums/sdk").FoundationSelection,
+        );
+        break;
+      case "exportFoundation":
+        value = [
+          ...(await host.exportFoundation(
+            a.selection as import("@plums/sdk").FoundationSelection,
+          )),
+        ];
+        break;
       case "list":
         value = await host.listAgents();
         break;
@@ -197,6 +242,7 @@ process.on("message", async (raw: unknown) => {
           a.protocolBindings as
             | import("@plums/sdk").ProtocolBindingIntent[]
             | undefined,
+          a.foundation as import("@plums/sdk").FoundationAgent | undefined,
         );
         break;
       case "editAgent":

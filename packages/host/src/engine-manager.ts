@@ -35,6 +35,7 @@ interface Run {
   stop?: Promise<void>;
 }
 export interface EngineHooks {
+  trackProcess?: (child: ChildProcess) => void;
   prepare(signal: AbortSignal): Promise<{
     entry: string;
     cwd: string;
@@ -135,6 +136,7 @@ export class EngineManager {
         if (crash && !run.stop) void hooks.audit("crash").catch(() => {});
         hooks.event("engine.status", { state: run.state });
       });
+      hooks.trackProcess?.(run.child);
       run.child.send({ type: "start", ...prepared });
       const hello = (await this.send(
         run,

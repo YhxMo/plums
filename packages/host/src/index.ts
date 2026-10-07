@@ -73,3 +73,17 @@ export {
   OFFICIAL_FOUNDATION_REFERENCE,
   OFFICIAL_FOUNDATION_PROVIDER,
 } from "./official-foundation.js";
+
+export {
+  discoverLibraryFoundations,
+  registerLibraryFoundation,
+} from "./foundation-library.js";
+export type {
+  LibraryFoundation,
+  LibraryFoundationOptions,
+} from "./foundation-library.js";
+
+export type {
+  AgentFoundationBinding,
+  FoundationSwitchPhase,
+} from "./foundation-state.js";

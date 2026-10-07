@@ -1,5 +1,5 @@
 import { build } from "esbuild";
-import { copyFile } from "node:fs/promises";
+import { copyFile, cp, rm } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 const root = fileURLToPath(new URL("../", import.meta.url));
 for (const kind of ["agent", "manager", "confirm"])
@@ -19,6 +19,17 @@ await build({
   platform: "node",
   format: "esm",
   external: ["better-sqlite3", "isolated-vm"],
+  plugins: [
+    {
+      name: "trusted-host-adapter",
+      setup(b) {
+        b.onResolve({ filter: /^@plums\/(host|core)$/ }, () => ({
+          path: "./host-adapter/index.mjs",
+          external: true,
+        }));
+      },
+    },
+  ],
   target: "node26",
   banner: {
     js: "import {createRequire as __createRequire} from 'node:module';const require=__createRequire(import.meta.url);",
@@ -49,3 +60,23 @@ for (const name of [
     root + "packages/host/dist/" + name,
     root + "packages/desktop/dist/" + name,
   );
+
+await rm(root + "packages/desktop/dist/host-adapter", {
+  recursive: true,
+  force: true,
+});
+await cp(
+  root + "packages/host/dist/host-adapter",
+  root + "packages/desktop/dist/host-adapter",
+  { recursive: true },
+);
+
+await rm(root + "packages/desktop/dist/foundation-resources", {
+  recursive: true,
+  force: true,
+});
+await cp(
+  root + "packages/host/dist/foundation-resources",
+  root + "packages/desktop/dist/foundation-resources",
+  { recursive: true },
+);

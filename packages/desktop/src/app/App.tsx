@@ -1,3 +1,4 @@
+import { FoundationManager } from "../components/FoundationManager.js";
 import { useEffect, useState, useRef } from "react";
 import type { ComponentSource, AgentRecord } from "@plums/host";
 import type { Resource, CatalogItem, AssemblyDraft } from "../shared/types.js";
@@ -409,6 +410,16 @@ export function App() {
               </button>
             </div>
           )}
+          {tab === "settings" && (
+            <FoundationManager onImport={() => void importFile()} />
+          )}
+          {tab === "status" && selected && (
+            <FoundationManager
+              key={selected}
+              instanceId={selected}
+              onImport={() => void importFile()}
+            />
+          )}
           {!initialized ? (
             loading ? (
               <Skeleton />
@@ -611,6 +622,7 @@ export function App() {
               characterId,
               startup,
               protocolBindings,
+              foundation,
             ) => {
               const ok = await assemblyAction.run(async () => {
                 if (assembling === "new") {
@@ -620,6 +632,7 @@ export function App() {
                     characterId,
                     startup,
                     protocolBindings,
+                    foundation,
                   })) as AgentRecord;
                   await load(created.instanceId).catch(() => {});
                   setTab("status");
@@ -690,6 +703,7 @@ export function App() {
                   await load().catch(() => {});
                   setAssemblySeed({
                     name: preview.agent?.name ?? "",
+                    foundation: preview.agent?.foundation,
                     digests: items.map((p) => p.digest),
                     characterId: items.find(
                       (p) =>
@@ -703,7 +717,11 @@ export function App() {
                   await window.manager.call("importLibrary", {
                     token: preview.token,
                   });
-                  setTab(componentTab(preview.components[0]!.kind));
+                  setTab(
+                    preview.type === "foundation"
+                      ? "settings"
+                      : componentTab(preview.components[0]!.kind),
+                  );
 
                   if (resumeAssembly.current) {
                     setAssembling(resumeAssembly.current);

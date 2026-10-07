@@ -14,55 +14,83 @@
       "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$"
     },
     "type": {
-      "enum": ["ready", "activated", "callback", "result", "fatal"]
+      "enum": [
+        "ready",
+        "activated",
+        "callback",
+        "result",
+        "fatal"
+      ]
     }
   },
-  "required": ["foundationVersion", "sessionId", "type"],
+  "required": [
+    "foundationVersion",
+    "sessionId",
+    "type"
+  ],
   "additionalProperties": true,
   "allOf": [
     {
       "not": {
-        "required": ["binding"]
+        "required": [
+          "binding"
+        ]
       }
     },
     {
       "not": {
-        "required": ["agentId"]
+        "required": [
+          "agentId"
+        ]
       }
     },
     {
       "not": {
-        "required": ["componentId"]
+        "required": [
+          "componentId"
+        ]
       }
     },
     {
       "not": {
-        "required": ["installationId"]
+        "required": [
+          "installationId"
+        ]
       }
     },
     {
       "not": {
-        "required": ["instanceId"]
+        "required": [
+          "instanceId"
+        ]
       }
     },
     {
       "not": {
-        "required": ["callers"]
+        "required": [
+          "callers"
+        ]
       }
     },
     {
       "not": {
-        "required": ["ancestry"]
+        "required": [
+          "ancestry"
+        ]
       }
     },
     {
       "not": {
-        "required": ["executionState"]
+        "required": [
+          "executionState"
+        ]
       }
     },
     {
       "not": {
-        "required": ["context"]
+        "required": [
+          "context"
+        ]
       }
     },
     {
@@ -72,7 +100,9 @@
             "const": "ready"
           }
         },
-        "required": ["type"]
+        "required": [
+          "type"
+        ]
       },
       "then": {
         "type": "object",
@@ -91,7 +121,10 @@
                 "maxLength": 128
               }
             },
-            "required": ["id", "version"],
+            "required": [
+              "id",
+              "version"
+            ],
             "additionalProperties": true
           },
           "features": {
@@ -106,7 +139,10 @@
             }
           }
         },
-        "required": ["sdk", "features"],
+        "required": [
+          "sdk",
+          "features"
+        ],
         "additionalProperties": true
       }
     },
@@ -117,7 +153,9 @@
             "const": "activated"
           }
         },
-        "required": ["type"]
+        "required": [
+          "type"
+        ]
       },
       "then": {
         "type": "object",
@@ -133,7 +171,9 @@
             "const": "callback"
           }
         },
-        "required": ["type"]
+        "required": [
+          "type"
+        ]
       },
       "then": {
         "type": "object",
@@ -182,7 +222,12 @@
             "type": "object"
           }
         },
-        "required": ["callId", "callbackId", "method", "args"],
+        "required": [
+          "callId",
+          "callbackId",
+          "method",
+          "args"
+        ],
         "additionalProperties": true
       }
     },
@@ -193,7 +238,9 @@
             "const": "result"
           }
         },
-        "required": ["type"]
+        "required": [
+          "type"
+        ]
       },
       "then": {
         "type": "object",
@@ -209,7 +256,11 @@
           },
           "value": {}
         },
-        "required": ["callId", "ok", "value"],
+        "required": [
+          "callId",
+          "ok",
+          "value"
+        ],
         "additionalProperties": true
       }
     },
@@ -220,7 +271,9 @@
             "const": "fatal"
           }
         },
-        "required": ["type"]
+        "required": [
+          "type"
+        ]
       },
       "then": {
         "type": "object",

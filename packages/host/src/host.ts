@@ -1,3 +1,17 @@
+import { readFileSync } from "node:fs";
+import {
+  FoundationOwnership,
+  foundationJournal,
+  foundationBinding,
+  validateFoundationBinding,
+  durableJson,
+  recoverFoundation,
+  FOUNDATION_DATA_FORMAT,
+  type AgentFoundationBinding,
+  type FoundationTransaction,
+  type FoundationSwitchPhase,
+} from "./foundation-state.js";
+import { OfficialAdapterArtifacts } from "./foundation-artifact.js";
 import { WorkspaceLayouts } from "./workspace-layout.js";
 import {
   PolicyService,
@@ -123,6 +137,11 @@ import {
   type ContributionKind,
   type ProtocolBindingIntent,
   validateProtocolIntents,
+  parseFoundationSelection,
+  checkFoundationCompatibility,
+  parseFoundationAgent,
+  type FoundationAgent,
+  type FoundationSelection,
 } from "@plums/sdk";
 import type {
   HostFoundationSession,
@@ -131,11 +150,13 @@ import type {
 import {
   FoundationRegistry,
   createFoundationSession,
+  foundationFailure,
+  type FoundationReference,
 } from "./foundation-factory.js";
 import {
-  createOfficialFoundationRegistry,
-  OFFICIAL_FOUNDATION_REFERENCE,
-} from "./official-foundation.js";
+  discoverLibraryFoundations,
+  registerLibraryFoundation,
+} from "./foundation-library.js";
 import { HttpsSink, SecureFsSink, ioContext, type DnsMode } from "./io.js";
 export type DesktopTheme = "system" | "light" | "dark";
 export interface DesktopSettings {
@@ -148,6 +169,7 @@ export interface AgentRecord {
   agent: AgentBundleManifest;
   characterId?: string;
   recordVersion?: 2;
+  foundation?: AgentFoundationBinding;
   components?: ComponentBinding[];
   extras?: string[];
   createdAt: string;
@@ -173,6 +195,12 @@ export interface HostOptions {
   grantConfirm?: GrantConfirm;
   secretStore: (instanceId: string) => SecretStore;
   nodePath?: string;
+  /** Default for new or legacy Agents only; existing persisted pins are never changed. */
+  foundation?: FoundationSelection;
+  /** Internal transaction fault seam; not exposed to components. */
+  foundationSwitchFault?: (
+    phase: FoundationSwitchPhase,
+  ) => void | Promise<void>;
   egress?: EgressSink;
   fs?: FsSink;
   audit?: (instanceId: string, event: Readonly<AuditEvent>) => Promise<void>;
@@ -222,6 +250,17 @@ export class DesktopHost {
   >();
   private controlled: ControlledExecution;
   private foundations: FoundationRegistry;
+  private foundation?: FoundationSelection;
+  private foundationRegistrations = new Map<
+    string,
+    Promise<FoundationReference>
+  >();
+  private foundationOwners: FoundationOwnership;
+  private officialArtifacts: OfficialAdapterArtifacts;
+  private foundationChanging = new Map<string, object>();
+  private ownedSessions = new Set<string>();
+  private commandRunners = new WeakMap<Session, ControlledExecution>();
+  private ownedCommandRunners = new Set<ControlledExecution>();
   private commonRuntimes = new WeakSet<HostFoundationSession>();
   private common: CommonService;
   private businessResources: ResourceService;
@@ -255,13 +294,15 @@ export class DesktopHost {
   private theme: DesktopTheme = "system";
   private desktopSettingsQueue: Promise<void> = Promise.resolve();
   constructor(readonly options: HostOptions) {
+    this.foundationOwners = new FoundationOwnership(options.dataDir);
+    this.officialArtifacts = new OfficialAdapterArtifacts(options.dataDir);
+    if (options.foundation) {
+      this.foundation = parseFoundationSelection(options.foundation);
+    }
     this.controlled = new ControlledExecution(
       options.nodePath ?? process.execPath,
     );
-    this.foundations = createOfficialFoundationRegistry(
-      options.nodePath ?? process.execPath,
-      this.controlled,
-    );
+    this.foundations = new FoundationRegistry();
     this.common = new CommonService(
       path.join(options.dataDir, "common-tasks"),
       {
@@ -455,6 +496,10 @@ export class DesktopHost {
     this.library = new ComponentLibrary(path.join(options.dataDir, "library"));
     this.engines = new EngineCoordinator({
       canRun: (s) => this.assertLegacyEngine(s),
+      trackProcess: (s, child) =>
+        this.foundationOwners.track(s.record.instanceId, child),
+      allocateSnapshot: (s) =>
+        this.foundationOwners.allocateSnapshot(s.record.instanceId),
       nodePath: options.nodePath,
       library: this.library,
       confirm: options.confirm,
@@ -542,49 +587,94 @@ export class DesktopHost {
       if ((error as NodeJS.ErrnoException).code !== "ENOENT")
         throw Error("Desktop settings unavailable");
     }
-    await this.library.initialize();
-    const root = path.join(this.options.dataDir, "instances");
-    await mkdir(root, { recursive: true });
-    // The desktop holds a single-instance lock. Only unpublished staging trees are recovered.
-    for (const name of await readdir(root))
-      if (name.startsWith(".staging-"))
-        await rm(path.join(root, name), { recursive: true, force: true });
-    for (const name of await readdir(root))
-      if (/^[a-f0-9-]{36}$/.test(name)) {
-        const dir = this.directory(name),
-          secrets = this.options.secretStore(name);
-        try {
-          checkRecordVersion(
-            JSON.parse(
-              await readFile(path.join(dir, "record.json"), "utf8"),
-            ) as AgentRecord,
-          );
-          await checkAssemblyRecovery(dir);
-          await recoverComponentMutation(
-            dir,
-            secrets,
-            this.options.egress ?? new HttpsSink(),
-          );
-          const core = createCore({
-            capabilityApproval: "task-or-confirm",
-            dataDir: path.join(dir, "core"),
-            secrets,
-            egress: this.options.egress ?? new HttpsSink(),
-          });
+    await this.foundationOwners.acquire("library");
+    try {
+      await this.library.initialize();
+      const root = path.join(this.options.dataDir, "instances");
+      await mkdir(root, { recursive: true });
+      // The shared library mutex protects unpublished assembly staging during recovery.
+      for (const name of await readdir(root))
+        if (name.startsWith(".staging-"))
+          await rm(path.join(root, name), { recursive: true, force: true });
+      for (const name of await readdir(root))
+        if (/^[a-f0-9-]{36}$/.test(name)) {
+          const dir = this.directory(name),
+            secrets = this.options.secretStore(name);
+          let owned = false,
+            exclusive = false;
           try {
-            await recoverAssembly(dir, core);
-            await this.migrateRecord(dir, core);
+            await this.foundationOwners.acquire(name);
+            owned = true;
+            if (
+              (await foundationJournal(dir)) ||
+              this.foundationOwners.needsRecovery(name)
+            ) {
+              await this.foundationOwners.exclusive(name);
+              exclusive = true;
+              await recoverFoundation(dir);
+            }
+            checkRecordVersion(
+              JSON.parse(
+                await readFile(path.join(dir, "record.json"), "utf8"),
+              ) as AgentRecord,
+            );
+            await checkAssemblyRecovery(dir);
+            await recoverComponentMutation(
+              dir,
+              secrets,
+              this.options.egress ?? new HttpsSink(),
+            );
+            const core = createCore({
+              capabilityApproval: "task-or-confirm",
+              dataDir: path.join(dir, "core"),
+              secrets,
+              egress: this.options.egress ?? new HttpsSink(),
+            });
+            try {
+              await recoverAssembly(dir, core);
+              await this.migrateRecord(dir, core);
+              await this.migrateFoundation(dir);
+            } finally {
+              core.close();
+            }
+            this.recoveryErrors.delete(name);
+          } catch (error) {
+            if (
+              error instanceof PlumsError &&
+              (error.details as { reason?: string })?.reason ===
+                "FOUNDATION_BUSY"
+            )
+              continue;
+            this.recoveryErrors.set(
+              name,
+              "此 Agent 的组合迁移或恢复失败，原始数据已保留。",
+            );
           } finally {
-            core.close();
+            if (exclusive) this.foundationOwners.releaseExclusive(name);
+            if (owned) this.foundationOwners.release(name);
           }
-          this.recoveryErrors.delete(name);
-        } catch {
-          this.recoveryErrors.set(
-            name,
-            "此 Agent 的组合迁移或恢复失败，原始数据已保留。",
-          );
         }
-      }
+    } finally {
+      this.foundationOwners.release("library");
+    }
+  }
+  private async migrateFoundation(dir: string) {
+    const record = JSON.parse(
+      await readFile(path.join(dir, "record.json"), "utf8"),
+    ) as AgentRecord;
+    if (record.foundation) {
+      validateFoundationBinding(record.foundation);
+      return;
+    }
+    const declared = record.agent.foundation;
+    if (declared && !parseFoundationAgent(declared).selection)
+      throw foundationFailure("FOUNDATION_SELECTION_REQUIRED");
+    record.foundation = foundationBinding(
+      declared?.selection ??
+        this.foundation ??
+        (await this.officialArtifacts.current()),
+    );
+    await durableJson(path.join(dir, "record.json"), record);
   }
   private async migrateRecord(dir: string, core: Core): Promise<void> {
     const record = JSON.parse(
@@ -668,6 +758,30 @@ export class DesktopHost {
         await rawCharacter(bytes, typeof input === "string" ? input : "角色卡"),
       );
     const files = await readArchive(bytes);
+    if (this.officialArtifacts.recognizes(bytes, files)) {
+      const artifact = await this.officialArtifacts.preview(bytes),
+        token = randomUUID();
+      if (this.officialPreviews.size >= 4)
+        this.officialPreviews.delete(
+          this.officialPreviews.keys().next().value!,
+        );
+      this.officialPreviews.set(token, new Uint8Array(bytes));
+      return {
+        token,
+        type: "foundation",
+        selection: artifact.selection,
+        components: [
+          {
+            id: artifact.selection.id,
+            name: "Plums 官方底座",
+            kind: "foundation",
+            version: artifact.selection.version,
+            permissions: [],
+            code: true,
+          },
+        ],
+      };
+    }
     if (!Object.hasOwn(files, "agent.json"))
       return this.previewLibraryArtifact(await componentArtifact(bytes));
     const bundle = await inspectAgentBundle(bytes);
@@ -679,16 +793,19 @@ export class DesktopHost {
       token,
       type: "agent",
       agent: bundle.agent,
-      incomplete: bundle.packages.some(
-        (p) =>
-          unmetDependencies(
-            p.contents.manifest,
-            bundle.packages.map((p) => p.contents.manifest),
-          ).length > 0,
-      ),
+      incomplete:
+        !!(bundle.agent.foundation && !bundle.agent.foundation.selection) ||
+        bundle.packages.some(
+          (p) =>
+            unmetDependencies(
+              p.contents.manifest,
+              bundle.packages.map((p) => p.contents.manifest),
+            ).length > 0,
+        ),
       components: bundle.packages.map((p) => this.previewDetails(p.contents)),
     };
   }
+  private officialPreviews = new Map<string, Uint8Array>();
   private libraryPreviews = new Map<string, ComponentArtifact>();
   private previewDetails(contents: PackageContents) {
     const m = contents.manifest;
@@ -713,8 +830,14 @@ export class DesktopHost {
       components: [this.previewDetails(artifact.contents)],
     };
   }
-  async importLibrary(token: string): Promise<LibraryItem> {
+  async importLibrary(token: string) {
     return this.serial("library", async () => {
+      const official = this.officialPreviews.get(token);
+      if (official) {
+        const selection = await this.officialArtifacts.put(official);
+        this.officialPreviews.delete(token);
+        return { digest: selection.digest, selection };
+      }
       const artifact = this.libraryPreviews.get(token);
       if (!artifact) importInvalid("导入预览已失效。");
       this.libraryPreviews.delete(token);
@@ -730,13 +853,545 @@ export class DesktopHost {
       return items;
     });
   }
+  /** Verified third-party declarations; discovery grants no execution authority. */
+  async listFoundations() {
+    return discoverLibraryFoundations(this.library);
+  }
+
+  /** Read-only recovery view works even when opening a business session is blocked. */
+  async foundationManagement(id?: string) {
+    if (id) uuid(id);
+    let catalog: Awaited<ReturnType<DesktopHost["listFoundations"]>> = [],
+      catalogFailure = false;
+    for (const read of [
+      () => this.officialArtifacts.list(),
+      () =>
+        discoverLibraryFoundations(this.library, () => {
+          catalogFailure = true;
+        }),
+    ]) {
+      try {
+        catalog.push(...(await read()));
+      } catch {
+        catalogFailure = true;
+      }
+    }
+    const agents: {
+      instanceId: string;
+      name: string;
+      current?: AgentFoundationBinding;
+      compatible: boolean;
+      reason?: string;
+      reports: unknown[];
+      recoveryBlocked: boolean;
+    }[] = [];
+    for (const record of await this.listAgents()) {
+      if (id && record.instanceId !== id) continue;
+      let plan: Awaited<ReturnType<DesktopHost["foundationPlan"]>> | undefined,
+        reason: string | undefined;
+      try {
+        plan = await this.foundationPlan(record.instanceId);
+        if (!plan.compatible)
+          reason =
+            (plan.failure as { reason?: string })?.reason ??
+            "FOUNDATION_INCOMPATIBLE";
+      } catch {
+        reason = "FOUNDATION_RECOVERY_REQUIRED";
+      }
+      agents.push({
+        instanceId: record.instanceId,
+        name: record.name,
+        current:
+          plan?.current ??
+          (() => {
+            try {
+              validateFoundationBinding(record.foundation!);
+              return structuredClone(record.foundation);
+            } catch {
+              return undefined;
+            }
+          })(),
+        compatible: plan?.compatible ?? false,
+        reason,
+        reports: plan?.reports ?? [],
+        recoveryBlocked: !!this.recoveryErrors.get(record.instanceId),
+      });
+    }
+    // Corrupt records have no safe name/selection to display. Keep their recovery entry visible.
+    for (const [instanceId] of this.recoveryErrors)
+      if (
+        (!id || id === instanceId) &&
+        !agents.some((a) => a.instanceId === instanceId)
+      )
+        agents.push({
+          instanceId,
+          name: "无法读取的 Agent",
+          current: undefined,
+          compatible: false,
+          reason: "FOUNDATION_RECOVERY_REQUIRED",
+          reports: [],
+          recoveryBlocked: true,
+        });
+    return {
+      catalog: catalog.map((a) => ({
+        ...a,
+        usedBy: agents
+          .filter((r) => r.current?.selection.digest === a.selection.digest)
+          .map((r) => r.instanceId),
+      })),
+      catalogFailure,
+      agents,
+    };
+  }
+  async restoreBuiltinFoundation() {
+    return this.serial("library", () => this.officialArtifacts.current());
+  }
+  async exportFoundation(selection: FoundationSelection) {
+    const fixed = parseFoundationSelection(selection);
+    return fixed.source === "builtin"
+      ? this.officialArtifacts.archive(fixed)
+      : this.exportLibrary(fixed.digest);
+  }
+  async removeFoundation(selection: FoundationSelection) {
+    const fixed = parseFoundationSelection(selection);
+    if (fixed.source === "library") return this.removeLibrary(fixed.digest);
+    return this.serial("library", async () => {
+      if (await this.artifactReferenced(fixed.digest))
+        throw foundationFailure("FOUNDATION_IN_USE");
+      await this.officialArtifacts.remove(fixed);
+    });
+  }
+  async retryFoundationRecovery(id: string) {
+    uuid(id);
+    await this.stopSession(id);
+    return this.serial("library", () =>
+      this.serial(id, async () => {
+        await this.foundationOwners.exclusive(id);
+        try {
+          const dir = this.directory(id);
+          await recoverFoundation(dir);
+          await this.migrateFoundation(dir);
+          this.recoveryErrors.delete(id);
+        } catch {
+          this.recoveryErrors.set(id, "此 Agent 的恢复失败，原始数据已保留。");
+          throw foundationFailure("FOUNDATION_RECOVERY_REQUIRED");
+        } finally {
+          this.foundationOwners.releaseExclusive(id);
+        }
+      }),
+    );
+  }
+  private async foundationReference(
+    selection: FoundationSelection,
+  ): Promise<FoundationReference> {
+    const fixed = parseFoundationSelection(selection);
+    const key = JSON.stringify([
+      fixed.source,
+      fixed.id,
+      fixed.version,
+      fixed.digest,
+    ]);
+    let pending = this.foundationRegistrations.get(key);
+    if (!pending) {
+      pending = (
+        fixed.source === "builtin"
+          ? this.officialArtifacts.register(
+              this.foundations,
+              fixed,
+              this.options.nodePath ?? process.execPath,
+            )
+          : registerLibraryFoundation(this.foundations, this.library, fixed, {
+              nodePath: this.options.nodePath ?? process.execPath,
+            })
+      ).catch((error) => {
+        this.foundationRegistrations.delete(key);
+        throw error;
+      });
+      this.foundationRegistrations.set(key, pending);
+      // Validation below can fail before returning this registration promise.
+      // Consume its rejection immediately while retaining it for the caller.
+      void pending.catch(() => {});
+    }
+    // Validate the actual archive on every lookup as well as inside factory creation.
+    if (fixed.source === "builtin") {
+      await this.officialArtifacts.verify(fixed);
+      return pending;
+    }
+    let artifact: ComponentArtifact;
+    try {
+      artifact = await this.library.get(fixed.digest);
+    } catch {
+      throw foundationFailure("FOUNDATION_UNAVAILABLE");
+    }
+    if (
+      artifact.contents.manifest.id !== fixed.id ||
+      artifact.contents.manifest.version !== fixed.version
+    )
+      throw foundationFailure("FOUNDATION_INVALID");
+    return pending;
+  }
+  private async foundationContents(s: Session): Promise<PackageContents[]> {
+    const contents: PackageContents[] = [];
+    for (const pin of s.record.components ?? []) {
+      const actual = await s.core.getPackageContents(pin.packageId),
+        expected = (await this.library.get(pin.digest)).contents;
+      if (
+        JSON.stringify(actual.manifest) !== JSON.stringify(expected.manifest) ||
+        Object.keys(actual.files).length !==
+          Object.keys(expected.files).length ||
+        Object.entries(expected.files).some(
+          ([p, b]) =>
+            !actual.files[p] ||
+            !Buffer.from(b).equals(Buffer.from(actual.files[p]!)),
+        )
+      )
+        denied();
+      contents.push(actual);
+    }
+    return contents;
+  }
+  private async checkAgentFoundation(
+    record: AgentRecord,
+    components: PackageContents[],
+    selection: FoundationSelection,
+  ) {
+    const provider = this.foundations.describe(
+      await this.foundationReference(selection),
+    );
+    const reports = [];
+    if (record.agent.foundation?.requirement)
+      reports.push({
+        componentId: "",
+        ...checkFoundationCompatibility(
+          provider,
+          parseFoundationAgent(record.agent.foundation).requirement!,
+          process.platform + "-" + process.arch,
+          [],
+        ),
+      });
+    for (const component of components) {
+      const d = desktopContribution(component.manifest, component.files);
+      if (!d?.runtime) continue;
+      const version = d.sdkVersion === "2" ? "2.0.0" : "1.0.0",
+        requirement = d.foundation ?? {
+          requirementVersion: "1.0" as const,
+          protocolRange: "^1.0.0",
+          sdk: { id: "org.plums.sdk", version },
+          features: ["sdk.register"],
+        };
+      const report = checkFoundationCompatibility(
+        provider,
+        requirement,
+        process.platform + "-" + process.arch,
+        [],
+      );
+      if (
+        requirement.sdk.id !== "org.plums.sdk" ||
+        requirement.sdk.version !== version ||
+        (d.engines?.length && provider.execution === "controlled-node")
+      ) {
+        report.compatible = false;
+        report.diagnostics.push({ reason: "SDK" });
+      }
+      reports.push({ componentId: component.manifest.id, ...report });
+    }
+    if (
+      provider.dataFormats &&
+      (!Array.isArray(provider.dataFormats) ||
+        !provider.dataFormats.includes(
+          record.foundation?.dataFormat ?? FOUNDATION_DATA_FORMAT,
+        ))
+    )
+      throw foundationFailure("FOUNDATION_DATA_ADAPTER_REQUIRED");
+    if (reports.some((r) => !r.compatible))
+      throw new PlumsError({
+        code: "CAPABILITY_FAILED",
+        message: "底座未满足 Agent 或组件的运行要求。",
+        path: "/foundation",
+        details: {
+          reason: "FOUNDATION_INCOMPATIBLE",
+          executionState: "not_started",
+          reports,
+        },
+      });
+    return reports;
+  }
+  private async assertAgentFoundation(s: Session) {
+    if (!s.record.foundation?.enabled)
+      throw foundationFailure("FOUNDATION_DISABLED");
+    await this.checkAgentFoundation(
+      s.record,
+      await this.foundationContents(s),
+      s.record.foundation.selection,
+    );
+  }
+  async foundationPlan(id: string, selection?: FoundationSelection) {
+    const fixed = selection ? parseFoundationSelection(selection) : undefined,
+      s = await this.session(id);
+    await this.assertCoherent(id);
+    const contents = await this.foundationContents(s),
+      candidate = fixed ?? s.record.foundation!.selection;
+    let reports: unknown[] = [],
+      failure: unknown;
+    try {
+      reports = await this.checkAgentFoundation(s.record, contents, candidate);
+    } catch (error) {
+      if (!(error instanceof PlumsError))
+        throw foundationFailure("FOUNDATION_INVALID");
+      failure = error.details;
+    }
+    const installed = await s.core.listInstalled();
+    const result = {
+      current: structuredClone(s.record.foundation!),
+      candidate: structuredClone(candidate),
+      compatible: !failure,
+      reports,
+      failure,
+      fingerprint: digest(Buffer.from(JSON.stringify([s.record, installed]))),
+      evidence: "declared" as const,
+    };
+    return redact(result, await this.secretValues(s)) as typeof result;
+  }
+  async foundationStatus(id: string) {
+    const s = await this.session(id);
+    return redact(
+      structuredClone(s.record.foundation!),
+      await this.secretValues(s),
+    ) as AgentFoundationBinding;
+  }
+  async switchFoundation(
+    id: string,
+    fingerprint: string,
+    selection: FoundationSelection,
+  ) {
+    return this.changeFoundation(
+      id,
+      fingerprint,
+      parseFoundationSelection(selection),
+      true,
+    );
+  }
+  async setFoundationEnabled(id: string, enabled: boolean) {
+    if (typeof enabled !== "boolean")
+      throw foundationFailure("FOUNDATION_INVALID");
+    const s = await this.session(id),
+      fingerprint = digest(
+        Buffer.from(JSON.stringify([s.record, await s.core.listInstalled()])),
+      );
+    return this.changeFoundation(
+      id,
+      fingerprint,
+      s.record.foundation!.selection,
+      enabled,
+    );
+  }
+  private async changeFoundation(
+    id: string,
+    fingerprint: string,
+    selection: FoundationSelection,
+    enabled: boolean,
+  ) {
+    const fixed = parseFoundationSelection(selection);
+    return this.serial("library", () =>
+      this.serial(id, async () => {
+        await this.foundationOwners.exclusive(id);
+        try {
+          const s = await this.session(id);
+          await this.assertCoherent(id);
+          const currentFingerprint = digest(
+            Buffer.from(
+              JSON.stringify([s.record, await s.core.listInstalled()]),
+            ),
+          );
+          if (currentFingerprint !== fingerprint)
+            throw foundationFailure("FOUNDATION_SELECTION_CHANGED");
+          if (enabled)
+            await this.checkAgentFoundation(
+              s.record,
+              await this.foundationContents(s),
+              fixed,
+            );
+          const before = structuredClone(s.record),
+            next = structuredClone(before),
+            token = {};
+          next.foundation = { ...foundationBinding(fixed), enabled };
+          // Portable selection contains no local installation or authorization identity.
+          if (next.agent.foundation)
+            next.agent.foundation.selection = structuredClone(fixed);
+          const file = path.join(
+              this.directory(id),
+              "foundation-transaction.json",
+            ),
+            t: FoundationTransaction = {
+              transactionVersion: 1,
+              phase: "prepared",
+              before,
+              next,
+            };
+          const mark = async (phase: FoundationTransaction["phase"]) => {
+            t.phase = phase;
+            await durableJson(file, t);
+          };
+          let activationStarted = false;
+          this.foundationChanging.set(id, token);
+          try {
+            await mark("prepared");
+            await this.options.foundationSwitchFault?.("prepare");
+            await mark("stopping");
+            this.panels.closeAgent(id);
+            for (const grant of await s.core.listGrants())
+              await s.core.revokeGrant(grant.id);
+            await this.stopRuntimes(s);
+            await this.options.foundationSwitchFault?.("stop");
+            await this.options.foundationSwitchFault?.("before-commit");
+            await durableJson(
+              path.join(this.directory(id), "record.json"),
+              next,
+            );
+            s.record = next;
+            await mark("committed");
+            await this.options.foundationSwitchFault?.("after-commit");
+            const prepared: HostFoundationSession[] = [];
+            for (const component of enabled
+              ? await this.foundationContents(s)
+              : []) {
+              const d = desktopContribution(
+                component.manifest,
+                component.files,
+              );
+              if (!d?.runtime) continue;
+              const installed = (await s.core.getPackage(component.manifest.id))
+                .installed;
+              if (enabled && installed.enabled)
+                prepared.push(
+                  await this.createRuntime(
+                    s,
+                    component.manifest.id,
+                    undefined,
+                    undefined,
+                    false,
+                    { token, selection: fixed },
+                  ),
+                );
+              else {
+                // Disabled components are still checked and prepared, with an unconditionally closed business bridge.
+                const pin = s.record.components!.find(
+                  (p) => p.packageId === component.manifest.id,
+                )!;
+                let candidate: HostFoundationSession | undefined;
+                try {
+                  candidate = await createFoundationSession(
+                    this.foundations,
+                    await this.foundationReference(fixed),
+                    {
+                      component,
+                      actor: {
+                        agentId: id,
+                        componentId: pin.packageId,
+                        componentVersion: pin.version,
+                        componentDigest: pin.digest,
+                        installationId: resourceInstallation(
+                          s,
+                          pin.packageId,
+                          installed,
+                        ),
+                      },
+                      assertCurrent: () => {
+                        this.foundationOwners.assert(id);
+                        if (this.foundationChanging.get(id) !== token) denied();
+                      },
+                      assertActive: async () => {
+                        if (this.foundationChanging.get(id) !== token) denied();
+                      },
+                      bridge: async () => {
+                        throw foundationFailure("FOUNDATION_NOT_ACTIVE");
+                      },
+                      trackProcess: (child) =>
+                        this.foundationOwners.track(id, child),
+                      allocateSnapshot: () =>
+                        this.foundationOwners.allocateSnapshot(id),
+                    },
+                  );
+                  await candidate.ready();
+                } finally {
+                  if (candidate) {
+                    this.retireRuntime(s, candidate);
+                    await this.awaitRuntimeCleanup(s);
+                  }
+                }
+              }
+            }
+            await mark("ready");
+            await this.options.foundationSwitchFault?.("ready");
+            await mark("activating");
+            activationStarted = true;
+            await this.options.foundationSwitchFault?.("activate");
+            for (const candidate of prepared) await candidate.activate();
+            await mark("activated");
+            await this.options.foundationSwitchFault?.("after-activate");
+            await rm(file, { force: true });
+            return structuredClone(next.foundation!);
+          } catch (error) {
+            let cleanupFailed = false;
+            try {
+              await this.stopRuntimes(s);
+              await this.foundations.settleCleanup(id);
+              await this.officialArtifacts.settleCleanup(id);
+            } catch {
+              cleanupFailed = true;
+            }
+            if (!cleanupFailed) {
+              try {
+                if (!activationStarted) {
+                  await durableJson(
+                    path.join(this.directory(id), "record.json"),
+                    before,
+                  );
+                  s.record = before;
+                }
+                await rm(file, { force: true });
+              } catch {
+                cleanupFailed = true;
+              }
+            }
+            if (cleanupFailed)
+              this.recoveryErrors.set(
+                id,
+                "此 Agent 的底座切换清理或恢复失败，原始数据已保留。",
+              );
+            throw new PlumsError({
+              code: "CAPABILITY_FAILED",
+              message: "底座切换未能完成。",
+              path: "/foundation",
+              details: {
+                reason: cleanupFailed
+                  ? "FOUNDATION_CLEANUP_FAILED"
+                  : "FOUNDATION_SWITCH_FAILED",
+                phase: t.phase,
+                selectionCommitted: activationStarted,
+                executionState: "not_started",
+              },
+            });
+          } finally {
+            this.foundationChanging.delete(id);
+          }
+        } finally {
+          this.foundationOwners.releaseExclusive(id);
+        }
+      }),
+    );
+  }
   async listLibrary() {
     const items = await this.library.list(),
       agents = await this.listAgents();
     return items.map((item) => ({
       ...item,
       usedBy: agents
-        .filter((a) => a.components?.some((p) => p.digest === item.digest))
+        .filter(
+          (a) =>
+            a.foundation?.selection.digest === item.digest ||
+            a.components?.some((p) => p.digest === item.digest),
+        )
         .map((a) => a.name),
       missingDependencies: unmetDependencies(
         item.manifest,
@@ -1121,12 +1776,48 @@ export class DesktopHost {
   }
   async removeLibrary(hash: string) {
     return this.serial("library", () =>
-      this.library.remove(hash, async () =>
-        (await this.listAgents()).some((a) =>
-          a.components?.some((p) => p.digest === hash),
-        ),
+      this.library.remove(
+        hash,
+        async () =>
+          this.foundation?.digest === hash ||
+          (await this.artifactReferenced(hash)),
       ),
     );
+  }
+  private async artifactReferenced(hash: string): Promise<boolean> {
+    if (this.recoveryErrors.size) return true;
+    const root = path.join(this.options.dataDir, "instances");
+    for (const name of await readdir(root)) {
+      if (!/^[a-f0-9-]{36}$/.test(name)) continue;
+      try {
+        const record = JSON.parse(
+          await readFile(path.join(root, name, "record.json"), "utf8"),
+        ) as AgentRecord;
+        checkRecordVersion(record);
+        if (
+          record.instanceId !== name ||
+          !record.agent ||
+          typeof record.agent !== "object" ||
+          !Array.isArray(record.components) ||
+          record.components.some((p) => !/^[a-f0-9]{64}$/.test(p.digest))
+        )
+          return true;
+        validateFoundationBinding(record.foundation!);
+        const declared = record.agent.foundation
+          ? parseFoundationAgent(record.agent.foundation)
+          : undefined;
+        if (
+          record.foundation!.selection.digest === hash ||
+          declared?.selection?.digest === hash ||
+          record.components.some((p) => p.digest === hash)
+        )
+          return true;
+      } catch {
+        // Unknown published references must not become permission to delete.
+        return true;
+      }
+    }
+    return false;
   }
   async install(token: string): Promise<AgentRecord> {
     return this.serial("library", async () => {
@@ -1143,10 +1834,13 @@ export class DesktopHost {
       )
         importInvalid("这份 ZIP 还缺少匹配组件，请选择继续组装后补齐。");
       this.previews.delete(token);
-      return this.installAssembly(bundle);
+      return this.installAssembly(bundle, true);
     });
   }
-  private async installAssembly(bundle: AgentBundle): Promise<AgentRecord> {
+  private async installAssembly(
+    bundle: AgentBundle,
+    portableImport = false,
+  ): Promise<AgentRecord> {
     const instanceId = randomUUID(),
       root = path.join(this.options.dataDir, "instances");
     await mkdir(root, { recursive: true });
@@ -1177,6 +1871,36 @@ export class DesktopHost {
         },
         components,
       );
+      if (
+        bundle.agent.foundation &&
+        !parseFoundationAgent(bundle.agent.foundation).selection
+      )
+        throw foundationFailure("FOUNDATION_SELECTION_REQUIRED");
+      record.foundation = foundationBinding(
+        bundle.agent.foundation?.selection ??
+          this.foundation ??
+          (await this.officialArtifacts.current()),
+      );
+      try {
+        await this.checkAgentFoundation(
+          record,
+          bundle.packages.map((p) => p.contents),
+          record.foundation.selection,
+        );
+      } catch (error) {
+        const reason = (error as PlumsError).details as { reason?: string };
+        if (
+          !portableImport ||
+          !(error instanceof PlumsError) ||
+          ![
+            "FOUNDATION_UNAVAILABLE",
+            "FOUNDATION_INCOMPATIBLE",
+            "FOUNDATION_DATA_ADAPTER_REQUIRED",
+          ].includes(reason?.reason ?? "")
+        )
+          throw error;
+        record.foundation.enabled = false;
+      }
       const importedChoices = bundle.agent.protocolBindings ?? [];
       delete record.agent.protocolBindings;
       record.protocolBindings = [];
@@ -1208,7 +1932,11 @@ export class DesktopHost {
     characterId?: string,
     startup?: string,
     protocolBindings: ProtocolBindingIntent[] = [],
+    foundation?: FoundationAgent,
   ): Promise<AgentRecord> {
+    const fixedFoundation = foundation
+      ? parseFoundationAgent(foundation)
+      : undefined;
     return this.serial("library", async () => {
       if (
         typeof name !== "string" ||
@@ -1253,6 +1981,7 @@ export class DesktopHost {
         selectedItems.map((p) => p.manifest),
         protocols,
       );
+      if (fixedFoundation) agent.foundation = fixedFoundation;
       agent.protocolBindings = structuredClone(protocolBindings);
       const bundle = await validateAgentBundle(
         await createAgentBundle(agent, components),
@@ -1273,11 +2002,27 @@ export class DesktopHost {
     if (cached) return Promise.resolve(cached);
     let opening = this.opening.get(id);
     if (!opening) {
-      opening = this.openSession(id);
+      opening = this.openOwnedSession(id);
       this.opening.set(id, opening);
       void opening.finally(() => this.opening.delete(id)).catch(() => {});
     }
     return opening;
+  }
+  private async openOwnedSession(id: string): Promise<Session> {
+    uuid(id);
+    // The previous generation must release its participant before we enter.
+    await this.closing.get(id);
+    if (this.recoveryErrors.has(id))
+      importInvalid(this.recoveryErrors.get(id)!);
+    this.foundationOwners.enter(id);
+    try {
+      const s = await this.openSession(id);
+      this.ownedSessions.add(id);
+      return s;
+    } catch (error) {
+      this.foundationOwners.leave(id);
+      throw error;
+    }
   }
   private async openSession(id: string): Promise<Session> {
     const epoch = this.epochs.get(id) ?? 0;
@@ -1290,6 +2035,15 @@ export class DesktopHost {
       ) as AgentRecord;
     if (record.instanceId !== id) denied();
     checkRecordVersion(record);
+    if (!record.foundation) {
+      await this.migrateFoundation(dir);
+      record.foundation = (
+        JSON.parse(
+          await readFile(path.join(dir, "record.json"), "utf8"),
+        ) as AgentRecord
+      ).foundation;
+    }
+    validateFoundationBinding(record.foundation!);
     const secrets = this.options.secretStore(id),
       controller = new AbortController();
     const egress = this.options.egress ?? new HttpsSink(this.dnsMode);
@@ -1339,7 +2093,7 @@ export class DesktopHost {
             }
             await context.execCheck!();
           };
-          return this.controlled.run(
+          return this.commandRunner(s).run(
             req.program,
             req.args,
             req.cwd,
@@ -1376,7 +2130,15 @@ export class DesktopHost {
     return s;
   }
   private serial<T>(id: string, fn: () => Promise<T>): Promise<T> {
-    const run = (this.queues.get(id) ?? Promise.resolve()).then(fn, fn);
+    const owned = async () => {
+      await this.foundationOwners.acquire(id);
+      try {
+        return await fn();
+      } finally {
+        this.foundationOwners.release(id);
+      }
+    };
+    const run = (this.queues.get(id) ?? Promise.resolve()).then(owned, owned);
     const settled = run.then(
       () => undefined,
       () => undefined,
@@ -1795,6 +2557,7 @@ export class DesktopHost {
     ]);
     const cleanup = await Promise.allSettled([
       this.foundations.settleCleanup(s.record.instanceId),
+      this.officialArtifacts.settleCleanup(s.record.instanceId),
       this.awaitRuntimeCleanup(s),
     ]);
     const failed = cleanup.find((result) => result.status === "rejected");
@@ -1889,6 +2652,7 @@ export class DesktopHost {
     return this.serial(id, async () => {
       const s = await this.session(id);
       await this.assertCoherent(id);
+      await this.assertAgentFoundation(s);
       await enablePrepared(s.core, s.record, fingerprint);
     });
   }
@@ -1933,6 +2697,7 @@ export class DesktopHost {
             .enabled
         )
           protocolDenied("PROTOCOL_PROVIDER_DISABLED");
+      await this.assertAgentFoundation(s);
       await s.core.grantConsent(packageId);
       await s.core.enable(packageId);
       await grantConnectionAccess(s.core, packageId, s.record);
@@ -1941,8 +2706,12 @@ export class DesktopHost {
   async disable(id: string, packageId: string): Promise<void> {
     return this.serial(id, async () => {
       const s = await this.session(id);
-      await this.stopSession(id);
-      await s.core.disable(packageId);
+      try {
+        await this.stopRuntimes(s);
+        await s.core.disable(packageId);
+      } finally {
+        await this.stopSession(id);
+      }
     });
   }
   async uninstallPackage(id: string, packageId: string): Promise<void> {
@@ -2117,6 +2886,17 @@ export class DesktopHost {
           await s.core.getPackageContents(c.packageId),
         );
     }
+    await this.checkAgentFoundation(
+      next,
+      await Promise.all(
+        next.components!.map((c) =>
+          c.packageId === replacement?.contents.manifest.id
+            ? replacement.contents
+            : s.core.getPackageContents(c.packageId),
+        ),
+      ),
+      next.foundation!.selection,
+    );
     await createAgentBundle(
       next.agent,
       components,
@@ -2132,20 +2912,22 @@ export class DesktopHost {
     version: string | undefined,
     operation: () => Promise<T>,
   ): Promise<T> {
-    await this.assertCoherent(id);
-    await this.stopRuntimes(s);
-    try {
-      return await mutateAssembly(
-        this.directory(id),
-        s.core,
-        next,
-        packageId,
-        version,
-        operation,
-      );
-    } finally {
-      await this.stopSession(id);
-    }
+    return this.withFoundationExclusive(id, async () => {
+      await this.assertCoherent(id);
+      await this.stopRuntimes(s);
+      try {
+        return await mutateAssembly(
+          this.directory(id),
+          s.core,
+          next,
+          packageId,
+          version,
+          operation,
+        );
+      } finally {
+        await this.stopSession(id);
+      }
+    });
   }
   async bindRoot(id: string, name: string, selected: string): Promise<void> {
     return this.serial(id, async () => {
@@ -2186,59 +2968,61 @@ export class DesktopHost {
     values: Record<string, unknown>,
     secretValues: Record<string, string>,
   ): Promise<void> {
-    return this.serial(id, async () => {
-      const s = await this.session(id);
-      const { manifest } = await s.core.getPackage(packageId);
-      const connections = desktopContribution(manifest)?.connections ?? [];
-      validateConnectionSettings(
-        connections,
-        values,
-        manifest.settingsSchema?.properties ?? {},
-      );
-      await this.stopRuntimes(s);
-      const description = await s.core.describeSettings(packageId);
-      const saving = { ...values };
-      const undo = new Map<string, string | undefined>();
-      try {
-        for (const [key, spec] of Object.entries(
+    return this.serial(id, () =>
+      this.withFoundationExclusive(id, async () => {
+        const s = await this.session(id);
+        const { manifest } = await s.core.getPackage(packageId);
+        const connections = desktopContribution(manifest)?.connections ?? [];
+        validateConnectionSettings(
+          connections,
+          values,
           manifest.settingsSchema?.properties ?? {},
-        ))
-          if (spec["x-secret"]) {
-            const ref = secretRef(packageId, key);
-            if (Object.hasOwn(secretValues, key)) {
-              undo.set(ref, await s.secrets.get(ref));
-              await s.secrets.set(ref, secretValues[key]!);
-              saving[key] = ref;
-            } else if (description.secrets[key]) saving[key] = ref;
+        );
+        await this.stopRuntimes(s);
+        const description = await s.core.describeSettings(packageId);
+        const saving = { ...values };
+        const undo = new Map<string, string | undefined>();
+        try {
+          for (const [key, spec] of Object.entries(
+            manifest.settingsSchema?.properties ?? {},
+          ))
+            if (spec["x-secret"]) {
+              const ref = secretRef(packageId, key);
+              if (Object.hasOwn(secretValues, key)) {
+                undo.set(ref, await s.secrets.get(ref));
+                await s.secrets.set(ref, secretValues[key]!);
+                saving[key] = ref;
+              } else if (description.secrets[key]) saving[key] = ref;
+            }
+          await s.core.setSettings(packageId, saving);
+        } catch (error) {
+          for (const [ref, value] of undo) {
+            if (value === undefined) await s.secrets.delete(ref);
+            else await s.secrets.set(ref, value);
           }
-        await s.core.setSettings(packageId, saving);
-      } catch (error) {
-        for (const [ref, value] of undo) {
-          if (value === undefined) await s.secrets.delete(ref);
-          else await s.secrets.set(ref, value);
+          throw error;
         }
-        throw error;
-      }
-      if (connections.length) {
-        let failure: unknown;
-        for (const owner of new Set(
-          (await s.core.listBackgroundConsents())
-            .filter((g) => g.binding.startsWith(packageId + "/"))
-            .map((g) => g.extensionId),
-        )) {
-          try {
-            for (const connection of connections)
-              await s.core.revokeBackgroundConsent(
-                owner,
-                packageId + "/" + connection.id,
-              );
-          } catch (error) {
-            failure ??= error;
+        if (connections.length) {
+          let failure: unknown;
+          for (const owner of new Set(
+            (await s.core.listBackgroundConsents())
+              .filter((g) => g.binding.startsWith(packageId + "/"))
+              .map((g) => g.extensionId),
+          )) {
+            try {
+              for (const connection of connections)
+                await s.core.revokeBackgroundConsent(
+                  owner,
+                  packageId + "/" + connection.id,
+                );
+            } catch (error) {
+              failure ??= error;
+            }
           }
+          if (failure) throw failure;
         }
-        if (failure) throw failure;
-      }
-    });
+      }),
+    );
   }
   async audit(id: string): Promise<unknown[]> {
     await this.session(id);
@@ -2280,13 +3064,19 @@ export class DesktopHost {
   async removeAgent(id: string): Promise<void> {
     return this.serial("library", () =>
       this.serial(id, async () => {
-        const s = await this.session(id);
-        await this.stopSession(id);
-        for (const p of await s.core.listInstalled())
-          await s.core.uninstall(p.id);
-        s.core.close();
-        this.businessResources.store.detachAgent(id);
-        await rm(this.directory(id), { recursive: true, force: true });
+        await this.withFoundationExclusive(id, async () => {
+          const s = await this.session(id);
+          try {
+            await this.stopRuntimes(s);
+            for (const p of await s.core.listInstalled())
+              await s.core.uninstall(p.id);
+          } finally {
+            await this.stopSession(id);
+          }
+          s.core.close();
+          this.businessResources.store.detachAgent(id);
+          await rm(this.directory(id), { recursive: true, force: true });
+        });
       }),
     );
   }
@@ -2327,6 +3117,27 @@ export class DesktopHost {
       if (!receipt.engineScope) s.receipts.delete(id);
     s.controller = new AbortController();
   }
+  private commandRunner(s: Session) {
+    let runner = this.commandRunners.get(s);
+    if (!runner) {
+      runner = new ControlledExecution(
+        this.options.nodePath ?? process.execPath,
+        (child) => this.foundationOwners.track(s.record.instanceId, child),
+        () => this.foundationOwners.allocateSnapshot(s.record.instanceId),
+      );
+      this.commandRunners.set(s, runner);
+      this.ownedCommandRunners.add(runner);
+    }
+    return runner;
+  }
+  private async stopCommands(s: Session) {
+    const runner = this.commandRunners.get(s);
+    if (runner) {
+      await runner.close();
+      this.commandRunners.delete(s);
+      this.ownedCommandRunners.delete(runner);
+    }
+  }
   private async stopRuntimes(s: Session): Promise<void> {
     this.stopOrdinary(s);
     s.engineController.abort();
@@ -2336,6 +3147,7 @@ export class DesktopHost {
     s.receipts.clear();
     try {
       const services = await Promise.allSettled([
+        this.stopCommands(s),
         this.common.stopAgent(s),
         this.engines.stopAgent(s),
       ]);
@@ -2344,6 +3156,7 @@ export class DesktopHost {
       ]);
       const cleanup = await Promise.allSettled([
         this.foundations.settleCleanup(s.record.instanceId),
+        this.officialArtifacts.settleCleanup(s.record.instanceId),
         this.awaitRuntimeCleanup(s),
       ]);
       const failed = [...services, ...cleanup].find(
@@ -2354,13 +3167,26 @@ export class DesktopHost {
       s.engineController = new AbortController();
     }
   }
-  private async commitRecord(id: string, record: AgentRecord): Promise<void> {
-    await this.stopSession(id);
+  private async withFoundationExclusive<T>(
+    id: string,
+    operation: () => Promise<T>,
+  ): Promise<T> {
+    await this.foundationOwners.exclusive(id);
     try {
-      await saveAgentRecord(this.directory(id), record);
+      return await operation();
     } finally {
-      await this.stopSession(id);
+      this.foundationOwners.releaseExclusive(id);
     }
+  }
+  private async commitRecord(id: string, record: AgentRecord): Promise<void> {
+    await this.withFoundationExclusive(id, async () => {
+      await this.stopSession(id);
+      try {
+        await saveAgentRecord(this.directory(id), record);
+      } finally {
+        await this.stopSession(id);
+      }
+    });
   }
   stopSession(id: string): Promise<void> {
     this.epochs.set(id, (this.epochs.get(id) ?? 0) + 1);
@@ -2375,7 +3201,12 @@ export class DesktopHost {
         if (this.sessions.has(id)) await this.stopSession(id);
       });
     }
-    const stopping = this.stopRuntimes(s).finally(() => s.core.close());
+    this.panels.closeAgent(id);
+    const stopping = this.stopRuntimes(s)
+      .then(() => {
+        if (this.ownedSessions.delete(id)) this.foundationOwners.leave(id);
+      })
+      .finally(() => s.core.close());
     this.closing.set(id, stopping);
     void stopping.then(
       () => {
@@ -2386,6 +3217,7 @@ export class DesktopHost {
     return stopping;
   }
   async close(): Promise<void> {
+    await Promise.allSettled([...this.queues.values()]);
     const settled = await Promise.allSettled(
       [
         ...new Set([
@@ -2397,11 +3229,13 @@ export class DesktopHost {
     );
     try {
       await this.controlled.close();
+      await Promise.all([...this.ownedCommandRunners].map((r) => r.close()));
     } finally {
       this.businessResources.close();
     }
     const failed = settled.find((r) => r.status === "rejected");
     if (failed?.status === "rejected") throw failed.reason;
+    this.foundationOwners.close();
   }
   private async writeAudit(id: string, event: AuditEvent): Promise<void> {
     if (this.options.audit) await this.options.audit(id, event);
@@ -2870,9 +3704,13 @@ export class DesktopHost {
     engineScope?: string,
     context?: InvocationContext,
     policyEvaluation = false,
+    preparation?: { token: object; selection: FoundationSelection },
   ): Promise<HostFoundationSession> {
     const controller = engineScope ? s.engineController : s.controller;
-    await this.assertCoherent(s.record.instanceId);
+    if (!preparation) {
+      await this.assertCoherent(s.record.instanceId);
+      await this.assertAgentFoundation(s);
+    }
     const detail = await s.core.getPackage(packageId);
     if (!detail.installed.enabled) denied();
     let policyRuntimes = this.policyRuntimes.get(s);
@@ -2930,7 +3768,23 @@ export class DesktopHost {
         throw resourceFailure("NOT_AUTHORIZED");
       const lifecycle = s.core.runtimeAccessCheckpoint([packageId]);
       let created: HostFoundationSession | undefined;
+      const foundationPin = structuredClone(s.record.foundation!);
       const assertCurrent = () => {
+        this.foundationOwners.assert(s.record.instanceId);
+        const actual = JSON.parse(
+          readFileSync(
+            path.join(this.directory(s.record.instanceId), "record.json"),
+            "utf8",
+          ),
+        ) as AgentRecord;
+        if (
+          JSON.stringify(actual.foundation) !== JSON.stringify(foundationPin) ||
+          !actual.foundation?.enabled ||
+          (this.foundationChanging.has(s.record.instanceId) &&
+            this.foundationChanging.get(s.record.instanceId) !==
+              preparation?.token)
+        )
+          denied();
         try {
           lifecycle.assertCurrent();
         } catch {
@@ -2948,7 +3802,9 @@ export class DesktopHost {
       try {
         created = await createFoundationSession(
           this.foundations,
-          OFFICIAL_FOUNDATION_REFERENCE,
+          await this.foundationReference(
+            preparation?.selection ?? s.record.foundation!.selection,
+          ),
           {
             component: contents,
             actor: {
@@ -2962,11 +3818,23 @@ export class DesktopHost {
               componentVersion: contents.manifest.version,
               componentDigest: pin.digest,
             },
+            trackProcess: (child) =>
+              this.foundationOwners.track(s.record.instanceId, child),
+            allocateSnapshot: () =>
+              this.foundationOwners.allocateSnapshot(s.record.instanceId),
             assertCurrent,
             assertActive: async () => {
               assertCurrent();
             },
             bridge: (method, args, context) => {
+              if (
+                preparation &&
+                this.foundationChanging.has(s.record.instanceId) &&
+                !["context", "settings", "character", "characters"].includes(
+                  method,
+                )
+              )
+                throw foundationFailure("FOUNDATION_NOT_ACTIVE");
               if (
                 policyEvaluation &&
                 !["context", "settings"].includes(method)
@@ -3014,7 +3882,7 @@ export class DesktopHost {
         if (declaration.common) this.commonRuntimes.add(created);
         runtimes.set(packageId, created);
         await created.ready();
-        await created.activate();
+        if (!preparation) await created.activate();
         assertCurrent();
       } catch (error) {
         if (created) {
@@ -3616,6 +4484,8 @@ export class DesktopHost {
     return result;
   }
   private async assertLegacyEngine(s: Session) {
+    await this.assertCoherent(s.record.instanceId);
+    await this.assertAgentFoundation(s);
     for (const key of this.pendingRuntimes.get(s)?.keys() ?? []) {
       const [scope, pkg] = JSON.parse(key) as [string | null, string];
       if (
@@ -3695,6 +4565,7 @@ export class DesktopHost {
     if (this.recoveryErrors.has(id))
       importInvalid(this.recoveryErrors.get(id)!);
     for (const file of [
+      "foundation-transaction.json",
       "component-transaction.json",
       "assembly-transaction.json",
     ]) {

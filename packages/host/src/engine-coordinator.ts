@@ -48,6 +48,11 @@ export async function confirmOnce(
   }
 }
 interface Options {
+  allocateSnapshot?: (s: Session) => { root: string; release(): void };
+  trackProcess?: (
+    s: Session,
+    child: import("node:child_process").ChildProcess,
+  ) => void;
   canRun?(s: Session): Promise<void>;
   nodePath?: string;
   library: ComponentLibrary;
@@ -171,7 +176,8 @@ export class EngineCoordinator {
     },
   ): EngineHooks {
     const signal = s.engineController.signal;
-    let snapshotDir: string | undefined;
+    let snapshotDir: string | undefined,
+      allocation: { root: string; release(): void } | undefined;
     const active = async () => {
       await this.options.canRun?.(s);
       if (startup?.active) {
@@ -184,13 +190,16 @@ export class EngineCoordinator {
       if (signal.aborted) denied();
     };
     return {
+      trackProcess: (child) => this.options.trackProcess?.(s, child),
       active,
       cleanup: async () => {
         try {
           await this.options.cleanupRuntime(s, `${pkg}/${engine}`);
         } finally {
-          if (snapshotDir)
+          if (snapshotDir) {
             await rm(snapshotDir, { recursive: true, force: true });
+            allocation?.release();
+          }
         }
       },
       prepare: async (managerSignal) => {
@@ -239,7 +248,10 @@ export class EngineCoordinator {
         )
           denied();
         // Execute a verified snapshot, so replacement of the install entry cannot redirect launch.
-        snapshotDir = path.join(s.core.dataDir, "..", "engines", randomUUID());
+        allocation = this.options.allocateSnapshot?.(s);
+        snapshotDir =
+          allocation?.root ??
+          path.join(s.core.dataDir, "..", "engines", randomUUID());
         for (const [p, b] of Object.entries(expected.files)) {
           const file = path.join(snapshotDir, p);
           await mkdir(path.dirname(file), { recursive: true });
@@ -401,8 +413,10 @@ export class EngineCoordinator {
             try {
               await this.options.cleanupRuntime(s, `${pkg}/${engine}`);
             } finally {
-              if (snapshotDir)
+              if (snapshotDir) {
                 await rm(snapshotDir, { recursive: true, force: true });
+                allocation?.release();
+              }
             }
           }
         }

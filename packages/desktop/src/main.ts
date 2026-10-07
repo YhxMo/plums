@@ -663,6 +663,9 @@ app.whenReady().then(async () => {
             "updateFromLibrary",
             "settings",
             "setProtocolBinding",
+            "switchFoundation",
+            "setFoundationEnabled",
+            "retryFoundationRecovery",
           ].includes(method)
         )
           await recover();
@@ -884,7 +887,11 @@ app.whenReady().then(async () => {
               expectedAccess: component.fingerprint,
             });
           value = null;
-        } else if (method === "export" || method === "exportLibrary") {
+        } else if (
+          method === "export" ||
+          method === "exportLibrary" ||
+          method === "exportFoundation"
+        ) {
           const selected = await dialog.showSaveDialog(window, {
             defaultPath: method === "export" ? "agent.zip" : "component.zip",
             filters: [{ name: "Agent ZIP", extensions: ["zip"] }],
@@ -922,6 +929,15 @@ app.whenReady().then(async () => {
           value = null;
         } else if (
           [
+            "foundationManagement",
+            "listFoundations",
+            "foundationPlan",
+            "foundationStatus",
+            "switchFoundation",
+            "setFoundationEnabled",
+            "retryFoundationRecovery",
+            "restoreBuiltinFoundation",
+            "removeFoundation",
             "list",
             "library",
             "inspectComponent",
@@ -974,7 +990,18 @@ app.whenReady().then(async () => {
           ].includes(method)
         ) {
           value = await rpc(method, args);
-          if (["setComponentBackground", "stopCommonTask"].includes(method))
+          if (
+            [
+              "setComponentBackground",
+              "stopCommonTask",
+              "switchFoundation",
+              "setFoundationEnabled",
+              "retryFoundationRecovery",
+              "restoreBuiltinFoundation",
+              "removeFoundation",
+              "importLibrary",
+            ].includes(method)
+          )
             window.webContents.send("manager-refresh");
         } else throw Error();
         return { ok: true, value: value ?? null };

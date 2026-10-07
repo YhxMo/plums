@@ -41,6 +41,7 @@ export class ResourceStore {
       chmodSync(this.directory, 0o700);
       const file = path.join(this.directory, "resources.db");
       const db = new DatabaseSync(file);
+      db.exec("PRAGMA busy_timeout=5000;");
       chmodSync(file, 0o600);
       const version = Number(
         db.prepare("PRAGMA user_version").get()?.user_version ?? 0,
@@ -50,7 +51,7 @@ export class ResourceStore {
         throw resourceFailure("RUNTIME_UNAVAILABLE");
       }
       db.exec(
-        "PRAGMA journal_mode=WAL; PRAGMA synchronous=FULL; PRAGMA foreign_keys=ON; PRAGMA busy_timeout=5000;",
+        "PRAGMA journal_mode=WAL; PRAGMA synchronous=FULL; PRAGMA foreign_keys=ON;",
       );
       db.exec(`BEGIN IMMEDIATE;
         CREATE TABLE IF NOT EXISTS spaces (id TEXT PRIMARY KEY, name TEXT NOT NULL, scope TEXT NOT NULL, owner TEXT UNIQUE, content_contract TEXT NOT NULL);

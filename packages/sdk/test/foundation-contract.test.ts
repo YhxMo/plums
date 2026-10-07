@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import { Ajv } from "ajv";
 import {
   parseFoundationProvider,
@@ -39,7 +39,54 @@ const requirement = {
   features: ["sdk.register", "sdk.settings"],
   optionalFeatures: ["sdk.events"],
 };
+const fixedSelection = {
+  selectionVersion: "1.0",
+  source: "library",
+  id: provider.id,
+  version: "1.0.0",
+  digest: "a".repeat(64),
+};
 describe("public foundation metadata", () => {
+  it.each([
+    { selection: fixedSelection },
+    { requirement, selection: fixedSelection },
+    { requirement },
+  ])(
+    "validates an Agent before standalone fields in a fresh module: %j",
+    async (value) => {
+      vi.resetModules();
+      const api = await import("../src/foundation-contract.js");
+      expect(api.parseFoundationAgent(value)).toEqual(value);
+      expect(api.parseFoundationSelection(fixedSelection)).toEqual(
+        fixedSelection,
+      );
+      expect(api.parseFoundationRequirement(requirement)).toEqual(requirement);
+      expect(() =>
+        api.parseFoundationSelection({
+          ...fixedSelection,
+          selectionVersion: "2.0",
+        }),
+      ).toThrow();
+    },
+  );
+  it("keeps fixed validation after exported schema mutation before and after first use", () => {
+    const schema = foundationProviderSchema as any;
+    const original = schema.properties.execution.enum;
+    try {
+      schema.properties.execution.enum = [...original, "engine"];
+      expect(() =>
+        parseFoundationProvider({ ...provider, execution: "engine" }),
+      ).toThrow();
+      expect(parseFoundationProvider(provider)).toEqual(provider);
+      schema.properties.execution.enum = ["engine"];
+      expect(parseFoundationProvider(provider)).toEqual(provider);
+      expect(() =>
+        parseFoundationProvider({ ...provider, execution: "engine" }),
+      ).toThrow();
+    } finally {
+      schema.properties.execution.enum = original;
+    }
+  });
   it("limits version-specific SDK features to their declared range", () => {
     const p = {
       ...provider,

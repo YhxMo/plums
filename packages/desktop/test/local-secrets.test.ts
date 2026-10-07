@@ -73,7 +73,7 @@ it("saves and reopens credentials through the real desktop broker without reques
       { model: "fixture", endpoint: "https://example.com/v1" },
       { apiKey: "fake-old-key" },
     );
-    builder.close();
+    await builder.close();
     const legacy = path.join(
       temporary,
       "instances",
@@ -192,7 +192,7 @@ it("saves and reopens credentials through the real desktop broker without reques
     expect(services).toEqual([]);
     await stop();
   } finally {
-    builder.close();
+    await builder.close();
     if (broker && broker.exitCode === null && broker.signalCode === null) {
       const child = broker;
       const exited = new Promise<void>((resolve) =>

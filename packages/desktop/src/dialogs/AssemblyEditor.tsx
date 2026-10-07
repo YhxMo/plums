@@ -1,6 +1,10 @@
 import { ProtocolChoices } from "../components/ProtocolBindings.js";
 import type { ProtocolRequirementState } from "@plums/host";
-import type { ProtocolBindingIntent } from "@plums/sdk";
+import type {
+  FoundationAgent,
+  FoundationSelection,
+  ProtocolBindingIntent,
+} from "@plums/sdk";
 import { useEffect, useRef, useState } from "react";
 import type { AgentRecord } from "@plums/host";
 import type { DesktopContribution } from "@plums/sdk";
@@ -23,6 +27,7 @@ interface Props {
     characterId?: string,
     startup?: string,
     protocolBindings?: ProtocolBindingIntent[],
+    foundation?: FoundationAgent,
   ) => Promise<boolean>;
   onAdd: (digest: string) => Promise<boolean>;
   onRemove: (id: string) => Promise<void>;
@@ -84,6 +89,32 @@ export function AssemblyEditor({
   const [choices, setChoices] = useState<ProtocolBindingIntent[]>(
     seed?.protocolBindings ?? [],
   );
+  const [foundation, setFoundation] = useState<FoundationAgent | undefined>(
+    seed?.foundation,
+  );
+  const [foundations, setFoundations] = useState<FoundationSelection[]>([]);
+  useEffect(() => {
+    if (record) return;
+    let current = true;
+    void window.manager
+      .call("foundationManagement")
+      .then((value) => {
+        if (current)
+          setFoundations(
+            (
+              value as Awaited<
+                ReturnType<
+                  import("@plums/host").DesktopHost["foundationManagement"]
+                >
+              >
+            ).catalog.map((a) => a.selection),
+          );
+      })
+      .catch(() => {});
+    return () => {
+      current = false;
+    };
+  }, [record, library]);
   const [saved, setSaved] = useState(false);
   const [nameError, setNameError] = useState("");
   const saving = useRef<Promise<boolean> | null>(null);
@@ -170,6 +201,7 @@ export function AssemblyEditor({
       card || undefined,
       front || undefined,
       choices,
+      foundation,
     );
     saving.current = task;
     try {
@@ -316,6 +348,49 @@ export function AssemblyEditor({
           重新加载
         </button>
       )}
+      {!record && (
+        <label className="field">
+          执行底座
+          <select
+            aria-label="新 Agent 的执行底座"
+            disabled={busy}
+            value={foundation?.selection?.digest ?? ""}
+            onChange={(e) => {
+              const selection = foundations.find(
+                (s) => s.digest === e.target.value,
+              );
+              setFoundation(
+                selection
+                  ? { ...foundation, selection }
+                  : foundation?.requirement
+                    ? { requirement: foundation.requirement }
+                    : undefined,
+              );
+            }}
+          >
+            <option value="">
+              {foundation?.requirement
+                ? "请选择满足导入需求的制品"
+                : "固定当前官方默认制品"}
+            </option>
+            {foundation?.selection &&
+              !foundations.some(
+                (s) => s.digest === foundation.selection!.digest,
+              ) && (
+                <option value={foundation.selection.digest}>
+                  导入指定的 {foundation.selection.id} · v
+                  {foundation.selection.version}（制品缺失）
+                </option>
+              )}
+            {foundations.map((s) => (
+              <option key={s.digest} value={s.digest}>
+                {s.id} · v{s.version} · {s.digest.slice(0, 8)}
+              </option>
+            ))}
+          </select>
+          <small>创建会检查全部组件要求。底座选择不会批准组件权限。</small>
+        </label>
+      )}
       <label className="field">
         Agent 名称
         <input
@@ -356,6 +431,7 @@ export function AssemblyEditor({
           onClick={async () => {
             if (!(await saveName())) return;
             onImport({
+              foundation,
               name,
               digests: record ? digests : selected,
               characterId: validCard || undefined,

@@ -1,4 +1,4 @@
-import { Ajv } from "ajv";
+import { Ajv, type ValidateFunction } from "ajv";
 import semver from "semver";
 import {
   PlumsError,
@@ -24,6 +24,8 @@ export interface FoundationProvider {
   platforms: string[];
   features: string[];
   hostFeatures: string[];
+  /** Shared opaque host state formats. Omitted means org.plums.host-state/1. */
+  dataFormats?: string[];
   sdks: {
     id: string;
     range: string;
@@ -55,7 +57,7 @@ export interface FoundationSelection {
   [key: string]: unknown;
 }
 export interface FoundationAgent {
-  requirement: FoundationRequirement;
+  requirement?: FoundationRequirement;
   selection?: FoundationSelection;
   [key: string]: unknown;
 }
@@ -138,13 +140,14 @@ export type FoundationProviderMessage =
       [key: string]: unknown;
     };
 const ajv = new Ajv({ allErrors: false, strict: false });
-const validators = [
+const schemas = [
   foundationProviderSchema,
   foundationRequirementSchema,
   foundationSelectionSchema,
   foundationAgentSchema,
   foundationMessageSchema,
-].map((s) => ajv.compile(s));
+].map((schema) => structuredClone(schema));
+const validators = new Map<number, ValidateFunction>();
 function invalid(path: string): never {
   throw new PlumsError({
     code: IMPORT_INVALID,
@@ -159,7 +162,13 @@ function parse<T>(value: unknown, index: number, path: string): T {
   } catch {
     return invalid(path);
   }
-  if (!validators[index]!(copied)) invalid(path);
+  let validate = validators.get(index);
+  if (!validate) {
+    validate =
+      ajv.getSchema(schemas[index]!.$id) ?? ajv.compile(schemas[index]!);
+    validators.set(index, validate);
+  }
+  if (!validate(copied)) invalid(path);
   return copied as T;
 }
 function entryPath(entry: string, path: string) {
@@ -210,7 +219,7 @@ export function parseFoundationSelection(value: unknown): FoundationSelection {
 }
 export function parseFoundationAgent(value: unknown): FoundationAgent {
   const a = parse<FoundationAgent>(value, 3, "/foundation");
-  a.requirement = parseFoundationRequirement(a.requirement);
+  if (a.requirement) a.requirement = parseFoundationRequirement(a.requirement);
   if (a.selection) a.selection = parseFoundationSelection(a.selection);
   return a;
 }

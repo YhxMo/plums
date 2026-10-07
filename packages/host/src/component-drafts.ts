@@ -1,3 +1,4 @@
+import { existsSync } from "node:fs";
 import { constants } from "node:fs";
 import {
   mkdir,
@@ -83,7 +84,9 @@ export function checkDraftText(text: string, secrets: readonly string[]): void {
  * adapter as desktop I/O, including its no-symlink and bounded-read checks. */
 export class ComponentDrafts {
   private native = new SecureFsSink(
-    fileURLToPath(new URL("../dist/secure-fs", import.meta.url)),
+    existsSync(fileURLToPath(new URL("./secure-fs", import.meta.url)))
+      ? fileURLToPath(new URL("./secure-fs", import.meta.url))
+      : fileURLToPath(new URL("../dist/secure-fs", import.meta.url)),
   );
   private canonicalRoot?: string;
   private queues = new Map<string, Promise<unknown>>();

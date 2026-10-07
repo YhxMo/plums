@@ -9,6 +9,8 @@ import {
   type DesktopContribution,
   type ContributionKind,
   type FoundationProvider,
+  type FoundationSelection,
+  parseFoundationSelection,
 } from "@plums/sdk";
 import type {
   FoundationSessionOptions,
@@ -24,10 +26,12 @@ import {
 export interface FoundationReference {
   id: string;
   version: string;
+  digest?: string;
 }
 export interface FoundationRegistration {
   provider: FoundationProvider;
   version: string;
+  selection?: FoundationSelection;
   create(options: FoundationAdapterOptions): Promise<HostFoundationSession>;
 }
 export function foundationFailure(reason: string): PlumsError {
@@ -57,21 +61,45 @@ export class FoundationRegistry {
       typeof registration.create !== "function"
     )
       throw foundationFailure("FOUNDATION_INVALID");
-    const key = JSON.stringify([provider.id, registration.version]);
+    const selection = registration.selection
+      ? parseFoundationSelection(registration.selection)
+      : undefined;
+    if (
+      selection &&
+      (selection.id !== provider.id ||
+        selection.version !== registration.version)
+    )
+      throw foundationFailure("FOUNDATION_INVALID");
+    const key = JSON.stringify([
+      provider.id,
+      registration.version,
+      selection?.digest,
+    ]);
     if (this.registrations.has(key))
       throw foundationFailure("FOUNDATION_ALREADY_REGISTERED");
     this.registrations.set(key, {
       provider,
       version: registration.version,
+      ...(selection ? { selection } : {}),
       create: registration.create,
     });
+  }
+  list(): { reference: FoundationReference; provider: FoundationProvider }[] {
+    return [...this.registrations.values()].map((r) => ({
+      reference: {
+        id: r.provider.id,
+        version: r.version,
+        ...(r.selection ? { digest: r.selection.digest } : {}),
+      },
+      provider: structuredClone(r.provider),
+    }));
   }
   describe(reference: FoundationReference): FoundationProvider {
     return structuredClone(this.resolve(reference).provider);
   }
   private resolve(reference: FoundationReference): FoundationRegistration {
     const registration = this.registrations.get(
-      JSON.stringify([reference.id, reference.version]),
+      JSON.stringify([reference.id, reference.version, reference.digest]),
     );
     if (!registration) throw foundationFailure("FOUNDATION_UNAVAILABLE");
     return registration;

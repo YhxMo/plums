@@ -54,11 +54,13 @@ export class ExtensionRuntime {
     ) => Promise<(() => Promise<void>) | undefined>,
     readonly instanceId: string = randomUUID(),
     private validateContributions = true,
+    trackProcess?: (child: ChildProcess) => void,
   ) {
     const sibling = fileURLToPath(new URL("./worker.js", import.meta.url));
     const workerFile = existsSync(sibling)
       ? sibling
       : fileURLToPath(new URL("../dist/worker.js", import.meta.url));
+    let trackingError: unknown;
     if (!controlled) {
       this.child = fork(workerFile, [], {
         execPath: nodePath,
@@ -66,6 +68,11 @@ export class ExtensionRuntime {
         stdio: ["ignore", "ignore", "ignore", "ipc"],
         env: {},
       });
+      try {
+        trackProcess?.(this.child);
+      } catch (error) {
+        trackingError = error;
+      }
       this.child.on("message", (raw) => {
         void this.receive(raw);
       });
@@ -87,11 +94,13 @@ export class ExtensionRuntime {
       if (Date.now() - this.lastHeartbeat > 12_000) this.stop();
     }, 1000);
     this.watchdog.unref();
-    const startup = this.run(
-      "start",
-      { type: "start", entry: declaration.runtime, files },
-      { callers: [], ancestry: [id], signal: this.controller.signal },
-    );
+    const startup = trackingError
+      ? Promise.reject(trackingError)
+      : this.run(
+          "start",
+          { type: "start", entry: declaration.runtime, files },
+          { callers: [], ancestry: [id], signal: this.controller.signal },
+        );
     this.queue = startup;
     void startup.catch(() => this.stop());
   }

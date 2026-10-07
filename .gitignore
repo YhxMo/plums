@@ -16,5 +16,13 @@ test-results/
 *.p12
 *.pfx
 private*.pem
+*.pem
+.plums/
+*.sqlite
+*.sqlite-*
+*.db
+*.db-*
+secrets*.json
 *.dmg
 *.zip
+!packages/core/test/fixtures/packages/**/*.zip

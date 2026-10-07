@@ -166,9 +166,10 @@ export async function rawCharacter(
 export async function componentArtifact(
   bytes: Uint8Array,
 ): Promise<ComponentArtifact> {
-  const contents = await validatePackage(bytes);
+  const fixed = new Uint8Array(bytes);
+  const contents = await validatePackage(fixed);
   desktopContribution(contents.manifest, contents.files);
-  return { bytes, contents };
+  return { bytes: fixed, contents };
 }
 export class ComponentLibrary {
   private queue: Promise<unknown> = Promise.resolve();

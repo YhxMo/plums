@@ -150,7 +150,18 @@ export async function exportAssembly(
       providerDigest: exportedDigests.get(s.selected!.providerId)!,
     }));
   return createAgentBundle(
-    { ...record.agent, protocolBindings: choices },
+    {
+      ...record.agent,
+      protocolBindings: choices,
+      ...(record.foundation
+        ? {
+            foundation: {
+              ...record.agent.foundation,
+              selection: structuredClone(record.foundation.selection),
+            },
+          }
+        : {}),
+    },
     components,
     await readExtras(dir, record),
     secrets,

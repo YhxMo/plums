@@ -113,23 +113,15 @@ it("rejects an explicit unsupported foundation requirement through DesktopHost b
     }),
   )) as { token: string };
   const item = await host.importLibrary(preview.token);
-  const agent = await host.createAgent("Fixture", [item.digest]);
-  await host.enable(agent.instanceId, contents.manifest.id);
   await expect(
-    host.invoke(
-      agent.instanceId,
-      contents.manifest.id,
-      contents.manifest.id,
-      "commands",
-      "check",
-      {},
-    ),
+    host.createAgent("Fixture", [item.digest]),
   ).rejects.toMatchObject({
     details: {
       reason: "FOUNDATION_INCOMPATIBLE",
       executionState: "not_started",
     },
   });
+  expect(await host.listAgents()).toEqual([]);
   expect(fs.records).toHaveLength(0);
 });
 

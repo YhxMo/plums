@@ -22,6 +22,7 @@ export type CatalogItem = LibraryItem & {
   missingDependencies: { id: string; range: string }[];
 };
 export interface AssemblyDraft {
+  foundation?: import("@plums/sdk").FoundationAgent;
   name: string;
   digests: string[];
   characterId?: string;
