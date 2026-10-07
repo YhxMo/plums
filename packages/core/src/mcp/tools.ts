@@ -25,8 +25,18 @@
  */
 import { createHash } from "node:crypto";
 import { authorize } from "../actions/run-action.js";
-import { CONFIRMATION_DENIED, CONSENT_REQUIRED, PERMISSION_DENIED, PlumsError } from "../errors.js";
-import { LEVEL_RANK, requireInstalled, requireLegacyManifest, type InstallContext } from "../install/lifecycle.js";
+import {
+  CONFIRMATION_DENIED,
+  CONSENT_REQUIRED,
+  PERMISSION_DENIED,
+  PlumsError,
+} from "../errors.js";
+import {
+  LEVEL_RANK,
+  requireInstalled,
+  requireLegacyManifest,
+  type InstallContext,
+} from "../install/lifecycle.js";
 import type { McpApproval } from "../install/store.js";
 import { ID_PATTERN } from "../package/schema.js";
 import type { PermissionLevel } from "../package/types.js";
@@ -87,12 +97,18 @@ const MAX_SCHEMA_BYTES = 256 * 1024;
  * Why JSON: encoded values cannot run into each other. Name and description are not trimmed.
  * `level` is not included. The host must pass `inputSchema`; the kernel cannot see the server.
  */
-export function mcpToolFingerprint(tool: { name: string; description: string; inputSchema?: unknown }): string {
+export function mcpToolFingerprint(tool: {
+  name: string;
+  description: string;
+  inputSchema?: unknown;
+}): string {
   const schema = canonicalSchema(tool.inputSchema, 1);
   if (Buffer.byteLength(JSON.stringify(schema)) > MAX_SCHEMA_BYTES) {
     throw new TypeError("MCP inputSchema is too large");
   }
-  return createHash("sha256").update(JSON.stringify([tool.name, tool.description, schema])).digest("hex");
+  return createHash("sha256")
+    .update(JSON.stringify([tool.name, tool.description, schema]))
+    .digest("hex");
 }
 
 /** Plain JSON with object keys sorted. Why a null prototype: a key named `__proto__` must stay in the hash. */
@@ -136,14 +152,22 @@ function canonicalSchema(value: unknown, depth: number): unknown {
  * Drops a hand-added server's tool approvals. Those rows are its fingerprints and its consent;
  * there is no package and no separate consent record. A valid id with nothing stored still succeeds.
  */
-export function uninstallManualServer(ctx: InstallContext, serverId: string): void {
+export function uninstallManualServer(
+  ctx: InstallContext,
+  serverId: string,
+): void {
   if (typeof serverId !== "string" || !MANUAL_ID.test(serverId)) {
-    throw new TypeError(`A hand-added MCP serverId looks like "manual:<lowercase-name>", got: ${String(serverId)}`);
+    throw new TypeError(
+      `A hand-added MCP serverId looks like "manual:<lowercase-name>", got: ${String(serverId)}`,
+    );
   }
   ctx.store.remove(serverId);
 }
 
-export function getMcpApprovals(ctx: InstallContext, serverId: string): McpServerState {
+export function getMcpApprovals(
+  ctx: InstallContext,
+  serverId: string,
+): McpServerState {
   const unverified = resolveServer(ctx, serverId);
   return { serverId, unverified, tools: ctx.store.listMcpApprovals(serverId) };
 }
@@ -159,17 +183,38 @@ export function getMcpApprovals(ctx: InstallContext, serverId: string): McpServe
  * Names are hashed before the drop. Why: a list that cannot be hashed throws, and that throw must
  * leave the previous consent in place. The store then reads and deletes in one transaction.
  */
-export function checkMcpTools(ctx: InstallContext, serverId: string, tools: McpTool[]): McpToolCheck[] {
+export function checkMcpTools(
+  ctx: InstallContext,
+  serverId: string,
+  tools: McpTool[],
+): McpToolCheck[] {
   requireToolArray(tools);
   resolveServer(ctx, serverId);
   assertValidTools(tools);
-  const hashed = tools.map((tool) => ({ name: tool.name, fingerprint: mcpToolFingerprint(tool) }));
+  const hashed = tools.map((tool) => ({
+    name: tool.name,
+    fingerprint: mcpToolFingerprint(tool),
+  }));
   const approved = new Map(
-    ctx.store.dropMcpApprovalsExcept(serverId, hashed.map((tool) => tool.name)).map((row) => [row.tool, row.fingerprint]),
+    ctx.store
+      .dropMcpApprovalsExcept(
+        serverId,
+        hashed.map((tool) => tool.name),
+      )
+      .map((row) => [row.tool, row.fingerprint]),
   );
   return hashed.map(({ name, fingerprint }) => {
     const before = approved.get(name);
-    return { tool: name, fingerprint, state: before === undefined ? "ADDED" : before === fingerprint ? "APPROVED" : "CHANGED" };
+    return {
+      tool: name,
+      fingerprint,
+      state:
+        before === undefined
+          ? "ADDED"
+          : before === fingerprint
+            ? "APPROVED"
+            : "CHANGED",
+    };
   });
 }
 
@@ -192,20 +237,35 @@ export function approveMcpTools(
   assertValidTools(tools);
   for (const name of allowNonRead) {
     if (!tools.some((t) => t.name === name)) {
-      throw new TypeError(`allowNonRead names a tool that is not in the list: ${name}`);
+      throw new TypeError(
+        `allowNonRead names a tool that is not in the list: ${name}`,
+      );
     }
   }
-  const declared = unverified ? [] : requireLegacyManifest(ctx, serverId).permissions;
+  const declared = unverified
+    ? []
+    : requireLegacyManifest(ctx, serverId).permissions;
   const result: McpApproveResult = { approved: [], skipped: [] };
   const now = new Date().toISOString();
   for (const tool of tools) {
-    const level = unverified ? (tool.level ?? "write") : declared.find((p) => p.id === tool.name)?.level;
+    const level = unverified
+      ? (tool.level ?? "write")
+      : declared.find((p) => p.id === tool.name)?.level;
     if (level === undefined) {
       result.skipped.push({ tool: tool.name, reason: "NOT_DECLARED" });
-    } else if (unverified && level !== "read" && !allowNonRead.includes(tool.name)) {
+    } else if (
+      unverified &&
+      level !== "read" &&
+      !allowNonRead.includes(tool.name)
+    ) {
       result.skipped.push({ tool: tool.name, reason: "UNVERIFIED_READ_ONLY" });
     } else {
-      result.approved.push({ tool: tool.name, fingerprint: mcpToolFingerprint(tool), level, approvedAt: now });
+      result.approved.push({
+        tool: tool.name,
+        fingerprint: mcpToolFingerprint(tool),
+        level,
+        approvedAt: now,
+      });
     }
   }
   ctx.store.saveMcpApprovals(serverId, result.approved);
@@ -230,10 +290,22 @@ export async function authorizeMcpTool(
   }
   let yes = false;
   try {
-    const what = first.level === "egress" ? "把数据发送到外部服务" : "修改你的数据";
+    const what =
+      first.level === "egress" ? "把数据发送到外部服务" : "修改你的数据";
     const message = `「${first.name}」想用工具「${tool.name}」${what}。允许吗?`;
     // The description and inputSchema are left out: both are untrusted and can be arbitrarily long.
-    yes = (await ctx.confirm.ask(redact({ subject: first.name, action: `「${first.name}」想用工具「${tool.name}」${what}。`, message, ...(first.reason ? { reason: first.reason } : {}) }, await knownSecrets(ctx)) as ConfirmRequest)) === true;
+    yes =
+      (await ctx.confirm.ask(
+        redact(
+          {
+            subject: first.name,
+            action: `「${first.name}」想用工具「${tool.name}」${what}。`,
+            message,
+            ...(first.reason ? { reason: first.reason } : {}),
+          },
+          await knownSecrets(ctx),
+        ) as ConfirmRequest,
+      )) === true;
   } catch {
     // A missing or failing confirm counts as "no".
   }
@@ -256,7 +328,9 @@ export async function authorizeMcpTool(
 function gate(ctx: InstallContext, serverId: string, tool: McpTool) {
   const unverified = resolveServer(ctx, serverId);
   const fingerprint = mcpToolFingerprint(tool);
-  const approval = ctx.store.listMcpApprovals(serverId).find((a) => a.tool === tool.name);
+  const approval = ctx.store
+    .listMcpApprovals(serverId)
+    .find((a) => a.tool === tool.name);
   const path = toolPath(tool.name);
   if (unverified) {
     // The call's level is only a claim. Once approved, the recorded level is the one that counts.
@@ -269,13 +343,24 @@ function gate(ctx: InstallContext, serverId: string, tool: McpTool) {
           code: PERMISSION_DENIED,
           message: `「${name}」是手动添加的服务，默认只能读取。工具「${tool.name}」要先由你单独授权。`,
           path,
-          details: { id: serverId, tool: tool.name, reason: "UNVERIFIED_READ_ONLY" },
+          details: {
+            id: serverId,
+            tool: tool.name,
+            reason: "UNVERIFIED_READ_ONLY",
+          },
         });
       }
       throw toolAdded(name, serverId, tool.name, path, fingerprint);
     }
     if (approval.fingerprint !== fingerprint) {
-      throw toolChanged(name, serverId, tool.name, path, approval.fingerprint, fingerprint);
+      throw toolChanged(
+        name,
+        serverId,
+        tool.name,
+        path,
+        approval.fingerprint,
+        fingerprint,
+      );
     }
     if (claimed !== approval.level) {
       throw levelMismatch(name, serverId, tool.name, path);
@@ -288,12 +373,24 @@ function gate(ctx: InstallContext, serverId: string, tool: McpTool) {
     throw toolAdded(name, serverId, tool.name, path, fingerprint);
   }
   if (approval.fingerprint !== fingerprint) {
-    throw toolChanged(name, serverId, tool.name, path, approval.fingerprint, fingerprint);
+    throw toolChanged(
+      name,
+      serverId,
+      tool.name,
+      path,
+      approval.fingerprint,
+      fingerprint,
+    );
   }
   return { level: permission.level, name, reason: permission.reason };
 }
 
-function levelMismatch(name: string, id: string, tool: string, path: string): PlumsError {
+function levelMismatch(
+  name: string,
+  id: string,
+  tool: string,
+  path: string,
+): PlumsError {
   return new PlumsError({
     code: PERMISSION_DENIED,
     message: `「${name}」的工具「${tool}」声明的档位与已同意的档位不一致，所以没有执行。`,
@@ -302,7 +399,13 @@ function levelMismatch(name: string, id: string, tool: string, path: string): Pl
   });
 }
 
-function toolAdded(name: string, id: string, tool: string, path: string, fingerprint: string): PlumsError {
+function toolAdded(
+  name: string,
+  id: string,
+  tool: string,
+  path: string,
+  fingerprint: string,
+): PlumsError {
   return new PlumsError({
     code: CONSENT_REQUIRED,
     message: `「${name}」的工具「${tool}」你还没有同意，暂时不能用。`,
@@ -323,7 +426,13 @@ function toolChanged(
     code: CONSENT_REQUIRED,
     message: `「${name}」的工具「${tool}」自你同意之后有变化，需要你重新同意才能用。`,
     path,
-    details: { id, tool, reason: "TOOL_CHANGED", approvedFingerprint, fingerprint },
+    details: {
+      id,
+      tool,
+      reason: "TOOL_CHANGED",
+      approvedFingerprint,
+      fingerprint,
+    },
   });
 }
 
@@ -334,7 +443,9 @@ function resolveServer(ctx: InstallContext, serverId: string): boolean {
   }
   if (serverId.startsWith(MANUAL_PREFIX)) {
     if (!MANUAL_ID.test(serverId)) {
-      throw new TypeError(`A hand-added MCP serverId looks like "manual:<lowercase-name>", got: ${serverId}`);
+      throw new TypeError(
+        `A hand-added MCP serverId looks like "manual:<lowercase-name>", got: ${serverId}`,
+      );
     }
     return true;
   }
@@ -360,8 +471,15 @@ function requireToolArray(tools: McpTool[]): void {
 function assertValidTools(tools: McpTool[]): void {
   const seen = new Set<string>();
   for (const tool of tools) {
-    if (tool === null || typeof tool !== "object" || typeof tool.name !== "string" || !TOOL_NAME.test(tool.name)) {
-      throw new TypeError("An MCP tool name must be 1-128 characters of A-Z a-z 0-9 _ . -");
+    if (
+      tool === null ||
+      typeof tool !== "object" ||
+      typeof tool.name !== "string" ||
+      !TOOL_NAME.test(tool.name)
+    ) {
+      throw new TypeError(
+        "An MCP tool name must be 1-128 characters of A-Z a-z 0-9 _ . -",
+      );
     }
     if (typeof tool.description !== "string") {
       throw new TypeError(`MCP tool ${tool.name} needs a string description`);

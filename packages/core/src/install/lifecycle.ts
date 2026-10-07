@@ -10,7 +10,11 @@ import {
   SECRET_NOT_FOUND,
 } from "../errors.js";
 import { acceptResidualSettings, PACKAGE_DATA_DIR } from "./check-settings.js";
-import { PACKAGES_DIR, publishStaged, stagePackage } from "../package/install.js";
+import {
+  PACKAGES_DIR,
+  publishStaged,
+  stagePackage,
+} from "../package/install.js";
 import {
   isManifestV1,
   type Dependency,
@@ -33,7 +37,10 @@ export interface InstallContext {
 }
 
 /** Throws PERMISSION_DENIED (details.reason `NOT_INSTALLED`) when the id is not installed. */
-export function requireInstalled(ctx: InstallContext, id: string): InstalledPackage {
+export function requireInstalled(
+  ctx: InstallContext,
+  id: string,
+): InstalledPackage {
   const installed = ctx.store.get(id);
   if (installed === undefined) {
     throw new PlumsError({
@@ -62,10 +69,18 @@ function consentFor(manifest: Manifest): ConsentRecord {
   };
 }
 
-export const LEVEL_RANK: Record<PermissionLevel, number> = { read: 0, write: 1, egress: 2 };
+export const LEVEL_RANK: Record<PermissionLevel, number> = {
+  read: 0,
+  write: 1,
+  egress: 2,
+};
 
 /** Why a new permission is not covered by the old list, or `undefined` when it is covered. */
-function growth(old: Permission[], next: Permission, legacy: boolean): string | undefined {
+function growth(
+  old: Permission[],
+  next: Permission,
+  legacy: boolean,
+): string | undefined {
   const sameId = old.filter((p) => p.id === next.id);
   if (sameId.length === 0) {
     return "NEW_PERMISSION";
@@ -75,22 +90,52 @@ function growth(old: Permission[], next: Permission, legacy: boolean): string | 
     return "TARGET_CHANGED";
   }
   if (legacy) {
-    return (sameTarget as PermissionV1[]).some((p) => LEVEL_RANK[p.level] >= LEVEL_RANK[(next as PermissionV1).level])
-      ? undefined : "LEVEL_RAISED";
+    return (sameTarget as PermissionV1[]).some(
+      (p) => LEVEL_RANK[p.level] >= LEVEL_RANK[(next as PermissionV1).level],
+    )
+      ? undefined
+      : "LEVEL_RAISED";
   }
   const incoming = next as PermissionV2;
-  const sameKind = (sameTarget as PermissionV2[]).filter((p) => p.kind === incoming.kind);
+  const sameKind = (sameTarget as PermissionV2[]).filter(
+    (p) => p.kind === incoming.kind,
+  );
   if (sameKind.length === 0) return "KIND_CHANGED";
   if (incoming.kind === "service") {
-    return sameKind.some((p) => p.kind === "service" && incoming.operations.every((op) => p.operations.includes(op))) ? undefined : "SERVICE_OPERATIONS_CHANGED";
+    return sameKind.some(
+      (p) =>
+        p.kind === "service" &&
+        incoming.operations.every((op) => p.operations.includes(op)),
+    )
+      ? undefined
+      : "SERVICE_OPERATIONS_CHANGED";
+  }
+  if (incoming.kind === "resource") {
+    return sameKind.some(
+      (p) =>
+        p.kind === "resource" &&
+        incoming.operations.every((op) => p.operations.includes(op)),
+    )
+      ? undefined
+      : "OPERATIONS_ADDED";
   }
   if (incoming.kind === "fs") {
-    return sameKind.some((p) => p.kind === "fs" && incoming.operations.every((op) => p.operations.includes(op)))
-      ? undefined : "OPERATIONS_ADDED";
+    return sameKind.some(
+      (p) =>
+        p.kind === "fs" &&
+        incoming.operations.every((op) => p.operations.includes(op)),
+    )
+      ? undefined
+      : "OPERATIONS_ADDED";
   }
   if (incoming.kind === "exec") {
-    return sameKind.some((p) => p.kind === "exec" && incoming.cwdRoots.every((root) => p.cwdRoots.includes(root)))
-      ? undefined : "CWD_ROOTS_ADDED";
+    return sameKind.some(
+      (p) =>
+        p.kind === "exec" &&
+        incoming.cwdRoots.every((root) => p.cwdRoots.includes(root)),
+    )
+      ? undefined
+      : "CWD_ROOTS_ADDED";
   }
   return undefined;
 }
@@ -114,7 +159,12 @@ export async function updatePackage(
 ): Promise<{ installDir: string; previousVersion: string }> {
   const { manifest } = pkg;
   const installed = requireInstalled(ctx, manifest.id);
-  const mismatch = (field: "kind" | "version", from: string, to: string, message: string) =>
+  const mismatch = (
+    field: "kind" | "version",
+    from: string,
+    to: string,
+    message: string,
+  ) =>
     new PlumsError({
       code: IMPORT_INVALID,
       message,
@@ -122,25 +172,43 @@ export async function updatePackage(
       details: { id: installed.id, installed: from, incoming: to },
     });
   if (manifest.kind !== installed.kind) {
-    throw mismatch("kind", installed.kind, manifest.kind, `更新不能改变包的类型：已安装的是 ${installed.kind}，新版是 ${manifest.kind}。`);
+    throw mismatch(
+      "kind",
+      installed.kind,
+      manifest.kind,
+      `更新不能改变包的类型：已安装的是 ${installed.kind}，新版是 ${manifest.kind}。`,
+    );
   }
   if (!semver.gt(manifest.version, installed.version)) {
-    throw mismatch("version", installed.version, manifest.version, `新版本 ${manifest.version} 必须高于已安装的 ${installed.version}，不能降级或重复更新。`);
+    throw mismatch(
+      "version",
+      installed.version,
+      manifest.version,
+      `新版本 ${manifest.version} 必须高于已安装的 ${installed.version}，不能降级或重复更新。`,
+    );
   }
   assertDependencies(ctx, installed, manifest);
   const previousManifest = requireManifest(ctx, installed.id);
-  const formatChanged = isManifestV1(previousManifest) !== isManifestV1(manifest);
+  const formatChanged =
+    isManifestV1(previousManifest) !== isManifestV1(manifest);
   if (formatChanged && !consent) {
     throw new PlumsError({
       code: CONSENT_REQUIRED,
       message: "包格式变化，需要重新同意新版权限后才能更新。旧版本保持不变。",
       path: "/formatVersion",
-      details: { id: installed.id, reason: "FORMAT_CHANGED", installed: previousManifest.formatVersion, incoming: manifest.formatVersion },
+      details: {
+        id: installed.id,
+        reason: "FORMAT_CHANGED",
+        installed: previousManifest.formatVersion,
+        incoming: manifest.formatVersion,
+      },
     });
   }
   const old = previousManifest.permissions;
   const added = manifest.permissions.flatMap((p, index) => {
-    const reason = formatChanged ? "FORMAT_CHANGED" : growth(old, p, isManifestV1(manifest));
+    const reason = formatChanged
+      ? "FORMAT_CHANGED"
+      : growth(old, p, isManifestV1(manifest));
     return reason === undefined ? [] : [{ index, id: p.id, reason }];
   });
   const first = added[0];
@@ -153,22 +221,40 @@ export async function updatePackage(
         id: installed.id,
         permissionId: first.id,
         reason: first.reason,
-        added: added.map(({ index, id, reason }) => ({ path: `/permissions/${index}`, permissionId: id, reason })),
+        added: added.map(({ index, id, reason }) => ({
+          path: `/permissions/${index}`,
+          permissionId: id,
+          reason,
+        })),
       },
     });
   }
 
-  const activeSecrets = new Set(secretKeys(manifest).map((key) => secretRef(installed.id, key)));
-  const droppedSecrets = ctx.store.getSecretRefs(installed.id).filter((ref) => !activeSecrets.has(ref));
+  const activeSecrets = new Set(
+    secretKeys(manifest).map((key) => secretRef(installed.id, key)),
+  );
+  const droppedSecrets = ctx.store
+    .getSecretRefs(installed.id)
+    .filter((ref) => !activeSecrets.has(ref));
   const previous = ctx.store.getConsent(installed.id);
   const record =
     previous === undefined
       ? undefined
-      : { ...consentFor(manifest), grantedAt: first === undefined && !formatChanged ? previous.grantedAt : new Date().toISOString() };
+      : {
+          ...consentFor(manifest),
+          grantedAt:
+            first === undefined && !formatChanged
+              ? previous.grantedAt
+              : new Date().toISOString(),
+        };
   // Why before the rename: a settings mismatch must not move the installed files.
   await acceptResidualSettings(ctx.dataDir, manifest);
   const dir = path.join(ctx.dataDir, PACKAGES_DIR, installed.id);
-  const backup = path.join(ctx.dataDir, PACKAGES_DIR, `.backup-${installed.id}`);
+  const backup = path.join(
+    ctx.dataDir,
+    PACKAGES_DIR,
+    `.backup-${installed.id}`,
+  );
   await rm(backup, { recursive: true, force: true });
   await rename(dir, backup);
   try {
@@ -185,7 +271,10 @@ export async function updatePackage(
   return { installDir: dir, previousVersion: installed.version };
 }
 
-export function getConsent(ctx: InstallContext, id: string): ConsentRecord | null {
+export function getConsent(
+  ctx: InstallContext,
+  id: string,
+): ConsentRecord | null {
   requireInstalled(ctx, id);
   return ctx.store.getConsent(id) ?? null;
 }
@@ -227,18 +316,34 @@ export function disable(ctx: InstallContext, id: string): InstalledPackage {
  * `data/<id>/settings.json` is deleted. An update that drops settingsSchema ignores that
  * file: it is not read and not deleted, and the update succeeds.
  */
-export async function uninstall(ctx: InstallContext, id: string): Promise<void> {
+export async function uninstall(
+  ctx: InstallContext,
+  id: string,
+): Promise<void> {
   const installed = requireInstalled(ctx, id);
   await deleteSecrets(ctx, id, installed.version, ctx.store.getSecretRefs(id));
   ctx.store.remove(id);
-  await rm(path.join(ctx.dataDir, PACKAGES_DIR, id), { recursive: true, force: true });
-  await rm(path.join(ctx.dataDir, PACKAGE_DATA_DIR, id), { recursive: true, force: true });
+  await rm(path.join(ctx.dataDir, PACKAGES_DIR, id), {
+    recursive: true,
+    force: true,
+  });
+  await rm(path.join(ctx.dataDir, PACKAGE_DATA_DIR, id), {
+    recursive: true,
+    force: true,
+  });
 }
 
-async function deleteSecrets(ctx: InstallContext, id: string, version: string, refs: readonly string[]): Promise<void> {
+async function deleteSecrets(
+  ctx: InstallContext,
+  id: string,
+  version: string,
+  refs: readonly string[],
+): Promise<void> {
   // Why wait for every deletion: a partial failure must not leave more deletions racing
   // the error handler or a retry. References stay until uninstall removes the record.
-  const results = await Promise.allSettled(refs.map(async (ref) => ctx.secrets.delete(ref)));
+  const results = await Promise.allSettled(
+    refs.map(async (ref) => ctx.secrets.delete(ref)),
+  );
   if (results.some((result) => result.status === "rejected")) {
     // Why no underlying error: a store can delete a value and then throw it in an error,
     // leaving nothing that knownSecrets could read back for redaction.
@@ -259,21 +364,33 @@ export function requireManifest(ctx: InstallContext, id: string): Manifest {
 }
 
 /** Legacy action/MCP APIs must not infer a level from a 2.x permission's unknown fields. */
-export function requireLegacyManifest(ctx: InstallContext, id: string): ManifestV1 {
+export function requireLegacyManifest(
+  ctx: InstallContext,
+  id: string,
+): ManifestV1 {
   const manifest = requireManifest(ctx, id);
   if (!isManifestV1(manifest)) {
     throw new PlumsError({
       code: PERMISSION_DENIED,
       message: "这个包使用 2.x 权限，不能通过旧动作或 MCP 授权接口调用。",
       path: "/formatVersion",
-      details: { id, reason: "FORMAT_API_MISMATCH", formatVersion: manifest.formatVersion },
+      details: {
+        id,
+        reason: "FORMAT_API_MISMATCH",
+        formatVersion: manifest.formatVersion,
+      },
     });
   }
   return manifest;
 }
 
-function assertDependencies(ctx: InstallContext, installed: InstalledPackage, manifest: Manifest): void {
-  const problems: { path: string; message: string; dependency: Dependency }[] = [];
+function assertDependencies(
+  ctx: InstallContext,
+  installed: InstalledPackage,
+  manifest: Manifest,
+): void {
+  const problems: { path: string; message: string; dependency: Dependency }[] =
+    [];
   manifest.dependencies.forEach((dependency, index) => {
     if (dependency.optional === true) {
       return;
@@ -303,7 +420,10 @@ function assertDependencies(ctx: InstallContext, installed: InstalledPackage, ma
   });
 }
 
-function dependencyProblem(ctx: InstallContext, dependency: Dependency): string | undefined {
+function dependencyProblem(
+  ctx: InstallContext,
+  dependency: Dependency,
+): string | undefined {
   const found = ctx.store.get(dependency.id);
   if (found === undefined || found.kind !== dependency.kind) {
     return `「${dependency.id}」（版本要满足 ${dependency.range}）没有安装。Plums 不会自动下载，请先导入这个依赖。`;

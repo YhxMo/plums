@@ -16,6 +16,11 @@ import { createArchive, MemorySecretStore } from "@plums/core";
 import { DesktopHost } from "../../host/src/host.js";
 import { LocalSecretStore } from "../../host/src/secrets.js";
 
+import {
+  connectorManifest,
+  connectorRuntime,
+} from "../../host/test/platform-fixtures.js";
+
 it("saves and reopens credentials through the real desktop broker without requesting OS encryption", async () => {
   const temporary = await mkdtemp(
     path.join(os.tmpdir(), "plums-broker-secrets-"),
@@ -51,13 +56,11 @@ it("saves and reopens credentials through the real desktop broker without reques
       );
     }
     await builder.initialize();
-    const manifest = await readFile("examples/model-connector/manifest.json");
+    const manifest = Buffer.from(JSON.stringify(connectorManifest()));
     const preview = (await builder.preview(
       await createArchive({
         "manifest.json": manifest,
-        "runtime/main.js": await readFile(
-          "examples/model-connector/runtime/main.js",
-        ),
+        "runtime/main.js": Buffer.from(connectorRuntime),
       }),
     )) as { token: string };
     const component = await builder.importLibrary(preview.token);

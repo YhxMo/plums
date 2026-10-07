@@ -1,3 +1,4 @@
+import { SCHEMA_VERSION } from "../src/install/store.js";
 import { afterEach, describe, expect, it } from "vitest";
 import { mkdtemp, mkdir, rm } from "node:fs/promises";
 import os from "node:os";
@@ -77,6 +78,50 @@ async function install(core: Core, m: ManifestV2) {
   await core.enable(m.id);
 }
 describe("desktop public contracts", () => {
+  it.each(["confirmation", "allow"])(
+    "awaits the trusted delegation checkpoint after %s and refuses stale edges",
+    async (phase) => {
+      let active = true;
+      const f = await fixture(
+        async () => {
+          if (phase === "confirmation") active = false;
+          return true;
+        },
+        async (e) => {
+          if (phase === "allow" && (e as { phase: string }).phase === "allow") {
+            await Promise.resolve();
+            active = false;
+          }
+        },
+      );
+      await install(f.core, manifest("worker"));
+      await install(f.core, manifest("caller"));
+      await expect(
+        f.core.runDelegatedCapability(
+          {
+            packageId: "worker",
+            permissionId: "files",
+            callers: [{ packageId: "caller", permissionId: "files" }],
+            request: {
+              kind: "fs",
+              operation: "write",
+              path: "checkpoint.txt",
+              data: new Uint8Array([1]),
+            },
+          },
+          async () => {
+            await Promise.resolve();
+            if (!active)
+              throw new (await import("../src/errors.js")).PlumsError({
+                code: "PERMISSION_DENIED",
+                message: "Concrete edge changed",
+              });
+          },
+        ),
+      ).rejects.toMatchObject({ code: "PERMISSION_DENIED" });
+      expect(f.fs.records).toHaveLength(0);
+    },
+  );
   it("creates a core without a model and describes secrets without values or refs", async () => {
     const { core, secrets } = await fixture();
     const m = manifest("settings");
@@ -151,7 +196,7 @@ describe("desktop public contracts", () => {
     ).rejects.toMatchObject({ code: "PERMISSION_DENIED" });
     expect(egress.records).toHaveLength(0);
   });
-  it("preserves legacy data across migration 4 to 5 and invalidates removed MCP tools", async () => {
+  it("preserves legacy data across migration 4 to current schema and invalidates removed MCP tools", async () => {
     const { core, dir } = await fixture();
     await install(core, manifest("remote", "connector"));
     const tool = {
@@ -175,7 +220,7 @@ describe("desktop public contracts", () => {
     expect((await core.listInstalled())[0]?.enabled).toBe(true);
     core.close();
     const check = new Database(path.join(dir, "plums.db"));
-    expect(check.pragma("user_version", { simple: true })).toBe(5);
+    expect(check.pragma("user_version", { simple: true })).toBe(SCHEMA_VERSION);
     check.close();
   });
 });

@@ -608,3 +608,292 @@ it("blocks secret-bearing component export and cleans only unpublished library a
     true,
   );
 });
+
+it.each([0, 3, "2", null])(
+  "refuses unsupported desktop record version %s before publishing recovery journals",
+  async (version) => {
+    const { host, dir, options } = await fixture();
+    const agent = await host.createAgent("Future record");
+    await host.close();
+    const agentDir = path.join(dir, "instances", agent.instanceId);
+    const file = path.join(agentDir, "record.json");
+    const record = {
+      ...agent,
+      recordVersion: version,
+      future: { opaque: true },
+    };
+    await writeFile(file, JSON.stringify(record));
+    const journal = path.join(agentDir, "assembly-transaction.json");
+    await writeFile(
+      journal,
+      JSON.stringify({
+        packageId: "absent",
+        version: null,
+        beforeVersion: null,
+        next: { ...agent, name: "must not publish" },
+      }),
+    );
+    const before = await readFile(file);
+    const pending = await readFile(journal);
+    const restarted = new DesktopHost(options);
+    hosts.push(restarted);
+    await restarted.initialize();
+    expect(await readFile(file)).toEqual(before);
+    expect(await readFile(journal)).toEqual(pending);
+    expect((await restarted.listAgents())[0]?.recoveryError).toContain(
+      "原始数据已保留",
+    );
+    await expect(restarted.frontend(agent.instanceId)).rejects.toMatchObject({
+      code: "IMPORT_INVALID",
+    });
+  },
+);
+
+it.each([0, 3, "2", null])(
+  "preserves supported records and journals containing unsupported next version %s",
+  async (version) => {
+    const { host, dir, options } = await fixture();
+    const agent = await host.createAgent("Supported record");
+    await host.close();
+    const agentDir = path.join(dir, "instances", agent.instanceId);
+    const file = path.join(agentDir, "record.json");
+    const journal = path.join(agentDir, "assembly-transaction.json");
+    await writeFile(
+      journal,
+      JSON.stringify({
+        packageId: "absent",
+        version: null,
+        beforeVersion: null,
+        next: { ...agent, recordVersion: version, name: "must not publish" },
+      }),
+    );
+    const before = await readFile(file),
+      pending = await readFile(journal);
+    const restarted = new DesktopHost(options);
+    hosts.push(restarted);
+    await restarted.initialize();
+    expect(await readFile(file)).toEqual(before);
+    expect(await readFile(journal)).toEqual(pending);
+    expect((await restarted.listAgents())[0]?.recoveryError).toContain(
+      "原始数据已保留",
+    );
+    await expect(restarted.frontend(agent.instanceId)).rejects.toMatchObject({
+      code: "IMPORT_INVALID",
+    });
+  },
+);
+
+it.each([false, true])(
+  "recovers assembly metadata only when the package commit exists (%s)",
+  async (committed) => {
+    const { host, dir, options } = await fixture();
+    const original = await importInto(host, await extension("recoverable"));
+    const agent = await host.createAgent("Before", [original.digest]);
+    await host.enable(agent.instanceId, "recoverable");
+    const newer = await importInto(
+      host,
+      await extension("recoverable", "1.1.0"),
+    );
+    if (committed) {
+      const update = (await host.previewLibraryUpdate(
+        agent.instanceId,
+        newer.digest,
+      )) as { token: string };
+      await host.updatePackage(
+        agent.instanceId,
+        update.token,
+        "recoverable",
+        true,
+      );
+    }
+    await host.close();
+    const agentDir = path.join(dir, "instances", agent.instanceId),
+      file = path.join(agentDir, "record.json");
+    const current = JSON.parse(await readFile(file, "utf8"));
+    const next = { ...current, name: "After", future: { retained: true } };
+    await writeFile(
+      path.join(agentDir, "assembly-transaction.json"),
+      JSON.stringify({
+        packageId: "recoverable",
+        version: "1.1.0",
+        beforeVersion: "1.0.0",
+        next,
+      }),
+    );
+    const restarted = new DesktopHost(options);
+    hosts.push(restarted);
+    await restarted.initialize();
+    const recovered = (await restarted.listAgents())[0]!;
+    expect(recovered.name).toBe(committed ? "After" : "Before");
+    expect(recovered.components![0]?.version).toBe(
+      committed ? "1.1.0" : "1.0.0",
+    );
+    await expect(
+      readFile(path.join(agentDir, "assembly-transaction.json")),
+    ).rejects.toMatchObject({ code: "ENOENT" });
+    expect(
+      ((await restarted.resources(agent.instanceId)) as any).packages[0]
+        .enabled,
+    ).toBe(true);
+  },
+);
+
+it.each(["1", "2"])(
+  "migrates legacy SDK %s records with local secrets and exact consent, without reviving read grants or exporting authorization",
+  async (sdkVersion) => {
+    const f = await fixture();
+    await f.host.close();
+    const { LocalSecretStore } = await import("../src/secrets.js");
+    const options = {
+      ...f.options,
+      secretStore: (id: string) =>
+        new LocalSecretStore(path.join(f.dir, "instances", id, "secrets")),
+    };
+    const host = new DesktopHost(options);
+    hosts.push(host);
+    await host.initialize();
+    const component = {
+      ...manifest("legacy-reader", "extension"),
+      formatVersion: "2.7",
+      future: { opaque: [1, null] },
+      permissions: [
+        {
+          id: "files",
+          kind: "fs",
+          target: "agent-data",
+          operations: ["read"],
+          reason: "fixture",
+          future: { opaque: true },
+        },
+      ],
+      settingsSchema: {
+        type: "object",
+        properties: {
+          label: { type: "string", title: "Label", description: "" },
+          key: {
+            type: "string",
+            title: "Key",
+            description: "",
+            "x-secret": true,
+          },
+        },
+      },
+      payload: {
+        opaque: { business: true },
+        plumsDesktop: {
+          sdkVersion,
+          runtime: "main.js",
+          contributes: {
+            commands: [
+              { name: "read", title: "Read" },
+              { name: "settings", title: "Settings" },
+            ],
+          },
+        },
+      },
+    } as ManifestV2;
+    const bytes = await pack(component, {
+      "main.js": Buffer.from(
+        "export function activate(s){s.register('commands','read',()=>s.capability('files',{kind:'fs',operation:'read',path:'fixture.txt'}));s.register('commands','settings',()=>s.settings());}",
+      ),
+    });
+    const { createAgentBundle } = await import("@plums/sdk");
+    const archive = await createAgentBundle(
+      {
+        bundleVersion: "1.0",
+        id: "old",
+        name: "Old",
+        version: "1.0.0",
+        extensions: ["reader.zip"],
+        connectors: [],
+        future: { retained: true },
+      },
+      { "reader.zip": bytes },
+    );
+    const agent = await host.install(
+      ((await host.preview(archive)) as { token: string }).token,
+    );
+    await host.setSettings(
+      agent.instanceId,
+      "legacy-reader",
+      { label: "retained" },
+      { key: "fixture-private-key" },
+    );
+    await host.enable(agent.instanceId, "legacy-reader");
+    const before = (await host.resources(agent.instanceId)) as any;
+    const agentDir = path.join(f.dir, "instances", agent.instanceId),
+      file = path.join(agentDir, "record.json");
+    await host.close();
+    await writeFile(path.join(agentDir, "bundle.zip"), archive);
+    const record = { ...agent, future: { retained: true } } as any;
+    delete record.recordVersion;
+    delete record.components;
+    delete record.extras;
+    await writeFile(file, JSON.stringify(record));
+    const restarted = new DesktopHost(options);
+    hosts.push(restarted);
+    await restarted.initialize();
+    const after = (await restarted.resources(agent.instanceId)) as any;
+    expect(after.packages[0].installedAt).toBe(before.packages[0].installedAt);
+    expect(after.packages[0].consented).toBe(true);
+    expect(after.packages[0].enabled).toBe(true);
+    expect(after.packages[0].manifest).toEqual(before.packages[0].manifest);
+    expect(after.packages[0].settings.values.label).toBe("retained");
+    expect(after.packages[0].settings.secrets.key).toBe(true);
+    expect(
+      await options
+        .secretStore(agent.instanceId)
+        .get(secretRef("legacy-reader", "key")),
+    ).toBe("fixture-private-key");
+    expect((JSON.parse(await readFile(file, "utf8")) as any).future).toEqual({
+      retained: true,
+    });
+    expect(
+      await restarted.invoke(
+        agent.instanceId,
+        "legacy-reader",
+        "legacy-reader",
+        "commands",
+        "settings",
+        {},
+      ),
+    ).toEqual({ label: "retained" });
+    options.confirm.ask = async () => false;
+    await expect(
+      restarted.invoke(
+        agent.instanceId,
+        "legacy-reader",
+        "legacy-reader",
+        "commands",
+        "read",
+        {},
+      ),
+    ).rejects.toMatchObject({ code: "PERMISSION_DENIED" });
+    const exported = await validateAgentBundle(
+      await restarted.exportAgent(agent.instanceId),
+    );
+    expect(exported.agent.bundleVersion).toBe("1.0");
+    expect(exported.agent.future).toEqual({ retained: true });
+    expect(exported.packages[0]!.contents.manifest.formatVersion).toBe("2.7");
+    expect((exported.packages[0]!.contents.manifest as any).future).toEqual({
+      opaque: [1, null],
+    });
+    const names = Object.keys(exported.files).join(" ");
+    expect(names).not.toMatch(
+      /secret|settings|grant|authorization|resource|task/,
+    );
+    const imported = await restarted.install(
+      (
+        (await restarted.preview(
+          await restarted.exportAgent(agent.instanceId),
+        )) as { token: string }
+      ).token,
+    );
+    const importedResources = (await restarted.resources(
+      imported.instanceId,
+    )) as any;
+    expect(importedResources.packages[0].enabled).toBe(false);
+    expect(importedResources.packages[0].consented).toBe(false);
+    expect(importedResources.packages[0].settings.secrets.key).toBe(false);
+  },
+);

@@ -3,7 +3,6 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import {
   createCore,
-  FakeModelProvider,
   MemorySecretStore,
   PACKAGE_FORMAT_VERSION,
   RecordingEgressSink,
@@ -18,11 +17,13 @@ import {
 import { expect } from "vitest";
 import { ZipFile } from "yazl";
 
-export function makeCore(extra: Partial<CreateCoreOptions> = {}): { core: Core; dataDir: string } {
+export function makeCore(extra: Partial<CreateCoreOptions> = {}): {
+  core: Core;
+  dataDir: string;
+} {
   const dataDir = mkdtempSync(path.join(tmpdir(), "plums-t2-"));
   const core = createCore({
     dataDir,
-    model: new FakeModelProvider(),
     egress: new RecordingEgressSink(),
     confirm: new ScriptedConfirm(),
     secrets: new MemorySecretStore(),
@@ -36,7 +37,9 @@ export function listAll(dir: string): string[] {
 }
 
 /** Historical 1.x contracts remain independent of the default for new packages. */
-export function validManifest(kind: Manifest["kind"] = "character"): ManifestV1 {
+export function validManifest(
+  kind: Manifest["kind"] = "character",
+): ManifestV1 {
   return {
     formatVersion: "1.0",
     kind,
@@ -46,31 +49,74 @@ export function validManifest(kind: Manifest["kind"] = "character"): ManifestV1 
     description: "A package used by tests.",
     license: "Apache-2.0",
     author: "Plums Tests",
-    dependencies: [{ kind: "extension", id: "base-pack", range: "^1.0.0", optional: false }],
+    dependencies: [
+      { kind: "extension", id: "base-pack", range: "^1.0.0", optional: false },
+    ],
     permissions: [
-      { id: "read-notes", level: "read", target: "notes", reason: "Show your notes." },
-      { id: "send-stats", level: "egress", target: "stats.example", reason: "Upload usage." },
+      {
+        id: "read-notes",
+        level: "read",
+        target: "notes",
+        reason: "Show your notes.",
+      },
+      {
+        id: "send-stats",
+        level: "egress",
+        target: "stats.example",
+        reason: "Upload usage.",
+      },
     ],
     settingsSchema: {
       type: "object",
       properties: {
-        nickname: { type: "string", title: "Nickname", description: "What to call you." },
-        retries: { type: "integer", title: "Retries", description: "How many times to retry.", default: 3 },
+        nickname: {
+          type: "string",
+          title: "Nickname",
+          description: "What to call you.",
+        },
+        retries: {
+          type: "integer",
+          title: "Retries",
+          description: "How many times to retry.",
+          default: 3,
+        },
       },
     },
-    payload: { greeting: "hello", nested: { list: [1, 2, { three: 3 }], nothing: null } },
+    payload: {
+      greeting: "hello",
+      nested: { list: [1, 2, { three: 3 }], nothing: null },
+    },
   };
 }
 
-export function validManifestV2(kind: Manifest["kind"] = "extension"): ManifestV2 {
+export function validManifestV2(
+  kind: Manifest["kind"] = "extension",
+): ManifestV2 {
   return {
     ...validManifest(kind),
     formatVersion: PACKAGE_FORMAT_VERSION,
     dependencies: [],
     permissions: [
-      { id: "files", kind: "fs", target: "workspace", reason: "Use project files.", operations: ["read", "write", "list"] },
-      { id: "test", kind: "exec", target: "test", reason: "Run project tests.", cwdRoots: ["workspace"] },
-      { id: "send", kind: "egress", target: "api.example.com", reason: "Send a summary." },
+      {
+        id: "files",
+        kind: "fs",
+        target: "workspace",
+        reason: "Use project files.",
+        operations: ["read", "write", "list"],
+      },
+      {
+        id: "test",
+        kind: "exec",
+        target: "test",
+        reason: "Run project tests.",
+        cwdRoots: ["workspace"],
+      },
+      {
+        id: "send",
+        kind: "egress",
+        target: "api.example.com",
+        reason: "Send a summary.",
+      },
     ],
   };
 }
@@ -90,12 +136,19 @@ export function buildZip(entries: ZipSpec[]): Promise<Uint8Array> {
     const chunks: Buffer[] = [];
     zip.outputStream.on("data", (chunk: Buffer) => chunks.push(chunk));
     zip.outputStream.on("error", reject);
-    zip.outputStream.on("end", () => resolve(new Uint8Array(Buffer.concat(chunks))));
+    zip.outputStream.on("end", () =>
+      resolve(new Uint8Array(Buffer.concat(chunks))),
+    );
     for (const entry of entries) {
       if (entry.directory === true || entry.name.endsWith("/")) {
-        zip.addEmptyDirectory(entry.name.endsWith("/") ? entry.name : `${entry.name}/`);
+        zip.addEmptyDirectory(
+          entry.name.endsWith("/") ? entry.name : `${entry.name}/`,
+        );
       } else {
-        const data = typeof entry.data === "string" ? Buffer.from(entry.data) : Buffer.from(entry.data ?? "");
+        const data =
+          typeof entry.data === "string"
+            ? Buffer.from(entry.data)
+            : Buffer.from(entry.data ?? "");
         zip.addBuffer(data, entry.name, { compress: entry.store !== true });
       }
     }
@@ -103,19 +156,33 @@ export function buildZip(entries: ZipSpec[]): Promise<Uint8Array> {
   });
 }
 
-export function manifestZip(manifest: unknown, extra: ZipSpec[] = []): Promise<Uint8Array> {
-  return buildZip([{ name: "manifest.json", data: JSON.stringify(manifest) }, ...extra]);
+export function manifestZip(
+  manifest: unknown,
+  extra: ZipSpec[] = [],
+): Promise<Uint8Array> {
+  return buildZip([
+    { name: "manifest.json", data: JSON.stringify(manifest) },
+    ...extra,
+  ]);
 }
 
 /** Replaces a same-length name inside the zip bytes, to build names that yazl refuses to write. */
-export function renameEntry(zip: Uint8Array, from: string, to: string): Uint8Array {
+export function renameEntry(
+  zip: Uint8Array,
+  from: string,
+  to: string,
+): Uint8Array {
   if (from.length !== to.length) {
     throw new Error("names must have the same length");
   }
   const buffer = Buffer.from(zip);
   const needle = Buffer.from(from);
   let found = 0;
-  for (let at = buffer.indexOf(needle); at !== -1; at = buffer.indexOf(needle, at + 1)) {
+  for (
+    let at = buffer.indexOf(needle);
+    at !== -1;
+    at = buffer.indexOf(needle, at + 1)
+  ) {
     buffer.write(to, at);
     found += 1;
   }

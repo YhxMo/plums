@@ -1,10 +1,15 @@
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
+import {
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  writeFileSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import Database from "better-sqlite3";
 import {
   createCore,
-  FakeModelProvider,
   MemorySecretStore,
   secretRef,
   PlumsError,
@@ -15,14 +20,21 @@ import {
   type Manifest,
 } from "@plums/core";
 import { afterEach, describe, expect, it } from "vitest";
-import { expectPlumsError, listAll, manifestZip, validManifest } from "./package-helpers.js";
+import {
+  expectPlumsError,
+  listAll,
+  manifestZip,
+  validManifest,
+} from "./package-helpers.js";
 
 const openCores: Core[] = [];
 
-function coreAt(dataDir: string, secrets: MemorySecretStore = new MemorySecretStore()): Core {
+function coreAt(
+  dataDir: string,
+  secrets: MemorySecretStore = new MemorySecretStore(),
+): Core {
   const core = createCore({
     dataDir,
-    model: new FakeModelProvider(),
     egress: new RecordingEgressSink(),
     confirm: new ScriptedConfirm(),
     secrets,
@@ -31,7 +43,11 @@ function coreAt(dataDir: string, secrets: MemorySecretStore = new MemorySecretSt
   return core;
 }
 
-function freshCore(): { core: Core; dataDir: string; secrets: MemorySecretStore } {
+function freshCore(): {
+  core: Core;
+  dataDir: string;
+  secrets: MemorySecretStore;
+} {
   const dataDir = mkdtempSync(path.join(tmpdir(), "plums-t4-"));
   const secrets = new MemorySecretStore();
   return { core: coreAt(dataDir, secrets), dataDir, secrets };
@@ -44,7 +60,12 @@ afterEach(() => {
 });
 
 function manifestWith(overrides: Partial<Manifest> = {}): Manifest {
-  return { ...validManifest("extension"), id: "demo-ext", dependencies: [], ...overrides };
+  return {
+    ...validManifest("extension"),
+    id: "demo-ext",
+    dependencies: [],
+    ...overrides,
+  };
 }
 
 function dep(id: string, range: string, optional?: boolean): Dependency {
@@ -80,7 +101,9 @@ describe("import leaves a package installed, not enabled, not consented", () => 
       enabledAt: null,
       consented: false,
     });
-    expect(new Date(installed?.installedAt ?? "").toISOString()).toBe(installed?.installedAt);
+    expect(new Date(installed?.installedAt ?? "").toISOString()).toBe(
+      installed?.installedAt,
+    );
     await expect(core.getConsent("demo-ext")).resolves.toBeNull();
   });
 
@@ -88,16 +111,25 @@ describe("import leaves a package installed, not enabled, not consented", () => 
     const { core } = freshCore();
     await importManifest(core, manifestWith({ id: "b-pack" }));
     await importManifest(core, manifestWith({ id: "a-pack" }));
-    expect((await core.listInstalled()).map((p) => p.id)).toEqual(["a-pack", "b-pack"]);
+    expect((await core.listInstalled()).map((p) => p.id)).toEqual([
+      "a-pack",
+      "b-pack",
+    ]);
   });
 
   it("a package that fails validation is not recorded and creates no database", async () => {
     const { core, dataDir } = freshCore();
-    await expectPlumsError(core.importPackage(new Uint8Array([1, 2, 3])), "IMPORT_INVALID");
+    await expectPlumsError(
+      core.importPackage(new Uint8Array([1, 2, 3])),
+      "IMPORT_INVALID",
+    );
     expect(await core.listInstalled()).toEqual([]);
     expect(listAll(dataDir)).toEqual(["plums.db"]);
     const second = freshCore();
-    await expectPlumsError(second.core.importPackage(new Uint8Array([1, 2, 3])), "IMPORT_INVALID");
+    await expectPlumsError(
+      second.core.importPackage(new Uint8Array([1, 2, 3])),
+      "IMPORT_INVALID",
+    );
     expect(listAll(second.dataDir)).toEqual([]);
   });
 });
@@ -106,7 +138,10 @@ describe("consent and enable", () => {
   it("enable without consent returns CONSENT_REQUIRED and changes nothing", async () => {
     const { core } = freshCore();
     await importManifest(core, manifestWith());
-    const err = await expectPlumsError(core.enable("demo-ext"), "CONSENT_REQUIRED");
+    const err = await expectPlumsError(
+      core.enable("demo-ext"),
+      "CONSENT_REQUIRED",
+    );
     expect(err.message).toContain("同意");
     const [installed] = await core.listInstalled();
     expect(installed?.enabled).toBe(false);
@@ -122,8 +157,14 @@ describe("consent and enable", () => {
     const granted = await core.grantConsent("demo-ext");
     const enabled = await core.enable("demo-ext");
 
-    expect(enabled).toMatchObject({ id: "demo-ext", enabled: true, consented: true });
-    expect(new Date(enabled.enabledAt ?? "").toISOString()).toBe(enabled.enabledAt);
+    expect(enabled).toMatchObject({
+      id: "demo-ext",
+      enabled: true,
+      consented: true,
+    });
+    expect(new Date(enabled.enabledAt ?? "").toISOString()).toBe(
+      enabled.enabledAt,
+    );
 
     const consent = await core.getConsent("demo-ext");
     expect(consent).toEqual(granted);
@@ -134,7 +175,9 @@ describe("consent and enable", () => {
       ["read-notes", "read"],
       ["send-stats", "egress"],
     ]);
-    expect(new Date(consent?.grantedAt ?? "").getTime()).toBeGreaterThanOrEqual(before);
+    expect(new Date(consent?.grantedAt ?? "").getTime()).toBeGreaterThanOrEqual(
+      before,
+    );
   });
 
   it("a package with no permissions still needs a consent record", async () => {
@@ -143,16 +186,26 @@ describe("consent and enable", () => {
     await expectPlumsError(core.enable("demo-ext"), "CONSENT_REQUIRED");
     const consent = await core.grantConsent("demo-ext");
     expect(consent.permissions).toEqual([]);
-    await expect(core.enable("demo-ext")).resolves.toMatchObject({ enabled: true });
+    await expect(core.enable("demo-ext")).resolves.toMatchObject({
+      enabled: true,
+    });
   });
 
   it("consent keeps unknown fields of the permission items", async () => {
     const { core } = freshCore();
     const permissions = [
-      { id: "p", level: "read" as const, target: "t", reason: "r", futureField: { a: 1 } },
+      {
+        id: "p",
+        level: "read" as const,
+        target: "t",
+        reason: "r",
+        futureField: { a: 1 },
+      },
     ];
     await importManifest(core, manifestWith({ permissions }));
-    expect((await core.grantConsent("demo-ext")).permissions).toEqual(permissions);
+    expect((await core.grantConsent("demo-ext")).permissions).toEqual(
+      permissions,
+    );
   });
 
   it("enable and disable can be repeated; disable keeps the consent", async () => {
@@ -160,111 +213,197 @@ describe("consent and enable", () => {
     await importManifest(core, manifestWith());
     await core.grantConsent("demo-ext");
     await core.enable("demo-ext");
-    await expect(core.enable("demo-ext")).resolves.toMatchObject({ enabled: true });
+    await expect(core.enable("demo-ext")).resolves.toMatchObject({
+      enabled: true,
+    });
 
     const off = await core.disable("demo-ext");
     expect(off).toMatchObject({ enabled: false, consented: true });
-    await expect(core.disable("demo-ext")).resolves.toMatchObject({ enabled: false });
+    await expect(core.disable("demo-ext")).resolves.toMatchObject({
+      enabled: false,
+    });
     expect(await core.getConsent("demo-ext")).not.toBeNull();
 
-    await expect(core.enable("demo-ext")).resolves.toMatchObject({ enabled: true });
+    await expect(core.enable("demo-ext")).resolves.toMatchObject({
+      enabled: true,
+    });
   });
 });
 
 describe("dependencies", () => {
-  async function importWithDeps(core: Core, dependencies: Dependency[]): Promise<void> {
+  async function importWithDeps(
+    core: Core,
+    dependencies: Dependency[],
+  ): Promise<void> {
     await importManifest(core, manifestWith({ dependencies }));
     await core.grantConsent("demo-ext");
   }
 
   it("consent is checked before dependencies", async () => {
     const { core } = freshCore();
-    await importManifest(core, manifestWith({ dependencies: [dep("base-pack", "^1.0.0")] }));
+    await importManifest(
+      core,
+      manifestWith({ dependencies: [dep("base-pack", "^1.0.0")] }),
+    );
     await expectPlumsError(core.enable("demo-ext"), "CONSENT_REQUIRED");
   });
 
   it("a missing required dependency returns DEPENDENCY_MISSING with its JSON Pointer", async () => {
     const { core } = freshCore();
     await importWithDeps(core, [dep("base-pack", "^1.0.0", false)]);
-    const err = await expectPlumsError(core.enable("demo-ext"), "DEPENDENCY_MISSING", "/dependencies/0");
+    const err = await expectPlumsError(
+      core.enable("demo-ext"),
+      "DEPENDENCY_MISSING",
+      "/dependencies/0",
+    );
     expect(err.message).toMatch(/^依赖不满足：/);
     expect(err.message).toContain("base-pack");
     expect(err.details).toMatchObject({
       id: "demo-ext",
-      missing: [{ path: "/dependencies/0", kind: "extension", id: "base-pack", range: "^1.0.0" }],
+      missing: [
+        {
+          path: "/dependencies/0",
+          kind: "extension",
+          id: "base-pack",
+          range: "^1.0.0",
+        },
+      ],
     });
     expect((await core.listInstalled())[0]?.enabled).toBe(false);
   });
 
   it("the path points at the missing item, not the first item", async () => {
     const { core } = freshCore();
-    await importManifest(core, manifestWith({ id: "have-it", dependencies: [] }));
+    await importManifest(
+      core,
+      manifestWith({ id: "have-it", dependencies: [] }),
+    );
     await importWithDeps(core, [dep("have-it", "*"), dep("gone", "^1.0.0")]);
-    await expectPlumsError(core.enable("demo-ext"), "DEPENDENCY_MISSING", "/dependencies/1");
+    await expectPlumsError(
+      core.enable("demo-ext"),
+      "DEPENDENCY_MISSING",
+      "/dependencies/1",
+    );
   });
 
   it("a dependency without `optional` counts as required", async () => {
     const { core } = freshCore();
     await importWithDeps(core, [dep("base-pack", "^1.0.0")]);
-    await expectPlumsError(core.enable("demo-ext"), "DEPENDENCY_MISSING", "/dependencies/0");
+    await expectPlumsError(
+      core.enable("demo-ext"),
+      "DEPENDENCY_MISSING",
+      "/dependencies/0",
+    );
   });
 
   it("a missing optional dependency does not block enable", async () => {
     const { core } = freshCore();
     await importWithDeps(core, [dep("nice-to-have", "^1.0.0", true)]);
-    await expect(core.enable("demo-ext")).resolves.toMatchObject({ enabled: true });
+    await expect(core.enable("demo-ext")).resolves.toMatchObject({
+      enabled: true,
+    });
   });
 
   it("an optional dependency does not hide a required one after it", async () => {
     const { core } = freshCore();
-    await importWithDeps(core, [dep("nice", "^1.0.0", true), dep("must", "^1.0.0", false)]);
-    await expectPlumsError(core.enable("demo-ext"), "DEPENDENCY_MISSING", "/dependencies/1");
+    await importWithDeps(core, [
+      dep("nice", "^1.0.0", true),
+      dep("must", "^1.0.0", false),
+    ]);
+    await expectPlumsError(
+      core.enable("demo-ext"),
+      "DEPENDENCY_MISSING",
+      "/dependencies/1",
+    );
   });
 
   it("reports every missing dependency in details, the first one in path", async () => {
     const { core } = freshCore();
     await importWithDeps(core, [dep("one", "^1.0.0"), dep("two", "^1.0.0")]);
-    const err = await expectPlumsError(core.enable("demo-ext"), "DEPENDENCY_MISSING", "/dependencies/0");
+    const err = await expectPlumsError(
+      core.enable("demo-ext"),
+      "DEPENDENCY_MISSING",
+      "/dependencies/0",
+    );
     const missing = (err.details as { missing: { path: string }[] }).missing;
-    expect(missing.map((m) => m.path)).toEqual(["/dependencies/0", "/dependencies/1"]);
+    expect(missing.map((m) => m.path)).toEqual([
+      "/dependencies/0",
+      "/dependencies/1",
+    ]);
   });
 
   it("an installed dependency whose version does not satisfy the range also counts as missing", async () => {
     const { core } = freshCore();
-    await importManifest(core, manifestWith({ id: "base-pack", version: "2.0.0" }));
+    await importManifest(
+      core,
+      manifestWith({ id: "base-pack", version: "2.0.0" }),
+    );
     await importWithDeps(core, [dep("base-pack", "^1.0.0")]);
-    const err = await expectPlumsError(core.enable("demo-ext"), "DEPENDENCY_MISSING", "/dependencies/0");
+    const err = await expectPlumsError(
+      core.enable("demo-ext"),
+      "DEPENDENCY_MISSING",
+      "/dependencies/0",
+    );
     expect(err.message).toContain("2.0.0");
     expect(err.message).toContain("^1.0.0");
   });
 
   it("a prerelease does not satisfy a plain range", async () => {
     const { core } = freshCore();
-    await importManifest(core, manifestWith({ id: "base-pack", version: "1.5.0-beta.1" }));
+    await importManifest(
+      core,
+      manifestWith({ id: "base-pack", version: "1.5.0-beta.1" }),
+    );
     await importWithDeps(core, [dep("base-pack", "^1.0.0")]);
-    await expectPlumsError(core.enable("demo-ext"), "DEPENDENCY_MISSING", "/dependencies/0");
+    await expectPlumsError(
+      core.enable("demo-ext"),
+      "DEPENDENCY_MISSING",
+      "/dependencies/0",
+    );
   });
 
   it("an installed package of another kind does not satisfy the dependency", async () => {
     const { core } = freshCore();
-    await importManifest(core, { ...validManifest("connector"), id: "base-pack", dependencies: [] });
+    await importManifest(core, {
+      ...validManifest("connector"),
+      id: "base-pack",
+      dependencies: [],
+    });
     await importWithDeps(core, [dep("base-pack", "*")]);
-    await expectPlumsError(core.enable("demo-ext"), "DEPENDENCY_MISSING", "/dependencies/0");
+    await expectPlumsError(
+      core.enable("demo-ext"),
+      "DEPENDENCY_MISSING",
+      "/dependencies/0",
+    );
   });
 
   it("a connector dependency is matched by its own kind", async () => {
     const { core } = freshCore();
-    await importManifest(core, { ...validManifest("connector"), id: "my-conn", version: "1.1.0", dependencies: [] });
-    await importWithDeps(core, [{ kind: "connector", id: "my-conn", range: "~1.1.0" }]);
-    await expect(core.enable("demo-ext")).resolves.toMatchObject({ enabled: true });
+    await importManifest(core, {
+      ...validManifest("connector"),
+      id: "my-conn",
+      version: "1.1.0",
+      dependencies: [],
+    });
+    await importWithDeps(core, [
+      { kind: "connector", id: "my-conn", range: "~1.1.0" },
+    ]);
+    await expect(core.enable("demo-ext")).resolves.toMatchObject({
+      enabled: true,
+    });
   });
 
   it("enable works once a satisfying dependency is installed; it need not be enabled", async () => {
     const { core } = freshCore();
     await importWithDeps(core, [dep("base-pack", ">=1.0.0 <2.0.0")]);
     await expectPlumsError(core.enable("demo-ext"), "DEPENDENCY_MISSING");
-    await importManifest(core, manifestWith({ id: "base-pack", version: "1.9.9" }));
-    await expect(core.enable("demo-ext")).resolves.toMatchObject({ enabled: true });
+    await importManifest(
+      core,
+      manifestWith({ id: "base-pack", version: "1.9.9" }),
+    );
+    await expect(core.enable("demo-ext")).resolves.toMatchObject({
+      enabled: true,
+    });
   });
 
   it("nothing is downloaded: the egress sink stays empty", async () => {
@@ -272,7 +411,6 @@ describe("dependencies", () => {
     const egress = new RecordingEgressSink();
     const core = createCore({
       dataDir,
-      model: new FakeModelProvider(),
       egress,
       confirm: new ScriptedConfirm(),
       secrets: new MemorySecretStore(),
@@ -287,11 +425,18 @@ describe("dependencies", () => {
 describe("uninstall", () => {
   it("removes files, data, install state and consent", async () => {
     const { core, dataDir } = freshCore();
-    await importManifest(core, manifestWith(), [{ name: "prompts/a.txt", data: "hi" }]);
+    await importManifest(core, manifestWith(), [
+      { name: "prompts/a.txt", data: "hi" },
+    ]);
     await importManifest(core, manifestWith({ id: "other-pack" }));
     await core.grantConsent("demo-ext");
     await core.enable("demo-ext");
-    const settingsFile = path.join(dataDir, "data", "demo-ext", "settings.json");
+    const settingsFile = path.join(
+      dataDir,
+      "data",
+      "demo-ext",
+      "settings.json",
+    );
     mkdirSync(path.dirname(settingsFile), { recursive: true });
     writeFileSync(settingsFile, '{"nickname":"x"}');
     const otherData = path.join(dataDir, "data", "other-pack", "keep.txt");
@@ -300,22 +445,32 @@ describe("uninstall", () => {
 
     await core.uninstall("demo-ext");
 
-    expect(listAll(dataDir).filter((entry) => entry.includes("demo-ext"))).toEqual([]);
-    expect(existsSync(path.join(dataDir, "packages", "other-pack", "manifest.json"))).toBe(true);
+    expect(
+      listAll(dataDir).filter((entry) => entry.includes("demo-ext")),
+    ).toEqual([]);
+    expect(
+      existsSync(path.join(dataDir, "packages", "other-pack", "manifest.json")),
+    ).toBe(true);
     expect(readFileSync(otherData, "utf8")).toBe("keep");
 
-    expect((await core.listInstalled()).map((p) => p.id)).toEqual(["other-pack"]);
+    expect((await core.listInstalled()).map((p) => p.id)).toEqual([
+      "other-pack",
+    ]);
     await expectPlumsError(core.getConsent("demo-ext"), "PERMISSION_DENIED");
 
     core.close();
     const db = new Database(path.join(dataDir, "plums.db"), { readonly: true });
     try {
-      expect(db.prepare("SELECT id FROM packages").all()).toEqual([{ id: "other-pack" }]);
+      expect(db.prepare("SELECT id FROM packages").all()).toEqual([
+        { id: "other-pack" },
+      ]);
       expect(db.prepare("SELECT package_id FROM consents").all()).toEqual([]);
     } finally {
       db.close();
     }
-    expect(readFileSync(path.join(dataDir, "plums.db")).includes("demo-ext")).toBe(false);
+    expect(
+      readFileSync(path.join(dataDir, "plums.db")).includes("demo-ext"),
+    ).toBe(false);
   });
 
   it("can be imported again, and then needs a fresh consent", async () => {
@@ -326,48 +481,74 @@ describe("uninstall", () => {
     await core.uninstall("demo-ext");
 
     await importManifest(core, manifestWith());
-    expect(await core.listInstalled()).toMatchObject([{ id: "demo-ext", enabled: false, consented: false }]);
+    expect(await core.listInstalled()).toMatchObject([
+      { id: "demo-ext", enabled: false, consented: false },
+    ]);
     await expect(core.getConsent("demo-ext")).resolves.toBeNull();
     await expectPlumsError(core.enable("demo-ext"), "CONSENT_REQUIRED");
 
     await core.grantConsent("demo-ext");
-    await expect(core.enable("demo-ext")).resolves.toMatchObject({ enabled: true });
+    await expect(core.enable("demo-ext")).resolves.toMatchObject({
+      enabled: true,
+    });
   });
 
   it("works on a package that was never enabled or consented", async () => {
     const { core, dataDir } = freshCore();
     await importManifest(core, manifestWith());
     await core.uninstall("demo-ext");
-    expect(listAll(dataDir).filter((entry) => entry.includes("demo-ext"))).toEqual([]);
+    expect(
+      listAll(dataDir).filter((entry) => entry.includes("demo-ext")),
+    ).toEqual([]);
   });
 });
 
 describe("importing an id that is already installed", () => {
   it("refuses it and leaves the installed package, then allows a fresh import after uninstall", async () => {
     const { core, dataDir, secrets } = freshCore();
-    await importManifest(core, manifestWith(), [{ name: "old.txt", data: "old" }]);
+    await importManifest(core, manifestWith(), [
+      { name: "old.txt", data: "old" },
+    ]);
     await secrets.set(secretRef("demo-ext", "token"), "sk-kept");
     await core.setSettings("demo-ext", { nickname: "Pat" });
-    const settingsPath = path.join(dataDir, "data", "demo-ext", "settings.json");
+    const settingsPath = path.join(
+      dataDir,
+      "data",
+      "demo-ext",
+      "settings.json",
+    );
     const settingsBefore = readFileSync(settingsPath, "utf8");
     await core.grantConsent("demo-ext");
     await core.enable("demo-ext");
 
     const err = await expectPlumsError(
-      importManifest(core, manifestWith({ version: "2.0.0", permissions: [] }), [{ name: "new.txt", data: "new" }]),
+      importManifest(
+        core,
+        manifestWith({ version: "2.0.0", permissions: [] }),
+        [{ name: "new.txt", data: "new" }],
+      ),
       "IMPORT_INVALID",
     );
-    expect(err.details).toEqual({ id: "demo-ext", reason: "ALREADY_INSTALLED" });
+    expect(err.details).toEqual({
+      id: "demo-ext",
+      reason: "ALREADY_INSTALLED",
+    });
     expect(readFileSync(settingsPath, "utf8")).toBe(settingsBefore);
     expect(await secrets.get(secretRef("demo-ext", "token"))).toBe("sk-kept");
     expect(await core.listInstalled()).toMatchObject([
       { id: "demo-ext", version: "1.2.3", enabled: true, consented: true },
     ]);
     expect(await core.getConsent("demo-ext")).not.toBeNull();
-    expect(listAll(path.join(dataDir, "packages", "demo-ext"))).toEqual(["manifest.json", "old.txt"]);
+    expect(listAll(path.join(dataDir, "packages", "demo-ext"))).toEqual([
+      "manifest.json",
+      "old.txt",
+    ]);
 
     await core.uninstall("demo-ext");
-    await importManifest(core, manifestWith({ version: "2.0.0", permissions: [] }));
+    await importManifest(
+      core,
+      manifestWith({ version: "2.0.0", permissions: [] }),
+    );
     expect(await core.listInstalled()).toMatchObject([
       { id: "demo-ext", version: "2.0.0", enabled: false, consented: false },
     ]);
@@ -393,7 +574,9 @@ describe("restart", () => {
 
     await restarted.uninstall("demo-ext");
     const again = coreAt(dataDir);
-    expect((await again.listInstalled()).map((p) => p.id)).toEqual(["idle-pack"]);
+    expect((await again.listInstalled()).map((p) => p.id)).toEqual([
+      "idle-pack",
+    ]);
   });
 
   it("works while the first core is still open", async () => {
@@ -414,18 +597,24 @@ describe("operations on an id that is not installed", () => {
     ["uninstall", (core) => core.uninstall("ghost")],
   ];
 
-  it.each(operations)("%s returns PERMISSION_DENIED with reason NOT_INSTALLED", async (_name, run) => {
-    const { core } = freshCore();
-    const err = await expectPlumsError(run(core), "PERMISSION_DENIED");
-    expect(err.message).toContain("ghost");
-    expect(err.details).toEqual({ id: "ghost", reason: "NOT_INSTALLED" });
-  });
+  it.each(operations)(
+    "%s returns PERMISSION_DENIED with reason NOT_INSTALLED",
+    async (_name, run) => {
+      const { core } = freshCore();
+      const err = await expectPlumsError(run(core), "PERMISSION_DENIED");
+      expect(err.message).toContain("ghost");
+      expect(err.details).toEqual({ id: "ghost", reason: "NOT_INSTALLED" });
+    },
+  );
 
   it("a second uninstall fails the same way", async () => {
     const { core } = freshCore();
     await importManifest(core, manifestWith());
     await core.uninstall("demo-ext");
-    const err = await expectPlumsError(core.uninstall("demo-ext"), "PERMISSION_DENIED");
+    const err = await expectPlumsError(
+      core.uninstall("demo-ext"),
+      "PERMISSION_DENIED",
+    );
     expect(err).toBeInstanceOf(PlumsError);
   });
 });
@@ -433,28 +622,41 @@ describe("operations on an id that is not installed", () => {
 describe("main line", () => {
   it("import, inspect, consent and enable, uninstall, reinstall", async () => {
     const { core, dataDir } = freshCore();
-    const base = await manifestZip(manifestWith({ id: "base-pack", version: "1.0.0" }));
+    const base = await manifestZip(
+      manifestWith({ id: "base-pack", version: "1.0.0" }),
+    );
     const app = await manifestZip(
-      manifestWith({ id: "my-ext", dependencies: [dep("base-pack", "^1.0.0")] }),
+      manifestWith({
+        id: "my-ext",
+        dependencies: [dep("base-pack", "^1.0.0")],
+      }),
       [{ name: "prompts/hello.txt", data: "hello" }],
     );
 
     await core.importPackage(base);
     const inspected = await core.inspect(app);
-    expect(inspected.permissions.map((p) => [p.id, p.level, p.reason])).toEqual([
-      ["read-notes", "read", "Show your notes."],
-      ["send-stats", "egress", "Upload usage."],
-    ]);
-    expect(await core.listInstalled().then((all) => all.map((p) => p.id))).toEqual(["base-pack"]);
+    expect(inspected.permissions.map((p) => [p.id, p.level, p.reason])).toEqual(
+      [
+        ["read-notes", "read", "Show your notes."],
+        ["send-stats", "egress", "Upload usage."],
+      ],
+    );
+    expect(
+      await core.listInstalled().then((all) => all.map((p) => p.id)),
+    ).toEqual(["base-pack"]);
 
     await core.importPackage(app);
     await expectPlumsError(core.enable("my-ext"), "CONSENT_REQUIRED");
     await core.grantConsent("my-ext");
     expect(await core.enable("my-ext")).toMatchObject({ enabled: true });
-    expect((await core.getConsent("my-ext"))?.permissions).toEqual(inspected.permissions);
+    expect((await core.getConsent("my-ext"))?.permissions).toEqual(
+      inspected.permissions,
+    );
 
     await core.uninstall("my-ext");
-    expect(listAll(dataDir).filter((entry) => entry.includes("my-ext"))).toEqual([]);
+    expect(
+      listAll(dataDir).filter((entry) => entry.includes("my-ext")),
+    ).toEqual([]);
 
     await core.importPackage(app);
     await expectPlumsError(core.enable("my-ext"), "CONSENT_REQUIRED");

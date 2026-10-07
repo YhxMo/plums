@@ -1,10 +1,21 @@
-import { spawn, spawnSync, type ChildProcessWithoutNullStreams } from "node:child_process";
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
+import {
+  spawn,
+  spawnSync,
+  type ChildProcessWithoutNullStreams,
+} from "node:child_process";
+import {
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  statSync,
+  writeFileSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import {
-  FakeModelProvider,
   MemorySecretStore,
   RecordingEgressSink,
   ScriptedConfirm,
@@ -37,7 +48,12 @@ const ID = "test.ext.perms";
 const PERMS = [
   { id: "p.read", level: "read", target: "memory", reason: "读取记忆" },
   { id: "p.write", level: "write", target: "notes", reason: "写入笔记" },
-  { id: "p.egress", level: "egress", target: "example.com", reason: "把摘要发给示例网站" },
+  {
+    id: "p.egress",
+    level: "egress",
+    target: "example.com",
+    reason: "把摘要发给示例网站",
+  },
 ];
 
 const ENABLE_YES =
@@ -55,7 +71,8 @@ interface Out {
 
 const homes: string[] = [];
 afterEach(() => {
-  for (const dir of homes.splice(0)) rmSync(dir, { recursive: true, force: true });
+  for (const dir of homes.splice(0))
+    rmSync(dir, { recursive: true, force: true });
 });
 
 function home(): string {
@@ -65,7 +82,10 @@ function home(): string {
 }
 
 /** Runs the built bin. `home` is `--home` (the data directory). Nothing printed may contain the fake secret. */
-function run(args: readonly string[], options: { home?: string; input?: string; env?: NodeJS.ProcessEnv } = {}): Out {
+function run(
+  args: readonly string[],
+  options: { home?: string; input?: string; env?: NodeJS.ProcessEnv } = {},
+): Out {
   const argv = [bin];
   if (options.home !== undefined) argv.push("--home", options.home);
   argv.push(...args);
@@ -76,7 +96,9 @@ function run(args: readonly string[], options: { home?: string; input?: string; 
   });
   const stdout = result.stdout ?? "";
   const stderr = result.stderr ?? "";
-  expect(`${stdout}${stderr}${result.error?.message ?? ""}`).not.toContain(FAKE);
+  expect(`${stdout}${stderr}${result.error?.message ?? ""}`).not.toContain(
+    FAKE,
+  );
   return { status: result.status, stdout, stderr };
 }
 
@@ -87,10 +109,11 @@ function onlyJson(stdout: string): Record<string, unknown> {
   return value;
 }
 
-async function listInstalled(dataDir: string): Promise<{ id: string; enabled: boolean; consented: boolean }[]> {
+async function listInstalled(
+  dataDir: string,
+): Promise<{ id: string; enabled: boolean; consented: boolean }[]> {
   const core = createCore({
     dataDir,
-    model: new FakeModelProvider(),
     egress: new RecordingEgressSink(),
     confirm: new ScriptedConfirm(),
     secrets: new MemorySecretStore(),
@@ -156,7 +179,11 @@ describe("plums CLI", () => {
       expect(result.stdout).toBe("");
       expect(result.stderr.startsWith("message: ")).toBe(true);
     }
-    for (const args of [["version", "--yes"], ["--help", "--yes"], ["--version", "import"]]) {
+    for (const args of [
+      ["version", "--yes"],
+      ["--help", "--yes"],
+      ["--version", "import"],
+    ]) {
       const result = run(args);
       expect(result.status).toBe(2);
       expect(result.stdout).toBe("");
@@ -169,7 +196,10 @@ describe("plums CLI", () => {
     const inspected = run(["inspect", EXT], { home: dir });
     expect(inspected.status).toBe(0);
     expect(inspected.stderr).toBe("");
-    expect(onlyJson(inspected.stdout)).toMatchObject({ id: ID, permissions: PERMS });
+    expect(onlyJson(inspected.stdout)).toMatchObject({
+      id: ID,
+      permissions: PERMS,
+    });
     expect(await listInstalled(dir)).toEqual([]);
 
     const imported = run(["import", EXT], { home: dir });
@@ -183,31 +213,49 @@ describe("plums CLI", () => {
       description: "test extension",
       installDir: path.join(dir, "packages", ID),
     });
-    expect(await listInstalled(dir)).toMatchObject([{ id: ID, enabled: false, consented: false }]);
+    expect(await listInstalled(dir)).toMatchObject([
+      { id: ID, enabled: false, consented: false },
+    ]);
 
     const blocked = run(["enable", ID], { home: dir });
     expect(blocked).toEqual({ status: 2, stdout: "", stderr: ENABLE_YES });
-    expect(await listInstalled(dir)).toMatchObject([{ id: ID, enabled: false, consented: false }]);
+    expect(await listInstalled(dir)).toMatchObject([
+      { id: ID, enabled: false, consented: false },
+    ]);
 
     const enabled = run(["enable", ID, "--yes"], { home: dir });
     expect(enabled.status).toBe(0);
     expect(enabled.stderr).toBe("");
     const enabledBody = onlyJson(enabled.stdout);
-    expect(enabledBody).toMatchObject({ id: ID, enabled: true, consented: true });
+    expect(enabledBody).toMatchObject({
+      id: ID,
+      enabled: true,
+      consented: true,
+    });
     expect(enabledBody.permissions).toEqual(PERMS);
 
     const out = path.join(dir, "shared.zip");
     const exported = run(["export", ID, "--out", out], { home: dir });
     expect(exported.status).toBe(0);
     expect(exported.stderr).toBe("");
-    expect(onlyJson(exported.stdout)).toEqual({ id: ID, path: out, bytes: statSync(out).size });
+    expect(onlyJson(exported.stdout)).toEqual({
+      id: ID,
+      path: out,
+      bytes: statSync(out).size,
+    });
 
     const again = home();
     const reimported = run(["import", out], { home: again });
     expect(reimported.status).toBe(0);
-    expect(onlyJson(reimported.stdout)).toMatchObject({ id: ID, installDir: path.join(again, "packages", ID) });
+    expect(onlyJson(reimported.stdout)).toMatchObject({
+      id: ID,
+      installDir: path.join(again, "packages", ID),
+    });
     const reinspected = run(["inspect", out], { home: again });
-    expect(onlyJson(reinspected.stdout)).toMatchObject({ id: ID, permissions: PERMS });
+    expect(onlyJson(reinspected.stdout)).toMatchObject({
+      id: ID,
+      permissions: PERMS,
+    });
 
     const removed = run(["uninstall", ID, "--yes"], { home: dir });
     expect(removed.status).toBe(0);
@@ -215,7 +263,9 @@ describe("plums CLI", () => {
     expect(onlyJson(removed.stdout)).toEqual({ id: ID, uninstalled: true });
     expect(await listInstalled(dir)).toEqual([]);
 
-    const gone = run(["export", ID, "--out", path.join(dir, "again.zip")], { home: dir });
+    const gone = run(["export", ID, "--out", path.join(dir, "again.zip")], {
+      home: dir,
+    });
     expect(gone.status).toBe(1);
     expect(gone.stdout).toBe("");
     expect(gone.stderr.startsWith("code: PERMISSION_DENIED\n")).toBe(true);
@@ -223,10 +273,16 @@ describe("plums CLI", () => {
 
   it("PLUMS_HOME is the data directory when --home is omitted", async () => {
     const dir = home();
-    const imported = run(["import", EXT], { env: { ...process.env, PLUMS_HOME: dir } });
+    const imported = run(["import", EXT], {
+      env: { ...process.env, PLUMS_HOME: dir },
+    });
     expect(imported.status).toBe(0);
-    expect(onlyJson(imported.stdout).installDir).toBe(path.join(dir, "packages", ID));
-    expect(await listInstalled(dir)).toMatchObject([{ id: ID, enabled: false }]);
+    expect(onlyJson(imported.stdout).installDir).toBe(
+      path.join(dir, "packages", ID),
+    );
+    expect(await listInstalled(dir)).toMatchObject([
+      { id: ID, enabled: false },
+    ]);
   });
 
   it("writes the uninstall prompt to stderr before reading stdin; y agrees, and no input is refused", async () => {
@@ -236,8 +292,12 @@ describe("plums CLI", () => {
     const refused = run(["uninstall", ID], { home: dir, input: "" });
     expect(refused.status).toBe(1);
     expect(refused.stdout).toBe("");
-    expect(refused.stderr).toBe(`${uninstallPrompt(ID)}message: 你没有确认，所以没有卸载。\n`);
-    expect(await listInstalled(dir)).toMatchObject([{ id: ID, enabled: false }]);
+    expect(refused.stderr).toBe(
+      `${uninstallPrompt(ID)}message: 你没有确认，所以没有卸载。\n`,
+    );
+    expect(await listInstalled(dir)).toMatchObject([
+      { id: ID, enabled: false },
+    ]);
 
     const declined = run(["uninstall", ID], { home: dir, input: "n\n" });
     expect(declined.status).toBe(1);
@@ -261,23 +321,35 @@ describe("plums CLI", () => {
     expect(again.status).toBe(1);
     expect(again.stdout).toBe("");
     expect(again.stderr.startsWith("code: IMPORT_INVALID\n")).toBe(true);
-    expect(await listInstalled(dir)).toMatchObject([{ id: ID, enabled: false, consented: false }]);
+    expect(await listInstalled(dir)).toMatchObject([
+      { id: ID, enabled: false, consented: false },
+    ]);
   });
 
   it("inspect failure and uninstall of a missing id are errors with no JSON stdout", () => {
     const dir = home();
 
-    const missing = run(["inspect", path.join(dir, "missing.zip")], { home: dir });
+    const missing = run(["inspect", path.join(dir, "missing.zip")], {
+      home: dir,
+    });
     expect(missing.status).toBe(1);
     expect(missing.stdout).toBe("");
-    expect(missing.stderr.startsWith("code: IMPORT_INVALID\nmessage: ")).toBe(true);
+    expect(missing.stderr.startsWith("code: IMPORT_INVALID\nmessage: ")).toBe(
+      true,
+    );
 
-    const notZip = run(["inspect", fixture("invalid/not-a-zip.zip")], { home: dir });
+    const notZip = run(["inspect", fixture("invalid/not-a-zip.zip")], {
+      home: dir,
+    });
     expect(notZip.status).toBe(1);
     expect(notZip.stdout).toBe("");
-    expect(notZip.stderr.startsWith("code: IMPORT_INVALID\nmessage: ")).toBe(true);
+    expect(notZip.stderr.startsWith("code: IMPORT_INVALID\nmessage: ")).toBe(
+      true,
+    );
 
-    const badName = run(["inspect", fixture("invalid/missing-name.zip")], { home: dir });
+    const badName = run(["inspect", fixture("invalid/missing-name.zip")], {
+      home: dir,
+    });
     expect(badName.status).toBe(1);
     expect(badName.stdout).toBe("");
     expect(badName.stderr).toContain("code: MANIFEST_INVALID\n");
@@ -286,13 +358,14 @@ describe("plums CLI", () => {
     const absent = run(["uninstall", "not.installed", "--yes"], { home: dir });
     expect(absent.status).toBe(1);
     expect(absent.stdout).toBe("");
-    expect(absent.stderr.startsWith("code: PERMISSION_DENIED\nmessage: ")).toBe(true);
+    expect(absent.stderr.startsWith("code: PERMISSION_DENIED\nmessage: ")).toBe(
+      true,
+    );
   });
 
   it("a package that contains the fake secret does not print it on stdout or stderr", async () => {
     const core = createCore({
       dataDir: home(),
-      model: new FakeModelProvider(),
       egress: new RecordingEgressSink(),
       confirm: new ScriptedConfirm(),
       secrets: new MemorySecretStore(),
@@ -310,12 +383,18 @@ describe("plums CLI", () => {
     const imported = run(["import", SECRET_ZIP], { home: dir });
     expect(imported.status).toBe(0);
     expect(imported.stderr).toBe("");
-    expect(onlyJson(imported.stdout)).toMatchObject({ id: "test.ext.secret", description: "test extension" });
+    expect(onlyJson(imported.stdout)).toMatchObject({
+      id: "test.ext.secret",
+      description: "test extension",
+    });
 
     const inspected = run(["inspect", SECRET_ZIP], { home: dir });
     expect(inspected.status).toBe(0);
     expect(inspected.stderr).toBe("");
-    expect(onlyJson(inspected.stdout)).toMatchObject({ id: "test.ext.secret", permissions: [] });
+    expect(onlyJson(inspected.stdout)).toMatchObject({
+      id: "test.ext.secret",
+      permissions: [],
+    });
 
     const enabled = run(["enable", "test.ext.secret", "--yes"], { home: dir });
     expect(enabled.status).toBe(0);
@@ -323,18 +402,30 @@ describe("plums CLI", () => {
     onlyJson(enabled.stdout);
 
     const out = path.join(dir, "out.zip");
-    const exported = run(["export", "test.ext.secret", "--out", out], { home: dir });
+    const exported = run(["export", "test.ext.secret", "--out", out], {
+      home: dir,
+    });
     expect(exported.status).toBe(0);
-    expect(onlyJson(exported.stdout)).toEqual({ id: "test.ext.secret", path: out, bytes: statSync(out).size });
+    expect(onlyJson(exported.stdout)).toEqual({
+      id: "test.ext.secret",
+      path: out,
+      bytes: statSync(out).size,
+    });
 
     const broken = run(["inspect", body], { home: dir });
     expect(broken.status).toBe(1);
     expect(broken.stdout).toBe("");
     expect(broken.stderr.startsWith("code: IMPORT_INVALID\n")).toBe(true);
 
-    const removed = run(["uninstall", "test.ext.secret"], { home: dir, input: `y\n${FAKE}\n` });
+    const removed = run(["uninstall", "test.ext.secret"], {
+      home: dir,
+      input: `y\n${FAKE}\n`,
+    });
     expect(removed.status).toBe(0);
-    expect(onlyJson(removed.stdout)).toEqual({ id: "test.ext.secret", uninstalled: true });
+    expect(onlyJson(removed.stdout)).toEqual({
+      id: "test.ext.secret",
+      uninstalled: true,
+    });
     expect(removed.stderr).toBe(uninstallPrompt("test.ext.secret"));
   });
 });
@@ -352,7 +443,11 @@ describe("plums import rejects leftover settings.json", () => {
     type: "object",
     required: ["nickname"],
     properties: {
-      nickname: { type: "string", title: "Nickname", description: "What to call you." },
+      nickname: {
+        type: "string",
+        title: "Nickname",
+        description: "What to call you.",
+      },
     },
   };
   const retries: Manifest["settingsSchema"] = {
@@ -368,55 +463,84 @@ describe("plums import rejects leftover settings.json", () => {
     },
   };
 
-  const cases: [string, Manifest["settingsSchema"] | undefined, string, string][] = [
+  const cases: [
+    string,
+    Manifest["settingsSchema"] | undefined,
+    string,
+    string,
+  ][] = [
     ["a missing required field", nickname, "{}", "/settings/nickname"],
-    ["a value of the wrong type", retries, `{"retries":"${MARK}-TYPE"}`, "/settings/retries"],
-    ["a value above maximum", retries, `{"retries":4242424242}`, "/settings/retries"],
-    ["a package with no settingsSchema", undefined, `{"nickname":"${MARK}-NOSCHEMA"}`, "/settings"],
-    ["text that is not JSON", nickname, `{"nickname":"${MARK}-NOTJSON"`, "/settings"],
+    [
+      "a value of the wrong type",
+      retries,
+      `{"retries":"${MARK}-TYPE"}`,
+      "/settings/retries",
+    ],
+    [
+      "a value above maximum",
+      retries,
+      `{"retries":4242424242}`,
+      "/settings/retries",
+    ],
+    [
+      "a package with no settingsSchema",
+      undefined,
+      `{"nickname":"${MARK}-NOSCHEMA"}`,
+      "/settings",
+    ],
+    [
+      "text that is not JSON",
+      nickname,
+      `{"nickname":"${MARK}-NOTJSON"`,
+      "/settings",
+    ],
     ["a JSON array", nickname, `["${MARK}-ARRAY"]`, "/settings"],
   ];
 
-  it.each(cases)("%s is exit 1 IMPORT_INVALID and leaves the file", async (_name, schema, text, at) => {
-    const dir = home();
-    const manifest: Manifest = {
-      formatVersion: "1.0",
-      kind: "extension",
-      id,
-      name: id,
-      version: "1.0.0",
-      description: "settings contract",
-      dependencies: [],
-      permissions: [],
-      payload: { text: "hello" },
-    };
-    if (schema !== undefined) manifest.settingsSchema = schema;
-    const zip = await writePackage(dir, manifest);
-    const file = plantSettings(dir, id, text);
+  it.each(cases)(
+    "%s is exit 1 IMPORT_INVALID and leaves the file",
+    async (_name, schema, text, at) => {
+      const dir = home();
+      const manifest: Manifest = {
+        formatVersion: "1.0",
+        kind: "extension",
+        id,
+        name: id,
+        version: "1.0.0",
+        description: "settings contract",
+        dependencies: [],
+        permissions: [],
+        payload: { text: "hello" },
+      };
+      if (schema !== undefined) manifest.settingsSchema = schema;
+      const zip = await writePackage(dir, manifest);
+      const file = plantSettings(dir, id, text);
 
-    const imported = run(["import", zip], { home: dir });
-    expect(imported.status).toBe(1);
-    expect(imported.stdout).toBe("");
-    expect(imported.stderr.startsWith("code: IMPORT_INVALID\nmessage: ")).toBe(true);
-    expect(imported.stderr).toContain(`\npath: ${at}\n`);
-    expect(imported.stderr).not.toContain(MARK);
-    expect(imported.stderr).not.toContain("4242424242");
-    expect(readFileSync(file, "utf8")).toBe(text);
-    expect(existsSync(path.join(dir, "packages", id))).toBe(false);
-    expect(await listInstalled(dir)).toEqual([]);
+      const imported = run(["import", zip], { home: dir });
+      expect(imported.status).toBe(1);
+      expect(imported.stdout).toBe("");
+      expect(
+        imported.stderr.startsWith("code: IMPORT_INVALID\nmessage: "),
+      ).toBe(true);
+      expect(imported.stderr).toContain(`\npath: ${at}\n`);
+      expect(imported.stderr).not.toContain(MARK);
+      expect(imported.stderr).not.toContain("4242424242");
+      expect(readFileSync(file, "utf8")).toBe(text);
+      expect(existsSync(path.join(dir, "packages", id))).toBe(false);
+      expect(await listInstalled(dir)).toEqual([]);
 
-    const still = run(["enable", id, "--yes"], { home: dir });
-    expect(still.status).toBe(1);
-    expect(still.stdout).toBe("");
-    expect(still.stderr.startsWith("code: PERMISSION_DENIED\n")).toBe(true);
-  });
+      const still = run(["enable", id, "--yes"], { home: dir });
+      expect(still.status).toBe(1);
+      expect(still.stdout).toBe("");
+      expect(still.stderr.startsWith("code: PERMISSION_DENIED\n")).toBe(true);
+    },
+  );
 });
 
 async function writePackage(dir: string, manifest: Manifest): Promise<string> {
   const file = path.join(dir, `${manifest.id}.zip`);
   const core = createCore({
     dataDir: path.join(dir, "pack"),
-    model: new FakeModelProvider(),
     egress: new RecordingEgressSink(),
     confirm: new ScriptedConfirm(),
     secrets: new MemorySecretStore(),
@@ -447,7 +571,10 @@ function uninstallAfterPrompt(dir: string, answer: string): Promise<Out> {
   return collect(child, answer);
 }
 
-function collect(child: ChildProcessWithoutNullStreams, answer: string): Promise<Out> {
+function collect(
+  child: ChildProcessWithoutNullStreams,
+  answer: string,
+): Promise<Out> {
   let stdout = "";
   let stderr = "";
   child.stdout.setEncoding("utf8");
@@ -469,7 +596,9 @@ function collect(child: ChildProcessWithoutNullStreams, answer: string): Promise
       if (settled) return;
       settled = true;
       child.kill();
-      reject(new Error("uninstall prompt was not written before stdin was read"));
+      reject(
+        new Error("uninstall prompt was not written before stdin was read"),
+      );
     }, 10_000);
     const finish = (fn: () => void) => {
       if (settled) return;
@@ -491,7 +620,10 @@ function collect(child: ChildProcessWithoutNullStreams, answer: string): Promise
           resolve({ status, stdout, stderr });
         });
       },
-      (err: unknown) => finish(() => reject(err instanceof Error ? err : new Error(String(err)))),
+      (err: unknown) =>
+        finish(() =>
+          reject(err instanceof Error ? err : new Error(String(err))),
+        ),
     );
   });
 }

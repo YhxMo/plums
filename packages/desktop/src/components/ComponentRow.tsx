@@ -8,6 +8,7 @@ export function ComponentRow({
   resource: p,
   update,
   developer,
+  onInspect,
   onConfig,
   onAction,
   onInvoke,
@@ -15,6 +16,7 @@ export function ComponentRow({
   resource: Resource;
   update?: CatalogItem;
   developer: boolean;
+  onInspect: () => void;
   onConfig: () => void;
   onAction: (
     method: string,
@@ -139,9 +141,15 @@ export function ComponentRow({
         </div>
       ))}
       {developer && (
+        <div className="technical-details">
+          <button className="sm" onClick={onInspect}>
+            查看 / 编辑内容
+          </button>
+        </div>
+      )}
+      {developer && (
         <details className="technical-details">
           <summary>开发者信息与调用</summary>
-          <small>标识：{p.id}</small>
           <div className="inline-actions">
             {Object.entries(p.desktop?.contributes ?? {}).flatMap(
               ([kind, items]) =>

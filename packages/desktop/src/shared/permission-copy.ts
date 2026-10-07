@@ -3,6 +3,7 @@ const operationNames: Record<string, string> = {
   read: "读取",
   list: "查看列表",
   write: "写入",
+  delete: "删除",
 };
 export function permissionCopy(
   permission: Permission,
@@ -14,13 +15,16 @@ export function permissionCopy(
     : permission.target;
   if (formatVersion.startsWith("2.")) {
     const typed = permission as PermissionV2;
+    if (typed.kind === "resource")
+      return `${typed.operations.map((op) => operationNames[op]).join("、")}用户绑定的${typed.target === "agent" ? "独立" : typed.target === "shared" ? "共用" : "业务"}资源（仍需选择资格与执行范围）`;
     if (typed.kind === "fs")
       return `${typed.operations.map((op) => operationNames[op]).join("和")}目录 ${target} 内的文件`;
     if (typed.kind === "service")
       return target === "https"
         ? `连接当前 Agent 配置的 HTTPS 服务${serviceTargets?.length ? `：${serviceTargets.join("、")}` : ""}`
         : `使用 ${target} 服务：${typed.operations.join("、")}`;
-    if (typed.kind === "engine") return `启动本机引擎 ${target}（读取和修改文件、运行程序及访问网络；首次启动需单独信任）`;
+    if (typed.kind === "engine")
+      return `启动本机引擎 ${target}（读取和修改文件、运行程序及访问网络；首次启动需单独信任）`;
     if (typed.kind === "exec") return `运行程序 ${target}`;
     return `把数据发送到 ${target}`;
   }

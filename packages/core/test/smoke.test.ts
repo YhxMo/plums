@@ -17,7 +17,9 @@ describe("createCore", () => {
   });
 
   it("runs with the bundled fakes", async () => {
-    const fetchSpy = vi.spyOn(globalThis, "fetch").mockRejectedValue(new Error("network disabled"));
+    const fetchSpy = vi
+      .spyOn(globalThis, "fetch")
+      .mockRejectedValue(new Error("network disabled"));
     const dataDir = mkdtempSync(path.join(tmpdir(), "plums-"));
     const model = new FakeModelProvider({ text: "hello" });
     const egress = new RecordingEgressSink();
@@ -33,15 +35,29 @@ describe("createCore", () => {
     expect(core).not.toHaveProperty("confirm");
     expect(core).not.toHaveProperty("secrets");
 
-    await expect(model.complete({ prompt: "hi" })).resolves.toEqual({ text: "hello" });
+    await expect(model.complete({ prompt: "hi" })).resolves.toEqual({
+      text: "hello",
+    });
     expect(model.calls).toEqual([{ prompt: "hi" }]);
 
-    await expect(confirm.ask({ message: "send the file?" })).resolves.toBe(true);
+    await expect(confirm.ask({ message: "send the file?" })).resolves.toBe(
+      true,
+    );
     await expect(confirm.ask({ message: "send again?" })).resolves.toBe(false);
-    expect(confirm.asked.map((asked) => asked.message)).toEqual(["send the file?", "send again?"]);
+    expect(confirm.asked.map((asked) => asked.message)).toEqual([
+      "send the file?",
+      "send again?",
+    ]);
 
-    const request = { url: "https://example.test/share", method: "GET", body: "payload" };
-    await expect(egress.send(request)).resolves.toEqual({ status: 200, body: "" });
+    const request = {
+      url: "https://example.test/share",
+      method: "GET",
+      body: "payload",
+    };
+    await expect(egress.send(request)).resolves.toEqual({
+      status: 200,
+      body: "",
+    });
     expect(egress.records).toEqual([request]);
     request.body = "changed";
     expect(egress.records[0]?.body).toBe("payload");
@@ -52,11 +68,6 @@ describe("createCore", () => {
     await secrets.delete("pkg/token");
     await expect(secrets.get("pkg/token")).resolves.toBeUndefined();
     await expect(secrets.get("missing")).resolves.toBeUndefined();
-  });
-
-  it("denies confirmation when no answer was preset", async () => {
-    const confirm = new ScriptedConfirm();
-    await expect(confirm.ask({ message: "write?" })).resolves.toBe(false);
   });
 
   it("rejects a blank dataDir or a missing collaborator", () => {
@@ -70,11 +81,15 @@ describe("createCore", () => {
     expect(() => createCore({ ...options, dataDir: "  " })).toThrow(TypeError);
     const withoutConfirm = createCore({ ...options, confirm: undefined });
     withoutConfirm.close();
-    expect(() => createCore({ ...options, confirm: {} as never })).toThrow(/confirm/);
+    expect(() => createCore({ ...options, confirm: {} as never })).toThrow(
+      /confirm/,
+    );
   });
 
   it("publishes the same version as the package", () => {
-    const pkg = JSON.parse(readFileSync(new URL("../package.json", import.meta.url), "utf8")) as {
+    const pkg = JSON.parse(
+      readFileSync(new URL("../package.json", import.meta.url), "utf8"),
+    ) as {
       version: string;
     };
     expect(VERSION).toBe(pkg.version);

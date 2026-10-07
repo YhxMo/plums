@@ -1,3 +1,4 @@
+import { ProtocolBindings } from "../components/ProtocolBindings.js";
 import { KindIcon } from "../components/KindIcon.js";
 import { useState } from "react";
 import { ManagedDialog } from "../managed-dialog.js";
@@ -107,6 +108,13 @@ export function AgentSetup({
           {error}
         </div>
       )}
+      {resources.some((p) => p.desktop?.protocols?.requires?.length) && (
+        <ProtocolBindings
+          key={record.instanceId}
+          instanceId={record.instanceId}
+          revision={resources}
+        />
+      )}
       <form
         id={`setup-${record.instanceId}`}
         onSubmit={async (e) => {
@@ -130,8 +138,14 @@ export function AgentSetup({
               <KindIcon kind={p.kind} size={24} />
               {p.name}
             </h3>
-            {fields(p, (p.desktop?.model || p.desktop?.connections?.length) ? undefined : true)}
-            {!p.desktop?.model && !p.desktop?.connections?.length &&
+            {fields(
+              p,
+              p.desktop?.model || p.desktop?.connections?.length
+                ? undefined
+                : true,
+            )}
+            {!p.desktop?.model &&
+              !p.desktop?.connections?.length &&
               Object.keys(p.settings.schema!.properties).some(
                 (key) => !p.settings.schema!.required?.includes(key),
               ) && (
@@ -148,7 +162,9 @@ export function AgentSetup({
               )}
           </section>
         ))}
-        {!configurable.length && <p>此 Agent 没有必填配置，可以直接启用。</p>}
+        {!configurable.length && (
+          <p>此 Agent 没有必填设置。完成组件连接后可查看权限并启用。</p>
+        )}
         <details className="setup-components">
           <summary>统一启用 {resources.length} 个组件</summary>
           <ul>

@@ -105,3 +105,15 @@ it("delivers events through copied data and runs the optional deactivation hook"
   });
   r.stop();
 });
+
+it("a missing ordinary runtime closes after spawn failure without hanging host cleanup", async () => {
+  const runtime = new ExtensionRuntime(
+    "missing",
+    { runtime: "main.js", contributes: {} },
+    async () => null,
+    { "main.js": "export function activate() {}" },
+    "/no/fixture/node",
+  );
+  await expect(runtime.ready()).rejects.toBeDefined();
+  await runtime.close();
+}, 3000);

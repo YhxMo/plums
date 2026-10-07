@@ -26,6 +26,7 @@ export interface AssemblyDraft {
   digests: string[];
   characterId?: string;
   startup?: string;
+  protocolBindings?: import("@plums/sdk").ProtocolBindingIntent[];
 }
 export interface AgentDetail {
   record: AgentRecord;
@@ -36,4 +37,5 @@ export type AgentRuntimeState = {
   instanceId: string;
   name: string;
   visible: boolean;
+  diagnostics?: { viewId: string; reason: string }[];
 } | null;

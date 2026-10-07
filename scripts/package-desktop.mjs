@@ -5,8 +5,15 @@ import { createRequire } from "node:module";
 import { createHash } from "node:crypto";
 import path from "node:path";
 const root = process.cwd(),
+  output = path.resolve(process.argv[2] ?? "release"),
   artifacts = path.join(root, ".artifacts"),
   stage = path.join(artifacts, "desktop-app");
+const desktopPackage = JSON.parse(
+  await readFile(path.join(root, "packages/desktop/package.json"), "utf8"),
+);
+const desktopVersion = desktopPackage.version;
+if (!/^[1-9][0-9]*\.[0-9]+\.[0-9]+$/.test(desktopVersion))
+  throw Error("A stable desktop version is required");
 if (process.platform !== "darwin" || process.arch !== "arm64")
   throw Error("This packaging target is macOS arm64");
 const nodeVersion = "26.5.1",
@@ -65,7 +72,7 @@ await writeFile(
     {
       name: "plums-desktop",
       productName: "Plums",
-      version: "0.1.0",
+      version: desktopVersion,
       type: "module",
       main: "dist/main.js",
       license: "Apache-2.0",
@@ -95,14 +102,14 @@ for (const [name, req] of [
 }
 const applications = await packager({
   dir: stage,
-  out: path.join(root, "release"),
+  out: output,
   name: "Plums",
   platform: "darwin",
   arch: "arm64",
-  electronVersion: "44.5.1",
+  electronVersion: desktopPackage.devDependencies.electron,
   appBundleId: "com.plums.desktop",
-  appVersion: "0.1.0",
-  extendInfo: { LSMinimumSystemVersion: "13.5" },
+  appVersion: desktopVersion,
+  extendInfo: { LSMinimumSystemVersion: "27.0.1" },
   overwrite: true,
   prune: false,
   asar: false,
@@ -136,7 +143,7 @@ execFileSync(
   ],
   { cwd: path.join(resource, "app"), stdio: "inherit" },
 );
-const dmg = path.join(root, "release", "Plums-0.1.0-arm64.dmg");
+const dmg = path.join(output, `Plums-${desktopVersion}-arm64.dmg`);
 execFileSync(
   "hdiutil",
   [

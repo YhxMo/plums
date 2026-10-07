@@ -8,7 +8,7 @@ import {
   useMemo,
   type ReactNode,
 } from "react";
-import type { AgentRecord } from "@plums/host";
+import type { AgentRecord, DesktopTheme, DesktopSettings } from "@plums/host";
 import type { Resource, CatalogItem, AgentDetail } from "../shared/types.js";
 import type { AgentStatus } from "../components/StatusChip.js";
 import type { AgentRuntimeState } from "../shared/types.js";
@@ -23,12 +23,14 @@ interface ManagerState {
   resources: Resource[];
   record?: AgentRecord;
   dnsMode: string;
+  theme: DesktopTheme;
   loading: boolean;
   initialized: boolean;
   loadError: string;
 }
 type Change =
   | { type: "runtime"; value: AgentRuntimeState }
+  | { type: "theme"; theme: DesktopTheme }
   | { type: "loading"; id?: string }
   | {
       type: "loaded";
@@ -36,6 +38,7 @@ type Change =
       agents: AgentRecord[];
       library: CatalogItem[];
       dnsMode: string;
+      theme?: DesktopTheme;
       id?: string;
       detail?: AgentDetail;
     }
@@ -49,6 +52,7 @@ const initialState: ManagerState = {
   library: [],
   resources: [],
   dnsMode: "auto",
+  theme: "system",
   loading: true,
   initialized: false,
   loadError: "",
@@ -57,6 +61,8 @@ function reducer(state: ManagerState, change: Change): ManagerState {
   switch (change.type) {
     case "runtime":
       return { ...state, runtime: change.value };
+    case "theme":
+      return { ...state, theme: change.theme };
     case "loading":
       return {
         ...state,
@@ -74,6 +80,7 @@ function reducer(state: ManagerState, change: Change): ManagerState {
         statuses: change.statuses,
         library: change.library,
         dnsMode: change.dnsMode,
+        theme: change.theme ?? state.theme,
         route: { ...state.route, agentId: change.id },
         resources: change.detail?.packages ?? [],
         record: change.detail?.record,
@@ -97,22 +104,25 @@ interface ManagerContextValue {
   state: ManagerState;
   load: (id?: string) => Promise<AgentDetail | undefined>;
   setTab: (tab: Tab) => void;
+  setTheme: (theme: DesktopTheme) => void;
 }
 const ManagerContext = createContext<ManagerContextValue | null>(null);
 export function ManagerProvider({ children }: { children: ReactNode }) {
   const [state, dispatch] = useReducer(reducer, initialState);
   const selected = useRef<string | undefined>(undefined);
   const epoch = useRef(0);
+  const themeEpoch = useRef(0);
   const mounted = useRef(true);
   const load = useCallback(async (id = selected.current) => {
     const generation = ++epoch.current;
+    const themeGeneration = themeEpoch.current;
     selected.current = id;
     dispatch({ type: "loading", id });
     try {
       const [agents, library, settings] = await Promise.all([
         window.manager.call("list") as Promise<AgentRecord[]>,
         window.manager.call("library") as Promise<CatalogItem[]>,
-        window.manager.call("desktopSettings") as Promise<{ dnsMode: string }>,
+        window.manager.call("desktopSettings") as Promise<DesktopSettings>,
       ]);
       if (!mounted.current || generation !== epoch.current) return;
       const current = agents.some((agent) => agent.instanceId === id)
@@ -142,6 +152,10 @@ export function ManagerProvider({ children }: { children: ReactNode }) {
         agents,
         library,
         dnsMode: settings.dnsMode,
+        theme:
+          themeGeneration === themeEpoch.current
+            ? (settings.theme ?? "system")
+            : undefined,
         id: current,
         detail,
       });
@@ -178,6 +192,10 @@ export function ManagerProvider({ children }: { children: ReactNode }) {
     };
   }, [load]);
   const setTab = useCallback((tab: Tab) => dispatch({ type: "tab", tab }), []);
+  const setTheme = useCallback((theme: DesktopTheme) => {
+    themeEpoch.current++;
+    dispatch({ type: "theme", theme });
+  }, []);
   const value = useMemo(
     () => ({
       state: {
@@ -191,8 +209,9 @@ export function ManagerProvider({ children }: { children: ReactNode }) {
       },
       load,
       setTab,
+      setTheme,
     }),
-    [state, load, setTab],
+    [state, load, setTab, setTheme],
   );
   return (
     <ManagerContext.Provider value={value}>{children}</ManagerContext.Provider>

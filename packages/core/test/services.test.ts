@@ -293,9 +293,7 @@ it("requires model egress confirmation outside a task and names the bound servic
   expect(confirm.asked).toHaveLength(0);
   await w.core.runCapability(w.request);
   expect(confirm.asked[0]?.host).toBe("model.example");
-  expect(confirm.asked[0]?.message).toContain(
-    "把数据发送到 model.example",
-  );
+  expect(confirm.asked[0]?.message).toContain("把数据发送到 model.example");
   await expectPlumsError(
     w.core.runCapability(w.request),
     "CONFIRMATION_DENIED",

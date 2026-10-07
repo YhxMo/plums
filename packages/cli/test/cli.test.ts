@@ -1,9 +1,26 @@
 import { spawn, spawnSync } from "node:child_process";
-import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, statSync, writeFileSync } from "node:fs";
+import {
+  copyFileSync,
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  statSync,
+  writeFileSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { FakeModelProvider, MemorySecretStore, PACKAGE_FORMAT_VERSION, RecordingEgressSink, ScriptedConfirm, VERSION, createCore, type Manifest, type ManifestV2 } from "@plums/core";
+import {
+  MemorySecretStore,
+  PACKAGE_FORMAT_VERSION,
+  RecordingEgressSink,
+  ScriptedConfirm,
+  VERSION,
+  createCore,
+  type Manifest,
+  type ManifestV2,
+} from "@plums/core";
 import { describe, expect, it } from "vitest";
 import { runCli, type CliOptions } from "../src/main.js";
 
@@ -21,7 +38,14 @@ const EXTENSION: Manifest = {
   description: "A package used by tests.",
   license: "Apache-2.0",
   dependencies: [],
-  permissions: [{ id: "read-notes", level: "read", target: "notes", reason: "Show your notes." }],
+  permissions: [
+    {
+      id: "read-notes",
+      level: "read",
+      target: "notes",
+      reason: "Show your notes.",
+    },
+  ],
   payload: {},
 };
 
@@ -31,7 +55,11 @@ const WITH_SETTINGS: Manifest = {
     type: "object",
     required: ["nickname"],
     properties: {
-      nickname: { type: "string", title: "Nickname", description: "What to call you." },
+      nickname: {
+        type: "string",
+        title: "Nickname",
+        description: "What to call you.",
+      },
     },
   },
 };
@@ -58,7 +86,6 @@ async function writePackage(dir: string, manifest: Manifest): Promise<string> {
   const file = path.join(dir, `${manifest.id}.zip`);
   const core = createCore({
     dataDir: path.join(dir, "pack"),
-    model: new FakeModelProvider(),
     egress: new RecordingEgressSink(),
     confirm: new ScriptedConfirm(),
     secrets: new MemorySecretStore(),
@@ -79,27 +106,59 @@ describe("plums", () => {
   it("shows full 2.x permissions through inspect, enable and exported packages", async () => {
     const dir = home();
     const manifest: ManifestV2 = {
-      ...EXTENSION, formatVersion: PACKAGE_FORMAT_VERSION,
+      ...EXTENSION,
+      formatVersion: PACKAGE_FORMAT_VERSION,
       permissions: [
-        { id: "files", kind: "fs", target: "workspace", reason: "Use files", operations: ["write", "list"] },
-        { id: "tests", kind: "exec", target: "test", reason: "Run tests", cwdRoots: ["workspace", "cache"] },
-        { id: "send", kind: "egress", target: "api.example.com:8443", reason: "Send results", future: true },
+        {
+          id: "files",
+          kind: "fs",
+          target: "workspace",
+          reason: "Use files",
+          operations: ["write", "list"],
+        },
+        {
+          id: "tests",
+          kind: "exec",
+          target: "test",
+          reason: "Run tests",
+          cwdRoots: ["workspace", "cache"],
+        },
+        {
+          id: "send",
+          kind: "egress",
+          target: "api.example.com:8443",
+          reason: "Send results",
+          future: true,
+        },
       ],
     };
     const file = await writePackage(dir, manifest);
     const inspection = await cli(dir, ["inspect", file]);
     expect(inspection.exitCode).toBe(0);
-    expect(JSON.parse(inspection.stdout)).toMatchObject({ formatVersion: PACKAGE_FORMAT_VERSION, permissions: manifest.permissions });
+    expect(JSON.parse(inspection.stdout)).toMatchObject({
+      formatVersion: PACKAGE_FORMAT_VERSION,
+      permissions: manifest.permissions,
+    });
     expect((await cli(dir, ["import", file])).exitCode).toBe(0);
     const enabled = await cli(dir, ["enable", manifest.id, "--yes"]);
     expect(enabled.exitCode).toBe(0);
-    expect(JSON.parse(enabled.stdout)).toMatchObject({ enabled: true, permissions: manifest.permissions });
+    expect(JSON.parse(enabled.stdout)).toMatchObject({
+      enabled: true,
+      permissions: manifest.permissions,
+    });
     const out = path.join(dir, "out.zip");
-    expect((await cli(dir, ["export", manifest.id, "--out", out])).exitCode).toBe(0);
+    expect(
+      (await cli(dir, ["export", manifest.id, "--out", out])).exitCode,
+    ).toBe(0);
     const exported = await cli(dir, ["inspect", out]);
     expect(exported.exitCode).toBe(0);
-    expect(JSON.parse(exported.stdout)).toMatchObject({ formatVersion: PACKAGE_FORMAT_VERSION, permissions: manifest.permissions });
-    expect((await cli(dir, ["uninstall", manifest.id, "--yes"])).exitCode).toBe(0);
+    expect(JSON.parse(exported.stdout)).toMatchObject({
+      formatVersion: PACKAGE_FORMAT_VERSION,
+      permissions: manifest.permissions,
+    });
+    expect((await cli(dir, ["uninstall", manifest.id, "--yes"])).exitCode).toBe(
+      0,
+    );
   });
   it("prints the core version from one path", async () => {
     const printed = { exitCode: 0, stdout: `${VERSION}\n`, stderr: "" };
@@ -125,11 +184,17 @@ describe("plums", () => {
     expect((await runCli(["--version", "import"])).exitCode).toBe(2);
     expect((await runCli(["--help", "--yes"])).exitCode).toBe(2);
 
-    const unknownShare = { exitCode: 2, stdout: "", stderr: "message: unknown command: share\n" };
-    expect(await Promise.all([
-      runCli(["share", "import", "https://example.com/a.zip"]),
-      runCli(["share", "export", "demo-ext", "--out", "out.zip"]),
-    ])).toEqual([unknownShare, unknownShare]);
+    const unknownShare = {
+      exitCode: 2,
+      stdout: "",
+      stderr: "message: unknown command: share\n",
+    };
+    expect(
+      await Promise.all([
+        runCli(["share", "import", "https://example.com/a.zip"]),
+        runCli(["share", "export", "demo-ext", "--out", "out.zip"]),
+      ]),
+    ).toEqual([unknownShare, unknownShare]);
 
     const dir = home();
     const file = await writePackage(dir, EXTENSION);
@@ -178,7 +243,10 @@ describe("plums", () => {
     const removed = await cli(dir, ["uninstall", EXTENSION.id, "--yes"]);
     expect(removed.exitCode).toBe(0);
     expect(removed.stderr).toBe("");
-    expect(JSON.parse(removed.stdout)).toEqual({ id: EXTENSION.id, uninstalled: true });
+    expect(JSON.parse(removed.stdout)).toEqual({
+      id: EXTENSION.id,
+      uninstalled: true,
+    });
 
     const gone = await cli(dir, ["enable", EXTENSION.id, "--yes"]);
     expect(gone.exitCode).toBe(1);
@@ -209,10 +277,14 @@ describe("plums", () => {
     expect(still.exitCode).toBe(0);
     expect(JSON.parse(still.stdout)).toMatchObject({ enabled: true });
 
-    const refused = spawnSync(process.execPath, [dist, "--home", dir, "uninstall", EXTENSION.id], {
-      input: "n\nleftover\n",
-      encoding: "utf8",
-    });
+    const refused = spawnSync(
+      process.execPath,
+      [dist, "--home", dir, "uninstall", EXTENSION.id],
+      {
+        input: "n\nleftover\n",
+        encoding: "utf8",
+      },
+    );
     expect(refused.status).toBe(1);
     expect(refused.stdout).toBe("");
     expect(refused.stderr).toContain("允许吗?");
@@ -221,7 +293,10 @@ describe("plums", () => {
     const live = await spawnUninstall(dir, "y\n");
     expect(live.code).toBe(0);
     expect(live.stderr).toBe(uninstallPrompt(EXTENSION.id));
-    expect(JSON.parse(live.stdout)).toEqual({ id: EXTENSION.id, uninstalled: true });
+    expect(JSON.parse(live.stdout)).toEqual({
+      id: EXTENSION.id,
+      uninstalled: true,
+    });
   });
 
   it("refuses uninstall when stdin closes with no answer", async () => {
@@ -243,7 +318,9 @@ describe("plums", () => {
     const missing = await cli(dir, ["inspect", path.join(dir, "missing.zip")]);
     expect(missing.exitCode).toBe(1);
     expect(missing.stdout).toBe("");
-    expect(missing.stderr.startsWith("code: IMPORT_INVALID\nmessage: ")).toBe(true);
+    expect(missing.stderr.startsWith("code: IMPORT_INVALID\nmessage: ")).toBe(
+      true,
+    );
 
     const bad = path.join(dir, "not-a-package.txt");
     writeFileSync(bad, "this is not a zip");
@@ -251,12 +328,18 @@ describe("plums", () => {
     const imported = await cli(dir, ["import", bad]);
     expect(invalid.exitCode).toBe(1);
     expect(imported).toMatchObject({ exitCode: 1, stdout: "" });
-    expect(invalid.stderr.startsWith("code: IMPORT_INVALID\nmessage: ")).toBe(true);
-    expect(imported.stderr.startsWith("code: IMPORT_INVALID\nmessage: ")).toBe(true);
+    expect(invalid.stderr.startsWith("code: IMPORT_INVALID\nmessage: ")).toBe(
+      true,
+    );
+    expect(imported.stderr.startsWith("code: IMPORT_INVALID\nmessage: ")).toBe(
+      true,
+    );
 
     const absent = await cli(dir, ["uninstall", "not-installed", "--yes"]);
     expect(absent.exitCode).toBe(1);
-    expect(absent.stderr.startsWith("code: PERMISSION_DENIED\nmessage: ")).toBe(true);
+    expect(absent.stderr.startsWith("code: PERMISSION_DENIED\nmessage: ")).toBe(
+      true,
+    );
   });
 
   it("returns IMPORT_INVALID when the same package is imported twice", async () => {
@@ -270,7 +353,10 @@ describe("plums", () => {
 
     const still = await cli(dir, ["enable", EXTENSION.id, "--yes"]);
     expect(still.exitCode).toBe(0);
-    expect(JSON.parse(still.stdout)).toMatchObject({ id: EXTENSION.id, enabled: true });
+    expect(JSON.parse(still.stdout)).toMatchObject({
+      id: EXTENSION.id,
+      enabled: true,
+    });
   });
 
   it("exports an installed package", async () => {
@@ -293,18 +379,27 @@ describe("plums", () => {
     expect(imported.exitCode).toBe(0);
     expect(JSON.parse(imported.stdout).installDir.startsWith(dir)).toBe(true);
     const enabled = await runCli(["enable", EXTENSION.id, "--yes"], { env });
-    expect(JSON.parse(enabled.stdout)).toMatchObject({ id: EXTENSION.id, enabled: true });
+    expect(JSON.parse(enabled.stdout)).toMatchObject({
+      id: EXTENSION.id,
+      enabled: true,
+    });
   });
 
   it("prints IMPORT_INVALID and exits 1 when leftover settings fail the new schema", async () => {
     const dir = home();
     const file = await writePackage(dir, WITH_SETTINGS);
-    const settings = plantSettings(dir, WITH_SETTINGS.id, "{\"nickname\":8675309}\n");
+    const settings = plantSettings(
+      dir,
+      WITH_SETTINGS.id,
+      '{"nickname":8675309}\n',
+    );
 
     const imported = await cli(dir, ["import", file]);
     expect(imported.exitCode).toBe(1);
     expect(imported.stdout).toBe("");
-    expect(imported.stderr.startsWith("code: IMPORT_INVALID\nmessage: ")).toBe(true);
+    expect(imported.stderr.startsWith("code: IMPORT_INVALID\nmessage: ")).toBe(
+      true,
+    );
     expect(imported.stderr).toContain("\npath: /settings/nickname\n");
     expect(imported.stderr).not.toContain("8675309");
     expect(readFileSync(settings, "utf8")).toContain("8675309");
@@ -317,12 +412,14 @@ describe("plums", () => {
   it("prints IMPORT_INVALID and exits 1 when leftover settings exist and the package has no schema", async () => {
     const dir = home();
     const file = await writePackage(dir, EXTENSION);
-    const settings = plantSettings(dir, EXTENSION.id, "{\"nickname\":\"ada\"}\n");
+    const settings = plantSettings(dir, EXTENSION.id, '{"nickname":"ada"}\n');
 
     const imported = await cli(dir, ["import", file]);
     expect(imported.exitCode).toBe(1);
     expect(imported.stdout).toBe("");
-    expect(imported.stderr.startsWith("code: IMPORT_INVALID\nmessage: ")).toBe(true);
+    expect(imported.stderr.startsWith("code: IMPORT_INVALID\nmessage: ")).toBe(
+      true,
+    );
     expect(imported.stderr).toContain("\npath: /settings\n");
     expect(readFileSync(settings, "utf8")).toContain("ada");
 
@@ -342,7 +439,9 @@ describe("plums", () => {
     expect(linked.stdout).toBe(`${VERSION}\n`);
     expect(linked.stderr).toBe("");
 
-    const viaLauncher = spawnSync(process.execPath, [launcher, "--version"], { encoding: "utf8" });
+    const viaLauncher = spawnSync(process.execPath, [launcher, "--version"], {
+      encoding: "utf8",
+    });
     expect(viaLauncher.status).toBe(0);
     expect(viaLauncher.stdout).toBe(`${VERSION}\n`);
     expect(viaLauncher.stderr).toBe("");
@@ -354,7 +453,9 @@ describe("plums", () => {
     if (process.platform !== "win32") {
       expect(statSync(launcher).mode & 0o111).not.toBe(0);
     }
-    const pkg = JSON.parse(readFileSync(path.join(here, "../package.json"), "utf8")) as {
+    const pkg = JSON.parse(
+      readFileSync(path.join(here, "../package.json"), "utf8"),
+    ) as {
       bin: { plums: string };
       files: string[];
     };
@@ -365,7 +466,9 @@ describe("plums", () => {
     const copied = path.join(dir, "bin", "plums.js");
     mkdirSync(path.dirname(copied), { recursive: true });
     copyFileSync(launcher, copied);
-    const missing = spawnSync(process.execPath, [copied, "--version"], { encoding: "utf8" });
+    const missing = spawnSync(process.execPath, [copied, "--version"], {
+      encoding: "utf8",
+    });
     expect(missing.status).toBe(1);
     expect(missing.stdout).toBe("");
     expect(missing.stderr).toContain("pnpm build");
@@ -373,10 +476,17 @@ describe("plums", () => {
 });
 
 /** Sends `answer` only after the prompt is on stderr. `undefined` closes stdin with no bytes. */
-function spawnUninstall(dir: string, answer: string | undefined): Promise<{ code: number | null; stdout: string; stderr: string }> {
-  const child = spawn(process.execPath, [dist, "--home", dir, "uninstall", EXTENSION.id], {
-    stdio: ["pipe", "pipe", "pipe"],
-  });
+function spawnUninstall(
+  dir: string,
+  answer: string | undefined,
+): Promise<{ code: number | null; stdout: string; stderr: string }> {
+  const child = spawn(
+    process.execPath,
+    [dist, "--home", dir, "uninstall", EXTENSION.id],
+    {
+      stdio: ["pipe", "pipe", "pipe"],
+    },
+  );
   const out = { stdout: "", stderr: "" };
   child.stdout.setEncoding("utf8");
   child.stderr.setEncoding("utf8");
@@ -398,7 +508,10 @@ function spawnUninstall(dir: string, answer: string | undefined): Promise<{ code
     child.on("error", reject);
     child.on("close", (code) => {
       clearTimeout(timer);
-      if (!sent) reject(new Error("uninstall prompt was not written before stdin was read"));
+      if (!sent)
+        reject(
+          new Error("uninstall prompt was not written before stdin was read"),
+        );
       else resolve({ code, stdout: out.stdout, stderr: out.stderr });
     });
   });

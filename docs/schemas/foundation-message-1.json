@@ -1,0 +1,233 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://plums.dev/schema/foundation-message-1.json",
+  "type": "object",
+  "properties": {
+    "foundationVersion": {
+      "type": "string",
+      "pattern": "^1\\.(0|[1-9][0-9]*)$"
+    },
+    "sessionId": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$"
+    },
+    "type": {
+      "enum": ["ready", "activated", "callback", "result", "fatal"]
+    }
+  },
+  "required": ["foundationVersion", "sessionId", "type"],
+  "additionalProperties": true,
+  "allOf": [
+    {
+      "not": {
+        "required": ["binding"]
+      }
+    },
+    {
+      "not": {
+        "required": ["agentId"]
+      }
+    },
+    {
+      "not": {
+        "required": ["componentId"]
+      }
+    },
+    {
+      "not": {
+        "required": ["installationId"]
+      }
+    },
+    {
+      "not": {
+        "required": ["instanceId"]
+      }
+    },
+    {
+      "not": {
+        "required": ["callers"]
+      }
+    },
+    {
+      "not": {
+        "required": ["ancestry"]
+      }
+    },
+    {
+      "not": {
+        "required": ["executionState"]
+      }
+    },
+    {
+      "not": {
+        "required": ["context"]
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "type": {
+            "const": "ready"
+          }
+        },
+        "required": ["type"]
+      },
+      "then": {
+        "type": "object",
+        "properties": {
+          "sdk": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 128,
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$"
+              },
+              "version": {
+                "type": "string",
+                "maxLength": 128
+              }
+            },
+            "required": ["id", "version"],
+            "additionalProperties": true
+          },
+          "features": {
+            "type": "array",
+            "maxItems": 64,
+            "uniqueItems": true,
+            "items": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128,
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$"
+            }
+          }
+        },
+        "required": ["sdk", "features"],
+        "additionalProperties": true
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "type": {
+            "const": "activated"
+          }
+        },
+        "required": ["type"]
+      },
+      "then": {
+        "type": "object",
+        "properties": {},
+        "required": [],
+        "additionalProperties": true
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "type": {
+            "const": "callback"
+          }
+        },
+        "required": ["type"]
+      },
+      "then": {
+        "type": "object",
+        "properties": {
+          "callId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$"
+          },
+          "callbackId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$"
+          },
+          "method": {
+            "enum": [
+              "settings",
+              "context",
+              "capability",
+              "connection",
+              "invoke",
+              "character",
+              "characters",
+              "emit",
+              "mcpCheck",
+              "failResponse",
+              "resource.list",
+              "resource.read",
+              "resource.write",
+              "resource.delete",
+              "protocol.status",
+              "protocol.invoke",
+              "common.describe",
+              "common.bindings",
+              "common.invoke",
+              "common.tasks.create",
+              "common.tasks.status",
+              "common.tasks.list",
+              "common.tasks.cancel",
+              "common.policy.status"
+            ]
+          },
+          "args": {
+            "type": "object"
+          }
+        },
+        "required": ["callId", "callbackId", "method", "args"],
+        "additionalProperties": true
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "type": {
+            "const": "result"
+          }
+        },
+        "required": ["type"]
+      },
+      "then": {
+        "type": "object",
+        "properties": {
+          "callId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$"
+          },
+          "ok": {
+            "type": "boolean"
+          },
+          "value": {}
+        },
+        "required": ["callId", "ok", "value"],
+        "additionalProperties": true
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "type": {
+            "const": "fatal"
+          }
+        },
+        "required": ["type"]
+      },
+      "then": {
+        "type": "object",
+        "properties": {},
+        "required": [],
+        "additionalProperties": true
+      }
+    }
+  ]
+}

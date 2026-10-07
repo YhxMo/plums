@@ -39,7 +39,20 @@ export interface ServicePermission extends PermissionBase {
 export interface EnginePermission extends PermissionBase {
   kind: "engine";
 }
-export type PermissionV2 = FsPermission | ExecPermission | EgressPermission | ServicePermission | EnginePermission;
+export type ResourceOperation = "read" | "write" | "delete";
+export interface ResourcePermission extends PermissionBase {
+  kind: "resource";
+  /** Business spaces only; identity and actual space are bound by the trusted host. */
+  target: "agent" | "shared" | "business";
+  operations: ResourceOperation[];
+}
+export type PermissionV2 =
+  | ResourcePermission
+  | FsPermission
+  | ExecPermission
+  | EgressPermission
+  | ServicePermission
+  | EnginePermission;
 export type Permission = PermissionV1 | PermissionV2;
 
 export interface Dependency {
@@ -140,5 +153,7 @@ export const DEFAULT_PACKAGE_LIMITS: Readonly<PackageLimits> = Object.freeze({
 /** Default envelope version for newly created packages. Export preserves the supplied version. */
 export const PACKAGE_FORMAT_VERSION = "2.0";
 /** The highest readable major, derived from the default envelope version. */
-export const SUPPORTED_FORMAT_MAJOR = Number(PACKAGE_FORMAT_VERSION.split(".")[0]);
+export const SUPPORTED_FORMAT_MAJOR = Number(
+  PACKAGE_FORMAT_VERSION.split(".")[0],
+);
 export const MANIFEST_FILE = "manifest.json";

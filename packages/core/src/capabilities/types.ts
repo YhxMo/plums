@@ -8,7 +8,13 @@ export interface ExecRequest {
   args: string[];
   cwd: { root: string; path: string };
 }
-export type JsonValue = null | boolean | number | string | JsonValue[] | { [key: string]: JsonValue };
+export type JsonValue =
+  | null
+  | boolean
+  | number
+  | string
+  | JsonValue[]
+  | { [key: string]: JsonValue };
 export interface ServiceRequest {
   kind: "service";
   operation: string;
@@ -16,8 +22,17 @@ export interface ServiceRequest {
   sources: string[];
   input: JsonValue;
 }
-export type ServiceEffect = "read" | "instance-write" | "egress" | "model-egress" | "external-write";
-export interface ServiceBinding { fingerprint: string; sources: string[]; host?: string }
+export type ServiceEffect =
+  | "read"
+  | "instance-write"
+  | "egress"
+  | "model-egress"
+  | "external-write";
+export interface ServiceBinding {
+  fingerprint: string;
+  sources: string[];
+  host?: string;
+}
 export interface ServiceInvocation {
   instanceId: string;
   packageId: string;
@@ -32,7 +47,10 @@ export interface ServiceInvocation {
 export interface HostService {
   ownerId?: string;
   operations: Readonly<Record<string, ServiceEffect>>;
-  getBinding(instanceId: string, binding: string): ServiceBinding | undefined | Promise<ServiceBinding | undefined>;
+  getBinding(
+    instanceId: string,
+    binding: string,
+  ): ServiceBinding | undefined | Promise<ServiceBinding | undefined>;
   invoke(request: ServiceInvocation): Promise<JsonValue>;
 }
 export interface BackgroundConsentInput {
@@ -48,19 +66,30 @@ export interface BackgroundConsent extends BackgroundConsentInput {
   revision: string;
   grantedAt: string;
 }
-export type CapabilityRequest = FsRequest | ExecRequest | ServiceRequest | (EgressRequest & { kind: "egress" });
+export type CapabilityRequest =
+  | FsRequest
+  | ExecRequest
+  | ServiceRequest
+  | (EgressRequest & { kind: "egress" });
 export interface RunCapabilityInput {
   extensionId: string;
   permissionId: string;
   request: CapabilityRequest;
+  grantId?: string;
+  grantScope?: import("./grants.js").GrantUse;
   signal?: AbortSignal;
 }
-export interface CapabilityCaller { packageId: string; permissionId: string }
+export interface CapabilityCaller {
+  packageId: string;
+  permissionId: string;
+}
 export interface RunDelegatedCapabilityInput {
   packageId: string;
   permissionId: string;
   callers: CapabilityCaller[];
   request: CapabilityRequest;
+  grantId?: string;
+  grantScope?: import("./grants.js").GrantUse;
   signal?: AbortSignal;
   /** Required for a call of an approved remote MCP tool. */
   mcpTool?: { name: string; description: string; inputSchema?: unknown };
@@ -113,21 +142,59 @@ export type ExecutionState = "not_started" | "completed" | "unknown";
 export interface AuditEvent {
   callId: string;
   taskId?: string;
+  grantId?: string;
   taskScope?: import("./task-scope.js").TaskScopeSelection[];
   durationMs?: number;
+  resourceMode?: "task" | "full-access";
+  resourceScope?: {
+    componentId: string;
+    resourceId: string;
+    operations: import("../package/types.js").ResourceOperation[];
+  }[];
+  assessmentId?: string;
+  modeGeneration?: number;
   timestamp: string;
   extensionId?: string;
   callerIds?: string[];
   permissionId?: string;
-  kind?: CapabilityRequest["kind"] | "engine";
+  kind?: CapabilityRequest["kind"] | "engine" | "resource";
   operation?: string;
   /** Logical directory/program name or declared egress target; no physical path or URL. */
   target?: string;
-  phase: "grant" | "revoke" | "task" | "confirmation" | "allow" | "result" | "denied";
-  outcome: "requested" | "allowed" | "denied" | "timeout" | "error" | "missing" | "invalid" | "completed" | "failed";
+  phase:
+    | "policy"
+    | "grant"
+    | "revoke"
+    | "task"
+    | "confirmation"
+    | "allow"
+    | "result"
+    | "denied";
+  outcome:
+    | "requested"
+    | "allowed"
+    | "denied"
+    | "timeout"
+    | "error"
+    | "missing"
+    | "invalid"
+    | "completed"
+    | "failed";
   executionState: ExecutionState;
   code?: string;
   reason?: string;
 }
-export type AuditHandler = (event: Readonly<AuditEvent>) => void | Promise<void>;
+export type AuditHandler = (
+  event: Readonly<AuditEvent>,
+) => void | Promise<void>;
 export const DEFAULT_CONFIRM_TIMEOUT_MS = 120_000;
+
+/** Trusted host gate, after core authorization. An accepted gate replaces the single-use question. */
+export type CapabilityGate = (input: {
+  callId: string;
+  packageId: string;
+  permissionId: string;
+  target: string;
+  callers: readonly CapabilityCaller[];
+  request: CapabilityRequest;
+}) => Promise<{ assertCurrent(): void | Promise<void> } | undefined>;

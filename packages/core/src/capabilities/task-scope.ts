@@ -7,7 +7,12 @@ import type { CapabilityCaller, CapabilityRequest } from "./types.js";
 
 export interface TaskScopePlan {
   fingerprint: string;
-  entries: { packageId: string; name: string; permissions: PermissionV2[]; serviceTargets?: Record<string, string[]> }[];
+  entries: {
+    packageId: string;
+    name: string;
+    permissions: PermissionV2[];
+    serviceTargets?: Record<string, string[]>;
+  }[];
   /** Host-selected directories, displayed only in the trusted manager. */
   roots: Record<string, string>;
 }
@@ -45,7 +50,9 @@ export class TaskScopes {
         permissions: m.permissions.filter(
           (p) =>
             p.kind === "egress" ||
-            (p.kind === "service" && ((p.target === "model" && p.operations.includes("complete")) || (p.target === "https" && p.operations.includes("request")))) ||
+            (p.kind === "service" &&
+              ((p.target === "model" && p.operations.includes("complete")) ||
+                (p.target === "https" && p.operations.includes("request")))) ||
             (p.kind === "fs" && this.roots.has(p.target)),
         ),
       }))

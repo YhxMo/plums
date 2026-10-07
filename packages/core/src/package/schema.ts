@@ -43,7 +43,12 @@ const MANIFEST_SCHEMA = {
         required: ["kind", "id", "range"],
         properties: {
           kind: { enum: ["extension", "connector"] },
-          id: { type: "string", minLength: 1, maxLength: 64, pattern: ID_PATTERN },
+          id: {
+            type: "string",
+            minLength: 1,
+            maxLength: 64,
+            pattern: ID_PATTERN,
+          },
           range: { type: "string", minLength: 1, format: "semver-range" },
           optional: { type: "boolean" },
         },
@@ -95,7 +100,12 @@ const MANIFEST_SCHEMA = {
 } as const;
 
 export const SERVICE_NAME_PATTERN = "^[a-zA-Z0-9][a-zA-Z0-9_.-]{0,63}$";
-const namedList = { type: "array", minItems: 1, uniqueItems: true, items: nonEmptyString } as const;
+const namedList = {
+  type: "array",
+  minItems: 1,
+  uniqueItems: true,
+  items: nonEmptyString,
+} as const;
 
 /** Keep the common envelope and JSON representation; dispatch only the permissions schema. */
 const MANIFEST_V2_SCHEMA = {
@@ -109,21 +119,67 @@ const MANIFEST_V2_SCHEMA = {
         required: ["id", "kind", "target", "reason"],
         properties: {
           id: nonEmptyString,
-          kind: { enum: ["fs", "exec", "egress", "service", "engine"] },
+          kind: {
+            enum: ["fs", "exec", "egress", "service", "engine", "resource"],
+          },
           target: nonEmptyString,
           reason: nonEmptyString,
         },
         allOf: [
-          { if: { required: ["kind"], properties: { kind: { const: "engine" } } }, then: { properties: { target: { type: "string", pattern: ID_PATTERN } } } },
-          { if: { required: ["kind"], properties: { kind: { const: "service" } } },
-            then: { required: ["operations"], properties: { target: {type:"string",pattern:SERVICE_NAME_PATTERN}, operations: {type:"array",minItems:1,uniqueItems:true,items:{type:"string",pattern:SERVICE_NAME_PATTERN}} } } },
+          {
+            if: {
+              required: ["kind"],
+              properties: { kind: { const: "resource" } },
+            },
+            then: {
+              required: ["operations"],
+              properties: {
+                target: { enum: ["agent", "shared", "business"] },
+                operations: {
+                  type: "array",
+                  minItems: 1,
+                  uniqueItems: true,
+                  items: { enum: ["read", "write", "delete"] },
+                },
+              },
+            },
+          },
+          {
+            if: {
+              required: ["kind"],
+              properties: { kind: { const: "engine" } },
+            },
+            then: {
+              properties: { target: { type: "string", pattern: ID_PATTERN } },
+            },
+          },
+          {
+            if: {
+              required: ["kind"],
+              properties: { kind: { const: "service" } },
+            },
+            then: {
+              required: ["operations"],
+              properties: {
+                target: { type: "string", pattern: SERVICE_NAME_PATTERN },
+                operations: {
+                  type: "array",
+                  minItems: 1,
+                  uniqueItems: true,
+                  items: { type: "string", pattern: SERVICE_NAME_PATTERN },
+                },
+              },
+            },
+          },
           {
             if: { required: ["kind"], properties: { kind: { const: "fs" } } },
             then: {
               required: ["operations"],
               properties: {
                 operations: {
-                  type: "array", minItems: 1, uniqueItems: true,
+                  type: "array",
+                  minItems: 1,
+                  uniqueItems: true,
                   items: { enum: ["read", "write", "list"] },
                 },
               },
@@ -131,7 +187,10 @@ const MANIFEST_V2_SCHEMA = {
           },
           {
             if: { required: ["kind"], properties: { kind: { const: "exec" } } },
-            then: { required: ["cwdRoots"], properties: { cwdRoots: namedList } },
+            then: {
+              required: ["cwdRoots"],
+              properties: { cwdRoots: namedList },
+            },
           },
         ],
       },
@@ -191,7 +250,9 @@ export function settingValueFailure(
   const validate = settingValidator(schema);
   const ok = validate(value);
   if (ok) return undefined;
-  const keywords = new Set((validate.errors ?? []).map((error) => error.keyword));
+  const keywords = new Set(
+    (validate.errors ?? []).map((error) => error.keyword),
+  );
   // Why this order: a type mismatch is decided before a bound, which is the order setSettings uses across fields.
   if (keywords.has("type")) return "TYPE";
   if (keywords.has("minimum")) return "MINIMUM";

@@ -19,10 +19,15 @@ import type { DesktopContribution } from "@plums/sdk";
 
 export interface IoContext {
   signal: AbortSignal;
+  invocation?: import("./runtime.js").InvocationContext;
+  mcpTool?: import("@plums/core").McpTool;
   packageId: string;
   permissionId: string;
   contribution?: DesktopContribution;
   secrets: SecretStore;
+  assertActive?: () => Promise<void>;
+  programTarget?: string;
+  execCheck?: () => Promise<void>;
   onChunk?: (chunk: string) => void;
 }
 export const ioContext = new AsyncLocalStorage<IoContext>();
@@ -125,6 +130,11 @@ export class HttpsSink implements EgressSink {
             delete headers[name];
         headers[binding.header] = (binding.prefix ?? "") + secret;
       }
+    try {
+      await context.assertActive?.();
+    } catch {
+      throw new SinkFailure("REQUEST_INVALID");
+    }
     if (
       context.signal.aborted ||
       (request.body !== undefined && Buffer.byteLength(request.body) > LIMIT)

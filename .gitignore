@@ -7,3 +7,14 @@ release/
 .artifacts/
 playwright-report/
 test-results/
+
+# Local credentials, signing identities and delivery artifacts
+.env
+.env.*
+!.env.example
+*.key
+*.p12
+*.pfx
+private*.pem
+*.dmg
+*.zip

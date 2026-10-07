@@ -46,7 +46,10 @@ describe("T2: a bad manifest is MANIFEST_INVALID with a JSON Pointer path", () =
 
   it.each(cases)("invalid/%s -> %s", async (name, at) => {
     const w = world();
-    const err = await expectPlumsError(w.core.importPackage(fixturePath(`invalid/${name}.zip`)), "MANIFEST_INVALID");
+    const err = await expectPlumsError(
+      w.core.importPackage(fixturePath(`invalid/${name}.zip`)),
+      "MANIFEST_INVALID",
+    );
     expect(err.path).toBe(at);
     expectNothingWritten(w);
   });
@@ -56,7 +59,11 @@ describe("T2: a bad manifest is MANIFEST_INVALID with a JSON Pointer path", () =
     "invalid/%s -> MANIFEST_INVALID at /permissions/0/target",
     async (name) => {
       const w = world();
-      await expectPlumsError(w.core.importPackage(fixturePath(`invalid/${name}.zip`)), "MANIFEST_INVALID", "/permissions/0/target");
+      await expectPlumsError(
+        w.core.importPackage(fixturePath(`invalid/${name}.zip`)),
+        "MANIFEST_INVALID",
+        "/permissions/0/target",
+      );
       expectNothingWritten(w);
     },
   );
@@ -68,31 +75,58 @@ describe("T2: a bad manifest is MANIFEST_INVALID with a JSON Pointer path", () =
     ["foo.*.example.com", "a wildcard that is not the first label"],
     ["*example.com", "a star glued to the name"],
   ];
-  it.each(hostRules)("egress target %s (%s) is MANIFEST_INVALID at /permissions/0/target", async (target) => {
-    const w = world();
-    const manifest = await fixtureManifest(w, "valid/egress-target-exact.zip");
-    manifest.permissions = [{ id: "p.egress", level: "egress", target, reason: "测试用" }];
-    await expectPlumsError(w.core.importPackage(await manifestZip(manifest)), "MANIFEST_INVALID", "/permissions/0/target");
-    expectNothingWritten(w);
-  });
-
-  it.each([["an array", []], ["a string", "hello"], ["null", null], ["a number", 42]])(
-    "a manifest that is %s has no path",
-    async (_name, value) => {
-      const err = await expectPlumsError(world().core.importPackage(await manifestZip(value)), "MANIFEST_INVALID");
-      expect(err.path).toBeUndefined();
+  it.each(hostRules)(
+    "egress target %s (%s) is MANIFEST_INVALID at /permissions/0/target",
+    async (target) => {
+      const w = world();
+      const manifest = await fixtureManifest(
+        w,
+        "valid/egress-target-exact.zip",
+      );
+      manifest.permissions = [
+        { id: "p.egress", level: "egress", target, reason: "测试用" },
+      ];
+      await expectPlumsError(
+        w.core.importPackage(await manifestZip(manifest)),
+        "MANIFEST_INVALID",
+        "/permissions/0/target",
+      );
+      expectNothingWritten(w);
     },
   );
+
+  it.each([
+    ["an array", []],
+    ["a string", "hello"],
+    ["null", null],
+    ["a number", 42],
+  ])("a manifest that is %s has no path", async (_name, value) => {
+    const err = await expectPlumsError(
+      world().core.importPackage(await manifestZip(value)),
+      "MANIFEST_INVALID",
+    );
+    expect(err.path).toBeUndefined();
+  });
 
   it("points at the index of the bad egress permission, not always the first", async () => {
     const w = world();
     const manifest = await fixtureManifest(w, "valid/extension-3-levels.zip");
-    manifest.permissions[2] = { ...manifest.permissions[2]!, target: "https://example.com/x" };
-    await expectPlumsError(w.core.importPackage(await manifestZip(manifest)), "MANIFEST_INVALID", "/permissions/2/target");
+    manifest.permissions[2] = {
+      ...manifest.permissions[2]!,
+      target: "https://example.com/x",
+    };
+    await expectPlumsError(
+      w.core.importPackage(await manifestZip(manifest)),
+      "MANIFEST_INVALID",
+      "/permissions/2/target",
+    );
   });
 
   it("FORMAT_UNSUPPORTED for a higher format major", async () => {
-    await expectPlumsError(world().core.importPackage(fixturePath("invalid/format-major-3.zip")), "FORMAT_UNSUPPORTED");
+    await expectPlumsError(
+      world().core.importPackage(fixturePath("invalid/format-major-3.zip")),
+      "FORMAT_UNSUPPORTED",
+    );
   });
 });
 
@@ -107,25 +141,39 @@ describe("T2: a broken package is IMPORT_INVALID and writes nothing", () => {
 
   it.each(cases)("%s", async (rel) => {
     const w = world();
-    await expectPlumsError(w.core.importPackage(fixturePath(rel)), "IMPORT_INVALID");
-    await expectPlumsError(w.core.importPackage(fixtureBytes(rel)), "IMPORT_INVALID");
+    await expectPlumsError(
+      w.core.importPackage(fixturePath(rel)),
+      "IMPORT_INVALID",
+    );
+    await expectPlumsError(
+      w.core.importPackage(fixtureBytes(rel)),
+      "IMPORT_INVALID",
+    );
     expectNothingWritten(w);
   });
 });
 
 describe("T2: valid packages", () => {
-  it.each(VALID)("%s imports, and export then import gives the same content", async (rel) => {
-    const w = world();
-    const first = await w.core.importPackage(fixturePath(rel));
-    const bytes = await w.core.exportPackage({ manifest: first.manifest, files: first.files });
-    const again = await world().core.validatePackage(bytes);
-    expect(again.manifest).toEqual(first.manifest);
-    expect(again.files).toEqual(first.files);
-  });
+  it.each(VALID)(
+    "%s imports, and export then import gives the same content",
+    async (rel) => {
+      const w = world();
+      const first = await w.core.importPackage(fixturePath(rel));
+      const bytes = await w.core.exportPackage({
+        manifest: first.manifest,
+        files: first.files,
+      });
+      const again = await world().core.validatePackage(bytes);
+      expect(again.manifest).toEqual(first.manifest);
+      expect(again.files).toEqual(first.files);
+    },
+  );
 
   it("keeps unknown fields and nested payload as written", async () => {
     const w = world();
-    const { manifest } = await w.core.importPackage(fixturePath("valid/extension-unknown-fields.zip"));
+    const { manifest } = await w.core.importPackage(
+      fixturePath("valid/extension-unknown-fields.zip"),
+    );
     expect(manifest.futureField).toEqual({ a: 1 });
     expect(manifest.payload).toEqual({ x: [1, 2, { y: "原样保留" }] });
     const bytes = await w.core.exportPackage({ manifest });
@@ -136,51 +184,80 @@ describe("T2: valid packages", () => {
     const w = world();
     const manifest = await fixtureManifest(w, "valid/extension-with-dep.zip");
     const { optional: _dropped, ...dependency } = manifest.dependencies[0]!;
-    const id = (await w.core.importPackage(await manifestZip({ ...manifest, dependencies: [dependency] }))).manifest.id;
+    const id = (
+      await w.core.importPackage(
+        await manifestZip({ ...manifest, dependencies: [dependency] }),
+      )
+    ).manifest.id;
     await w.core.grantConsent(id);
-    await expectPlumsError(w.core.enable(id), "DEPENDENCY_MISSING", "/dependencies/0");
+    await expectPlumsError(
+      w.core.enable(id),
+      "DEPENDENCY_MISSING",
+      "/dependencies/0",
+    );
     await install(w, "valid/extension-min.zip");
     expect(await w.core.enable(id)).toMatchObject({ enabled: true });
   });
 });
 
 describe("T3: inspect", () => {
-  it.each(VALID)("%s: same summary from bytes and path, nothing written", async (rel) => {
-    const w = world();
-    const manifest = await fixtureManifest(w, rel);
-    const fromBytes = await w.core.inspect(fixtureBytes(rel));
-    const fromPath = await w.core.inspect(fixturePath(rel));
-    expect(fromBytes).toEqual(fromPath);
-    expect(fromBytes).toEqual({
-      kind: manifest.kind,
-      formatVersion: manifest.formatVersion,
-      id: manifest.id,
-      name: manifest.name,
-      version: manifest.version,
-      description: manifest.description,
-      permissions: manifest.permissions,
-      dependencies: manifest.dependencies,
-    });
-    expectNothingWritten(w);
-    expect(await w.core.listInstalled()).toEqual([]);
-  });
+  it.each(VALID)(
+    "%s: same summary from bytes and path, nothing written",
+    async (rel) => {
+      const w = world();
+      const manifest = await fixtureManifest(w, rel);
+      const fromBytes = await w.core.inspect(fixtureBytes(rel));
+      const fromPath = await w.core.inspect(fixturePath(rel));
+      expect(fromBytes).toEqual(fromPath);
+      expect(fromBytes).toEqual({
+        kind: manifest.kind,
+        formatVersion: manifest.formatVersion,
+        id: manifest.id,
+        name: manifest.name,
+        version: manifest.version,
+        description: manifest.description,
+        permissions: manifest.permissions,
+        dependencies: manifest.dependencies,
+      });
+      expectNothingWritten(w);
+      expect(await w.core.listInstalled()).toEqual([]);
+    },
+  );
 
   it("lists permissions in manifest order, each with level and reason", async () => {
-    const summary = await world().core.inspect(fixturePath("valid/extension-3-levels.zip"));
+    const summary = await world().core.inspect(
+      fixturePath("valid/extension-3-levels.zip"),
+    );
     expect(summary.permissions).toEqual([
       { id: "p.read", level: "read", target: "memory", reason: "读取记忆" },
       { id: "p.write", level: "write", target: "notes", reason: "写入笔记" },
-      { id: "p.egress", level: "egress", target: "example.com", reason: "把摘要发给示例网站" },
+      {
+        id: "p.egress",
+        level: "egress",
+        target: "example.com",
+        reason: "把摘要发给示例网站",
+      },
     ]);
   });
 
   it("returns dependencies", async () => {
-    const summary = await world().core.inspect(fixturePath("valid/extension-with-dep.zip"));
-    expect(summary.dependencies).toEqual([{ kind: "extension", id: "test.ext.min", range: "^1.0.0", optional: false }]);
+    const summary = await world().core.inspect(
+      fixturePath("valid/extension-with-dep.zip"),
+    );
+    expect(summary.dependencies).toEqual([
+      {
+        kind: "extension",
+        id: "test.ext.min",
+        range: "^1.0.0",
+        optional: false,
+      },
+    ]);
   });
 
   it("does not treat text in the payload as permissions", async () => {
-    const summary = await world().core.inspect(fixturePath("malicious/card-claims-permissions.zip"));
+    const summary = await world().core.inspect(
+      fixturePath("malicious/card-claims-permissions.zip"),
+    );
     expect(summary.permissions).toEqual([]);
   });
 
@@ -195,6 +272,9 @@ describe("T3: inspect", () => {
   });
 
   it("an empty zip is no package", async () => {
-    await expectPlumsError(world().core.inspect(await buildZip([])), "IMPORT_INVALID");
+    await expectPlumsError(
+      world().core.inspect(await buildZip([])),
+      "IMPORT_INVALID",
+    );
   });
 });

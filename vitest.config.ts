@@ -4,10 +4,16 @@ import { defineConfig } from "vitest/config";
 
 const root = path.dirname(fileURLToPath(import.meta.url));
 const electronTests = [
+  "common-runtime-ui",
+  "workspace-ui",
+  "platform-conformance-ui",
+  "policy-ui",
+  "resources-ui",
   "onboarding-ui",
   "interaction-ui",
   "confirm-window",
   "frontend-scope",
+  "panels",
 ];
 
 export default defineConfig({
@@ -33,7 +39,9 @@ export default defineConfig({
         test: {
           name,
           include: [`packages/desktop/test/${name}.test.ts`],
-          sequence: { groupOrder: index + 1 },
+          // Vitest 3 sorts group numbers lexically: keep all native groups at
+          // equal width so adding a tenth suite preserves the declared order.
+          sequence: { groupOrder: index + 101 },
         },
       })),
     ],

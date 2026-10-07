@@ -97,6 +97,8 @@ describe("public error codes", () => {
   });
 
   it("rejects an unknown code", () => {
-    expect(() => new PlumsError({ code: "NOPE" as never, message: "nope" })).toThrow(/Unknown PlumsError code/);
+    expect(
+      () => new PlumsError({ code: "NOPE" as never, message: "nope" }),
+    ).toThrow(/Unknown PlumsError code/);
   });
 });

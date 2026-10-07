@@ -3,7 +3,7 @@ export default defineConfig({
   base: "./",
   build: {
     outDir: "dist/renderer",
-    emptyOutDir: false,
+    emptyOutDir: true,
     rollupOptions: {
       input: { manager: "index.html", confirm: "confirm.html" },
     },

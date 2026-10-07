@@ -1,0 +1,368 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://plums.dev/schema/common-envelope-1.json",
+  "type": "object",
+  "properties": {
+    "commonVersion": {
+      "type": "string",
+      "pattern": "^1\\.(0|[1-9][0-9]*)$"
+    },
+    "callId": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$"
+    },
+    "kind": {
+      "enum": ["invoke", "cancel", "accepted", "event", "result"]
+    },
+    "binding": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$"
+    },
+    "operation": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$"
+    },
+    "input": {},
+    "timeoutMs": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 3600000
+    },
+    "reason": {
+      "enum": ["user", "deadline", "owner_closed"]
+    },
+    "sequence": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 9007199254740991
+    },
+    "taskId": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$"
+    },
+    "channel": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$"
+    },
+    "data": {},
+    "executionState": {
+      "enum": ["not_started", "unknown", "completed"]
+    },
+    "outcome": {
+      "type": "object",
+      "properties": {
+        "ok": {
+          "type": "boolean"
+        },
+        "value": {},
+        "error": {
+          "type": "object",
+          "properties": {
+            "code": {
+              "enum": [
+                "INVALID_REQUEST",
+                "INCOMPATIBLE",
+                "UNBOUND",
+                "STALE_BINDING",
+                "NOT_AUTHORIZED",
+                "POLICY_UNAVAILABLE",
+                "CANCELLED",
+                "DEADLINE_EXCEEDED",
+                "RESOURCE_CONFLICT",
+                "RESOURCE_NOT_FOUND",
+                "REPLAY_GAP",
+                "LIMIT_EXCEEDED",
+                "PROVIDER_FAILED",
+                "RUNTIME_UNAVAILABLE"
+              ]
+            },
+            "path": {
+              "type": "string",
+              "maxLength": 256,
+              "pattern": "^(?:/(?:[^~]|~[01])*)*$"
+            }
+          },
+          "required": ["code"],
+          "additionalProperties": false
+        }
+      },
+      "required": ["ok"],
+      "additionalProperties": true,
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "ok": {
+                "const": true
+              }
+            },
+            "required": ["ok"]
+          },
+          "then": {
+            "required": ["value"],
+            "not": {
+              "required": ["error"]
+            }
+          },
+          "else": {
+            "required": ["error"],
+            "not": {
+              "required": ["value"]
+            }
+          }
+        }
+      ]
+    }
+  },
+  "required": ["commonVersion", "callId", "kind"],
+  "additionalProperties": true,
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "kind": {
+            "const": "invoke"
+          }
+        },
+        "required": ["kind"]
+      },
+      "then": {
+        "required": ["binding", "operation", "input"],
+        "not": {
+          "anyOf": [
+            {
+              "required": ["reason"]
+            },
+            {
+              "required": ["sequence"]
+            },
+            {
+              "required": ["taskId"]
+            },
+            {
+              "required": ["channel"]
+            },
+            {
+              "required": ["data"]
+            },
+            {
+              "required": ["executionState"]
+            },
+            {
+              "required": ["outcome"]
+            }
+          ]
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "kind": {
+            "const": "cancel"
+          }
+        },
+        "required": ["kind"]
+      },
+      "then": {
+        "required": ["reason"],
+        "not": {
+          "anyOf": [
+            {
+              "required": ["binding"]
+            },
+            {
+              "required": ["operation"]
+            },
+            {
+              "required": ["input"]
+            },
+            {
+              "required": ["timeoutMs"]
+            },
+            {
+              "required": ["sequence"]
+            },
+            {
+              "required": ["taskId"]
+            },
+            {
+              "required": ["channel"]
+            },
+            {
+              "required": ["data"]
+            },
+            {
+              "required": ["executionState"]
+            },
+            {
+              "required": ["outcome"]
+            }
+          ]
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "kind": {
+            "const": "accepted"
+          }
+        },
+        "required": ["kind"]
+      },
+      "then": {
+        "required": ["sequence", "taskId"],
+        "not": {
+          "anyOf": [
+            {
+              "required": ["binding"]
+            },
+            {
+              "required": ["operation"]
+            },
+            {
+              "required": ["input"]
+            },
+            {
+              "required": ["timeoutMs"]
+            },
+            {
+              "required": ["reason"]
+            },
+            {
+              "required": ["channel"]
+            },
+            {
+              "required": ["data"]
+            },
+            {
+              "required": ["executionState"]
+            },
+            {
+              "required": ["outcome"]
+            }
+          ]
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "kind": {
+            "const": "event"
+          }
+        },
+        "required": ["kind"]
+      },
+      "then": {
+        "required": ["sequence", "channel", "data"],
+        "not": {
+          "anyOf": [
+            {
+              "required": ["binding"]
+            },
+            {
+              "required": ["operation"]
+            },
+            {
+              "required": ["input"]
+            },
+            {
+              "required": ["timeoutMs"]
+            },
+            {
+              "required": ["reason"]
+            },
+            {
+              "required": ["taskId"]
+            },
+            {
+              "required": ["executionState"]
+            },
+            {
+              "required": ["outcome"]
+            }
+          ]
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "kind": {
+            "const": "result"
+          }
+        },
+        "required": ["kind"]
+      },
+      "then": {
+        "required": ["sequence", "executionState", "outcome"],
+        "not": {
+          "anyOf": [
+            {
+              "required": ["binding"]
+            },
+            {
+              "required": ["operation"]
+            },
+            {
+              "required": ["input"]
+            },
+            {
+              "required": ["timeoutMs"]
+            },
+            {
+              "required": ["reason"]
+            },
+            {
+              "required": ["taskId"]
+            },
+            {
+              "required": ["channel"]
+            },
+            {
+              "required": ["data"]
+            }
+          ]
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "kind": {
+            "const": "result"
+          },
+          "outcome": {
+            "type": "object",
+            "properties": {
+              "ok": {
+                "const": true
+              }
+            },
+            "required": ["ok"]
+          }
+        },
+        "required": ["kind", "outcome"]
+      },
+      "then": {
+        "properties": {
+          "executionState": {
+            "const": "completed"
+          }
+        }
+      }
+    }
+  ]
+}

@@ -1,0 +1,504 @@
+import { createHash, randomUUID } from "node:crypto";
+import { redact, type AuditEvent } from "@plums/core";
+import {
+  desktopContribution,
+  parseCommonPolicyDecision,
+  type CommonOperationContext,
+  type CommonJson,
+} from "@plums/sdk";
+import type { Session } from "./host.js";
+import type { InvocationContext } from "./foundation-runtime.js";
+import { resourceFailure } from "./resource-error.js";
+
+export interface PolicyBinding {
+  providerId: string;
+  provideId: string;
+  artifactDigest: string;
+  installation: string;
+  declaration: string;
+  mode: string;
+}
+export interface PolicyScopeSelection {
+  componentId: string;
+  category: CommonOperationContext["category"];
+  operation: string;
+  target: string;
+}
+export interface PolicyOperation {
+  permissionId?: string;
+  packageId: string;
+  callId: string;
+  category: CommonOperationContext["category"];
+  operation: string;
+  target: string;
+  intent: CommonJson;
+  fingerprintInput: unknown;
+  required?: {
+    category: CommonOperationContext["category"];
+    operation: string;
+    target: string;
+  }[];
+  context: InvocationContext;
+}
+export interface PolicyCheckpoint {
+  assertCurrent(): void;
+  recheck(): Promise<void>;
+  signal: AbortSignal;
+}
+interface Hooks {
+  active(s: Session): void;
+  expired(s: Session): Promise<void>;
+  deadline(s: Session, taskId?: string): number | undefined;
+  actor(
+    s: Session,
+    id: string,
+  ): Promise<CommonOperationContext["actors"][number]>;
+  snapshot(s: Session): string;
+  resources(s: Session):
+    | {
+        expiresAt: string;
+        selection: {
+          componentId: string;
+          resourceId: string;
+          operations: string[];
+        }[];
+      }
+    | undefined;
+  evaluate(
+    s: Session,
+    binding: PolicyBinding,
+    input: CommonOperationContext,
+    signal: AbortSignal,
+    check: () => Promise<void>,
+  ): Promise<unknown>;
+  secrets(s: Session): Promise<string[]>;
+  audit(s: Session, event: AuditEvent): Promise<void>;
+  confirm(message: string, signal: AbortSignal): Promise<boolean>;
+}
+interface Lease {
+  session: Session;
+  controller: AbortController;
+  sessionController: AbortController;
+  timer?: ReturnType<typeof setTimeout>;
+  generation: number;
+  expires: number;
+  expiresAt: number;
+  selection: PolicyScopeSelection[];
+  snapshot: string;
+  checkpoint: { assertCurrent(): void };
+}
+/** Sorted JSON keys bind a decision to the exact host-copied operation. Never logged. */
+export function operationFingerprint(value: unknown): string {
+  const normalize = (v: any): any => {
+    if (v instanceof Uint8Array)
+      return { bytes: Buffer.from(v).toString("base64") };
+    if (Array.isArray(v)) return v.map(normalize);
+    if (v && typeof v === "object")
+      return Object.fromEntries(
+        Object.keys(v)
+          .sort()
+          .map((k) => [k, normalize(v[k])]),
+      );
+    return v;
+  };
+  return createHash("sha256")
+    .update(JSON.stringify(normalize(value)))
+    .digest("hex");
+}
+export class PolicyService {
+  private leases = new Map<string, Lease>();
+  private generations = new Map<string, number>();
+  private stopping = new Map<string, Promise<void>>();
+  private stopExpired(s: Session) {
+    const id = s.record.instanceId;
+    if (this.stopping.has(id)) return;
+    const stopped = this.hooks.expired(s);
+    this.stopping.set(id, stopped);
+    void stopped
+      .finally(() => {
+        if (this.stopping.get(id) === stopped) this.stopping.delete(id);
+      })
+      .catch(() => {});
+  }
+  async settled(id: string) {
+    const stopped = this.stopping.get(id);
+    if (stopped) await stopped;
+  }
+  constructor(private hooks: Hooks) {}
+  invalidate(id: string) {
+    const l = this.leases.get(id);
+    clearTimeout(l?.timer);
+    l?.controller.abort();
+    this.leases.delete(id);
+    this.generations.set(id, (this.generations.get(id) ?? 0) + 1);
+  }
+  private current(s: Session, l: Lease) {
+    this.hooks.active(s);
+    if (
+      this.leases.get(s.record.instanceId) !== l ||
+      l.session !== s ||
+      l.sessionController !== s.controller ||
+      l.controller.signal.aborted ||
+      performance.now() >= l.expires ||
+      this.hooks.snapshot(s) !== l.snapshot
+    )
+      throw resourceFailure("STALE_BINDING");
+    l.checkpoint.assertCurrent();
+  }
+  state(s: Session) {
+    const l = this.leases.get(s.record.instanceId);
+    if (!l) return null;
+    try {
+      this.current(s, l);
+    } catch {
+      this.invalidate(s.record.instanceId);
+      // A status read can observe monotonic expiry before the timer callback.
+      // Invalidating clears that timer, so this path must also stop instances.
+      this.stopExpired(s);
+      return null;
+    }
+    return {
+      modeGeneration: l.generation,
+      expiresAt: l.expiresAt,
+      selection: structuredClone(l.selection),
+    };
+  }
+  async candidate(
+    s: Session,
+    providerId: string,
+    provideId: string,
+    mode: string,
+  ): Promise<PolicyBinding> {
+    const p = await s.core.getPackage(providerId),
+      d = desktopContribution(p.manifest),
+      pin = s.record.components?.find((p) => p.packageId === providerId);
+    const provided = d?.protocols?.provides?.find((p) => p.id === provideId);
+    if (
+      !p.installed.enabled ||
+      !pin ||
+      !d?.runtime ||
+      d.common?.policy?.provideId !== provideId ||
+      provided?.protocol !== "org.plums.policy" ||
+      provided.version !== "1.0.0" ||
+      provided.contribution.kind !== "tools" ||
+      !(await s.core.getConsent(providerId)) ||
+      typeof mode !== "string" ||
+      !/^[a-zA-Z0-9_.-]{1,64}$/.test(mode)
+    )
+      throw resourceFailure("INCOMPATIBLE");
+    return {
+      providerId,
+      provideId,
+      artifactDigest: pin.digest,
+      installation: operationFingerprint([p.installed.installedAt, pin]),
+      declaration: operationFingerprint(p.manifest),
+      mode,
+    };
+  }
+  async grant(
+    s: Session,
+    durationMs: number,
+    input: PolicyScopeSelection[],
+    available: PolicyScopeSelection[],
+  ) {
+    // The management plan itself can observe expiry after its earlier status check.
+    await this.settled(s.record.instanceId);
+    if (
+      !s.record.policy ||
+      ![900_000, 3_600_000].includes(durationMs) ||
+      !Array.isArray(input) ||
+      !input.length ||
+      input.length > 1024
+    )
+      throw resourceFailure("INVALID_REQUEST");
+    const selection = structuredClone(input),
+      keys = selection.map(operationFingerprint),
+      allowed = new Set(available.map(operationFingerprint));
+    if (new Set(keys).size !== keys.length || keys.some((k) => !allowed.has(k)))
+      throw resourceFailure("NOT_AUTHORIZED");
+    if (
+      JSON.stringify(
+        await this.candidate(
+          s,
+          s.record.policy.providerId,
+          s.record.policy.provideId,
+          s.record.policy.mode,
+        ),
+      ) !== JSON.stringify(s.record.policy)
+    )
+      throw resourceFailure("STALE_BINDING");
+    const checkpoint = s.core.runtimeAccessCheckpoint(
+      (await s.core.listInstalled()).filter((p) => p.enabled).map((p) => p.id),
+    );
+    this.invalidate(s.record.instanceId);
+    const l: Lease = {
+      session: s,
+      controller: new AbortController(),
+      sessionController: s.controller,
+      generation: this.generations.get(s.record.instanceId)!,
+      selection,
+      checkpoint,
+      snapshot: this.hooks.snapshot(s),
+      expires: performance.now() + durationMs,
+      expiresAt: Date.now() + durationMs,
+    };
+    await this.hooks.audit(
+      s,
+      Object.freeze({
+        callId: randomUUID(),
+        timestamp: new Date().toISOString(),
+        phase: "task",
+        outcome: "allowed",
+        executionState: "not_started",
+        reason: "POLICY_SCOPE_GRANTED",
+        durationMs,
+      }),
+    );
+    checkpoint.assertCurrent();
+    this.hooks.active(s);
+    if (
+      s.controller !== l.sessionController ||
+      s.controller.signal.aborted ||
+      this.hooks.snapshot(s) !== l.snapshot ||
+      this.generations.get(s.record.instanceId) !== l.generation
+    )
+      throw resourceFailure("STALE_BINDING");
+    this.leases.set(s.record.instanceId, l);
+    l.timer = setTimeout(() => {
+      this.invalidate(s.record.instanceId);
+      this.stopExpired(s);
+    }, durationMs);
+    l.timer.unref();
+    return this.state(s);
+  }
+  async assess(
+    s: Session,
+    op: PolicyOperation,
+  ): Promise<PolicyCheckpoint | undefined> {
+    if (op.context.policyEvaluation)
+      throw resourceFailure("POLICY_UNAVAILABLE", op.callId);
+    const binding = s.record.policy;
+    if (!binding) return undefined;
+    const firstSecrets = this.hooks.secrets(s);
+    void firstSecrets.catch(() => {});
+    const l = this.leases.get(s.record.instanceId);
+    if (!l) throw resourceFailure("POLICY_UNAVAILABLE", op.callId);
+    const range = this.hooks.resources(s);
+    const maximumExpiresAt = Math.min(
+      l.expiresAt,
+      range && op.category === "resource"
+        ? Date.parse(range.expiresAt)
+        : l.expiresAt,
+      s.core.taskScopeState()?.expiresAt ?? l.expiresAt,
+    );
+    const deadline = Math.min(
+      this.hooks.deadline(s, op.context.taskId) ?? Date.now() + 120_000,
+      maximumExpiresAt,
+    );
+    const remainingMs = Math.max(0, Math.ceil(deadline - Date.now()));
+    const budgetExpires = performance.now() + remainingMs;
+    const operationSignal = AbortSignal.any([
+      op.context.signal,
+      l.controller.signal,
+      AbortSignal.timeout(remainingMs),
+    ]);
+    const chain = [...op.context.ancestry];
+    if (
+      !chain.length ||
+      chain[chain.length - 1] !== op.packageId ||
+      new Set(chain).size !== chain.length ||
+      chain.length > 16 ||
+      op.context.engineScope
+    )
+      throw resourceFailure("NOT_AUTHORIZED", op.callId);
+    const checkpoint = s.core.runtimeAccessCheckpoint([
+      ...new Set([...chain, binding.providerId]),
+    ]);
+    const checkSync = () => {
+      this.current(s, l);
+      checkpoint.assertCurrent();
+      if (
+        operationSignal.aborted ||
+        performance.now() >= budgetExpires ||
+        s.record.policy !== binding
+      )
+        throw resourceFailure("STALE_BINDING", op.callId);
+      if (
+        !chain.every((componentId) =>
+          l.selection.some(
+            (v) =>
+              v.componentId === componentId &&
+              v.category === op.category &&
+              v.operation === op.operation &&
+              v.target === op.target,
+          ),
+        )
+      )
+        throw resourceFailure("NOT_AUTHORIZED", op.callId);
+      for (const required of op.required ?? [])
+        if (
+          !chain.every((componentId) =>
+            l.selection.some(
+              (v) =>
+                v.componentId === componentId &&
+                v.category === required.category &&
+                v.operation === required.operation &&
+                v.target === required.target,
+            ),
+          )
+        )
+          throw resourceFailure("NOT_AUTHORIZED", op.callId);
+      if (op.category === "resource") {
+        const range = this.hooks.resources(s);
+        if (
+          !range ||
+          !chain.every((id) =>
+            range.selection.some(
+              (v) =>
+                v.componentId === id &&
+                v.resourceId === op.target &&
+                v.operations.includes(op.operation),
+            ),
+          )
+        )
+          throw resourceFailure("NOT_AUTHORIZED", op.callId);
+      }
+    };
+    const check = async () => {
+      checkSync();
+      await op.context.assertActive?.();
+      checkSync();
+    };
+    await check();
+    const actors = await Promise.all(
+      chain.map((id) => this.hooks.actor(s, id)),
+    );
+    const assessmentId = randomUUID(),
+      fingerprint = operationFingerprint({
+        actors,
+        callId: op.callId,
+        taskId: op.context.taskId ?? op.callId,
+        category: op.category,
+        operation: op.operation,
+        target: op.target,
+        input: op.fingerprintInput,
+        maximum: l.selection,
+        modeGeneration: l.generation,
+      });
+    const secrets = new Set(await firstSecrets);
+    for (const secret of await this.hooks.secrets(s)) secrets.add(secret);
+    const intent = redact(op.intent, [...secrets]) as CommonJson;
+    const context: CommonOperationContext = {
+      deadline,
+      assessmentId,
+      operationFingerprint: fingerprint,
+      callId: op.callId,
+      taskId: op.context.taskId ?? op.callId,
+      actors,
+      category: op.category,
+      operation: op.operation,
+      target: op.target,
+      ...(op.permissionId ? { permissionId: op.permissionId } : {}),
+      intent,
+      maximum: {
+        operations: [
+          ...new Set(l.selection.map((v) => v.category + ":" + v.operation)),
+        ],
+        resourceIds: [
+          ...new Set(
+            l.selection
+              .filter((v) => v.category === "resource")
+              .map((v) => v.target),
+          ),
+        ],
+        expiresAt: maximumExpiresAt,
+        selection: structuredClone(l.selection),
+      },
+      modeGeneration: l.generation,
+    };
+    const emit = async (
+      outcome: AuditEvent["outcome"],
+      phase: AuditEvent["phase"] = "policy",
+    ) => {
+      for (const v of await this.hooks.secrets(s)) secrets.add(v);
+      const event = redact(
+        {
+          callId: op.callId,
+          taskId: context.taskId,
+          assessmentId,
+          modeGeneration: l.generation,
+          timestamp: new Date().toISOString(),
+          phase,
+          outcome,
+          executionState: "not_started",
+          extensionId: op.packageId,
+          callerIds: chain.slice(0, -1),
+        },
+        [...secrets],
+      ) as AuditEvent;
+      Object.freeze(event.callerIds);
+      await this.hooks.audit(s, Object.freeze(event));
+      await check();
+    };
+    await emit("requested");
+    context.intent = redact(op.intent, [...secrets]) as CommonJson;
+    let decision: ReturnType<typeof parseCommonPolicyDecision>;
+    const controller = new AbortController();
+    const signal = AbortSignal.any([operationSignal, controller.signal]);
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    let abort: (() => void) | undefined;
+    try {
+      const unavailable = new Promise<never>((_, reject) => {
+        abort = () => reject(resourceFailure("POLICY_UNAVAILABLE", op.callId));
+        signal.addEventListener("abort", abort, { once: true });
+        timer = setTimeout(() => controller.abort(), 10_000);
+        if (signal.aborted) abort();
+      });
+      decision = parseCommonPolicyDecision(
+        await Promise.race([
+          this.hooks.evaluate(
+            s,
+            binding,
+            structuredClone(context),
+            signal,
+            check,
+          ),
+          unavailable,
+        ]),
+      );
+      if (
+        decision.assessmentId !== assessmentId ||
+        decision.operationFingerprint !== fingerprint
+      )
+        throw Error();
+    } catch {
+      controller.abort();
+      await emit("failed");
+      throw resourceFailure("POLICY_UNAVAILABLE", op.callId);
+    } finally {
+      clearTimeout(timer);
+      if (abort) signal.removeEventListener("abort", abort);
+    }
+    await check();
+    await emit(decision.decision === "deny" ? "denied" : "allowed");
+    if (decision.decision === "deny")
+      throw resourceFailure("NOT_AUTHORIZED", op.callId);
+    if (decision.decision === "confirm") {
+      await emit("requested", "confirmation");
+      const message = redact(
+        `策略请求确认。Agent：${s.record.name}。调用链：${chain.join(" → ")}。操作：${op.category}/${op.operation}。目标：${op.target}。意图：${JSON.stringify(redact(op.intent, [...secrets]))}。有效期至：${new Date(context.maximum.expiresAt).toISOString()}。允许本次操作吗？`,
+        [...secrets],
+      );
+      const allowed =
+        (await this.hooks.confirm(message, operationSignal)) === true;
+      await emit(allowed ? "allowed" : "denied", "confirmation");
+      if (!allowed) throw resourceFailure("NOT_AUTHORIZED", op.callId);
+    }
+    await check();
+    return {
+      assertCurrent: checkSync,
+      recheck: check,
+      signal: operationSignal,
+    };
+  }
+}

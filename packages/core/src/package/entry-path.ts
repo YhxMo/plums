@@ -16,17 +16,23 @@ export function assertSafeEntryPath(name: string, limits: PackageLimits): void {
     throw importInvalid(`压缩包里的文件名含有非法字符：${shown}`);
   }
   if (name.includes("\\")) {
-    throw importInvalid(`压缩包里的文件路径不能含有反斜杠 \\，请改用 /：${shown}`);
+    throw importInvalid(
+      `压缩包里的文件路径不能含有反斜杠 \\，请改用 /：${shown}`,
+    );
   }
   if (name.startsWith("/") || /^[a-zA-Z]:/.test(name)) {
     throw importInvalid(`压缩包里的文件路径不能是绝对路径：${shown}`);
   }
   const segments = (name.endsWith("/") ? name.slice(0, -1) : name).split("/");
   if (segments.includes("..")) {
-    throw importInvalid(`压缩包里的文件路径不能含有 ../，会跑到包目录之外：${shown}`);
+    throw importInvalid(
+      `压缩包里的文件路径不能含有 ../，会跑到包目录之外：${shown}`,
+    );
   }
   if (segments.some((segment) => segment === "." || segment === "")) {
-    throw importInvalid(`压缩包里的文件路径写法不规范（含有 ./ 或连续的 /）：${shown}`);
+    throw importInvalid(
+      `压缩包里的文件路径写法不规范（含有 ./ 或连续的 /）：${shown}`,
+    );
   }
 }
 
@@ -34,7 +40,9 @@ export function importInvalid(message: string, entry?: string): PlumsError {
   return new PlumsError({
     code: IMPORT_INVALID,
     message,
-    ...(entry === undefined ? {} : { path: `/${entry.replaceAll("~", "~0").replaceAll("/", "~1")}` }),
+    ...(entry === undefined
+      ? {}
+      : { path: `/${entry.replaceAll("~", "~0").replaceAll("/", "~1")}` }),
   });
 }
 

@@ -1,5 +1,5 @@
 import { useEffect, useState, useRef } from "react";
-import type { AgentRecord } from "@plums/host";
+import type { ComponentSource, AgentRecord } from "@plums/host";
 import type { Resource, CatalogItem, AssemblyDraft } from "../shared/types.js";
 import {
   ImportPreview,
@@ -8,6 +8,7 @@ import {
 import { AgentSetup } from "../dialogs/AgentSetup.js";
 import { missingRequiredSettings } from "@plums/sdk/settings";
 import { AssemblyEditor } from "../dialogs/AssemblyEditor.js";
+import { ComponentContentDialog } from "../dialogs/ComponentContentDialog.js";
 import { ComponentConfigDialog } from "../dialogs/ComponentConfigDialog.js";
 import { AgentsView } from "../views/AgentsView.js";
 import { AgentDetailView } from "../views/AgentDetailView.js";
@@ -29,13 +30,14 @@ import { useManagerStore } from "../state/ManagerStore.js";
 import { ComponentsView } from "../views/ComponentsView.js";
 import { componentTab } from "./route.js";
 export function App() {
-  const { state, load, setTab } = useManagerStore();
+  const { state, load, setTab, setTheme } = useManagerStore();
   const {
     agents,
     library,
     resources,
     record,
     dnsMode,
+    theme,
     route,
     loading,
     initialized,
@@ -60,6 +62,7 @@ export function App() {
   const [assembling, setAssembling] = useState<"new" | string>(),
     [setup, setSetup] = useState<string>(),
     [assemblySeed, setAssemblySeed] = useState<AssemblyDraft>();
+  const [contentSource, setContentSource] = useState<ComponentSource>();
   const [developer, setDeveloper] = useDeveloperMode();
   const [search, setSearch] = useState("");
   const [toast, setToast] = useState("");
@@ -80,6 +83,7 @@ export function App() {
   );
   const runtimeAction = useAction();
   const dnsAction = useAction();
+  const themeAction = useAction();
   const auditAction = useAction(selected);
   const selectedRef = useRef({ id: selected });
   if (selectedRef.current.id !== selected)
@@ -94,7 +98,8 @@ export function App() {
     !!editing ||
     !!invocation ||
     !!confirmation ||
-    !!showAudit;
+    !!showAudit ||
+    !!contentSource;
   const modalOpenRef = useRef(modalOpen);
   modalOpenRef.current = modalOpen;
   const { dragging, handlers: dropHandlers } = useFileDrop(
@@ -435,6 +440,13 @@ export function App() {
               onBack={() => setTab("home")}
               onStart={() => void prepareAgent(selected)}
               onEdit={() => setAssembling(selected)}
+              onInspect={(p) =>
+                setContentSource({
+                  kind: "agent",
+                  instanceId: selected,
+                  packageId: p.id,
+                })
+              }
               onConfig={openConfig}
               onAction={componentAction}
               onInvoke={invoke}
@@ -471,6 +483,15 @@ export function App() {
           ) : tab === "settings" ? (
             <SettingsView
               dnsMode={dnsMode}
+              theme={theme}
+              themeBusy={themeAction.pending}
+              themeError={themeAction.error}
+              onTheme={(theme) =>
+                void themeAction.run(async () => {
+                  await window.manager.call("setDesktopTheme", { theme });
+                  setTheme(theme);
+                }, false)
+              }
               busy={dnsAction.pending}
               developer={developer}
               onDeveloper={setDeveloper}
@@ -492,6 +513,9 @@ export function App() {
               developer={developer}
               loading={loading}
               output={output}
+              onInspect={(p) =>
+                setContentSource({ kind: "library", digest: p.digest })
+              }
               onOpen={(id) => void openDetail(id)}
               onUse={async (item) => {
                 const owner = selectedRef.current;
@@ -581,7 +605,13 @@ export function App() {
               });
             }}
             onClose={() => setAssembling(undefined)}
-            onSave={async (name, digests, characterId, startup) => {
+            onSave={async (
+              name,
+              digests,
+              characterId,
+              startup,
+              protocolBindings,
+            ) => {
               const ok = await assemblyAction.run(async () => {
                 if (assembling === "new") {
                   const created = (await window.manager.call("createAgent", {
@@ -589,6 +619,7 @@ export function App() {
                     digests,
                     characterId,
                     startup,
+                    protocolBindings,
                   })) as AgentRecord;
                   await load(created.instanceId).catch(() => {});
                   setTab("status");
@@ -704,6 +735,15 @@ export function App() {
                 );
                 setInvocation(undefined);
               });
+            }}
+          />
+        )}
+        {contentSource && developer && (
+          <ComponentContentDialog
+            source={contentSource}
+            onClose={() => setContentSource(undefined)}
+            onSaved={() => {
+              void load().catch(() => {});
             }}
           />
         )}

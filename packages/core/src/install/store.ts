@@ -2,8 +2,15 @@ import { enginePermissionKey, type EngineTrust } from "./engine-trust.js";
 import { mkdirSync } from "node:fs";
 import path from "node:path";
 import Database from "better-sqlite3";
-import type { Manifest, PackageKind, Permission, PermissionLevel } from "../package/types.js";
+import type {
+  Manifest,
+  PackageKind,
+  Permission,
+  PermissionLevel,
+} from "../package/types.js";
 import { secretKeys, secretRef } from "../secrets.js";
+
+import type { Grant } from "../capabilities/grants.js";
 
 import type { BackgroundConsent } from "../capabilities/types.js";
 export const DATABASE_FILE = "plums.db";
@@ -48,7 +55,12 @@ export interface McpApproval {
   approvedAt: string;
 }
 
-export interface McpApprovalV2 { tool: string; fingerprint: string; permissionId: string; approvedAt: string }
+export interface McpApprovalV2 {
+  tool: string;
+  fingerprint: string;
+  permissionId: string;
+  approvedAt: string;
+}
 
 interface McpApprovalRow {
   tool: string;
@@ -76,7 +88,7 @@ interface ConsentRow {
   format_version: Manifest["formatVersion"];
 }
 
-const SCHEMA_VERSION = 5;
+export const SCHEMA_VERSION = 6;
 
 const INSTALLED_SELECT = `
   SELECT p.id, p.kind, p.name, p.version, p.enabled, p.installed_at, p.enabled_at,
@@ -117,29 +129,35 @@ export class InstallStore {
   }
 
   list(): InstalledPackage[] {
-    const rows = this.statement(`${INSTALLED_SELECT} ORDER BY p.id`).all() as InstalledRow[];
+    const rows = this.statement(
+      `${INSTALLED_SELECT} ORDER BY p.id`,
+    ).all() as InstalledRow[];
     return rows.map(toInstalled);
   }
 
   /** The manifest as it was when the package was imported. */
   getManifest(id: string): Manifest | undefined {
-    const row = this.statement("SELECT manifest FROM packages WHERE id = ?").get(id) as
-      | { manifest: string }
-      | undefined;
-    return row === undefined ? undefined : (JSON.parse(row.manifest) as Manifest);
+    const row = this.statement(
+      "SELECT manifest FROM packages WHERE id = ?",
+    ).get(id) as { manifest: string } | undefined;
+    return row === undefined
+      ? undefined
+      : (JSON.parse(row.manifest) as Manifest);
   }
 
   /** Includes removed fields. Why: deletion can fail after an update changes the manifest. */
   getSecretRefs(id: string): string[] {
-    const row = this.statement("SELECT secret_refs FROM packages WHERE id = ?").get(id) as
-      | { secret_refs: string }
-      | undefined;
-    return row === undefined ? [] : JSON.parse(row.secret_refs) as string[];
+    const row = this.statement(
+      "SELECT secret_refs FROM packages WHERE id = ?",
+    ).get(id) as { secret_refs: string } | undefined;
+    return row === undefined ? [] : (JSON.parse(row.secret_refs) as string[]);
   }
 
   /** All current and historical references, in the same order as list() then getSecretRefs(). */
   listSecretRefs(): string[] {
-    const rows = this.statement("SELECT secret_refs FROM packages ORDER BY id").all() as { secret_refs: string }[];
+    const rows = this.statement(
+      "SELECT secret_refs FROM packages ORDER BY id",
+    ).all() as { secret_refs: string }[];
     return rows.flatMap((row) => JSON.parse(row.secret_refs) as string[]);
   }
 
@@ -154,16 +172,17 @@ export class InstallStore {
     this.statement(
       `INSERT INTO packages (id, kind, name, version, manifest, enabled, installed_at, enabled_at, secret_refs)
        VALUES (?, ?, ?, ?, ?, 0, ?, NULL, ?)`,
-    )
-      .run(
-        manifest.id,
-        manifest.kind,
-        manifest.name,
-        manifest.version,
-        JSON.stringify(manifest),
-        new Date().toISOString(),
-        JSON.stringify(secretKeys(manifest).map((key) => secretRef(manifest.id, key))),
-      );
+    ).run(
+      manifest.id,
+      manifest.kind,
+      manifest.name,
+      manifest.version,
+      JSON.stringify(manifest),
+      new Date().toISOString(),
+      JSON.stringify(
+        secretKeys(manifest).map((key) => secretRef(manifest.id, key)),
+      ),
+    );
   }
 
   /**
@@ -174,17 +193,33 @@ export class InstallStore {
     this.connection().transaction(() => {
       // Why retain old refs in this transaction: once the manifest changes, it cannot tell
       // redaction or uninstall which removed values still need to be read or deleted.
-      const refs = [...new Set([
-        ...this.getSecretRefs(manifest.id),
-        ...secretKeys(manifest).map((key) => secretRef(manifest.id, key)),
-      ])];
-      this.statement("UPDATE packages SET kind = ?, name = ?, version = ?, manifest = ?, secret_refs = ? WHERE id = ?")
-        .run(manifest.kind, manifest.name, manifest.version, JSON.stringify(manifest), JSON.stringify(refs), manifest.id);
-      this.statement("DELETE FROM mcp_tools_v2 WHERE server_id = ?").run(manifest.id);
+      const refs = [
+        ...new Set([
+          ...this.getSecretRefs(manifest.id),
+          ...secretKeys(manifest).map((key) => secretRef(manifest.id, key)),
+        ]),
+      ];
+      this.statement(
+        "UPDATE packages SET kind = ?, name = ?, version = ?, manifest = ?, secret_refs = ? WHERE id = ?",
+      ).run(
+        manifest.kind,
+        manifest.name,
+        manifest.version,
+        JSON.stringify(manifest),
+        JSON.stringify(refs),
+        manifest.id,
+      );
+      this.statement("DELETE FROM mcp_tools_v2 WHERE server_id = ?").run(
+        manifest.id,
+      );
       this.invalidatePendingEngineTrust();
       for (const trust of this.listEngineTrust(manifest.id)) {
-        const permission = manifest.permissions.find(p => "kind" in p && p.kind === "engine" && p.target === trust.engineId);
-        if (!permission || enginePermissionKey(permission) !== trust.permission) this.removeEngineTrust(manifest.id, trust.engineId);
+        const permission = manifest.permissions.find(
+          (p) =>
+            "kind" in p && p.kind === "engine" && p.target === trust.engineId,
+        );
+        if (!permission || enginePermissionKey(permission) !== trust.permission)
+          this.removeEngineTrust(manifest.id, trust.engineId);
       }
       if (consent !== undefined) {
         this.saveConsent(consent);
@@ -197,14 +232,19 @@ export class InstallStore {
     this.statement(
       `INSERT OR REPLACE INTO consents (package_id, version, permissions, granted_at, format_version)
        VALUES (?, ?, ?, ?, ?)`,
-    )
-      .run(record.packageId, record.version, JSON.stringify(record.permissions), record.grantedAt, record.formatVersion);
+    ).run(
+      record.packageId,
+      record.version,
+      JSON.stringify(record.permissions),
+      record.grantedAt,
+      record.formatVersion,
+    );
   }
 
   getConsent(id: string): ConsentRecord | undefined {
-    const row = this.statement("SELECT * FROM consents WHERE package_id = ?").get(id) as
-      | ConsentRow
-      | undefined;
+    const row = this.statement(
+      "SELECT * FROM consents WHERE package_id = ?",
+    ).get(id) as ConsentRow | undefined;
     if (row === undefined) {
       return undefined;
     }
@@ -220,10 +260,9 @@ export class InstallStore {
   setEnabled(id: string, enabled: boolean): void {
     this.bumpSettingsRevision(id);
     if (enabled) {
-      this.statement("UPDATE packages SET enabled = 1, enabled_at = ? WHERE id = ?").run(
-        new Date().toISOString(),
-        id,
-      );
+      this.statement(
+        "UPDATE packages SET enabled = 1, enabled_at = ? WHERE id = ?",
+      ).run(new Date().toISOString(), id);
     } else {
       this.statement("UPDATE packages SET enabled = 0 WHERE id = ?").run(id);
     }
@@ -237,7 +276,9 @@ export class InstallStore {
       this.statement("DELETE FROM mcp_tools_v2 WHERE server_id = ?").run(id);
       this.revokeBackgroundConsents(id);
       this.removeEngineTrust(id);
-      this.statement("DELETE FROM settings_revisions WHERE package_id = ?").run(id);
+      this.statement("DELETE FROM settings_revisions WHERE package_id = ?").run(
+        id,
+      );
       this.statement("DELETE FROM consents WHERE package_id = ?").run(id);
       this.statement("DELETE FROM packages WHERE id = ?").run(id);
     })();
@@ -245,9 +286,15 @@ export class InstallStore {
 
   /** Approved MCP tools of one server (a connector id or `manual:<name>`), ordered by tool name. */
   listMcpApprovals(serverId: string): McpApproval[] {
-    const rows = this.statement("SELECT tool, fingerprint, level, approved_at FROM mcp_tools WHERE server_id = ? ORDER BY tool")
-      .all(serverId) as McpApprovalRow[];
-    return rows.map((r) => ({ tool: r.tool, fingerprint: r.fingerprint, level: r.level, approvedAt: r.approved_at }));
+    const rows = this.statement(
+      "SELECT tool, fingerprint, level, approved_at FROM mcp_tools WHERE server_id = ? ORDER BY tool",
+    ).all(serverId) as McpApprovalRow[];
+    return rows.map((r) => ({
+      tool: r.tool,
+      fingerprint: r.fingerprint,
+      level: r.level,
+      approvedAt: r.approved_at,
+    }));
   }
 
   /**
@@ -257,9 +304,14 @@ export class InstallStore {
    * Why one transaction: the drop and the list it was compared with commit together.
    * Why empty deletes: a tool that left the list must not keep a consent that returns with the name.
    */
-  dropMcpApprovalsExcept(serverId: string, keep: readonly string[]): McpApproval[] {
+  dropMcpApprovalsExcept(
+    serverId: string,
+    keep: readonly string[],
+  ): McpApproval[] {
     const db = this.connection();
-    const removeAll = this.statement("DELETE FROM mcp_tools WHERE server_id = ?");
+    const removeAll = this.statement(
+      "DELETE FROM mcp_tools WHERE server_id = ?",
+    );
     return db.transaction(() => {
       const rows = this.listMcpApprovals(serverId);
       if (keep.length === 0) {
@@ -267,7 +319,9 @@ export class InstallStore {
       } else {
         const marks = keep.map(() => "?").join(", ");
         // Tool counts change the SQL text; keep these statements out of the fixed cache.
-        db.prepare(`DELETE FROM mcp_tools WHERE server_id = ? AND tool NOT IN (${marks})`).run(serverId, ...keep);
+        db.prepare(
+          `DELETE FROM mcp_tools WHERE server_id = ? AND tool NOT IN (${marks})`,
+        ).run(serverId, ...keep);
       }
       return rows;
     })();
@@ -287,18 +341,40 @@ export class InstallStore {
   }
 
   listMcpV2(serverId: string): McpApprovalV2[] {
-    return this.statement("SELECT tool, fingerprint, permission_id AS permissionId, approved_at AS approvedAt FROM mcp_tools_v2 WHERE server_id = ? ORDER BY tool").all(serverId) as McpApprovalV2[];
+    return this.statement(
+      "SELECT tool, fingerprint, permission_id AS permissionId, approved_at AS approvedAt FROM mcp_tools_v2 WHERE server_id = ? ORDER BY tool",
+    ).all(serverId) as McpApprovalV2[];
   }
   saveMcpV2(serverId: string, approvals: McpApprovalV2[]): void {
-    const insert = this.statement("INSERT OR REPLACE INTO mcp_tools_v2 (server_id, tool, fingerprint, permission_id, approved_at) VALUES (?, ?, ?, ?, ?)");
-    this.connection().transaction(() => { for (const a of approvals) insert.run(serverId, a.tool, a.fingerprint, a.permissionId, a.approvedAt); })();
+    const insert = this.statement(
+      "INSERT OR REPLACE INTO mcp_tools_v2 (server_id, tool, fingerprint, permission_id, approved_at) VALUES (?, ?, ?, ?, ?)",
+    );
+    this.connection().transaction(() => {
+      for (const a of approvals)
+        insert.run(
+          serverId,
+          a.tool,
+          a.fingerprint,
+          a.permissionId,
+          a.approvedAt,
+        );
+    })();
   }
-  checkMcpV2(serverId: string, tools: { name: string; fingerprint: string }[]): McpApprovalV2[] {
+  checkMcpV2(
+    serverId: string,
+    tools: { name: string; fingerprint: string }[],
+  ): McpApprovalV2[] {
     return this.connection().transaction(() => {
       const rows = this.listMcpV2(serverId);
       for (const row of rows) {
-        if (!tools.some((t) => t.name === row.tool && t.fingerprint === row.fingerprint)) {
-          this.statement("DELETE FROM mcp_tools_v2 WHERE server_id = ? AND tool = ?").run(serverId, row.tool);
+        if (
+          !tools.some(
+            (t) => t.name === row.tool && t.fingerprint === row.fingerprint,
+          )
+        ) {
+          this.statement(
+            "DELETE FROM mcp_tools_v2 WHERE server_id = ? AND tool = ?",
+          ).run(serverId, row.tool);
         }
       }
       return rows;
@@ -306,71 +382,182 @@ export class InstallStore {
   }
 
   listBackgroundConsents(packageId?: string): BackgroundConsent[] {
-    const rows = (packageId === undefined
-      ? this.statement("SELECT record FROM background_consents ORDER BY grant_key").all()
-      : this.statement("SELECT record FROM background_consents WHERE package_id = ? ORDER BY grant_key").all(packageId)) as { record: string }[];
+    const rows = (
+      packageId === undefined
+        ? this.statement(
+            "SELECT record FROM background_consents ORDER BY grant_key",
+          ).all()
+        : this.statement(
+            "SELECT record FROM background_consents WHERE package_id = ? ORDER BY grant_key",
+          ).all(packageId)
+    ) as { record: string }[];
     return rows.map((row) => JSON.parse(row.record) as BackgroundConsent);
   }
 
+  listGrants(ownerId?: string): Grant[] {
+    const rows = (
+      ownerId === undefined
+        ? this.statement(
+            "SELECT record FROM authority_grants ORDER BY id",
+          ).all()
+        : this.statement(
+            "SELECT record FROM authority_grants WHERE owner_id = ? ORDER BY id",
+          ).all(ownerId)
+    ) as { record: string }[];
+    return rows.map((r) => JSON.parse(r.record) as Grant);
+  }
+  grantRevision(): number {
+    return (
+      (
+        this.statement(
+          "SELECT revision FROM authority_grant_revision WHERE id = 1",
+        ).get() as { revision: number } | undefined
+      )?.revision ?? 0
+    );
+  }
+  saveGrantIfCurrent(grant: Grant, revision: number): boolean {
+    return this.connection().transaction(() => {
+      if (this.grantRevision() !== revision) return false;
+      this.statement(
+        "INSERT INTO authority_grants (id, owner_id, record) VALUES (?,?,?)",
+      ).run(grant.id, grant.ownerId, JSON.stringify(grant));
+      return true;
+    })();
+  }
+  revokeGrant(id: string): void {
+    this.connection().transaction(() => {
+      this.statement(
+        "INSERT INTO authority_grant_revision (id,revision) VALUES (1,1) ON CONFLICT(id) DO UPDATE SET revision = revision + 1",
+      ).run();
+      const grant = this.listGrants().find((g) => g.id === id);
+      if (grant && !grant.revokedAt) {
+        grant.revokedAt = new Date().toISOString();
+        this.statement(
+          "UPDATE authority_grants SET record = ? WHERE id = ?",
+        ).run(JSON.stringify(grant), id);
+      }
+    })();
+  }
+
   listEngineTrust(packageId: string): EngineTrust[] {
-    return (this.statement("SELECT record FROM engine_trust WHERE package_id = ?").all(packageId) as {record:string}[]).map(r => JSON.parse(r.record));
+    return (
+      this.statement(
+        "SELECT record FROM engine_trust WHERE package_id = ?",
+      ).all(packageId) as { record: string }[]
+    ).map((r) => JSON.parse(r.record));
   }
   engineTrustRevision(): number {
-    return (this.statement("SELECT revision FROM engine_trust_revision WHERE id = 1").get() as {revision:number} | undefined)?.revision ?? 0;
+    return (
+      (
+        this.statement(
+          "SELECT revision FROM engine_trust_revision WHERE id = 1",
+        ).get() as { revision: number } | undefined
+      )?.revision ?? 0
+    );
   }
   invalidatePendingEngineTrust(): void {
-    this.statement("INSERT INTO engine_trust_revision (id,revision) VALUES (1,1) ON CONFLICT(id) DO UPDATE SET revision = revision + 1").run();
+    this.statement(
+      "INSERT INTO engine_trust_revision (id,revision) VALUES (1,1) ON CONFLICT(id) DO UPDATE SET revision = revision + 1",
+    ).run();
   }
   saveEngineTrust(record: EngineTrust, revision: number): boolean {
     return this.connection().transaction(() => {
       if (this.engineTrustRevision() !== revision) return false;
-      this.statement("INSERT OR REPLACE INTO engine_trust (package_id,engine_id,record) VALUES (?,?,?)").run(record.packageId, record.engineId, JSON.stringify(record));
+      this.statement(
+        "INSERT OR REPLACE INTO engine_trust (package_id,engine_id,record) VALUES (?,?,?)",
+      ).run(record.packageId, record.engineId, JSON.stringify(record));
       return true;
     })();
   }
   removeEngineTrust(packageId: string, engineId?: string): void {
     this.connection().transaction(() => {
       this.invalidatePendingEngineTrust();
-      if (engineId === undefined) this.statement("DELETE FROM engine_trust WHERE package_id = ?").run(packageId);
-      else this.statement("DELETE FROM engine_trust WHERE package_id = ? AND engine_id = ?").run(packageId, engineId);
+      if (engineId === undefined)
+        this.statement("DELETE FROM engine_trust WHERE package_id = ?").run(
+          packageId,
+        );
+      else
+        this.statement(
+          "DELETE FROM engine_trust WHERE package_id = ? AND engine_id = ?",
+        ).run(packageId, engineId);
     })();
   }
 
   settingsRevision(id: string): number {
-    return (this.statement("SELECT revision FROM settings_revisions WHERE package_id = ?").get(id) as { revision: number } | undefined)?.revision ?? 0;
+    return (
+      (
+        this.statement(
+          "SELECT revision FROM settings_revisions WHERE package_id = ?",
+        ).get(id) as { revision: number } | undefined
+      )?.revision ?? 0
+    );
   }
   bumpSettingsRevision(id: string): void {
-    this.statement("INSERT INTO settings_revisions (package_id, revision) VALUES (?, 1) ON CONFLICT(package_id) DO UPDATE SET revision = revision + 1").run(id);
+    this.statement(
+      "INSERT INTO settings_revisions (package_id, revision) VALUES (?, 1) ON CONFLICT(package_id) DO UPDATE SET revision = revision + 1",
+    ).run(id);
   }
   saveBackgroundConsent(record: BackgroundConsent): void {
-    const key = JSON.stringify([record.extensionId, record.permissionId, record.instanceId, record.operation, record.binding]);
-    this.statement("INSERT OR REPLACE INTO background_consents (grant_key, package_id, record) VALUES (?, ?, ?)")
-      .run(key, record.extensionId, JSON.stringify(record));
+    const key = JSON.stringify([
+      record.extensionId,
+      record.permissionId,
+      record.instanceId,
+      record.operation,
+      record.binding,
+    ]);
+    this.statement(
+      "INSERT OR REPLACE INTO background_consents (grant_key, package_id, record) VALUES (?, ?, ?)",
+    ).run(key, record.extensionId, JSON.stringify(record));
   }
   backgroundRevision(): number {
-    return (this.statement("SELECT revision FROM background_revisions WHERE package_id = ''").get() as { revision: number } | undefined)?.revision ?? 0;
+    return (
+      (
+        this.statement(
+          "SELECT revision FROM background_revisions WHERE package_id = ''",
+        ).get() as { revision: number } | undefined
+      )?.revision ?? 0
+    );
   }
-  saveBackgroundConsentIfCurrent(record: BackgroundConsent, revision: number): boolean {
+  saveBackgroundConsentIfCurrent(
+    record: BackgroundConsent,
+    revision: number,
+  ): boolean {
     return this.connection().transaction(() => {
       if (this.backgroundRevision() !== revision) return false;
-      this.saveBackgroundConsent(record); return true;
+      this.saveBackgroundConsent(record);
+      return true;
     })();
   }
   revokeBackgroundConsents(packageId: string, binding?: string): void {
     this.connection().transaction(() => {
       // One monotonic revocation epoch prevents uninstall/reinstall from reviving pending grants,
       // without retaining a deleted package's identity as a database tombstone.
-      this.statement("INSERT INTO background_revisions (package_id, revision) VALUES ('', 1) ON CONFLICT(package_id) DO UPDATE SET revision = revision + 1").run();
-    if (binding === undefined) {
-      this.statement("DELETE FROM background_consents WHERE package_id = ?").run(packageId);
-    } else {
-      const remove = this.statement("DELETE FROM background_consents WHERE grant_key = ?");
-      this.connection().transaction(() => {
-        for (const record of this.listBackgroundConsents(packageId)) if (record.binding === binding) {
-          remove.run(JSON.stringify([record.extensionId, record.permissionId, record.instanceId, record.operation, record.binding]));
-        }
-      })();
-    }
+      this.statement(
+        "INSERT INTO background_revisions (package_id, revision) VALUES ('', 1) ON CONFLICT(package_id) DO UPDATE SET revision = revision + 1",
+      ).run();
+      if (binding === undefined) {
+        this.statement(
+          "DELETE FROM background_consents WHERE package_id = ?",
+        ).run(packageId);
+      } else {
+        const remove = this.statement(
+          "DELETE FROM background_consents WHERE grant_key = ?",
+        );
+        this.connection().transaction(() => {
+          for (const record of this.listBackgroundConsents(packageId))
+            if (record.binding === binding) {
+              remove.run(
+                JSON.stringify([
+                  record.extensionId,
+                  record.permissionId,
+                  record.instanceId,
+                  record.operation,
+                  record.binding,
+                ]),
+              );
+            }
+        })();
+      }
     })();
   }
 
@@ -410,9 +597,9 @@ function migrate(db: Database.Database): void {
       `The data directory was written by a newer Plums (database version ${current}, this build reads ${SCHEMA_VERSION}).`,
     );
   }
-    db.transaction(() => {
-      if (current < 1) {
-        db.exec(`
+  db.transaction(() => {
+    if (current < 1) {
+      db.exec(`
           CREATE TABLE packages (
             id           TEXT PRIMARY KEY,
             kind         TEXT NOT NULL,
@@ -430,9 +617,10 @@ function migrate(db: Database.Database): void {
             granted_at  TEXT NOT NULL
           );
         `);
-      }
-      // Why a new table and not a column on consents: hand-added servers have no package row.
-      if (current < 2) db.exec(`
+    }
+    // Why a new table and not a column on consents: hand-added servers have no package row.
+    if (current < 2)
+      db.exec(`
         CREATE TABLE mcp_tools (
           server_id   TEXT NOT NULL,
           tool        TEXT NOT NULL,
@@ -442,37 +630,71 @@ function migrate(db: Database.Database): void {
           PRIMARY KEY (server_id, tool)
         );
       `);
-      if (current < 3) {
-        // Why refs rather than values: the SecretStore remains the only place for secret values.
-        db.exec("ALTER TABLE packages ADD COLUMN secret_refs TEXT NOT NULL DEFAULT '[]'");
-        const rows = db.prepare("SELECT id, manifest FROM packages").all() as { id: string; manifest: string }[];
-        const save = db.prepare("UPDATE packages SET secret_refs = ? WHERE id = ?");
-        for (const row of rows) {
-          const manifest = JSON.parse(row.manifest) as Manifest;
-          save.run(JSON.stringify(secretKeys(manifest).map((key) => secretRef(row.id, key))), row.id);
-        }
+    if (current < 3) {
+      // Why refs rather than values: the SecretStore remains the only place for secret values.
+      db.exec(
+        "ALTER TABLE packages ADD COLUMN secret_refs TEXT NOT NULL DEFAULT '[]'",
+      );
+      const rows = db.prepare("SELECT id, manifest FROM packages").all() as {
+        id: string;
+        manifest: string;
+      }[];
+      const save = db.prepare(
+        "UPDATE packages SET secret_refs = ? WHERE id = ?",
+      );
+      for (const row of rows) {
+        const manifest = JSON.parse(row.manifest) as Manifest;
+        save.run(
+          JSON.stringify(
+            secretKeys(manifest).map((key) => secretRef(row.id, key)),
+          ),
+          row.id,
+        );
       }
-      if (current < 4) {
-        // Keep the permissions JSON intact. Persist its format so old levels cannot consent to new capabilities.
-        db.exec("ALTER TABLE consents ADD COLUMN format_version TEXT NOT NULL DEFAULT '1.0'");
-        const rows = db.prepare("SELECT c.package_id, p.manifest FROM consents c JOIN packages p ON p.id = c.package_id")
-          .all() as { package_id: string; manifest: string }[];
-        const save = db.prepare("UPDATE consents SET format_version = ? WHERE package_id = ?");
-        for (const row of rows) save.run((JSON.parse(row.manifest) as Manifest).formatVersion, row.package_id);
-      }
-      if (current < 5) db.exec(`
+    }
+    if (current < 4) {
+      // Keep the permissions JSON intact. Persist its format so old levels cannot consent to new capabilities.
+      db.exec(
+        "ALTER TABLE consents ADD COLUMN format_version TEXT NOT NULL DEFAULT '1.0'",
+      );
+      const rows = db
+        .prepare(
+          "SELECT c.package_id, p.manifest FROM consents c JOIN packages p ON p.id = c.package_id",
+        )
+        .all() as { package_id: string; manifest: string }[];
+      const save = db.prepare(
+        "UPDATE consents SET format_version = ? WHERE package_id = ?",
+      );
+      for (const row of rows)
+        save.run(
+          (JSON.parse(row.manifest) as Manifest).formatVersion,
+          row.package_id,
+        );
+    }
+    if (current < 5)
+      db.exec(`
         CREATE TABLE mcp_tools_v2 (
           server_id TEXT NOT NULL, tool TEXT NOT NULL, fingerprint TEXT NOT NULL,
           permission_id TEXT NOT NULL, approved_at TEXT NOT NULL,
           PRIMARY KEY (server_id, tool)
         );
       `);
-      // Additive service state leaves the public schema-5 records and legacy readers intact.
-      db.exec("CREATE TABLE IF NOT EXISTS background_consents (grant_key TEXT PRIMARY KEY, package_id TEXT NOT NULL, record TEXT NOT NULL); CREATE TABLE IF NOT EXISTS background_revisions (package_id TEXT PRIMARY KEY, revision INTEGER NOT NULL)");
-      db.exec("CREATE TABLE IF NOT EXISTS settings_revisions (package_id TEXT PRIMARY KEY, revision INTEGER NOT NULL)");
-      db.exec("CREATE TABLE IF NOT EXISTS engine_trust (package_id TEXT NOT NULL, engine_id TEXT NOT NULL, record TEXT NOT NULL, PRIMARY KEY(package_id,engine_id)); CREATE TABLE IF NOT EXISTS engine_trust_revision (id INTEGER PRIMARY KEY CHECK(id = 1), revision INTEGER NOT NULL)");
-      if (current < SCHEMA_VERSION) db.pragma(`user_version = ${SCHEMA_VERSION}`);
-    })();
+    // Additive service state leaves the public schema-5 records and legacy readers intact.
+    db.exec(
+      "CREATE TABLE IF NOT EXISTS background_consents (grant_key TEXT PRIMARY KEY, package_id TEXT NOT NULL, record TEXT NOT NULL); CREATE TABLE IF NOT EXISTS background_revisions (package_id TEXT PRIMARY KEY, revision INTEGER NOT NULL)",
+    );
+    db.exec(
+      "CREATE TABLE IF NOT EXISTS settings_revisions (package_id TEXT PRIMARY KEY, revision INTEGER NOT NULL)",
+    );
+    db.exec(
+      "CREATE TABLE IF NOT EXISTS engine_trust (package_id TEXT NOT NULL, engine_id TEXT NOT NULL, record TEXT NOT NULL, PRIMARY KEY(package_id,engine_id)); CREATE TABLE IF NOT EXISTS engine_trust_revision (id INTEGER PRIMARY KEY CHECK(id = 1), revision INTEGER NOT NULL)",
+    );
+    if (current < 6)
+      db.exec(
+        "CREATE TABLE IF NOT EXISTS authority_grants (id TEXT PRIMARY KEY, owner_id TEXT NOT NULL, record TEXT NOT NULL); CREATE TABLE IF NOT EXISTS authority_grant_revision (id INTEGER PRIMARY KEY CHECK(id = 1), revision INTEGER NOT NULL)",
+      );
+    if (current < SCHEMA_VERSION) db.pragma(`user_version = ${SCHEMA_VERSION}`);
+  })();
 }
 
 function toInstalled(row: InstalledRow): InstalledPackage {

@@ -1,4 +1,8 @@
-import { randomUUID } from "node:crypto";
+import { resolveProtocol } from "./protocol-bindings.js";
+import { engineGrant, type GrantConfirm } from "./engine-grants.js";
+import { connectionBindings } from "./connection-service.js";
+import type { GrantUse } from "@plums/core";
+import { createHash, randomUUID } from "node:crypto";
 import { mkdir, writeFile, rm } from "node:fs/promises";
 import path from "node:path";
 import {
@@ -44,12 +48,29 @@ export async function confirmOnce(
   }
 }
 interface Options {
+  canRun?(s: Session): Promise<void>;
   nodePath?: string;
   library: ComponentLibrary;
   confirm: Confirm;
+  grantConfirm?: GrantConfirm;
   audit(id: string, event: AuditEvent): Promise<void>;
   event(id: string, pkg: string, topic: string, data: unknown): void;
   sanitize(s: Session, value: unknown): Promise<unknown>;
+  cleanupRuntime(s: Session, scope: string): Promise<void>;
+  protocolStatus(
+    id: string,
+    owner: string,
+    requirementId: string,
+  ): Promise<unknown>;
+  invokeProtocol(
+    id: string,
+    owner: string,
+    requirementId: string,
+    input: unknown,
+    signal: AbortSignal,
+    authorization: { grantId: string; grantScope: GrantUse } | undefined,
+    engineScope: string,
+  ): Promise<unknown>;
   invoke(
     id: string,
     owner: string,
@@ -58,6 +79,8 @@ interface Options {
     name: string,
     input: unknown,
     signal: AbortSignal,
+    authorization: { grantId: string; grantScope: GrantUse } | undefined,
+    engineScope: string,
   ): Promise<unknown>;
 }
 export class EngineCoordinator {
@@ -65,6 +88,9 @@ export class EngineCoordinator {
   private hooks = new Map<string, EngineHooks>();
   constructor(private options: Options) {
     this.manager = new EngineManager(options.nodePath);
+  }
+  hasActive(s: Session) {
+    return this.manager.activeFor(s.record.instanceId + "/");
   }
   private key(s: Session, pkg: string, engine: string): string {
     return `${s.record.instanceId}/${pkg}/${engine}`;
@@ -134,10 +160,24 @@ export class EngineCoordinator {
       reason,
     });
   }
-  private createHooks(s: Session, pkg: string, engine: string): EngineHooks {
+  private createHooks(
+    s: Session,
+    pkg: string,
+    engine: string,
+    startup?: {
+      signal: AbortSignal;
+      assertActive: () => Promise<void>;
+      active: boolean;
+    },
+  ): EngineHooks {
     const signal = s.engineController.signal;
     let snapshotDir: string | undefined;
     const active = async () => {
+      await this.options.canRun?.(s);
+      if (startup?.active) {
+        if (startup.signal.aborted) denied();
+        await startup.assertActive();
+      }
       if (signal.aborted) denied();
       await this.declaration(s, pkg, engine);
       if (!(await s.core.engineTrustSnapshot(pkg, engine)).trusted) denied();
@@ -146,11 +186,19 @@ export class EngineCoordinator {
     return {
       active,
       cleanup: async () => {
-        if (snapshotDir)
-          await rm(snapshotDir, { recursive: true, force: true });
+        try {
+          await this.options.cleanupRuntime(s, `${pkg}/${engine}`);
+        } finally {
+          if (snapshotDir)
+            await rm(snapshotDir, { recursive: true, force: true });
+        }
       },
       prepare: async (managerSignal) => {
-        const combined = AbortSignal.any([signal, managerSignal]),
+        const combined = AbortSignal.any([
+            signal,
+            managerSignal,
+            ...(startup ? [startup.signal] : []),
+          ]),
           d = await this.declaration(s, pkg, engine);
         if (!d.platforms.includes(`${process.platform}-${process.arch}`))
           denied();
@@ -199,12 +247,49 @@ export class EngineCoordinator {
         }
         await active();
         if (combined.aborted) denied();
-        return { entry: path.join(snapshotDir, d.entry), cwd: snapshotDir };
+        const identity = createHash("sha256")
+          .update(JSON.stringify([pkg, snapshot.installedAt, engine]))
+          .digest("hex");
+        const dataDir = path.join(
+          s.core.dataDir,
+          "..",
+          "engine-data",
+          identity,
+        );
+        await mkdir(dataDir, { recursive: true, mode: 0o700 });
+        return {
+          entry: path.join(snapshotDir, d.entry),
+          cwd: snapshotDir,
+          context: {
+            agentId: s.record.instanceId,
+            componentId: pkg,
+            engineId: engine,
+            dataDir,
+          },
+        };
       },
       callback: async (method, input, engineSignal) => {
         const a = input as Record<string, unknown>,
           combined = AbortSignal.any([signal, engineSignal]);
         if (!a || typeof a !== "object" || Array.isArray(a)) denied();
+        if (method === "host.grant") {
+          const d = await this.declaration(s, pkg, engine);
+          return engineGrant(
+            s,
+            pkg,
+            d,
+            a,
+            combined,
+            this.options.grantConfirm,
+            async (event) =>
+              this.options.audit(
+                s.record.instanceId,
+                Object.freeze(
+                  (await this.options.sanitize(s, event)) as AuditEvent,
+                ),
+              ),
+          );
+        }
         if (method === "host.confirm") {
           if (
             typeof a.message !== "string" ||
@@ -221,22 +306,80 @@ export class EngineCoordinator {
             combined,
           );
         }
+        if (method === "host.protocolStatus") {
+          if (typeof a.requirementId !== "string") denied();
+          return this.options.protocolStatus(
+            s.record.instanceId,
+            pkg,
+            a.requirementId,
+          );
+        }
+        const selection =
+          method === "host.invokeProtocol" &&
+          typeof a.requirementId === "string"
+            ? await resolveProtocol(s.core, s.record, pkg, a.requirementId)
+            : undefined;
+        const targetId = selection?.providerId ?? a.packageId;
         const p = await s.core.getPackage(pkg);
         if (
-          typeof a.packageId !== "string" ||
-          !p.manifest.dependencies.some((d) => d.id === a.packageId) ||
-          !["commands", "tools", "connectors"].includes(a.kind as string) ||
-          typeof a.name !== "string"
+          typeof targetId !== "string" ||
+          (!selection &&
+            (!p.manifest.dependencies.some((d) => d.id === targetId) ||
+              !["commands", "tools", "connectors"].includes(a.kind as string) ||
+              typeof a.name !== "string"))
         )
           denied();
+        let authorization:
+          | { grantId: string; grantScope: GrantUse }
+          | undefined;
+        if (a.grantId !== undefined) {
+          if (
+            typeof a.grantId !== "string" ||
+            !a.grantScope ||
+            typeof a.grantScope !== "object"
+          )
+            denied();
+          const use = a.grantScope as GrantUse;
+          const grant = await s.core.checkGrant(a.grantId, pkg, use);
+          const reachable = await connectionBindings(
+            s.core,
+            targetId,
+            s.record,
+          );
+          if (
+            !grant ||
+            grant.engineId !== engine ||
+            !reachable.some((target) =>
+              grant.scope.services.some(
+                (v) =>
+                  v.packageId === target.packageId &&
+                  v.binding === target.binding,
+              ),
+            )
+          )
+            denied();
+          authorization = { grantId: grant.id, grantScope: use };
+        }
+        if (selection)
+          return this.options.invokeProtocol(
+            s.record.instanceId,
+            pkg,
+            selection.requirementId,
+            a.input,
+            combined,
+            authorization,
+            `${pkg}/${engine}`,
+          );
         return this.options.invoke(
           s.record.instanceId,
           pkg,
-          a.packageId,
+          targetId,
           a.kind as "commands" | "tools" | "connectors",
-          a.name,
+          a.name as string,
           a.input,
           combined,
+          authorization,
+          `${pkg}/${engine}`,
         );
       },
       event: (topic, data) =>
@@ -254,22 +397,43 @@ export class EngineCoordinator {
             action === "start" ? "not_started" : "completed",
           );
         } finally {
-          if (action !== "start" && snapshotDir)
-            await rm(snapshotDir, { recursive: true, force: true });
+          if (action !== "start") {
+            try {
+              await this.options.cleanupRuntime(s, `${pkg}/${engine}`);
+            } finally {
+              if (snapshotDir)
+                await rm(snapshotDir, { recursive: true, force: true });
+            }
+          }
         }
       },
     };
   }
-  async start(s: Session, pkg: string, engine: string): Promise<EngineStatus> {
+  async start(
+    s: Session,
+    pkg: string,
+    engine: string,
+    scope?: { signal: AbortSignal; assertActive: () => Promise<void> },
+  ): Promise<EngineStatus> {
+    await scope?.assertActive();
     await this.declaration(s, pkg, engine);
     const key = this.key(s, pkg, engine);
     let hooks = this.hooks.get(key);
+    let startup:
+      | {
+          signal: AbortSignal;
+          assertActive: () => Promise<void>;
+          active: boolean;
+        }
+      | undefined;
     if (!hooks || ["stopped", "crashed"].includes(this.manager.state(key))) {
-      hooks = this.createHooks(s, pkg, engine);
+      startup = scope ? { ...scope, active: true } : undefined;
+      hooks = this.createHooks(s, pkg, engine, startup);
       this.hooks.set(key, hooks);
     }
     try {
       await this.manager.start(key, hooks);
+      if (startup) startup.active = false;
       return this.status(s, pkg, engine);
     } catch (error) {
       if (this.hooks.get(key) === hooks) this.hooks.delete(key);

@@ -1,4 +1,9 @@
-import type { Dependency, PackageKind, PackageLimits, Permission } from "./types.js";
+import type {
+  Dependency,
+  PackageKind,
+  PackageLimits,
+  Permission,
+} from "./types.js";
 import { DEFAULT_PACKAGE_LIMITS } from "./types.js";
 import { validatePackage } from "./validate.js";
 

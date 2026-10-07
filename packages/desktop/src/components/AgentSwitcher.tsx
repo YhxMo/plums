@@ -1,4 +1,5 @@
 import type { AgentRecord } from "@plums/host";
+import { SelectMenu } from "./SelectMenu.js";
 export function AgentSwitcher({
   agents,
   selected,
@@ -10,22 +11,21 @@ export function AgentSwitcher({
 }) {
   if (!agents.length) return null;
   return (
-    <label className="agent-switcher">
-      <span className="mini-avatar" aria-hidden="true">
-        {agents.find((a) => a.instanceId === selected)?.name.slice(0, 1)}
-      </span>
-      <select
-        data-testid="agent-switcher"
-        aria-label="当前 Agent"
-        value={selected}
-        onChange={(event) => onChange(event.target.value)}
-      >
-        {agents.map((agent) => (
-          <option key={agent.instanceId} value={agent.instanceId}>
-            {agent.name}
-          </option>
-        ))}
-      </select>
-    </label>
+    <SelectMenu
+      className="agent-switcher"
+      testId="agent-switcher"
+      label="当前 Agent"
+      value={selected}
+      onChange={onChange}
+      options={agents.map((agent) => ({
+        value: agent.instanceId,
+        label: agent.name,
+        leading: (
+          <span className="mini-avatar" aria-hidden="true">
+            {agent.name.slice(0, 1)}
+          </span>
+        ),
+      }))}
+    />
   );
 }

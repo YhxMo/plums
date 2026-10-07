@@ -17,7 +17,12 @@ import {
 } from "@plums/core";
 import { afterEach, describe, expect, it } from "vitest";
 import { serializeError } from "./contract-helpers.js";
-import { expectPlumsError, listAll, makeCore, manifestZip } from "./package-helpers.js";
+import {
+  expectPlumsError,
+  listAll,
+  makeCore,
+  manifestZip,
+} from "./package-helpers.js";
 
 /**
  * MCP approval contract tests. The kernel never connects to an MCP server:
@@ -29,7 +34,11 @@ import { expectPlumsError, listAll, makeCore, manifestZip } from "./package-help
  * no longer matches). Those two rows edit `packages` / `consents` directly.
  */
 
-const FIXTURES = path.join(path.dirname(fileURLToPath(import.meta.url)), "fixtures", "packages");
+const FIXTURES = path.join(
+  path.dirname(fileURLToPath(import.meta.url)),
+  "fixtures",
+  "packages",
+);
 const fixture = (rel: string) => path.join(FIXTURES, rel);
 
 /** Long enough that a leaked description cannot hide inside a hash or a tool name. */
@@ -40,11 +49,19 @@ const MANUAL = "manual:notes";
 const PERMS: Manifest["permissions"] = [
   { id: "search", level: "read", target: "notes", reason: "Search notes." },
   { id: "post", level: "write", target: "notes", reason: "Post notes." },
-  { id: "sync", level: "egress", target: "api.example.com", reason: "Sync notes." },
+  {
+    id: "sync",
+    level: "egress",
+    target: "api.example.com",
+    reason: "Sync notes.",
+  },
 ];
 
-const tool = (name: string, description = `${LEAK} ${name}`, level?: McpTool["level"]): McpTool =>
-  ({ name, description, ...(level ? { level } : {}) });
+const tool = (
+  name: string,
+  description = `${LEAK} ${name}`,
+  level?: McpTool["level"],
+): McpTool => ({ name, description, ...(level ? { level } : {}) });
 
 const SEARCH = tool("search");
 const POST = tool("post", `${LEAK} post`, "write");
@@ -67,21 +84,32 @@ afterEach(() => {
   }
 });
 
-function world(options: { answers?: boolean[]; confirm?: Confirm } = {}): World {
+function world(
+  options: { answers?: boolean[]; confirm?: Confirm } = {},
+): World {
   const egress = new RecordingEgressSink();
   const confirm = new ScriptedConfirm(options.answers ?? []);
   const model = new FakeModelProvider();
   const secrets = new MemorySecretStore();
-  const made = makeCore({ egress, model, confirm: options.confirm ?? confirm, secrets });
+  const made = makeCore({
+    egress,
+    model,
+    confirm: options.confirm ?? confirm,
+    secrets,
+  });
   const w = { ...made, egress, confirm, model, secrets };
   open.push(w);
   return w;
 }
 
 /** The TT1 connector, with three permissions added. Consented and enabled. Tools are not approved. */
-async function ready(options: { answers?: boolean[]; confirm?: Confirm } = {}): Promise<World & { manifest: Manifest }> {
+async function ready(
+  options: { answers?: boolean[]; confirm?: Confirm } = {},
+): Promise<World & { manifest: Manifest }> {
   const w = world(options);
-  const base = (await w.core.validatePackage(fixture("valid/connector-min.zip"))).manifest;
+  const base = (
+    await w.core.validatePackage(fixture("valid/connector-min.zip"))
+  ).manifest;
   const manifest: Manifest = { ...base, permissions: PERMS };
   await w.core.importPackage(await manifestZip(manifest));
   await w.core.grantConsent(ID);
@@ -110,11 +138,16 @@ async function snap(w: World, ids: string[]) {
     installed: await w.core.listInstalled(),
     consent: await w.core.getConsent(ID),
     approvals,
-    files: listAll(w.dataDir).filter((name) => !name.startsWith("plums.db")).sort(),
+    files: listAll(w.dataDir)
+      .filter((name) => !name.startsWith("plums.db"))
+      .sort(),
   };
 }
 
-function expectNoLeak(err: PlumsError, asked: readonly { message: string; reason?: string }[] = []): void {
+function expectNoLeak(
+  err: PlumsError,
+  asked: readonly { message: string; reason?: string }[] = [],
+): void {
   const text = `${serializeError(err)}\n${JSON.stringify(asked)}`;
   expect(text).not.toContain(LEAK);
 }
@@ -123,19 +156,33 @@ describe("acceptance 9: a changed tool description must be approved again", () =
   it("one changed character is CONSENT_REQUIRED / TOOL_CHANGED, and approving the new words allows it", async () => {
     const w = await ready();
     await w.core.approveMcpTools(ID, [SEARCH]);
-    expect(await w.core.authorizeMcpTool(ID, SEARCH)).toEqual({ level: "read" });
+    expect(await w.core.authorizeMcpTool(ID, SEARCH)).toEqual({
+      level: "read",
+    });
 
     const changed = { name: "search", description: `${SEARCH.description}.` };
     expect(mcpToolFingerprint(changed)).not.toBe(mcpToolFingerprint(SEARCH));
     expect(await w.core.checkMcpTools(ID, [changed])).toEqual([
-      { tool: "search", fingerprint: mcpToolFingerprint(changed), state: "CHANGED" },
+      {
+        tool: "search",
+        fingerprint: mcpToolFingerprint(changed),
+        state: "CHANGED",
+      },
     ]);
     expect(await w.core.checkMcpTools(ID, [SEARCH])).toEqual([
-      { tool: "search", fingerprint: mcpToolFingerprint(SEARCH), state: "APPROVED" },
+      {
+        tool: "search",
+        fingerprint: mcpToolFingerprint(SEARCH),
+        state: "APPROVED",
+      },
     ]);
 
     const before = await snap(w, [ID]);
-    const err = await expectPlumsError(w.core.authorizeMcpTool(ID, changed), "CONSENT_REQUIRED", "/tools/search");
+    const err = await expectPlumsError(
+      w.core.authorizeMcpTool(ID, changed),
+      "CONSENT_REQUIRED",
+      "/tools/search",
+    );
     expect(err.details).toEqual({
       id: ID,
       tool: "search",
@@ -148,8 +195,17 @@ describe("acceptance 9: a changed tool description must be approved again", () =
     expect([w.egress.records, w.model.calls]).toEqual([[], []]);
 
     await w.core.approveMcpTools(ID, [changed]);
-    expect(await w.core.authorizeMcpTool(ID, changed)).toEqual({ level: "read" });
-    const stale = await expectPlumsError(w.core.authorizeMcpTool(ID, SEARCH), "CONSENT_REQUIRED", "/tools/search");
+    expect(await w.core.authorizeMcpTool(ID, changed)).toEqual({
+      level: "read",
+    });
+    expect((await w.core.getMcpApprovals(ID)).tools[0]?.fingerprint).toBe(
+      mcpToolFingerprint(changed),
+    );
+    const stale = await expectPlumsError(
+      w.core.authorizeMcpTool(ID, SEARCH),
+      "CONSENT_REQUIRED",
+      "/tools/search",
+    );
     expect(stale.details).toMatchObject({ reason: "TOOL_CHANGED" });
   });
 
@@ -158,12 +214,18 @@ describe("acceptance 9: a changed tool description must be approved again", () =
     const schema = { type: "object", properties: { q: { type: "string" } } };
     const approved = { ...SEARCH, inputSchema: schema };
     await w.core.approveMcpTools(ID, [approved]);
-    expect(await w.core.authorizeMcpTool(ID, approved)).toEqual({ level: "read" });
+    expect(await w.core.authorizeMcpTool(ID, approved)).toEqual({
+      level: "read",
+    });
 
     const marker = "SCHEMA-LEAK-9f3a7c1e";
     const changed = { ...approved, inputSchema: { ...schema, title: marker } };
     const before = await snap(w, [ID]);
-    const err = await expectPlumsError(w.core.authorizeMcpTool(ID, changed), "CONSENT_REQUIRED", "/tools/search");
+    const err = await expectPlumsError(
+      w.core.authorizeMcpTool(ID, changed),
+      "CONSENT_REQUIRED",
+      "/tools/search",
+    );
     expect(err.details).toEqual({
       id: ID,
       tool: "search",
@@ -171,11 +233,21 @@ describe("acceptance 9: a changed tool description must be approved again", () =
       approvedFingerprint: mcpToolFingerprint(approved),
       fingerprint: mcpToolFingerprint(changed),
     });
-    expect(JSON.stringify({ message: err.message, path: err.path, details: err.details, cause: err.cause, stack: err.stack })).not.toContain(marker);
+    expect(
+      JSON.stringify({
+        message: err.message,
+        path: err.path,
+        details: err.details,
+        cause: err.cause,
+        stack: err.stack,
+      }),
+    ).not.toContain(marker);
     expect(await snap(w, [ID])).toEqual(before);
 
     await w.core.approveMcpTools(ID, [changed]);
-    expect(await w.core.authorizeMcpTool(ID, changed)).toEqual({ level: "read" });
+    expect(await w.core.authorizeMcpTool(ID, changed)).toEqual({
+      level: "read",
+    });
   });
 });
 
@@ -243,7 +315,11 @@ describe("authorizeMcpTool error table", () => {
       code: "PERMISSION_DENIED",
       path: "/permissions",
       arrange: async () => tool("not-a-tool"),
-      details: (t) => ({ id: ID, permissionId: t.name, reason: "PERMISSION_NOT_DECLARED" }),
+      details: (t) => ({
+        id: ID,
+        permissionId: t.name,
+        reason: "PERMISSION_NOT_DECLARED",
+      }),
     },
     {
       situation: "no package consent",
@@ -257,7 +333,12 @@ describe("authorizeMcpTool error table", () => {
         });
         return SEARCH;
       },
-      details: () => ({ id: ID, permissionId: "search", version: "1.0.0", reason: "NO_CONSENT" }),
+      details: () => ({
+        id: ID,
+        permissionId: "search",
+        version: "1.0.0",
+        reason: "NO_CONSENT",
+      }),
     },
     {
       situation: "consent does not cover this permission",
@@ -265,20 +346,34 @@ describe("authorizeMcpTool error table", () => {
       path: "/permissions/0",
       arrange: async (w) => {
         const consent = await w.core.getConsent(ID);
-        const permissions = (consent?.permissions ?? []).map((p) => (p.id === "search" ? { ...p, target: "other" } : p));
+        const permissions = (consent?.permissions ?? []).map((p) =>
+          p.id === "search" ? { ...p, target: "other" } : p,
+        );
         bypass(w, (db) => {
-          db.prepare("UPDATE consents SET permissions = ? WHERE package_id = ?").run(JSON.stringify(permissions), ID);
+          db.prepare(
+            "UPDATE consents SET permissions = ? WHERE package_id = ?",
+          ).run(JSON.stringify(permissions), ID);
         });
         return SEARCH;
       },
-      details: () => ({ id: ID, permissionId: "search", version: "1.0.0", reason: "PERMISSION_NOT_CONSENTED" }),
+      details: () => ({
+        id: ID,
+        permissionId: "search",
+        version: "1.0.0",
+        reason: "PERMISSION_NOT_CONSENTED",
+      }),
     },
     {
       situation: "never approved",
       code: "CONSENT_REQUIRED",
       path: "/tools/search",
       arrange: async () => SEARCH,
-      details: (t) => ({ id: ID, tool: t.name, reason: "TOOL_ADDED", fingerprint: mcpToolFingerprint(t) }),
+      details: (t) => ({
+        id: ID,
+        tool: t.name,
+        reason: "TOOL_ADDED",
+        fingerprint: mcpToolFingerprint(t),
+      }),
     },
     {
       situation: "description changed",
@@ -302,7 +397,11 @@ describe("authorizeMcpTool error table", () => {
       path: "/tools/post",
       server: MANUAL,
       arrange: async () => POST,
-      details: () => ({ id: MANUAL, tool: "post", reason: "UNVERIFIED_READ_ONLY" }),
+      details: () => ({
+        id: MANUAL,
+        tool: "post",
+        reason: "UNVERIFIED_READ_ONLY",
+      }),
     },
     {
       situation: "unverified egress was not granted one by one",
@@ -310,7 +409,11 @@ describe("authorizeMcpTool error table", () => {
       path: "/tools/sync",
       server: MANUAL,
       arrange: async () => SYNC,
-      details: () => ({ id: MANUAL, tool: "sync", reason: "UNVERIFIED_READ_ONLY" }),
+      details: () => ({
+        id: MANUAL,
+        tool: "sync",
+        reason: "UNVERIFIED_READ_ONLY",
+      }),
     },
     {
       situation: "an unverified tool with no level counts as write",
@@ -318,7 +421,11 @@ describe("authorizeMcpTool error table", () => {
       path: "/tools/mystery",
       server: MANUAL,
       arrange: async () => tool("mystery"),
-      details: () => ({ id: MANUAL, tool: "mystery", reason: "UNVERIFIED_READ_ONLY" }),
+      details: () => ({
+        id: MANUAL,
+        tool: "mystery",
+        reason: "UNVERIFIED_READ_ONLY",
+      }),
     },
     {
       situation: "unverified call level does not match the granted level",
@@ -366,7 +473,11 @@ describe("authorizeMcpTool error table", () => {
     const callTool = await row.arrange(w);
     const server = row.server ?? ID;
     const before = await snap(w, [ID, MANUAL]);
-    const err = await expectPlumsError(w.core.authorizeMcpTool(server, callTool), row.code, row.path);
+    const err = await expectPlumsError(
+      w.core.authorizeMcpTool(server, callTool),
+      row.code,
+      row.path,
+    );
     expect(err.path).toBe(row.path);
     expect(err.details).toEqual(row.details(callTool));
     expectNoLeak(err, w.confirm.asked);
@@ -376,7 +487,14 @@ describe("authorizeMcpTool error table", () => {
 
   const confirmRefusals: [string, Confirm][] = [
     ["throws", { ask: () => Promise.reject(new Error(LEAK)) }],
-    ["throws synchronously", { ask: () => { throw new Error(LEAK); } }],
+    [
+      "throws synchronously",
+      {
+        ask: () => {
+          throw new Error(LEAK);
+        },
+      },
+    ],
     ["answers the string true", { ask: async () => "true" as never }],
     ["answers nothing", { ask: async () => undefined as never }],
   ];
@@ -385,7 +503,11 @@ describe("authorizeMcpTool error table", () => {
       const w = await ready({ confirm });
       await w.core.approveMcpTools(ID, [POST]);
       const before = await snap(w, [ID]);
-      const err = await expectPlumsError(w.core.authorizeMcpTool(ID, POST), "CONFIRMATION_DENIED", "/tools/post");
+      const err = await expectPlumsError(
+        w.core.authorizeMcpTool(ID, POST),
+        "CONFIRMATION_DENIED",
+        "/tools/post",
+      );
       expect(err.details).toEqual({ id: ID, tool: "post" });
       expectNoLeak(err);
       expect(await snap(w, [ID])).toEqual(before);
@@ -395,11 +517,19 @@ describe("authorizeMcpTool error table", () => {
 
   it("checks again after confirm: disabling during the question is NOT_ENABLED", async () => {
     const w = await ready({
-      confirm: { ask: async () => { await w.core.disable(ID); return true; } },
+      confirm: {
+        ask: async () => {
+          await w.core.disable(ID);
+          return true;
+        },
+      },
     });
     await w.core.approveMcpTools(ID, [POST]);
     const approvals = await w.core.getMcpApprovals(ID);
-    const err = await expectPlumsError(w.core.authorizeMcpTool(ID, POST), "PERMISSION_DENIED");
+    const err = await expectPlumsError(
+      w.core.authorizeMcpTool(ID, POST),
+      "PERMISSION_DENIED",
+    );
     expect(err.details).toEqual({ id: ID, reason: "NOT_ENABLED" });
     expect(await w.core.getMcpApprovals(ID)).toEqual(approvals);
   });
@@ -407,12 +537,24 @@ describe("authorizeMcpTool error table", () => {
   it("checks again after confirm: a description edited during the question is TOOL_CHANGED", async () => {
     const live = { ...POST };
     const w = await ready({
-      confirm: { ask: async () => { live.description = `${LEAK} post edited`; return true; } },
+      confirm: {
+        ask: async () => {
+          live.description = `${LEAK} post edited`;
+          return true;
+        },
+      },
     });
     await w.core.approveMcpTools(ID, [POST]);
     const before = await snap(w, [ID]);
-    const err = await expectPlumsError(w.core.authorizeMcpTool(ID, live), "CONSENT_REQUIRED", "/tools/post");
-    expect(err.details).toMatchObject({ reason: "TOOL_CHANGED", approvedFingerprint: mcpToolFingerprint(POST) });
+    const err = await expectPlumsError(
+      w.core.authorizeMcpTool(ID, live),
+      "CONSENT_REQUIRED",
+      "/tools/post",
+    );
+    expect(err.details).toMatchObject({
+      reason: "TOOL_CHANGED",
+      approvedFingerprint: mcpToolFingerprint(POST),
+    });
     expectNoLeak(err);
     expect(await snap(w, [ID])).toEqual(before);
   });
@@ -421,7 +563,9 @@ describe("authorizeMcpTool error table", () => {
     const w = await ready({ answers: [true] });
     await w.core.approveMcpTools(ID, [POST]);
     expect(w.confirm.asked).toEqual([]);
-    expect(await w.core.authorizeMcpTool(ID, { ...POST, level: "read" })).toEqual({ level: "write" });
+    expect(
+      await w.core.authorizeMcpTool(ID, { ...POST, level: "read" }),
+    ).toEqual({ level: "write" });
     expect(w.confirm.asked).toHaveLength(1);
     expect(w.egress.records).toEqual([]);
   });
@@ -431,15 +575,28 @@ describe("authorizeMcpTool error table", () => {
       confirm: {
         ask: async () => {
           bypass(w, (db) => {
-            const pkg = db.prepare("SELECT manifest FROM packages WHERE id = ?").get(ID) as { manifest: string };
+            const pkg = db
+              .prepare("SELECT manifest FROM packages WHERE id = ?")
+              .get(ID) as { manifest: string };
             const manifest = JSON.parse(pkg.manifest) as Manifest;
-            manifest.permissions = manifest.permissions.map((p) => (p.id === "post" ? { ...p, level: "read" } : p));
-            db.prepare("UPDATE packages SET manifest = ? WHERE id = ?").run(JSON.stringify(manifest), ID);
-            const row = db.prepare("SELECT permissions FROM consents WHERE package_id = ?").get(ID) as { permissions: string };
-            const permissions = (JSON.parse(row.permissions) as Manifest["permissions"]).map((p) =>
+            manifest.permissions = manifest.permissions.map((p) =>
+              p.id === "post" ? { ...p, level: "read" } : p,
+            );
+            db.prepare("UPDATE packages SET manifest = ? WHERE id = ?").run(
+              JSON.stringify(manifest),
+              ID,
+            );
+            const row = db
+              .prepare("SELECT permissions FROM consents WHERE package_id = ?")
+              .get(ID) as { permissions: string };
+            const permissions = (
+              JSON.parse(row.permissions) as Manifest["permissions"]
+            ).map((p) =>
               p.id === "post" ? { ...p, level: "read" as const } : p,
             );
-            db.prepare("UPDATE consents SET permissions = ? WHERE package_id = ?").run(JSON.stringify(permissions), ID);
+            db.prepare(
+              "UPDATE consents SET permissions = ? WHERE package_id = ?",
+            ).run(JSON.stringify(permissions), ID);
           });
           return true;
         },
@@ -447,17 +604,32 @@ describe("authorizeMcpTool error table", () => {
     });
     await w.core.approveMcpTools(ID, [POST]);
     const approvals = await w.core.getMcpApprovals(ID);
-    const err = await expectPlumsError(w.core.authorizeMcpTool(ID, POST), "PERMISSION_DENIED", "/tools/post");
-    expect(err.details).toEqual({ id: ID, tool: "post", reason: "LEVEL_MISMATCH" });
+    const err = await expectPlumsError(
+      w.core.authorizeMcpTool(ID, POST),
+      "PERMISSION_DENIED",
+      "/tools/post",
+    );
+    expect(err.details).toEqual({
+      id: ID,
+      tool: "post",
+      reason: "LEVEL_MISMATCH",
+    });
     expect(await w.core.getMcpApprovals(ID)).toEqual(approvals);
     expect(w.egress.records).toEqual([]);
   });
 
   it("a changed inputSchema on a manual service or a write tool needs consent again", async () => {
     const w = await ready();
-    const read = { ...SEARCH, level: "read" as const, inputSchema: { type: "object" } };
+    const read = {
+      ...SEARCH,
+      level: "read" as const,
+      inputSchema: { type: "object" },
+    };
     await w.core.approveMcpTools(MANUAL, [read]);
-    const changedManual = { ...read, inputSchema: { type: "object", properties: { q: { type: "string" } } } };
+    const changedManual = {
+      ...read,
+      inputSchema: { type: "object", properties: { q: { type: "string" } } },
+    };
     const manualErr = await expectPlumsError(
       w.core.authorizeMcpTool(MANUAL, changedManual),
       "CONSENT_REQUIRED",
@@ -469,13 +641,24 @@ describe("authorizeMcpTool error table", () => {
       fingerprint: mcpToolFingerprint(changedManual),
     });
 
-    await w.core.approveMcpTools(ID, [{ ...POST, inputSchema: { type: "object" } }]);
-    const changedWrite = { ...POST, inputSchema: { type: "object", properties: { text: { type: "string" } } } };
+    await w.core.approveMcpTools(ID, [
+      { ...POST, inputSchema: { type: "object" } },
+    ]);
+    const changedWrite = {
+      ...POST,
+      inputSchema: { type: "object", properties: { text: { type: "string" } } },
+    };
     const before = await w.core.getMcpApprovals(ID);
-    const writeErr = await expectPlumsError(w.core.authorizeMcpTool(ID, changedWrite), "CONSENT_REQUIRED", "/tools/post");
+    const writeErr = await expectPlumsError(
+      w.core.authorizeMcpTool(ID, changedWrite),
+      "CONSENT_REQUIRED",
+      "/tools/post",
+    );
     expect(writeErr.details).toMatchObject({ reason: "TOOL_CHANGED" });
     expect(await w.core.getMcpApprovals(ID)).toEqual(before);
-    expect(await w.core.getMcpApprovals(MANUAL)).toMatchObject({ tools: [{ tool: "search", fingerprint: mcpToolFingerprint(read) }] });
+    expect(await w.core.getMcpApprovals(MANUAL)).toMatchObject({
+      tools: [{ tool: "search", fingerprint: mcpToolFingerprint(read) }],
+    });
   });
 
   it("a schema the fingerprint refuses throws TypeError and writes nothing", async () => {
@@ -483,10 +666,23 @@ describe("authorizeMcpTool error table", () => {
     const before = await snap(w, [ID, MANUAL]);
     let deep: unknown = "x";
     for (let i = 1; i < 65; i += 1) deep = { n: deep };
-    const bad = [Number.NaN, Number.POSITIVE_INFINITY, new Date(), new Map(), deep, { blob: "x".repeat(256 * 1024) }];
+    const bad = [
+      Number.NaN,
+      Number.POSITIVE_INFINITY,
+      new Date(),
+      new Map(),
+      deep,
+      { blob: "x".repeat(256 * 1024) },
+    ];
     for (const inputSchema of bad) {
-      await expect(w.core.approveMcpTools(ID, [{ ...SEARCH, inputSchema }])).rejects.toThrow(TypeError);
-      await expect(w.core.approveMcpTools(MANUAL, [{ ...SEARCH, level: "read", inputSchema }])).rejects.toThrow(TypeError);
+      await expect(
+        w.core.approveMcpTools(ID, [{ ...SEARCH, inputSchema }]),
+      ).rejects.toThrow(TypeError);
+      await expect(
+        w.core.approveMcpTools(MANUAL, [
+          { ...SEARCH, level: "read", inputSchema },
+        ]),
+      ).rejects.toThrow(TypeError);
     }
     expect(await snap(w, [ID, MANUAL])).toEqual(before);
   });
@@ -495,17 +691,26 @@ describe("authorizeMcpTool error table", () => {
 describe("approvals: unchanged, added, removed, uninstalled", () => {
   it("an approved unchanged tool is authorized at the manifest level, whatever level the host sends", async () => {
     const w = await ready({ answers: [true, true] });
-    const result = await w.core.approveMcpTools(ID, [SEARCH, { ...POST, level: "read" }, SYNC]);
+    const result = await w.core.approveMcpTools(ID, [
+      SEARCH,
+      { ...POST, level: "read" },
+      SYNC,
+    ]);
     expect(result.skipped).toEqual([]);
     expect(result.approved.map((a) => [a.tool, a.level])).toEqual([
       ["search", "read"],
       ["post", "write"],
       ["sync", "egress"],
     ]);
-    expect(await w.core.authorizeMcpTool(ID, { ...POST, level: "read" })).toEqual({ level: "write" });
-    expect(await w.core.authorizeMcpTool(ID, SYNC)).toEqual({ level: "egress" });
+    expect(
+      await w.core.authorizeMcpTool(ID, { ...POST, level: "read" }),
+    ).toEqual({ level: "write" });
+    expect(await w.core.authorizeMcpTool(ID, SYNC)).toEqual({
+      level: "egress",
+    });
     expect(w.egress.records).toEqual([]);
-    for (const asked of w.confirm.asked) expect(JSON.stringify(asked)).not.toContain(LEAK);
+    for (const asked of w.confirm.asked)
+      expect(JSON.stringify(asked)).not.toContain(LEAK);
     const state = await w.core.getMcpApprovals(ID);
     expect(state).toMatchObject({ serverId: ID, unverified: false });
     expect(state.tools.map((t) => t.tool)).toEqual(["post", "search", "sync"]);
@@ -515,18 +720,33 @@ describe("approvals: unchanged, added, removed, uninstalled", () => {
     const w = await ready();
     await w.core.approveMcpTools(ID, [SEARCH]);
     const renamed = { ...SEARCH, name: "lookup" };
-    expect((await w.core.checkMcpTools(ID, [SEARCH, POST, renamed])).map((c) => [c.tool, c.state])).toEqual([
+    expect(
+      (await w.core.checkMcpTools(ID, [SEARCH, POST, renamed])).map((c) => [
+        c.tool,
+        c.state,
+      ]),
+    ).toEqual([
       ["search", "APPROVED"],
       ["post", "ADDED"],
       ["lookup", "ADDED"],
     ]);
     const before = await snap(w, [ID]);
-    const err = await expectPlumsError(w.core.authorizeMcpTool(ID, renamed), "PERMISSION_DENIED", "/permissions");
+    const err = await expectPlumsError(
+      w.core.authorizeMcpTool(ID, renamed),
+      "PERMISSION_DENIED",
+      "/permissions",
+    );
     expect(err.details).toMatchObject({ reason: "PERMISSION_NOT_DECLARED" });
     expect(await snap(w, [ID])).toEqual(before);
-    const added = await expectPlumsError(w.core.authorizeMcpTool(ID, POST), "CONSENT_REQUIRED", "/tools/post");
+    const added = await expectPlumsError(
+      w.core.authorizeMcpTool(ID, POST),
+      "CONSENT_REQUIRED",
+      "/tools/post",
+    );
     expect(added.details).toMatchObject({ reason: "TOOL_ADDED" });
-    expect(await w.core.authorizeMcpTool(ID, SEARCH)).toEqual({ level: "read" });
+    expect(await w.core.authorizeMcpTool(ID, SEARCH)).toEqual({
+      level: "read",
+    });
   });
 
   it("a tool that leaves the list loses its approval, and the same words coming back are TOOL_ADDED", async () => {
@@ -534,21 +754,51 @@ describe("approvals: unchanged, added, removed, uninstalled", () => {
     await w.core.approveMcpTools(ID, [SEARCH, POST]);
     const consent = await w.core.getConsent(ID);
     expect(await w.core.checkMcpTools(ID, [SEARCH])).toEqual([
-      { tool: "search", fingerprint: mcpToolFingerprint(SEARCH), state: "APPROVED" },
+      {
+        tool: "search",
+        fingerprint: mcpToolFingerprint(SEARCH),
+        state: "APPROVED",
+      },
     ]);
-    expect((await w.core.getMcpApprovals(ID)).tools.map((t) => t.tool)).toEqual(["search"]);
-    const dropped = await expectPlumsError(w.core.authorizeMcpTool(ID, POST), "CONSENT_REQUIRED", "/tools/post");
-    expect(dropped.details).toEqual({ id: ID, tool: "post", reason: "TOOL_ADDED", fingerprint: mcpToolFingerprint(POST) });
+    expect((await w.core.getMcpApprovals(ID)).tools.map((t) => t.tool)).toEqual(
+      ["search"],
+    );
+    const dropped = await expectPlumsError(
+      w.core.authorizeMcpTool(ID, POST),
+      "CONSENT_REQUIRED",
+      "/tools/post",
+    );
+    expect(dropped.details).toEqual({
+      id: ID,
+      tool: "post",
+      reason: "TOOL_ADDED",
+      fingerprint: mcpToolFingerprint(POST),
+    });
     expect(dropped.details).not.toHaveProperty("approvedFingerprint");
-    expect(await w.core.authorizeMcpTool(ID, SEARCH)).toEqual({ level: "read" });
+    expect(await w.core.authorizeMcpTool(ID, SEARCH)).toEqual({
+      level: "read",
+    });
 
     expect(await w.core.checkMcpTools(ID, [])).toEqual([]);
     expect((await w.core.getMcpApprovals(ID)).tools).toEqual([]);
     expect(await w.core.getConsent(ID)).toEqual(consent);
-    const again = await expectPlumsError(w.core.authorizeMcpTool(ID, SEARCH), "CONSENT_REQUIRED", "/tools/search");
-    expect(again.details).toEqual({ id: ID, tool: "search", reason: "TOOL_ADDED", fingerprint: mcpToolFingerprint(SEARCH) });
+    const again = await expectPlumsError(
+      w.core.authorizeMcpTool(ID, SEARCH),
+      "CONSENT_REQUIRED",
+      "/tools/search",
+    );
+    expect(again.details).toEqual({
+      id: ID,
+      tool: "search",
+      reason: "TOOL_ADDED",
+      fingerprint: mcpToolFingerprint(SEARCH),
+    });
     expect(await w.core.checkMcpTools(ID, [SEARCH])).toEqual([
-      { tool: "search", fingerprint: mcpToolFingerprint(SEARCH), state: "ADDED" },
+      {
+        tool: "search",
+        fingerprint: mcpToolFingerprint(SEARCH),
+        state: "ADDED",
+      },
     ]);
   });
 
@@ -560,14 +810,33 @@ describe("approvals: unchanged, added, removed, uninstalled", () => {
     expect(await w.core.checkMcpTools(ID, [])).toEqual([]);
     expect((await w.core.getMcpApprovals(ID)).tools).toEqual([]);
     expect(await w.core.getConsent(ID)).toEqual(consent);
-    expect(await w.core.listInstalled()).toMatchObject([{ id: ID, enabled: true, consented: true }]);
-    expect((await w.core.getMcpApprovals(MANUAL)).tools.map((t) => t.tool)).toEqual(["search"]);
-    const err = await expectPlumsError(w.core.authorizeMcpTool(ID, SEARCH), "CONSENT_REQUIRED", "/tools/search");
-    expect(err.details).toEqual({ id: ID, tool: "search", reason: "TOOL_ADDED", fingerprint: mcpToolFingerprint(SEARCH) });
-    expect(await w.core.checkMcpTools(ID, [SEARCH])).toEqual([
-      { tool: "search", fingerprint: mcpToolFingerprint(SEARCH), state: "ADDED" },
+    expect(await w.core.listInstalled()).toMatchObject([
+      { id: ID, enabled: true, consented: true },
     ]);
-    await expect(w.core.authorizeMcpTool(MANUAL, { ...SEARCH, level: "read" })).resolves.toEqual({ level: "read" });
+    expect(
+      (await w.core.getMcpApprovals(MANUAL)).tools.map((t) => t.tool),
+    ).toEqual(["search"]);
+    const err = await expectPlumsError(
+      w.core.authorizeMcpTool(ID, SEARCH),
+      "CONSENT_REQUIRED",
+      "/tools/search",
+    );
+    expect(err.details).toEqual({
+      id: ID,
+      tool: "search",
+      reason: "TOOL_ADDED",
+      fingerprint: mcpToolFingerprint(SEARCH),
+    });
+    expect(await w.core.checkMcpTools(ID, [SEARCH])).toEqual([
+      {
+        tool: "search",
+        fingerprint: mcpToolFingerprint(SEARCH),
+        state: "ADDED",
+      },
+    ]);
+    await expect(
+      w.core.authorizeMcpTool(MANUAL, { ...SEARCH, level: "read" }),
+    ).resolves.toEqual({ level: "read" });
   });
 
   it("a list check that throws leaves every approval in place", async () => {
@@ -576,11 +845,17 @@ describe("approvals: unchanged, added, removed, uninstalled", () => {
     await w.core.approveMcpTools(MANUAL, [{ ...SEARCH, level: "read" }]);
     const before = await w.core.getMcpApprovals(ID);
     const manual = await w.core.getMcpApprovals(MANUAL);
-    await expect(w.core.checkMcpTools(ID, [{ ...SEARCH, inputSchema: Number.NaN }])).rejects.toThrow(TypeError);
-    await expect(w.core.checkMcpTools(ID, [SEARCH, SEARCH])).rejects.toThrow(TypeError);
+    await expect(
+      w.core.checkMcpTools(ID, [{ ...SEARCH, inputSchema: Number.NaN }]),
+    ).rejects.toThrow(TypeError);
+    await expect(w.core.checkMcpTools(ID, [SEARCH, SEARCH])).rejects.toThrow(
+      TypeError,
+    );
     expect(await w.core.getMcpApprovals(ID)).toEqual(before);
     expect(await w.core.getMcpApprovals(MANUAL)).toEqual(manual);
-    expect(await w.core.authorizeMcpTool(ID, SEARCH)).toEqual({ level: "read" });
+    expect(await w.core.authorizeMcpTool(ID, SEARCH)).toEqual({
+      level: "read",
+    });
     expect(await w.core.authorizeMcpTool(ID, POST)).toEqual({ level: "write" });
   });
 
@@ -589,26 +864,51 @@ describe("approvals: unchanged, added, removed, uninstalled", () => {
     await w.core.approveMcpTools(ID, [SEARCH, POST]);
     const before = await w.core.getMcpApprovals(ID);
     const consent = await w.core.getConsent(ID);
-    await expect(w.core.checkMcpTools(ID, undefined as never)).rejects.toThrow(TypeError);
-    await expect(w.core.checkMcpTools(ID, undefined as never)).rejects.toThrow("MCP tools must be an array");
-    await expect(w.core.checkMcpTools(ID, null as never)).rejects.toThrow(TypeError);
-    await expect(w.core.checkMcpTools(ID, null as never)).rejects.toThrow("MCP tools must be an array");
-    await expect(w.core.approveMcpTools(ID, undefined as never)).rejects.toThrow(TypeError);
-    await expect(w.core.approveMcpTools(ID, undefined as never)).rejects.toThrow("MCP tools must be an array");
-    await expect(w.core.approveMcpTools(ID, null as never)).rejects.toThrow(TypeError);
-    await expect(w.core.approveMcpTools(ID, null as never)).rejects.toThrow("MCP tools must be an array");
+    await expect(w.core.checkMcpTools(ID, undefined as never)).rejects.toThrow(
+      TypeError,
+    );
+    await expect(w.core.checkMcpTools(ID, undefined as never)).rejects.toThrow(
+      "MCP tools must be an array",
+    );
+    await expect(w.core.checkMcpTools(ID, null as never)).rejects.toThrow(
+      TypeError,
+    );
+    await expect(w.core.checkMcpTools(ID, null as never)).rejects.toThrow(
+      "MCP tools must be an array",
+    );
+    await expect(
+      w.core.approveMcpTools(ID, undefined as never),
+    ).rejects.toThrow(TypeError);
+    await expect(
+      w.core.approveMcpTools(ID, undefined as never),
+    ).rejects.toThrow("MCP tools must be an array");
+    await expect(w.core.approveMcpTools(ID, null as never)).rejects.toThrow(
+      TypeError,
+    );
+    await expect(w.core.approveMcpTools(ID, null as never)).rejects.toThrow(
+      "MCP tools must be an array",
+    );
     expect(await w.core.getMcpApprovals(ID)).toEqual(before);
     expect(await w.core.getConsent(ID)).toEqual(consent);
-    expect(await w.core.authorizeMcpTool(ID, SEARCH)).toEqual({ level: "read" });
+    expect(await w.core.authorizeMcpTool(ID, SEARCH)).toEqual({
+      level: "read",
+    });
   });
 
   it("a tool that is not in the manifest is skipped and not stored", async () => {
     const w = await ready();
     const before = await snap(w, [ID]);
-    const result = await w.core.approveMcpTools(ID, [SEARCH, tool("not-a-tool")]);
-    expect(result.skipped).toEqual([{ tool: "not-a-tool", reason: "NOT_DECLARED" }]);
+    const result = await w.core.approveMcpTools(ID, [
+      SEARCH,
+      tool("not-a-tool"),
+    ]);
+    expect(result.skipped).toEqual([
+      { tool: "not-a-tool", reason: "NOT_DECLARED" },
+    ]);
     expect(result.approved.map((a) => a.tool)).toEqual(["search"]);
-    expect((await w.core.getMcpApprovals(ID)).tools.map((t) => t.tool)).toEqual(["search"]);
+    expect((await w.core.getMcpApprovals(ID)).tools.map((t) => t.tool)).toEqual(
+      ["search"],
+    );
     expect((await snap(w, [ID])).files).toEqual(before.files);
   });
 
@@ -622,8 +922,12 @@ describe("approvals: unchanged, added, removed, uninstalled", () => {
 
   it("enable and grantConsent do not record fingerprints", async () => {
     const w = world();
-    const base = (await w.core.validatePackage(fixture("valid/connector-min.zip"))).manifest;
-    await w.core.importPackage(await manifestZip({ ...base, permissions: PERMS }));
+    const base = (
+      await w.core.validatePackage(fixture("valid/connector-min.zip"))
+    ).manifest;
+    await w.core.importPackage(
+      await manifestZip({ ...base, permissions: PERMS }),
+    );
     await w.core.grantConsent(ID);
     await w.core.enable(ID);
     expect((await w.core.getMcpApprovals(ID)).tools).toEqual([]);
@@ -633,24 +937,38 @@ describe("approvals: unchanged, added, removed, uninstalled", () => {
     const w = await ready();
     await w.core.approveMcpTools(ID, [SEARCH]);
     const fingerprint = mcpToolFingerprint(SEARCH);
-    await w.core.updatePackage(await manifestZip({ ...w.manifest, version: "1.1.0" }));
-    expect(await w.core.listInstalled()).toMatchObject([{ id: ID, version: "1.1.0", enabled: true }]);
-    expect((await w.core.getMcpApprovals(ID)).tools.map((t) => t.fingerprint)).toEqual([fingerprint]);
-    expect(await w.core.authorizeMcpTool(ID, SEARCH)).toEqual({ level: "read" });
+    await w.core.updatePackage(
+      await manifestZip({ ...w.manifest, version: "1.1.0" }),
+    );
+    expect(await w.core.listInstalled()).toMatchObject([
+      { id: ID, version: "1.1.0", enabled: true },
+    ]);
+    expect(
+      (await w.core.getMcpApprovals(ID)).tools.map((t) => t.fingerprint),
+    ).toEqual([fingerprint]);
+    expect(await w.core.authorizeMcpTool(ID, SEARCH)).toEqual({
+      level: "read",
+    });
   });
 
   it("uninstall and a fresh import both clear fingerprints, so the tool needs consent again", async () => {
     const w = await ready();
     await w.core.approveMcpTools(ID, [SEARCH]);
     await w.core.uninstall(ID);
-    expect(listAll(w.dataDir).some((name) => name.startsWith(`packages/${ID}`))).toBe(false);
+    expect(
+      listAll(w.dataDir).some((name) => name.startsWith(`packages/${ID}`)),
+    ).toBe(false);
     await expectPlumsError(w.core.getMcpApprovals(ID), "PERMISSION_DENIED");
 
     await w.core.importPackage(await manifestZip(w.manifest));
     expect((await w.core.getMcpApprovals(ID)).tools).toEqual([]);
     await w.core.grantConsent(ID);
     await w.core.enable(ID);
-    const err = await expectPlumsError(w.core.authorizeMcpTool(ID, SEARCH), "CONSENT_REQUIRED", "/tools/search");
+    const err = await expectPlumsError(
+      w.core.authorizeMcpTool(ID, SEARCH),
+      "CONSENT_REQUIRED",
+      "/tools/search",
+    );
     expect(err.details).toMatchObject({ reason: "TOOL_ADDED" });
   });
 
@@ -663,22 +981,35 @@ describe("approvals: unchanged, added, removed, uninstalled", () => {
     mkdirSync(data, { recursive: true });
     writeFileSync(path.join(data, "settings.json"), '{"note":"keep"}');
     const before = await snap(w, [ID]);
-    const err = await expectPlumsError(w.core.importPackage(await manifestZip(w.manifest)), "IMPORT_INVALID");
+    const err = await expectPlumsError(
+      w.core.importPackage(await manifestZip(w.manifest)),
+      "IMPORT_INVALID",
+    );
     expect(err.details).toEqual({ id: ID, reason: "ALREADY_INSTALLED" });
     expect(await snap(w, [ID])).toEqual(before);
-    expect(readFileSync(path.join(data, "settings.json"), "utf8")).toBe('{"note":"keep"}');
+    expect(readFileSync(path.join(data, "settings.json"), "utf8")).toBe(
+      '{"note":"keep"}',
+    );
     expect(await w.secrets.get(secretRef(ID, "apiKey"))).toBe("stay");
     expect(await w.secrets.get("other/key")).toBe("other");
-    expect(await w.core.authorizeMcpTool(ID, SEARCH)).toEqual({ level: "read" });
+    expect(await w.core.authorizeMcpTool(ID, SEARCH)).toEqual({
+      level: "read",
+    });
   });
 
   it("uninstalling the connector does not clear a hand-added service", async () => {
     const w = await ready();
     await w.core.approveMcpTools(MANUAL, [{ ...SEARCH, level: "read" }]);
     await w.core.uninstall(ID);
-    expect(await w.core.getMcpApprovals(MANUAL)).toMatchObject({ unverified: true });
-    expect((await w.core.getMcpApprovals(MANUAL)).tools.map((t) => t.tool)).toEqual(["search"]);
-    expect(await w.core.authorizeMcpTool(MANUAL, { ...SEARCH, level: "read" })).toEqual({ level: "read" });
+    expect(await w.core.getMcpApprovals(MANUAL)).toMatchObject({
+      unverified: true,
+    });
+    expect(
+      (await w.core.getMcpApprovals(MANUAL)).tools.map((t) => t.tool),
+    ).toEqual(["search"]);
+    expect(
+      await w.core.authorizeMcpTool(MANUAL, { ...SEARCH, level: "read" }),
+    ).toEqual({ level: "read" });
   });
 
   it("uninstall of the hand-added id clears its fingerprints, which are its consent", async () => {
@@ -687,7 +1018,11 @@ describe("approvals: unchanged, added, removed, uninstalled", () => {
     await w.core.approveMcpTools(MANUAL, [read]);
     await w.core.uninstall(MANUAL);
     expect((await w.core.getMcpApprovals(MANUAL)).tools).toEqual([]);
-    const err = await expectPlumsError(w.core.authorizeMcpTool(MANUAL, read), "CONSENT_REQUIRED", "/tools/search");
+    const err = await expectPlumsError(
+      w.core.authorizeMcpTool(MANUAL, read),
+      "CONSENT_REQUIRED",
+      "/tools/search",
+    );
     expect(err.details).toMatchObject({ id: MANUAL, reason: "TOOL_ADDED" });
     expect((await w.core.getMcpApprovals(ID)).tools).toEqual([]);
   });
@@ -696,40 +1031,95 @@ describe("approvals: unchanged, added, removed, uninstalled", () => {
 describe("hand-added services", () => {
   it("is unverified, and a read tool works only after it is approved", async () => {
     const w = await ready();
-    expect(await w.core.getMcpApprovals(MANUAL)).toEqual({ serverId: MANUAL, unverified: true, tools: [] });
+    expect(await w.core.getMcpApprovals(MANUAL)).toEqual({
+      serverId: MANUAL,
+      unverified: true,
+      tools: [],
+    });
     const read = { ...SEARCH, level: "read" as const };
     const before = await snap(w, [MANUAL]);
-    const err = await expectPlumsError(w.core.authorizeMcpTool(MANUAL, read), "CONSENT_REQUIRED", "/tools/search");
-    expect(err.details).toEqual({ id: MANUAL, tool: "search", reason: "TOOL_ADDED", fingerprint: mcpToolFingerprint(read) });
+    const err = await expectPlumsError(
+      w.core.authorizeMcpTool(MANUAL, read),
+      "CONSENT_REQUIRED",
+      "/tools/search",
+    );
+    expect(err.details).toEqual({
+      id: MANUAL,
+      tool: "search",
+      reason: "TOOL_ADDED",
+      fingerprint: mcpToolFingerprint(read),
+    });
     expect(await snap(w, [MANUAL])).toEqual(before);
     await w.core.approveMcpTools(MANUAL, [read]);
-    expect(await w.core.authorizeMcpTool(MANUAL, read)).toEqual({ level: "read" });
+    expect(await w.core.authorizeMcpTool(MANUAL, read)).toEqual({
+      level: "read",
+    });
     expect(w.confirm.asked).toEqual([]);
   });
 
   it("grants a write only when it is named in allowNonRead, and asks every time", async () => {
     const w = await ready({ answers: [true, false] });
     const skipped = await w.core.approveMcpTools(MANUAL, [POST]);
-    expect(skipped).toEqual({ approved: [], skipped: [{ tool: "post", reason: "UNVERIFIED_READ_ONLY" }] });
+    expect(skipped).toEqual({
+      approved: [],
+      skipped: [{ tool: "post", reason: "UNVERIFIED_READ_ONLY" }],
+    });
     expect((await w.core.getMcpApprovals(MANUAL)).tools).toEqual([]);
 
     const granted = await w.core.approveMcpTools(MANUAL, [POST], ["post"]);
     expect(granted.approved.map((a) => a.level)).toEqual(["write"]);
-    expect(await w.core.authorizeMcpTool(MANUAL, POST)).toEqual({ level: "write" });
+    expect(await w.core.authorizeMcpTool(MANUAL, POST)).toEqual({
+      level: "write",
+    });
     expect(JSON.stringify(w.confirm.asked)).not.toContain(LEAK);
-    await expectPlumsError(w.core.authorizeMcpTool(MANUAL, POST), "CONFIRMATION_DENIED", "/tools/post");
+    await expectPlumsError(
+      w.core.authorizeMcpTool(MANUAL, POST),
+      "CONFIRMATION_DENIED",
+      "/tools/post",
+    );
   });
 
   const bad: [string, (w: World) => Promise<unknown>][] = [
-    ["a manual id that is not a package id", (w) => w.core.getMcpApprovals("manual:Bad Name")],
+    [
+      "a manual id that is not a package id",
+      (w) => w.core.getMcpApprovals("manual:Bad Name"),
+    ],
     ["a manual id with no name", (w) => w.core.getMcpApprovals("manual:")],
-    ["a tool name with a slash", (w) => w.core.checkMcpTools(MANUAL, [{ name: "a/b", description: "" }])],
-    ["an empty tool name", (w) => w.core.checkMcpTools(MANUAL, [{ name: "", description: "" }])],
-    ["a tool name longer than 128 characters", (w) => w.core.checkMcpTools(MANUAL, [{ name: "a".repeat(129), description: "" }])],
-    ["a tool name listed twice", (w) => w.core.approveMcpTools(MANUAL, [tool("a"), tool("a")])],
-    ["a description that is not text", (w) => w.core.checkMcpTools(MANUAL, [{ name: "a", description: 1 as never }])],
-    ["an unknown level", (w) => w.core.checkMcpTools(MANUAL, [{ name: "a", description: "", level: "admin" as never }])],
-    ["allowNonRead names a tool that is not in the list", (w) => w.core.approveMcpTools(MANUAL, [SEARCH], ["post"])],
+    [
+      "a tool name with a slash",
+      (w) => w.core.checkMcpTools(MANUAL, [{ name: "a/b", description: "" }]),
+    ],
+    [
+      "an empty tool name",
+      (w) => w.core.checkMcpTools(MANUAL, [{ name: "", description: "" }]),
+    ],
+    [
+      "a tool name longer than 128 characters",
+      (w) =>
+        w.core.checkMcpTools(MANUAL, [
+          { name: "a".repeat(129), description: "" },
+        ]),
+    ],
+    [
+      "a tool name listed twice",
+      (w) => w.core.approveMcpTools(MANUAL, [tool("a"), tool("a")]),
+    ],
+    [
+      "a description that is not text",
+      (w) =>
+        w.core.checkMcpTools(MANUAL, [{ name: "a", description: 1 as never }]),
+    ],
+    [
+      "an unknown level",
+      (w) =>
+        w.core.checkMcpTools(MANUAL, [
+          { name: "a", description: "", level: "admin" as never },
+        ]),
+    ],
+    [
+      "allowNonRead names a tool that is not in the list",
+      (w) => w.core.approveMcpTools(MANUAL, [SEARCH], ["post"]),
+    ],
   ];
   it("a 128 character name is accepted and does not need pointer escaping", async () => {
     const w = await ready();
@@ -738,7 +1128,11 @@ describe("hand-added services", () => {
     expect(await w.core.checkMcpTools(MANUAL, [read])).toEqual([
       { tool: name, fingerprint: mcpToolFingerprint(read), state: "ADDED" },
     ]);
-    const err = await expectPlumsError(w.core.authorizeMcpTool(MANUAL, read), "CONSENT_REQUIRED", `/tools/${name}`);
+    const err = await expectPlumsError(
+      w.core.authorizeMcpTool(MANUAL, read),
+      "CONSENT_REQUIRED",
+      `/tools/${name}`,
+    );
     expect(err.details).toMatchObject({ tool: name, reason: "TOOL_ADDED" });
   });
 
@@ -751,14 +1145,24 @@ describe("hand-added services", () => {
 });
 
 describe("read-only methods share the server check", () => {
-  const methods = ["checkMcpTools", "approveMcpTools", "getMcpApprovals"] as const;
+  const methods = [
+    "checkMcpTools",
+    "approveMcpTools",
+    "getMcpApprovals",
+  ] as const;
   it("check, approve and getApprovals on an id that is not installed are PERMISSION_DENIED and write nothing", async () => {
     for (const method of methods) {
       const w = await ready();
       const before = await snap(w, [ID]);
-      const err = await expectPlumsError(w.core[method]("missing.pack", []), "PERMISSION_DENIED");
+      const err = await expectPlumsError(
+        w.core[method]("missing.pack", []),
+        "PERMISSION_DENIED",
+      );
       expect(err.path).toBeUndefined();
-      expect(err.details).toEqual({ id: "missing.pack", reason: "NOT_INSTALLED" });
+      expect(err.details).toEqual({
+        id: "missing.pack",
+        reason: "NOT_INSTALLED",
+      });
       expect(await snap(w, [ID])).toEqual(before);
     }
   });

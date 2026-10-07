@@ -44,7 +44,11 @@ export class PlumsError extends Error {
   readonly details?: unknown;
 
   constructor(options: PlumsErrorOptions) {
-    if (options === null || typeof options !== "object" || typeof options.message !== "string") {
+    if (
+      options === null ||
+      typeof options !== "object" ||
+      typeof options.message !== "string"
+    ) {
       throw new TypeError("PlumsError message must be a string");
     }
     if (!ERROR_CODE_SET.has(options.code)) {

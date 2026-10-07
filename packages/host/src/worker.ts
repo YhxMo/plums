@@ -1,3 +1,4 @@
+import { bootstrap } from "./sdk-bootstrap.js";
 import ivm from "isolated-vm";
 import path from "node:path";
 
@@ -8,39 +9,6 @@ let timer: ReturnType<typeof setTimeout> | undefined;
 let disposed = false;
 let active = "";
 let cpuMs = 0;
-const bootstrap = String.raw`
-(() => {
-  const out = [], pending = new Map(), handlers = new Map(), failures=new WeakMap(), events=new Map(); let next = 0;
-  const rpc = (method, args) => new Promise((resolve, reject) => {
-    const id = ++next; pending.set(id, {resolve, reject}); out.push({type:'rpc', id, method, args});
-  });
-  const sdk = Object.freeze({
-    context: () => rpc('context', {}), connection: (id) => rpc('connection', {id}),
-    failResponse: (callId, reason) => rpc('failResponse', {callId, reason}),
-    engine: Object.freeze({
-      start: (engineId) => rpc('engine.start', {engineId}),
-      request: (engineId, method, input, requestId) => rpc('engine.request', {engineId, method, input, requestId}),
-      cancel: (engineId, requestId) => rpc('engine.cancel', {engineId, requestId}),
-      stop: (engineId) => rpc('engine.stop', {engineId}),
-      status: (engineId) => rpc('engine.status', {engineId})
-    }),
-    register(kind, name, fn) { if(typeof fn !== 'function') throw Error('Invalid handler'); handlers.set(kind+':'+name, fn); },
-    invoke: (packageId, kind, name, input) => rpc('invoke', {packageId, kind, name, input}),
-    capability: (permissionId, request, mcpTool) => rpc('capability', {permissionId, request, mcpTool}),
-    character: (packageId) => rpc('character', {packageId}), characters: () => rpc('characters', {}), settings: () => rpc('settings', {}),
-    emit: (topic, data) => rpc('emit', {topic, data}), mcpCheck: (tools) => rpc('mcpCheck', {tools})
-    ,onEvent(topic,fn){if(typeof topic!=='string'||typeof fn!=='function')throw Error('Invalid listener');let listeners=events.get(topic);if(!listeners){listeners=new Set();events.set(topic,listeners);}listeners.add(fn);return()=>listeners.delete(fn);}
-  });
-  Object.defineProperty(globalThis, 'plums', {value:sdk});
-  globalThis.__drain = () => out.splice(0);
-  globalThis.__settle = (id, ok, value) => { const p=pending.get(id); if(p){pending.delete(id); if(ok)p.resolve(value);else{const error=Object.assign(Error(value?.message || 'Host request denied'),{code:value?.code,path:value?.path,details:value?.details});failures.set(error,value?.failureId);p.reject(error);}} };
-  globalThis.__done = (id, ok, value) => out.push({type:'result', id, ok, value});
-  globalThis.__event = (id, topic, event) => {Promise.all([...(events.get(topic)||[])].map(fn=>Promise.resolve().then(()=>fn(event)))).then(()=>__done(id,true,null),()=>__done(id,false,null));};
-  globalThis.__invoke = (id, kind, name, input) => {
-    const fn=handlers.get(kind+':'+name);
-    Promise.resolve().then(()=>{if(!fn)throw Error('Handler not registered');return fn(input)}).then(v=>__done(id,true,v===undefined?null:v),error=>__done(id,false,{failureId:failures.get(error)}));
-  };
-})();`;
 async function evaluate(source: string): Promise<unknown> {
   const start = performance.now();
   const result = await context.eval(source, { timeout: 5000, copy: true });

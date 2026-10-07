@@ -3,7 +3,7 @@ import { randomUUID } from "node:crypto";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 export interface ConfirmationView {
-  kind: "capability" | "consent" | "task" | "engine-trust";
+  kind: "capability" | "consent" | "task" | "grant" | "engine-trust";
   subject: string;
   action: string;
   reason?: string;
@@ -224,7 +224,9 @@ export class ConfirmPrompter {
       if (
         input.type === "keyDown" &&
         (input.key === "Escape" ||
-          (input.key === "Enter" && pending.view.kind !== "task"))
+          (input.key === "Enter" &&
+            pending.view.kind !== "task" &&
+            pending.view.kind !== "grant"))
       ) {
         event.preventDefault();
         finish(false);

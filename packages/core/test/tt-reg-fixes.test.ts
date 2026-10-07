@@ -45,8 +45,13 @@ function pack(id: string, extra: Partial<Manifest> = {}): Manifest {
   };
 }
 
-function ownText(files: Record<string, Uint8Array>, name: string): string | undefined {
-  const value = Object.getOwnPropertyDescriptor(files, name)?.value as Uint8Array | undefined;
+function ownText(
+  files: Record<string, Uint8Array>,
+  name: string,
+): string | undefined {
+  const value = Object.getOwnPropertyDescriptor(files, name)?.value as
+    | Uint8Array
+    | undefined;
   return value === undefined ? undefined : Buffer.from(value).toString("utf8");
 }
 
@@ -54,7 +59,10 @@ function leaked(label: string): Error {
   const cause = new Error(`${label} cause ${FAKE}`);
   const err = new Error(`${label} ${FAKE}`);
   Object.defineProperty(err, "cause", { value: cause, enumerable: false });
-  Object.defineProperty(err, "details", { value: { secret: FAKE }, enumerable: false });
+  Object.defineProperty(err, "details", {
+    value: { secret: FAKE },
+    enumerable: false,
+  });
   err.stack = `${label} stack ${FAKE}\n    at leaked (${FAKE})`;
   return err;
 }
@@ -74,20 +82,33 @@ function packageZip(id: string, extra: ZipSpec[] = []): Promise<Uint8Array> {
   return manifestZip(pack(id), extra);
 }
 
-async function expectImportRejected(zip: Uint8Array, entryPath: string): Promise<void> {
+async function expectImportRejected(
+  zip: Uint8Array,
+  entryPath: string,
+): Promise<void> {
   const { core, dataDir } = makeCore();
-  const err = await expectPlumsError(core.importPackage(zip), "IMPORT_INVALID", entryPath);
+  const err = await expectPlumsError(
+    core.importPackage(zip),
+    "IMPORT_INVALID",
+    entryPath,
+  );
   expect(err.message.length).toBeGreaterThan(0);
   expect(listAll(dataDir)).toEqual([]);
   expect(await core.listInstalled()).toEqual([]);
   core.close();
 }
 
-async function expectExportRejected(files: Record<string, string>, needle: string): Promise<Core> {
+async function expectExportRejected(
+  files: Record<string, string>,
+  needle: string,
+): Promise<Core> {
   const { core, dataDir } = makeCore();
   const outPath = path.join(dataDir, "rejected.zip");
   const err = await expectPlumsError(
-    core.exportPackage({ manifest: pack("test.reg.export"), files }, { outPath }),
+    core.exportPackage(
+      { manifest: pack("test.reg.export"), files },
+      { outPath },
+    ),
     "IMPORT_INVALID",
   );
   expect(err.message).toContain(needle);
@@ -98,23 +119,42 @@ async function expectExportRejected(files: Record<string, string>, needle: strin
 
 const egressManifest = (id: string): Manifest =>
   pack(id, {
-    permissions: [{ id: "send", level: "egress", target: "api.example.com", reason: "Send a hook." }],
+    permissions: [
+      {
+        id: "send",
+        level: "egress",
+        target: "api.example.com",
+        reason: "Send a hook.",
+      },
+    ],
     settingsSchema: {
       type: "object",
       properties: {
-        apiKey: { type: "string", title: "API key", description: "A secret used by the hook.", "x-secret": true },
+        apiKey: {
+          type: "string",
+          title: "API key",
+          description: "A secret used by the hook.",
+          "x-secret": true,
+        },
       },
     },
   });
 
-async function actionCore(get: MemorySecretStore["get"], egressError: unknown): Promise<Core> {
+async function actionCore(
+  get: MemorySecretStore["get"],
+  egressError: unknown,
+): Promise<Core> {
   const id = "test.reg.secret";
   const secrets = new MemorySecretStore();
   const egress = new RecordingEgressSink();
   egress.send = async () => {
     throw egressError;
   };
-  const { core } = makeCore({ secrets, egress, confirm: new ScriptedConfirm([true]) });
+  const { core } = makeCore({
+    secrets,
+    egress,
+    confirm: new ScriptedConfirm([true]),
+  });
   await core.importPackage(await manifestZip(egressManifest(id)));
   await secrets.set(secretRef(id, "apiKey"), FAKE);
   await core.grantConsent(id);
@@ -125,7 +165,11 @@ async function actionCore(get: MemorySecretStore["get"], egressError: unknown): 
 
 async function runSend(core: Core): Promise<unknown> {
   return core
-    .runAction({ extensionId: "test.reg.secret", permissionId: "send", request: { url: "https://api.example.com/hook" } })
+    .runAction({
+      extensionId: "test.reg.secret",
+      permissionId: "send",
+      request: { url: "https://api.example.com/hook" },
+    })
     .then(
       () => {
         throw new Error("runAction succeeded");
@@ -136,23 +180,17 @@ async function runSend(core: Core): Promise<unknown> {
 
 describe("A: secret-store read failure (#20)", () => {
   it("A: SecretStore.get rejects with the secret while egress throws the same secret", async () => {
-    const core = await actionCore(
-      async () => {
-        throw leaked("get");
-      },
-      leaked("egress"),
-    );
+    const core = await actionCore(async () => {
+      throw leaked("get");
+    }, leaked("egress"));
     assertSecretHidden(await runSend(core));
     core.close();
   });
 
   it("A: egress error has no secret, but SecretStore.get still rejects with one", async () => {
-    const core = await actionCore(
-      async () => {
-        throw leaked("get");
-      },
-      new Error("network down without a secret"),
-    );
+    const core = await actionCore(async () => {
+      throw leaked("get");
+    }, new Error("network down without a secret"));
     assertSecretHidden(await runSend(core));
     core.close();
   });
@@ -181,14 +219,22 @@ describe("B: case collisions and manifest aliases (#21)", () => {
 
   it("B: Manifest.json/ is IMPORT_INVALID and leaves the data dir empty", async () => {
     await expectImportRejected(
-      await packageZip("test.reg.aliasdir", [{ name: "Manifest.json/", directory: true }]),
+      await packageZip("test.reg.aliasdir", [
+        { name: "Manifest.json/", directory: true },
+      ]),
       "/Manifest.json",
     );
   });
 
   it("B: export rejects Dir/x versus dir/x, then another export works", async () => {
-    const core = await expectExportRejected({ "Dir/x": "one", "dir/x": "two" }, "dir/x");
-    const bytes = await core.exportPackage({ manifest: pack("test.reg.export"), files: { "ok.txt": "yes" } });
+    const core = await expectExportRejected(
+      { "Dir/x": "one", "dir/x": "two" },
+      "dir/x",
+    );
+    const bytes = await core.exportPackage({
+      manifest: pack("test.reg.export"),
+      files: { "ok.txt": "yes" },
+    });
     expect(Buffer.from(bytes.subarray(0, 2)).toString("utf8")).toBe("PK");
     core.close();
   });
@@ -198,8 +244,12 @@ describe("C: concurrent import of one id (#21)", () => {
   it("C: consent, enabled, and settings survive when a second same-id import is in flight", async () => {
     const id = "test.reg.overlap";
     const manifest = pack(id);
-    const fast = await manifestZip(manifest, [{ name: "note.txt", data: "fast" }]);
-    const slow = await manifestZip(manifest, [{ name: "blob.bin", data: Buffer.alloc(16 * 1024 * 1024, 7) }]);
+    const fast = await manifestZip(manifest, [
+      { name: "note.txt", data: "fast" },
+    ]);
+    const slow = await manifestZip(manifest, [
+      { name: "blob.bin", data: Buffer.alloc(16 * 1024 * 1024, 7) },
+    ]);
     const { core, dataDir } = makeCore();
     const settings = path.join(dataDir, "data", id, "settings.json");
     const marker = `{"kept":"${id}"}\n`;
@@ -233,7 +283,9 @@ describe("C: concurrent import of one id (#21)", () => {
       expect(text).not.toContain("SQLITE");
     }
     expect(await core.getConsent(id)).not.toBeNull();
-    expect(await core.listInstalled()).toEqual([expect.objectContaining({ id, enabled: true, consented: true })]);
+    expect(await core.listInstalled()).toEqual([
+      expect.objectContaining({ id, enabled: true, consented: true }),
+    ]);
     expect(readFileSync(settings, "utf8")).toBe(marker);
     core.close();
   });
@@ -264,14 +316,20 @@ describe("D: __proto__ file name round trip (#21)", () => {
     const body = Buffer.from(shared).toString("latin1");
     const egress = new RecordingEgressSink({}, { status: 200, body });
     const fromUrl = makeCore({ egress, confirm: new ScriptedConfirm([true]) });
-    expectSameFiles((await fromUrl.core.importFromUrl("https://share.example/pkg.zip")).files);
+    expectSameFiles(
+      (await fromUrl.core.importFromUrl("https://share.example/pkg.zip")).files,
+    );
     fromUrl.core.close();
     core.close();
   });
 });
 
 function expectSameFiles(files: Record<string, Uint8Array>): void {
-  expect(Object.getOwnPropertyNames(files).sort()).toEqual(["__proto__", "constructor", "toString"]);
+  expect(Object.getOwnPropertyNames(files).sort()).toEqual([
+    "__proto__",
+    "constructor",
+    "toString",
+  ]);
   expect(ownText(files, "__proto__")).toBe("proto-body");
   expect(ownText(files, "constructor")).toBe("ctor-body");
   expect(ownText(files, "toString")).toBe("string-body");
@@ -282,7 +340,11 @@ async function waitForStaging(dataDir: string): Promise<void> {
   const deadline = Date.now() + 15_000;
   while (Date.now() < deadline) {
     // `.staging-*` is the prefix install.ts passes to mkdtemp. If it never appears this throws, so a slow machine can time out but cannot pass.
-    if (existsSync(root) && readdirSync(root).some((name) => name.startsWith(".staging-"))) return;
+    if (
+      existsSync(root) &&
+      readdirSync(root).some((name) => name.startsWith(".staging-"))
+    )
+      return;
     await new Promise((resolve) => setTimeout(resolve, 1));
   }
   throw new Error("staging directory did not appear");

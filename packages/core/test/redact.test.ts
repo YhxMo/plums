@@ -1,4 +1,10 @@
-import { IMPORT_INVALID, PlumsError, REDACTED, SECRET_NOT_FOUND, redact } from "@plums/core";
+import {
+  IMPORT_INVALID,
+  PlumsError,
+  REDACTED,
+  SECRET_NOT_FOUND,
+  redact,
+} from "@plums/core";
 import { describe, expect, it } from "vitest";
 
 const secret = "sk-live-EXAMPLE";
@@ -81,7 +87,10 @@ describe("redact", () => {
       a: { token: REDACTED },
       b: { token: REDACTED },
     });
-    expect(redact(cycle, [secret])).toEqual({ token: REDACTED, self: REDACTED });
+    expect(redact(cycle, [secret])).toEqual({
+      token: REDACTED,
+      self: REDACTED,
+    });
   });
 
   it("drops a secret that is the entire path", () => {

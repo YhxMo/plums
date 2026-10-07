@@ -2,7 +2,12 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import type { Manifest, SettingsSchema } from "@plums/core";
 import { describe, expect, it } from "vitest";
-import { expectPlumsError, makeCore, manifestZip, validManifest } from "./package-helpers.js";
+import {
+  expectPlumsError,
+  makeCore,
+  manifestZip,
+  validManifest,
+} from "./package-helpers.js";
 
 const SECRET = "sk-FAKE-settings-value";
 
@@ -29,7 +34,10 @@ function schema(maximum = 5): SettingsSchema {
   };
 }
 
-function pack(settings: SettingsSchema | undefined, version = "1.2.3"): Manifest {
+function pack(
+  settings: SettingsSchema | undefined,
+  version = "1.2.3",
+): Manifest {
   const manifest = validManifest();
   manifest.version = version;
   manifest.dependencies = [];
@@ -60,7 +68,11 @@ describe("setSettings checks values before writing", () => {
     expect(wrongType.details).toEqual({ key: "nickname", reason: "TYPE" });
     expect(existsSync(file)).toBe(false);
 
-    const missing = await expectPlumsError(core.setSettings(manifest.id, {}), "SETTINGS_INVALID", "/settings/nickname");
+    const missing = await expectPlumsError(
+      core.setSettings(manifest.id, {}),
+      "SETTINGS_INVALID",
+      "/settings/nickname",
+    );
     expect(missing.details).toEqual({ key: "nickname", reason: "REQUIRED" });
     expect(existsSync(file)).toBe(false);
 
@@ -75,7 +87,10 @@ describe("setSettings checks values before writing", () => {
       "SETTINGS_INVALID",
       "/settings/nickname",
     );
-    expect(stillRequired.details).toEqual({ key: "nickname", reason: "REQUIRED" });
+    expect(stillRequired.details).toEqual({
+      key: "nickname",
+      reason: "REQUIRED",
+    });
 
     await core.setSettings(manifest.id, { nickname: "Pat" });
     const saved = readFileSync(file, "utf8");
@@ -102,27 +117,72 @@ describe("setSettings checks values before writing", () => {
 });
 
 describe("leftover settings.json", () => {
-  const cases: [string, string, SettingsSchema | undefined, string, { key?: string; reason: string }][] = [
-    ["missing required", "{}", schema(), "/settings/nickname", { key: "nickname", reason: "REQUIRED" }],
-    ["wrong type", '{"nickname":1}', schema(), "/settings/nickname", { key: "nickname", reason: "TYPE" }],
-    ["stricter maximum", '{"nickname":"Pat","retries":8}', schema(3), "/settings/retries", { key: "retries", reason: "MAXIMUM" }],
-    ["no settingsSchema", `{"nickname":"${SECRET}"}`, undefined, "/settings", { reason: "NO_SCHEMA" }],
+  const cases: [
+    string,
+    string,
+    SettingsSchema | undefined,
+    string,
+    { key?: string; reason: string },
+  ][] = [
+    [
+      "missing required",
+      "{}",
+      schema(),
+      "/settings/nickname",
+      { key: "nickname", reason: "REQUIRED" },
+    ],
+    [
+      "wrong type",
+      '{"nickname":1}',
+      schema(),
+      "/settings/nickname",
+      { key: "nickname", reason: "TYPE" },
+    ],
+    [
+      "stricter maximum",
+      '{"nickname":"Pat","retries":8}',
+      schema(3),
+      "/settings/retries",
+      { key: "retries", reason: "MAXIMUM" },
+    ],
+    [
+      "no settingsSchema",
+      `{"nickname":"${SECRET}"}`,
+      undefined,
+      "/settings",
+      { reason: "NO_SCHEMA" },
+    ],
     ["invalid JSON", "{", schema(), "/settings", { reason: "NOT_JSON" }],
-    ["JSON that is not an object", "[]", schema(), "/settings", { reason: "NOT_JSON" }],
+    [
+      "JSON that is not an object",
+      "[]",
+      schema(),
+      "/settings",
+      { reason: "NOT_JSON" },
+    ],
   ];
 
-  it.each(cases)("%s rolls the package back and leaves no install record", async (_name, text, settings, at, details) => {
-    const { core, dataDir } = makeCore();
-    const manifest = pack(settings);
-    const file = plant(dataDir, manifest.id, text);
-    const err = await expectPlumsError(core.importPackage(await manifestZip(manifest)), "IMPORT_INVALID", at);
-    expect(err.details).toEqual(details);
-    expect(err.message).not.toContain(SECRET);
-    expect(JSON.stringify(err.details)).not.toContain(SECRET);
-    expect(await core.listInstalled()).toEqual([]);
-    expect(existsSync(path.join(dataDir, "packages", manifest.id))).toBe(false);
-    expect(readFileSync(file, "utf8")).toBe(text);
-  });
+  it.each(cases)(
+    "%s rolls the package back and leaves no install record",
+    async (_name, text, settings, at, details) => {
+      const { core, dataDir } = makeCore();
+      const manifest = pack(settings);
+      const file = plant(dataDir, manifest.id, text);
+      const err = await expectPlumsError(
+        core.importPackage(await manifestZip(manifest)),
+        "IMPORT_INVALID",
+        at,
+      );
+      expect(err.details).toEqual(details);
+      expect(err.message).not.toContain(SECRET);
+      expect(JSON.stringify(err.details)).not.toContain(SECRET);
+      expect(await core.listInstalled()).toEqual([]);
+      expect(existsSync(path.join(dataDir, "packages", manifest.id))).toBe(
+        false,
+      );
+      expect(readFileSync(file, "utf8")).toBe(text);
+    },
+  );
 
   it("keeps a leftover file that already matches, without rewriting it", async () => {
     const { core, dataDir } = makeCore();
@@ -131,33 +191,48 @@ describe("leftover settings.json", () => {
     const file = plant(dataDir, manifest.id, text);
     await core.importPackage(await manifestZip(manifest));
     expect(readFileSync(file, "utf8")).toBe(text);
-    expect(await core.listInstalled()).toEqual([expect.objectContaining({ id: manifest.id, version: "1.2.3" })]);
+    expect(await core.listInstalled()).toEqual([
+      expect.objectContaining({ id: manifest.id, version: "1.2.3" }),
+    ]);
   });
 
   it("rolls an update back to the installed files when the new schema is stricter", async () => {
     const { core, dataDir } = makeCore();
     const installed = pack(schema(10));
-    await core.importPackage(await manifestZip(installed, [{ name: "old.txt", data: "old" }]));
+    await core.importPackage(
+      await manifestZip(installed, [{ name: "old.txt", data: "old" }]),
+    );
     await core.grantConsent(installed.id);
     await core.enable(installed.id);
     await core.setSettings(installed.id, { nickname: "Pat", retries: 8 });
     const file = path.join(dataDir, "data", installed.id, "settings.json");
     const before = readFileSync(file, "utf8");
     const err = await expectPlumsError(
-      core.updatePackage(await manifestZip(pack(schema(3), "1.3.0"), [{ name: "new.txt", data: "new" }])),
+      core.updatePackage(
+        await manifestZip(pack(schema(3), "1.3.0"), [
+          { name: "new.txt", data: "new" },
+        ]),
+      ),
       "IMPORT_INVALID",
       "/settings/retries",
     );
     expect(err.details).toEqual({ key: "retries", reason: "MAXIMUM" });
     expect(readFileSync(file, "utf8")).toBe(before);
     expect(await core.listInstalled()).toEqual([
-      expect.objectContaining({ id: installed.id, version: "1.2.3", enabled: true, consented: true }),
+      expect.objectContaining({
+        id: installed.id,
+        version: "1.2.3",
+        enabled: true,
+        consented: true,
+      }),
     ]);
     expect((await core.getConsent(installed.id))?.version).toBe("1.2.3");
     const dir = path.join(dataDir, "packages", installed.id);
     expect(readFileSync(path.join(dir, "old.txt"), "utf8")).toBe("old");
     expect(existsSync(path.join(dir, "new.txt"))).toBe(false);
-    const onDisk = JSON.parse(readFileSync(path.join(dir, "manifest.json"), "utf8")) as Manifest;
+    const onDisk = JSON.parse(
+      readFileSync(path.join(dir, "manifest.json"), "utf8"),
+    ) as Manifest;
     expect(onDisk.version).toBe("1.2.3");
     expect(onDisk.settingsSchema?.properties.retries?.maximum).toBe(10);
   });
@@ -165,7 +240,9 @@ describe("leftover settings.json", () => {
   it("updates to a package with no settingsSchema and leaves the settings file unread", async () => {
     const { core, dataDir } = makeCore();
     const installed = pack(schema());
-    await core.importPackage(await manifestZip(installed, [{ name: "old.txt", data: "old" }]));
+    await core.importPackage(
+      await manifestZip(installed, [{ name: "old.txt", data: "old" }]),
+    );
     await core.grantConsent(installed.id);
     await core.enable(installed.id);
     const grantedAt = (await core.getConsent(installed.id))?.grantedAt;
@@ -173,19 +250,28 @@ describe("leftover settings.json", () => {
     const file = path.join(dataDir, "data", installed.id, "settings.json");
     const before = readFileSync(file, "utf8");
     const updated = await core.updatePackage(
-      await manifestZip(pack(undefined, "1.3.0"), [{ name: "new.txt", data: "new" }]),
+      await manifestZip(pack(undefined, "1.3.0"), [
+        { name: "new.txt", data: "new" },
+      ]),
     );
     expect(updated.previousVersion).toBe("1.2.3");
     expect(updated.manifest.settingsSchema).toBeUndefined();
     expect(readFileSync(file, "utf8")).toBe(before);
     expect(await core.listInstalled()).toEqual([
-      expect.objectContaining({ id: installed.id, version: "1.3.0", enabled: true, consented: true }),
+      expect.objectContaining({
+        id: installed.id,
+        version: "1.3.0",
+        enabled: true,
+        consented: true,
+      }),
     ]);
     expect((await core.getConsent(installed.id))?.grantedAt).toBe(grantedAt);
     const dir = path.join(dataDir, "packages", installed.id);
     expect(readFileSync(path.join(dir, "new.txt"), "utf8")).toBe("new");
     expect(existsSync(path.join(dir, "old.txt"))).toBe(false);
-    const onDisk = JSON.parse(readFileSync(path.join(dir, "manifest.json"), "utf8")) as Manifest;
+    const onDisk = JSON.parse(
+      readFileSync(path.join(dir, "manifest.json"), "utf8"),
+    ) as Manifest;
     expect(onDisk.version).toBe("1.3.0");
     expect(onDisk.settingsSchema).toBeUndefined();
   });

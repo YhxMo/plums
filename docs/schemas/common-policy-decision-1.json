@@ -1,0 +1,22 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://plums.dev/schema/common-policy-decision-1.json",
+  "type": "object",
+  "properties": {
+    "assessmentId": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$"
+    },
+    "operationFingerprint": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "decision": {
+      "enum": ["allow", "deny", "confirm"]
+    }
+  },
+  "required": ["assessmentId", "operationFingerprint", "decision"],
+  "additionalProperties": false
+}

@@ -1,13 +1,25 @@
 import { Buffer } from "node:buffer";
 import { readdir, readFile } from "node:fs/promises";
 import path from "node:path";
-import { CONFIRMATION_DENIED, PlumsError, SHARE_FETCH_FAILED } from "./errors.js";
-import { requireInstalled, requireManifest, type InstallContext } from "./install/lifecycle.js";
+import {
+  CONFIRMATION_DENIED,
+  PlumsError,
+  SHARE_FETCH_FAILED,
+} from "./errors.js";
+import {
+  requireInstalled,
+  requireManifest,
+  type InstallContext,
+} from "./install/lifecycle.js";
 import { knownSecrets } from "./install/settings.js";
 import { checkHttpsUrl } from "./package/egress-target.js";
 import { exportPackage } from "./package/export.js";
 import { PACKAGES_DIR } from "./package/install.js";
-import { MANIFEST_FILE, type PackageFiles, type PackageLimits } from "./package/types.js";
+import {
+  MANIFEST_FILE,
+  type PackageFiles,
+  type PackageLimits,
+} from "./package/types.js";
 import type { Confirm, EgressResult, EgressSink } from "./types.js";
 
 /** Largest share-link body accepted, in bytes (latin1 length). A larger body is SHARE_FETCH_FAILED. */
@@ -26,7 +38,9 @@ export async function shareToFile(
   filePath: string,
 ): Promise<Uint8Array> {
   requireInstalled(ctx, id);
-  const files = await readInstalledFiles(path.join(ctx.dataDir, PACKAGES_DIR, id));
+  const files = await readInstalledFiles(
+    path.join(ctx.dataDir, PACKAGES_DIR, id),
+  );
   return exportPackage(
     { manifest: requireManifest(ctx, id), files },
     limits,
@@ -39,7 +53,11 @@ export async function shareToFile(
  * Downloads `url` into memory. Writes nothing. One `egress.send`, no redirect following.
  * The body is latin1: one character is one byte. A character above 0xFF is not a byte and is refused, not truncated.
  */
-export async function fetchSharedPackage(url: string, egress: EgressSink, confirm: Confirm): Promise<Uint8Array> {
+export async function fetchSharedPackage(
+  url: string,
+  egress: EgressSink,
+  confirm: Confirm,
+): Promise<Uint8Array> {
   const parsed = requireShareUrl(url);
   let yes = false;
   try {
@@ -72,7 +90,11 @@ export async function fetchSharedPackage(url: string, egress: EgressSink, confir
   if (result.redirectTo !== undefined) {
     throw shareFailed(url, "REDIRECT");
   }
-  if (!Number.isInteger(result.status) || result.status < 200 || result.status >= 300) {
+  if (
+    !Number.isInteger(result.status) ||
+    result.status < 200 ||
+    result.status >= 300
+  ) {
     throw shareFailed(url, "HTTP_STATUS", result.status);
   }
   const body = typeof result.body === "string" ? result.body : "";
@@ -131,7 +153,11 @@ const SHARE_MESSAGES = {
   NOT_A_ZIP: () => "分享链接的内容不是一个 zip 压缩包。",
 };
 
-function shareFailed(rawUrl: string, reason: keyof typeof SHARE_MESSAGES, status?: number): PlumsError {
+function shareFailed(
+  rawUrl: string,
+  reason: keyof typeof SHARE_MESSAGES,
+  status?: number,
+): PlumsError {
   return new PlumsError({
     code: SHARE_FETCH_FAILED,
     // Why no fallback: every caller passes one of the keys above.
@@ -144,13 +170,18 @@ function shareFailed(rawUrl: string, reason: keyof typeof SHARE_MESSAGES, status
 export async function readInstalledFiles(dir: string): Promise<PackageFiles> {
   const files: PackageFiles = Object.create(null);
   const walk = async (relative: string): Promise<void> => {
-    const entries = await readdir(path.join(dir, ...relative.split("/").filter(Boolean)), { withFileTypes: true });
+    const entries = await readdir(
+      path.join(dir, ...relative.split("/").filter(Boolean)),
+      { withFileTypes: true },
+    );
     for (const entry of entries) {
       const rel = relative === "" ? entry.name : `${relative}/${entry.name}`;
       if (entry.isDirectory()) {
         await walk(rel);
       } else if (entry.isFile() && rel !== MANIFEST_FILE) {
-        files[rel] = new Uint8Array(await readFile(path.join(dir, ...rel.split("/"))));
+        files[rel] = new Uint8Array(
+          await readFile(path.join(dir, ...rel.split("/"))),
+        );
       }
     }
   };

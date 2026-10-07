@@ -6,9 +6,14 @@
 
 ```ts
 import {
-  createCore, FakeModelProvider, MemorySecretStore,
-  RecordingEgressSink, RecordingFsSink, RecordingExecSink,
-  ScriptedConfirm, type AuditEvent,
+  createCore,
+  FakeModelProvider,
+  MemorySecretStore,
+  RecordingEgressSink,
+  RecordingFsSink,
+  RecordingExecSink,
+  ScriptedConfirm,
+  type AuditEvent,
 } from "@plums/core";
 
 const audit: AuditEvent[] = [];
@@ -23,7 +28,9 @@ const core = createCore({
   programs: { test: "/host/bin/test-runner" },
   confirm: new ScriptedConfirm([true, true, true]),
   confirmTimeoutMs: 120_000,
-  onAudit: (event) => { audit.push({ ...event }); },
+  onAudit: (event) => {
+    audit.push({ ...event });
+  },
 });
 ```
 
@@ -37,25 +44,71 @@ const core = createCore({
 
 ```json
 [
-  { "id": "files", "kind": "fs", "target": "workspace", "operations": ["read", "write", "list"], "reason": "处理项目文件" },
-  { "id": "tests", "kind": "exec", "target": "test", "cwdRoots": ["workspace"], "reason": "运行项目测试" },
-  { "id": "send", "kind": "egress", "target": "api.example.com", "reason": "发送摘要" }
+  {
+    "id": "files",
+    "kind": "fs",
+    "target": "workspace",
+    "operations": ["read", "write", "list"],
+    "reason": "处理项目文件"
+  },
+  {
+    "id": "tests",
+    "kind": "exec",
+    "target": "test",
+    "cwdRoots": ["workspace"],
+    "reason": "运行项目测试"
+  },
+  {
+    "id": "send",
+    "kind": "egress",
+    "target": "api.example.com",
+    "reason": "发送摘要"
+  }
 ]
 ```
 
 导入、`grantConsent(id)`、`enable(id)` 后调用：
 
 ```ts
-await core.runCapability({ extensionId: "demo", permissionId: "files",
-  request: { kind: "fs", operation: "read", path: "README.md" } });
-await core.runCapability({ extensionId: "demo", permissionId: "files",
-  request: { kind: "fs", operation: "write", path: "notes.txt", data: new TextEncoder().encode("notes") } });
-await core.runCapability({ extensionId: "demo", permissionId: "files",
-  request: { kind: "fs", operation: "list", path: "." } });
-await core.runCapability({ extensionId: "demo", permissionId: "tests",
-  request: { kind: "exec", args: ["--report", "report file.txt"], cwd: { root: "workspace", path: "." } } });
-await core.runCapability({ extensionId: "demo", permissionId: "send",
-  request: { kind: "egress", url: "https://api.example.com/summary", method: "POST", body: "summary" } });
+await core.runCapability({
+  extensionId: "demo",
+  permissionId: "files",
+  request: { kind: "fs", operation: "read", path: "README.md" },
+});
+await core.runCapability({
+  extensionId: "demo",
+  permissionId: "files",
+  request: {
+    kind: "fs",
+    operation: "write",
+    path: "notes.txt",
+    data: new TextEncoder().encode("notes"),
+  },
+});
+await core.runCapability({
+  extensionId: "demo",
+  permissionId: "files",
+  request: { kind: "fs", operation: "list", path: "." },
+});
+await core.runCapability({
+  extensionId: "demo",
+  permissionId: "tests",
+  request: {
+    kind: "exec",
+    args: ["--report", "report file.txt"],
+    cwd: { root: "workspace", path: "." },
+  },
+});
+await core.runCapability({
+  extensionId: "demo",
+  permissionId: "send",
+  request: {
+    kind: "egress",
+    url: "https://api.example.com/summary",
+    method: "POST",
+    body: "summary",
+  },
+});
 ```
 
 fs 的根来自权限 target。请求路径只用 `/` 分隔，拒绝绝对路径、盘符、UNC、反斜杠、`..` 路径段和 NUL；按真实路径及目录边界检查，允许根内符号链接，拒绝逃逸。读取要求普通文件，列目录和 exec cwd 要求目录。写入可创建或覆盖普通文件，父目录必须存在；不创建目录。write 不隐含 read 或 list。
@@ -66,13 +119,13 @@ exec 的程序来自权限 target，cwd.root 必须在 cwdRoots 中且有绑定�
 
 每个结果含独立 `callId`，按 kind 和 operation 分支：
 
-| 请求 | 结果 |
-| --- | --- |
-| fs read | `{ callId, kind: "fs", operation: "read", data: Uint8Array }` |
-| fs write | `{ callId, kind: "fs", operation: "write", completed: true }` |
-| fs list | `{ callId, kind: "fs", operation: "list", entries: [{ name, type }] }`，type 为 file/directory/symlink/other |
-| exec | `{ callId, kind: "exec", result: { exitCode, stdout, stderr } }`，非零退出也是正常结果 |
-| egress | `{ callId, kind: "egress", result: { status, body, redirectTo? } }` |
+| 请求     | 结果                                                                                                         |
+| -------- | ------------------------------------------------------------------------------------------------------------ |
+| fs read  | `{ callId, kind: "fs", operation: "read", data: Uint8Array }`                                                |
+| fs write | `{ callId, kind: "fs", operation: "write", completed: true }`                                                |
+| fs list  | `{ callId, kind: "fs", operation: "list", entries: [{ name, type }] }`，type 为 file/directory/symlink/other |
+| exec     | `{ callId, kind: "exec", result: { exitCode, stdout, stderr } }`，非零退出也是正常结果                       |
+| egress   | `{ callId, kind: "egress", result: { status, body, redirectTo? } }`                                          |
 
 FsSink.read/list 接受 `{ rootPath, path }`，write 额外接受复制的 data；路径均为检查后的绝对真实路径。ExecSink.run 接受 `{ program, args, cwd, rootPath }`。返回结果复制后才进行结果审计。
 
@@ -92,14 +145,13 @@ FsSink.read/list 接受 `{ rootPath, path }`，write 额外接受复制的 data�
 
 Sink 或审计失败使用 `CAPABILITY_FAILED`，details 为 `{ callId, phase, executionState }`。phase 为 sink 或 audit_confirmation/audit_allow/audit_denied/audit_result（内部授权故障为 authorization）。声明、同意与确认错误保留现有错误码；确认拒绝 reason 为 MISSING/DENIED/TIMEOUT/ERROR/INVALID。
 
-| executionState | 含义与处理 |
-| --- | --- |
-| not_started | 没有调用 Sink；缺少或执行前审计失败会阻止执行 |
-| unknown | 已进入 Sink，但抛错或返回值不符合接口；可能已有副作用，核对宿主记录，勿自动重试 |
-| completed | Sink 已返回，结果审计失败；动作已完成，勿自动重试 |
+| executionState | 含义与处理                                                                      |
+| -------------- | ------------------------------------------------------------------------------- |
+| not_started    | 没有调用 Sink；缺少或执行前审计失败会阻止执行                                   |
+| unknown        | 已进入 Sink，但抛错或返回值不符合接口；可能已有副作用，核对宿主记录，勿自动重试 |
+| completed      | Sink 已返回，结果审计失败；动作已完成，勿自动重试                               |
 
 本入口每次只调用一次 Sink，不自动重试。审计实现与存储可靠性由宿主负责；任务范围的批准与显式停止/撤权有审计记录，其他生命周期操作尚无完整审计。
-
 
 ## 桌面宿主与调用链
 
@@ -107,11 +159,20 @@ Sink 或审计失败使用 `CAPABILITY_FAILED`，details 为 `{ callId, phase, e
 
 ```ts
 await core.runDelegatedCapability({
-  packageId: 'connector', permissionId: 'send',
-  callers: [{ packageId: 'extension', permissionId: 'model-access' }],
-  request: { kind: 'egress', url: 'https://api.example.com',
-    headers: { Accept: 'application/json' }, stream: true },
-  mcpTool: { name: 'lookup', description: 'Lookup', inputSchema: { type: 'object' } }
+  packageId: "connector",
+  permissionId: "send",
+  callers: [{ packageId: "extension", permissionId: "model-access" }],
+  request: {
+    kind: "egress",
+    url: "https://api.example.com",
+    headers: { Accept: "application/json" },
+    stream: true,
+  },
+  mcpTool: {
+    name: "lookup",
+    description: "Lookup",
+    inputSchema: { type: "object" },
+  },
 });
 ```
 
@@ -127,12 +188,32 @@ await core.runDelegatedCapability({
 
 范围仅存当前 core 实例内存，绑定实例随机身份、安装/启用记录、清单与版本、同意记录、目录绑定及目录实体身份和外部数据库连接变更版本。升级、设置改变、停用、关闭、`revokeTaskScope()` 均失效；宿主另外在停止、组装与目录绑定变更时撤销并终止运行。`taskScopeState()` 返回 taskId 与到期时间。撤销不撤回已经完成的 I/O。
 
-范围内的每次能力调用仍经过声明、同意、真实路径边界、调用链权限交集、MCP 指纹及执行前后审计。只有调用链全部主体均获批对应操作时免除重复确认。有效任务内未选中的 read/list 也需要单次确认；未覆盖的 write/egress 继续单次确认，单次同意不会扩大任务。声明外路径/域名直接拒绝。任务在确认或审计等待中撤销、到期、变更时，尚未开始的范围内调用不能执行。独立 core 曾进入任务模式后，在该 core 的任务到期/撤销后仍要求读取确认。桌面确认策略跨内部 core 重建保留，而 grants 仅属于当前 core 内存，销毁后不会持久化或复活；已开始的 I/O 不能被追溯撤回，宿主停止信号用于取消尚在执行的工作。
+范围内的每次能力调用仍经过声明、同意、真实路径边界、调用链权限交集、MCP 指纹及执行前后审计。只有调用链全部主体均获批对应操作时免除重复确认。有效任务内未选中的 read/list 也需要单次确认；未覆盖的 write/egress 继续单次确认，单次同意不会扩大任务。声明外路径/域名直接拒绝。任务在确认或审计等待中撤销、到期、变更时，尚未开始的范围内调用不能执行。独立 core 曾进入任务模式后，在该 core 的任务到期/撤销后仍要求读取确认。桌面确认策略跨内部 core 重建保留，而内存任务范围仅属于当前 core 内存，销毁后不会持久化或复活；已开始的 I/O 不能被追溯撤回，宿主停止信号用于取消尚在执行的工作。
 
-授权审计使用 `phase: task`；能力审计携带 `taskId` 关联本次任务，不包含物理路径、内容或凭据。任务范围不是 OS 沙箱；桌面仍不执行 exec 或本地 stdio MCP。
+授权审计使用 `phase: task`；能力审计携带 `taskId` 关联本次任务，不包含物理路径、内容或凭据。任务范围不是 OS 沙箱。桌面阶段 3 已为可信选择的程序提供真实受控 exec；本地 stdio MCP 仍未提供。
 
 ## SDK v2 连接与本机引擎
 
 通用 `service / https / request` 的效果为 egress，沿用外发任务范围或单次确认。声明绑定的 origin、保存配置、密钥版本和调用链共同决定授权；外装组件构造业务正文、解析回复。`failResponse` 只能报告当前组件当前调用的真实完成请求，保持实际 callId、HTTP 状态和 completed 执行状态。接口见 [SDK v2](sdk-v2.md)。
 
-`kind: engine` 仅声明可由用户长期信任的本机引擎。它不能经 `runCapability` 或普通任务范围启动，不注册 ExecSink 或策略插件。长期记录仅由可信管理入口写入；独立引擎进程拥有普通本机用户权限。普通扩展的 fs/HTTPS/MCP 授权仍适用于引擎主动选择的受控贡献回调。完整边界与协议见 [engine.md](engine.md)。
+`kind: engine` 仅声明可由用户长期信任的本机引擎。它不能经 `runCapability` 或普通任务范围启动，不能借受控 ExecSink 启动普通权限引擎。阶段 4 的可信策略接入对新受限路径选择固定提供者、用户最大范围及有限期租约，旧普通引擎与选定策略互斥。长期记录仅由可信管理入口写入；独立引擎进程拥有普通本机用户权限。普通扩展的 fs/HTTPS/MCP 授权仍适用于引擎主动选择的受控贡献回调。完整边界与协议见 [engine.md](engine.md)。
+
+## 持久化引擎处理授权（Grant）
+
+`Grant` / `GrantScope` 是 Agent 数据库中的有限期授权，与内存 `TaskScope` 分开。可信宿主先通过 `grantPlan({ownerId, engineId, scope})` 获取预览指纹，经独立授权窗口选择范围后调用 `createGrant({...plan, durationMs})`；有效期只接受 900000 或 3600000 毫秒。`listGrants(ownerId?)` 返回持久记录，`checkGrant(id, ownerId, {reads, outputs})` 检查当前有效性，`revokeGrant(id)` 先保存撤销再审计。SDK 不直接暴露签发接口。
+
+范围中的 `reads` / `outputs` 是引擎声明的固定资源标识；`services` 列出实际调用链各组件、permissionId、operation、已配置 binding。授权绑定实例、安装身份、组件版本与完整清单、同意状态、引擎信任、设置修订和模型连接指纹。重启保持有效期，不自动续期，导出只处理包制品，因此不携带 Grant。普通升级可以保留本机引擎信任，处理 Grant 仍需重新批准。
+
+授权审计成功并且数据库事务保存成功后才生效；预览、授权或审计等待期间的状态变化拒绝签发。请求传入可选 `grantId` 与成对的 `grantScope`。范围内的模型服务调用免除重复外发确认，仍执行原声明、同意、调用链交集及执行前后复核。有效授权之外的动作回落到单次确认，单次确认不扩大 Grant；授权本身失效或调用链改变则拒绝后续调用。保留内容外发能力的既有后台 consent 不能替代处理 Grant。
+
+授权与执行事件保留 callId、grantId、身份、固定操作分类和状态；不记录资源正文、模型参数、原始输出、密钥或物理目录。本机引擎的本地读写范围由已受信任的引擎适配层执行，Grant 不构成 OS 沙箱。
+
+## 桌面受控命令
+
+可信管理为 exec target 绑定固定程序摘要与显式外部读/写目录，SDK 仅传 args/cwd。调用链每方必须同意该 exec 权限，且拥有全部所选目录的 fs read/write 声明；write 不隐含 read。活动短期任务范围必须覆盖这些目录操作，未选中即拒绝；exec 自身每次单次确认。执行前复核目录实体、程序摘要、整链状态与期限，再进入默认拒绝的系统沙箱；无直接网络、fork/执行其他程序、继承环境/额外 fd。
+
+平台私有数据及 agent-data 不能作为程序读写根。程序只允许固定只读系统依赖；设施、依赖或真实边界探测失败则 RUNTIME_UNAVAILABLE。取消等待 supervisor 清理，unknown/completed 不自动重试。旧普通权限引擎不能与该受控模式、common 任务或资源范围同时运行。详情见[共同契约](common-contract.md#当前统一运行接入阶段-3)。
+
+### 桌面第三方策略 gate
+
+可信宿主可注入 `capabilityGate`；core 在完成原有声明、同意、整链和实际范围检查后调用它，并在确认、审计和 Sink 前后反复执行返回的 `assertCurrent`。只有可信宿主 gate 接受时替代本次安全模式确认；core 不加载或解释第三方策略。DesktopHost 的 gate 使用固定策略、严格决定 schema、10 秒超时与有效用户最大范围。未选择策略继续使用上述桌面安全确认；已选择而缺租约/决定无效时拒绝，不能回落单次确认。SDK 没有 gate 配置权限。详见[SDK v2 策略接入](sdk-v2.md#第三方策略接入阶段-4)。

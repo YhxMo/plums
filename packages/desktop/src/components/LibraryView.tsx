@@ -14,6 +14,7 @@ export function LibraryView({
   canUse,
   agents,
   developer,
+  onInspect,
   onOpen,
   onRemove,
   onExport,
@@ -25,6 +26,7 @@ export function LibraryView({
   canUse: boolean;
   agents: AgentRecord[];
   developer: boolean;
+  onInspect: (item: CatalogItem) => void;
   onOpen: (id: string) => void;
   onRemove: (hash: string) => Promise<unknown>;
   onExport: (hash: string) => Promise<unknown>;
@@ -57,6 +59,7 @@ export function LibraryView({
             canUse={canUse}
             agents={agents}
             developer={developer}
+            onInspect={onInspect}
             onOpen={onOpen}
             onRemove={onRemove}
             onExport={onExport}
@@ -75,6 +78,7 @@ function LibraryCard({
   canUse,
   agents,
   developer,
+  onInspect,
   onOpen,
   onRemove,
   onExport,
@@ -86,6 +90,7 @@ function LibraryCard({
   canUse: boolean;
   agents: AgentRecord[];
   developer: boolean;
+  onInspect: (item: CatalogItem) => void;
   onOpen: (id: string) => void;
   onRemove: (digest: string) => Promise<unknown>;
   onExport: (digest: string) => Promise<unknown>;
@@ -163,12 +168,11 @@ function LibraryCard({
         </p>
       )}
       {developer && (
-        <details className="technical-details">
-          <summary>组件信息</summary>
-          <small>
-            标识：{p.manifest.id} · 内容摘要：{p.digest}
-          </small>
-        </details>
+        <div className="technical-details">
+          <button className="sm" onClick={() => onInspect(p)}>
+            查看 / 编辑内容
+          </button>
+        </div>
       )}
     </article>
   );

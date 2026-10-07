@@ -1,3 +1,7 @@
+import {
+  protocolPlan,
+  requireProtocolSelections,
+} from "./protocol-bindings.js";
 import { createHash } from "node:crypto";
 import {
   PlumsError,
@@ -7,8 +11,12 @@ import {
 } from "@plums/core";
 import type { AgentRecord } from "./host.js";
 import { missingRequiredSettings } from "@plums/sdk/settings";
-import { connectionAccess, grantConnectionAccess } from "./connection-service.js";
+import {
+  connectionAccess,
+  grantConnectionAccess,
+} from "./connection-service.js";
 export async function enablePlan(core: Core, record: AgentRecord) {
+  const protocols = await protocolPlan(core, record);
   const installed = await core.listInstalled(),
     order: string[] = [],
     visiting = new Set<string>(),
@@ -25,6 +33,13 @@ export async function enablePlan(core: Core, record: AgentRecord) {
     visiting.add(id);
     const { manifest } = await core.getPackage(id);
     for (const d of manifest.dependencies) if (!d.optional) await visit(d.id);
+    for (const s of protocols.requirements)
+      if (
+        s.consumerId === id &&
+        s.selected &&
+        ["bound", "disabled"].includes(s.state)
+      )
+        await visit(s.selected.providerId);
     visiting.delete(id);
     done.add(id);
     order.push(id);
@@ -34,14 +49,16 @@ export async function enablePlan(core: Core, record: AgentRecord) {
   for (const p of installed) await visit(p.id);
   const entries = [],
     missing = [];
-  let source = JSON.stringify({
-    startup: record.agent.startup,
-    characterId: record.characterId,
-  });
+  let source =
+    protocols.fingerprint +
+    JSON.stringify({
+      startup: record.agent.startup,
+      characterId: record.characterId,
+    });
   for (const id of order) {
     const detail = await core.getPackage(id),
       settings = await core.describeSettings(id);
-    const access = await connectionAccess(core, id);
+    const access = await connectionAccess(core, id, record);
     source += JSON.stringify(detail);
     source += JSON.stringify(access);
     const fields = missingRequiredSettings(settings);
@@ -60,6 +77,11 @@ export async function enablePlan(core: Core, record: AgentRecord) {
     fingerprint: createHash("sha256").update(source).digest("hex"),
     entries,
     missing,
+    protocols,
+    missingProtocols: protocols.requirements.filter(
+      (s) =>
+        !s.requirement.optional && !["bound", "disabled"].includes(s.state),
+    ),
   };
 }
 export async function enablePrepared(
@@ -79,6 +101,7 @@ export async function enablePrepared(
       message: "请先填写所需配置。",
       path: "/settings",
     });
+  requireProtocolSelections(plan.protocols.requirements);
   const changed: string[] = [];
   try {
     for (const p of plan.entries)
@@ -87,7 +110,8 @@ export async function enablePrepared(
         await core.enable(p.packageId);
         changed.push(p.packageId);
       }
-    for (const p of plan.entries) await grantConnectionAccess(core, p.packageId);
+    for (const p of plan.entries)
+      await grantConnectionAccess(core, p.packageId, record);
   } catch (e) {
     for (const id of changed.reverse()) await core.disable(id);
     throw e;

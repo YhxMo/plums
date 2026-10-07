@@ -93,10 +93,22 @@ macOS 上每个引擎由独立监管器创建进程组，后代默认继承此�
 
 审计仅记录授权、撤销、启动、停止和崩溃的身份、时间及状态，不记录正文、代码、参数、密钥、物理路径或原始输出。审计失败阻止启动，清理和撤权仍优先执行。
 
-## 自造示例
+## 宿主上下文和处理授权回调
 
-`examples/trusted-engine` 提供独立界面和 Node 引擎，默认逐次询问；完全访问及自动审查是该示例自身的测试模式。自动审查仅允许示例的 read/list/wait/connector 操作，其他操作拒绝。任务包括文件读写、列目录、固定 Node 子进程、网络、长等待及主动调用可选模型连接器。
+`initialize` 附带宿主固定的 `context: {agentId, componentId, engineId, dataDir}`。dataDir 位于当前 Agent 的 engine-data 下，以组件安装身份和引擎隔离，独立于每次执行的临时快照；普通停启与升级使用同一安装数据目录，新 Agent / 卸载重装使用新的目录。扩展不能从前端请求中覆盖上下文。
 
-`pnpm examples:build` 生成 `trusted-engine.zip` 和无公共模型依赖的 `trusted-engine-agent.zip`。需要演示连接器桥时，再从公共库加入 `model-connector.zip` 并填写其配置和授权。
+SDK v2 引擎可声明 `grantResources: {reads: [{id,title}], outputs: [{id,title}]}`。`host.grant` 支持 action 为 list、check、request、revoke，以及固定 read/write/run 分类的 allow/result 审计。request 只打开宿主窗口，不接受组件自报身份、目标地址或权限；宿主从已声明依赖与实际模型 connection 解析调用链与目标，用户选择范围及 15 分钟 / 1 小时。撤权、到期、配置与清单变化后 list/check 不返回有效授权。
 
-完成桌面打包与示例构建后，`pnpm desktop:engine-smoke` 使用临时数据目录和自造文件、子进程、局域回环 HTTP 服务验证打包应用的信任窗口、长任务、取消、前端崩溃恢复及管理页停止/撤权。它与确认窗口测试、普通 `desktop:smoke` 顺序运行。
+引擎调用 `host.invoke` 时可传 `grantId` 和 `grantScope`，宿主检查引擎身份并把授权传到连接器实际的 SDK capability 调用。引擎的 `$/cancelRequest` 通知会中止对应宿主回调；普通模型连接器、逐次确认和本机信任契约保持。JSONL 单条上限仍为 1 MiB，业务分页应留出协议空间。
+
+引擎贡献回调使用按引擎隔离的连接器运行时集合，前端关闭或恢复不会中止覆盖有效 Grant 的模型请求；本机引擎停止、撤权、配置或绑定变化时清理对应运行时。普通前端调用继续使用原先的取消与任务范围策略。
+
+## 协议需求回调
+
+SDK v2 引擎可用 `host.protocolStatus` 查询自身需求，或用 `host.invokeProtocol` 提交 `{requirementId, input, grantId?, grantScope?}`。宿主在当前 Agent 内解析用户保存的具体提供者，复用 isolate 的调用边复核、完整权限交集、取消与审计。`host.grant` request 可以用 `requirementId` 替代具体 `packageId`，目标仍由宿主根据固定连接与 `connectionId` 解析。更换连接撤销 Agent 中已存 Grant，重新连接不会恢复旧 Grant。原 `host.invoke` 仍需要具体依赖；协议连接不伪造 dependencies。声明和完整生命周期见 [扩展协议](extension-protocols.md)。
+
+## 与共同受控运行的互斥
+
+旧 engines 仍拥有明确长期批准的普通本机权限，不能被改名后当作共同受控 Node。Agent 中 common 运行/任务、资源范围或短期 fs/HTTPS 范围活动时，旧引擎启动和请求拒绝；反向开始 common 运行/任务时也拒绝已有普通权限引擎。可信范围变更先停止对应普通运行与引擎，等待清理。旧前端只能管理自己的引擎，不能调用任意组件引擎。
+
+新 `plumsDesktop.common.runtime:"controlled-node"` 使用固定 Node、默认拒绝系统沙箱和临时 scratch，业务文件/网络/资源/命令经宿主桥。此路径不使用 engines 长期信任或普通本机 dataDir；后台任务单独声明、用户开关和每调用期限，详见[SDK v2](sdk-v2.md#共同契约-10)。普通引擎生命周期及已有 Grant 保持在兼容路径内，不能扩大新资源或策略授权。

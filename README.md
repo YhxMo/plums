@@ -1,81 +1,68 @@
-# plums
+<h1 align="center">Plums</h1>
 
-Plums 内核（Apache-2.0）。pnpm 单仓库，包含：
+<p align="center">可自由组装 Agent 的桌面应用，提供独立的管理、授权与执行宿主。</p>
 
-- `@plums/core`：TypeScript 内核库
-- `@plums/sdk`、`@plums/host`：外装包 SDK、隔离运行与受控 I/O
-- `@plums/desktop`：Electron/React 桌面安装、管理与安全底座（0.1.0）
-- `plums`：只调用库公开 API 的命令行。core 与 CLI 版本为 0.2.0
+## 应用与交付范围
 
-## 环境
+Plums 是 Apache-2.0 的 TypeScript 工作区。桌面应用负责公共组件库、Agent 组装、可信管理界面和安全执行；聊天、模型协议与业务页面由用户另行导入的组件提供。
 
-全仓及桌面构建使用 Node.js 26.5.1、pnpm 10 和 macOS Xcode Command Line Tools。单独使用 core/CLI 仍支持 Node.js 22+。
+本仓库交付应用、core、CLI、公开 SDK、宿主和官方执行底座。业务扩展示例、真实角色卡、个人助理项目与 Agent 整合包独立维护，不包含在当前源码交付中。安装包、签名私钥和运行数据不进入 Git。
 
-桌面不内置聊天、模型、工具或业务页面；角色卡、扩展和连接器可分别导入公共库，再由用户自由组装 Agent；也可批量导入组合 ZIP。完整使用、组合包格式、SDK、安全与验收说明见 [桌面宿主](docs/desktop.md)。
+- 按内容摘要保存不可变组件，Agent 固定具体版本并隔离设置、密钥与数据。
+- 文件、HTTPS 与受控命令经过声明、同意、执行范围和审计；密钥只保存在本地私有存储并向已授权目标注入。
+- 第三方前端使用独立沙箱，普通业务代码使用隔离运行时；本机引擎须独立批准。
 
-## 命令
+执行底座的公开声明与会话协议正在实现；当前第三方原型只覆盖明确声明的最小 SDK 子集，不能视作完整 SDK 认证。
+
+## 快速开始
+
+全仓构建和桌面测试使用 Node.js **26.5.1**、pnpm **10.33.3**；macOS 原生文件适配器需要 Xcode Command Line Tools。当前桌面与受控底座验收平台为 macOS Apple Silicon。单独使用 core/CLI 支持 Node.js 22+。
 
 ```sh
-pnpm install
+git clone https://github.com/YhxMo/plums.git Plums
+cd Plums
+pnpm install --frozen-lockfile
 pnpm build
-pnpm test
-pnpm exec plums --help
+pnpm exec plums version
+pnpm desktop:dev
 ```
 
-`pnpm test` 会先构建，再跑 Vitest。不带参数的 `plums` 打印 `@plums/core` 的版本号。
+版本命令打印 core/CLI 版本；桌面打开可信管理界面，可创建空 Agent，或导入组件并在统一配置、权限确认后启用。应用不自动安装业务组件。
 
-里程碑 1 的命令行有 `import`、`inspect`、`enable`、`uninstall`、`export`。密钥只在内存里，没有真实外发。CLI 尚无 `share import`；真实 HTTPS、文件 I/O 与加密密钥存储由独立桌面宿主提供。
+## 开发与验证
 
-数据目录默认是用户目录下的 `.plums`。`--home <目录>` 或环境变量 `PLUMS_HOME` 可以改掉。
+| 命令                        | 用途                                        |
+| --------------------------- | ------------------------------------------- |
+| `pnpm build`                | 构建 core、CLI、SDK、host 与 desktop        |
+| `pnpm test`                 | 准备本地测试 Node，构建并运行应用与安全回归 |
+| `pnpm conformance:platform` | 运行共同平台契约的符合性检查                |
+| `pnpm desktop:dev`          | 启动桌面开发应用                            |
+| `pnpm desktop:package`      | 生成 macOS arm64 安装包至忽略的 `release/`  |
+| `pnpm bench:performance`    | 运行性能基准                                |
 
-新建清单可使用 `@plums/core` 导出的 `PACKAGE_FORMAT_VERSION` 作为 `formatVersion` 默认值（当前为 `"2.0"`）；`SUPPORTED_FORMAT_MAJOR` 从它推导。内核读取 1.x 与 2.x，导出保留传入的版本，例如 `1.7` 或 `2.7`。
+定向集成测试先运行 `node scripts/prepare-test-runtime.mjs` 和 `pnpm build`，再执行 `pnpm exec vitest run <测试文件>`。部分 CLI、子进程及 Electron 测试加载构建后的 dist。原生窗口测试按配置顺序运行。
 
-2.x 权限使用 `kind: fs | exec | egress`，每条有唯一 `id`、`target` 和 `reason`。fs 的 `operations` 显式列出 read/write/list，write 不隐含 read；exec 的 `cwdRoots` 列出逻辑工作目录根；egress 沿用 HTTPS 域名和端口规则。`inspect` 返回 formatVersion 和完整声明，CLI 的 inspect、enable 输出也保留全部字段。跨格式更新，或新增操作、改变类别/目标、增加 exec 目录范围，都需重新同意。
+## 版本与边界
 
-公开类型 `Manifest`、`Permission` 包含 1.x/2.x 联合类型。宿主可通过 `isManifestV1`、`isManifestV2` 区分已验证清单，再按 2.x 权限的 kind 分支；也可使用明确的 `ManifestV1`/`ManifestV2`、`PermissionV1`/`PermissionV2` 类型。未知字段继续保留，不用于推断权限。2.x 包不能通过 `runAction` 或现有 MCP 入口调用，返回 `PERMISSION_DENIED`、`/formatVersion`、reason `FORMAT_API_MISMATCH`。
+桌面、宿主与 SDK 稳定线为 **1.0.0**，core 与 CLI 为 **0.2.0**。新包默认格式 **2.0**，读取 1.x/2.x 并保留同 major 的未知字段和传入格式版本。版本号不代表已完成所有第三方互操作验收。
 
-2.x extension 使用 `core.runCapability({ extensionId, permissionId, request })`。宿主创建时绑定逻辑目录与登记程序，注入 `FsSink`、`ExecSink`、`onAudit`；内核检查权限与真实路径，经任务范围或逐次确认和审计后调用 Sink。自带 `RecordingFsSink`、`RecordingExecSink` 只记录调用并返回预设结果。读取、写入、列目录、命令和外发的完整类型、示例与失败状态见 [能力调用接口](docs/capabilities.md)。CLI 保留现有命令。
+CLI 只调用 core 的公开 API，目前使用内存密钥存储和 RecordingEgressSink；没有真实联网或持久化密钥。真实文件、HTTPS 与 Agent 私有本地密钥由桌面宿主提供。CLI 启用需要 `--yes`，应先 inspect 权限。
 
-## 已知限制
+能力失败报告 callId、阶段和执行状态；unknown/completed 不自动重试。卸载、设置残留、数据库迁移和密钥清理的具体契约见内核参考。桌面不提供任意本机 shell 或本地 stdio MCP。
 
-- 数据库格式现为 5，首次打开旧数据目录会按 2→3→4→5 自动升级，保留安装、同意、启用、MCP 和已有密钥引用。新增 2.x MCP 批准表；权限 JSON 不改写，同意记录另存清单格式版本；包文件不自动升级。旧内核拒绝打开升级后的目录。
-- 更新删除旧密钥失败时，新版本已经安装，返回 `SECRET_NOT_FOUND`，`details` 为 `{ id, version, reason: SECRET_CLEANUP_FAILED }`。包记录保留曾声明的密钥引用，后续更新或卸载会再次清理；底层删除错误不会外露。升级前已失去记录的孤儿引用无法自动找回。
+## 文档
 
-命令行：
+| 任务                | 文档                                            |
+| ------------------- | ----------------------------------------------- |
+| 安装、导入与管理    | [安装、导入与管理](docs/desktop.md)             |
+| 能力调用与确认      | [能力调用与确认](docs/capabilities.md)          |
+| SDK v2 与连接器边界 | [SDK v2 与连接器边界](docs/sdk-v2.md)           |
+| 内核与 CLI 参考     | [内核与 CLI 参考](docs/core-guide.md)           |
+| 本机引擎与长期授权  | [本机引擎与长期授权](docs/engine.md)            |
+| 共同契约与受控运行  | [共同契约与受控运行](docs/common-contract.md)   |
+| 兼容、备份与恢复    | [兼容、备份与恢复](docs/desktop-recovery.md)    |
+| 执行底座公开契约    | [执行底座公开契约](docs/foundation-contract.md) |
 
-- 密钥只在内存里，没有持久化的 SecretStore。进程结束密钥就没了，也没有读写密钥的子命令。
-- 没有真实的联网外发。内核要外发时用的是 `RecordingEgressSink`，不打开网络。
-- `enable` 必须带 `--yes`。这会同意 manifest 声明的全部权限，成功时输出列出这些权限。命令行读不到已安装包的权限清单，不能在这里交互同意。先 `inspect` 看 zip 里的权限，再 `enable --yes`。
-- `uninstall` 删掉的内容见下面内核那条。没有 `--yes` 时在标准错误上确认，拒绝则不卸载。管道里的 `y` 算同意，不要求 TTY。
+## 许可证
 
-内核：
-
-- 更新一个包时，不检查别的包是否依赖它的旧版本（不检查反向依赖）。
-- 卸载一个包时，不检查别的包是否依赖它。依赖它的包会在下次启用时返回 `DEPENDENCY_MISSING`。
-- 内核不做 DNS 解析。真实的 `EgressSink` 必须在解析后拒绝回环、内网和链路本地地址。
-- 通配符只数域名标签，`*.co.uk` 和 `*.github.io` 仍可通过；公共后缀由宿主限制，因为内核不维护一份会过期的公共后缀清单。
-- 内核不跟随重定向。`EgressSink` 返回 `redirectTo` 时，内核原样交还给调用方；要继续，调用方用新地址再调一次对应格式的动作/能力入口。
-- 以点结尾的主机名一律拒绝（reason 为 `TRAILING_DOT`）。
-- `uninstall` 删掉哪些内容，以及 `manual:<名>` 为什么只清工具批准，见 `Core.uninstall` 的注释（`packages/core/src/create-core.ts`）。
-- 卸载若中途崩溃，会停在两处之一：密钥已删但包仍显示已安装，或记录已删、文件还在。为什么：密钥先删，安装记录（含同意和 MCP 批准）后删，文件和数据最后删，这三步不是同一次写入。残留 settings 在导入和更新时的处理见下面「残留设置」。
-- `approveMcpTools` 不核对宿主期望的指纹，记下的是这次传入列表算出来的指纹。为什么：内核看不到用户刚才同意的那一版；工具若在同意和这次调用之间变了，新指纹会被当成已同意。
-
-## 残留设置
-
-导入时，如果 `data/<id>/settings.json` 已经在，按新包的 `settingsSchema` 校验。缺必填、类型不对、或比原值更严，是 `IMPORT_INVALID`，path 为 `/settings/<key>`，不写安装记录，包文件也不会留下。残留文件不是合法 JSON，或新包没有 `settingsSchema`，同样拒绝，path 为 `/settings`（没有设置项时不读取文件内容），文件原样留下。想导入一个没有 `settingsSchema` 的包，要先删掉 `data/<id>/settings.json`。
-
-更新到有 `settingsSchema` 的新版时，残留文件按同样的规则检查，不通过则已安装的旧版保持不变。更新到没有 `settingsSchema` 的新版时，这份文件不读不删，更新继续。
-
-`setSettings` 在写入前检查必填、类型、范围和 enum。失败是 `SETTINGS_INVALID`，path 为 `/settings/<key>`，文件不改，错误信息不含被拒的值。`x-secret` 引用不合法或密钥不存在仍是 `SECRET_NOT_FOUND`。错误码共十一个；能力 Sink/审计失败使用 `CAPABILITY_FAILED`，报告 callId、失败阶段与执行状态。
-
-## 宿主契约
-
-- 1.x 宿主在每次 write 前调用 `core.runAction`，通过后才写；target 的实际范围由宿主解释并约束。2.x 写入通过 `runCapability` 和注入 FsSink 执行，内核检查逻辑根与真实路径边界，真实 Sink 还须在 I/O 时维护边界以防路径竞争。
-- 2.x exec 的程序由宿主登记，参数数组独立传递，不接受任意程序路径、shell、env 或 stdin；真实 ExecSink 的隔离由宿主负责。
-- `confirm` 可省略，缺少时拒绝需要确认的动作。独立 core 的兼容默认不询问 read/list；宿主可在构造时指定 `capabilityApproval: "task-or-confirm"`，所有未被有效任务覆盖的能力均需单次确认，DesktopHost 固定使用此策略并在每次内部重建后保留。默认新能力的写入、外发、命令每次询问，默认 120 秒超时；可信宿主可签发最长一小时的 fs/HTTPS 任务范围，在所选操作内连续执行，停止、撤权、升级和配置变更后失效（见能力文档）；`confirmTimeoutMs` 仅作用于新入口。只有布尔 true 放行，等待前复制请求，确认后和放行审计后重新检查状态及路径。
-- 新入口必须有可靠的 `onAudit`；事件不含内容、参数或输出并经过密钥脱敏。执行前审计失败不调用 Sink，执行后审计失败报告已完成；执行状态 unknown/completed 不得自动重试。
-- 宿主实现的 `confirm.ask` 按 [docs/confirm-copy.md](docs/confirm-copy.md) 展示确认框。
-- 宿主必须把每个 MCP 工具的 `inputSchema` 传给内核。为什么：内核不连接服务器，无法自己核对参数定义；没传到的和 `null` 是同一个指纹。参数定义变了必须重新同意。
-- 宿主必须把完整工具列表交给 `checkMcpTools`。不在列表里的工具会失去指纹和同意（有删除副作用）。为什么：留下旧行会让那个同意在同名工具回来时复活，它再出现必须重新同意。拉取失败或只拿到第一页时不要传 `[]` 或子集，否则其余工具的指纹和同意会被清掉。
-
-模型协议由可选的外装连接器实现，宿主提供通用 HTTPS 与凭据绑定。可信本机引擎经独立用户授权后运行，可自主选择模型和组合；普通扩展继续隔离运行。接口和边界见 [SDK v2](docs/sdk-v2.md) 与 [可信引擎](docs/engine.md)。
+[Apache-2.0](LICENSE)。

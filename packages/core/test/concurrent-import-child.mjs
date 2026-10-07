@@ -11,7 +11,6 @@ if (coreEntry === undefined || coreEntry === "") {
 const core = await import(pathToFileURL(coreEntry).href);
 const {
   createCore,
-  FakeModelProvider,
   MemorySecretStore,
   RecordingEgressSink,
   ScriptedConfirm,
@@ -21,7 +20,6 @@ const {
 function makeCore(dataDir) {
   return createCore({
     dataDir,
-    model: new FakeModelProvider(),
     egress: new RecordingEgressSink(),
     confirm: new ScriptedConfirm(),
     secrets: new MemorySecretStore(),
@@ -95,16 +93,17 @@ try {
   process.stdout.write(JSON.stringify({ slot, ok: true }));
 } catch (err) {
   const plums = err instanceof PlumsError;
-  const record = err !== null && typeof err === "object" ? err : { message: String(err) };
+  const record =
+    err !== null && typeof err === "object" ? err : { message: String(err) };
   process.stdout.write(
     JSON.stringify({
       slot,
       ok: false,
       name: record.name ?? null,
-      code: "code" in record ? record.code ?? null : null,
-      message: "message" in record ? record.message ?? null : null,
-      path: "path" in record ? record.path ?? null : null,
-      details: plums ? record.details ?? null : null,
+      code: "code" in record ? (record.code ?? null) : null,
+      message: "message" in record ? (record.message ?? null) : null,
+      path: "path" in record ? (record.path ?? null) : null,
+      details: plums ? (record.details ?? null) : null,
     }),
   );
   process.exitCode = 1;

@@ -103,6 +103,9 @@ async function fixture(phase: "confirm" | "io") {
     controller: new AbortController(),
     runtimes: new Map(),
     mcpTools: new Map(),
+    engineController: new AbortController(),
+    engineRuntimes: new Map(),
+    receipts: new Map(),
     record: {
       instanceId: "fixture",
       name: "Fixture",
@@ -132,7 +135,12 @@ async function fixture(phase: "confirm" | "io") {
       {
         secretValues: async () => [],
         event: undefined,
-        runtime: async () => {
+        active: () => {},
+        audit: async () => {},
+        engine: async () => {
+          throw Error("No engine runtime");
+        },
+        invoke: async () => {
           throw Error("No delegated runtime");
         },
       },

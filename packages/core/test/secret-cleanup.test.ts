@@ -1,21 +1,47 @@
+import { SCHEMA_VERSION } from "../src/install/store.js";
 import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import Database from "better-sqlite3";
-import { MemorySecretStore, type Core, type Manifest, secretRef } from "@plums/core";
+import {
+  MemorySecretStore,
+  type Core,
+  type Manifest,
+  secretRef,
+} from "@plums/core";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { expectPlumsError, makeCore, manifestZip, validManifest } from "./package-helpers.js";
+import {
+  expectPlumsError,
+  makeCore,
+  manifestZip,
+  validManifest,
+} from "./package-helpers.js";
 
 const ID = "cleanup.ext";
 const REF = secretRef(ID, "token");
 const FAKE = "AUDIT_FAKE_REMOVED_SECRET";
 const initial: Manifest = {
-  ...validManifest("extension"), id: ID, dependencies: [], permissions: [],
-  settingsSchema: { type: "object", properties: {
-    token: { type: "string", title: "Token", description: "A secret.", "x-secret": true },
-  } },
+  ...validManifest("extension"),
+  id: ID,
+  dependencies: [],
+  permissions: [],
+  settingsSchema: {
+    type: "object",
+    properties: {
+      token: {
+        type: "string",
+        title: "Token",
+        description: "A secret.",
+        "x-secret": true,
+      },
+    },
+  },
 };
-const next: Manifest = { ...initial, version: "1.3.0", settingsSchema: undefined };
+const next: Manifest = {
+  ...initial,
+  version: "1.3.0",
+  settingsSchema: undefined,
+};
 
 let core: Core;
 let dataDir: string;
@@ -34,20 +60,34 @@ function refuseDelete(afterDeleting = false): () => void {
     if (ref !== REF) return original(ref);
     if (afterDeleting) await original(ref);
     throw Object.assign(new Error(`delete failed ${FAKE}`), {
-      cause: new Error(FAKE), details: { secret: FAKE },
+      cause: new Error(FAKE),
+      details: { secret: FAKE },
     });
   };
-  return () => { secrets.delete = original; };
+  return () => {
+    secrets.delete = original;
+  };
 }
 
 async function cleanupFailure(): Promise<void> {
-  const error = await expectPlumsError(core.updatePackage(await manifestZip(next)), "SECRET_NOT_FOUND");
-  expect(error.details).toEqual({ id: ID, version: "1.3.0", reason: "SECRET_CLEANUP_FAILED" });
+  const error = await expectPlumsError(
+    core.updatePackage(await manifestZip(next)),
+    "SECRET_NOT_FOUND",
+  );
+  expect(error.details).toEqual({
+    id: ID,
+    version: "1.3.0",
+    reason: "SECRET_CLEANUP_FAILED",
+  });
   expect(error.path).toBeUndefined();
   expect(error.cause).toBeUndefined();
-  expect([error.message, error.stack, JSON.stringify(error)].join("\n")).not.toContain(FAKE);
+  expect(
+    [error.message, error.stack, JSON.stringify(error)].join("\n"),
+  ).not.toContain(FAKE);
   expect(error.message).toContain("1.3.0");
-  expect(await core.listInstalled()).toMatchObject([{ id: ID, version: "1.3.0" }]);
+  expect(await core.listInstalled()).toMatchObject([
+    { id: ID, version: "1.3.0" },
+  ]);
 }
 
 describe("removed secret references survive a failed cleanup", () => {
@@ -57,9 +97,14 @@ describe("removed secret references survive a failed cleanup", () => {
     expect(await secrets.get(REF)).toBe(FAKE);
     core.close();
     core = makeCore({ dataDir, secrets }).core;
-    const error = await expectPlumsError(core.exportPackage({ manifest: { ...next, payload: FAKE } }), "IMPORT_INVALID");
+    const error = await expectPlumsError(
+      core.exportPackage({ manifest: { ...next, payload: FAKE } }),
+      "IMPORT_INVALID",
+    );
     expect(error.message).not.toContain(FAKE);
-    expect(readFileSync(path.join(dataDir, "plums.db"), "latin1")).not.toContain(FAKE);
+    expect(
+      readFileSync(path.join(dataDir, "plums.db"), "latin1"),
+    ).not.toContain(FAKE);
     restore();
     await core.uninstall(ID);
     expect(await secrets.get(REF)).toBeUndefined();
@@ -72,7 +117,9 @@ describe("removed secret references survive a failed cleanup", () => {
     restore();
     await core.updatePackage(await manifestZip({ ...next, version: "1.4.0" }));
     expect(await secrets.get(REF)).toBeUndefined();
-    expect(await core.listInstalled()).toMatchObject([{ id: ID, version: "1.4.0" }]);
+    expect(await core.listInstalled()).toMatchObject([
+      { id: ID, version: "1.4.0" },
+    ]);
   });
 
   it("hides the deletion error even when deletion happened before the throw", async () => {
@@ -99,7 +146,9 @@ describe("removed secret references survive a failed cleanup", () => {
     const restore = refuseDelete();
     await cleanupFailure();
     restore();
-    await core.updatePackage(await manifestZip({ ...initial, version: "1.4.0" }));
+    await core.updatePackage(
+      await manifestZip({ ...initial, version: "1.4.0" }),
+    );
     expect(await secrets.get(REF)).toBe(FAKE);
     await core.setSettings(ID, { token: REF });
     expect(await core.resolveSettings(ID)).toEqual({ token: FAKE });
@@ -109,10 +158,21 @@ describe("removed secret references survive a failed cleanup", () => {
 
   it("keeps the install record and hides errors when uninstall deletion fails", async () => {
     const restore = refuseDelete(true);
-    const error = await expectPlumsError(core.uninstall(ID), "SECRET_NOT_FOUND");
-    expect(error.details).toEqual({ id: ID, version: initial.version, reason: "SECRET_CLEANUP_FAILED" });
-    expect([error.message, error.stack, JSON.stringify(error)].join("\n")).not.toContain(FAKE);
-    expect(await core.listInstalled()).toMatchObject([{ id: ID, version: initial.version }]);
+    const error = await expectPlumsError(
+      core.uninstall(ID),
+      "SECRET_NOT_FOUND",
+    );
+    expect(error.details).toEqual({
+      id: ID,
+      version: initial.version,
+      reason: "SECRET_CLEANUP_FAILED",
+    });
+    expect(
+      [error.message, error.stack, JSON.stringify(error)].join("\n"),
+    ).not.toContain(FAKE);
+    expect(await core.listInstalled()).toMatchObject([
+      { id: ID, version: initial.version },
+    ]);
     restore();
     await core.uninstall(ID);
     expect(await core.listInstalled()).toEqual([]);
@@ -137,16 +197,37 @@ it("migrates schema 2 without losing an installed package, consent or enabled st
       PRAGMA user_version = 2;
     `);
     db.prepare("INSERT INTO packages VALUES (?, ?, ?, ?, ?, 1, ?, ?)").run(
-      ID, initial.kind, initial.name, initial.version, JSON.stringify(initial), "installed", "enabled",
+      ID,
+      initial.kind,
+      initial.name,
+      initial.version,
+      JSON.stringify(initial),
+      "installed",
+      "enabled",
     );
-    db.prepare("INSERT INTO consents VALUES (?, ?, ?, ?)").run(ID, initial.version, "[]", "agreed");
-  } finally { db.close(); }
+    db.prepare("INSERT INTO consents VALUES (?, ?, ?, ?)").run(
+      ID,
+      initial.version,
+      "[]",
+      "agreed",
+    );
+  } finally {
+    db.close();
+  }
   const packageDir = path.join(dataDir, "packages", ID);
   mkdirSync(packageDir, { recursive: true });
-  writeFileSync(path.join(packageDir, "manifest.json"), JSON.stringify(initial));
+  writeFileSync(
+    path.join(packageDir, "manifest.json"),
+    JSON.stringify(initial),
+  );
   core = makeCore({ dataDir, secrets }).core;
-  expect(await core.listInstalled()).toMatchObject([{ id: ID, enabled: true, consented: true }]);
-  expect(await core.getConsent(ID)).toMatchObject({ version: initial.version, grantedAt: "agreed" });
+  expect(await core.listInstalled()).toMatchObject([
+    { id: ID, enabled: true, consented: true },
+  ]);
+  expect(await core.getConsent(ID)).toMatchObject({
+    version: initial.version,
+    grantedAt: "agreed",
+  });
   const restore = refuseDelete();
   await cleanupFailure();
   restore();
@@ -155,6 +236,11 @@ it("migrates schema 2 without losing an installed package, consent or enabled st
   await core.uninstall(ID);
   expect(await secrets.get(REF)).toBeUndefined();
   const migrated = new Database(file);
-  try { expect(migrated.pragma("user_version", { simple: true })).toBe(5); }
-  finally { migrated.close(); }
+  try {
+    expect(migrated.pragma("user_version", { simple: true })).toBe(
+      SCHEMA_VERSION,
+    );
+  } finally {
+    migrated.close();
+  }
 });

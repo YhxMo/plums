@@ -91,7 +91,10 @@ function stop(message: string): never {
  * Runs one invocation and returns the output. Does not exit the process.
  * Egress is `RecordingEgressSink`. This milestone does not download or open a socket.
  */
-export async function runCli(args: readonly string[], options: CliOptions = {}): Promise<CliResult> {
+export async function runCli(
+  args: readonly string[],
+  options: CliOptions = {},
+): Promise<CliResult> {
   try {
     return await dispatch(args, options);
   } catch (err) {
@@ -99,18 +102,26 @@ export async function runCli(args: readonly string[], options: CliOptions = {}):
   }
 }
 
-async function dispatch(args: readonly string[], options: CliOptions): Promise<CliResult> {
+async function dispatch(
+  args: readonly string[],
+  options: CliOptions,
+): Promise<CliResult> {
   const parsed = parse(args);
   const flags = parsed.values;
   const positionals = parsed.positionals;
 
   if (flags.help === true) {
     rejectUnused("--help", flags, []);
-    if (positionals.length > 0 || flags.version === true) usage("--help 不接受其他参数");
+    if (positionals.length > 0 || flags.version === true)
+      usage("--help 不接受其他参数");
     return ok(USAGE);
   }
   if (wantsVersion(flags, positionals)) {
-    if ((flags.version === true && positionals.length > 0) || positionals.length > 1) usage("version 不接受其他参数");
+    if (
+      (flags.version === true && positionals.length > 0) ||
+      positionals.length > 1
+    )
+      usage("version 不接受其他参数");
     rejectUnused("version", flags, []);
     return ok(`${VERSION}\n`);
   }
@@ -137,7 +148,10 @@ async function dispatch(args: readonly string[], options: CliOptions): Promise<C
   }
 }
 
-function parse(args: readonly string[]): { values: Flags; positionals: string[] } {
+function parse(args: readonly string[]): {
+  values: Flags;
+  positionals: string[];
+} {
   try {
     const parsed = parseArgs({
       args: [...args],
@@ -159,7 +173,11 @@ function parse(args: readonly string[]): { values: Flags; positionals: string[] 
 
 function wantsVersion(flags: Flags, positionals: string[]): boolean {
   const named = flags.version === true || positionals[0] === "version";
-  const bare = positionals.length === 0 && flags.yes !== true && flags.home === undefined && flags.out === undefined;
+  const bare =
+    positionals.length === 0 &&
+    flags.yes !== true &&
+    flags.home === undefined &&
+    flags.out === undefined;
   return named || bare;
 }
 
@@ -175,12 +193,19 @@ function planCommand(command: string, rest: string[], flags: Flags): Plan {
       rejectUnused("enable", flags, ["home", "yes"]);
       const id = one(rest, "enable 需要一个包 id");
       // The installed permission list is not readable before grantConsent, so a prompt would be a blind yes.
-      if (flags.yes !== true) usage("enable 需要 --yes。这会同意 manifest 声明的全部权限。请先 inspect 查看权限，再带 --yes 启用。");
+      if (flags.yes !== true)
+        usage(
+          "enable 需要 --yes。这会同意 manifest 声明的全部权限。请先 inspect 查看权限，再带 --yes 启用。",
+        );
       return { kind: "enable", id };
     }
     case "uninstall":
       rejectUnused("uninstall", flags, ["home", "yes"]);
-      return { kind: "uninstall", id: one(rest, "uninstall 需要一个包 id"), yes: flags.yes === true };
+      return {
+        kind: "uninstall",
+        id: one(rest, "uninstall 需要一个包 id"),
+        yes: flags.yes === true,
+      };
     case "export":
       rejectUnused("export", flags, ["home", "out"]);
       return {
@@ -236,7 +261,11 @@ async function agreed(options: CliOptions, message: string): Promise<boolean> {
   return (await options.ask()) === true;
 }
 
-function rejectUnused(command: string, flags: Flags, allowed: readonly string[]): void {
+function rejectUnused(
+  command: string,
+  flags: Flags,
+  allowed: readonly string[],
+): void {
   const bad: string[] = [];
   if (flags.home !== undefined && !allowed.includes("home")) bad.push("--home");
   if (flags.yes === true && !allowed.includes("yes")) bad.push("--yes");
@@ -270,7 +299,11 @@ function ok(stdout: string): CliResult {
 
 function fail(err: unknown): CliResult {
   if (err instanceof CliExit) {
-    return { exitCode: err.exitCode, stdout: "", stderr: `message: ${err.message}\n` };
+    return {
+      exitCode: err.exitCode,
+      stdout: "",
+      stderr: `message: ${err.message}\n`,
+    };
   }
   if (err instanceof PlumsError) {
     const lines = [`code: ${err.code}`, `message: ${err.message}`];
@@ -306,7 +339,10 @@ function stdinAsk(): Ask {
 }
 
 const entry = process.argv[1];
-if (entry !== undefined && realpathSync(entry) === realpathSync(fileURLToPath(import.meta.url))) {
+if (
+  entry !== undefined &&
+  realpathSync(entry) === realpathSync(fileURLToPath(import.meta.url))
+) {
   runCli(process.argv.slice(2), {
     ask: stdinAsk(),
     say(line) {

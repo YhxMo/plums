@@ -1,5 +1,5 @@
 :root {
-  color-scheme: light dark;
+  color-scheme: light;
   --s-0: #ffffff;
   --s-50: #f7f6f3;
   --s-100: #f0eeea;
@@ -103,6 +103,7 @@
 }
 @media (prefers-color-scheme: dark) {
   :root {
+    color-scheme: dark;
     --bg-page: #141311;
     --bg-surface: #1d1c19;
     --bg-raised: #262420;

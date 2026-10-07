@@ -3,7 +3,10 @@ import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { IMPORT_INVALID, PlumsError, type PlumsErrorCode } from "../errors.js";
 import { escapePointer, typeName } from "../package/manifest.js";
-import { settingValueFailure, type SettingValueFailure } from "../package/schema.js";
+import {
+  settingValueFailure,
+  type SettingValueFailure,
+} from "../package/schema.js";
 import type { Manifest, SettingsSchema } from "../package/types.js";
 
 /** User data and settings live in `<dataDir>/data/<id>/`. Uninstall removes that folder. */
@@ -15,7 +18,12 @@ type Settings = Record<string, unknown>;
 
 type BoundFailure = Exclude<SettingValueFailure, "TYPE">;
 
-type SettingsFailureReason = BoundFailure | "REQUIRED" | "TYPE" | "NOT_JSON" | "NO_SCHEMA";
+type SettingsFailureReason =
+  | BoundFailure
+  | "REQUIRED"
+  | "TYPE"
+  | "NOT_JSON"
+  | "NO_SCHEMA";
 
 /** One place for `<dataDir>/data/<id>/settings.json`. Why: the path used to be joined twice, and the two copies could drift. */
 export function settingsFilePath(dataDir: string, id: string): string {
@@ -32,14 +40,23 @@ export function settingsFilePath(dataDir: string, id: string): string {
  * Why two codes: baseline setSettings only failed secret checks, and those stay SECRET_NOT_FOUND.
  * The message and details never include the value. Field errors use `/settings/<key>`.
  */
-export function checkSettings(schema: SettingsSchema, values: Settings, code: PlumsErrorCode): Settings {
+export function checkSettings(
+  schema: SettingsSchema,
+  values: Settings,
+  code: PlumsErrorCode,
+): Settings {
   const record = values;
   const properties = schema.properties;
 
   for (const key of schema.required ?? []) {
     if (!Object.hasOwn(record, key)) {
       // Why: "required" means the schema's required array, checked before any default is filled in.
-      throw fieldError(code, key, "REQUIRED", `设置项「${key}」是必填的，还没有值。`);
+      throw fieldError(
+        code,
+        key,
+        "REQUIRED",
+        `设置项「${key}」是必填的，还没有值。`,
+      );
     }
   }
 
@@ -90,7 +107,10 @@ export function refuseOrphanSettings(dataDir: string, id: string): void {
  * Checks a leftover settings file against `manifest.settingsSchema` before package files are written.
  * No schema returns without reading. Why: import uses `refuseOrphanSettings` for that case, and update leaves the file unread.
  */
-export async function acceptResidualSettings(dataDir: string, manifest: Manifest): Promise<void> {
+export async function acceptResidualSettings(
+  dataDir: string,
+  manifest: Manifest,
+): Promise<void> {
   if (manifest.settingsSchema === undefined) return;
   const file = settingsFilePath(dataDir, manifest.id);
   let text: string;
@@ -109,9 +129,14 @@ export async function acceptResidualSettings(dataDir: string, manifest: Manifest
   if (parsed === null || typeof parsed !== "object" || Array.isArray(parsed)) {
     // Why one reason: invalid JSON and a JSON value that is not an object both have no field to point at.
     // Why the text stays out of the error: the file may hold a secret, and this import has not stored it anywhere we could redact.
-    throw settingsError(IMPORT_INVALID, "/settings", "已有的设置文件不是合法的 JSON，所以没有导入。", {
-      reason: "NOT_JSON",
-    });
+    throw settingsError(
+      IMPORT_INVALID,
+      "/settings",
+      "已有的设置文件不是合法的 JSON，所以没有导入。",
+      {
+        reason: "NOT_JSON",
+      },
+    );
   }
   checkSettings(manifest.settingsSchema, parsed as Settings, IMPORT_INVALID);
 }
@@ -131,8 +156,16 @@ function constraintMessage(key: string, reason: BoundFailure): string {
   }
 }
 
-function fieldError(code: PlumsErrorCode, key: string, reason: SettingsFailureReason, message: string): PlumsError {
-  return settingsError(code, `/settings/${escapePointer(key)}`, message, { key, reason });
+function fieldError(
+  code: PlumsErrorCode,
+  key: string,
+  reason: SettingsFailureReason,
+  message: string,
+): PlumsError {
+  return settingsError(code, `/settings/${escapePointer(key)}`, message, {
+    key,
+    reason,
+  });
 }
 
 function settingsError(

@@ -6,8 +6,8 @@ import {
   dialog,
   Menu,
   protocol,
-  session,
   nativeTheme,
+  shell,
 } from "electron";
 import { fork, type ChildProcess } from "node:child_process";
 import { fileURLToPath } from "node:url";
@@ -17,6 +17,13 @@ import path from "node:path";
 import type { Permission, ConfirmRequest } from "@plums/core";
 import { ConfirmPrompter } from "./confirm-window.js";
 import { permissionCopy } from "./shared/permission-copy.js";
+import {
+  createAgentView,
+  agentViewFingerprint,
+  type AgentView,
+  type AgentViewResource,
+} from "./agent-view.js";
+import type { PanelLayout } from "@plums/sdk";
 
 protocol.registerSchemesAsPrivileged([
   {
@@ -32,7 +39,23 @@ if (process.env.PLUMS_DATA_DIR) {
 if (!app.requestSingleInstanceLock()) app.exit(0);
 let window: BrowserWindow;
 let agentView: WebContentsView | undefined;
-let active: { instanceId: string; ownerId: string; name: string } | undefined;
+let active:
+  | {
+      instanceId: string;
+      ownerId: string;
+      name: string;
+      sessionId: string;
+      handle: string;
+      diagnostics?: { viewId: string; reason: string }[];
+    }
+  | undefined;
+const agentViews = new Map<number, AgentView>();
+const attached = new Set<AgentView>();
+let panelLayout: PanelLayout = {
+  root: { x: 0, y: 0, width: 1, height: 1 },
+  panels: [],
+};
+let renewingSession: string | undefined;
 let agentVisible = false;
 const RUNNING_BAR = 40;
 const MANAGER_BUTTONS = { x: 20, y: 21 };
@@ -44,6 +67,7 @@ const runtimeState = () =>
         instanceId: active.instanceId,
         name: active.name,
         visible: agentVisible,
+        diagnostics: active.diagnostics,
       }
     : null;
 function sendRuntime() {
@@ -51,14 +75,15 @@ function sendRuntime() {
     window.webContents.send("manager-agent-state", runtimeState());
 }
 function hideAgent() {
-  if (agentView && agentVisible) window.contentView.removeChildView(agentView);
+  for (const record of attached)
+    window.contentView.removeChildView(record.view);
+  attached.clear();
   agentVisible = false;
   if (process.platform === "darwin")
     window.setWindowButtonPosition(MANAGER_BUTTONS);
   sendRuntime();
 }
 function showAgent() {
-  if (agentView && !agentVisible) window.contentView.addChildView(agentView);
   agentVisible = !!agentView;
   if (process.platform === "darwin")
     window.setWindowButtonPosition(
@@ -130,44 +155,77 @@ function managerSender(event: Electron.IpcMainInvokeEvent): void {
   )
     throw Error("Invalid sender");
 }
-function agentSender(event: Electron.IpcMainInvokeEvent): void {
+function agentSender(event: Electron.IpcMainInvokeEvent): AgentView {
+  const record = agentViews.get(event.sender.id);
   if (
     !active ||
     !agentView ||
-    event.sender !== agentView.webContents ||
-    event.senderFrame !== agentView.webContents.mainFrame
+    !record ||
+    record.context.sessionId !== active.sessionId ||
+    event.senderFrame !== record.view.webContents.mainFrame
   )
     throw Error("Invalid sender");
+  return record;
 }
-async function recover(cancelOpening = true): Promise<void> {
+function disposeView(record: AgentView): void {
+  agentViews.delete(record.view.webContents.id);
+  if (attached.delete(record)) window.contentView.removeChildView(record.view);
+  record.dispose();
+}
+async function recover(
+  cancelOpening = true,
+  stopExecution = false,
+): Promise<void> {
   if (cancelOpening) viewEpoch++;
   const previous = active;
   active = undefined;
-  if (agentView) {
-    const isolated = agentView.webContents.session;
-    isolated.protocol.unhandle("plums-agent");
-    isolated.webRequest.onBeforeRequest(null);
-    if (agentVisible) window.contentView.removeChildView(agentView);
-    agentView.webContents.close();
-    agentView = undefined;
-  }
+  for (const record of [...agentViews.values()]) disposeView(record);
+  agentView = undefined;
+  panelLayout = { root: { x: 0, y: 0, width: 1, height: 1 }, panels: [] };
   agentVisible = false;
   if (process.platform === "darwin")
     window.setWindowButtonPosition(MANAGER_BUTTONS);
   sendRuntime();
-  if (previous) await rpc("stop", { instanceId: previous.instanceId });
+  if (previous) {
+    await rpc("closeFrontend", { sessionId: previous.sessionId }).catch(
+      () => {},
+    );
+    if (stopExecution) await rpc("stop", { instanceId: previous.instanceId });
+  }
   window.webContents.send("manager-refresh");
 }
 const resize = () => {
   const { width, height } = window.getContentBounds();
-  agentView?.setBounds({
-    x: 0,
-    y: RUNNING_BAR,
-    width,
-    height: Math.max(0, height - RUNNING_BAR),
-  });
+  const workingHeight = Math.max(0, height - RUNNING_BAR);
+  for (const record of agentViews.values()) {
+    const rect =
+      record.context.handle === active?.handle
+        ? panelLayout.root
+        : panelLayout.panels.find((p) => p.handle === record.context.handle);
+    if (rect) {
+      const x = Math.round(rect.x * width),
+        y = Math.round(rect.y * workingHeight);
+      record.view.setBounds({
+        x,
+        y: RUNNING_BAR + y,
+        width: Math.max(0, Math.round((rect.x + rect.width) * width) - x),
+        height: Math.max(
+          0,
+          Math.round((rect.y + rect.height) * workingHeight) - y,
+        ),
+      });
+    }
+    if (agentVisible && rect && !attached.has(record)) {
+      window.contentView.addChildView(record.view);
+      attached.add(record);
+    } else if ((!agentVisible || !rect) && attached.delete(record))
+      window.contentView.removeChildView(record.view);
+  }
 };
-async function openAgent(instanceId: string): Promise<boolean | null> {
+async function openAgent(
+  instanceId: string,
+  componentId?: string,
+): Promise<boolean | null> {
   const epoch = ++viewEpoch;
   await recover(false);
   if (epoch !== viewEpoch) return false;
@@ -233,118 +291,124 @@ async function openAgent(instanceId: string): Promise<boolean | null> {
       return false;
     }
   }
-  const frontend = (await rpc("frontend", { instanceId })) as {
-    packageId: string;
-    entry: string;
-    files: Record<string, number[]>;
-  } | null;
-  if (epoch !== viewEpoch) return false;
+  const frontend = (await rpc("openFrontend", {
+    instanceId,
+    componentId,
+  })) as AgentViewResource | null;
+  if (epoch !== viewEpoch) {
+    if (frontend)
+      await rpc("closeFrontend", { sessionId: frontend.context.sessionId });
+    return false;
+  }
   if (!frontend) {
     window.webContents.send("manager-select", instanceId);
     return false;
   }
-  const isolated = session.fromPartition(`agent-${instanceId}-${Date.now()}`);
-  isolated.setPermissionRequestHandler((_w, _p, callback) => callback(false));
-  isolated.setPermissionCheckHandler(() => false);
-  isolated.webRequest.onBeforeRequest(
-    { urls: ["*://*/*"] },
-    (details, callback) =>
-      callback({
-        cancel: !details.url.startsWith(`plums-agent://${instanceId}/`),
-      }),
-  );
-  isolated.protocol.handle("plums-agent", (request) => {
-    const url = new URL(request.url);
-    let at: string;
-    try {
-      at = decodeURIComponent(url.pathname.slice(1));
-    } catch {
-      return new Response(null, { status: 400 });
-    }
-    if (
-      url.hostname !== instanceId ||
-      !Object.hasOwn(frontend.files, at) ||
-      at.split("/").some((p) => p === ".." || p === ".") ||
-      at.includes("\\")
-    )
-      return new Response(null, { status: 404 });
-    const mime: Record<string, string> = {
-      ".html": "text/html; charset=utf-8",
-      ".js": "text/javascript; charset=utf-8",
-      ".css": "text/css; charset=utf-8",
-      ".json": "application/json",
-      ".svg": "image/svg+xml",
-      ".png": "image/png",
-      ".jpg": "image/jpeg",
-      ".woff2": "font/woff2",
-    };
-    return new Response(new Uint8Array(frontend.files[at]!), {
-      headers: {
-        "Content-Type": mime[path.extname(at)] ?? "application/octet-stream",
-        "Content-Security-Policy":
-          "default-src 'self' data: blob:; script-src 'self' 'unsafe-inline' 'unsafe-eval'; connect-src 'self'; frame-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'",
-        "X-Content-Type-Options": "nosniff",
-      },
-    });
-  });
-  const view = new WebContentsView({
-    webPreferences: {
-      preload: path.join(base, "agent-preload.cjs"),
-      sandbox: true,
-      nodeIntegration: false,
-      contextIsolation: true,
-      webSecurity: true,
-      session: isolated,
-    },
-  });
-  agentView = view;
   const records = (await rpc("list")) as { instanceId: string; name: string }[];
   if (epoch !== viewEpoch) {
-    if (!view.webContents.isDestroyed()) view.webContents.close();
+    await rpc("closeFrontend", { sessionId: frontend.context.sessionId });
     return false;
   }
   active = {
     instanceId,
-    ownerId: frontend.packageId,
-    name:
-      records.find((record) => record.instanceId === instanceId)?.name ??
-      "Agent",
+    ownerId: frontend.context.componentId,
+    name: records.find((r) => r.instanceId === instanceId)?.name ?? "Agent",
+    sessionId: frontend.context.sessionId,
+    handle: frontend.context.handle,
   };
-  view.webContents.setWindowOpenHandler(() => ({ action: "deny" }));
-  view.webContents.on("will-navigate", (event, url) => {
-    try {
-      const target = new URL(url),
-        at = decodeURIComponent(target.pathname.slice(1));
-      if (
-        target.protocol === "plums-agent:" &&
-        target.hostname === instanceId &&
-        Object.hasOwn(frontend.files, at) &&
-        /\.html?$/i.test(at)
-      )
-        return;
-    } catch {}
-    event.preventDefault();
+  const record = createAgentView(frontend, base, () => {
+    if (agentView === record.view) void recover();
   });
-  view.webContents.on("will-redirect", (event) => event.preventDefault());
-  view.webContents.on("render-process-gone", () => {
-    if (agentView === view) void recover();
-  });
-  view.webContents.on("unresponsive", () => {
-    if (agentView === view) void recover();
-  });
+  agentView = record.view;
+  agentViews.set(record.view.webContents.id, record);
   showAgent();
   try {
-    await view.webContents.loadURL(
-      `plums-agent://${instanceId}/${frontend.entry}`,
-    );
-    return epoch === viewEpoch;
+    await record.view.webContents.loadURL(record.url);
+    const restored = (await rpc("restoreWorkspace", {
+      sessionId: record.context.sessionId,
+      source: record.context.handle,
+    })) as {
+      resources: AgentViewResource[];
+      layout: PanelLayout;
+      diagnostics: { viewId: string; reason: string }[];
+    };
+    if (epoch !== viewEpoch) return false;
+    for (const resource of restored.resources)
+      await mountPanelView(record, resource);
+    if (epoch !== viewEpoch) return false;
+    panelLayout = restored.layout;
+    active.diagnostics = restored.diagnostics;
+    resize();
+    sendRuntime();
+    return true;
   } catch {
-    if (agentView === view) await recover();
+    if (agentView === record.view) await recover();
     return false;
   }
 }
+async function openPanelView(
+  source: AgentView,
+  requirementId: string,
+  panelId: string,
+) {
+  const context = { ...source.context };
+  const resource = (await rpc("openPanel", {
+    sessionId: context.sessionId,
+    source: context.handle,
+    requirementId,
+    panelId,
+  })) as AgentViewResource;
+  if (
+    active?.sessionId !== context.sessionId ||
+    agentViews.get(source.view.webContents.id) !== source
+  )
+    throw Error("Frontend changed");
+  return mountPanelView(source, resource);
+}
+async function mountPanelView(source: AgentView, resource: AgentViewResource) {
+  const context = { ...source.context };
+  const existing = [...agentViews.values()].find(
+    (r) => r.context.handle === resource.context.handle,
+  );
+  if (existing) return existing.context;
+  const record = createAgentView(resource, base, () => {
+    if (agentViews.get(record.view.webContents.id) !== record) return;
+    disposeView(record);
+    panelLayout.panels = panelLayout.panels.filter(
+      (p) => p.handle !== record.context.handle,
+    );
+    void rpc("closePanel", {
+      sessionId: context.sessionId,
+      source: context.handle,
+      handle: record.context.handle,
+    }).catch(() => {});
+    resize();
+  });
+  agentViews.set(record.view.webContents.id, record);
+  try {
+    await record.view.webContents.loadURL(record.url);
+    if (
+      active?.sessionId !== context.sessionId ||
+      agentViews.get(record.view.webContents.id) !== record
+    )
+      throw Error("Panel changed");
+    resize();
+    return record.context;
+  } catch (error) {
+    if (agentViews.get(record.view.webContents.id) === record)
+      disposeView(record);
+    await rpc("closePanel", {
+      sessionId: context.sessionId,
+      source: context.handle,
+      handle: record.context.handle,
+    }).catch(() => {});
+    throw error;
+  }
+}
+
 app.whenReady().then(async () => {
   window = new BrowserWindow({
+    show: false,
     width: 1180,
     height: 800,
     minWidth: 900,
@@ -386,7 +450,11 @@ app.whenReady().then(async () => {
     execArgv: ["--no-node-snapshot"],
     stdio: ["ignore", "ignore", "ignore", "ipc"],
     env: {
-      ...Object.fromEntries(["PATH","HOME","TMPDIR","LANG","LC_ALL","USER","LOGNAME"].filter(k=>process.env[k]!==undefined).map(k=>[k,process.env[k]!])),
+      ...Object.fromEntries(
+        ["PATH", "HOME", "TMPDIR", "LANG", "LC_ALL", "USER", "LOGNAME"]
+          .filter((k) => process.env[k] !== undefined)
+          .map((k) => [k, process.env[k]!]),
+      ),
       PLUMS_DATA_DIR:
         process.env.PLUMS_DATA_DIR ??
         path.join(app.getPath("userData"), "library"),
@@ -421,31 +489,127 @@ app.whenReady().then(async () => {
       packageId: string;
       topic: string;
       data: unknown;
+      delivery: import("@plums/host").PanelDelivery;
     };
     if (m.type === "reply") {
       const pending = requests.get(m.id);
       requests.delete(m.id);
       if (pending) m.ok ? pending.resolve(m.value) : pending.reject(m.error);
+    } else if (m.type === "panel-event") {
+      const delivery = m.delivery;
+      if (
+        active?.instanceId !== delivery.agentId ||
+        active.sessionId !== delivery.sessionId
+      )
+        return;
+      if (delivery.type === "message") {
+        const record = [...agentViews.values()].find(
+          (r) =>
+            r.context.handle === delivery.message.to &&
+            r.context.sessionId === delivery.sessionId,
+        );
+        if (record && !record.view.webContents.isDestroyed())
+          record.view.webContents.send("panel-message", delivery.message);
+      } else if (delivery.handle) {
+        const record = [...agentViews.values()].find(
+          (r) => r.context.handle === delivery.handle,
+        );
+        if (record) disposeView(record);
+        panelLayout.panels = panelLayout.panels.filter(
+          (p) => p.handle !== delivery.handle,
+        );
+        agentView?.webContents.send("agent-event", {
+          topic: "panels.closed",
+          data: { handle: delivery.handle },
+        });
+        resize();
+      } else if (renewingSession !== delivery.sessionId)
+        void recover(true, false);
+      else {
+        for (const record of [...agentViews.values()])
+          if (record.view !== agentView) disposeView(record);
+        panelLayout = { root: { x: 0, y: 0, width: 1, height: 1 }, panels: [] };
+        resize();
+      }
     } else if (m.type === "event") {
-      if (active?.instanceId === m.instanceId)
+      const root = agentView && agentViews.get(agentView.webContents.id);
+      if (
+        active?.instanceId === m.instanceId &&
+        root &&
+        (root.legacyAgentEvents || root.context.componentId === m.packageId)
+      )
         agentView?.webContents.send("agent-event", {
           packageId: m.packageId,
           topic: m.topic,
           data: m.data,
         });
-      if (["mcp.updated","engine.status"].includes(m.topic)) window.webContents.send("manager-refresh");
+      for (const record of agentViews.values())
+        if (
+          record.view !== agentView &&
+          record.context.agentId === m.instanceId &&
+          record.context.componentId === m.packageId
+        )
+          record.view.webContents.send("agent-event", {
+            packageId: m.packageId,
+            topic: m.topic,
+            data: m.data,
+          });
+      if (["mcp.updated", "engine.status"].includes(m.topic))
+        window.webContents.send("manager-refresh");
     } else if (m.type === "service-cancel") {
       approvals.get(m.id)?.abort();
     } else if (m.type === "service") {
       try {
         let value: unknown;
-        if (m.method === "confirm") {
+        if (m.method === "grant-confirm") {
+          const controller = new AbortController();
+          approvals.set(m.id, controller);
+          const args = m.args as import("@plums/host").GrantApproval;
+          let selected: import("./confirm-window.js").TaskChoice | undefined;
+          const allowed = await prompter.ask(
+            {
+              kind: "grant",
+              subject: args.subject,
+              action: "允许在所选有效期内处理以下数据并保存本地产出。",
+              host: args.targets.join("、"),
+              scopeOptions: [
+                ...args.reads.map((r) => ({
+                  key: "read:" + r.id,
+                  label: "读取：" + r.title,
+                })),
+                ...args.outputs.map((r) => ({
+                  key: "output:" + r.id,
+                  label: "保存：" + r.title,
+                })),
+              ],
+            },
+            AbortSignal.any([AbortSignal.timeout(120_000), controller.signal]),
+            (choice) => {
+              selected = choice;
+            },
+          );
+          value =
+            allowed && selected
+              ? {
+                  durationMs: selected.durationMs,
+                  reads: selected.selected
+                    .filter((k) => k.startsWith("read:"))
+                    .map((k) => k.slice(5)),
+                  outputs: selected.selected
+                    .filter((k) => k.startsWith("output:"))
+                    .map((k) => k.slice(7)),
+                }
+              : null;
+        } else if (m.method === "confirm") {
           const controller = new AbortController();
           approvals.set(m.id, controller);
           const args = m.args as ConfirmRequest;
           value = await prompter.ask(
             {
-              kind: args.presentation === "engine-trust" ? "engine-trust" : "capability",
+              kind:
+                args.presentation === "engine-trust"
+                  ? "engine-trust"
+                  : "capability",
               operation: args.host
                 ? "egress"
                 : args.action?.includes("运行程序")
@@ -498,6 +662,7 @@ app.whenReady().then(async () => {
             "unbindRoot",
             "updateFromLibrary",
             "settings",
+            "setProtocolBinding",
           ].includes(method)
         )
           await recover();
@@ -513,28 +678,33 @@ app.whenReady().then(async () => {
           showAgent();
           value = null;
         } else if (method === "revokeTaskScope") {
-          if (active?.instanceId === args.instanceId) await recover();
+          if (active?.instanceId === args.instanceId) await recover(true, true);
           else await rpc("revokeTaskScope", args);
           value = null;
         } else if (method === "stopAgent") {
-          await recover();
+          await recover(true, true);
           value = null;
         } else if (method === "agentStatus") {
           try {
             const plan = (await rpc("agentEnablePlan", args)) as {
               missing: unknown[];
+              missingProtocols?: unknown[];
               entries: { enabled: boolean; needsApproval: boolean }[];
             };
-            value = plan.missing.length
-              ? "needs-config"
-              : plan.entries.some((entry) => entry.needsApproval)
-                ? "disabled"
-                : "ready";
+            value =
+              plan.missing.length || plan.missingProtocols?.length
+                ? "needs-config"
+                : plan.entries.some((entry) => entry.needsApproval)
+                  ? "disabled"
+                  : "ready";
           } catch {
             value = "unavailable";
           }
         } else if (method === "openAgent")
-          value = await openAgent(args.instanceId as string);
+          value = await openAgent(
+            args.instanceId as string,
+            args.componentId as string | undefined,
+          );
         else if (method === "startAgent") {
           const plan = (await rpc("agentEnablePlan", args)) as {
             fingerprint: string;
@@ -553,8 +723,9 @@ app.whenReady().then(async () => {
               }[];
             }[];
             missing: unknown[];
+            missingProtocols?: unknown[];
           };
-          if (plan.missing.length) {
+          if (plan.missing.length || plan.missingProtocols?.length) {
             window.webContents.send("manager-select", args.instanceId);
             value = { needsSetup: true };
           } else {
@@ -602,6 +773,47 @@ app.whenReady().then(async () => {
           if (!selected.canceled)
             await rpc("bindRoot", { ...args, path: selected.filePaths[0] });
           value = null;
+        } else if (method === "revealComponentDraft") {
+          const target = (await rpc("revealComponentDraft", {
+            token: args.token,
+            relative: args.relative,
+          })) as string;
+          if (args.relative === undefined) {
+            if (await shell.openPath(target)) throw Error();
+          } else shell.showItemInFolder(target);
+          value = null;
+        } else if (method === "saveComponentDraft") {
+          const snapshot = (await rpc("componentDraftSnapshot", args)) as {
+            source: import("@plums/host").ComponentSource;
+            manifest: import("@plums/core").Manifest;
+          };
+          let approved = true;
+          if (snapshot.source.kind === "agent")
+            approved = await consent(
+              snapshot.manifest.name,
+              "保存新版本并更新当前 Agent，同意当前声明的权限。",
+              [
+                {
+                  name: snapshot.manifest.name,
+                  permissions: snapshot.manifest.permissions,
+                  formatVersion: snapshot.manifest.formatVersion,
+                },
+              ],
+            );
+          if (approved) {
+            if (
+              snapshot.source.kind === "agent" &&
+              active?.instanceId === snapshot.source.instanceId
+            )
+              await recover();
+            value = await rpc("saveComponentDraft", {
+              token: args.token,
+              validationToken: args.validationToken,
+              consent: snapshot.source.kind === "agent",
+            });
+            window.webContents.send("manager-refresh");
+          } else
+            value = { cancelled: true, librarySaved: false, applied: false };
         } else if (method === "updateFromLibrary") {
           const preview = (await rpc("previewLibraryUpdate", args)) as {
             token: string;
@@ -690,11 +902,55 @@ app.whenReady().then(async () => {
         ) {
           await rpc(method, args);
           value = null;
+        } else if (method === "bindControlledProgram") {
+          const chosen = await dialog.showOpenDialog({
+            title: "选择受控命令程序",
+            properties: ["openFile"],
+          });
+          if (chosen.canceled) value = null;
+          else
+            value = await rpc(method, {
+              ...args,
+              program: chosen.filePaths[0],
+            });
+        } else if (method === "setDesktopTheme") {
+          await rpc(method, args);
+          const settings = (await rpc(
+            "desktopSettings",
+          )) as import("@plums/host").DesktopSettings;
+          nativeTheme.themeSource = settings.theme;
+          value = null;
         } else if (
           [
             "list",
             "library",
+            "inspectComponent",
+            "openComponentDraft",
+            "readComponentDraft",
+            "retainComponentDraft",
+            "writeComponentDraft",
+            "discardComponentDraft",
+            "validateComponentDraft",
             "planAssembly",
+            "permitTaskTakeover",
+            "commonTasks",
+            "policyPlan",
+            "selectPolicy",
+            "grantPolicyScope",
+            "revokePolicyScope",
+            "stopCommonTask",
+            "setComponentBackground",
+            "resourcePlan",
+            "createResourceGroup",
+            "setResourceQualification",
+            "setResourceBinding",
+            "removeResourceGroup",
+            "grantResourceRange",
+            "revokeResourceRange",
+            "protocolPlan",
+            "workspacePlan",
+            "setWorkspaceViews",
+            "setProtocolBinding",
             "importLibrary",
             "importBundleComponents",
             "createAgent",
@@ -716,9 +972,11 @@ app.whenReady().then(async () => {
             "desktopSettings",
             "setDesktopSettings",
           ].includes(method)
-        )
+        ) {
           value = await rpc(method, args);
-        else throw Error();
+          if (["setComponentBackground", "stopCommonTask"].includes(method))
+            window.webContents.send("manager-refresh");
+        } else throw Error();
         return { ok: true, value: value ?? null };
       } catch (error) {
         return {
@@ -734,37 +992,150 @@ app.whenReady().then(async () => {
   ipcMain.handle(
     "agent",
     async (event, method: string, args: Record<string, unknown> = {}) => {
-      agentSender(event);
-      const bound = { ...active! };
+      const record = agentSender(event),
+        bound = { ...record.context },
+        agent = { ...active! };
+      const binding = { sessionId: bound.sessionId, source: bound.handle };
+      const guard = () => {
+        if (
+          active?.sessionId !== bound.sessionId ||
+          agentViews.get(event.sender.id) !== record ||
+          record.context.handle !== bound.handle
+        )
+          throw Error("Frontend changed");
+      };
       try {
-        if (JSON.stringify(args).length > 1024 * 1024)
-          throw Error("Message exceeds limit");
+        if (
+          Buffer.byteLength(JSON.stringify(args)) > 1024 * 1024 ||
+          [
+            "agentId",
+            "instanceId",
+            "ownerId",
+            "source",
+            "sessionId",
+            "sender",
+            "from",
+          ].some((k) => Object.hasOwn(args, k))
+        )
+          throw Error("Invalid message");
         if (method === "manager") {
           hideAgent();
           return { ok: true, value: null };
         }
         if (method === "cancel") {
-          await rpc("stop", { instanceId: bound.instanceId });
-          return { ok: true, value: null };
+          if (bound.parentHandle) {
+            await rpc("closePanel", { ...binding, handle: bound.handle });
+            return { ok: true, value: null };
+          }
+          renewingSession = bound.sessionId;
+          try {
+            await rpc("stop", { instanceId: bound.agentId });
+            const fresh = (await rpc("openFrontend", {
+              instanceId: bound.agentId,
+              componentId: bound.componentId,
+            })) as AgentViewResource | null;
+            guard();
+            if (
+              !fresh ||
+              fresh.context.componentId !== bound.componentId ||
+              agentViewFingerprint(fresh) !== record.snapshotFingerprint
+            )
+              throw Error("Frontend unavailable");
+            record.context = fresh.context;
+            record.legacyAgentEvents = fresh.legacyAgentEvents === true;
+            active = {
+              ...agent,
+              sessionId: fresh.context.sessionId,
+              handle: fresh.context.handle,
+            };
+            record.view.webContents.send("agent-event", {
+              topic: "panels.session",
+              data: fresh.context,
+            });
+            return { ok: true, value: null };
+          } catch (error) {
+            await recover();
+            throw error;
+          } finally {
+            renewingSession = undefined;
+          }
         }
-        if (method === "context")
-          return { ok: true, value: { ...bound, sdkVersion: "2" } };
-        if(method === "engine") {
-          const value=await rpc("engine",{...args,instanceId:bound.instanceId,packageId:bound.ownerId});
-          return {ok:true,value};
-        }
-        if (method === "invoke") {
-          const value = await rpc("invoke", {
-            instanceId: bound.instanceId,
-            ownerId: bound.ownerId,
-            targetId: args.packageId ?? bound.ownerId,
-            kind: args.kind,
-            name: args.name,
-            input: args.input,
+        let value: unknown;
+        if (method === "context") {
+          const context = (await rpc(
+            "frontendContext",
+            binding,
+          )) as import("@plums/sdk").PanelContext;
+          const { width, height } = window.getContentBounds();
+          value = {
+            ...context,
+            instanceId: context.agentId,
+            ownerId: context.componentId,
+            name: agent.name,
+            sdkVersion: "2",
+            viewport: { width, height: Math.max(0, height - RUNNING_BAR) },
+          };
+        } else if (method === "openPanel")
+          value = await openPanelView(
+            record,
+            args.requirementId as string,
+            args.panelId as string,
+          );
+        else if (method === "closePanel")
+          value = await rpc("closePanel", { ...binding, handle: args.handle });
+        else if (method === "panelLayout") {
+          const layout = (await rpc("panelLayout", {
+            ...binding,
+            layout: args.layout,
+          })) as PanelLayout;
+          guard();
+          panelLayout = layout;
+          resize();
+          value = null;
+        } else if (method === "postPanel")
+          value = await rpc("postPanel", { ...binding, message: args.message });
+        else if (method === "engine")
+          value = await rpc("frontendEngine", {
+            ...binding,
+            operation: args.operation,
+            args,
           });
-          return { ok: true, value };
-        }
-        throw Error();
+        else if (method === "common")
+          value = await rpc("frontendCommon", {
+            ...binding,
+            method: args.method,
+            request: args.request,
+          });
+        else if (method === "resource")
+          value = await rpc("frontendResource", {
+            ...binding,
+            operation: args.operation,
+            request: args.request,
+          });
+        else if (method === "protocolStatus")
+          value = await rpc("frontendProtocolStatus", {
+            ...binding,
+            requirementId: args.requirementId,
+          });
+        else if (["invoke", "invokeProtocol", "panelRespond"].includes(method))
+          value = await rpc("frontendInvoke", {
+            ...binding,
+            request: {
+              ...(method === "invokeProtocol"
+                ? { requirementId: args.requirementId }
+                : { kind: args.kind, name: args.name }),
+              ...(method === "invoke" && args.packageId !== undefined
+                ? { packageId: args.packageId }
+                : {}),
+              ...(method === "panelRespond"
+                ? { messageId: args.messageId }
+                : {}),
+              input: args.input,
+            },
+          });
+        else throw Error("Unknown interface");
+        guard();
+        return { ok: true, value: value ?? null };
       } catch (error) {
         return {
           ok: false,
@@ -853,7 +1224,13 @@ app.whenReady().then(async () => {
     app.quit();
   });
   await ready;
+  const settings = (await rpc(
+    "desktopSettings",
+  )) as import("@plums/host").DesktopSettings;
+  nativeTheme.themeSource = settings.theme;
+  updateBackground();
   await window.loadFile(path.join(base, "renderer/index.html"));
+  window.show();
 });
 app.on("before-quit", () => broker?.kill());
 app.on("window-all-closed", () => app.quit());

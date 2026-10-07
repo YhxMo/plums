@@ -29,14 +29,17 @@ interface Run {
   child?: ChildProcess;
   buffer: Buffer;
   pending: Map<string, Pending>;
-  callbackCount: number;
-  callbackIds: Map<string, number>;
+  callbacks: Map<string, { bytes: number; controller: AbortController }>;
   done: Promise<void>;
   finish: () => void;
   stop?: Promise<void>;
 }
 export interface EngineHooks {
-  prepare(signal: AbortSignal): Promise<{ entry: string; cwd: string }>;
+  prepare(signal: AbortSignal): Promise<{
+    entry: string;
+    cwd: string;
+    context?: import("@plums/sdk").EngineRuntimeContext;
+  }>;
   active(): Promise<void>;
   callback(
     method: string,
@@ -53,6 +56,13 @@ export class EngineManager {
   constructor(private readonly nodePath = process.execPath) {}
   state(key: string): EngineStatus["state"] {
     return this.runs.get(key)?.state ?? "stopped";
+  }
+  activeFor(prefix: string): boolean {
+    return [...this.runs].some(
+      ([key, run]) =>
+        key.startsWith(prefix) &&
+        ["starting", "running", "stopping"].includes(run.state),
+    );
   }
   async start(key: string, hooks: EngineHooks): Promise<void> {
     const old = this.runs.get(key);
@@ -73,8 +83,7 @@ export class EngineManager {
       controller,
       buffer: Buffer.alloc(0),
       pending: new Map(),
-      callbackCount: 0,
-      callbackIds: new Map(),
+      callbacks: new Map(),
       start: Promise.resolve(),
       done: new Promise((r) => {
         finish = r;
@@ -130,7 +139,10 @@ export class EngineManager {
       const hello = (await this.send(
         run,
         "initialize",
-        { protocol: "jsonrpc-jsonl-v1" },
+        {
+          protocol: "jsonrpc-jsonl-v1",
+          ...(prepared.context ? { context: prepared.context } : {}),
+        },
         undefined,
         30_000,
       )) as { protocol?: unknown };
@@ -175,7 +187,7 @@ export class EngineManager {
     id: string = randomUUID(),
     timeout?: number,
   ): Promise<unknown> {
-    if (run.pending.size + run.callbackCount >= 32 || run.pending.has(id))
+    if (run.pending.size + run.callbacks.size >= 32 || run.pending.has(id))
       return Promise.reject(failed(id, "ENGINE_REQUEST_LIMIT", "not_started"));
     const bytes = Buffer.byteLength(
       JSON.stringify({ jsonrpc: "2.0", id, method, params }),
@@ -183,7 +195,7 @@ export class EngineManager {
     if (
       bytes > MAX_MESSAGE ||
       [...run.pending.values()].reduce((n, p) => n + p.bytes, 0) +
-        [...run.callbackIds.values()].reduce((n, b) => n + b, 0) +
+        [...run.callbacks.values()].reduce((n, c) => n + c.bytes, 0) +
         bytes >
         8 * MAX_MESSAGE
     )
@@ -247,6 +259,12 @@ export class EngineManager {
       throw Error("Invalid RPC");
     if (typeof m.method === "string") {
       if (m.id === undefined) {
+        if (m.method === "$/cancelRequest") {
+          const id = (m.params as { id?: unknown })?.id;
+          if (typeof id !== "string") throw Error("Invalid cancellation");
+          run.callbacks.get(id)?.controller.abort();
+          return;
+        }
         if (m.method !== "engine.event") throw Error("Invalid event");
         const p = m.params as { topic: string; data: unknown };
         if (
@@ -261,41 +279,88 @@ export class EngineManager {
       if (
         typeof m.id !== "string" ||
         m.id.length > 128 ||
-        !["host.invoke", "host.confirm"].includes(m.method) ||
-        run.callbackIds.has(m.id) ||
-        ++run.callbackCount + run.pending.size > 32
+        ![
+          "host.invoke",
+          "host.invokeProtocol",
+          "host.protocolStatus",
+          "host.confirm",
+          "host.grant",
+        ].includes(m.method) ||
+        run.callbacks.has(m.id) ||
+        run.callbacks.size + run.pending.size >= 32
       )
         throw Error("Invalid callback");
       const bytes = Buffer.byteLength(JSON.stringify(m));
       if (
         [...run.pending.values()].reduce((n, p) => n + p.bytes, 0) +
-          [...run.callbackIds.values()].reduce((n, b) => n + b, 0) +
+          [...run.callbacks.values()].reduce((n, c) => n + c.bytes, 0) +
           bytes >
         8 * MAX_MESSAGE
       )
         throw Error("Callback buffer limit");
-      run.callbackIds.set(m.id, bytes);
+      const callbackController = new AbortController();
+      run.callbacks.set(m.id, { bytes, controller: callbackController });
       void (async () => {
+        let executionState: "not_started" | "unknown" | "completed" =
+          "not_started";
         try {
           await hooks.active();
+          executionState = "unknown";
           const result = await hooks.callback(
             m.method as string,
             m.params,
-            run.controller.signal,
+            AbortSignal.any([run.controller.signal, callbackController.signal]),
           );
+          executionState = "completed";
           await hooks.active();
           this.write(run, { jsonrpc: "2.0", id: m.id, result });
-        } catch {
+        } catch (error) {
+          const code =
+            error instanceof PlumsError &&
+            [
+              "PERMISSION_DENIED",
+              "CONSENT_REQUIRED",
+              "CONFIRMATION_DENIED",
+              "CAPABILITY_FAILED",
+              "SETTINGS_INVALID",
+            ].includes(error.code)
+              ? error.code
+              : "CAPABILITY_FAILED";
+          const described =
+            error instanceof PlumsError &&
+            error.details &&
+            typeof error.details === "object"
+              ? (error.details as { executionState?: unknown }).executionState
+              : undefined;
+          if (
+            ["not_started", "unknown", "completed"].includes(
+              described as string,
+            )
+          )
+            executionState = described as typeof executionState;
+          else if (
+            executionState === "unknown" &&
+            [
+              "PERMISSION_DENIED",
+              "CONSENT_REQUIRED",
+              "CONFIRMATION_DENIED",
+              "SETTINGS_INVALID",
+            ].includes(code)
+          )
+            executionState = "not_started";
           try {
             this.write(run, {
               jsonrpc: "2.0",
               id: m.id,
-              error: { code: -32000, message: "Host callback refused." },
+              error: {
+                code: -32000,
+                message: "Host callback refused.",
+                data: { code, executionState },
+              },
             });
           } catch {}
         } finally {
-          run.callbackCount--;
-          run.callbackIds.delete(m.id as string);
+          run.callbacks.delete(m.id as string);
         }
       })();
       return;

@@ -1,12 +1,17 @@
 import { createHash } from "node:crypto";
-import { mkdtempSync, readdirSync, readFileSync, rmSync, statSync } from "node:fs";
+import {
+  mkdtempSync,
+  readdirSync,
+  readFileSync,
+  rmSync,
+  statSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import Database from "better-sqlite3";
 import {
   createCore,
-  FakeModelProvider,
   MemorySecretStore,
   RecordingEgressSink,
   ScriptedConfirm,
@@ -20,11 +25,16 @@ import { afterEach, beforeEach, expect, vi } from "vitest";
 
 export const FAKE_SECRET = "plums-fake-secret-9f3a7c1e-DO-NOT-USE";
 
-const FIXTURES = path.join(path.dirname(fileURLToPath(import.meta.url)), "fixtures", "packages");
+const FIXTURES = path.join(
+  path.dirname(fileURLToPath(import.meta.url)),
+  "fixtures",
+  "packages",
+);
 
 /** Path of a fixture zip, relative to `fixtures/packages` (for example `valid/extension-min.zip`). */
 export const fixturePath = (rel: string): string => path.join(FIXTURES, rel);
-export const fixtureBytes = (rel: string): Uint8Array => new Uint8Array(readFileSync(fixturePath(rel)));
+export const fixtureBytes = (rel: string): Uint8Array =>
+  new Uint8Array(readFileSync(fixturePath(rel)));
 
 export interface World {
   core: Core;
@@ -63,7 +73,6 @@ export function useWorlds(): (options?: WorldOptions) => World {
     const secrets = new MemorySecretStore();
     const core = createCore({
       dataDir,
-      model: new FakeModelProvider(),
       egress: options.egress ?? egress,
       confirm: options.confirm ?? confirm,
       secrets,
@@ -86,7 +95,10 @@ export async function install(
   return manifest.id;
 }
 
-export async function fixtureManifest(world: World, rel: string): Promise<Manifest> {
+export async function fixtureManifest(
+  world: World,
+  rel: string,
+): Promise<Manifest> {
   return (await world.core.validatePackage(fixturePath(rel))).manifest;
 }
 
@@ -108,13 +120,19 @@ export async function snapshot(world: World) {
         files[`${rel}/`] = "dir";
         walk(full);
       } else {
-        files[rel] = createHash("sha1").update(readFileSync(full)).digest("hex");
+        files[rel] = createHash("sha1")
+          .update(readFileSync(full))
+          .digest("hex");
       }
     }
   };
   walk(world.parent);
   const consents = Object.fromEntries(
-    await Promise.all(installed.map(async ({ id }) => [id, await world.core.getConsent(id)] as const)),
+    await Promise.all(
+      installed.map(
+        async ({ id }) => [id, await world.core.getConsent(id)] as const,
+      ),
+    ),
   );
   return { files, installed, consents };
 }
@@ -127,39 +145,57 @@ export function editConsent(
 ): void {
   const db = new Database(path.join(dataDir, "plums.db"));
   try {
-    const row = db.prepare("SELECT permissions FROM consents WHERE package_id = ?").get(id) as
-      | { permissions: string }
-      | undefined;
+    const row = db
+      .prepare("SELECT permissions FROM consents WHERE package_id = ?")
+      .get(id) as { permissions: string } | undefined;
     const next = change(JSON.parse(row?.permissions ?? "[]") as Permission[]);
-    if (next === null) db.prepare("DELETE FROM consents WHERE package_id = ?").run(id);
-    else db.prepare("UPDATE consents SET permissions = ? WHERE package_id = ?").run(JSON.stringify(next), id);
+    if (next === null)
+      db.prepare("DELETE FROM consents WHERE package_id = ?").run(id);
+    else
+      db.prepare(
+        "UPDATE consents SET permissions = ? WHERE package_id = ?",
+      ).run(JSON.stringify(next), id);
   } finally {
     db.close();
   }
 }
 
 /** Rewrites the manifest stored at install time. Makes a package the current rules would refuse to import. */
-export function editManifest({ dataDir }: World, id: string, change: (manifest: Manifest) => Manifest): void {
+export function editManifest(
+  { dataDir }: World,
+  id: string,
+  change: (manifest: Manifest) => Manifest,
+): void {
   const db = new Database(path.join(dataDir, "plums.db"));
   try {
-    const row = db.prepare("SELECT manifest FROM packages WHERE id = ?").get(id) as { manifest: string };
-    db.prepare("UPDATE packages SET manifest = ? WHERE id = ?").run(JSON.stringify(change(JSON.parse(row.manifest))), id);
+    const row = db
+      .prepare("SELECT manifest FROM packages WHERE id = ?")
+      .get(id) as { manifest: string };
+    db.prepare("UPDATE packages SET manifest = ? WHERE id = ?").run(
+      JSON.stringify(change(JSON.parse(row.manifest))),
+      id,
+    );
   } finally {
     db.close();
   }
 }
 
-export function countRows({ dataDir }: World, table: "packages" | "consents"): number {
+export function countRows(
+  { dataDir }: World,
+  table: "packages" | "consents",
+): number {
   const db = new Database(path.join(dataDir, "plums.db"), { readonly: true });
   try {
-    return (db.prepare(`SELECT count(*) AS n FROM ${table}`).get() as { n: number }).n;
+    return (
+      db.prepare(`SELECT count(*) AS n FROM ${table}`).get() as { n: number }
+    ).n;
   } finally {
     db.close();
   }
 }
 
 /**
- * Same capture as the redaction tests in secrets.test.ts: console methods plus stdout/stderr writes.
+ * Captures console methods plus stdout/stderr writes for redaction assertions.
  * Call once at the top of a test file. `lines` is emptied before each test.
  */
 export function captureOutput(): { lines: string[] } {
@@ -167,9 +203,18 @@ export function captureOutput(): { lines: string[] } {
   beforeEach(() => {
     lines.length = 0;
     for (const target of [console, process.stdout, process.stderr] as const) {
-      for (const method of ["log", "info", "warn", "error", "debug", "write"] as const) {
+      for (const method of [
+        "log",
+        "info",
+        "warn",
+        "error",
+        "debug",
+        "write",
+      ] as const) {
         if (method in target) {
-          vi.spyOn(target as never, method as never).mockImplementation(((...args: unknown[]) => {
+          vi.spyOn(target as never, method as never).mockImplementation(((
+            ...args: unknown[]
+          ) => {
             lines.push(args.map(String).join(" "));
             return true;
           }) as never);
@@ -184,18 +229,27 @@ export function captureOutput(): { lines: string[] } {
 }
 
 /** Everything an error shows a caller, including the whole `cause` chain and extra own properties. */
-export function serializeError(err: unknown, seen = new WeakSet<object>()): string {
-  if (err === null || typeof err !== "object") return JSON.stringify(err) ?? String(err);
+export function serializeError(
+  err: unknown,
+  seen = new WeakSet<object>(),
+): string {
+  if (err === null || typeof err !== "object")
+    return JSON.stringify(err) ?? String(err);
   if (seen.has(err)) return "[circular]";
   seen.add(err);
   if (err instanceof Error) {
-    const own = Object.fromEntries(Object.getOwnPropertyNames(err).map((k) => [k, (err as never)[k]]));
+    const own = Object.fromEntries(
+      Object.getOwnPropertyNames(err).map((k) => [k, (err as never)[k]]),
+    );
     return JSON.stringify({
-      ...Object.fromEntries(Object.entries(own).map(([k, v]) => [k, serializeError(v, seen)])),
+      ...Object.fromEntries(
+        Object.entries(own).map(([k, v]) => [k, serializeError(v, seen)]),
+      ),
       name: err.name,
       message: err.message,
       stack: err.stack,
-      cause: err.cause === undefined ? undefined : serializeError(err.cause, seen),
+      cause:
+        err.cause === undefined ? undefined : serializeError(err.cause, seen),
     });
   }
   return JSON.stringify(err, (_key, value: unknown) =>

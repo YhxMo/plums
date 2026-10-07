@@ -1,5 +1,29 @@
-import { validateDesktopV2, type ConnectionDeclaration, type ConnectionDescription, type EngineDeclaration, type EngineSdk } from "./desktop-v2.js";
-export type { ConnectionDeclaration, ConnectionDescription, ConnectionCredential, EngineDeclaration, EngineSdk, EngineStatus } from "./desktop-v2.js";
+import {
+  foundationProvider,
+  parseFoundationRequirement,
+  parseFoundationAgent,
+} from "./foundation-contract.js";
+export * from "./foundation-contract.js";
+import { parseCommonDeclaration } from "./common-contract.js";
+import { validateContributionSchema } from "./contribution-schema.js";
+export * from "./common-contract.js";
+export * from "./contribution-schema.js";
+import {
+  validateDesktopV2,
+  type ConnectionDeclaration,
+  type ConnectionDescription,
+  type EngineDeclaration,
+  type EngineSdk,
+} from "./desktop-v2.js";
+export type {
+  ConnectionDeclaration,
+  ConnectionDescription,
+  ConnectionCredential,
+  EngineDeclaration,
+  EngineSdk,
+  EngineStatus,
+  EngineRuntimeContext,
+} from "./desktop-v2.js";
 import {
   createArchive,
   readArchiveDetails,
@@ -14,23 +38,51 @@ import {
   type CapabilityRequest,
 } from "@plums/core";
 import semver from "semver";
+import {
+  validateProtocolIntents,
+  protocolArtifactDigest,
+} from "./protocol-intents.js";
+export {
+  validateProtocolIntents,
+  portableProtocolIntent,
+} from "./protocol-intents.js";
+import {
+  validateProtocolDeclarations,
+  type ProtocolDeclarations,
+} from "./protocols.js";
+export { checkProtocolCompatibility } from "./protocols.js";
+export type {
+  ProtocolProvider,
+  ProtocolRequirement,
+  ProtocolDeclarations,
+  ProtocolCompatibility,
+  ProtocolBindingIntent,
+  ProtocolBindingStatus,
+} from "./protocols.js";
 
 export const SDK_VERSION = "2";
 
 export { missingRequiredSettings } from "./settings.js";
+import { validatePanelDeclarations, type PanelDeclaration } from "./panels.js";
+export * from "./panels.js";
 export interface Contribution {
   name: string;
   title: string;
   inputSchema?: unknown;
+  outputSchema?: unknown;
 }
 export type ContributionKind = "commands" | "tools" | "connectors";
 export interface DesktopContribution {
   sdkVersion: "1" | "2";
+  foundation?: import("./foundation-contract.js").FoundationRequirement;
   connections?: ConnectionDeclaration[];
   engines?: EngineDeclaration[];
   runtime?: string;
   frontend?: string;
+  panels?: PanelDeclaration[];
   contributes?: Partial<Record<ContributionKind, Contribution[]>>;
+  protocols?: ProtocolDeclarations;
+  common?: import("./common-contract.js").CommonDeclaration;
   model?: {
     protocolSetting?: string;
     endpointSetting: string;
@@ -46,6 +98,7 @@ export interface DesktopContribution {
 }
 export interface AgentBundleManifest {
   bundleVersion: "1.0";
+  foundation?: import("./foundation-contract.js").FoundationAgent;
   id: string;
   name: string;
   version: string;
@@ -54,6 +107,7 @@ export interface AgentBundleManifest {
   extensions: string[];
   connectors: string[];
   startup?: string;
+  protocolBindings?: import("./protocols.js").ProtocolBindingIntent[];
   [key: string]: unknown;
 }
 export interface AgentBundle {
@@ -62,6 +116,14 @@ export interface AgentBundle {
   files: PackageFiles;
 }
 export interface PlumsSdk {
+  common: import("./common-contract.js").CommonPlatformSdk;
+  resources: import("./common-contract.js").CommonResourcesSdk;
+  protocols: {
+    status(
+      requirementId: string,
+    ): Promise<import("./protocols.js").ProtocolBindingStatus>;
+    invoke(requirementId: string, input: unknown): Promise<unknown>;
+  };
   register(
     kind: ContributionKind,
     name: string,
@@ -81,9 +143,17 @@ export interface PlumsSdk {
   character(packageId?: string): Promise<unknown | null>;
   characters(): Promise<{ id: string; name: string; version: string }[]>;
   settings(): Promise<Record<string, unknown>>;
-  context(): Promise<{ agentId: string; componentId: string; invocationId: string }>;
+  context(): Promise<{
+    agentId: string;
+    componentId: string;
+    invocationId: string;
+    frontend?: import("./panels.js").PanelContext;
+  }>;
   connection(id: string): Promise<ConnectionDescription>;
-  failResponse(callId: string, reason: "RESPONSE_INVALID" | "HTTP_REJECTED"): Promise<never>;
+  failResponse(
+    callId: string,
+    reason: "RESPONSE_INVALID" | "HTTP_REJECTED",
+  ): Promise<never>;
   engine: EngineSdk;
   emit(topic: string, data: unknown): Promise<void>;
   onEvent(
@@ -116,9 +186,16 @@ export function desktopContribution(
   manifest: Manifest,
   files?: PackageFiles,
 ): DesktopContribution | undefined {
-  if (isManifestV2(manifest) && manifest.permissions.some(p => p.kind === "engine") &&
-    (manifest.kind !== "extension" || !manifest.payload || typeof manifest.payload !== "object" || !Object.hasOwn(manifest.payload, "plumsDesktop")))
+  if (
+    isManifestV2(manifest) &&
+    manifest.permissions.some((p) => p.kind === "engine") &&
+    (manifest.kind !== "extension" ||
+      !manifest.payload ||
+      typeof manifest.payload !== "object" ||
+      !Object.hasOwn(manifest.payload, "plumsDesktop"))
+  )
     invalid("引擎权限必须对应扩展的 SDK v2 引擎声明。");
+  foundationProvider(manifest, files);
   if (manifest.kind === "character") return undefined;
   const payload = manifest.payload;
   if (
@@ -134,6 +211,36 @@ export function desktopContribution(
     !manifest.formatVersion.startsWith("2.")
   )
     invalid("可运行组件必须使用 2.x 清单与支持的 SDK 版本。");
+  if (c.foundation !== undefined) parseFoundationRequirement(c.foundation);
+  if (c.common !== undefined) {
+    if (c.sdkVersion !== "2") invalid("Common resources require SDK v2.");
+    const common = parseCommonDeclaration(c.common);
+    if (!isManifestV2(manifest))
+      invalid("Common resources require format 2.x.");
+    if (common.policy) {
+      const provided = c.protocols?.provides?.find(
+        (p) => p.id === common.policy!.provideId,
+      );
+      if (
+        !provided ||
+        provided.protocol !== "org.plums.policy" ||
+        provided.version !== "1.0.0" ||
+        provided.contribution.kind !== "tools"
+      )
+        invalid("Policy slots require org.plums.policy 1.0.0 tools/evaluate.");
+    }
+    for (const r of common.resources ?? []) {
+      const permission = manifest.permissions.find(
+        (p) => p.id === r.permissionId,
+      );
+      if (
+        !permission ||
+        permission.kind !== "resource" ||
+        !r.operations.every((op) => permission.operations.includes(op))
+      )
+        invalid("Resource needs must reference public resource permissions.");
+    }
+  }
   for (const at of [c.runtime, c.frontend])
     if (
       at !== undefined &&
@@ -169,6 +276,14 @@ export function desktopContribution(
       )
         invalid("贡献名称无效或重复。");
       names.add(d.name);
+      if (c.sdkVersion === "2")
+        for (const field of ["inputSchema", "outputSchema"] as const) {
+          if (d[field] !== undefined)
+            validateContributionSchema(
+              d[field],
+              `/payload/plumsDesktop/contributes/${kind}/${declarations.indexOf(d)}/${field}`,
+            );
+        }
     }
   }
   if (c.model !== undefined) {
@@ -225,6 +340,8 @@ export function desktopContribution(
     if (manifest.kind !== "connector") invalid("只有连接器可以绑定网络凭据。");
   }
   validateDesktopV2(manifest, c, safePath, files);
+  validateProtocolDeclarations(c);
+  validatePanelDeclarations(manifest, c, safePath, files);
   return c;
 }
 export async function validateAgentBundle(
@@ -267,6 +384,7 @@ async function readAgentBundle(
     !Array.isArray(agent.connectors)
   )
     invalid("组合包清单无效。");
+  if (agent.foundation !== undefined) parseFoundationAgent(agent.foundation);
   if (agent.characters !== undefined && !Array.isArray(agent.characters))
     invalid("附加角色卡引用无效。");
   const characters = [
@@ -347,6 +465,13 @@ async function readAgentBundle(
       typeof agent.startup !== "string")
   )
     invalid("启动扩展不存在。");
+  validateProtocolIntents(
+    agent.protocolBindings,
+    packages.map((p) => ({
+      manifest: p.contents.manifest,
+      digest: protocolArtifactDigest(p.bytes),
+    })),
+  );
   return { agent, packages, files };
 }
 export async function createAgentBundle(
@@ -390,3 +515,5 @@ export function unmetDependencies(
       ),
   );
 }
+
+export { createCommonPlatformSdk } from "./common-client.js";

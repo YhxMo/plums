@@ -12,7 +12,9 @@ import { makeCore, manifestZip, validManifest } from "./package-helpers.js";
 // Why dist: the child is another Node process, so it does not use Vitest's source
 // alias and it does not share this process's importQueue.
 const coreEntry = fileURLToPath(new URL("../dist/index.js", import.meta.url));
-const childEntry = fileURLToPath(new URL("./concurrent-import-child.mjs", import.meta.url));
+const childEntry = fileURLToPath(
+  new URL("./concurrent-import-child.mjs", import.meta.url),
+);
 const id = "concurrent.loser";
 
 interface ChildReport {
@@ -26,7 +28,9 @@ interface ChildReport {
   details?: unknown;
 }
 
-function runChild(env: NodeJS.ProcessEnv): Promise<{ code: number | null; stdout: string; stderr: string }> {
+function runChild(
+  env: NodeJS.ProcessEnv,
+): Promise<{ code: number | null; stdout: string; stderr: string }> {
   return new Promise((resolve, reject) => {
     const child = spawn(process.execPath, [childEntry, coreEntry], {
       env,
@@ -49,7 +53,9 @@ function parseReport(stdout: string, stderr: string): ChildReport {
   try {
     return JSON.parse(stdout) as ChildReport;
   } catch {
-    throw new Error(`child did not return JSON\nstdout: ${stdout}\nstderr: ${stderr}`);
+    throw new Error(
+      `child did not return JSON\nstdout: ${stdout}\nstderr: ${stderr}`,
+    );
   }
 }
 
@@ -84,15 +90,34 @@ describe("concurrent import of one id from two processes", () => {
     await mkdir(barrier, { recursive: true });
     // Why init first: creating the schema is not the import race. A fresh database
     // can throw "table already exists" before either insert, which hides the loser.
-    const init = await runChild({ ...process.env, DATA_DIR: dataDir, INIT_ONLY: "1" });
-    expect(parseReport(init.stdout, init.stderr), init.stderr).toEqual({ ok: true, init: true });
+    const init = await runChild({
+      ...process.env,
+      DATA_DIR: dataDir,
+      INIT_ONLY: "1",
+    });
+    expect(parseReport(init.stdout, init.stderr), init.stderr).toEqual({
+      ok: true,
+      init: true,
+    });
 
     // Why two processes and Promise.all: each process has its own importQueue, so the
     // in-process queue cannot serialize them. The child waits in recordInstall until
     // both have arrived, so one cannot finish the insert before the other gets there.
     const [procA, procB] = await Promise.all([
-      runChild({ ...process.env, DATA_DIR: dataDir, SLOT: "a", BARRIER: barrier, ZIP_PATH: zipA }),
-      runChild({ ...process.env, DATA_DIR: dataDir, SLOT: "b", BARRIER: barrier, ZIP_PATH: zipB }),
+      runChild({
+        ...process.env,
+        DATA_DIR: dataDir,
+        SLOT: "a",
+        BARRIER: barrier,
+        ZIP_PATH: zipA,
+      }),
+      runChild({
+        ...process.env,
+        DATA_DIR: dataDir,
+        SLOT: "b",
+        BARRIER: barrier,
+        ZIP_PATH: zipB,
+      }),
     ]);
     const reportA = parseReport(procA.stdout, procA.stderr);
     const reportB = parseReport(procB.stdout, procB.stderr);
@@ -108,10 +133,15 @@ describe("concurrent import of one id from two processes", () => {
     const winnerName = winner === "a" ? "content-a" : "content-b";
     const loserName = winner === "a" ? "content-b" : "content-a";
 
-    const database = new Database(path.join(dataDir, "plums.db"), { readonly: true, fileMustExist: true });
+    const database = new Database(path.join(dataDir, "plums.db"), {
+      readonly: true,
+      fileMustExist: true,
+    });
     let rows: { id: string; name: string; manifest: string }[];
     try {
-      rows = database.prepare("SELECT id, name, manifest FROM packages").all() as {
+      rows = database
+        .prepare("SELECT id, name, manifest FROM packages")
+        .all() as {
         id: string;
         name: string;
         manifest: string;
@@ -120,7 +150,9 @@ describe("concurrent import of one id from two processes", () => {
       database.close();
     }
     const installDir = path.join(dataDir, "packages", id);
-    const packages = existsSync(path.join(dataDir, "packages")) ? readdirSync(path.join(dataDir, "packages")) : [];
+    const packages = existsSync(path.join(dataDir, "packages"))
+      ? readdirSync(path.join(dataDir, "packages"))
+      : [];
     const markerOnDisk = existsSync(path.join(installDir, "marker.txt"))
       ? readFileSync(path.join(installDir, "marker.txt"), "utf8")
       : null;
@@ -128,7 +160,10 @@ describe("concurrent import of one id from two processes", () => {
       {
         rows,
         packages,
-        marker: markerOnDisk === null ? null : { length: markerOnDisk.length, head: markerOnDisk.slice(0, 24) },
+        marker:
+          markerOnDisk === null
+            ? null
+            : { length: markerOnDisk.length, head: markerOnDisk.slice(0, 24) },
         reportA,
         reportB,
       },
@@ -140,7 +175,9 @@ describe("concurrent import of one id from two processes", () => {
     expect(loser.code, state).toBe("IMPORT_INVALID");
     expect(loser.path, state).toBeNull();
     expect(loser.details, state).toEqual({ id, reason: "ALREADY_INSTALLED" });
-    expect(loser.message, state).toBe(`「${loserName}」已经安装了。要换版本请更新它，不要再次导入。`);
+    expect(loser.message, state).toBe(
+      `「${loserName}」已经安装了。要换版本请更新它，不要再次导入。`,
+    );
     const leaked = `${loser.message}\n${loser.code}\n${String(loser.path)}\n${JSON.stringify(loser.details)}`;
     expect(leaked, state).not.toContain("SQLITE");
     expect(leaked, state).not.toContain("UNIQUE constraint");
@@ -149,11 +186,17 @@ describe("concurrent import of one id from two processes", () => {
 
     expect(rows, state).toHaveLength(1);
     expect(rows[0], state).toMatchObject({ id, name: winnerName });
-    expect(JSON.parse(rows[0]!.manifest).payload, state).toEqual({ marker: winnerName });
+    expect(JSON.parse(rows[0]!.manifest).payload, state).toEqual({
+      marker: winnerName,
+    });
 
     expect(existsSync(installDir), state).toBe(true);
     expect(markerOnDisk, state).toBe(winnerBody);
-    expect(JSON.parse(readFileSync(path.join(installDir, "manifest.json"), "utf8")).name, state).toBe(winnerName);
+    expect(
+      JSON.parse(readFileSync(path.join(installDir, "manifest.json"), "utf8"))
+        .name,
+      state,
+    ).toBe(winnerName);
     expect(
       packages.filter((name) => name.startsWith(".staging-")),
       state,
@@ -171,7 +214,8 @@ describe("publish failure after the install row", () => {
       original.call(this, manifest);
       const root = path.join(dataDir, "packages");
       for (const name of readdirSync(root)) {
-        if (name.startsWith(".staging-")) rmSync(path.join(root, name), { recursive: true, force: true });
+        if (name.startsWith(".staging-"))
+          rmSync(path.join(root, name), { recursive: true, force: true });
       }
     };
     try {
@@ -183,8 +227,14 @@ describe("publish failure after the install row", () => {
       });
       await expect(core.importPackage(zip)).rejects.toThrow();
       expect(await core.listInstalled()).toEqual([]);
-      const packages = existsSync(path.join(dataDir, "packages")) ? readdirSync(path.join(dataDir, "packages")) : [];
-      expect(packages.filter((name) => name === "publish.fail" || name.startsWith(".staging-"))).toEqual([]);
+      const packages = existsSync(path.join(dataDir, "packages"))
+        ? readdirSync(path.join(dataDir, "packages"))
+        : [];
+      expect(
+        packages.filter(
+          (name) => name === "publish.fail" || name.startsWith(".staging-"),
+        ),
+      ).toEqual([]);
     } finally {
       InstallStore.prototype.recordInstall = original;
       core.close();

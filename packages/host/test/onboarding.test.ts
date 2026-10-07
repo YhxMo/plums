@@ -178,6 +178,7 @@ it("plans required dependencies in compatible version order without installing o
   expect(await host.planAssembly([app.digest])).toEqual({
     digests: [compatible.digest, app.digest],
     additions: [{ digest: compatible.digest, name: "model", version: "1.4.0" }],
+    protocols: [],
   });
   expect((await host.planAssembly([older.digest, app.digest])).digests).toEqual(
     [older.digest, app.digest],

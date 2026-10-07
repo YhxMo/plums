@@ -35,6 +35,16 @@ export interface EngineDeclaration {
   runtime: "node";
   platforms: string[];
   protocol: "jsonrpc-jsonl-v1";
+  grantResources?: {
+    reads: { id: string; title: string }[];
+    outputs: { id: string; title: string }[];
+  };
+}
+export interface EngineRuntimeContext {
+  agentId: string;
+  componentId: string;
+  engineId: string;
+  dataDir: string;
 }
 export interface EngineStatus {
   engineId: string;
@@ -196,6 +206,31 @@ export function validateDesktopV2(
         ).length !== 1
       )
         invalid("可信引擎需要公开的执行权限、平台和协议声明。");
+      if (d.grantResources !== undefined) {
+        if (
+          !d.grantResources ||
+          typeof d.grantResources !== "object" ||
+          Array.isArray(d.grantResources)
+        )
+          invalid("引擎资源声明无效。");
+        for (const list of [d.grantResources.reads, d.grantResources.outputs]) {
+          if (
+            !Array.isArray(list) ||
+            list.length > 32 ||
+            list.some(
+              (r) =>
+                !r ||
+                typeof r.id !== "string" ||
+                !name.test(r.id) ||
+                typeof r.title !== "string" ||
+                !r.title.trim() ||
+                r.title.length > 128,
+            ) ||
+            new Set(list.map((r) => r.id)).size !== list.length
+          )
+            invalid("引擎资源声明无效。");
+        }
+      }
       ids.add(d.id);
       const entry = safePath(d.entry);
       if (

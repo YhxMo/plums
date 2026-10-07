@@ -16,6 +16,7 @@ export function ComponentsView({
   developer,
   loading,
   output,
+  onInspect,
   onOpen,
   onUse,
   onRemove,
@@ -31,6 +32,7 @@ export function ComponentsView({
   developer: boolean;
   loading: boolean;
   output: unknown;
+  onInspect: (item: CatalogItem) => void;
   onOpen: (id: string) => void;
   onUse: (item: CatalogItem) => Promise<unknown>;
   onRemove: (digest: string) => Promise<unknown>;
@@ -69,6 +71,7 @@ export function ComponentsView({
         canUse={!loading || !selected}
         agents={agents}
         developer={developer}
+        onInspect={onInspect}
         onOpen={onOpen}
         onUse={onUse}
         onRemove={onRemove}

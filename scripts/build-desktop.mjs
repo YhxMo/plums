@@ -35,4 +35,17 @@ if (process.platform === "darwin")
     root + "packages/desktop/dist/secure-fs",
   );
 
-await copyFile(root + "packages/host/dist/engine-supervisor.js", root + "packages/desktop/dist/engine-supervisor.js");
+await copyFile(
+  root + "packages/host/dist/engine-supervisor.js",
+  root + "packages/desktop/dist/engine-supervisor.js",
+);
+
+for (const name of [
+  "controlled-worker.cjs",
+  "controlled-supervisor.js",
+  ...(process.platform === "darwin" ? ["controlled-probe"] : []),
+])
+  await copyFile(
+    root + "packages/host/dist/" + name,
+    root + "packages/desktop/dist/" + name,
+  );

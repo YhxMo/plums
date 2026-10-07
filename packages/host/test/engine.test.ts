@@ -1,12 +1,5 @@
 import { it, expect, afterEach, vi } from "vitest";
-import {
-  mkdtemp,
-  mkdir,
-  readFile,
-  writeFile,
-  readdir,
-  rm,
-} from "node:fs/promises";
+import { mkdtemp, mkdir, readFile, writeFile, rm } from "node:fs/promises";
 import { createServer } from "node:http";
 import { fork } from "node:child_process";
 import { pathToFileURL } from "node:url";
@@ -20,7 +13,13 @@ import {
 } from "@plums/core";
 import { InstallStore } from "../../core/src/install/store.js";
 import { DesktopHost } from "../src/host.js";
-import { EngineManager } from "../src/engine-manager.js";
+import { EngineManager, type EngineHooks } from "../src/engine-manager.js";
+import {
+  engineManifest,
+  engineFiles,
+  connectorManifest,
+  connectorRuntime,
+} from "./platform-fixtures.js";
 const hosts: DesktopHost[] = [],
   dirs: string[] = [];
 afterEach(async () => {
@@ -33,21 +32,8 @@ afterEach(async () => {
 async function fixture(code?: string, credentialProbe = false) {
   const dir = await mkdtemp(path.join(os.tmpdir(), "plums-engine-"));
   dirs.push(dir);
-  const manifest = JSON.parse(
-    await readFile("examples/trusted-engine/manifest.json", "utf8"),
-  );
-  const files: Record<string, Uint8Array> = {};
-  async function walk(rel: string) {
-    for (const e of await readdir(path.join("examples/trusted-engine", rel), {
-      withFileTypes: true,
-    })) {
-      const p = path.posix.join(rel, e.name);
-      if (e.isDirectory()) await walk(p);
-      else if (p !== "manifest.json")
-        files[p] = await readFile(path.join("examples/trusted-engine", p));
-    }
-  }
-  await walk("");
+  const manifest = engineManifest();
+  const files = await engineFiles();
   if (credentialProbe) {
     manifest.settingsSchema = {
       type: "object",
@@ -349,7 +335,12 @@ it("refuses corrupted installed engine files before launch", async () => {
   await expect(f.invoke("start")).rejects.toMatchObject({
     code: "PERMISSION_DENIED",
   });
-  expect(await f.invoke("status")).toMatchObject({ state: "stopped" });
+  await expect(f.invoke("status")).rejects.toMatchObject({
+    code: "PERMISSION_DENIED",
+  });
+  expect(await f.host.engineStatus(f.id, "engine-demo", "local")).toMatchObject(
+    { state: "stopped" },
+  );
 });
 it("cancels a cooperative task and keeps the trusted engine usable", async () => {
   const f = await fixture();
@@ -406,6 +397,75 @@ it("enforces request and message limits; cancellation kills an unresponsive engi
     trusted: true,
   });
 }, 15_000);
+it.each([
+  ["request count", 31, ""],
+  ["callback byte budget", 8, "x".repeat(900_000)],
+] as const)(
+  "releases completed callbacks and enforces the shared %s limit",
+  async (_name, count, payload) => {
+    const dir = await mkdtemp(
+      path.join(os.tmpdir(), "plums-engine-callbacks-"),
+    );
+    dirs.push(dir);
+    const entry = path.join(dir, "engine.mjs");
+    await writeFile(
+      entry,
+      `
+    import { createInterface } from 'node:readline';
+    let owner, remaining;
+    const send = m => console.log(JSON.stringify({jsonrpc: '2.0', ...m}));
+    createInterface({input: process.stdin}).on('line', line => {
+      const m = JSON.parse(line);
+      if (m.method === 'initialize') send({id: m.id, result: {protocol: 'jsonrpc-jsonl-v1'}});
+      else if (m.method === 'burst') {
+        owner = m.id; remaining = m.params.count;
+        for (let i = 0; i < remaining; i++) send({id: 'callback-' + i, method: 'host.confirm', params: {payload: m.params.payload}});
+      } else if (--remaining === 0) send({id: owner, result: true});
+    });
+  `,
+    );
+    const releases: (() => void)[] = [];
+    const hooks: EngineHooks = {
+      prepare: async () => ({ entry, cwd: dir }),
+      active: async () => {},
+      event: () => {},
+      audit: async () => {},
+      callback: async (_method, _input, signal) =>
+        new Promise((resolve) => {
+          const abort = () => resolve(null);
+          signal.addEventListener("abort", abort, { once: true });
+          releases.push(() => {
+            signal.removeEventListener("abort", abort);
+            resolve(null);
+          });
+        }),
+    };
+    const manager = new EngineManager();
+    try {
+      await manager.start("callbacks", hooks);
+      for (let attempt = 0; attempt < 2; attempt++) {
+        const task = manager.request("callbacks", hooks, "burst", {
+          count,
+          payload,
+        });
+        void task.catch(() => {});
+        await expect.poll(() => releases.length).toBe(count);
+        for (const release of releases.splice(0)) release();
+        await expect(task).resolves.toBe(true);
+      }
+      await expect(
+        manager.request("callbacks", hooks, "burst", {
+          count: count + 1,
+          payload,
+        }),
+      ).rejects.toMatchObject({ code: "CAPABILITY_FAILED" });
+      expect(manager.state("callbacks")).toBe("crashed");
+    } finally {
+      await manager.stop("callbacks", hooks);
+    }
+  },
+);
+
 it("times out a silent handshake without leaving an engine running", async () => {
   const f = await fixture("process.stdin.resume();setInterval(()=>{},1000)");
   await expect(f.invoke("start")).rejects.toMatchObject({
@@ -481,22 +541,8 @@ it("rejects invalid replies and oversized messages from actual child processes",
 });
 it("autonomously chooses an optional external connector through the controlled dependency bridge", async () => {
   const f = await fixture();
-  const root = "examples/model-connector",
-    manifest = JSON.parse(
-      await readFile(path.join(root, "manifest.json"), "utf8"),
-    ),
-    files: Record<string, Uint8Array> = {};
-  async function walk(rel: string) {
-    for (const e of await readdir(path.join(root, rel), {
-      withFileTypes: true,
-    })) {
-      const p = path.posix.join(rel, e.name);
-      if (e.isDirectory()) await walk(p);
-      else if (p !== "manifest.json")
-        files[p] = await readFile(path.join(root, p));
-    }
-  }
-  await walk("");
+  const manifest = connectorManifest();
+  const files = { "runtime/main.js": Buffer.from(connectorRuntime) };
   const builder = createCore({
     dataDir: path.join(f.dir, "connector-builder"),
     secrets: new MemorySecretStore(),

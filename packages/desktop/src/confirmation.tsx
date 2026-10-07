@@ -30,6 +30,7 @@ function Confirmation() {
     void window.confirmation.load().then((value) => {
       if (!alive) return;
       setView(value);
+      if (value.kind === "grant") setDuration(3_600_000);
       setSelected(value.scopeOptions?.map((option) => option.key) ?? []);
       timer = setTimeout(() => setReady(true), 700);
     });
@@ -92,7 +93,8 @@ function Confirmation() {
           event.key === "Escape" ||
           (event.key === "Enter" &&
             !(
-              view.kind === "task" && event.target instanceof HTMLSelectElement
+              (view.kind === "task" || view.kind === "grant") &&
+              event.target instanceof HTMLSelectElement
             ))
         ) {
           event.preventDefault();
@@ -136,11 +138,13 @@ function Confirmation() {
         <h1 id="confirmation-title">
           {view.kind === "engine-trust"
             ? "信任并启动本机引擎？"
-            : view.kind === "task"
-            ? "批准本次工作范围？"
-            : view.kind === "capability"
-              ? "允许这次操作？"
-              : "同意组件权限？"}
+            : view.kind === "grant"
+              ? "批准助理处理范围？"
+              : view.kind === "task"
+                ? "批准本次工作范围？"
+                : view.kind === "capability"
+                  ? "允许这次操作？"
+                  : "同意组件权限？"}
         </h1>
       </header>
       <div className="confirmation-body">
@@ -205,11 +209,13 @@ function Confirmation() {
         <p className="confirmation-note">
           {view.kind === "engine-trust"
             ? "信任将保留，直到你撤销授权或删除这个 Agent。"
-            : view.kind === "task"
-            ? "授权仅属于当前 Agent，本次任务最长 1 小时。可随时停止并撤权；升级、配置或目录变更后重新批准。目录授权不等于系统沙箱。"
-            : view.kind === "capability"
-              ? "仅允许这一次操作。未被有效工作范围覆盖的后续操作仍会询问。"
-              : "开始使用时可批准有限期工作范围；未覆盖的读写、列目录或联网仍需确认。"}
+            : view.kind === "grant"
+              ? "授权会保存在当前 Agent，可随时撤销；到期、升级或模型配置变化后重新批准。自动任务只处理所选范围。"
+              : view.kind === "task"
+                ? "授权仅属于当前 Agent，本次任务最长 1 小时。可随时停止并撤权；升级、配置或目录变更后重新批准。目录授权不等于系统沙箱。"
+                : view.kind === "capability"
+                  ? "仅允许这一次操作。未被有效工作范围覆盖的后续操作仍会询问。"
+                  : "开始使用时可批准有限期工作范围；未覆盖的读写、列目录或联网仍需确认。"}
         </p>
       </div>
       <footer className="confirmation-footer">

@@ -6,7 +6,8 @@ export interface EgressTarget {
   port: string;
 }
 
-const HOST_PATTERN = /^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)*$/;
+const HOST_PATTERN =
+  /^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)*$/;
 const IPV4_PATTERN = /^\d+(\.\d+){0,3}$/;
 
 /**
@@ -17,7 +18,9 @@ const IPV4_PATTERN = /^\d+(\.\d+){0,3}$/;
  */
 export function parseEgressTarget(target: string): EgressTarget | undefined {
   const wildcard = target.startsWith("*.");
-  const match = /^([^:/?#@\s]+)(?::(\d{1,5}))?$/.exec(wildcard ? target.slice(2) : target);
+  const match = /^([^:/?#@\s]+)(?::(\d{1,5}))?$/.exec(
+    wildcard ? target.slice(2) : target,
+  );
   if (match === null || match[1] === undefined) {
     return undefined;
   }
@@ -39,7 +42,11 @@ export function parseEgressTarget(target: string): EgressTarget | undefined {
 
 /** IP literal, `localhost`, or a name ending in `.localhost`. The characters only; no DNS. */
 function blockedEgressHost(host: string): boolean {
-  return host === "localhost" || host.endsWith(".localhost") || IPV4_PATTERN.test(host);
+  return (
+    host === "localhost" ||
+    host.endsWith(".localhost") ||
+    IPV4_PATTERN.test(host)
+  );
 }
 
 /**
@@ -57,7 +64,9 @@ export function matchEgressUrl(target: string, url: string): URL | undefined {
   // The same host rules as a declared target: empty labels, IP literals, localhost, `*.localhost`.
   const hostMatches =
     parseEgressTarget(parsed.hostname) !== undefined &&
-    (rule?.wildcard ? parsed.hostname.endsWith(`.${rule.host}`) : parsed.hostname === rule?.host);
+    (rule?.wildcard
+      ? parsed.hostname.endsWith(`.${rule.host}`)
+      : parsed.hostname === rule?.host);
   const allowed =
     rule !== undefined &&
     hostMatches &&
@@ -68,7 +77,13 @@ export function matchEgressUrl(target: string, url: string): URL | undefined {
   return allowed ? parsed : undefined;
 }
 
-export type HttpsUrlFailure = "INVALID_URL" | "NOT_HTTPS" | "USERINFO" | "IP_LITERAL" | "TRAILING_DOT" | "LOCALHOST";
+export type HttpsUrlFailure =
+  | "INVALID_URL"
+  | "NOT_HTTPS"
+  | "USERINFO"
+  | "IP_LITERAL"
+  | "TRAILING_DOT"
+  | "LOCALHOST";
 
 /**
  * Share-link check only: https, no username or password, host is not an IP literal,
@@ -97,6 +112,9 @@ export function isTrailingDotTarget(target: string): boolean {
 }
 
 function isIpLiteral(hostname: string): boolean {
-  const bare = hostname.startsWith("[") && hostname.endsWith("]") ? hostname.slice(1, -1) : hostname;
+  const bare =
+    hostname.startsWith("[") && hostname.endsWith("]")
+      ? hostname.slice(1, -1)
+      : hostname;
   return bare.includes(":") || IPV4_PATTERN.test(bare);
 }

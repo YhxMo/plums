@@ -1,16 +1,26 @@
 import { Switch } from "../components/Switch.js";
+import { SelectMenu } from "../components/SelectMenu.js";
+import type { DesktopTheme } from "@plums/host";
 export function SettingsView({
   dnsMode,
+  theme,
+  themeBusy,
+  themeError,
   busy,
   developer,
   onDeveloper,
   onDns,
+  onTheme,
 }: {
   dnsMode: string;
+  theme: DesktopTheme;
+  themeBusy: boolean;
+  themeError: string;
   busy: boolean;
   developer: boolean;
   onDeveloper: (value: boolean) => void;
   onDns: (value: string) => void;
+  onTheme: (value: DesktopTheme) => void;
 }) {
   return (
     <div className="settings-view">
@@ -24,10 +34,26 @@ export function SettingsView({
       <div className="settings-panel">
         <div className="settings-row">
           <div>
-            <strong>跟随系统</strong>
-            <p>浅色与深色随系统外观自动切换。</p>
+            <strong>外观主题</strong>
+            <p>选择浅色、深色，或跟随系统外观自动切换。</p>
+            {themeError && (
+              <p role="alert" className="error-text">
+                {themeError}，请重新选择重试。
+              </p>
+            )}
           </div>
-          <span>自动</span>
+          <SelectMenu
+            className="theme-select"
+            label="外观主题"
+            value={theme}
+            disabled={themeBusy}
+            onChange={(value) => onTheme(value as DesktopTheme)}
+            options={[
+              { value: "system", label: "跟随系统" },
+              { value: "light", label: "浅色" },
+              { value: "dark", label: "深色" },
+            ]}
+          />
         </div>
       </div>
       <h2 className="settings-group-title">网络</h2>
@@ -57,7 +83,7 @@ export function SettingsView({
         <div className="settings-row">
           <div>
             <strong>开发者模式</strong>
-            <p>显示组件标识、JSON 调用与原始审计，仅改变界面显示。</p>
+            <p>显示完整组件内容、JSON 编辑与文件定位、开发者调用和原始审计。</p>
           </div>
           <Switch
             label="开发者模式"

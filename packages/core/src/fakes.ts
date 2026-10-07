@@ -9,12 +9,28 @@ import type {
   ModelResponse,
   SecretStore,
 } from "./types.js";
-import type { ExecInvocation, ExecResult, ExecSink, FsEntry, FsLocation, FsSink } from "./capabilities/types.js";
+import type {
+  ExecInvocation,
+  ExecResult,
+  ExecSink,
+  FsEntry,
+  FsLocation,
+  FsSink,
+} from "./capabilities/types.js";
 
 /** Canned filesystem results and copied call records; performs no filesystem I/O. */
 export class RecordingFsSink implements FsSink {
-  readonly records: (FsLocation & { operation: "read" | "write" | "list"; data?: Uint8Array })[] = [];
-  constructor(private readonly response: { data?: Uint8Array; entries?: FsEntry[]; error?: unknown } = {}) {}
+  readonly records: (FsLocation & {
+    operation: "read" | "write" | "list";
+    data?: Uint8Array;
+  })[] = [];
+  constructor(
+    private readonly response: {
+      data?: Uint8Array;
+      entries?: FsEntry[];
+      error?: unknown;
+    } = {},
+  ) {}
   async read(req: FsLocation): Promise<Uint8Array> {
     this.record(req, "read");
     return new Uint8Array(this.response.data ?? []);
@@ -26,8 +42,17 @@ export class RecordingFsSink implements FsSink {
     this.record(req, "list");
     return (this.response.entries ?? []).map((entry) => ({ ...entry }));
   }
-  private record(req: FsLocation, operation: "read" | "write" | "list", data?: Uint8Array): void {
-    this.records.push({ rootPath: req.rootPath, path: req.path, operation, ...(data ? { data: new Uint8Array(data) } : {}) });
+  private record(
+    req: FsLocation,
+    operation: "read" | "write" | "list",
+    data?: Uint8Array,
+  ): void {
+    this.records.push({
+      rootPath: req.rootPath,
+      path: req.path,
+      operation,
+      ...(data ? { data: new Uint8Array(data) } : {}),
+    });
     if (this.response.error !== undefined) throw this.response.error;
   }
 }
@@ -35,11 +60,17 @@ export class RecordingFsSink implements FsSink {
 /** Records the bound program and separate args; never starts a process. */
 export class RecordingExecSink implements ExecSink {
   readonly records: ExecInvocation[] = [];
-  constructor(private readonly response: Partial<ExecResult> & { error?: unknown } = {}) {}
+  constructor(
+    private readonly response: Partial<ExecResult> & { error?: unknown } = {},
+  ) {}
   async run(req: ExecInvocation): Promise<ExecResult> {
     this.records.push({ ...req, args: [...req.args] });
     if (this.response.error !== undefined) throw this.response.error;
-    return { exitCode: this.response.exitCode ?? 0, stdout: this.response.stdout ?? "", stderr: this.response.stderr ?? "" };
+    return {
+      exitCode: this.response.exitCode ?? 0,
+      stdout: this.response.stdout ?? "",
+      stderr: this.response.stderr ?? "",
+    };
   }
 }
 
@@ -65,7 +96,12 @@ export class RecordingEgressSink implements EgressSink {
 
   constructor(
     private readonly redirects: Readonly<Record<number, string>> = {},
-    private readonly response: { status?: number; body?: string; headers?:Record<string,string>; error?: unknown } = {},
+    private readonly response: {
+      status?: number;
+      body?: string;
+      headers?: Record<string, string>;
+      error?: unknown;
+    } = {},
   ) {}
 
   async send(req: EgressRequest): Promise<EgressResult> {
@@ -76,15 +112,21 @@ export class RecordingEgressSink implements EgressSink {
     if (req.body !== undefined) {
       record.body = req.body;
     }
-    if(req.headers!==undefined)record.headers={...req.headers};
-    if(req.stream!==undefined)record.stream=req.stream;
+    if (req.headers !== undefined) record.headers = { ...req.headers };
+    if (req.stream !== undefined) record.stream = req.stream;
     this.records.push(record);
     if (this.response.error !== undefined) {
       throw this.response.error;
     }
     const redirectTo = this.redirects[this.records.length];
     return redirectTo === undefined
-      ? { status: this.response.status ?? 200, body: this.response.body ?? "", ...(this.response.headers?{headers:{...this.response.headers}}:{}) }
+      ? {
+          status: this.response.status ?? 200,
+          body: this.response.body ?? "",
+          ...(this.response.headers
+            ? { headers: { ...this.response.headers } }
+            : {}),
+        }
       : { status: 302, body: "", redirectTo };
   }
 }

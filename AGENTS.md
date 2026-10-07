@@ -15,8 +15,8 @@ plums 是 Plums（Apache-2.0）的 TypeScript 工作区，包含 core、CLI、�
 - 安装：`pnpm install --frozen-lockfile`；构建：`pnpm build`；全量测试：`pnpm test`（包含构建）。
 - 定向测试先运行 `pnpm build`，再运行 `pnpm exec vitest run <测试文件>`；CLI 和跨进程测试会加载 `dist`。版本命令：`pnpm exec plums version`。
 - 性能基准：`pnpm bench:performance`（包含构建），可用 `--out <report.json>` 保存报告，方法见 `docs/performance.md`。耗时和内存按同机同环境比较；回归测试断言查询执行次数、语句复用和缓存边界，不设 CI 毫秒门槛，SELECT 执行与 prepare 次数分别统计。
-- 桌面开发：`pnpm desktop:dev`；示例：`pnpm examples:build`；macOS Apple Silicon 打包：`pnpm desktop:package`；准备好安装包和示例后分别运行 `pnpm desktop:smoke` 与 `pnpm desktop:engine-smoke`，确认窗口测试和 smoke 顺序运行。
-- 常规测试用自造夹具和 Fake/Recording 适配器隔离真实外发、密钥及业务文件执行；CLI、运行时和桌面测试允许启动受测子进程。路径边界用临时元数据夹具，core 确认超时用虚拟计时器，隔离运行时超时按真实预算测试；POSIX FIFO 用例在 Windows 跳过。`desktop:smoke` 执行真实文件、HTTPS 与远程 MCP，使用临时 `PLUMS_DATA_DIR`，不使用真实凭据；系统密钥存储验收仅在显式选择时进行。
+- 桌面开发：`pnpm desktop:dev`；macOS Apple Silicon 打包：`pnpm desktop:package`；平台符合性：`pnpm conformance:platform`。本仓库仅交付应用、宿主、公开 SDK 与官方底座，业务扩展和角色卡独立维护，不提交。
+- 常规测试用自造夹具和 Fake/Recording 适配器隔离真实外发、密钥及业务文件执行；CLI、运行时和桌面测试允许启动受测子进程。路径边界用临时元数据夹具，core 确认超时用虚拟计时器，隔离运行时超时按真实预算测试；POSIX FIFO 用例在 Windows 跳过。原生集成测试使用临时数据目录与自造凭据；系统密钥存储验收仅在显式选择时进行。
 - 修复先用公开行为回归复现；并发修改覆盖同进程与跨进程，密钥修改覆盖删前/删后抛错和重启重试，数据库迁移验证安装、同意、启用、密钥引用及 MCP 数据保留。宿主变更按影响覆盖组件版本固定、Agent 隔离、组装恢复、调用链授权和界面恢复。
 
 ## 必须保持的契约
@@ -33,7 +33,7 @@ plums 是 Plums（Apache-2.0）的 TypeScript 工作区，包含 core、CLI、�
 7. `runCapability` 与 `runDelegatedCapability` 在等待前复制请求，按校验→安装/启用/声明→同意→范围→确认→复核→放行审计→复核→Sink→结果审计执行。独立 core 兼容默认 read/list 不询问、write/exec/egress 每次确认；DesktopHost 每次创建 core 固定使用 `capabilityApproval: "task-or-confirm"`，未被有效范围覆盖的 read/list 也单次确认，内部重建不降低策略；可信宿主签发的有限期任务范围可复用 fs/egress 确认，任务内未选中的 read/list 也需单次确认。任务绑定当前实例、版本、声明、目录与调用链，复核时检查撤销/失效；只有布尔 true 放行单次确认；缺失/异常/非布尔/超时拒绝，默认 120 秒只作用于能力入口。跨扩展按调用链各方的权限与范围交集授权，2.x MCP 绑定 connector、permissionId 与工具指纹，并在执行前复核批准。绑定创建时复制固定，路径按真实目录边界检查；真实 FsSink 执行时防路径竞争，真实 ExecSink 隔离由调用方宿主负责。
 8. 能力/确认审计按 callId 关联，不含内容、请求体、参数、输出或物理路径。首次异步路径检查前开始读取密钥，每个审计时点刷新并保留本次已读到的值用于脱敏，事件冻结后交给回调。缺少审计或执行前失败不得调用 Sink；CAPABILITY_FAILED 保留 callId、phase、executionState，不附底层异常；unknown/completed 勿自动重试。确认或异步审计期间状态、权限、路径变化须阻止执行。
 9. 第三方前端使用独立沙箱 `WebContentsView`，开启上下文隔离、关闭 Node 集成、阻断直接联网与任意导航；SDK 绑定当前 Agent 和组件身份，不暴露管理接口。业务 JS 每组件独立 Node 子进程与 V8 isolate，不暴露 Node/Electron/隔离库对象，默认 64 MiB 与 5 秒同步执行预算，等待宿主不计入预算；管理、授权与恢复入口独立于包前端。
-10. 桌面文件 I/O 使用目录句柄并拒绝符号链接，HTTPS 校验域名及解析地址、不跟随重定向，凭据由宿主按声明绑定注入，扩展与包前端不读取密钥明文。停用、移除、更新、组合或目录绑定变化时停止相关运行，绑定变化后重建 core；桌面不注册真实 ExecSink，不提供本地 stdio MCP、exec 范围授权或策略插件；fs/HTTPS 任务范围由可信管理窗口选择操作和有效期（15 分钟/1 小时）。
+10. 桌面文件 I/O 使用目录句柄并拒绝符号链接，HTTPS 校验域名及解析地址、不跟随重定向，凭据由宿主按声明绑定注入，扩展与包前端不读取密钥明文。停用、移除、更新、组合或目录绑定变化时停止相关运行，绑定变化后重建 core；桌面受控 Node 使用固定系统 Node、宿主管理的文件/HTTPS/命令桥及 macOS supervisor；受控命令固定可信程序与读写根，不提供任意本机执行或本地 stdio MCP。可信管理窗口选择 fs/HTTPS/受控命令与策略最大范围及有效期（15 分钟/1 小时）；策略提供者固定到 `org.plums.policy` 1.0.0，每次操作严格返回 allow/deny/confirm，不能扩大声明、同意、MCP 批准或最大范围。10 秒策略超时/无效决定拒绝；等待后及执行前复核，租约到期取消对应 Agent 的任务与实例，重启租约归零。
 11. 公共库仅共享按内容摘要保存的不可变组件与元信息，导入去重、不执行代码或授予权限；缺少依赖的组件可入库，加入 Agent 时必须满足依赖。同 Agent 不重复包 id，固定具体制品，更新须显式选择；被引用制品不得删除。安装记录、设置、同意、启用、密钥、MCP 批准和数据按 Agent 隔离；创建、组装与旧 Agent 迁移使用 staging/恢复记录，失败不发布半成品或覆盖原数据。允许空 Agent、无卡和多卡；SDK 仅读取当前 Agent 已启用角色卡，默认卡可替换或清空，无默认卡返回 null。组合与组件导出复用密钥检查，保留未知字段，默认排除设置值、密钥与运行数据。
 12. 导入与组装面向非程序员：完整 Agent ZIP 导入后集中填写组件 schema 声明的配置（如模型、API Key、接口地址），统一查看权限、启用组件并打开界面；保留“直接使用”和“继续组装”两种选择，后者先收集公共组件再组装。角色 JSON/PNG、扩展和连接器支持独立导入与管理，无前端 Agent 显示通用资源状态页。简化操作不得跳过声明、同意、任务范围/单次执行确认或审计；角色编辑、聊天及业务逻辑继续由扩展提供。
 13. SDK v2 的 `plumsDesktop.connections` 引用本组件设置、密钥和 `service/https/request` 权限。宿主固定 origin、注入声明凭据并复核调用链；协议选择、模型、消息、路径与回复解析全部属于外装连接器，不保留宿主模型适配兜底。配置、密钥、声明与启用变化使旧绑定失效；`failResponse` 绑定当前组件当前调用的真实完成请求，不信任组件自报执行状态。旧 SDK v1 普通扩展继续运行，依赖旧模型服务的组件须显式升级。

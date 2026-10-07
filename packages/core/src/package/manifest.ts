@@ -2,8 +2,16 @@ import type { ErrorObject } from "ajv";
 import { FORMAT_UNSUPPORTED, MANIFEST_INVALID, PlumsError } from "../errors.js";
 import { secretKeys } from "../secrets.js";
 import { isTrailingDotTarget, parseEgressTarget } from "./egress-target.js";
-import { FORMAT_VERSION_PATTERN, manifestValidator, settingValueFailure } from "./schema.js";
-import { isManifestV1, SUPPORTED_FORMAT_MAJOR, type Manifest } from "./types.js";
+import {
+  FORMAT_VERSION_PATTERN,
+  manifestValidator,
+  settingValueFailure,
+} from "./schema.js";
+import {
+  isManifestV1,
+  SUPPORTED_FORMAT_MAJOR,
+  type Manifest,
+} from "./types.js";
 
 /**
  * Parses and checks the text of `manifest.json`.
@@ -23,7 +31,9 @@ export function parseManifest(bytes: Uint8Array): Manifest {
   try {
     value = JSON.parse(text);
   } catch {
-    throw invalid("manifest.json 不是合法的 JSON，请检查逗号、引号和括号是否写对。");
+    throw invalid(
+      "manifest.json 不是合法的 JSON，请检查逗号、引号和括号是否写对。",
+    );
   }
   return checkManifest(value);
 }
@@ -37,12 +47,16 @@ export function checkManifest(value: unknown): Manifest {
   }
   assertFormatSupported((value as Record<string, unknown>).formatVersion);
 
-  const major = Number(String((value as Record<string, unknown>).formatVersion).split(".")[0]);
+  const major = Number(
+    String((value as Record<string, unknown>).formatVersion).split(".")[0],
+  );
   const validate = manifestValidator(major === 2 ? 2 : 1);
   if (validate(value)) {
     const manifest = value as Manifest;
     const bad = manifest.permissions.findIndex(
-      (p) => (isManifestV1(manifest) ? p.level === "egress" : p.kind === "egress") && parseEgressTarget(p.target) === undefined,
+      (p) =>
+        (isManifestV1(manifest) ? p.level === "egress" : p.kind === "egress") &&
+        parseEgressTarget(p.target) === undefined,
     );
     if (bad !== -1) {
       const at = `/permissions/${bad}/target`;
@@ -75,7 +89,9 @@ export function checkManifest(value: unknown): Manifest {
     }
     const properties = manifest.settingsSchema?.properties ?? {};
     for (const key of secretKeys(manifest)) {
-      const extra = Object.keys(properties[key] ?? {}).find((name) => !SECRET_FIELD_KEYS.has(name));
+      const extra = Object.keys(properties[key] ?? {}).find(
+        (name) => !SECRET_FIELD_KEYS.has(name),
+      );
       if (extra !== undefined) {
         throw invalid(
           `设置项「${key}」是密钥，只能写 type、title、description 和 x-secret，不能写「${extra}」。`,
@@ -111,15 +127,24 @@ function assertSettingDefaults(manifest: Manifest): void {
         `${at}/${keyword}`,
       );
     }
-    if (spec.default !== undefined && settingValueFailure(spec, spec.default, true) !== undefined) {
+    if (
+      spec.default !== undefined &&
+      settingValueFailure(spec, spec.default, true) !== undefined
+    ) {
       // Why: a default is saved later without asking, so it has to already pass the same rules as a saved value.
-      throw invalid(`设置项「${key}」的默认值不符合它的类型或范围。`, `${at}/default`);
+      throw invalid(
+        `设置项「${key}」的默认值不符合它的类型或范围。`,
+        `${at}/default`,
+      );
     }
   }
 }
 
 function assertFormatSupported(formatVersion: unknown): void {
-  if (typeof formatVersion !== "string" || !new RegExp(FORMAT_VERSION_PATTERN).test(formatVersion)) {
+  if (
+    typeof formatVersion !== "string" ||
+    !new RegExp(FORMAT_VERSION_PATTERN).test(formatVersion)
+  ) {
     return;
   }
   const major = Number(formatVersion.split(".")[0]);
@@ -133,7 +158,11 @@ function assertFormatSupported(formatVersion: unknown): void {
 }
 
 function invalid(message: string, path?: string): PlumsError {
-  return new PlumsError({ code: MANIFEST_INVALID, message, ...(path === undefined ? {} : { path }) });
+  return new PlumsError({
+    code: MANIFEST_INVALID,
+    message,
+    ...(path === undefined ? {} : { path }),
+  });
 }
 
 function toPlumsError(error: ErrorObject): PlumsError {
@@ -158,7 +187,9 @@ function explain(
     case "required":
       return `缺少必填项 ${where}。`;
     case "enum": {
-      const allowed = (params.allowedValues as unknown[]).map((v) => String(v)).join("、");
+      const allowed = (params.allowedValues as unknown[])
+        .map((v) => String(v))
+        .join("、");
       return `${where} 的值不对，只能是 ${allowed} 之一。`;
     }
     case "const":

@@ -21,7 +21,7 @@ it(
     const base = path.resolve("packages/desktop/dist");
     await writeFile(
       path.join(directory, "main.cjs"),
-      `const {app,BrowserWindow}=require('electron'); app.setPath('userData',__dirname); app.whenReady().then(async()=>{const {ConfirmPrompter}=await import(${JSON.stringify(pathToFileURL(path.join(base, "confirm-window.js")).href)}); const parent=new BrowserWindow({show:true,webPreferences:{preload:${JSON.stringify(path.join(base, "confirm-preload.cjs"))},sandbox:true,contextIsolation:true,nodeIntegration:false}}); await parent.loadURL('about:blank'); const prompter=new ConfirmPrompter(parent,${JSON.stringify(base)}); global.confirmResults={}; global.confirmControllers={}; global.askConfirmation=(id,kind='capability')=>{const controller=new AbortController();global.confirmControllers[id]=controller; void prompter.ask({kind,subject:id,action:'把数据发送到 example.com。',host:'example.com',reason:'测试说明',...(kind==='task'?{scopeOptions:[{key:'read',label:'读取项目'}]}:{})},controller.signal).then(value=>global.confirmResults[id]=value);}; global.prompter=prompter;});`,
+      `const {app,BrowserWindow}=require('electron'); app.setPath('userData',__dirname); app.whenReady().then(async()=>{const {ConfirmPrompter}=await import(${JSON.stringify(pathToFileURL(path.join(base, "confirm-window.js")).href)}); const parent=new BrowserWindow({show:true,webPreferences:{preload:${JSON.stringify(path.join(base, "confirm-preload.cjs"))},sandbox:true,contextIsolation:true,nodeIntegration:false}}); global.confirmSheetAttached=false;parent.on('sheet-begin',()=>{global.confirmSheetAttached=true;});parent.on('sheet-end',()=>{global.confirmSheetAttached=false;}); await parent.loadURL('about:blank'); const prompter=new ConfirmPrompter(parent,${JSON.stringify(base)}); global.confirmResults={}; global.confirmControllers={}; global.askConfirmation=(id,kind='capability')=>{const controller=new AbortController();global.confirmControllers[id]=controller; void prompter.ask({kind,subject:id,action:'把数据发送到 example.com。',host:'example.com',reason:'测试说明',...(kind==='task'?{scopeOptions:[{key:'read',label:'读取项目'}]}:{})},controller.signal).then(value=>global.confirmResults[id]=value);}; global.prompter=prompter;});`,
     );
     const require = createRequire(
       path.resolve("packages/desktop/package.json"),
@@ -49,6 +49,14 @@ it(
                 ).length,
           )
           .toBe(0);
+        if (process.platform === "darwin")
+          await expect
+            .poll(() =>
+              application.evaluate(
+                () => (globalThis as any).confirmSheetAttached,
+              ),
+            )
+            .toBe(false);
         await parent.bringToFront();
         await application.evaluate(({ app }) => app.focus({ steal: true }));
         await expect
@@ -426,12 +434,14 @@ async function findConfirmation(
     .windows()
     .find((page) => page.url().endsWith("confirm.html"))!;
   await page.getByText(subject, { exact: true }).waitFor();
-  await page.bringToFront();
-  await application.evaluate(({ app, BrowserWindow }) => {
-    app.focus({ steal: true });
-    BrowserWindow.getAllWindows()
-      .find((w) => w.getTitle() === "Plums \u00b7 \u5b89\u5168\u786e\u8ba4")
-      ?.focus();
-  });
+  // DOM loading can precede the macOS modal's show/focus transition.
+  const nativeWindow = await application.browserWindow(page);
+  await expect
+    .poll(() => nativeWindow.evaluate((window) => window.isVisible()))
+    .toBe(true);
+  await nativeWindow.evaluate((window) => window.focus());
+  await expect
+    .poll(() => nativeWindow.evaluate((window) => window.isFocused()))
+    .toBe(true);
   return page;
 }

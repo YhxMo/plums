@@ -1,24 +1,88 @@
-import { enginePermissionKey, type EngineTrustSnapshot } from "./install/engine-trust.js";
+import { runtimeAccessCheckpoint } from "./capabilities/runtime-access.js";
+import {
+  resourceAccessCheckpoint,
+  type ResourceAccessInput,
+  type ResourceAccessCheckpoint,
+} from "./capabilities/resource-access.js";
+import {
+  enginePermissionKey,
+  type EngineTrustSnapshot,
+} from "./install/engine-trust.js";
 import { randomUUID } from "node:crypto";
-import { TaskScopes, type TaskScopePlan, type TaskScopeState, type TaskScopeSelection } from "./capabilities/task-scope.js";
-import { registerServices, grantBackgroundConsent, revokeBackgroundConsent, hasBackgroundConsent } from "./capabilities/services.js";
-import type { HostService, BackgroundConsent, BackgroundConsentInput } from "./capabilities/types.js";
+import {
+  grantPlan,
+  createGrant,
+  checkGrant,
+  revokeGrant,
+  type Grant,
+  type GrantInput,
+  type GrantPlan,
+  type CreateGrantInput,
+  type GrantUse,
+} from "./capabilities/grants.js";
+import {
+  TaskScopes,
+  type TaskScopePlan,
+  type TaskScopeState,
+  type TaskScopeSelection,
+} from "./capabilities/task-scope.js";
+import {
+  registerServices,
+  grantBackgroundConsent,
+  revokeBackgroundConsent,
+  hasBackgroundConsent,
+} from "./capabilities/services.js";
+import type {
+  HostService,
+  BackgroundConsent,
+  BackgroundConsentInput,
+} from "./capabilities/types.js";
 import * as mcpV2 from "./mcp/tools-v2.js";
 import type { McpApprovalV2 } from "./install/store.js";
 import { requireInstalled, requireManifest } from "./install/lifecycle.js";
 import type { Manifest } from "./package/types.js";
 import { rm } from "node:fs/promises";
-import { CAPABILITY_FAILED, IMPORT_INVALID, PlumsError, SECRET_NOT_FOUND } from "./errors.js";
+import {
+  CAPABILITY_FAILED,
+  IMPORT_INVALID,
+  PlumsError,
+  SECRET_NOT_FOUND,
+} from "./errors.js";
 import path from "node:path";
-import { runAction, type ActionResult, type RunActionInput } from "./actions/run-action.js";
+import {
+  runAction,
+  type ActionResult,
+  type RunActionInput,
+} from "./actions/run-action.js";
 import { runCapability } from "./capabilities/run-capability.js";
 import { copyDelegatedInput } from "./capabilities/request.js";
-import { DEFAULT_CONFIRM_TIMEOUT_MS, type AuditHandler, type CapabilityResult, type ExecSink, type FsSink, type RunCapabilityInput, type RunDelegatedCapabilityInput } from "./capabilities/types.js";
+import {
+  DEFAULT_CONFIRM_TIMEOUT_MS,
+  type AuditHandler,
+  type CapabilityResult,
+  type ExecSink,
+  type FsSink,
+  type RunCapabilityInput,
+  type RunDelegatedCapabilityInput,
+} from "./capabilities/types.js";
 import * as lifecycle from "./install/lifecycle.js";
-import { acceptResidualSettings, refuseOrphanSettings } from "./install/check-settings.js";
-import { setSettings, resolveSettings, knownSecrets, describeSettings, type SettingsDescription } from "./install/settings.js";
+import {
+  acceptResidualSettings,
+  refuseOrphanSettings,
+} from "./install/check-settings.js";
+import {
+  setSettings,
+  resolveSettings,
+  knownSecrets,
+  describeSettings,
+  type SettingsDescription,
+} from "./install/settings.js";
 import { redact } from "./redact.js";
-import { InstallStore, type ConsentRecord, type InstalledPackage } from "./install/store.js";
+import {
+  InstallStore,
+  type ConsentRecord,
+  type InstalledPackage,
+} from "./install/store.js";
 import {
   approveMcpTools,
   authorizeMcpTool,
@@ -31,12 +95,30 @@ import {
   type McpToolCheck,
 } from "./mcp/tools.js";
 import type { PermissionLevel } from "./package/types.js";
-import type { Confirm, EgressSink, ModelProvider, SecretStore } from "./types.js";
-import { exportPackage, preparePackage, type ExportInput, type ExportOptions } from "./package/export.js";
+import type {
+  Confirm,
+  EgressSink,
+  ModelProvider,
+  SecretStore,
+} from "./types.js";
+import {
+  exportPackage,
+  preparePackage,
+  type ExportInput,
+  type ExportOptions,
+} from "./package/export.js";
 import { assertSafeEntryPath } from "./package/entry-path.js";
-import { fetchSharedPackage, shareToFile, readInstalledFiles } from "./share.js";
+import {
+  fetchSharedPackage,
+  shareToFile,
+  readInstalledFiles,
+} from "./share.js";
 import { inspectPackage, type PackageInspection } from "./package/inspect.js";
-import { PACKAGES_DIR, publishStaged, stagePackage } from "./package/install.js";
+import {
+  PACKAGES_DIR,
+  publishStaged,
+  stagePackage,
+} from "./package/install.js";
 import {
   DEFAULT_PACKAGE_LIMITS,
   MANIFEST_FILE,
@@ -56,6 +138,7 @@ export interface CreateCoreOptions {
   instanceId?: string;
   services?: Readonly<Record<string, HostService>>;
   capabilityApproval?: "legacy" | "task-or-confirm";
+  capabilityGate?: import("./capabilities/types.js").CapabilityGate;
   secrets: SecretStore;
   /** Logical directory names to host-selected paths; copied at creation. */
   roots?: Readonly<Record<string, string>>;
@@ -81,15 +164,40 @@ export interface UpdatedPackage extends ImportedPackage {
 }
 
 export interface Core {
+  /** Trusted host only. Synchronous final check immediately before a resource transaction. */
+  runtimeAccessCheckpoint(ids: readonly string[]): { assertCurrent(): void };
+  resourceAccessCheckpoint(
+    input: readonly ResourceAccessInput[],
+  ): ResourceAccessCheckpoint;
   /** User trust: trusted management entry points only, never exposed through ordinary SDK calls. */
-  engineTrustSnapshot(packageId: string, engineId: string): Promise<EngineTrustSnapshot>;
+  engineTrustSnapshot(
+    packageId: string,
+    engineId: string,
+  ): Promise<EngineTrustSnapshot>;
   grantEngineTrust(snapshot: EngineTrustSnapshot): Promise<boolean>;
   revokeEngineTrust(packageId: string, engineId?: string): Promise<void>;
   /** Trusted host binding epoch. Includes saves where only a secret changed. */
   settingsRevision(id: string): Promise<number>;
   /** Trusted host only: preview and approve a finite task; not an SDK interface. */
+  grantPlan(input: GrantInput): Promise<GrantPlan>;
+  createGrant(input: CreateGrantInput): Promise<Grant>;
+  listGrants(ownerId?: string): Promise<Grant[]>;
+  checkGrant(
+    id: string,
+    ownerId: string,
+    scope: GrantUse,
+  ): Promise<Grant | undefined>;
+  revokeGrant(id: string): Promise<void>;
   taskScopePlan(): Promise<TaskScopePlan>;
-  grantTaskScope(fingerprint: string, durationMs: number, selection?: TaskScopeSelection[]): Promise<TaskScopeState>;
+  grantTaskScope(
+    fingerprint: string,
+    durationMs: number,
+    selection?: TaskScopeSelection[],
+  ): Promise<TaskScopeState>;
+  taskScopeCovers(
+    principals: readonly import("./capabilities/types.js").CapabilityCaller[],
+    request: import("./capabilities/types.js").CapabilityRequest,
+  ): boolean;
   taskScopeState(): TaskScopeState | undefined;
   revokeTaskScope(): void;
   readonly version: string;
@@ -155,9 +263,15 @@ export interface Core {
    * `details: { id, version, reason: SECRET_CLEANUP_FAILED }`. The reported version is
    * already installed. References stay for redaction and a later update or uninstall.
    */
-  updatePackage(input: Uint8Array | string, options?: { consent?: boolean }): Promise<UpdatedPackage>;
+  updatePackage(
+    input: Uint8Array | string,
+    options?: { consent?: boolean },
+  ): Promise<UpdatedPackage>;
   /** Builds a package zip. Also writes it to `options.outPath` when given. */
-  exportPackage(input: ExportInput, options?: ExportOptions): Promise<Uint8Array>;
+  exportPackage(
+    input: ExportInput,
+    options?: ExportOptions,
+  ): Promise<Uint8Array>;
   /**
    * Writes installed package `id` to `path` via `exportPackage` (same secret check) and returns the bytes.
    * The parent directory must already exist. A package that is not installed is PERMISSION_DENIED
@@ -184,12 +298,26 @@ export interface Core {
   listInstalled(): Promise<InstalledPackage[]>;
   getSecretReferences(id: string): Promise<string[]>;
   getPackageContents(id: string): Promise<PackageContents>;
-  getPackage(id: string): Promise<{ installed: InstalledPackage; manifest: Manifest }>;
+  getPackage(
+    id: string,
+  ): Promise<{ installed: InstalledPackage; manifest: Manifest }>;
   describeSettings(id: string): Promise<SettingsDescription>;
-  runDelegatedCapability(input: RunDelegatedCapabilityInput): Promise<CapabilityResult>;
+  /** Trusted host checkpoint for concrete call edges; never supplied by package input. */
+  runDelegatedCapability(
+    input: RunDelegatedCapabilityInput,
+    assertActive?: () => void | Promise<void>,
+  ): Promise<CapabilityResult>;
   checkMcpToolsV2(id: string, tools: McpTool[]): Promise<McpToolCheck[]>;
-  approveMcpToolsV2(id: string, permissionId: string, tools: McpTool[]): Promise<McpApprovalV2[]>;
-  authorizeMcpToolV2(id: string, permissionId: string, tool: McpTool): Promise<void>;
+  approveMcpToolsV2(
+    id: string,
+    permissionId: string,
+    tools: McpTool[],
+  ): Promise<McpApprovalV2[]>;
+  authorizeMcpToolV2(
+    id: string,
+    permissionId: string,
+    tool: McpTool,
+  ): Promise<void>;
   getMcpApprovalsV2(id: string): Promise<McpApprovalV2[]>;
   /**
    * Runs one permission-checked action of an installed 1.x extension. A 2.x package is
@@ -212,7 +340,9 @@ export interface Core {
    * and executionState; completed or unknown must never be automatically retried.
    * Filesystem checks read metadata only; the host sink enforces boundaries during I/O.
    */
-  grantBackgroundConsent(input: BackgroundConsentInput): Promise<BackgroundConsent>;
+  grantBackgroundConsent(
+    input: BackgroundConsentInput,
+  ): Promise<BackgroundConsent>;
   hasBackgroundConsent(input: BackgroundConsentInput): Promise<boolean>;
   revokeBackgroundConsent(extensionId: string, binding?: string): Promise<void>;
   listBackgroundConsents(extensionId?: string): Promise<BackgroundConsent[]>;
@@ -245,7 +375,11 @@ export interface Core {
    * is skipped (`NOT_DECLARED`). A hand-added tool above `read` is skipped (`UNVERIFIED_READ_ONLY`)
    * unless its name is in `allowNonRead` (a name not in `tools` is TypeError).
    */
-  approveMcpTools(serverId: string, tools: McpTool[], allowNonRead?: string[]): Promise<McpApproveResult>;
+  approveMcpTools(
+    serverId: string,
+    tools: McpTool[],
+    allowNonRead?: string[],
+  ): Promise<McpApproveResult>;
   /**
    * Checks one call, runs nothing. Connector order: installed, enabled, declared, consented (as
    * `runAction`); then the tool's hash. No approval is CONSENT_REQUIRED `reason: 'TOOL_ADDED'`, a different
@@ -257,7 +391,10 @@ export interface Core {
    * the same `LEVEL_MISMATCH` and the call does not succeed. Returns the level from that second
    * check. The description and inputSchema are never shown in the confirm message.
    */
-  authorizeMcpTool(serverId: string, tool: McpTool): Promise<{ level: PermissionLevel }>;
+  authorizeMcpTool(
+    serverId: string,
+    tool: McpTool,
+  ): Promise<{ level: PermissionLevel }>;
   /** What is approved for the server, and whether it is unverified. Read-only. */
   getMcpApprovals(serverId: string): Promise<McpServerState>;
   /**
@@ -282,33 +419,77 @@ export function createCore(options: CreateCoreOptions): Core {
     throw new TypeError("createCore options are required");
   }
   const capabilityApproval = options.capabilityApproval;
-  if (capabilityApproval !== undefined && capabilityApproval !== "legacy" && capabilityApproval !== "task-or-confirm") throw new TypeError("createCore capabilityApproval must be legacy or task-or-confirm");
+  if (
+    capabilityApproval !== undefined &&
+    capabilityApproval !== "legacy" &&
+    capabilityApproval !== "task-or-confirm"
+  )
+    throw new TypeError(
+      "createCore capabilityApproval must be legacy or task-or-confirm",
+    );
   const dataDir = requireNonEmptyString(options.dataDir, "dataDir");
-  if (options.model !== undefined) requireMethod(options.model, "model", "complete");
+  if (options.model !== undefined)
+    requireMethod(options.model, "model", "complete");
   requireMethod(options.egress, "egress", "send");
-  if (options.confirm !== undefined) requireMethod(options.confirm, "confirm", "ask");
+  if (options.confirm !== undefined)
+    requireMethod(options.confirm, "confirm", "ask");
   requireMethod(options.secrets, "secrets", "get");
   requireMethod(options.secrets, "secrets", "set");
   requireMethod(options.secrets, "secrets", "delete");
   if (options.fs !== undefined) {
-    for (const method of ["read", "write", "list"]) requireMethod(options.fs, "fs", method);
+    for (const method of ["read", "write", "list"])
+      requireMethod(options.fs, "fs", method);
   }
   if (options.exec !== undefined) requireMethod(options.exec, "exec", "run");
-  if (options.onAudit !== undefined && typeof options.onAudit !== "function") throw new TypeError("createCore onAudit must be a function");
-  const confirmTimeoutMs = options.confirmTimeoutMs === undefined ? DEFAULT_CONFIRM_TIMEOUT_MS : options.confirmTimeoutMs;
-  if (!Number.isInteger(confirmTimeoutMs) || confirmTimeoutMs <= 0 || confirmTimeoutMs > 2_147_483_647) throw new TypeError("createCore confirmTimeoutMs must be a positive timer integer");
+  if (options.onAudit !== undefined && typeof options.onAudit !== "function")
+    throw new TypeError("createCore onAudit must be a function");
+  const confirmTimeoutMs =
+    options.confirmTimeoutMs === undefined
+      ? DEFAULT_CONFIRM_TIMEOUT_MS
+      : options.confirmTimeoutMs;
+  if (
+    !Number.isInteger(confirmTimeoutMs) ||
+    confirmTimeoutMs <= 0 ||
+    confirmTimeoutMs > 2_147_483_647
+  )
+    throw new TypeError(
+      "createCore confirmTimeoutMs must be a positive timer integer",
+    );
   const roots = copyBindings(options.roots, "roots", true);
   const programs = copyBindings(options.programs, "programs", false);
-  const confirm: Confirm = options.confirm ?? { async ask() { return false; } };
+  const confirm: Confirm = options.confirm ?? {
+    async ask() {
+      return false;
+    },
+  };
 
   const limits = resolveLimits(options.limits);
   const resolvedDataDir = path.resolve(dataDir);
   const store = new InstallStore(resolvedDataDir);
   const ctx = { dataDir: resolvedDataDir, store, secrets: options.secrets };
-  const tasks = new TaskScopes(ctx, roots, capabilityApproval === "task-or-confirm");
-  const capabilityCtx = { ...ctx, instanceId: options.instanceId ?? resolvedDataDir, services: registerServices(options.services), roots, programs, fs: options.fs, exec: options.exec,
-    egress: options.egress, confirm: options.confirm, confirmTimeoutMs, onAudit: options.onAudit, tasks };
-  const importPackage = async (input: Uint8Array | string): Promise<ImportedPackage> => {
+  const tasks = new TaskScopes(
+    ctx,
+    roots,
+    capabilityApproval === "task-or-confirm",
+  );
+  const capabilityCtx = {
+    ...ctx,
+    instanceId: options.instanceId ?? resolvedDataDir,
+    services: registerServices(options.services),
+    roots,
+    programs,
+    fs: options.fs,
+    exec: options.exec,
+    egress: options.egress,
+    confirm: options.confirm,
+    capabilityGate: options.capabilityGate,
+    confirmTimeoutMs,
+    onAudit: options.onAudit,
+    tasks,
+  };
+  const importPackage = async (
+    input: Uint8Array | string,
+  ): Promise<ImportedPackage> => {
     const validated = await validatePackage(input, limits);
     // Why a per-id chain, and only inside this process: the map lives in memory
     // and is keyed by data directory plus id, so it orders callers that share
@@ -335,10 +516,15 @@ export function createCore(options: CreateCoreOptions): Core {
         // Why only the staging directory: packages/<id> may already be the winner's
         // installDir. Deleting that path left a row whose directory was gone.
         await rm(staging, { recursive: true, force: true });
-        if (isInstallKeyConflict(err)) throw alreadyInstalled(validated.manifest);
+        if (isInstallKeyConflict(err))
+          throw alreadyInstalled(validated.manifest);
         throw err;
       }
-      const installDir = path.join(resolvedDataDir, PACKAGES_DIR, validated.manifest.id);
+      const installDir = path.join(
+        resolvedDataDir,
+        PACKAGES_DIR,
+        validated.manifest.id,
+      );
       try {
         // Why after the insert: only the process that owns the row may replace
         // packages/<id>. The loser never reaches this line.
@@ -349,7 +535,11 @@ export function createCore(options: CreateCoreOptions): Core {
         store.remove(validated.manifest.id);
         throw err;
       }
-      return { manifest: validated.manifest, files: validated.files, installDir };
+      return {
+        manifest: validated.manifest,
+        files: validated.files,
+        installDir,
+      };
     });
   };
 
@@ -373,24 +563,76 @@ export function createCore(options: CreateCoreOptions): Core {
       }
     };
 
-  const engineSnapshot = (packageId: string, engineId: string): EngineTrustSnapshot => {
-    const installed = requireInstalled(ctx, packageId), manifest = requireManifest(ctx, packageId);
-    const declaration = manifest.permissions.find(p => "kind" in p && p.kind === "engine" && p.target === engineId);
-    if (!declaration) throw new PlumsError({code: "PERMISSION_DENIED", message: "Engine permission is not declared."});
-    const permission = enginePermissionKey(declaration), record = store.listEngineTrust(packageId).find(r => r.engineId === engineId);
-    return {instanceId: capabilityCtx.instanceId, packageId, engineId, installedAt: installed.installedAt, version: installed.version,
-      permission, revision: store.engineTrustRevision(), trusted: !!record && record.instanceId === capabilityCtx.instanceId && record.installedAt === installed.installedAt && record.permission === permission};
+  const engineSnapshot = (
+    packageId: string,
+    engineId: string,
+  ): EngineTrustSnapshot => {
+    const installed = requireInstalled(ctx, packageId),
+      manifest = requireManifest(ctx, packageId);
+    const declaration = manifest.permissions.find(
+      (p) => "kind" in p && p.kind === "engine" && p.target === engineId,
+    );
+    if (!declaration)
+      throw new PlumsError({
+        code: "PERMISSION_DENIED",
+        message: "Engine permission is not declared.",
+      });
+    const permission = enginePermissionKey(declaration),
+      record = store
+        .listEngineTrust(packageId)
+        .find((r) => r.engineId === engineId);
+    return {
+      instanceId: capabilityCtx.instanceId,
+      packageId,
+      engineId,
+      installedAt: installed.installedAt,
+      version: installed.version,
+      permission,
+      revision: store.engineTrustRevision(),
+      trusted:
+        !!record &&
+        record.instanceId === capabilityCtx.instanceId &&
+        record.installedAt === installed.installedAt &&
+        record.permission === permission,
+    };
   };
   return {
     version: VERSION,
-    engineTrustSnapshot: guard(async (id, engineId) => engineSnapshot(id, engineId)),
+    engineTrustSnapshot: guard(async (id, engineId) =>
+      engineSnapshot(id, engineId),
+    ),
     grantEngineTrust: guard(async (snapshot) => {
       const current = engineSnapshot(snapshot.packageId, snapshot.engineId);
-      if ((["instanceId","packageId","engineId","installedAt","version","permission","revision"] as const).some(key=>current[key]!==snapshot[key])) return false;
-      return store.saveEngineTrust({instanceId: current.instanceId, packageId: current.packageId, engineId: current.engineId,
-        installedAt: current.installedAt, permission: current.permission, grantedAt: new Date().toISOString()}, current.revision);
+      if (
+        (
+          [
+            "instanceId",
+            "packageId",
+            "engineId",
+            "installedAt",
+            "version",
+            "permission",
+            "revision",
+          ] as const
+        ).some((key) => current[key] !== snapshot[key])
+      )
+        return false;
+      return store.saveEngineTrust(
+        {
+          instanceId: current.instanceId,
+          packageId: current.packageId,
+          engineId: current.engineId,
+          installedAt: current.installedAt,
+          permission: current.permission,
+          grantedAt: new Date().toISOString(),
+        },
+        current.revision,
+      );
     }),
-    revokeEngineTrust: guard(async (id, engineId) => { requireInstalled(ctx,id); store.removeEngineTrust(id,engineId); }),
+    revokeEngineTrust: guard(async (id, engineId) => {
+      requireInstalled(ctx, id);
+      store.removeEngineTrust(id, engineId);
+    }),
     dataDir: resolvedDataDir,
     limits,
     validatePackage: guard(async (input) => {
@@ -399,7 +641,9 @@ export function createCore(options: CreateCoreOptions): Core {
     }),
     inspect: guard((input) => inspectPackage(input, limits)),
     importPackage: guard(importPackage),
-    importFromUrl: guard(async (url) => importPackage(await fetchSharedPackage(url, options.egress, confirm))),
+    importFromUrl: guard(async (url) =>
+      importPackage(await fetchSharedPackage(url, options.egress, confirm)),
+    ),
     updatePackage: guard(async (input, updateOptions) => {
       tasks.revoke();
       const validated = await validatePackage(input, limits);
@@ -408,16 +652,27 @@ export function createCore(options: CreateCoreOptions): Core {
         validated,
         updateOptions?.consent === true,
       );
-      return { manifest: validated.manifest, files: validated.files, installDir, previousVersion };
+      return {
+        manifest: validated.manifest,
+        files: validated.files,
+        installDir,
+        previousVersion,
+      };
     }),
     exportPackage: guard(async (input, exportOptions) =>
       exportPackage(input, limits, exportOptions, await knownSecrets(ctx)),
     ),
-    shareToFile: guard((id, filePath) => shareToFile(ctx, limits, id, filePath)),
+    shareToFile: guard((id, filePath) =>
+      shareToFile(ctx, limits, id, filePath),
+    ),
     grantConsent: guard(async (id) => lifecycle.grantConsent(ctx, id)),
     getConsent: guard(async (id) => lifecycle.getConsent(ctx, id)),
     enable: guard(async (id) => lifecycle.enable(ctx, id)),
-    disable: guard(async (id) => { tasks.revoke(); store.revokeBackgroundConsents(id); return lifecycle.disable(ctx, id); }),
+    disable: guard(async (id) => {
+      tasks.revoke();
+      store.revokeBackgroundConsents(id);
+      return lifecycle.disable(ctx, id);
+    }),
     uninstall: guard(async (id) => {
       tasks.revoke();
       if (typeof id === "string" && id.startsWith("manual:")) {
@@ -427,46 +682,127 @@ export function createCore(options: CreateCoreOptions): Core {
       return lifecycle.uninstall(ctx, id);
     }),
     listInstalled: guard(async () => store.list()),
-    getSecretReferences: guard(async (id) => { requireInstalled(ctx, id); return store.getSecretRefs(id); }),
+    getSecretReferences: guard(async (id) => {
+      requireInstalled(ctx, id);
+      return store.getSecretRefs(id);
+    }),
     getPackageContents: guard(async (id) => {
       requireInstalled(ctx, id);
       const manifest = requireManifest(ctx, id);
-      const files = await readInstalledFiles(path.join(resolvedDataDir, PACKAGES_DIR, id));
-      const checked = preparePackage({ manifest, files }, limits, await knownSecrets(ctx));
+      const files = await readInstalledFiles(
+        path.join(resolvedDataDir, PACKAGES_DIR, id),
+      );
+      const checked = preparePackage(
+        { manifest, files },
+        limits,
+        await knownSecrets(ctx),
+      );
       assertSafeEntryPath(MANIFEST_FILE, limits);
-      return { manifest: checked.manifest, files: Object.fromEntries(checked.files.map(([name, data]) => [name, new Uint8Array(data)])) };
+      return {
+        manifest: checked.manifest,
+        files: Object.fromEntries(
+          checked.files.map(([name, data]) => [name, new Uint8Array(data)]),
+        ),
+      };
     }),
-    getPackage: guard(async (id) => ({ installed: requireInstalled(ctx, id), manifest: requireManifest(ctx, id) })),
+    getPackage: guard(async (id) => ({
+      installed: requireInstalled(ctx, id),
+      manifest: requireManifest(ctx, id),
+    })),
     describeSettings: guard((id) => describeSettings(ctx, id)),
-    runDelegatedCapability: (raw) => {
+    runDelegatedCapability: (raw, assertActive) => {
       const input = copyDelegatedInput(raw);
-      const gate = input.mcpTool ? () => mcpV2.authorizeMcpToolV2(ctx, input.packageId, input.permissionId, input.mcpTool!) : undefined;
-      return runCapability(capabilityCtx, { extensionId: input.packageId, permissionId: input.permissionId, request: input.request, signal: input.signal }, input.callers, true, gate);
+      const gate = async () => {
+        await assertActive?.();
+        if (input.mcpTool)
+          mcpV2.authorizeMcpToolV2(
+            ctx,
+            input.packageId,
+            input.permissionId,
+            input.mcpTool,
+          );
+      };
+      return runCapability(
+        capabilityCtx,
+        {
+          extensionId: input.packageId,
+          permissionId: input.permissionId,
+          request: input.request,
+          signal: input.signal,
+          grantId: input.grantId,
+          grantScope: input.grantScope,
+        },
+        input.callers,
+        true,
+        gate,
+      );
     },
-    checkMcpToolsV2: guard(async (id, tools) => mcpV2.checkMcpToolsV2(ctx, id, tools)),
-    approveMcpToolsV2: guard(async (id, permissionId, tools) => mcpV2.approveMcpToolsV2(ctx, id, permissionId, tools)),
-    authorizeMcpToolV2: guard(async (id, permissionId, tool) => mcpV2.authorizeMcpToolV2(ctx, id, permissionId, tool)),
-    getMcpApprovalsV2: guard(async (id) => { requireInstalled(ctx, id); return store.listMcpV2(id); }),
-    runAction: guard((input) => runAction({ ...ctx, egress: options.egress, confirm }, input)),
+    checkMcpToolsV2: guard(async (id, tools) =>
+      mcpV2.checkMcpToolsV2(ctx, id, tools),
+    ),
+    approveMcpToolsV2: guard(async (id, permissionId, tools) =>
+      mcpV2.approveMcpToolsV2(ctx, id, permissionId, tools),
+    ),
+    authorizeMcpToolV2: guard(async (id, permissionId, tool) =>
+      mcpV2.authorizeMcpToolV2(ctx, id, permissionId, tool),
+    ),
+    getMcpApprovalsV2: guard(async (id) => {
+      requireInstalled(ctx, id);
+      return store.listMcpV2(id);
+    }),
+    runAction: guard((input) =>
+      runAction({ ...ctx, egress: options.egress, confirm }, input),
+    ),
+    grantPlan: guard((input) => grantPlan(capabilityCtx, input)),
+    createGrant: guard((input) => createGrant(capabilityCtx, input)),
+    listGrants: guard(async (ownerId) => store.listGrants(ownerId)),
+    checkGrant: guard((id, ownerId, scope) =>
+      checkGrant(capabilityCtx, id, ownerId, scope),
+    ),
+    revokeGrant: guard((id) => revokeGrant(capabilityCtx, id)),
     taskScopePlan: guard(async () => tasks.plan()),
+    taskScopeCovers: (principals, request) =>
+      !!tasks.covers([...principals], request),
     taskScopeState: () => tasks.state(),
     revokeTaskScope: () => tasks.revoke(),
     grantTaskScope: guard(async (fingerprint, durationMs, selection) => {
-      const chosen = selection === undefined ? tasks.selections() : structuredClone(selection);
+      const chosen =
+        selection === undefined
+          ? tasks.selections()
+          : structuredClone(selection);
       tasks.validate(fingerprint, durationMs, chosen);
       const check = tasks.checkpoint();
       const taskId = randomUUID();
       const emit = async (outcome: "requested" | "allowed") => {
         try {
           if (!options.onAudit) throw new Error();
-          const event = redact({ callId: taskId, taskId, taskScope: chosen, durationMs,
-            timestamp: new Date().toISOString(), phase: "task", outcome, executionState: "not_started" }, await knownSecrets(ctx));
+          const event = redact(
+            {
+              callId: taskId,
+              taskId,
+              taskScope: chosen,
+              durationMs,
+              timestamp: new Date().toISOString(),
+              phase: "task",
+              outcome,
+              executionState: "not_started",
+            },
+            await knownSecrets(ctx),
+          );
           const safe = event as import("./capabilities/types.js").AuditEvent;
           safe.taskScope?.forEach(Object.freeze);
           if (safe.taskScope) Object.freeze(safe.taskScope);
           await options.onAudit(Object.freeze(safe));
         } catch {
-          throw new PlumsError({ code: CAPABILITY_FAILED, message: "任务授权审计失败，没有发布新授权。", details: { callId: taskId, phase: "audit_task", executionState: "not_started" } });
+          throw new PlumsError({
+            code: CAPABILITY_FAILED,
+            message: "任务授权审计失败，没有发布新授权。",
+            details: {
+              callId: taskId,
+              phase: "audit_task",
+              executionState: "not_started",
+            },
+          });
         }
       };
       await emit("requested");
@@ -477,17 +813,40 @@ export function createCore(options: CreateCoreOptions): Core {
       return tasks.grant(fingerprint, durationMs, taskId, chosen);
     }),
     // This entry point owns its redaction so an audit failure cannot obscure executionState.
-    grantBackgroundConsent: guard((input) => grantBackgroundConsent(capabilityCtx, input)),
-    hasBackgroundConsent: guard((input) => hasBackgroundConsent(capabilityCtx, input)),
-    revokeBackgroundConsent: guard((id, binding) => revokeBackgroundConsent(capabilityCtx, id, binding)),
-    listBackgroundConsents: guard(async (id) => store.listBackgroundConsents(id)),
+    grantBackgroundConsent: guard((input) =>
+      grantBackgroundConsent(capabilityCtx, input),
+    ),
+    hasBackgroundConsent: guard((input) =>
+      hasBackgroundConsent(capabilityCtx, input),
+    ),
+    revokeBackgroundConsent: guard((id, binding) =>
+      revokeBackgroundConsent(capabilityCtx, id, binding),
+    ),
+    listBackgroundConsents: guard(async (id) =>
+      store.listBackgroundConsents(id),
+    ),
     runCapability: (input) => runCapability(capabilityCtx, input),
-    checkMcpTools: guard(async (serverId, tools) => checkMcpTools(ctx, serverId, tools)),
-    approveMcpTools: guard(async (serverId, tools, allowNonRead) => approveMcpTools(ctx, serverId, tools, allowNonRead)),
-    authorizeMcpTool: guard((serverId, tool) => authorizeMcpTool({ ...ctx, confirm }, serverId, tool)),
+    checkMcpTools: guard(async (serverId, tools) =>
+      checkMcpTools(ctx, serverId, tools),
+    ),
+    approveMcpTools: guard(async (serverId, tools, allowNonRead) =>
+      approveMcpTools(ctx, serverId, tools, allowNonRead),
+    ),
+    authorizeMcpTool: guard((serverId, tool) =>
+      authorizeMcpTool({ ...ctx, confirm }, serverId, tool),
+    ),
     getMcpApprovals: guard(async (serverId) => getMcpApprovals(ctx, serverId)),
-    settingsRevision: guard(async (id) => { requireInstalled(ctx, id); return store.settingsRevision(id); }),
-    setSettings: guard(async (id, values) => { tasks.revoke(); await setSettings(ctx, id, values); store.bumpSettingsRevision(id); }),
+    runtimeAccessCheckpoint: (ids) => runtimeAccessCheckpoint(ctx, ids),
+    resourceAccessCheckpoint: (input) => resourceAccessCheckpoint(ctx, input),
+    settingsRevision: guard(async (id) => {
+      requireInstalled(ctx, id);
+      return store.settingsRevision(id);
+    }),
+    setSettings: guard(async (id, values) => {
+      tasks.revoke();
+      await setSettings(ctx, id, values);
+      store.bumpSettingsRevision(id);
+    }),
     resolveSettings: guard((id) => resolveSettings(ctx, id)),
     close() {
       tasks.revoke();
@@ -514,10 +873,17 @@ function isInstallKeyConflict(err: unknown): boolean {
   // id that is already installed. The message is not copied onto the PlumsError.
   if (typeof err !== "object" || err === null || !("code" in err)) return false;
   const code = (err as { code?: unknown }).code;
-  return code === "SQLITE_CONSTRAINT_PRIMARYKEY" || code === "SQLITE_CONSTRAINT_UNIQUE";
+  return (
+    code === "SQLITE_CONSTRAINT_PRIMARYKEY" ||
+    code === "SQLITE_CONSTRAINT_UNIQUE"
+  );
 }
 
-function enqueueById<T>(dataDir: string, id: string, task: () => Promise<T>): Promise<T> {
+function enqueueById<T>(
+  dataDir: string,
+  id: string,
+  task: () => Promise<T>,
+): Promise<T> {
   // Why NUL: a resolved data directory and a package id cannot contain it, so two pairs cannot share a key.
   const key = `${dataDir}\0${id}`;
   const previous = importQueue.get(key) ?? Promise.resolve();
@@ -533,12 +899,18 @@ function enqueueById<T>(dataDir: string, id: string, task: () => Promise<T>): Pr
   return run;
 }
 
-function resolveLimits(overrides: Partial<PackageLimits> | undefined): Readonly<PackageLimits> {
+function resolveLimits(
+  overrides: Partial<PackageLimits> | undefined,
+): Readonly<PackageLimits> {
   const limits: PackageLimits = { ...DEFAULT_PACKAGE_LIMITS, ...overrides };
-  for (const key of Object.keys(DEFAULT_PACKAGE_LIMITS) as (keyof PackageLimits)[]) {
+  for (const key of Object.keys(
+    DEFAULT_PACKAGE_LIMITS,
+  ) as (keyof PackageLimits)[]) {
     const value = limits[key];
     if (!Number.isInteger(value) || value <= 0) {
-      throw new TypeError(`createCore limits.${key} must be a positive integer`);
+      throw new TypeError(
+        `createCore limits.${key} must be a positive integer`,
+      );
     }
   }
   return Object.freeze(limits);
@@ -561,12 +933,26 @@ function requireMethod(value: unknown, name: string, method: string): void {
   }
 }
 
-function copyBindings(value: Readonly<Record<string, string>> | undefined, name: string, directory: boolean): ReadonlyMap<string, string> {
+function copyBindings(
+  value: Readonly<Record<string, string>> | undefined,
+  name: string,
+  directory: boolean,
+): ReadonlyMap<string, string> {
   if (value === undefined) return new Map();
-  if (value === null || typeof value !== "object" || Array.isArray(value)) throw new TypeError(`createCore ${name} must be a binding record`);
+  if (value === null || typeof value !== "object" || Array.isArray(value))
+    throw new TypeError(`createCore ${name} must be a binding record`);
   const bindings = new Map<string, string>();
   for (const [key, binding] of Object.entries(value)) {
-    if (key.trim() === "" || key.includes("\0") || typeof binding !== "string" || binding.trim() === "" || binding.includes("\0")) throw new TypeError(`createCore ${name} must contain non-empty names and bindings`);
+    if (
+      key.trim() === "" ||
+      key.includes("\0") ||
+      typeof binding !== "string" ||
+      binding.trim() === "" ||
+      binding.includes("\0")
+    )
+      throw new TypeError(
+        `createCore ${name} must contain non-empty names and bindings`,
+      );
     bindings.set(key, directory ? path.resolve(binding) : binding);
   }
   return bindings;

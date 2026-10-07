@@ -32,7 +32,14 @@ export async function validatePackage(
   }
   const manifest = parseManifest(manifestEntry.data);
   const files: PackageFiles = Object.fromEntries(
-    entries.filter((entry) => entry !== manifestEntry).map((entry) => [entry.path, entry.data]),
+    entries
+      .filter((entry) => entry !== manifestEntry)
+      .map((entry) => [entry.path, entry.data]),
   );
-  return { manifest, files, manifestBytes: manifestEntry.data, archiveStatistics: entries.statistics };
+  return {
+    manifest,
+    files,
+    manifestBytes: manifestEntry.data,
+    archiveStatistics: entries.statistics,
+  };
 }

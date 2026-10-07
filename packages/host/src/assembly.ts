@@ -1,9 +1,44 @@
+import { protocolPlan } from "./protocol-bindings.js";
+import { digest, importInvalid } from "./library.js";
 import { readFile, writeFile, mkdir, rename, rm } from "node:fs/promises";
 import path from "node:path";
 import { type Core, type PackageFiles } from "@plums/core";
-import { createAgentBundle, safePath } from "@plums/sdk";
+import {
+  createAgentBundle,
+  safePath,
+  portableProtocolIntent,
+} from "@plums/sdk";
 import type { AgentRecord } from "./host.js";
 import type { LibraryItem } from "./library.js";
+export function checkRecordVersion(record: AgentRecord): void {
+  const version: unknown = record.recordVersion;
+  if (version !== undefined && version !== 1 && version !== 2)
+    importInvalid("此 Agent 的记录版本尚不受支持，原始数据已保留。");
+}
+interface AssemblyTransaction {
+  packageId: string;
+  version: string | null;
+  beforeVersion: string | null;
+  next: AgentRecord;
+}
+async function readAssemblyTransaction(
+  dir: string,
+): Promise<AssemblyTransaction | undefined> {
+  let t: AssemblyTransaction;
+  try {
+    t = JSON.parse(
+      await readFile(path.join(dir, "assembly-transaction.json"), "utf8"),
+    );
+  } catch (e) {
+    if ((e as NodeJS.ErrnoException).code === "ENOENT") return;
+    throw Error("Agent 组合恢复失败。");
+  }
+  checkRecordVersion(t.next);
+  return t;
+}
+export async function checkAssemblyRecovery(dir: string): Promise<void> {
+  await readAssemblyTransaction(dir);
+}
 export interface ComponentBinding {
   packageId: string;
   version: string;
@@ -101,8 +136,21 @@ export async function exportAssembly(
     components[p.archive] = await core.exportPackage(
       await core.getPackageContents(p.packageId),
     );
+  const exportedDigests = new Map(
+    (record.components ?? []).map((p) => [
+      p.packageId,
+      digest(components[p.archive]!),
+    ]),
+  );
+  const choices = (await protocolPlan(core, record)).requirements
+    .filter((s) => s.selected && ["bound", "disabled"].includes(s.state))
+    .map((s) => ({
+      ...portableProtocolIntent(s.selected!),
+      consumerDigest: exportedDigests.get(s.consumerId)!,
+      providerDigest: exportedDigests.get(s.selected!.providerId)!,
+    }));
   return createAgentBundle(
-    record.agent,
+    { ...record.agent, protocolBindings: choices },
     components,
     await readExtras(dir, record),
     secrets,
@@ -150,20 +198,8 @@ export async function mutateAssembly<T>(
   return result as T;
 }
 export async function recoverAssembly(dir: string, core: Core) {
-  let t: {
-    packageId: string;
-    version: string | null;
-    beforeVersion: string | null;
-    next: AgentRecord;
-  };
-  try {
-    t = JSON.parse(
-      await readFile(path.join(dir, "assembly-transaction.json"), "utf8"),
-    );
-  } catch (e) {
-    if ((e as NodeJS.ErrnoException).code === "ENOENT") return;
-    throw Error("Agent 组合恢复失败。");
-  }
+  const t = await readAssemblyTransaction(dir);
+  if (!t) return;
   const installed = (await core.listInstalled()).find(
     (p) => p.id === t.packageId,
   );

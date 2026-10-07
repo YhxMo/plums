@@ -1,3 +1,6 @@
+import { ProtocolChoices } from "../components/ProtocolBindings.js";
+import type { ProtocolRequirementState } from "@plums/host";
+import type { ProtocolBindingIntent } from "@plums/sdk";
 import { useEffect, useRef, useState } from "react";
 import type { AgentRecord } from "@plums/host";
 import type { DesktopContribution } from "@plums/sdk";
@@ -19,6 +22,7 @@ interface Props {
     digests: string[],
     characterId?: string,
     startup?: string,
+    protocolBindings?: ProtocolBindingIntent[],
   ) => Promise<boolean>;
   onAdd: (digest: string) => Promise<boolean>;
   onRemove: (id: string) => Promise<void>;
@@ -73,9 +77,13 @@ export function AssemblyEditor({
     [plan, setPlan] = useState<{
       digests: string[];
       additions: { digest: string; name: string; version: string }[];
+      protocols?: ProtocolRequirementState[];
     }>({ digests: selected, additions: [] }),
     [planning, setPlanning] = useState(!record),
     [planError, setPlanError] = useState("");
+  const [choices, setChoices] = useState<ProtocolBindingIntent[]>(
+    seed?.protocolBindings ?? [],
+  );
   const [saved, setSaved] = useState(false);
   const [nameError, setNameError] = useState("");
   const saving = useRef<Promise<boolean> | null>(null);
@@ -93,7 +101,24 @@ export function AssemblyEditor({
     window.manager
       .call("planAssembly", { digests: selected })
       .then((value) => {
-        if (current) setPlan(value as typeof plan);
+        if (current) {
+          const next = value as typeof plan;
+          setPlan(next);
+          setChoices((old) =>
+            old.filter((b) =>
+              (next.protocols ?? []).some(
+                (s) =>
+                  s.consumerId === b.consumerId &&
+                  s.requirement.id === b.requirementId &&
+                  s.candidates.some(
+                    (c) =>
+                      c.compatibility.compatible &&
+                      JSON.stringify(c.intent) === JSON.stringify(b),
+                  ),
+              ),
+            ),
+          );
+        }
       })
       .catch((e: { message?: string }) => {
         if (current) {
@@ -144,6 +169,7 @@ export function AssemblyEditor({
       digests,
       card || undefined,
       front || undefined,
+      choices,
     );
     saving.current = task;
     try {
@@ -245,7 +271,26 @@ export function AssemblyEditor({
             {!record && (
               <button
                 className="primary"
-                disabled={busy || planning || !!planError || !name.trim()}
+                disabled={
+                  busy ||
+                  planning ||
+                  !!planError ||
+                  !name.trim() ||
+                  (plan.protocols ?? []).some(
+                    (s) =>
+                      !s.requirement.optional &&
+                      !choices.some(
+                        (b) =>
+                          b.consumerId === s.consumerId &&
+                          b.requirementId === s.requirement.id &&
+                          s.candidates.some(
+                            (c) =>
+                              c.compatibility.compatible &&
+                              JSON.stringify(c.intent) === JSON.stringify(b),
+                          ),
+                      ),
+                  )
+                }
                 onClick={() => void savePreferences()}
               >
                 创建 Agent
@@ -315,6 +360,7 @@ export function AssemblyEditor({
               digests: record ? digests : selected,
               characterId: validCard || undefined,
               startup: validFront || undefined,
+              protocolBindings: choices,
             });
           }}
         >
@@ -499,6 +545,26 @@ export function AssemblyEditor({
           })}
         </div>
       </div>
+      {!record && !!plan.protocols?.length && (
+        <section className="panel">
+          <h3>组件连接</h3>
+          <ProtocolChoices
+            requirements={plan.protocols}
+            choices={choices}
+            busy={busy || planning}
+            onChoose={(state, choice) =>
+              setChoices((old) => [
+                ...old.filter(
+                  (b) =>
+                    b.consumerId !== state.consumerId ||
+                    b.requirementId !== state.requirement.id,
+                ),
+                ...(choice ? [choice] : []),
+              ])
+            }
+          />
+        </section>
+      )}
       {planning && <p role="status">正在检查所需组件…</p>}
       {planError && (
         <div className="notice error" role="alert">

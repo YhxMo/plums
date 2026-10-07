@@ -1,3 +1,8 @@
+import { WorkspaceComposition } from "../components/WorkspaceComposition.js";
+import { PolicyModes } from "../components/PolicyModes.js";
+import { ControlledTasks } from "../components/ControlledTasks.js";
+import { BusinessResources } from "../components/BusinessResources.js";
+import { ProtocolBindings } from "../components/ProtocolBindings.js";
 import { useAction } from "../hooks/useAction.js";
 import { latestUpdate } from "../shared/version.js";
 import type { PermissionV2 } from "@plums/core";
@@ -29,6 +34,7 @@ export function AgentDetailView({
   onBack,
   onStart,
   onEdit,
+  onInspect,
   onConfig,
   onAction,
   onInvoke,
@@ -48,6 +54,7 @@ export function AgentDetailView({
   onBack: () => void;
   onStart: () => void;
   onEdit: () => void;
+  onInspect: (p: Resource) => void;
   onConfig: (p: Resource) => void;
   onAction: (
     method: string,
@@ -84,6 +91,14 @@ export function AgentDetailView({
   return (
     <section data-testid="agent-detail">
       <div className="breadcrumb">
+        <button
+          type="button"
+          className="ghost sm icon-button agent-back"
+          aria-label="返回我的 Agent"
+          onClick={onBack}
+        >
+          <Icon name="back" size={18} />
+        </button>
         <button className="ghost sm" onClick={onBack}>
           我的 Agent
         </button>
@@ -154,6 +169,10 @@ export function AgentDetailView({
             需要升级到外装连接器版本。请先升级聊天扩展，再升级模型连接器；配置、密钥与历史会保留。
           </p>
         ))}
+      <WorkspaceComposition record={record} resources={resources} />
+      <ControlledTasks record={record} resources={resources} />
+      <BusinessResources instanceId={record.instanceId} revision={resources} />
+      <PolicyModes instanceId={record.instanceId} revision={resources} />
       {resources.some((p) => p.engines?.length) && (
         <section className="panel" aria-label="本机引擎管理">
           <h2>本机引擎</h2>
@@ -173,6 +192,13 @@ export function AgentDetailView({
             )),
           )}
         </section>
+      )}
+      {resources.some((p) => p.desktop?.protocols?.requires?.length) && (
+        <ProtocolBindings
+          key={record.instanceId}
+          instanceId={record.instanceId}
+          revision={resources}
+        />
       )}
       <div className="detail-layout">
         <div>
@@ -200,6 +226,7 @@ export function AgentDetailView({
                       resource={p}
                       update={latestUpdate(library, p.id, p.version)}
                       developer={developer}
+                      onInspect={() => onInspect(p)}
                       onConfig={() => onConfig(p)}
                       onAction={(method, extra) => onAction(method, p, extra)}
                       onInvoke={(type, item) => onInvoke(p, type, item)}

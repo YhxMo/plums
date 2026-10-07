@@ -1,3 +1,5 @@
+import { protocolPlan } from "./protocol-bindings.js";
+import type { AgentRecord } from "./host.js";
 import { createHash } from "node:crypto";
 import net from "node:net";
 import {
@@ -101,11 +103,18 @@ export async function configuredConnection(
     ]),
   };
 }
-export async function connectionBindings(core: Core, id: string) {
+export async function connectionBindings(
+  core: Core,
+  id: string,
+  record?: AgentRecord,
+) {
   const result: NonNullable<
       Awaited<ReturnType<typeof configuredConnection>>
     >[] = [],
     seen = new Set<string>();
+  const protocols = record
+    ? (await protocolPlan(core, record)).requirements
+    : [];
   const visit = async (at: string): Promise<void> => {
     if (seen.has(at)) return;
     seen.add(at);
@@ -122,13 +131,24 @@ export async function connectionBindings(core: Core, id: string) {
     for (const d of manifest.dependencies)
       if ((await core.listInstalled()).some((p) => p.id === d.id))
         await visit(d.id);
+    for (const s of protocols)
+      if (
+        s.consumerId === at &&
+        s.selected &&
+        ["bound", "disabled"].includes(s.state)
+      )
+        await visit(s.selected.providerId);
   };
   await visit(id);
   return result;
 }
-export async function connectionAccess(core: Core, id: string) {
+export async function connectionAccess(
+  core: Core,
+  id: string,
+  record?: AgentRecord,
+) {
   const { manifest } = await core.getPackage(id),
-    bindings = await connectionBindings(core, id);
+    bindings = await connectionBindings(core, id, record);
   const permissions = isManifestV2(manifest)
     ? manifest.permissions.filter(
         (p) =>
@@ -168,6 +188,7 @@ export async function connectionAccess(core: Core, id: string) {
 export async function grantConnectionAccess(
   core: Core,
   id: string,
+  record?: AgentRecord,
 ): Promise<void> {
   const { manifest } = await core.getPackage(id);
   if (!isManifestV2(manifest)) return;
@@ -177,7 +198,7 @@ export async function grantConnectionAccess(
       p.target === "https" &&
       p.operations.includes("request")
     ) {
-      for (const b of await connectionBindings(core, id))
+      for (const b of await connectionBindings(core, id, record))
         if (
           b.enabled &&
           b.ready &&

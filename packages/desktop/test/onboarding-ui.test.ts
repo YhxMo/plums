@@ -2,7 +2,15 @@ import { it, expect } from "vitest";
 import { _electron as electron } from "@playwright/test";
 import { createRequire } from "node:module";
 import os from "node:os";
-import { mkdtemp, writeFile, rm, cp, mkdir, symlink } from "node:fs/promises";
+import {
+  mkdtemp,
+  writeFile,
+  readFile,
+  rm,
+  cp,
+  mkdir,
+  symlink,
+} from "node:fs/promises";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 
@@ -458,11 +466,13 @@ it("keeps initial loading and failure distinct and rejects outdated Agent and li
     await page.evaluate(() => {
       (window as any).shellFixture.hold = "b";
     });
-    await page.getByTestId("agent-switcher").selectOption("b");
+    await page.getByTestId("agent-switcher").click();
+    await page.getByRole("option", { name: "助手 b", exact: true }).click();
     await page.waitForFunction(() =>
       (window as any).shellFixture.waiting.some((w: any) => w.id === "b"),
     );
-    await page.getByTestId("agent-switcher").selectOption("c");
+    await page.getByTestId("agent-switcher").click();
+    await page.getByRole("option", { name: "助手 c", exact: true }).click();
     await page.getByRole("button", { name: /管理当前 Agent/ }).waitFor();
     await page.evaluate(() =>
       (window as any).shellFixture.waiting
@@ -477,7 +487,9 @@ it("keeps initial loading and failure distinct and rejects outdated Agent and li
           ) as HTMLButtonElement
         ).disabled,
     );
-    expect(await page.getByTestId("agent-switcher").inputValue()).toBe("c");
+    expect(await page.getByTestId("agent-switcher").textContent()).toContain(
+      "助手 c",
+    );
     expect(
       await page.getByRole("button", { name: /管理当前 Agent/ }).count(),
     ).toBe(1);
@@ -755,6 +767,29 @@ it("renders the shell and dialogs in both themes at desktop and narrow widths wi
           await screenshot({
             path: path.join(screenshots, `${colorScheme}-${tab}-${width}.png`),
           });
+          if (tab === "home" || tab === "settings") {
+            const trigger =
+              tab === "home"
+                ? page.getByTestId("agent-switcher")
+                : page.getByRole("button", { name: "外观主题", exact: true });
+            await trigger.click();
+            const menu = page.getByRole("listbox");
+            await menu.waitFor();
+            expect(
+              await menu.evaluate((el) => {
+                const rect = el.getBoundingClientRect();
+                return rect.left >= 0 && rect.right <= innerWidth;
+              }),
+            ).toBe(true);
+            await checkLayout();
+            await screenshot({
+              path: path.join(
+                screenshots,
+                `${colorScheme}-${tab}-menu-${width}.png`,
+              ),
+            });
+            await page.keyboard.press("Escape");
+          }
         }
         await page.getByTestId("nav-tab-home").click();
         await screenshot({
@@ -1035,21 +1070,37 @@ it("integrates native window chrome, fullscreen events and theme updates", async
     );
   }
   const require = createRequire(path.resolve("packages/desktop/package.json"));
-  const application = await electron.launch({
-    executablePath: require("electron"),
-    args: [path.join(temporary, "dist/main.js")],
-    env: {
-      ...process.env,
-      PLUMS_NODE: process.execPath,
-      PLUMS_DATA_DIR: path.join(temporary, "profile"),
-    },
-    timeout: 10_000,
-  });
+  const profile = path.join(temporary, "profile");
+  await mkdir(profile);
+  await writeFile(
+    path.join(profile, "desktop.json"),
+    JSON.stringify({ dnsMode: "system", theme: "dark" }),
+  );
+  const launch = () =>
+    electron.launch({
+      executablePath: require("electron"),
+      args: [path.join(temporary, "dist/main.js")],
+      env: {
+        ...process.env,
+        PLUMS_NODE: process.execPath,
+        PLUMS_DATA_DIR: profile,
+      },
+      timeout: 10_000,
+    });
+  let application = await launch();
   try {
     const page = await application.firstWindow();
     page.setDefaultTimeout(5_000);
     await page.emulateMedia({ colorScheme: null });
     await page.getByTestId("nav-tab-home").waitFor();
+    expect(
+      await application.evaluate(({ nativeTheme }) => nativeTheme.themeSource),
+    ).toBe("dark");
+    await page.waitForFunction(
+      () =>
+        getComputedStyle(document.documentElement).backgroundColor ===
+        "rgb(20, 19, 17)",
+    );
     for (const method of [
       "chooseUpdate",
       "chooseComponent",
@@ -1199,8 +1250,57 @@ it("integrates native window chrome, fullscreen events and theme updates", async
         ),
       ).toBe(source === "dark" ? "rgb(20, 19, 17)" : "rgb(247, 246, 243)");
     }
+    await page.getByTestId("nav-tab-settings").click();
+    const theme = page.getByRole("button", { name: "外观主题", exact: true });
+    for (const [source, label] of [
+      ["light", "浅色"],
+      ["dark", "深色"],
+      ["system", "跟随系统"],
+    ] as const) {
+      await theme.click();
+      await page.getByRole("option", { name: label, exact: true }).click();
+      await expect
+        .poll(() =>
+          application.evaluate(({ nativeTheme }) => nativeTheme.themeSource),
+        )
+        .toBe(source);
+      await expect.poll(() => theme.textContent()).toContain(label);
+      const settings = JSON.parse(
+        await readFile(path.join(profile, "desktop.json"), "utf8"),
+      );
+      expect(settings).toEqual({ dnsMode: "system", theme: source });
+      const dark = await application.evaluate(
+        ({ nativeTheme }) => nativeTheme.shouldUseDarkColors,
+      );
+      await page.waitForFunction(
+        (dark) => matchMedia("(prefers-color-scheme: dark)").matches === dark,
+        dark,
+      );
+      expect(
+        await page.evaluate(
+          () => getComputedStyle(document.documentElement).colorScheme,
+        ),
+      ).toBe(dark ? "dark" : "light");
+    }
+    await theme.click();
+    await page.getByRole("option", { name: "深色", exact: true }).click();
+    await expect.poll(() => theme.textContent()).toContain("深色");
+    await application.close();
+    application = await launch();
+    const reopened = await application.firstWindow();
+    await reopened.getByTestId("nav-tab-settings").click();
+    expect(
+      await application.evaluate(({ nativeTheme }) => nativeTheme.themeSource),
+    ).toBe("dark");
+    await expect
+      .poll(() =>
+        reopened
+          .getByRole("button", { name: "外观主题", exact: true })
+          .textContent(),
+      )
+      .toContain("深色");
   } finally {
     await application.close();
     await rm(temporary, { recursive: true, force: true });
   }
-}, 30_000);
+}, 45_000);

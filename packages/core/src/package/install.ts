@@ -12,7 +12,10 @@ export const PACKAGES_DIR = "packages";
  * Why a separate directory: the caller can still lose the insert, and then it
  * may delete only this directory.
  */
-export async function stagePackage(dataDir: string, pkg: ValidatedPackage): Promise<string> {
+export async function stagePackage(
+  dataDir: string,
+  pkg: ValidatedPackage,
+): Promise<string> {
   const root = path.join(dataDir, PACKAGES_DIR);
   // Why before any file is written: A.txt and a.txt, or MANIFEST.JSON and manifest.json, overwrite each other on a case-insensitive disk.
   // Why before mkdir(root): a failed check must not leave any directory behind.
@@ -37,7 +40,10 @@ export async function stagePackage(dataDir: string, pkg: ValidatedPackage): Prom
  * calls this only after that id's insert has won. The import that lost the row
  * must not call this, or it would remove the winner's install directory.
  */
-export async function publishStaged(staging: string, target: string): Promise<void> {
+export async function publishStaged(
+  staging: string,
+  target: string,
+): Promise<void> {
   try {
     await rm(target, { recursive: true, force: true });
     await rename(staging, target);
@@ -47,7 +53,11 @@ export async function publishStaged(staging: string, target: string): Promise<vo
   }
 }
 
-async function writeInside(base: string, relative: string, data: Uint8Array): Promise<void> {
+async function writeInside(
+  base: string,
+  relative: string,
+  data: Uint8Array,
+): Promise<void> {
   const full = path.resolve(base, ...relative.split("/"));
   if (!full.startsWith(base + path.sep)) {
     throw importInvalid(`文件路径会跑到包目录之外：${relative}`);

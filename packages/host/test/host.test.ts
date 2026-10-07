@@ -1,5 +1,12 @@
-import { it, expect, afterEach } from "vitest";
-import { mkdtemp, rm, readdir } from "node:fs/promises";
+import { it, expect, afterEach, vi } from "vitest";
+import {
+  mkdtemp,
+  rm,
+  readdir,
+  readFile,
+  writeFile,
+  mkdir,
+} from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import {
@@ -48,12 +55,97 @@ async function fixture() {
 }
 it("defaults to automatic DNS and preserves explicit network preferences across restart", async () => {
   const { host } = await fixture();
-  expect(host.getDesktopSettings()).toEqual({ dnsMode: "auto" });
+  expect(host.getDesktopSettings()).toEqual({
+    dnsMode: "auto",
+    theme: "system",
+  });
   for (const dnsMode of ["system", "cloudflare", "auto"]) {
     await host.setDesktopSettings(dnsMode);
     await host.initialize();
-    expect(host.getDesktopSettings()).toEqual({ dnsMode });
+    expect(host.getDesktopSettings()).toEqual({ dnsMode, theme: "system" });
   }
+});
+it("persists themes across new hosts and merges concurrent theme and DNS writes", async () => {
+  const { host, dir } = await fixture();
+  for (const theme of ["dark", "light", "system"] as const) {
+    await host.setDesktopTheme(theme);
+    const restarted = new DesktopHost(host.options);
+    hosts.push(restarted);
+    await restarted.initialize();
+    expect(restarted.getDesktopSettings()).toEqual({ dnsMode: "auto", theme });
+    await restarted.close();
+  }
+  await Promise.all([
+    host.setDesktopTheme("dark"),
+    host.setDesktopSettings("cloudflare"),
+  ]);
+  expect(host.getDesktopSettings()).toEqual({
+    dnsMode: "cloudflare",
+    theme: "dark",
+  });
+  await Promise.all([
+    host.setDesktopSettings("system"),
+    host.setDesktopTheme("light"),
+  ]);
+  expect(
+    JSON.parse(await readFile(path.join(dir, "desktop.json"), "utf8")),
+  ).toEqual({ dnsMode: "system", theme: "light" });
+});
+it("reads legacy and invalid themes as system and rejects illegal theme requests", async () => {
+  const { host, dir } = await fixture();
+  for (const theme of [undefined, "unknown", null, 42]) {
+    await writeFile(
+      path.join(dir, "desktop.json"),
+      JSON.stringify({ dnsMode: "cloudflare", theme }),
+    );
+    await host.initialize();
+    expect(host.getDesktopSettings()).toEqual({
+      dnsMode: "cloudflare",
+      theme: "system",
+    });
+  }
+  for (const theme of [undefined, "unknown", null, 42, {}])
+    await expect(host.setDesktopTheme(theme)).rejects.toMatchObject({
+      code: "PERMISSION_DENIED",
+    });
+});
+it("keeps committed settings after a failed save and permits retry", async () => {
+  const { host, dir } = await fixture();
+  await host.setDesktopTheme("dark");
+  const pending = path.join(dir, "desktop.json.pending");
+  await mkdir(pending);
+  await expect(host.setDesktopTheme("light")).rejects.toThrow();
+  expect(host.getDesktopSettings()).toEqual({ dnsMode: "auto", theme: "dark" });
+  expect(
+    JSON.parse(await readFile(path.join(dir, "desktop.json"), "utf8")),
+  ).toEqual(host.getDesktopSettings());
+  await rm(pending, { recursive: true });
+  await host.setDesktopTheme("light");
+  expect(host.getDesktopSettings().theme).toBe("light");
+});
+it("changes appearance while an enabled Agent runtime keeps running", async () => {
+  const { host, dir } = await fixture();
+  const preview = (await host.preview(await bundle(dir))) as { token: string };
+  const agent = await host.install(preview.token);
+  await host.enable(agent.instanceId, "card");
+  await host.enable(agent.instanceId, "workspace");
+  const invoke = () =>
+    host.invoke(
+      agent.instanceId,
+      "workspace",
+      "workspace",
+      "commands",
+      "check",
+      {},
+    );
+  expect(await invoke()).toEqual({ persona: "hello" });
+  const close = vi.spyOn(host, "close");
+  for (const theme of ["dark", "light", "system"]) {
+    await host.setDesktopTheme(theme);
+    expect(close).not.toHaveBeenCalled();
+    expect(await invoke()).toEqual({ persona: "hello" });
+  }
+  close.mockRestore();
 });
 async function bundle(dir: string) {
   const core = createCore({
