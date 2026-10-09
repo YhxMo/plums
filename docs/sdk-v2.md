@@ -204,13 +204,13 @@ export function activate(sdk) {
 }
 ```
 
-该固定决定仅演示协议，不是风险分类算法。业务消费者无需声明策略包依赖或修改源码：用户在可信管理页为整个 Agent 选择固定策略和模式名称，再逐项批准参与组件、类别、操作、逻辑目标及 15 分钟或 1 小时期限。模式名称只保存偏好，不能替代实际策略决定或扩大权限。无策略时保留安全确认；宿主经办能力选择策略但没有有效租约时返回 `POLICY_UNAVAILABLE`，重启不恢复租约。本地启动与请求使用 `category:"local"/target:engineId/operation:"start"|method`，最大范围来自已有组件执行项，confirm 由该项满足，deny 仍拒绝；该路径无需短期租约，意图不含请求参数。
+该固定决定仅演示协议，不是风险分类算法。业务消费者无需声明策略包依赖或修改源码：用户在可信管理页为整个 Agent 选择固定策略和模式名称，再逐项批准参与组件、类别、操作、逻辑目标及 15 分钟或 1 小时期限。模式名称只保存偏好，不能替代实际策略决定或扩大权限。无策略时保留安全确认；宿主经办能力选择健康策略但没有有效租约时返回 `POLICY_UNAVAILABLE`，重启不恢复租约；提供者失效时，仅需要单次确认的操作可回到可信窗口。本地启动与请求使用 `category:"local"/target:engineId/operation:"start"|method`，最大范围来自已有组件执行项，confirm 由该项满足，deny 仍拒绝；该路径无需短期租约，意图不含请求参数。
 
 `maximum.selection` 是完整逻辑最大范围；资源项还须匹配阶段 2 的唯一活动业务资源范围，完全访问例外只由该资源范围选择。文件/HTTPS 仍受现有短期能力范围约束；命令还需选择固定程序全部读写目录的对应操作，write 不包含 read。工具分发和 MCP 远程工具评估仍保留真实调用链、声明/同意及 MCP 指纹批准。最大范围各项按调用链逐组件取交集；未选项直接拒绝，confirm 不能补授权。
 
 上下文包含宿主身份、真实链、callId/taskId、无凭据意图、可信逻辑目标 `target`、能力/资源的公开 `permissionId`、最大范围、当前期限 `deadline`、modeGeneration、唯一 assessmentId 和操作 SHA-256。键排序规范化的指纹绑定真实复制请求，作者回显原指纹，不自行计算或将自己的 actor 当作身份。普通单次能力的 taskId 使用该宿主调用的 callId；共同调用使用真实宿主任务 id。请求头只列名称，已知密钥和凭据字段不进入意图；正文不进入审计。策略运行使用独立隔离实例，计算期只有自身非密钥 settings/context，禁止能力、资源、调用、事件、引擎与管理请求，违规使评估失败，即使作者捕获错误也不能放行。
 
-只接受 allow/deny/confirm，额外结果字段、错 assessmentId/指纹、异常、递归请求或超过 10 秒均 `POLICY_UNAVAILABLE`，没有人工兜底。confirm 展示宿主真实 Agent/链/操作/逻辑目标/意图/期限，120 秒内仅布尔 true 放行。策略等待、确认、审计以及实际执行前复核整链、绑定、范围与期限。撤权、切换、组件/声明/目录/资源/配置变化终止相关运行；到期也取消已授权任务和受管进程。unknown/completed 不自动重试。
+只接受 allow/deny/confirm。CommonOperationContext 包含宿主记录的 tier 与授权后计算的 requiresConfirmation；本地 intent 仅含入口与方法摘要，不含参数。额外结果字段、错 assessmentId/指纹、异常、递归请求、提供者失效或超过 10 秒：需要单次确认时回到可信窗口，无确认环节时 POLICY_UNAVAILABLE。自动决定审计保留 providerId/artifactDigest/mode/operationFingerprint/tier 与关联 ID，不保存正文。confirm 展示宿主真实 Agent/链/操作/逻辑目标/意图/期限，120 秒内仅布尔 true 放行。策略等待、确认、审计以及实际执行前复核整链、绑定、范围与期限。撤权、切换、组件/声明/目录/资源/配置变化终止相关运行；到期也取消已授权任务和受管进程。unknown/completed 不自动重试。
 
 作者界面用 `await plums.common.policy.status()` 读取选定模式、策略组件和活动范围；没有选择、批准或撤销的业务 SDK。管理操作仅存在于可信窗口。当前证据为内部四种确定性策略、真实宿主及 macOS 受控程序/Electron 路由；不代表可靠自动审查算法、真实第三方符合性或稳定安装包验收。
 

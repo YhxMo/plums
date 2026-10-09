@@ -49,7 +49,12 @@ async function officialAdapterFiles(): Promise<PackageFiles> {
         if (
           name.endsWith(".js") ||
           name.endsWith(".cjs") ||
-          ["secure-fs", "controlled-probe"].includes(name)
+          [
+            "secure-fs",
+            "controlled-probe",
+            "project-probe",
+            "project-scan",
+          ].includes(name)
         )
           names.push(pkg + "/" + name);
     }
@@ -476,6 +481,8 @@ export class OfficialAdapterArtifacts {
           const nativeHelper = [
             "code/secure-fs",
             "code/controlled-probe",
+            "code/project-probe",
+            "code/project-scan",
           ].includes(name);
           let copied = false;
           if (

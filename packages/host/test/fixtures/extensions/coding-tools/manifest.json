@@ -1,0 +1,98 @@
+{
+  "formatVersion": "2.0",
+  "kind": "extension",
+  "id": "fixture.coding-tools",
+  "name": "Synthetic coding tools",
+  "version": "1.0.0",
+  "description": "Test-only local execution; not distributed",
+  "license": "Apache-2.0",
+  "dependencies": [],
+  "permissions": [
+    {
+      "id": "local",
+      "kind": "engine",
+      "target": "local",
+      "tier": "project",
+      "toolchains": [
+        "node",
+        "git"
+      ],
+      "network": {
+        "hosts": [
+          "pkg.plums-fixture.test"
+        ]
+      },
+      "reason": "Test-only project execution"
+    }
+  ],
+  "payload": {
+    "plumsDesktop": {
+      "sdkVersion": "2",
+      "runtime": "main.js",
+      "engines": [
+        {
+          "id": "local",
+          "title": "Synthetic project tools",
+          "entry": "engine.mjs",
+          "runtime": "node",
+          "platforms": [
+            "darwin-arm64"
+          ],
+          "protocol": "jsonrpc-jsonl-v1"
+        }
+      ],
+      "contributes": {
+        "tools": [
+          {
+            "name": "coding",
+            "title": "Synthetic coding tools",
+            "inputSchema": {
+              "type": "object",
+              "properties": {
+                "operation": {
+                  "enum": [
+                    "list",
+                    "call"
+                  ]
+                },
+                "input": {
+                  "type": "object"
+                }
+              },
+              "required": [
+                "operation",
+                "input"
+              ],
+              "additionalProperties": false
+            }
+          }
+        ]
+      },
+      "foundation": {
+        "requirementVersion": "1.0",
+        "protocolRange": "^1.0.0",
+        "sdk": {
+          "id": "org.plums.sdk",
+          "version": "2.0.0"
+        },
+        "features": [
+          "sdk.register",
+          "sdk.engine"
+        ]
+      },
+      "protocols": {
+        "provides": [
+          {
+            "id": "tools",
+            "protocol": "org.plums.agent-tools",
+            "version": "1.0.0",
+            "contribution": {
+              "kind": "tools",
+              "name": "coding"
+            }
+          }
+        ]
+      }
+    }
+  }
+}

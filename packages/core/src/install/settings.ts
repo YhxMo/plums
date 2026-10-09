@@ -115,6 +115,7 @@ export interface SettingsDescription {
 export async function describeSettings(
   ctx: InstallContext,
   id: string,
+  presentation = true,
 ): Promise<SettingsDescription> {
   requireInstalled(ctx, id);
   const manifest = requireManifest(ctx, id);
@@ -144,8 +145,12 @@ export async function describeSettings(
         (await ctx.secrets.get(secretRef(id, key))) !== undefined;
     }
   }
-  return redact(
-    { schema: manifest.settingsSchema, values, secrets: configured },
-    await knownSecrets(ctx),
-  ) as SettingsDescription;
+  const description = {
+    schema: manifest.settingsSchema,
+    values,
+    secrets: configured,
+  };
+  return presentation
+    ? (redact(description, await knownSecrets(ctx)) as SettingsDescription)
+    : description;
 }

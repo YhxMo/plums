@@ -54,7 +54,9 @@ await copyFile(
 for (const name of [
   "controlled-worker.cjs",
   "controlled-supervisor.js",
-  ...(process.platform === "darwin" ? ["controlled-probe"] : []),
+  ...(process.platform === "darwin"
+    ? ["controlled-probe", "project-probe", "project-scan"]
+    : []),
 ])
   await copyFile(
     root + "packages/host/dist/" + name,

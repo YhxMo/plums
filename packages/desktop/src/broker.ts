@@ -607,6 +607,38 @@ process.on("message", async (raw: unknown) => {
       case "engineStatus":
         value = await host.engineStatus(id, pkg, a.engineId as string);
         break;
+      case "tierPlan":
+        value = await host.tierPlan(
+          id,
+          a.selection as import("@plums/host").TierSelection | undefined,
+        );
+        break;
+      case "tierStatus":
+        value = await host.tierStatus(id);
+        break;
+      case "confirmTier":
+        value = await host.confirmTier(
+          id,
+          a.fingerprint as string,
+          a.selection as import("@plums/host").TierSelection,
+        );
+        break;
+      case "lowerTier":
+        await host.lowerTier(
+          id,
+          a.ceiling as "sandbox" | "project" | "machine",
+        );
+        break;
+      case "revokeLocal":
+        await host.revokeLocal(id, a.packageId as string | undefined);
+        break;
+      case "removeTierDirectory":
+        await host.removeTierDirectory(
+          id,
+          a.root as string,
+          a.readOnly === true,
+        );
+        break;
       case "startEngine":
         value = await host.startEngine(id, pkg, a.engineId as string);
         break;

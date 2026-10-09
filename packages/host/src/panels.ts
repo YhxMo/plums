@@ -367,6 +367,16 @@ export class PanelSessions {
     for (const s of this.sessions.values())
       if (s.agent.record.instanceId === id) this.close(s.id);
   }
+  closeComponents(id: string, components: string[]) {
+    for (const s of this.sessions.values())
+      if (
+        s.agent.record.instanceId === id &&
+        [...s.endpoints.values()].some((e) =>
+          components.includes(e.context.componentId),
+        )
+      )
+        this.close(s.id);
+  }
   async post(
     sessionId: string,
     handle: string,

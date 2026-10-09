@@ -1842,3 +1842,103 @@ html[data-fullscreen] .running-bar {
   overflow: auto;
   max-height: 240px;
 }
+
+.local-permissions {
+  margin-block: 24px;
+}
+.local-permissions-heading {
+  display: flex;
+  align-items: start;
+  justify-content: space-between;
+  gap: 16px;
+}
+.local-permissions-heading > div {
+  min-width: 0;
+}
+.local-permissions fieldset {
+  padding: 16px;
+  margin-block: 16px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  min-width: 0;
+}
+.local-permissions legend {
+  font-weight: 600;
+  padding-inline: 4px;
+}
+.local-permissions .field {
+  max-width: 300px;
+}
+.local-directory-options {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 24px;
+}
+.local-component-options {
+  margin-block: 16px;
+}
+.local-permission-entry {
+  border-bottom: 1px solid var(--line-subtle);
+  padding-block: 12px;
+}
+.local-permission-entry summary {
+  cursor: pointer;
+}
+.local-permission-entry summary label {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 600;
+  margin-right: 12px;
+}
+.local-permission-entry summary span {
+  color: var(--text-2);
+  font-size: 13px;
+}
+.local-review,
+.local-project-support {
+  margin-block: 24px;
+}
+.local-project-support dl {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px 24px;
+}
+.local-project-support dt {
+  font-weight: 600;
+}
+.local-project-support dd {
+  margin: 6px 0 0;
+  color: var(--text-2);
+}
+.local-process {
+  padding-block: 16px;
+  border-top: 1px solid var(--line-subtle);
+}
+.local-permissions p,
+.local-permissions span,
+.local-permissions dd {
+  overflow-wrap: anywhere;
+}
+.local-permissions small {
+  display: block;
+  overflow-wrap: anywhere;
+}
+.local-permissions .inline-actions {
+  flex-wrap: wrap;
+}
+.confirmation-page[data-kind="local-authorization"] #confirmation-action {
+  white-space: pre-line;
+}
+@media (max-width: 600px) {
+  .local-permissions-heading {
+    flex-direction: column;
+  }
+  .local-directory-options,
+  .local-project-support dl {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .local-permissions fieldset {
+    padding: 12px;
+  }
+}

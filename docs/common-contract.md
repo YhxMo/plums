@@ -84,9 +84,9 @@ deadline 使用宿主单调时钟预算，消费者 `timeoutMs` 只能缩短；�
 
 策略是普通兼容提供者，使用 `org.plums.policy` 业务协议 1.0.0、贡献 `tools` 的 evaluate 操作；算法完全由第三方提供。只有可信管理窗口可以为 Agent 选择/切换一个策略绑定和最大授权范围，不从普通前端或业务 SDK 接收模式修改。首轮采用一个活动策略；复合算法可作为单个策略扩展，宿主不隐式合并不同策略的 allow。
 
-宿主构造 `CommonOperationContext`：真实调用链、callId/taskId、类别/操作、本次逻辑 target/permissionId、无凭据的意图、用户最大范围、期限、modeGeneration、唯一 assessmentId 及规范化操作 SHA-256 指纹。策略可查看本次审批所需参数，但不能读取宿主密钥、原始凭据/输出、管理数据库或其他执行授权。策略计算过程不得再次发起被评估的能力或递归触发自身；超过 10 秒、异常、非规范返回、fingerprint 不符一律拒绝为 `POLICY_UNAVAILABLE`，没有隐式人工/默认放行兜底。
+宿主构造 `CommonOperationContext`：真实调用链、callId/taskId、类别/操作、本次逻辑 target/permissionId、无凭据的意图、用户最大范围、期限、modeGeneration、唯一 assessmentId 及规范化操作 SHA-256 指纹。策略可查看本次审批所需参数，但不能读取宿主密钥、原始凭据/输出、管理数据库或其他执行授权。策略计算过程不得再次发起被评估的能力或递归触发自身；补充契约新增宿主记录的 tier 与 requiresConfirmation；本地 intent 只提供脱敏命令摘要。超过 10 秒、异常、非规范返回、fingerprint 不符或提供者失效时，本需单次确认的操作回退可信确认窗口，无确认环节拒绝为 `POLICY_UNAVAILABLE`，从不失败到放行。tier 从宿主授权记录读取，requiresConfirmation 由 core 或资源宿主在授权后计算；扩展输入不能覆盖。回退不恢复已失效租约，可信窗口只批准本次操作；范围撤销、调用方变更和审计失败仍阻止执行。
 
-`CommonPolicyDecision` 仅有 `assessmentId/operationFingerprint/decision`，decision 为 allow/deny/confirm。allow 只是用户最大范围内本次请求的决定；宿主经办能力的 confirm 必须显示宿主生成的真实上下文并由可信窗口返回布尔 true；本地入口的 confirm 可由有效执行项满足；deny 阻止执行。策略不能增加路径、资源、网络目标、操作或期限。结果再次校验当前绑定/资格/期限/完整链并审计后才执行；等待中切换/撤权使旧决定失效。
+`CommonPolicyDecision` 仅有 `assessmentId/operationFingerprint/decision`，decision 为 allow/deny/confirm。allow 只是用户最大范围内本次请求的决定；宿主经办能力的 confirm 必须显示宿主生成的真实上下文并由可信窗口返回布尔 true；本地入口的 confirm 可由有效执行项满足；deny 优先且不可被任何授权覆盖。自动 allow 只在最大范围内替代单次确认，审计记录 providerId、artifactDigest、mode、operationFingerprint、assessmentId、callId、调用链、tier 与结果；审计失败不执行。策略不能增加路径、资源、网络目标、操作或期限。结果再次校验当前绑定/资格/期限/完整链并审计后才执行；等待中切换/撤权使旧决定失效。
 
 本地入口以 `category: "local"` 接入同一协议；target 为 engineId，operation 为 start 或 method，意图不含请求参数。本地最大范围来自本组件已确认的执行项，不使用短期租约。策略评估器、普通 common 运行/任务、资源范围与短期能力范围可与已确认本地入口共存；宿主经办请求仍需其自身有效授权。
 
@@ -108,7 +108,7 @@ Node 后台不直接获得持久目录/网络权限；文件/HTTPS/命令请求�
 
 Seatbelt 的 sandbox-exec 与 sandbox.h 是已弃用的平台设施，不能视为苹果对长期 API 的承诺；本机头文件标注 “No longer supported”。Apple 的 [App Sandbox 文档](https://developer.apple.com/documentation/security/protecting-user-data-with-app-sandbox)及[继承规则](https://developer.apple.com/library/archive/documentation/Miscellaneous/Reference/EntitlementKeyReference/Chapters/EnablingAppSandbox.html)描述了另一种签名/App Sandbox 路径；它的静态容器/权限不直接提供本方案每调用的动态目录边界。首轮选择已实测的 Seatbelt，启动时及打包验收必须先探测文件/网络/进程拒绝，设施缺失或边界失败时返回 `RUNTIME_UNAVAILABLE`，禁止回退到普通权限。XPC/App Sandbox helper 和虚拟机作为未来替代；本轮不要求安装 VM 或额外服务。
 
-现有 `engines` 按已确认的组件执行项运行，整机入口仍有普通本机权限，直接文件/网络/子进程操作不受宿主策略逐次约束。策略评估器可与本地入口共存，启动和请求经过 local 判定。普通 common 运行/任务、资源与短期能力范围可与整机入口同时活动。本地回调中的 common 子任务保留原链与本地运行上下文，并绑定实际父请求的取消和更早期限；资源按各方资格与有效范围交集授权，非 local 策略仍需租约。完整选择性生命周期和项目沙箱继续实施；不能把普通权限引擎改名后当作受控运行。
+现有 `engines` 按已确认的组件执行项运行，整机入口仍有普通本机权限，直接文件/网络/子进程操作不受宿主策略逐次约束。策略评估器可与本地入口共存，启动和请求经过 local 判定。普通 common 运行/任务、资源与短期能力范围可与整机入口同时活动。本地回调中的 common 子任务保留原链与本地运行上下文，并绑定实际父请求的取消和更早期限；资源按各方资格与有效范围交集授权，非 local 策略仍需租约。组件与租约变更已按受影响组件及其消费者清理；项目沙箱继续实施；不能把普通权限引擎改名后当作受控运行。
 
 ## 8. 独立 UI、恢复与兼容
 

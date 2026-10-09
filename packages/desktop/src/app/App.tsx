@@ -598,6 +598,7 @@ export function App() {
         {assembling && (
           <AssemblyEditor
             record={assembling === "new" ? undefined : record}
+            resources={resources}
             seed={assemblySeed}
             library={library}
             key={assembling}

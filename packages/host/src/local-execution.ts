@@ -1,3 +1,4 @@
+import { checkProjectLinks } from "./project-links.js";
 import {
   enginePermissionKey,
   isManifestV2,
@@ -68,8 +69,11 @@ export class AgentExecutionService {
         code: "LOCAL_CONFIRM_REQUIRED",
         message: "此组件的本地执行需要汇总确认。",
       });
-    if (permissions.some((p) => p.tier === "project"))
+    if (permissions.some((p) => p.tier === "project")) {
+      for (const directory of state.tier.projects)
+        await checkProjectLinks(directory.path);
       await this.project.assertAvailable();
+    }
     if (!(await s.core.getConsent(packageId)))
       throw new PlumsError({
         code: "CONSENT_REQUIRED",

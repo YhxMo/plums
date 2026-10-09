@@ -1,0 +1,65 @@
+{
+  "formatVersion": "2.0",
+  "kind": "extension",
+  "id": "fixture.crash-probe",
+  "name": "Synthetic crash probe",
+  "version": "1.0.0",
+  "description": "Test-only local execution; not distributed",
+  "license": "Apache-2.0",
+  "dependencies": [],
+  "permissions": [
+    {
+      "id": "local",
+      "kind": "engine",
+      "target": "local",
+      "reason": "Test-only ordinary local execution",
+      "tier": "project"
+    }
+  ],
+  "payload": {
+    "plumsDesktop": {
+      "sdkVersion": "2",
+      "runtime": "main.js",
+      "engines": [
+        {
+          "id": "local",
+          "title": "Synthetic local probe",
+          "entry": "engine.mjs",
+          "runtime": "node",
+          "platforms": ["darwin-arm64"],
+          "protocol": "jsonrpc-jsonl-v1"
+        }
+      ],
+      "contributes": {
+        "commands": [
+          {
+            "name": "probe",
+            "title": "Synthetic crash probe",
+            "inputSchema": {
+              "type": "object",
+              "properties": {
+                "method": {
+                  "enum": ["ping", "crash"]
+                },
+                "input": {
+                  "type": "object"
+                }
+              },
+              "required": ["method", "input"],
+              "additionalProperties": false
+            }
+          }
+        ]
+      },
+      "foundation": {
+        "requirementVersion": "1.0",
+        "protocolRange": "^1.0.0",
+        "sdk": {
+          "id": "org.plums.sdk",
+          "version": "2.0.0"
+        },
+        "features": ["sdk.register", "sdk.engine"]
+      }
+    }
+  }
+}

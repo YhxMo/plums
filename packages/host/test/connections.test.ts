@@ -175,6 +175,26 @@ it("runs a non-model protocol entirely in the external runner and binds credenti
     Authorization: "Test private-fixture-key",
   });
 });
+it("enables a connection with a one-character credential without using redacted settings as configuration", async () => {
+  const f = await fixture();
+  await f.save({}, "a");
+  await f.host.setSettings(
+    f.id,
+    "weather",
+    {
+      url: "https://public-api.example/base",
+      selection: "fifth-test-protocol",
+    },
+    {},
+  );
+  await f.host.enable(f.id, "weather");
+  await f.invoke("fetch");
+  expect(f.egress.records).toHaveLength(1);
+  expect(f.egress.records[0]?.url).toBe(
+    "https://public-api.example/forecast?city=test",
+  );
+  expect(f.egress.records[0]?.headers?.["X-Test-Token"]).toBe("a");
+});
 it.each(["//other.example/steal", "/\\other.example/steal", "/path#fragment"])(
   "never sends a request crossing the approved origin (%s)",
   async (requestPath) => {

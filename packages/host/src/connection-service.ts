@@ -58,7 +58,9 @@ export async function configuredConnection(
     (c) => c.id === connectionId,
   );
   if (!declaration) return undefined;
-  const settings = await core.describeSettings(packageId);
+  // describeSettings is presentation data: redaction can change both keys and values.
+  // Missing credentials remain unconfigured so management can save them.
+  const settings = await core.settingsSnapshot(packageId);
   const base = connectionURL(
     settings.values[declaration.baseURLSetting],
     declaration.baseURLSetting,

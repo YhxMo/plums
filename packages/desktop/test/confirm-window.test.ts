@@ -439,6 +439,7 @@ async function findConfirmation(
   await expect
     .poll(() => nativeWindow.evaluate((window) => window.isVisible()))
     .toBe(true);
+  await application.evaluate(({ app }) => app.focus({ steal: true }));
   await nativeWindow.evaluate((window) => window.focus());
   await expect
     .poll(() => nativeWindow.evaluate((window) => window.isFocused()))

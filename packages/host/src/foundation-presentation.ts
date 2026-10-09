@@ -173,7 +173,7 @@ export function presentLocalAuthorizationConfirmation(
   secrets: readonly string[],
 ): ConfirmRequest {
   return project(value, secrets, {
-    fields: { subject: false, action: false, message: false },
+    fields: { subject: false, action: false, message: false, presentation: true },
   }) as ConfirmRequest;
 }
 

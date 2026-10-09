@@ -563,6 +563,14 @@ export async function runCapability(
       await gate?.assertCurrent();
       return checked;
     };
+    const requiresConfirmation =
+      input.request.kind === "service"
+        ? initialScope.service?.effect === "external-write" ||
+          (outbound(initialScope.service?.effect) && !task && !grant?.covered)
+        : !task &&
+          (ctx.tasks?.requiresApproval() ||
+            input.request.kind !== "fs" ||
+            input.request.operation === "write");
     if (ctx.capabilityGate) {
       await recheck();
       gate = await ctx.capabilityGate({
@@ -572,19 +580,11 @@ export async function runCapability(
         target: initial.permission.target,
         callers: delegates,
         request: input.request,
+        requiresConfirmation,
       });
       await recheck();
     }
-    if (
-      !gate &&
-      (input.request.kind === "service"
-        ? initialScope.service?.effect === "external-write" ||
-          (outbound(initialScope.service?.effect) && !task && !grant?.covered)
-        : !task &&
-          (ctx.tasks?.requiresApproval() ||
-            input.request.kind !== "fs" ||
-            input.request.operation === "write"))
-    ) {
+    if (!gate && requiresConfirmation) {
       await emit("confirmation", "requested");
       const { permission, name } = initial;
       const action =

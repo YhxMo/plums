@@ -81,7 +81,7 @@ it("guides a ready Agent through configuration, keeps failed saves reviewable an
           },
           secrets: {},
         },
-        manifest: { dependencies: [], permissions: [] },
+        manifest: { formatVersion: "2.0", dependencies: [], permissions: [] },
       };
       const app = {
         id: "workspace",
@@ -91,6 +91,7 @@ it("guides a ready Agent through configuration, keeps failed saves reviewable an
         enabled: false,
         settings: { values: {}, secrets: {} },
         manifest: {
+          formatVersion: "2.0",
           dependencies: [{ id: "model", kind: "connector", range: "*" }],
           permissions: [],
         },
@@ -119,6 +120,7 @@ it("guides a ready Agent through configuration, keeps failed saves reviewable an
               ? "ready"
               : "needs-config";
           if (method === "audit") return [];
+          if (method === "tierPlan") return { fingerprint: "local-ui-fixture", selection: { ceiling: "sandbox", projects: [], readOnly: [], components: [] }, current: { revision: 0, tier: { instanceId: "fixture", ceiling: "sandbox", projects: [], readOnly: [], components: [] }, grants: [] }, entries: [], projects: [], readOnly: [] };
           state.calls.push({ method, args });
           switch (method) {
             case "list":
@@ -393,6 +395,7 @@ it("keeps initial loading and failure distinct and rejects outdated Agent and li
           if (method === "agentState") return null;
           if (method === "agentStatus") return "ready";
           if (method === "audit") return [];
+          if (method === "tierPlan") return { fingerprint: "local-ui-fixture", selection: { ceiling: "sandbox", projects: [], readOnly: [], components: [] }, current: { revision: 0, tier: { instanceId: "fixture", ceiling: "sandbox", projects: [], readOnly: [], components: [] }, grants: [] }, entries: [], projects: [], readOnly: [] };
           state.calls.push(method);
           if (method === "list") {
             if (!state.started) {
@@ -596,6 +599,7 @@ it("renders the shell and dialogs in both themes at desktop and narrow widths wi
           },
         },
         manifest: {
+          formatVersion: "2.0",
           id: kind,
           kind,
           name: `${kind} 组件名称与边界内容`,
@@ -628,6 +632,7 @@ it("renders the shell and dialogs in both themes at desktop and narrow widths wi
           if (method === "agentState") return null;
           if (method === "agentStatus") return "needs-config";
           if (method === "audit") return [];
+          if (method === "tierPlan") return { fingerprint: "local-ui-fixture", selection: { ceiling: "sandbox", projects: [], readOnly: [], components: [] }, current: { revision: 0, tier: { instanceId: "fixture", ceiling: "sandbox", projects: [], readOnly: [], components: [] }, grants: [] }, entries: [], projects: [], readOnly: [] };
           switch (method) {
             case "list":
               return [record];

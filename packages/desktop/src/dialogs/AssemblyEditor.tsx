@@ -12,8 +12,10 @@ import { ManagedDialog } from "../managed-dialog.js";
 import type { CatalogItem, AssemblyDraft } from "../shared/types.js";
 import { newerVersion } from "../shared/version.js";
 import { EmptyState } from "../components/EmptyState.js";
+import { LocalPermissions } from "../components/LocalPermissions.js";
 interface Props {
   record?: AgentRecord;
+  resources?: import("../shared/types.js").Resource[];
   seed?: AssemblyDraft;
   library: CatalogItem[];
   busy: boolean;
@@ -47,6 +49,7 @@ const groups = [
 ] as const;
 export function AssemblyEditor({
   record,
+  resources = [],
   seed,
   library,
   busy,
@@ -391,6 +394,13 @@ export function AssemblyEditor({
           </select>
           <small>创建会检查全部组件要求。底座选择不会批准组件权限。</small>
         </label>
+      )}
+      {record && (
+        <LocalPermissions
+          key={`permissions:${record.instanceId}`}
+          record={record}
+          resources={resources}
+        />
       )}
       <label className="field">
         Agent 名称

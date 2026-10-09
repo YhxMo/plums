@@ -162,6 +162,9 @@ export interface AuditEvent {
   }[];
   assessmentId?: string;
   modeGeneration?: number;
+  artifactDigest?: string;
+  mode?: string;
+  operationFingerprint?: string;
   timestamp: string;
   extensionId?: string;
   callerIds?: string[];
@@ -208,4 +211,6 @@ export type CapabilityGate = (input: {
   target: string;
   callers: readonly CapabilityCaller[];
   request: CapabilityRequest;
+  /** Computed after authorization and reusable scope checks, never supplied by a caller. */
+  requiresConfirmation: boolean;
 }) => Promise<{ assertCurrent(): void | Promise<void> } | undefined>;

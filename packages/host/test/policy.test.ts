@@ -25,6 +25,7 @@ async function fixture(body?: string) {
         reason: "Internal fixture file",
       },
     ],
+    [{ name: "direct", title: "Direct fixture" }],
   );
   hosts.push(f.host);
   dirs.push(f.dir);
@@ -44,7 +45,16 @@ async function fixture(body?: string) {
       operation: "read",
       input: { path: file },
     });
-  return { ...f, run, direct, files };
+  const single = () =>
+    f.host.invoke(
+      f.a.instanceId,
+      "provider",
+      "provider",
+      "commands",
+      "direct",
+      { path: "allowed.txt" },
+    );
+  return { ...f, run, direct, single, files };
 }
 it("same consumer only changes the fixed policy binding for allow, deny, confirm and custom decisions", async () => {
   const f = await fixture();
@@ -121,15 +131,35 @@ it.each([
   "return {...decision('allow'),extra:true};",
   "throw Error('private-raw-failure');",
   "await s.capability('files',{kind:'fs',operation:'read',path:'allowed.txt'});return decision('allow');",
-])("invalid or recursive policy evaluation fails closed: %s", async (body) => {
-  const f = await fixture(body);
-  await select(f.host, f.a.instanceId, "other");
-  await grant(f.host, f.a.instanceId);
-  await expect(f.direct()).rejects.toMatchObject({
-    details: { reason: "POLICY_UNAVAILABLE", executionState: "not_started" },
-  });
-  expect(JSON.stringify(f.audit)).not.toContain("private-raw-failure");
-});
+])(
+  "failed policy confirms a single-use capability and refuses an extra gate: %s",
+  async (body) => {
+    const f = await fixture(body);
+    await select(f.host, f.a.instanceId, "other");
+    await grant(f.host, f.a.instanceId);
+    let confirmations = 0;
+    f.options.confirm.ask = async () => {
+      confirmations++;
+      return true;
+    };
+    expect(((await f.single()) as any).data).toEqual([
+      ...Buffer.from("fixture-file"),
+    ]);
+    expect(confirmations).toBe(1);
+    expect(
+      f.audit.some(
+        (e) =>
+          e.phase === "policy" &&
+          e.outcome === "failed" &&
+          e.reason === "POLICY_FAILED",
+      ),
+    ).toBe(true);
+    await expect(f.direct()).rejects.toMatchObject({
+      details: { reason: "POLICY_UNAVAILABLE", executionState: "not_started" },
+    });
+    expect(JSON.stringify(f.audit)).not.toContain("private-raw-failure");
+  },
+);
 it("only boolean true confirms; revocation during trusted confirmation prevents the actual read", async () => {
   const f = await fixture();
   await select(f.host, f.a.instanceId, "confirm");
@@ -159,7 +189,7 @@ it("only boolean true confirms; revocation during trusted confirmation prevents 
   expect(reads).toBe(0);
   expect((await f.host.policyPlan(f.a.instanceId)).active).toBe(null);
 });
-it("the production ten-second policy timeout refuses with no human fallback", async () => {
+it("the production ten-second policy timeout falls back to trusted confirmation", async () => {
   const f = await fixture(
     "await new Promise(()=>{});return decision('allow');",
   );
@@ -170,10 +200,10 @@ it("the production ten-second policy timeout refuses with no human fallback", as
     confirmations++;
     return true;
   };
-  await expect(f.direct()).rejects.toMatchObject({
-    details: { reason: "POLICY_UNAVAILABLE", executionState: "not_started" },
-  });
-  expect(confirmations).toBe(0);
+  expect(((await f.single()) as any).data).toEqual([
+    ...Buffer.from("fixture-file"),
+  ]);
+  expect(confirmations).toBe(1);
 }, 16000);
 it("an asynchronous policy audit cannot preserve a revoked decision", async () => {
   const f = await fixture();
@@ -348,7 +378,7 @@ it.runIf(process.platform === "darwin").each(["timer", "status"])(
   20000,
 );
 
-it("renewing after observed expiry waits for the old Agent cleanup before approving a new lease", async () => {
+it("renewing after observed expiry waits for the selected component cleanup before approving a new lease", async () => {
   const f = await fixture();
   await select(f.host, f.a.instanceId, "allow");
   await grant(f.host, f.a.instanceId);
@@ -357,13 +387,13 @@ it("renewing after observed expiry waits for the old Agent cleanup before approv
   const waiting = new Promise<void>((r) => (entered = r)),
     cleanup = new Promise<void>((r) => (release = r));
   const common = (f.host as any).common;
-  const stop = common.stopAgent.bind(common);
+  const stop = common.stopComponents.bind(common);
   const spy = vi
-    .spyOn(common, "stopAgent")
-    .mockImplementation(async (s: any) => {
+    .spyOn(common, "stopComponents")
+    .mockImplementation(async (s: any, packages: any) => {
       entered();
       await cleanup;
-      return stop(s);
+      return stop(s, packages);
     });
   try {
     (f.host as any).policy.leases.get(f.a.instanceId).expires =
@@ -422,4 +452,50 @@ it("a live lease rejects replacement before an asynchronous plan can turn it int
   } finally {
     spy.mockRestore();
   }
+});
+
+it("host context and automatic audit bind tier, confirmation and provider identity", async () => {
+  const f = await fixture(
+    "return decision(c.tier==='sandbox'&&c.requiresConfirmation===true?'allow':'deny');",
+  );
+  const selected = (
+    (await f.host.resources(f.a.instanceId)) as any
+  ).record.components.find((p: any) => p.packageId === "policy-other");
+  await select(f.host, f.a.instanceId, "other");
+  await grant(f.host, f.a.instanceId);
+  let confirmations = 0;
+  f.options.confirm.ask = async () => {
+    confirmations++;
+    return false;
+  };
+  expect(((await f.single()) as any).data).toEqual([
+    ...Buffer.from("fixture-file"),
+  ]);
+  expect(confirmations).toBe(0);
+  expect(
+    f.audit.findLast((e) => e.phase === "policy" && e.outcome === "allowed"),
+  ).toMatchObject({
+    providerId: "policy-other",
+    artifactDigest: selected.digest,
+    mode: "other",
+    tier: "sandbox",
+    reason: "POLICY_ALLOW",
+    operationFingerprint: expect.stringMatching(/^[a-f0-9]{64}$/),
+  });
+});
+it("a disabled provider falls back for a new single-use request without restoring its lease", async () => {
+  const f = await fixture();
+  await select(f.host, f.a.instanceId, "allow");
+  await grant(f.host, f.a.instanceId);
+  await f.host.disable(f.a.instanceId, "policy-allow");
+  let confirmations = 0;
+  f.options.confirm.ask = async () => {
+    confirmations++;
+    return true;
+  };
+  expect(((await f.single()) as any).data).toEqual([
+    ...Buffer.from("fixture-file"),
+  ]);
+  expect(confirmations).toBe(1);
+  expect((await f.host.policyPlan(f.a.instanceId)).active).toBe(null);
 });

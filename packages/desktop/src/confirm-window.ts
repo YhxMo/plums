@@ -3,7 +3,13 @@ import { randomUUID } from "node:crypto";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 export interface ConfirmationView {
-  kind: "capability" | "consent" | "task" | "grant" | "engine-trust";
+  kind:
+    | "capability"
+    | "consent"
+    | "task"
+    | "grant"
+    | "engine-trust"
+    | "local-authorization";
   subject: string;
   action: string;
   reason?: string;

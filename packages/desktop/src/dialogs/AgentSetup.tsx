@@ -1,4 +1,5 @@
 import { ProtocolBindings } from "../components/ProtocolBindings.js";
+import { LocalPermissions } from "../components/LocalPermissions.js";
 import { KindIcon } from "../components/KindIcon.js";
 import { useState } from "react";
 import { ManagedDialog } from "../managed-dialog.js";
@@ -191,6 +192,11 @@ export function AgentSetup({
           </p>
         )}
       </form>
+      <LocalPermissions
+        key={`permissions:${record.instanceId}`}
+        record={record}
+        resources={resources}
+      />
     </ManagedDialog>
   );
 }

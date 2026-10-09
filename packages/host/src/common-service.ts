@@ -737,4 +737,20 @@ export class CommonService {
         this.viewers.delete(id);
       }
   }
+  async stopComponents(s: Session, components: string[]) {
+    const tasks = [...this.taskEdges].filter(
+      ([, e]) => e.s === s && e.principals.some((p) => components.includes(p)),
+    );
+    for (const [id, h] of this.handles)
+      if (h.s === s && components.includes(h.owner)) this.handles.delete(id);
+    await this.tasks.stopComponents(s.record.instanceId, [
+      ...new Set([...components, ...tasks.map(([, e]) => e.owner)]),
+    ]);
+    for (const component of components)
+      this.identities.get(s)?.delete(component);
+    for (const [id] of tasks) {
+      this.taskEdges.delete(id);
+      this.viewers.delete(id);
+    }
+  }
 }

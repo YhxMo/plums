@@ -1,3 +1,4 @@
+import { LocalPermissions } from "../components/LocalPermissions.js";
 import { WorkspaceComposition } from "../components/WorkspaceComposition.js";
 import { PolicyModes } from "../components/PolicyModes.js";
 import { ControlledTasks } from "../components/ControlledTasks.js";
@@ -173,26 +174,11 @@ export function AgentDetailView({
       <ControlledTasks record={record} resources={resources} />
       <BusinessResources instanceId={record.instanceId} revision={resources} />
       <PolicyModes instanceId={record.instanceId} revision={resources} />
-      {resources.some((p) => p.engines?.length) && (
-        <section className="panel" aria-label="本机引擎管理">
-          <h2>本机引擎</h2>
-          <p>
-            引擎以普通本机程序权限运行。关闭业务界面后仍可在这里停止或撤销信任。
-          </p>
-          {resources.flatMap((p) =>
-            (p.engines ?? []).map((engine) => (
-              <EngineRow
-                key={`${p.id}:${engine.engineId}`}
-                resource={p}
-                engine={engine}
-                onAction={(method) =>
-                  onAction(method, p, { engineId: engine.engineId })
-                }
-              />
-            )),
-          )}
-        </section>
-      )}
+      <LocalPermissions
+        key={`permissions:${record.instanceId}`}
+        record={record}
+        resources={resources}
+      />
       {resources.some((p) => p.desktop?.protocols?.requires?.length) && (
         <ProtocolBindings
           key={record.instanceId}
@@ -261,7 +247,7 @@ export function AgentDetailView({
           <section className="panel">
             <h2>工作目录</h2>
             <p>
-              普通扩展只能访问已绑定并同意的目录。本机引擎的文件访问由引擎自行管理。
+              普通扩展按声明访问已绑定目录。本地执行还须符合组件档位与已确认范围，整机档位具有更广访问能力。
             </p>
             {roots.length ? (
               roots.map((name) => (
@@ -344,65 +330,6 @@ function RootRow({
           </button>
         )}
       </div>
-    </div>
-  );
-}
-
-function EngineRow({
-  resource,
-  engine,
-  onAction,
-}: {
-  resource: Resource;
-  engine: NonNullable<Resource["engines"]>[number];
-  onAction: (method: string) => Promise<unknown>;
-}) {
-  const action = useAction(`${resource.id}:${engine.engineId}`);
-  const states = {
-    stopped: "已停止",
-    starting: "启动中",
-    running: "运行中",
-    stopping: "停止中",
-    crashed: "已崩溃",
-  };
-  return (
-    <div className="panel">
-      <strong>
-        {resource.desktop?.engines?.find((d) => d.id === engine.engineId)
-          ?.title ?? engine.engineId}
-      </strong>
-      <p role="status">
-        {states[engine.state]} · {engine.trusted ? "已信任" : "尚未信任"}
-      </p>
-      <div className="inline-actions">
-        <button
-          disabled={
-            action.pending ||
-            !resource.enabled ||
-            ["running", "starting", "stopping"].includes(engine.state)
-          }
-          onClick={() => void action.run(() => onAction("startEngine"))}
-        >
-          启动引擎
-        </button>
-        <button
-          disabled={action.pending || engine.state === "stopped"}
-          onClick={() => void action.run(() => onAction("stopEngine"))}
-        >
-          停止引擎
-        </button>
-        <button
-          disabled={action.pending || !engine.trusted}
-          onClick={() => void action.run(() => onAction("revokeEngine"))}
-        >
-          撤销信任
-        </button>
-      </div>
-      {action.error && (
-        <p role="alert" className="notice error">
-          {action.error}
-        </p>
-      )}
     </div>
   );
 }

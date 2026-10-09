@@ -24,7 +24,7 @@ export function permissionCopy(
         ? `连接当前 Agent 配置的 HTTPS 服务${serviceTargets?.length ? `：${serviceTargets.join("、")}` : ""}`
         : `使用 ${target} 服务：${typed.operations.join("、")}`;
     if (typed.kind === "engine")
-      return `启动本机引擎 ${target}（读取和修改文件、运行程序及访问网络；首次启动需单独信任）`;
+      return `本地执行 ${target}（${typed.tier === "project" ? "项目" : "整机"}档位，须确认当前组装和范围，且不超过 Agent 上限）`;
     if (typed.kind === "exec") return `运行程序 ${target}`;
     return `把数据发送到 ${target}`;
   }

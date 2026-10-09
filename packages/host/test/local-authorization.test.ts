@@ -1,5 +1,14 @@
 import { afterEach, expect, it, vi } from "vitest";
-import { mkdtemp, mkdir, rename, rm } from "node:fs/promises";
+import {
+  mkdtemp,
+  mkdir,
+  rename,
+  rm,
+  link,
+  unlink,
+  writeFile,
+  symlink,
+} from "node:fs/promises";
 import path from "node:path";
 import os from "node:os";
 import {
@@ -17,6 +26,7 @@ import {
   type TierSelection,
 } from "../src/local-authorization.js";
 import { engineManifest } from "./platform-fixtures.js";
+import { addPolicy, select } from "./policy-fixture.js";
 const hosts: DesktopHost[] = [],
   dirs: string[] = [];
 afterEach(async () => {
@@ -28,13 +38,26 @@ afterEach(async () => {
 });
 const simple =
   "import{createInterface}from'node:readline';let context;const send=(id,result)=>console.log(JSON.stringify({jsonrpc:'2.0',id,result}));createInterface({input:process.stdin}).on('line',l=>{const m=JSON.parse(l);if(m.method==='initialize'){context=m.params.context;send(m.id,{protocol:'jsonrpc-jsonl-v1'});}else if(m.method==='context')send(m.id,context);else if(m.method==='pid')send(m.id,process.pid);else if(m.method==='crash')process.exit(1);else send(m.id,m.params);});";
-async function component(id: string, tier?: "project", version = "1.0.0") {
+async function component(
+  id: string,
+  tier?: "project",
+  version = "1.0.0",
+  fileAccess = false,
+) {
   const manifest = engineManifest();
   manifest.id = id;
   manifest.name = id;
   manifest.version = version;
   manifest.dependencies = [];
   manifest.permissions = manifest.permissions.slice(0, 1);
+  if (fileAccess)
+    manifest.permissions.push({
+      id: "files",
+      kind: "fs",
+      target: "agent-data",
+      operations: ["read"],
+      reason: "Fixture",
+    });
   if (tier)
     Object.assign(manifest.permissions[0]!, {
       tier,
@@ -49,7 +72,7 @@ async function component(id: string, tier?: "project", version = "1.0.0") {
     "ui/index.html": Buffer.from("<p>fixture</p>"),
   });
 }
-async function fixture(tier?: "project") {
+async function fixture(tier?: "project", fileAccess = false) {
   const base = await mkdtemp(
     path.join(os.tmpdir(), "plums-local-authorization-"),
   );
@@ -80,7 +103,7 @@ async function fixture(tier?: "project") {
     host.importLibrary(
       ((await host.preview(bytes)) as { token: string }).token,
     );
-  const first = await put(await component("first", tier)),
+  const first = await put(await component("first", tier, "1.0.0", fileAccess)),
     second = await put(await component("second", tier));
   const record = await host.createAgent("Tier fixture", [
     first.digest,
@@ -122,6 +145,157 @@ async function fixture(tier?: "project") {
     put,
   };
 }
+it.runIf(process.platform === "darwin" && process.arch === "arm64")(
+  "project admission rejects missing inode aliases while allowing aliases contained in the root",
+  async () => {
+    const f = await fixture("project");
+    const outside = path.join(f.base, "outside.txt"),
+      first = path.join(f.project, "first.txt");
+    await writeFile(outside, "fixture");
+    await link(outside, first);
+    await expect(f.host.tierPlan(f.id, f.selection)).rejects.toMatchObject({
+      code: "TIER_UNAVAILABLE",
+      details: { reason: "PROJECT_ALIASES_UNVERIFIED" },
+    });
+    await unlink(first);
+    await writeFile(first, "project");
+    await link(first, path.join(f.project, "second.txt"));
+    await symlink(outside, path.join(f.project, "symbolic.txt"));
+    expect(await f.host.tierPlan(f.id, f.selection)).toMatchObject({
+      projects: [{ root: "work" }],
+    });
+  },
+);
+it("component changes and revocation preserve an unrelated local entry's PID", async () => {
+  const f = await fixture();
+  await f.approve();
+  await f.host.startEngine(f.id, "second", "local");
+  const second = await f.host.engineCall(f.id, "second", "request", {
+    engineId: "local",
+    method: "pid",
+    input: {},
+  });
+  await f.host.startEngine(f.id, "first", "local");
+  await f.host.engineCall(f.id, "first", "request", {
+    engineId: "local",
+    method: "pid",
+    input: {},
+  });
+  await f.host.revokeLocal(f.id, "first");
+  expect(
+    await f.host.engineCall(f.id, "second", "request", {
+      engineId: "local",
+      method: "pid",
+      input: {},
+    }),
+  ).toBe(second);
+  await f.approve();
+  await f.host.startEngine(f.id, "first", "local");
+  await f.host.engineCall(f.id, "first", "request", {
+    engineId: "local",
+    method: "pid",
+    input: {},
+  });
+  await f.host.setSettings(f.id, "first", {}, {});
+  expect(await f.host.engineStatus(f.id, "first", "local")).toMatchObject({
+    state: "stopped",
+  });
+  expect(
+    await f.host.engineCall(f.id, "second", "request", {
+      engineId: "local",
+      method: "pid",
+      input: {},
+    }),
+  ).toBe(second);
+  await f.host.disable(f.id, "first");
+  expect(
+    await f.host.engineCall(f.id, "second", "request", {
+      engineId: "local",
+      method: "pid",
+      input: {},
+    }),
+  ).toBe(second);
+  await f.host.bindRoot(f.id, "work", f.project);
+  expect(
+    await f.host.engineCall(f.id, "second", "request", {
+      engineId: "local",
+      method: "pid",
+      input: {},
+    }),
+  ).toBe(second);
+  await f.host.uninstallPackage(f.id, "first");
+  expect(
+    await f.host.engineCall(f.id, "second", "request", {
+      engineId: "local",
+      method: "pid",
+      input: {},
+    }),
+  ).toBe(second);
+});
+it("policy lease expiry stops only selected components in the same Agent", async () => {
+  const f = await fixture(undefined, true);
+  await addPolicy(f.host, f.id, "allow");
+  await select(f.host, f.id, "allow");
+  await f.approve();
+  await f.host.startEngine(f.id, "first", "local");
+  await f.host.engineCall(f.id, "first", "request", {
+    engineId: "local",
+    method: "pid",
+    input: {},
+  });
+  await f.host.startEngine(f.id, "second", "local");
+  const second = await f.host.engineCall(f.id, "second", "request", {
+    engineId: "local",
+    method: "pid",
+    input: {},
+  });
+  const plan = await f.host.policyPlan(f.id);
+  await f.host.grantPolicyScope(
+    f.id,
+    plan.fingerprint,
+    900_000,
+    plan.available.filter((r) => r.componentId === "first"),
+  );
+  const policy = (f.host as any).policy;
+  policy.leases.get(f.id).expires = performance.now() - 1;
+  await f.host.policyStatus(f.id);
+  await policy.settled(f.id);
+  expect(await f.host.engineStatus(f.id, "first", "local")).toMatchObject({
+    state: "stopped",
+  });
+  expect(
+    await f.host.engineCall(f.id, "second", "request", {
+      engineId: "local",
+      method: "pid",
+      input: {},
+    }),
+  ).toBe(second);
+});
+it("reconciles an authorization audit when the subsequent commit fails", async () => {
+  const f = await fixture();
+  const session = (
+    f.host as unknown as { sessions: Map<string, Session> }
+  ).sessions.get(f.id)!;
+  vi.spyOn(session.core, "commitLocalAuthorization").mockRejectedValueOnce(
+    new Error("fixture write failed"),
+  );
+  await expect(f.approve()).rejects.toMatchObject({
+    code: "CAPABILITY_FAILED",
+    details: { phase: "local_authorization_commit" },
+  });
+  const approved = f.audit.find(
+    (e) => e.reason === "LOCAL_AUTHORIZATION_CONFIRMED",
+  )!;
+  expect(
+    f.audit.find((e) => e.reason === "LOCAL_AUTHORIZATION_NOT_APPLIED"),
+  ).toMatchObject({
+    callId: approved.callId,
+    phase: "grant",
+    outcome: "failed",
+    executionState: "not_started",
+  });
+  expect((await f.host.tierStatus(f.id)).grants).toEqual([]);
+});
 it("one trusted summary authorizes two machine processes without per-engine prompts", async () => {
   const f = await fixture();
   expect(await f.host.tierStatus(f.id)).toMatchObject({

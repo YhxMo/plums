@@ -329,6 +329,8 @@ export interface Core {
     id: string,
   ): Promise<{ installed: InstalledPackage; manifest: Manifest }>;
   describeSettings(id: string): Promise<SettingsDescription>;
+  /** Trusted configuration metadata before presentation redaction; contains no secret values or refs. */
+  settingsSnapshot(id: string): Promise<SettingsDescription>;
   /** Trusted host checkpoint for concrete call edges; never supplied by package input. */
   runDelegatedCapability(
     input: RunDelegatedCapabilityInput,
@@ -892,6 +894,7 @@ export function createCore(options: CreateCoreOptions): Core {
       manifest: requireManifest(ctx, id),
     })),
     describeSettings: guard((id) => describeSettings(ctx, id)),
+    settingsSnapshot: guard((id) => describeSettings(ctx, id, false)),
     runDelegatedCapability: (raw, assertActive) => {
       const input = copyDelegatedInput(raw);
       const gate = async () => {

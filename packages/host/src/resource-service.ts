@@ -96,10 +96,19 @@ export class ResourceService {
     readonly store: ResourceStore,
     private hooks: Hooks,
   ) {}
-  invalidate(agentId: string) {
-    this.leases.delete(agentId);
+  invalidate(agentId: string, components?: string[]) {
+    const lease = this.leases.get(agentId);
+    if (
+      !components ||
+      lease?.selection.some((v) => components.includes(v.componentId))
+    )
+      this.leases.delete(agentId);
     for (const [id, h] of this.handles)
-      if (h.session.record.instanceId === agentId) this.handles.delete(id);
+      if (
+        h.session.record.instanceId === agentId &&
+        (!components || components.includes(h.packageId))
+      )
+        this.handles.delete(id);
   }
   close() {
     this.handles.clear();
@@ -600,6 +609,7 @@ export class ResourceService {
         packageId: pkg,
         callId,
         category: "resource",
+        requiresConfirmation: !reusable && !this.range(s),
         operation: op,
         target: h.binding.resourceId,
         intent: {

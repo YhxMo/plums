@@ -17,6 +17,7 @@ export async function fixture(
   runtime: "isolate" | "controlled-node" = "isolate",
   source?: string,
   permissions: ManifestV2["permissions"] = [],
+  providerCommands: { name: string; title: string }[] = [],
 ) {
   const dir = await mkdtemp(path.join(os.tmpdir(), "plums-common-runtime-"));
   const audit: AuditEvent[] = [];
@@ -57,7 +58,10 @@ export async function fixture(
           contributes:
             id !== "provider"
               ? { commands: [{ name: "run", title: "Run" }] }
-              : { tools: [{ name: "test", title: "Test" }] },
+              : {
+                  tools: [{ name: "test", title: "Test" }],
+                  commands: providerCommands,
+                },
           protocols:
             id !== "provider"
               ? {

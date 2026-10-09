@@ -916,6 +916,7 @@ async function fixture(holdRuntime = false) {
                   requirements: [],
                 })),
             };
+          case "tierPlan": return { fingerprint: "local-ui-fixture", selection: { ceiling: "sandbox", projects: [], readOnly: [], components: [] }, current: { revision: 0, tier: { instanceId: args.instanceId, ceiling: "sandbox", projects: [], readOnly: [], components: [] }, grants: [] }, entries: [], projects: [], readOnly: [] };
           case "policyPlan":
             return {
               fingerprint: "policy-fixture",

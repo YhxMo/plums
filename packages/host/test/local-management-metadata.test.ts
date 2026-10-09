@@ -151,6 +151,7 @@ it.each(["message", "action", "subject", "a"])(
     expect(Object.keys(request).sort()).toEqual([
       "action",
       "message",
+      "presentation",
       "subject",
     ]);
     expect(request.message).toContain(`Synthetic ${REDACTED}`);

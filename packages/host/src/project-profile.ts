@@ -99,6 +99,14 @@ export function projectProfile(options: ProjectProfileOptions): string {
   )
     throw unavailable();
   const parents = new Set<string>();
+  const projectAncestors = new Set<string>();
+  for (const project of o.projects) {
+    let ancestor = project;
+    while (ancestor !== "/") {
+      projectAncestors.add(ancestor);
+      ancestor = path.dirname(ancestor);
+    }
+  }
   for (const p of [...reads, o.node]) {
     let parent = path.dirname(p);
     while (parent !== "/") {
@@ -119,6 +127,8 @@ export function projectProfile(options: ProjectProfileOptions): string {
  (deny file-write* ${subpaths([o.snapshot, ...o.toolchains])})
  (deny file-read* file-write* ${subpaths(excluded.map((p) => path.join(o.userHome, p)))})
  (deny process-exec (literal "/usr/bin/open") (literal "/bin/launchctl") (literal "/usr/bin/osascript") (literal "/usr/bin/sandbox-exec"))
- (deny file-link)
+ (allow file-link ${subpaths(o.projects)})
+ (deny file-link (require-not (require-any ${subpaths(o.projects)})))
+ (deny file-write-unlink ${[...projectAncestors].map((p) => `(literal ${quote(p)})`).join(" ")})
  (deny syscall-unix (syscall-number SYS_setsid SYS_setpgid))`;
 }

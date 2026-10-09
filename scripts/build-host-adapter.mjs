@@ -22,7 +22,12 @@ for (const pkg of ["host", "core", "sdk"]) {
     if (
       !name.endsWith(".js") &&
       !name.endsWith(".cjs") &&
-      !["secure-fs", "controlled-probe"].includes(name)
+      ![
+        "secure-fs",
+        "controlled-probe",
+        "project-probe",
+        "project-scan",
+      ].includes(name)
     )
       continue;
     inputs[pkg + "/" + name] = createHash("sha256")
@@ -56,6 +61,8 @@ for (const name of [
   "engine-supervisor.js",
   "controlled-supervisor.js",
   "controlled-worker.cjs",
-  ...(process.platform === "darwin" ? ["secure-fs", "controlled-probe"] : []),
+  ...(process.platform === "darwin"
+    ? ["secure-fs", "controlled-probe", "project-probe", "project-scan"]
+    : []),
 ])
   await copyFile(path.join(dist, name), path.join(target, name));

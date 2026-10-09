@@ -523,8 +523,13 @@ export class CommonTasks {
     await this.cancel(this.get(id, owner, signature));
   }
   async stopAgent(agentId: string) {
+    return this.stopComponents(agentId);
+  }
+  async stopComponents(agentId: string, components?: string[]) {
     const owned = [...this.tasks.values()].filter(
-      (t) => t.description.owner.agentId === agentId,
+      (t) =>
+        t.description.owner.agentId === agentId &&
+        (!components || components.includes(t.description.owner.componentId)),
     );
     await Promise.all(owned.map((t) => this.cancel(t)));
     // Revocation/binding changes keep metadata, never prior business replies.

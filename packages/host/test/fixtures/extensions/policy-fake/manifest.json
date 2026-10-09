@@ -1,0 +1,68 @@
+{
+  "formatVersion": "2.0",
+  "kind": "extension",
+  "id": "fixture.policy-fake",
+  "name": "Synthetic policy",
+  "version": "1.0.0",
+  "description": "Test-only local execution; not distributed",
+  "license": "Apache-2.0",
+  "dependencies": [],
+  "permissions": [],
+  "payload": {
+    "plumsDesktop": {
+      "sdkVersion": "2",
+      "runtime": "main.js",
+      "contributes": {
+        "tools": [
+          {
+            "name": "assess",
+            "title": "Synthetic policy assessment"
+          }
+        ]
+      },
+      "foundation": {
+        "requirementVersion": "1.0",
+        "protocolRange": "^1.0.0",
+        "sdk": {
+          "id": "org.plums.sdk",
+          "version": "2.0.0"
+        },
+        "features": ["sdk.register", "sdk.settings"]
+      },
+      "common": {
+        "commonVersion": "1.0",
+        "features": ["policy-v1"],
+        "runtime": "isolate",
+        "policy": {
+          "provideId": "decision"
+        }
+      },
+      "protocols": {
+        "provides": [
+          {
+            "id": "decision",
+            "protocol": "org.plums.policy",
+            "version": "1.0.0",
+            "contribution": {
+              "kind": "tools",
+              "name": "assess"
+            }
+          }
+        ]
+      }
+    }
+  },
+  "settingsSchema": {
+    "type": "object",
+    "properties": {
+      "localDecision": {
+        "type": "string",
+        "enum": ["allow", "deny", "confirm", "invalid"],
+        "default": "allow",
+        "title": "Fixture local decision",
+        "description": "Deterministic test-only output"
+      }
+    },
+    "additionalProperties": false
+  }
+}

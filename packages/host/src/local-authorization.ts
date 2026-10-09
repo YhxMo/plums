@@ -1,3 +1,4 @@
+import { checkProjectLinks } from "./project-links.js";
 import { createHash, randomUUID } from "node:crypto";
 import { lstat, realpath } from "node:fs/promises";
 import path from "node:path";
@@ -119,7 +120,11 @@ export class LocalAuthorizations {
   assertAvailable(s: Session, packageId: string) {
     if (this.changing.get(s.record.instanceId)?.has(packageId)) changed();
   }
-  private async directory(s: Session, root: string): Promise<LocalDirectory> {
+  private async directory(
+    s: Session,
+    root: string,
+    project = false,
+  ): Promise<LocalDirectory> {
     const selected = s.record.roots[root];
     if (!selected || root === "agent-data") changed();
     try {
@@ -136,13 +141,16 @@ export class LocalAuthorizations {
         within(protectedDir, actual)
       )
         changed();
+      if (project) await checkProjectLinks(actual);
       return {
         root,
         path: actual,
         dev: String(identity.dev),
         ino: String(identity.ino),
       };
-    } catch {
+    } catch (error) {
+      if (error instanceof PlumsError && error.code === "TIER_UNAVAILABLE")
+        throw error;
       changed();
     }
   }
@@ -165,7 +173,7 @@ export class LocalAuthorizations {
     reason: string,
     phase: "grant" | "revoke",
     callId: string,
-    outcome: "allowed" | "denied" = "allowed",
+    outcome: "allowed" | "denied" | "failed" = "allowed",
   ) {
     const event: AuditEvent = {
       callId,
@@ -225,7 +233,13 @@ export class LocalAuthorizations {
         if (
           d.root === rebound ||
           enginePermissionKey(d) !==
-            enginePermissionKey(await this.directory(s, d.root))
+            enginePermissionKey(
+              await this.directory(
+                s,
+                d.root,
+                current.tier.projects.some((p) => p.root === d.root),
+              ),
+            )
         )
           invalid.add(d.root);
       } catch {
@@ -290,7 +304,7 @@ export class LocalAuthorizations {
     )
       changed();
     const projects = await Promise.all(
-      selection.projects.map((r) => this.directory(s, r)),
+      selection.projects.map((r) => this.directory(s, r, true)),
     );
     const readOnly = await Promise.all(
       selection.readOnly.map((r) => this.directory(s, r)),
@@ -455,10 +469,26 @@ export class LocalAuthorizations {
     const selected = plan.entries.filter((e) =>
       plan.selection.components.includes(e.packageId),
     );
+    const versionControl = await Promise.all(
+      plan.projects.map(async (d) => {
+        const marker = await lstat(path.join(d.path, ".git")).catch(
+          () => undefined,
+        );
+        return marker
+          ? ""
+          : `项目 ${d.root} 未发现版本控制标记，建议纳入版本控制并保持提交干净以便回滚。`;
+      }),
+    );
     const message = [
       `确认当前 Agent 的本地授权。档位上限：${tierNames[plan.selection.ceiling]}。`,
       `项目目录：${plan.projects.map((d) => `${d.root}（${d.path}）`).join("、") || "无"}。`,
       `额外只读目录：${plan.readOnly.map((d) => `${d.root}（${d.path}）`).join("、") || "无"}。`,
+      ...(plan.projects.length
+        ? [
+            "项目档位仅适用于受信任项目。硬链接创建拦截与启动前校验不是内核级 inode 防线，非后代进程运行期新增别名仍有风险；宿主不提供回滚，项目运行当前不可用。",
+            ...versionControl.filter(Boolean),
+          ]
+        : []),
       ...selected.map(
         (e) =>
           `${e.name}：${e.engines.length ? e.engines.map((g) => `入口 ${g.engineId}，${tierNames[g.tier]}档位，主机：${g.hosts.join("、") || "无"}${g.tier === "machine" ? `。${MACHINE_AUTHORIZATION_COPY}` : ""}`).join("；") : "无本地执行"}。`,
@@ -472,6 +502,7 @@ export class LocalAuthorizations {
     ].join("\n");
     const request = presentLocalAuthorizationConfirmation(
       {
+        presentation: "local-authorization",
         subject: s.record.name,
         action: message,
         message,
@@ -658,9 +689,29 @@ export class LocalAuthorizations {
       try {
         committed = await s.core.commitLocalAuthorization(next);
       } catch {
+        await this.event(
+          s,
+          current,
+          next,
+          "LOCAL_AUTHORIZATION_NOT_APPLIED",
+          phase,
+          callId,
+          "failed",
+        );
         failed("local_authorization_commit", callId);
       }
-      if (!committed) changed();
+      if (!committed) {
+        await this.event(
+          s,
+          current,
+          next,
+          "LOCAL_AUTHORIZATION_NOT_APPLIED",
+          phase,
+          callId,
+          "failed",
+        );
+        changed();
+      }
       if (cleanupFailed) failed("local_authorization_cleanup", callId);
     } finally {
       this.changing.delete(s.record.instanceId);

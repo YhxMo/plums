@@ -2,7 +2,7 @@
 
 此目录只供 vitest 使用。扩展源码、清单和自造卡均按 Apache-2.0 维护，不作为官方扩展发布，应用没有自动安装入口。`pack.ts` 在测试运行时调用 `createArchive`，不向仓库写 ZIP。PNG 由辅助函数生成一个像素，并嵌入自造 JSON。
 
-九个组件按实际使用声明底座 SDK 功能，包括失败路径的 failResponse 与 MCP 的 mcpCheck。不支持的底座在启动前拒绝组装，不分析业务源码推断需求，也不自动切换到官方实现。SDK 矩阵、报告格式及底座选择入口见[平台符合性工具](../../../../../docs/common-contract-conformance.md)。
+测试组件按实际使用声明底座 SDK 功能，包括失败路径的 failResponse 与 MCP 的 mcpCheck。不支持的底座在启动前拒绝组装，不分析业务源码推断需求，也不自动切换到官方实现。SDK 矩阵、报告格式及底座选择入口见[平台符合性工具](../../../../../docs/common-contract-conformance.md)。
 
 已实现 `card-parser` 和 `card-parser-alt` 两种独立解析方式：前者直接映射字段，后者按字段表映射。两者只消费 SDK 提供的当前 Agent 卡 payload。它们不请求文件、网络、资源或本地执行权限。
 
@@ -19,3 +19,5 @@
 运行这部分：先 `pnpm build`，再 `pnpm exec vitest run packages/host/test/scenarios packages/desktop/test/scenario-chat-ui.test.ts --maxWorkers=1`。两个整机夹具已覆盖 S-F，编码/项目工具与 S-B/S-E/S-G/S-H 尚未完整实现，这些场景通过不代表完整需求完成。
 
 两个 `machine-probe` 夹具在临时目录中运行真实独立本地进程，不读真实主目录，不联网。第一个回调 Fake 模型，第二个用于证明旧信任不扩大。记忆的 localProbe 是缺少本地执行权限的负向检查。`scenarios/machine.test.ts` 还覆盖普通 common/资源/任务范围和策略租约同时活动；本地回调的 common/资源接入、选择性生命周期与项目沙箱继续实施。
+
+本轮新增 coding-tools、crash-probe、policy-fake。前两者默认声明项目档位；策略夹具只返回固定决定，不做风险审查。remaining.test.ts 的整机 crash 变体仅验证可用的生命周期，不作为 S-G 项目成功路径。S-E 在全新目录直接导入后上限为沙箱、无本地授权；导入制品固定到导出 ZIP 字节的摘要。S-B 尚因候选功能声明不匹配阻塞；项目入口仍不可用，不将拒绝行为当成功场景。

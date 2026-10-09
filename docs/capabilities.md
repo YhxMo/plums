@@ -157,6 +157,8 @@ Sink 或审计失败使用 `CAPABILITY_FAILED`，details 为 `{ callId, phase, e
 
 `createCore` 的 `model` 为可选，原调用兼容；core 不运行模型循环。新增 `getPackage(id)`、`getPackageContents(id)`、`describeSettings(id)` 和 `getSecretReferences(id)` 供可信宿主读取。`describeSettings` 返回 schema、脱敏 values 和字段是否已配置的 secrets 布尔映射，不返回密钥值或引用；历史密钥引用仍参与脱敏、卸载和导出检查。
 
+可信宿主用 `settingsSnapshot(id)` 读取呈现脱敏前的非秘密设置、默认值与密钥就绪布尔映射；密钥值和引用仍不返回。连接管理不要求未配置的密钥存在，允许用户进入配置后保存。此快照不绑定到 SDK 或包前端；对外界面继续使用 `describeSettings`。
+
 ```ts
 await core.runDelegatedCapability({
   packageId: "connector",
@@ -222,10 +224,18 @@ MCP v2 的连接器 permissionId 可对应 egress，或包含 request 操作的 
 
 ### 桌面第三方策略 gate
 
-可信宿主可注入 `capabilityGate`；core 在完成原有声明、同意、整链和实际范围检查后调用它，并在确认、审计和 Sink 前后反复执行返回的 `assertCurrent`。只有可信宿主 gate 接受时替代本次安全模式确认；core 不加载或解释第三方策略。DesktopHost 的 gate 使用固定策略、严格决定 schema、10 秒超时与有效用户最大范围。未选择策略继续使用上述桌面安全确认；已选择而缺租约/决定无效时拒绝，不能回落单次确认。SDK 没有 gate 配置权限。详见[SDK v2 策略接入](sdk-v2.md#第三方策略接入阶段-4)。
+可信宿主可注入 `capabilityGate`；core 在完成原有声明、同意、整链和实际范围检查后调用它，并在确认、审计和 Sink 前后反复执行返回的 `assertCurrent`。只有可信宿主 gate 接受时替代本次安全模式确认；core 不加载或解释第三方策略。DesktopHost 的 gate 使用固定策略、严格决定 schema、10 秒超时与有效用户最大范围。未选择策略继续使用上述桌面安全确认；健康提供者缺租约时拒绝；core 向 gate 提供本次 requiresConfirmation，决定无效/超时或提供者失效时，仅本需要单次确认的操作回退可信窗口，其余返回 POLICY_UNAVAILABLE。回退不能恢复租约或越过 core 授权。SDK 没有 gate 配置权限。详见[SDK v2 策略接入](sdk-v2.md#第三方策略接入阶段-4)。
 
 ### 本地入口策略
 
 SDK 的 `CommonOperationContext.category` 新增 `local`。本地启动使用 `operation: "start"`，请求使用真实 method，target 为当前组件自己的 engineId。指纹绑定复制请求和当前执行项；意图不含参数。选定策略每次评估，deny 优先；confirm 由已确认执行项满足，不询问。上限不足或执行项缺失时先拒绝，不让策略代替授权。十秒超时、无效决定或审计失败同样拒绝。旧策略若不接受 local 输入须更新，否则返回 `POLICY_UNAVAILABLE`。
 
 本地执行项不依赖短期策略租约；最大范围只列本组件入口与方法。本地请求的策略与放行/结果审计按同一 callId 关联。执行前复核绑定、授权及取消。已确认本地入口可与策略评估器、普通 common/资源/任务范围同时活动。本地回调中的 common 与资源操作保留真实父请求、原调用链及各方资格和范围交集；非 local 操作仍要求有效策略租约，不以本地授权替代。选择性生命周期和 fs/exec 档位确认覆盖继续实施。
+
+## 补充的项目与策略边界
+
+项目内已汇总确认组件的 fs 与受控 exec 可免单次确认；声明、同意、调用链交集、路径复核、策略 deny 与审计照旧，HTTPS、资源、MCP 不覆盖。该覆盖尚待接入。路线 A 已接入授权、绑定复核与启动时的目录句柄别名扫描，以及 Seatbelt 创建阶段的 link 和祖先目录保护；不是内核级 inode 防线。非后代进程运行期新增别名是已知风险，项目只适用于受信任目录；全后代容器未完成，项目启动仍不可用。
+
+策略 deny 不可被授权覆盖，allow 仅在可信最大范围内替代所需单次确认。补充契约要求策略超时、崩溃、失效或无效决定：本需单次确认时回退可信窗口，无确认环节时 POLICY_UNAVAILABLE；自动放行审计包含提供者身份与请求指纹。该分情形回退已接入，审计 reason 区分 POLICY_ALLOW/POLICY_DENY/POLICY_CONFIRM/POLICY_FAILED，确认事件保留回退原因；审计失败不执行。宿主不内置审查模型或自动批准开关。
+
+连接内部配置使用已保存的原始非秘密设置及秘密就绪状态；describeSettings 只作脱敏呈现，不参与绑定解析或授权指纹。通用 HTTPS 请求头接受 HTTP token 头名（含合法标点），拒绝换行、NUL 及 Host、Content-Length、Connection、Transfer-Encoding、Proxy-Authorization、Proxy-Connection；声明凭据覆盖同名输入头。MCP v2 接受 service/https/request 权限的已同意连接器，仍复核工具指纹、完整操作同意及调用链。

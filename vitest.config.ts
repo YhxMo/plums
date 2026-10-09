@@ -9,6 +9,7 @@ const electronTests = [
   "workspace-ui",
   "platform-conformance-ui",
   "policy-ui",
+  "local-permissions-ui",
   "resources-ui",
   "onboarding-ui",
   "interaction-ui",

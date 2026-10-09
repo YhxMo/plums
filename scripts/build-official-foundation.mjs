@@ -69,7 +69,9 @@ for (const name of [
   "worker.js",
   "controlled-worker.cjs",
   "controlled-supervisor.js",
-  ...(process.platform === "darwin" ? ["secure-fs", "controlled-probe"] : []),
+  ...(process.platform === "darwin"
+    ? ["secure-fs", "controlled-probe", "project-probe", "project-scan"]
+    : []),
 ])
   files["code/" + name] = await readFile(path.join(dist, name));
 // Preserve the runtime dependency bytes too. Only the targeted prebuild is carried.

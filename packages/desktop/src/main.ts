@@ -609,7 +609,9 @@ app.whenReady().then(async () => {
               kind:
                 args.presentation === "engine-trust"
                   ? "engine-trust"
-                  : "capability",
+                  : args.presentation === "local-authorization"
+                    ? "local-authorization"
+                    : "capability",
               operation: args.host
                 ? "egress"
                 : args.action?.includes("运行程序")
@@ -976,6 +978,12 @@ app.whenReady().then(async () => {
             "install",
             "resources",
             "engineStatus",
+            "tierPlan",
+            "tierStatus",
+            "confirmTier",
+            "lowerTier",
+            "revokeLocal",
+            "removeTierDirectory",
             "startEngine",
             "stopEngine",
             "revokeEngine",

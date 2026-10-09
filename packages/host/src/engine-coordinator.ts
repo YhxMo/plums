@@ -218,6 +218,7 @@ export class EngineCoordinator {
     pkg: string,
     engine: string,
     reason: string,
+    tier: "project" | "machine" | undefined,
     state: AuditEvent["executionState"] = "not_started",
     callers?: string[],
   ): Promise<void> {
@@ -229,7 +230,7 @@ export class EngineCoordinator {
       kind: "engine",
       target: engine,
       phase: "result",
-      tier: "machine",
+      ...(tier ? { tier } : {}),
       outcome: state === "completed" ? "completed" : "allowed",
       executionState: state,
       reason,
@@ -375,6 +376,7 @@ export class EngineCoordinator {
             pkg,
             engine,
             `ENGINE_${action.toUpperCase()}`,
+            authorization?.grant.tier,
             action === "start" ? "not_started" : "completed",
             startup?.ancestry,
           );

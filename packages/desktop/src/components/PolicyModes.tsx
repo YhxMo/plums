@@ -88,7 +88,7 @@ export function PolicyModes({
     <section className="section policy-modes" data-testid="policy-modes">
       <h3>权限策略</h3>
       <p className="muted">
-        选择一个策略，并批准本次最大范围。策略只能在范围内允许、拒绝或请求确认。重启后须重新批准。
+        选择一个策略，并批准本次最大范围。策略可在所选范围内代替你确认，拒绝不可被覆盖；需要单次确认时，策略不可用会回到可信确认窗口。脱敏请求可能经提供者已声明、已批准的目标外发。重启后须重新批准。
       </p>
       {error && <p role="alert">{error}</p>}
       <p role="status">

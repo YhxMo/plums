@@ -39,7 +39,7 @@ export interface EgressSink {
 
 export interface ConfirmRequest {
   /** Fixed trusted-host presentation; ordinary capabilities cannot select this. */
-  presentation?: "engine-trust";
+  presentation?: "engine-trust" | "local-authorization";
   message: string;
   /** Optional presentation fields; never determine authorization. */
   subject?: string;

@@ -225,6 +225,10 @@ export interface CommonOperationContext {
   operation: string;
   /** Trusted logical root, resource, program or contribution target. */
   target?: string;
+  /** Host authorization record; extension input cannot select a tier. */
+  tier: "sandbox" | "project" | "machine";
+  /** Whether the authorized operation needs a single-use question without policy. */
+  requiresConfirmation: boolean;
   /** Present for actual manifest capabilities and resources. */
   permissionId?: string;
   /** Logical identifiers and credential-free intent, supplied by the trusted host. */

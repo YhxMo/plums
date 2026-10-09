@@ -122,3 +122,7 @@ V1 验证六个基础字符串。V2 使用 `chara_card_v2/2.0` 封装；V3 使�
 每次贡献先幂等启动自身已确认的 local 入口，再提交 JSONL 请求。临时文件写入、PID 和 initialize 上下文只由测试断言读取，审计不记录它们。`memory` 另有测试专用 localProbe 贡献，尝试 SDK start/request；它没有 engine 权限，在整机 Agent 中同样拒绝，也不能控制其他组件入口。该负向功能已列入底座 sdk.engine 需求。
 
 `scenarios/machine.test.ts` 使用真实固定 Node 与官方隔离底座，Fake 模型和自造临时文件验证 S-F。schema-6 数据夹具只给第一个入口旧信任，迁移后第二个入口仍待确认；不生成项目目录或 fs/exec 确认覆盖。整机进程没有系统沙箱，此测试不替代 R17 的项目逃逸验收。
+
+## 剩余项目夹具（未完成验收）
+
+`fixture.coding-tools` 提供 org.plums.agent-tools/1.0.0 的 list/call，声明项目入口、node/git 和测试主机候选；不自动授予网络。`fixture.crash-probe` 仅提供 ping/crash。`fixture.policy-fake` 经 org.plums.policy/1.0.0 返回固定决定，无审查算法或外发。它们仅在 vitest 中打包。S-B 的候选 list/call 功能声明尚未匹配，项目运行仍失败关闭；整机变体只验证生命周期。S-E 的导入摘要取便携 ZIP 中实际组件字节，授权与档位不导出。
