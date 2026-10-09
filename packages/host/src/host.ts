@@ -1,3 +1,7 @@
+import {
+  protocolBindingAuditEvent,
+  managementAuditEvent,
+} from "./audit-presentation.js";
 import { readFileSync } from "node:fs";
 import {
   FoundationOwnership,
@@ -391,17 +395,20 @@ export class DesktopHost {
         },
         sanitize: (s, value) =>
           this.secretValues(s).then((secrets) => redact(value, secrets)),
-        audit: (s, callId, taskId, outcome, executionState) =>
+        audit: async (s, callId, taskId, outcome, executionState) =>
           this.writeAudit(
             s.record.instanceId,
-            Object.freeze({
-              callId,
-              taskId,
-              timestamp: new Date().toISOString(),
-              phase: outcome === "allowed" ? "allow" : "result",
-              outcome,
-              executionState,
-            }),
+            managementAuditEvent(
+              {
+                callId,
+                taskId,
+                timestamp: new Date().toISOString(),
+                phase: outcome === "allowed" ? "allow" : "result",
+                outcome,
+                executionState,
+              },
+              await this.secretValues(s),
+            ),
           ),
       },
     );
@@ -2549,14 +2556,17 @@ export class DesktopHost {
     await this.stopRuntimes(s);
     await this.writeAudit(
       id,
-      Object.freeze({
-        callId: randomUUID(),
-        timestamp: new Date().toISOString(),
-        phase: "revoke",
-        outcome: "denied",
-        executionState: "not_started",
-        reason: "POLICY_SCOPE_REVOKED",
-      }),
+      managementAuditEvent(
+        {
+          callId: randomUUID(),
+          timestamp: new Date().toISOString(),
+          phase: "revoke",
+          outcome: "denied",
+          executionState: "not_started",
+          reason: "POLICY_SCOPE_REVOKED",
+        },
+        await this.secretValues(s),
+      ),
     );
   }
   async policyStatus(id: string) {
@@ -2628,15 +2638,18 @@ export class DesktopHost {
     ]);
     const failed = cleanup.find((result) => result.status === "rejected");
     if (failed?.status === "rejected") throw failed.reason;
-    const event: AuditEvent = {
-      callId: randomUUID(),
-      timestamp: new Date().toISOString(),
-      phase: "task",
-      outcome: "denied",
-      executionState: "not_started",
-      reason: "TASK_REVOKED",
-      ...(taskId ? { taskId } : {}),
-    };
+    const event = managementAuditEvent(
+      {
+        callId: randomUUID(),
+        timestamp: new Date().toISOString(),
+        phase: "task",
+        outcome: "denied",
+        executionState: "not_started",
+        reason: "TASK_REVOKED",
+        ...(taskId ? { taskId } : {}),
+      },
+      await this.secretValues(s),
+    );
     if (this.options.audit) await this.options.audit(id, event);
     else
       await appendFile(
@@ -2687,7 +2700,7 @@ export class DesktopHost {
     );
     for (const choice of choices) {
       const event: Readonly<AuditEvent> = Object.freeze(
-        redact(
+        protocolBindingAuditEvent(
           {
             callId: randomUUID(),
             timestamp: new Date().toISOString(),
@@ -2700,7 +2713,7 @@ export class DesktopHost {
             executionState: "not_started",
           } satisfies AuditEvent,
           secrets,
-        ) as AuditEvent,
+        ),
       );
       if (staging && !this.options.audit)
         await appendFile(
@@ -3612,16 +3625,19 @@ export class DesktopHost {
     try {
       await this.writeAudit(
         id,
-        Object.freeze({
-          callId,
-          ...(range ? { taskId: range.id } : {}),
-          timestamp: new Date().toISOString(),
-          kind: "resource",
-          phase: "revoke",
-          outcome: "denied",
-          executionState: "not_started",
-          reason: "RESOURCE_RANGE_REVOKED",
-        }),
+        managementAuditEvent(
+          {
+            callId,
+            ...(range ? { taskId: range.id } : {}),
+            timestamp: new Date().toISOString(),
+            kind: "resource",
+            phase: "revoke",
+            outcome: "denied",
+            executionState: "not_started",
+            reason: "RESOURCE_RANGE_REVOKED",
+          },
+          await this.secretValues(s),
+        ),
       );
     } catch {
       throw resourceFailure("PROVIDER_FAILED", callId, "not_started", "revoke");

@@ -1,20 +1,19 @@
 import { createHash, randomUUID } from "node:crypto";
-import { PlumsError, PERMISSION_DENIED, CAPABILITY_FAILED } from "../errors.js";
+import { PlumsError, PERMISSION_DENIED } from "../errors.js";
 import { requireInstalled, requireManifest } from "../install/lifecycle.js";
 import { enginePermissionKey } from "../install/engine-trust.js";
-import { knownSecrets } from "../install/settings.js";
-import { redact } from "../redact.js";
+import {
+  authorizationAudit,
+  authorizationFailure,
+  type AuthorizationCall,
+} from "./authorization-audit.js";
 import {
   copyJson,
   declaredService,
   resolveService,
   type ServiceContext,
 } from "./services.js";
-import type {
-  AuditEvent,
-  CapabilityCaller,
-  CapabilityRequest,
-} from "./types.js";
+import type { CapabilityCaller, CapabilityRequest } from "./types.js";
 
 /** Resource ids are opaque. The trusted engine enforces its own local reads and outputs. */
 export interface GrantUse {
@@ -235,42 +234,10 @@ async function planGrant(
     .digest("hex");
   return { ...value, fingerprint };
 }
-async function audit(
-  ctx: ServiceContext,
-  grant: Pick<Grant, "id" | "ownerId">,
-  phase: "grant" | "revoke",
-): Promise<void> {
-  const callId = randomUUID();
-  try {
-    if (!ctx.onAudit) throw Error();
-    const event: AuditEvent = {
-      callId,
-      grantId: grant.id,
-      timestamp: new Date().toISOString(),
-      extensionId: grant.ownerId,
-      kind: "engine",
-      phase,
-      outcome: phase === "grant" ? "allowed" : "completed",
-      executionState: phase === "grant" ? "not_started" : "completed",
-    };
-    await ctx.onAudit(
-      Object.freeze(redact(event, await knownSecrets(ctx)) as AuditEvent),
-    );
-  } catch {
-    throw new PlumsError({
-      code: CAPABILITY_FAILED,
-      message: "授权审计未能完成。",
-      details: {
-        callId,
-        phase: "audit_" + phase,
-        executionState: phase === "grant" ? "not_started" : "completed",
-      },
-    });
-  }
-}
 export async function createGrant(
   ctx: ServiceContext,
   raw: CreateGrantInput,
+  call?: AuthorizationCall,
 ): Promise<Grant> {
   const copied = copyJson(raw) as unknown as CreateGrantInput;
   if (
@@ -293,7 +260,12 @@ export async function createGrant(
     grantedAt: new Date().toISOString(),
     expiresAt: Date.now() + copied.durationMs,
   };
-  await audit(ctx, grant, "grant");
+  await authorizationAudit(
+    ctx,
+    { kind: "engine", extensionId: grant.ownerId, grantId: grant.id },
+    "grant",
+    call,
+  );
   const next = await grantPlan(ctx, first);
   if (next.fingerprint !== first.fingerprint || Date.now() >= grant.expiresAt)
     deny();
@@ -301,14 +273,10 @@ export async function createGrant(
   try {
     saved = ctx.store.saveGrantIfCurrent(grant, revision, authorization);
   } catch {
-    throw new PlumsError({
-      code: CAPABILITY_FAILED,
-      message: "授权未能保存，没有生效。",
-      details: {
-        grantId: grant.id,
-        phase: "grant_save",
-        executionState: "not_started",
-      },
+    throw authorizationFailure(call, "授权未能保存，没有生效。", {
+      grantId: grant.id,
+      phase: "grant_save",
+      executionState: "not_started",
     });
   }
   if (!saved) deny();
@@ -317,12 +285,19 @@ export async function createGrant(
 export async function revokeGrant(
   ctx: ServiceContext,
   id: string,
+  call?: AuthorizationCall,
 ): Promise<void> {
   if (typeof id !== "string" || !/^[a-f0-9-]{36}$/.test(id))
     throw new TypeError("Invalid grant id");
   const grant = ctx.store.listGrants().find((g) => g.id === id);
   ctx.store.revokeGrant(id);
-  if (grant) await audit(ctx, grant, "revoke");
+  if (grant)
+    await authorizationAudit(
+      ctx,
+      { kind: "engine", extensionId: grant.ownerId, grantId: grant.id },
+      "revoke",
+      call,
+    );
 }
 export async function checkGrant(
   ctx: ServiceContext,

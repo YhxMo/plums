@@ -1,3 +1,7 @@
+import {
+  engineAuditEvent,
+  reportedEngineAuditEvent,
+} from "./audit-presentation.js";
 import { resolveProtocol } from "./protocol-bindings.js";
 import { engineGrant, type GrantConfirm } from "./engine-grants.js";
 import { connectionBindings } from "./connection-service.js";
@@ -8,7 +12,6 @@ import path from "node:path";
 import {
   PlumsError,
   PERMISSION_DENIED,
-  redact,
   type AuditEvent,
   type Confirm,
 } from "@plums/core";
@@ -241,7 +244,7 @@ export class EngineCoordinator {
     try {
       if (first) for (const value of await first) secrets.add(value);
       for (const value of await this.options.secrets(s)) secrets.add(value);
-      const safe = redact(event, [...secrets]) as AuditEvent;
+      const safe = engineAuditEvent(event, [...secrets]);
       if (safe.callerIds) Object.freeze(safe.callerIds);
       await this.options.audit(s.record.instanceId, Object.freeze(safe));
     } catch {
@@ -424,9 +427,7 @@ export class EngineCoordinator {
         async (event) =>
           this.options.audit(
             s.record.instanceId,
-            Object.freeze(
-              (await this.options.sanitize(s, event)) as AuditEvent,
-            ),
+            reportedEngineAuditEvent(event, await this.options.secrets(s)),
           ),
         context,
       );
@@ -836,8 +837,10 @@ export class EngineCoordinator {
     const runs = [...this.service(s).hooks].filter(([key]) =>
       key.startsWith(prefix),
     );
-    const results = await Promise.allSettled(
-      runs.map(async ([key, hooks]) => {
+    // A self-test cleanup failure must not prevent already running entries from stopping.
+    const results = await Promise.allSettled([
+      this.service(s).project.close(),
+      ...runs.map(async ([key, hooks]) => {
         try {
           await this.service(s).manager.stop(key, hooks);
         } finally {
@@ -845,7 +848,7 @@ export class EngineCoordinator {
             this.service(s).hooks.delete(key);
         }
       }),
-    );
+    ]);
     const failure = results.find((r) => r.status === "rejected");
     if (failure?.status === "rejected") throw failure.reason;
   }

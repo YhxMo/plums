@@ -1,3 +1,4 @@
+import { policyAuditEvent } from "./audit-presentation.js";
 import { createHash, randomUUID } from "node:crypto";
 import { redact, type AuditEvent } from "@plums/core";
 import {
@@ -251,15 +252,18 @@ export class PolicyService {
     };
     await this.hooks.audit(
       s,
-      Object.freeze({
-        callId: randomUUID(),
-        timestamp: new Date().toISOString(),
-        phase: "task",
-        outcome: "allowed",
-        executionState: "not_started",
-        reason: "POLICY_SCOPE_GRANTED",
-        durationMs,
-      }),
+      policyAuditEvent(
+        {
+          callId: randomUUID(),
+          timestamp: new Date().toISOString(),
+          phase: "task",
+          outcome: "allowed",
+          executionState: "not_started",
+          reason: "POLICY_SCOPE_GRANTED",
+          durationMs,
+        },
+        await this.hooks.secrets(s),
+      ),
     );
     checkpoint.assertCurrent();
     this.hooks.active(s);
@@ -471,7 +475,7 @@ export class PolicyService {
       phase: AuditEvent["phase"] = "policy",
     ) => {
       for (const v of await this.hooks.secrets(s)) secrets.add(v);
-      const event = redact(
+      const event = policyAuditEvent(
         {
           callId: op.callId,
           taskId: context.taskId,
@@ -493,7 +497,7 @@ export class PolicyService {
             : {}),
         },
         [...secrets],
-      ) as AuditEvent;
+      );
       Object.freeze(event.callerIds);
       await this.hooks.audit(s, Object.freeze(event));
       await check();

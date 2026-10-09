@@ -1,3 +1,4 @@
+import { resourceAuditEvent } from "./audit-presentation.js";
 import { randomUUID } from "node:crypto";
 import {
   redact,
@@ -380,10 +381,10 @@ export class ResourceService {
       await this.hooks.audit(
         s,
         freezeAudit(
-          redact(
+          resourceAuditEvent(
             { ...e, timestamp: new Date().toISOString() },
             known,
-          ) as AuditEvent,
+          ),
         ),
       );
     };
@@ -761,10 +762,10 @@ export class ResourceService {
       await this.hooks.audit(
         s,
         freezeAudit(
-          redact(
+          resourceAuditEvent(
             { ...e, timestamp: new Date().toISOString() },
             known,
-          ) as AuditEvent,
+          ),
         ),
       );
     } catch {

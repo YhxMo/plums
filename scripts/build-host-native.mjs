@@ -5,7 +5,7 @@ import { fileURLToPath } from "node:url";
 const root = fileURLToPath(new URL("../", import.meta.url));
 if (process.platform === "darwin") {
   mkdirSync(root + "packages/host/dist", { recursive: true });
-  for (const name of ["secure-fs", "controlled-probe"])
+  for (const name of ["secure-fs", "controlled-probe", "project-probe"])
     execFileSync(
       "clang",
       [

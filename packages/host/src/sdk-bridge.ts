@@ -1,3 +1,4 @@
+import { responseAuditEvent } from "./audit-presentation.js";
 import { protocolStatus } from "./protocol-bindings.js";
 import {
   isManifestV2,
@@ -121,17 +122,22 @@ export async function dispatchSdk(
         denied();
       s.receipts.delete(args.callId);
       try {
-        await hooks.audit({
-          callId: args.callId,
-          timestamp: new Date().toISOString(),
-          extensionId: packageId,
-          kind: "service",
-          operation: "request",
-          phase: "result",
-          outcome: "failed",
-          executionState: "completed",
-          reason: args.reason as string,
-        });
+        await hooks.audit(
+          responseAuditEvent(
+            {
+              callId: args.callId,
+              timestamp: new Date().toISOString(),
+              extensionId: packageId,
+              kind: "service",
+              operation: "request",
+              phase: "result",
+              outcome: "failed",
+              executionState: "completed",
+              reason: args.reason as string,
+            },
+            await hooks.secretValues(),
+          ),
+        );
       } catch {
         throw new PlumsError({
           code: CAPABILITY_FAILED,
@@ -441,9 +447,27 @@ export async function dispatchSdk(
             });
           }
           chunk("", true);
-          if (result.kind === "fs" && result.operation === "read")
-            return { ...result, data: [...result.data] };
-          return redact(result, secretValues);
+          // Only this completed Core call supplies the envelope. Sink payloads and
+          // service operation text remain business data, including same-name keys.
+          const control = { callId: result.callId, kind: result.kind };
+          if (result.kind === "fs") {
+            if (result.operation === "read")
+              return { ...control, operation: "read", data: [...result.data] };
+            if (result.operation === "write")
+              return { ...control, operation: "write", completed: true };
+            return {
+              ...control,
+              operation: "list",
+              entries: redact(result.entries, secretValues),
+            };
+          }
+          return {
+            ...control,
+            ...(result.kind === "service"
+              ? { operation: redact(result.operation, secretValues) }
+              : {}),
+            result: redact(result.result, secretValues),
+          };
         },
       );
     }

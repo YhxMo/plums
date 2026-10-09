@@ -13,6 +13,40 @@ import {
 } from "../packages/sdk/dist/index.js";
 
 export const SUITE_VERSION = "1.0.0";
+/** Project runtime evidence is separate from common/SDK evidence and cannot be green
+ * merely because a fail-closed admission decision behaves correctly. */
+export async function runProjectConformance({ nodePath } = {}) {
+  const { ProjectSandbox } = await import(
+    "../packages/host/dist/project-sandbox.js"
+  );
+  const sandbox = new ProjectSandbox(nodePath);
+  try {
+    const result = await sandbox.inspect();
+    return {
+      reportVersion: "1.0",
+      suiteVersion: SUITE_VERSION,
+      profile: "project",
+      status: result.status === "skipped" ? "skipped" : "failed",
+      projectAvailable: false,
+      boundaryStatus: result.status,
+      reason: result.reason,
+      platform: result.platform,
+      arch: result.arch,
+      profileDigest: result.profileDigest,
+      probeDigest: result.probeDigest,
+      cleanupCompleted: result.cleanupCompleted,
+      cases: [
+        ...result.checks,
+        {
+          id: "project-runtime-admission",
+          status: result.status === "skipped" ? "skipped" : "failed",
+        },
+      ],
+    };
+  } finally {
+    await sandbox.close();
+  }
+}
 const digest = (bytes) => createHash("sha256").update(bytes).digest("hex");
 const cases = [];
 const test = (id, layer, run) => cases.push({ id, layer, run });
@@ -731,8 +765,12 @@ async function main(args) {
       if (key === "--node") nodePath = path.resolve(value);
     }
     if (packageFile && adapterFile) throw Error("Conflicting profiles");
+    if (runtime === "project" && (packageFile || adapterFile))
+      throw Error("Conflicting profiles");
     let report;
-    if (packageFile) report = await inspectPlatformPackage(packageFile);
+    if (runtime === "project")
+      report = await runProjectConformance({ nodePath });
+    else if (packageFile) report = await inspectPlatformPackage(packageFile);
     else {
       const module = await import(
         pathToFileURL(

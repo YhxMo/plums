@@ -14,6 +14,10 @@ import type {
 } from "./install/local-authorization.js";
 import { randomUUID } from "node:crypto";
 import {
+  authorizationFailure,
+  type AuthorizationCall,
+} from "./capabilities/authorization-audit.js";
+import {
   grantPlan,
   createGrant,
   checkGrant,
@@ -569,10 +573,8 @@ export function createCore(options: CreateCoreOptions): Core {
   const guard =
     <A extends unknown[], R>(
       fn: (...args: A) => Promise<R>,
-      failures?: WeakMap<
-        PlumsError,
-        { callId: string; phase: string; executionState: "not_started" }
-      >,
+      failures?: AuthorizationCall["failures"],
+      retainedSecrets?: ReadonlySet<string>,
     ) =>
     async (...args: A): Promise<R> => {
       try {
@@ -580,7 +582,12 @@ export function createCore(options: CreateCoreOptions): Core {
       } catch (err) {
         let secrets: string[];
         try {
-          secrets = await knownSecrets(ctx);
+          secrets = [
+            ...new Set([
+              ...(retainedSecrets ?? []),
+              ...(await knownSecrets(ctx)),
+            ]),
+          ];
         } catch {
           // Why neither error: the failed read and the original error can both quote a secret.
           throw new PlumsError({
@@ -608,53 +615,79 @@ export function createCore(options: CreateCoreOptions): Core {
       }
     };
 
-  let migrationAudit: Promise<void> | undefined;
-  const ensureLocalMigration = async (): Promise<void> => {
+  const guardAuthorization =
+    <A extends unknown[], R>(
+      fn: (call: AuthorizationCall, ...args: A) => Promise<R>,
+    ) =>
+    async (...args: A): Promise<R> => {
+      const call: AuthorizationCall = {
+        failures: new WeakMap(),
+        secrets: new Set(),
+      };
+      return guard(
+        (...values: A) => fn(call, ...values),
+        call.failures,
+        call.secrets,
+      )(...args);
+    };
+
+  let migrationAudit:
+    | { promise: Promise<void>; secrets: Set<string> }
+    | undefined;
+  const ensureLocalMigration = async (
+    call: AuthorizationCall,
+  ): Promise<void> => {
     const report = store.localMigration(capabilityCtx.instanceId);
     if (!report || report.audited) return;
-    if (!migrationAudit)
-      migrationAudit = (async () => {
-        try {
-          if (!options.onAudit) throw new Error("Missing audit");
-          const secrets = await knownSecrets(ctx);
-          const event = redact(
-            {
-              callId: report.callId,
-              timestamp: report.timestamp,
-              ...(options.instanceId ? { agentId: options.instanceId } : {}),
-              kind: "engine" as const,
-              phase: "grant" as const,
-              outcome: "allowed" as const,
-              executionState: "not_started" as const,
-              reason: "LOCAL_AUTHORIZATION_MIGRATED",
-              migration: Object.freeze({
-                migrated: report.migrated,
-                skipped: report.skipped,
-              }),
-            },
-            secrets,
-          ) as AuditEvent;
-          if (event.migration) Object.freeze(event.migration);
-          await options.onAudit(Object.freeze(event));
-          store.acknowledgeLocalMigration(
-            capabilityCtx.instanceId,
-            report.callId,
-          );
-        } catch {
-          throw new PlumsError({
-            code: CAPABILITY_FAILED,
-            message: "本地执行授权迁移审计未保存，迁移授权未生效。",
-            details: {
-              callId: report.callId,
-              phase: "migration_audit",
-              executionState: "not_started",
-            },
-          });
-        }
-      })().finally(() => {
-        migrationAudit = undefined;
-      });
-    await migrationAudit;
+    if (!migrationAudit) {
+      const secrets = new Set<string>();
+      const promise = (async () => {
+        if (!options.onAudit) throw new Error("Missing audit");
+        for (const value of await knownSecrets(ctx)) secrets.add(value);
+        // All controls here originate in Store's migration record or this
+        // constructor. The caller's instance label remains declaration text.
+        const event: AuditEvent = {
+          callId: report.callId,
+          timestamp: report.timestamp,
+          ...(options.instanceId
+            ? { agentId: redact(options.instanceId, [...secrets]) }
+            : {}),
+          kind: "engine",
+          phase: "grant",
+          outcome: "allowed",
+          executionState: "not_started",
+          reason: "LOCAL_AUTHORIZATION_MIGRATED",
+          migration: Object.freeze({
+            migrated: report.migrated,
+            skipped: report.skipped,
+          }),
+        };
+        await options.onAudit(Object.freeze(event));
+        store.acknowledgeLocalMigration(
+          capabilityCtx.instanceId,
+          report.callId,
+        );
+      })();
+      migrationAudit = { promise, secrets };
+    }
+    const pending = migrationAudit;
+    try {
+      await pending.promise;
+    } catch {
+      // Each waiting public call receives its own private failure provenance.
+      throw authorizationFailure(
+        call,
+        "本地执行授权迁移审计未保存，迁移授权未生效。",
+        {
+          callId: report.callId,
+          phase: "migration_audit",
+          executionState: "not_started",
+        },
+      );
+    } finally {
+      for (const value of pending.secrets) call.secrets.add(value);
+      if (migrationAudit === pending) migrationAudit = undefined;
+    }
   };
   const engineSnapshot = (
     packageId: string,
@@ -702,35 +735,31 @@ export function createCore(options: CreateCoreOptions): Core {
   };
   return {
     version: VERSION,
-    localAuthorizationState: guard(async () => {
-      await ensureLocalMigration();
+    localAuthorizationState: guardAuthorization(async (call) => {
+      await ensureLocalMigration(call);
       return store.localAuthorizationState(capabilityCtx.instanceId);
     }),
-    commitLocalAuthorization: guard(async (input) => {
+    commitLocalAuthorization: guardAuthorization(async (call, input) => {
       input = structuredClone(input);
-      await ensureLocalMigration();
+      await ensureLocalMigration(call);
       if (input.tier.instanceId !== capabilityCtx.instanceId) return false;
       try {
         return store.commitLocalAuthorization(input);
       } catch {
-        throw new PlumsError({
-          code: CAPABILITY_FAILED,
-          message: "本地授权记录未保存。",
-          details: {
-            callId: randomUUID(),
-            phase: "local_authorization_commit",
-            executionState: "not_started",
-          },
+        throw authorizationFailure(call, "本地授权记录未保存。", {
+          callId: randomUUID(),
+          phase: "local_authorization_commit",
+          executionState: "not_started",
         });
       }
     }),
-    engineTrustSnapshot: guard(async (id, engineId) => {
-      await ensureLocalMigration();
+    engineTrustSnapshot: guardAuthorization(async (call, id, engineId) => {
+      await ensureLocalMigration(call);
       return engineSnapshot(id, engineId);
     }),
-    grantEngineTrust: guard(async (snapshot) => {
+    grantEngineTrust: guardAuthorization(async (call, snapshot) => {
       snapshot = structuredClone(snapshot);
-      await ensureLocalMigration();
+      await ensureLocalMigration(call);
       const current = engineSnapshot(snapshot.packageId, snapshot.engineId);
       if (
         (
@@ -906,26 +935,28 @@ export function createCore(options: CreateCoreOptions): Core {
     runAction: guard((input) =>
       runAction({ ...ctx, egress: options.egress, confirm }, input),
     ),
-    grantPlan: guard(async (input) => {
+    grantPlan: guardAuthorization(async (call, input) => {
       const copied = copyJson(input) as unknown as GrantInput;
-      await ensureLocalMigration();
+      await ensureLocalMigration(call);
       return grantPlan(capabilityCtx, copied);
     }),
-    createGrant: guard(async (input) => {
+    createGrant: guardAuthorization(async (call, input) => {
       const copied = copyJson(input) as unknown as CreateGrantInput;
-      await ensureLocalMigration();
-      return createGrant(capabilityCtx, copied);
+      await ensureLocalMigration(call);
+      return createGrant(capabilityCtx, copied, call);
     }),
-    listGrants: guard(async (ownerId) => {
-      await ensureLocalMigration();
+    listGrants: guardAuthorization(async (call, ownerId) => {
+      await ensureLocalMigration(call);
       return store.listGrants(ownerId);
     }),
-    checkGrant: guard(async (id, ownerId, scope) => {
+    checkGrant: guardAuthorization(async (call, id, ownerId, scope) => {
       const copied = copyJson(scope) as unknown as GrantUse;
-      await ensureLocalMigration();
+      await ensureLocalMigration(call);
       return checkGrant(capabilityCtx, id, ownerId, copied);
     }),
-    revokeGrant: guard((id) => revokeGrant(capabilityCtx, id)),
+    revokeGrant: guardAuthorization((call, id) =>
+      revokeGrant(capabilityCtx, id, call),
+    ),
     taskScopePlan: guard(async () => tasks.plan()),
     taskScopeCovers: (principals, request) =>
       !!tasks.covers([...principals], request),
@@ -994,15 +1025,14 @@ export function createCore(options: CreateCoreOptions): Core {
         return tasks.grant(fingerprint, durationMs, taskId, chosen);
       }, failures)();
     },
-    // This entry point owns its redaction so an audit failure cannot obscure executionState.
-    grantBackgroundConsent: guard((input) =>
-      grantBackgroundConsent(capabilityCtx, input),
+    grantBackgroundConsent: guardAuthorization((call, input) =>
+      grantBackgroundConsent(capabilityCtx, input, call),
     ),
     hasBackgroundConsent: guard((input) =>
       hasBackgroundConsent(capabilityCtx, input),
     ),
-    revokeBackgroundConsent: guard((id, binding) =>
-      revokeBackgroundConsent(capabilityCtx, id, binding),
+    revokeBackgroundConsent: guardAuthorization((call, id, binding) =>
+      revokeBackgroundConsent(capabilityCtx, id, binding, call),
     ),
     listBackgroundConsents: guard(async (id) =>
       store.listBackgroundConsents(id),

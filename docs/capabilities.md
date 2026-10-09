@@ -212,6 +212,8 @@ MCP v2 的连接器 permissionId 可对应 egress，或包含 request 操作的 
 
 授权与执行事件保留 callId、grantId、身份、固定操作分类和状态；不记录资源正文、模型参数、原始输出、密钥或物理目录。本机引擎的本地读写范围由已受信任的引擎适配层执行，Grant 不构成 OS 沙箱。
 
+后台服务授权与有限 Grant 的 grant/revoke 审计在事件构建处保留本次生成的 `callId`、时间、类别、阶段、结果与执行状态，有限 Grant 还保留宿主生成的 `grantId`；组件与权限文字继续脱敏。内部审计失败保留 `{callId, phase, executionState}`，有限 Grant 保存失败保留原有 `{grantId, phase: "grant_save", executionState: "not_started"}`。这些控制字段只凭本次调用的私有错误来源恢复；适配器同码错误、旧错误重抛和任意业务同名字段仍完整脱敏。本次授权已读到的凭据继续参与后续错误脱敏，密钥读取失败隐藏底层异常。grant 审计失败不发布授权；revoke 先持久撤销，即使后续审计失败仍保持撤销并报告 `completed`。
+
 ## 桌面受控命令
 
 可信管理为 exec target 绑定固定程序摘要与显式外部读/写目录，SDK 仅传 args/cwd。调用链每方必须同意该 exec 权限，且拥有全部所选目录的 fs read/write 声明；write 不隐含 read。活动短期任务范围必须覆盖这些目录操作，未选中即拒绝；exec 自身每次单次确认。执行前复核目录实体、程序摘要、整链状态与期限，再进入默认拒绝的系统沙箱；无直接网络、fork/执行其他程序、继承环境/额外 fd。

@@ -9,8 +9,9 @@ import {
   RecordingEgressSink,
   type AuditEvent,
 } from "@plums/core";
-import { DesktopHost, type HostOptions } from "../src/host.js";
+import { DesktopHost, type HostOptions, type Session } from "../src/host.js";
 import { EngineCoordinator } from "../src/engine-coordinator.js";
+import { ProjectSandbox } from "../src/project-sandbox.js";
 import {
   MACHINE_AUTHORIZATION_COPY,
   type TierSelection,
@@ -147,6 +148,34 @@ it("one trusted summary authorizes two machine processes without per-engine prom
   expect(Object.isFrozen(e)).toBe(true);
   expect(Object.isFrozen(e.localScope)).toBe(true);
   expect(JSON.stringify(e)).not.toContain(f.base);
+});
+it("a project admission cleanup failure does not leave existing machine entries running", async () => {
+  const f = await fixture();
+  await f.approve();
+  await Promise.all([
+    f.host.startEngine(f.id, "first", "local"),
+    f.host.startEngine(f.id, "second", "local"),
+  ]);
+  const pids = (await Promise.all(
+    ["first", "second"].map((pkg) =>
+      f.host.engineCall(f.id, pkg, "request", {
+        engineId: "local",
+        method: "pid",
+        input: null,
+      }),
+    ),
+  )) as number[];
+  vi.spyOn(ProjectSandbox.prototype, "close").mockRejectedValueOnce(
+    new Error("fixture admission cleanup failure"),
+  );
+  const internals = f.host as unknown as {
+    engines: EngineCoordinator;
+    sessions: Map<string, Session>;
+  };
+  await expect(
+    internals.engines.stopAgent(internals.sessions.get(f.id)!),
+  ).rejects.toThrow("fixture admission cleanup failure");
+  for (const pid of pids) expect(() => process.kill(pid, 0)).toThrow();
 });
 it("ordinary components and unknown 1.x engine fields never inherit local execution", async () => {
   const f = await fixture();

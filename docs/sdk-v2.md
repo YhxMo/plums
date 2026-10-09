@@ -92,6 +92,8 @@ const { status, headers, body } = response.result;
 
 ## 响应失败
 
+`sdk.capability` 成功回复保留本次 Core 调用生成的 `callId`、`kind` 和外层结果字段，以及固定 fs 操作与 `completed: true`。这些控制字段可与能力审计和响应失败凭据关联。service 操作文本、文件列表内容、命令与外发结果中的业务内容仍脱敏；fs read 继续把已授权读取的字节转换成数组。该规则只应用于真实能力返回处，扩展自报的同名字段与未知嵌套内容仍走业务脱敏。
+
 外装解析器可调用 `sdk.failResponse(response.callId, "RESPONSE_INVALID")`，或在非 2xx 状态时调用 `"HTTP_REJECTED"`。宿主只接受当前组件、当前调用实际完成的请求凭据，返回真实 callId、HTTP 状态和 `executionState: completed`；不能自报执行状态、冒用另一组件的请求或复用前次调用凭据。
 
 失败审计不保存响应正文。审计失败仍返回真实执行状态；已完成或未确定的请求不得自动重试。

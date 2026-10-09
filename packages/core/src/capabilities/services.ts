@@ -1,21 +1,17 @@
 import { createHash, randomUUID } from "node:crypto";
-import {
-  CAPABILITY_FAILED,
-  CONSENT_REQUIRED,
-  PERMISSION_DENIED,
-  PlumsError,
-} from "../errors.js";
+import { CONSENT_REQUIRED, PERMISSION_DENIED, PlumsError } from "../errors.js";
 import {
   requireInstalled,
   requireManifest,
   type InstallContext,
 } from "../install/lifecycle.js";
-import { knownSecrets } from "../install/settings.js";
 import { isManifestV2, type ServicePermission } from "../package/types.js";
-import { redact } from "../redact.js";
+import {
+  authorizationAudit,
+  type AuthorizationCall,
+} from "./authorization-audit.js";
 import { ID_PATTERN, SERVICE_NAME_PATTERN } from "../package/schema.js";
 import type {
-  AuditEvent,
   AuditHandler,
   BackgroundConsent,
   BackgroundConsentInput,
@@ -301,33 +297,18 @@ async function consentAudit(
   ctx: ServiceContext,
   input: BackgroundConsentInput,
   phase: "grant" | "revoke",
+  call?: AuthorizationCall,
 ): Promise<void> {
-  const callId = randomUUID();
-  try {
-    if (!ctx.onAudit) throw new Error();
-    const values = await knownSecrets(ctx);
-    const event: AuditEvent = {
-      callId,
-      timestamp: new Date().toISOString(),
+  await authorizationAudit(
+    ctx,
+    {
+      kind: "service",
       extensionId: input.extensionId,
       permissionId: input.permissionId,
-      kind: "service",
-      phase,
-      outcome: phase === "grant" ? "allowed" : "completed",
-      executionState: phase === "grant" ? "not_started" : "completed",
-    };
-    await ctx.onAudit(Object.freeze(redact(event, values) as AuditEvent));
-  } catch {
-    throw new PlumsError({
-      code: CAPABILITY_FAILED,
-      message: "后台授权审计未能完成。",
-      details: {
-        callId,
-        phase: "audit_" + phase,
-        executionState: phase === "grant" ? "not_started" : "completed",
-      },
-    });
-  }
+    },
+    phase,
+    call,
+  );
 }
 
 function consentInput(raw: BackgroundConsentInput): BackgroundConsentInput {
@@ -390,6 +371,7 @@ export async function hasBackgroundConsent(
 export async function grantBackgroundConsent(
   ctx: ServiceContext,
   raw: BackgroundConsentInput,
+  call?: AuthorizationCall,
 ): Promise<BackgroundConsent> {
   const value = consentInput(raw);
   const installed = requireManifest(ctx, value.extensionId);
@@ -416,7 +398,7 @@ export async function grantBackgroundConsent(
   const revision = ctx.store.backgroundRevision();
   if (first.effect === "external-write")
     serviceDenied("EXTERNAL_WRITE_REQUIRES_CONFIRMATION");
-  await consentAudit(ctx, value, "grant");
+  await consentAudit(ctx, value, "grant", call);
   const nextPermission = declaredService(
     ctx,
     value.extensionId,
@@ -445,6 +427,7 @@ export async function revokeBackgroundConsent(
   ctx: ServiceContext,
   extensionId: string,
   binding?: string,
+  call?: AuthorizationCall,
 ): Promise<void> {
   if (
     typeof extensionId !== "string" ||
@@ -464,5 +447,6 @@ export async function revokeBackgroundConsent(
       sources: [],
     },
     "revoke",
+    call,
   );
 }

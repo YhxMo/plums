@@ -6,6 +6,7 @@ import {
 } from "@plums/core";
 import { EngineManager, type EngineHooks } from "./engine-manager.js";
 import type { Session } from "./host.js";
+import { ProjectSandbox } from "./project-sandbox.js";
 
 const levels = { sandbox: 0, project: 1, machine: 2 };
 export interface LocalExecutionAuthorization {
@@ -15,12 +16,14 @@ export interface LocalExecutionAuthorization {
 /** One Agent's execution service. Entries still have independent supervised processes. */
 export class AgentExecutionService {
   readonly manager: EngineManager;
+  readonly project: ProjectSandbox;
   readonly hooks = new Map<string, EngineHooks>();
   constructor(
     readonly session: Session,
     nodePath?: string,
   ) {
     this.manager = new EngineManager(nodePath);
+    this.project = new ProjectSandbox(nodePath);
   }
   async authorize(
     packageId: string,
@@ -65,12 +68,8 @@ export class AgentExecutionService {
         code: "LOCAL_CONFIRM_REQUIRED",
         message: "此组件的本地执行需要汇总确认。",
       });
-    // Keep the project boundary until the verified OS sandbox is integrated.
     if (permissions.some((p) => p.tier === "project"))
-      throw new PlumsError({
-        code: "TIER_UNAVAILABLE",
-        message: "项目档位的系统沙箱尚未就绪。",
-      });
+      await this.project.assertAvailable();
     if (!(await s.core.getConsent(packageId)))
       throw new PlumsError({
         code: "CONSENT_REQUIRED",
