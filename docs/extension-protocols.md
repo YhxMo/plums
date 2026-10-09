@@ -65,7 +65,7 @@ const result = checkProtocolCompatibility(requirement, provider);
 // { compatible: false, reason: "FEATURES_MISSING", missingFeatures: ["upsert"] }
 ```
 
-此 helper 供开发者与宿主使用，并未添加到隔离运行时的 `sdk` 对象。它验证传入元数据后，按协议 id、版本、功能子集依次判断；无效参数仍抛公开导入错误，path 分别从 `/requirement`、`/provider` 开始。它不选择候选、不检查包依赖或组件启用、不保存绑定、不运行代码、不授予权限，也不证明 schema 或行为一致。所有兼容候选均由可信管理界面交给用户明确选择，只有一个候选时也不自动连接。
+此 helper 供开发者与宿主使用，并未添加到隔离运行时的 `sdk` 对象。它验证传入元数据后，按协议 id、版本、功能子集依次判断；无效参数仍抛公开导入错误，path 分别从 `/requirement`、`/provider` 开始。它不选择候选、不检查包依赖或组件启用、不保存绑定、不运行代码、不授予权限，也不证明 schema 或行为一致。宿主在新建、完整 ZIP 导入及加入组件时，为没有已有选择且只有一个兼容候选的需求自动连接；多个候选由可信管理界面交给用户选择。
 
 `Contribution` 的可选 `inputSchema/outputSchema` 在 SDK v2 由宿主执行校验。输入在进入业务 handler 前校验，输出在 handler 实际完成后校验；SDK v1 保留原元信息行为。协议作者仍须发布行为规范，并运行符合性工具；schema 只检查结构，不能证明持久性、幂等或隔离。`features` 只声明协议功能，不能代替 manifest 的 fs/HTTPS/engine 权限。
 
@@ -74,6 +74,8 @@ const result = checkProtocolCompatibility(requirement, provider);
 ## Agent 内发现与固定连接
 
 管理窗口的“组件连接”展示每个需求的候选、协议版本与功能缺口；新建组合、导入后的集中配置与 Agent 管理均有选择入口。候选仅来自当前 Agent 所选制品，不跨 Agent 或自动从公共库加入提供者。无候选提示导入并加入组件，多候选要求选择；版本不兼容和缺少功能分别显示原因。停用的兼容提供者可以被选择，但启用后才能调用。
+
+自动连接走同一固定绑定与循环检查路径，撤销该 Agent 的已存 Grant，并记录只含组件、需求和提供者等元信息的审计事件。`protocolPlan` 对应项的 `autoBound: true` 表示本地自动连接来源，管理页提示“已自动连接 A 的 X → B”并提供“更换”入口。ZIP 绑定意图及已有用户选择优先；新增第二个候选不替换已有连接，失效连接不自动重绑。自动连接不授予同意、启用、任务范围或执行权限。导出仅保存连接意图，不携带 `autoBound` 或本地身份。
 
 宿主在 Agent 的 `record.json` 保存本地连接：消费者需求、双方制品摘要、双方安装时间、Agent 身份、声明指纹、提供项 id、协议版本及具体贡献入口。重启重新读取并核验这些字段；无连接的旧记录默认空连接。相同包名、包版本或协议名不能代替这些固定字段。
 
@@ -97,11 +99,11 @@ if (status.state === "available") {
 
 提供者或消费者更新、移出、声明变化、卸载后重装使固定连接 `stale`，需要重新选择，不自动换为同名组件。停用为 `disabled`，重新启用同一安装后可核验恢复。配置、密钥、目录、角色/界面偏好及组合变化停止相关运行，丢弃旧调用上下文并按原选择重建；配置本身不改变用户选择。更换连接撤销当前 Agent 的已存 Grant。更换数据实现不承诺旧业务数据可读，数据适配仍由外装组件负责。
 
-协议边与具体依赖边共用受控调用路径。输入在等待前复制；校验双方当前安装/启用、制品、声明、设置版本及调用链，并在运行时排队后、确认后和异步审计后复核。能力继续使用调用链各方的权限交集、目录/HTTPS 范围、任务或单次确认、MCP 批准和脱敏审计；不存在协议带来的额外权限。委托中的 isolate 不能转为独立引擎执行，避免丢失调用链；组件自己的顶层引擎请求仍可使用原接口。核心只接受可信宿主提供的调用边复核回调，不解释协议 payload。
+协议边与具体依赖边共用受控调用路径。输入在等待前复制；校验双方当前安装/启用、制品、声明、设置版本及调用链，并在运行时排队后、确认后和异步审计后复核。能力继续使用调用链各方的权限交集、目录/HTTPS 范围、任务或单次确认、MCP 批准和脱敏审计；不存在协议带来的额外权限。委托中的 isolate 可请求本组件已声明并确认的本地入口，授权来自工具组件的执行项及 Agent 上限；上游无需声明 engine、fs 或 exec。本地请求与启动策略保存完整可信调用链；入口回调宿主经办能力时仍按各方权限交集授权，不能省略上游主体。核心只接受可信宿主提供的调用边复核回调，不解释协议 payload。
 
 ## 引擎回调与导入/导出
 
-已批准的本机引擎可以经 JSONL 请求 `host.protocolStatus`（`{requirementId}`）及 `host.invokeProtocol`（`{requirementId,input,grantId?,grantScope?}`）。引擎身份固定为拥有此引擎的组件，新回调解析相同的本地固定连接，保留取消、独立引擎运行上下文、权限交集及审计。`host.invoke` 继续检查原具体依赖。`host.grant` 的 request 可用 `requirementId` 与 `connectionId` 指定已绑定的 HTTPS 提供者；组合中可改用 `requirementPath:["dialogue","model"]`，逐跳解析从引擎所属组件出发的已保存需求连接（1–15 跳），不能与 `packageId/requirementId` 混用。最终组件须有真实配置连接；Grant 固定整条调用链各方的 HTTPS 权限和同一目标，执行时 core 继续要求实际主体集合完全相同；拒绝绕过中间组件或添加未批准主体。每条连接在批准后和保存后复核；更换中间连接撤销 Grant。宿主解析真实目标，可信窗口选择范围与时限，不接受未连接或不兼容的自报提供者。Grant 到期、撤销、配置变化及引擎撤权均复核，前端关闭仍按原引擎生命周期处理。
+已批准的本机引擎可以经 JSONL 请求 `host.protocolStatus`（`{requirementId}`）及 `host.invokeProtocol`（`{requirementId,input,grantId?,grantScope?}`）。引擎身份固定为拥有此引擎的组件，回调还关联宿主保存的原本地请求。委托请求的回调必须在 JSONL 顶层携带 `parentRequestId`，值为收到的请求 `id`；不能自报 ancestry 或替换调用者。同时活动的请求若有不同调用链、Grant 或任务范围，回调拒绝，不能选择其中较宽的权限。原请求完成、取消或失效后回调拒绝；新请求使用新的内部 id，复用公开取消标签不会恢复旧回调。无关联字段的旧回调只兼容本组件唯一活动的直接请求。回调解析相同的本地固定连接，保留取消、独立运行上下文、权限交集及审计。`host.invoke` 继续检查原具体依赖。`host.grant` 的 request 可用 `requirementId` 与 `connectionId` 指定已绑定的 HTTPS 提供者；组合中可改用 `requirementPath:["dialogue","model"]`，逐跳解析从引擎所属组件出发的已保存需求连接（1–15 跳），不能与 `packageId/requirementId` 混用。最终组件须有真实配置连接；Grant 固定整条调用链各方的 HTTPS 权限和同一目标，执行时 core 继续要求实际主体集合完全相同；拒绝绕过中间组件或添加未批准主体。每条连接在批准后和保存后复核；更换中间连接撤销 Grant。宿主解析真实目标，可信窗口选择范围与时限，不接受未连接或不兼容的自报提供者。Grant 到期、撤销、配置变化及引擎撤权均复核，前端关闭仍按原引擎生命周期处理。
 
 Agent ZIP 的 `agent.json.protocolBindings` 仅携带非敏感选择意图：`consumerId/consumerDigest/requirementId/providerId/providerDigest/provideId/protocolVersion/contribution`。导出根据实际导出组件字节重算摘要，只包含仍匹配的连接；失效连接省略，导入后重新选择。无本地安装身份、Agent 实例、Grant、任务范围、信任或运行句柄。导入核对摘要、需求、版本、功能和入口，再生成新的本地安装绑定；所有组件仍须在新 Agent 中配置、同意与启用。包中的声明和未知字段继续保留。
 

@@ -3,9 +3,9 @@ import { ExtensionRuntime } from "../src/runtime.js";
 import type { RuntimeBridge } from "../src/foundation-runtime.js";
 import { CAPABILITY_FAILED, PlumsError } from "@plums/core";
 const runtimes: ExtensionRuntime[] = [];
-afterEach(() => {
+afterEach(async () => {
   vi.useRealTimers();
-  runtimes.splice(0).forEach((r) => r.stop());
+  await Promise.all(runtimes.splice(0).map((r) => r.close()));
 });
 function runtime(
   source: string,
@@ -311,3 +311,260 @@ it("preserves a trusted host failure while its SDK reply awaits the worker resul
     await r.close();
   }
 });
+
+const busy = (ms: number) =>
+  `const end=Date.now()+${ms};while(Date.now()<end){}`;
+const invokeCheck = (r: ExtensionRuntime) =>
+  r.invoke(
+    "commands",
+    "check",
+    {},
+    { callers: [], ancestry: ["demo"], signal: r.controller.signal },
+  );
+
+it("counts overlapping isolate evaluations once and resets the budget for each invocation", async () => {
+  const r = runtime(
+    `export function activate(s){s.register('commands','check',async()=>{await s.settings();${busy(4600)}return {ok:true};});}`,
+  );
+  try {
+    await r.ready();
+    expect(await invokeCheck(r)).toEqual({ ok: true });
+    expect(await invokeCheck(r)).toEqual({ ok: true });
+  } finally {
+    await r.close();
+  }
+});
+it("shares the five-second startup budget between entry evaluation and activation", async () => {
+  const r = runtime(
+    `${busy(2700)}export function activate(s){${busy(2700)}s.register('commands','check',()=>true);}`,
+  );
+  try {
+    await expect(r.ready()).rejects.toThrow("Extension stopped");
+    expect(r.alive).toBe(false);
+  } finally {
+    await r.close();
+  }
+});
+it("enforces the cumulative execution budget across separate host replies", async () => {
+  let calls = 0;
+  const r = runtime(
+    `export function activate(s){s.register('commands','check',async()=>{for(let i=0;i<3;i++){await s.settings();${busy(1800)}}return true;});}`,
+    async () => {
+      calls++;
+      return null;
+    },
+  );
+  try {
+    await r.ready();
+    await expect(invokeCheck(r)).rejects.toThrow("Extension stopped");
+    expect(calls).toBe(3);
+    expect(r.alive).toBe(false);
+  } finally {
+    await r.close();
+  }
+});
+it("gives an event and the following invocation separate execution budgets", async () => {
+  const r = runtime(
+    `export function activate(s){s.onEvent('slow',async()=>{await s.settings();${busy(4600)}});s.register('commands','check',async()=>{await s.settings();${busy(4600)}return true;});}`,
+  );
+  try {
+    await r.ready();
+    await r.deliverEvent(
+      "slow",
+      { packageId: "publisher", topic: "slow", data: {} },
+      { callers: [], ancestry: ["demo"], signal: r.controller.signal },
+    );
+    expect(await invokeCheck(r)).toBe(true);
+  } finally {
+    await r.close();
+  }
+});
+it("stops an isolate exceeding its memory limit while leaving the host alive", async () => {
+  const r = runtime(
+    `export function activate(s){s.register('commands','check',()=>{const retained=[];while(true)retained.push(new Array(1000000).fill('retained'));});}`,
+  );
+  try {
+    await r.ready();
+    await expect(invokeCheck(r)).rejects.toThrow("Extension stopped");
+    expect(r.alive).toBe(false);
+    expect(1 + 1).toBe(2);
+  } finally {
+    await r.close();
+  }
+});
+it("preserves the second trusted failure after overlapping long host waits", async () => {
+  let entered!: () => void,
+    firstRelease!: () => void,
+    secondRelease!: () => void;
+  const waiting = new Promise<void>((resolve) => (entered = resolve)),
+    firstWait = new Promise<void>((resolve) => (firstRelease = resolve)),
+    secondWait = new Promise<void>((resolve) => (secondRelease = resolve));
+  let waits = 0,
+    calls = 0,
+    stale = false;
+  const first = new PlumsError({
+    code: CAPABILITY_FAILED,
+    message: "First",
+    details: { callId: "first", phase: "sink", executionState: "unknown" },
+  });
+  const second = new PlumsError({
+    code: CAPABILITY_FAILED,
+    message: "Second",
+    details: {
+      callId: "second",
+      phase: "audit_result",
+      executionState: "completed",
+    },
+  });
+  const r = runtime(
+    `export function activate(s){s.register('commands','check',async()=>{try{await s.capability('data',{kind:'fs',operation:'read',path:'first'});}catch{};await Promise.all([s.settings(),s.settings()]);try{await s.capability('data',{kind:'fs',operation:'read',path:'second'});}catch(error){${busy(1000)}throw error;}});}`,
+    async (method) => {
+      if (method === "capability") throw ++calls === 1 ? first : second;
+      if (++waits === 1) await firstWait;
+      else {
+        entered();
+        await secondWait;
+      }
+      return null;
+    },
+    () => {
+      if (stale) throw Error("private stale detail");
+    },
+  );
+  let work: Promise<unknown> | undefined;
+  try {
+    await r.ready();
+    work = invokeCheck(r).catch((error: unknown) => error);
+    await waiting;
+    stale = true;
+    await new Promise((resolve) => setTimeout(resolve, 3100));
+    firstRelease();
+    await new Promise((resolve) => setTimeout(resolve, 3100));
+    expect(r.alive).toBe(true);
+    secondRelease();
+    expect(await work).toBe(second);
+    expect(calls).toBe(2);
+    expect(waits).toBe(2);
+  } finally {
+    firstRelease();
+    secondRelease();
+    await r.close();
+    await work;
+  }
+});
+it("does not renew the error-delivery allowance on another host failure", async () => {
+  let entered!: () => void, release!: () => void;
+  const waiting = new Promise<void>((resolve) => (entered = resolve)),
+    response = new Promise<void>((resolve) => (release = resolve));
+  let stale = false,
+    calls = 0;
+  // Keep the first error handler idle for 3 seconds before it starts the next RPC.
+  const r = runtime(
+    `export function activate(s){s.register('commands','check',async()=>{try{await s.capability('data',{kind:'fs',operation:'read',path:'first'});}catch{const end=Date.now()+3000;while(Date.now()<end){}}await s.settings();try{await s.capability('data',{kind:'fs',operation:'read',path:'second'});}catch{await new Promise(()=>{});}});}`,
+    async (method) => {
+      if (method === "capability") {
+        calls++;
+        throw Error("private host failure");
+      }
+      entered();
+      await response;
+      return null;
+    },
+    () => {
+      if (stale) throw Error("private stale detail");
+    },
+  );
+  let work: Promise<unknown> | undefined;
+  try {
+    await r.ready();
+    work = invokeCheck(r).catch((error: unknown) => error);
+    await waiting;
+    stale = true;
+    release();
+    const outcome = await Promise.race([
+      work,
+      new Promise((resolve) =>
+        setTimeout(() => resolve({ unfinished: true }), 4000),
+      ),
+    ]);
+    expect(outcome).toMatchObject({ message: "Extension stopped" });
+    expect(outcome).not.toHaveProperty("code");
+    expect(calls).toBe(2);
+    expect(r.alive).toBe(false);
+  } finally {
+    release();
+    await r.close();
+    await work;
+  }
+});
+
+it("clears failure delivery state after results and grants a fresh allowance to the next invocation", async () => {
+  let count = 0,
+    stale = false;
+  const failure = new PlumsError({
+    code: CAPABILITY_FAILED,
+    message: "Trusted",
+    details: { callId: "fresh-call", phase: "sink", executionState: "unknown" },
+  });
+  const r = runtime(
+    `let count=0;export function activate(s){s.register('commands','check',async()=>{count++;try{await s.capability('data',{kind:'fs',operation:'read',path:'fixture'});}catch(error){await s.settings();const end=Date.now()+(count===1?1800:3600);while(Date.now()<end){};if(count===2)throw error;}return true;});}`,
+    async (method) => {
+      if (method === "capability") throw failure;
+      stale = ++count === 2;
+      return null;
+    },
+    () => {
+      if (stale) throw Error("private stale detail");
+    },
+  );
+  try {
+    await r.ready();
+    expect(await invokeCheck(r)).toBe(true);
+    expect(await invokeCheck(r).catch((error: unknown) => error)).toBe(failure);
+    expect(count).toBe(2);
+  } finally {
+    await r.close();
+  }
+});
+it.each(["cancel", "exit"] as const)(
+  "keeps ordinary %s semantics after a cached host failure",
+  async (action) => {
+    let entered!: () => void;
+    const waiting = new Promise<void>((resolve) => (entered = resolve));
+    const failure = new PlumsError({
+      code: CAPABILITY_FAILED,
+      message: "Trusted",
+      details: {
+        callId: "not-selected-on-stop",
+        phase: "sink",
+        executionState: "unknown",
+      },
+    });
+    const r = runtime(
+      `export function activate(s){s.register('commands','check',async()=>{try{await s.capability('data',{kind:'fs',operation:'read',path:'fixture'});}catch{};await s.settings();await new Promise(()=>{});});}`,
+      async (method) => {
+        if (method === "capability") throw failure;
+        entered();
+        return null;
+      },
+    );
+    let work: Promise<unknown> | undefined;
+    try {
+      await r.ready();
+      work = invokeCheck(r).catch((error: unknown) => error);
+      await waiting;
+      if (action === "cancel") r.controller.abort();
+      else
+        process.kill(
+          (r as unknown as { child: { pid: number } }).child.pid,
+          "SIGKILL",
+        );
+      expect(await work).toMatchObject({ message: "Extension stopped" });
+      expect(await work).not.toHaveProperty("code");
+      expect(r.alive).toBe(false);
+    } finally {
+      await r.close();
+      await work;
+    }
+  },
+);

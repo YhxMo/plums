@@ -309,7 +309,18 @@ export interface Core {
   uninstall(id: string): Promise<void>;
   listInstalled(): Promise<InstalledPackage[]>;
   getSecretReferences(id: string): Promise<string[]>;
+  /** Trusted host metadata: current, historical and reserved references, including removed components. */
+  listSecretReferences(): Promise<string[]>;
   getPackageContents(id: string): Promise<PackageContents>;
+  /**
+   * Trusted host check against a copied, validated artifact pin. Returns only a
+   * boolean; does not export contents or grant runtime access. Unlike content
+   * export, equality is independent of overlapping secret values.
+   */
+  matchesInstalledPackage(
+    id: string,
+    expected: PackageContents,
+  ): Promise<boolean>;
   getPackage(
     id: string,
   ): Promise<{ installed: InstalledPackage; manifest: Manifest }>;
@@ -556,7 +567,13 @@ export function createCore(options: CreateCoreOptions): Core {
   };
 
   const guard =
-    <A extends unknown[], R>(fn: (...args: A) => Promise<R>) =>
+    <A extends unknown[], R>(
+      fn: (...args: A) => Promise<R>,
+      failures?: WeakMap<
+        PlumsError,
+        { callId: string; phase: string; executionState: "not_started" }
+      >,
+    ) =>
     async (...args: A): Promise<R> => {
       try {
         return await fn(...args);
@@ -569,6 +586,22 @@ export function createCore(options: CreateCoreOptions): Core {
           throw new PlumsError({
             code: SECRET_NOT_FOUND,
             message: "读取密钥失败，原来的错误已隐藏，以免带出密钥。",
+          });
+        }
+        const control =
+          err instanceof PlumsError ? failures?.get(err) : undefined;
+        if (control && err instanceof PlumsError) {
+          const safe = redact(err, secrets);
+          const extra = Object.fromEntries(
+            Object.entries(err.details as Record<string, unknown>).filter(
+              ([key]) => !Object.hasOwn(control, key),
+            ),
+          );
+          throw new PlumsError({
+            code: safe.code,
+            message: safe.message,
+            path: safe.path,
+            details: { ...(redact(extra, secrets) as object), ...control },
           });
         }
         throw secrets.length > 0 ? redact(err, secrets) : err;
@@ -782,6 +815,30 @@ export function createCore(options: CreateCoreOptions): Core {
       requireInstalled(ctx, id);
       return store.getSecretRefs(id);
     }),
+    listSecretReferences: guard(async () => store.listSecretRefs()),
+    matchesInstalledPackage: guard(async (id, expected) => {
+      // Copy and validate caller-owned bytes before the first asynchronous read.
+      const fixed = preparePackage(expected, limits),
+        installed = requireInstalled(ctx, id),
+        manifest = requireManifest(ctx, id),
+        files = await readInstalledFiles(
+          path.join(resolvedDataDir, PACKAGES_DIR, id),
+        ),
+        actual = preparePackage({ manifest, files }, limits),
+        current = store.get(id),
+        actualFiles = new Map(actual.files);
+      return (
+        fixed.manifest.id === id &&
+        current?.installedAt === installed.installedAt &&
+        current?.version === installed.version &&
+        JSON.stringify(store.getManifest(id)) === JSON.stringify(manifest) &&
+        actual.manifestBytes.equals(fixed.manifestBytes) &&
+        actual.files.length === fixed.files.length &&
+        fixed.files.every(([name, bytes]) =>
+          actualFiles.get(name)?.equals(bytes),
+        )
+      );
+    }),
     getPackageContents: guard(async (id) => {
       requireInstalled(ctx, id);
       const manifest = requireManifest(ctx, id);
@@ -874,53 +931,69 @@ export function createCore(options: CreateCoreOptions): Core {
       !!tasks.covers([...principals], request),
     taskScopeState: () => tasks.state(),
     revokeTaskScope: () => tasks.revoke(),
-    grantTaskScope: guard(async (fingerprint, durationMs, selection) => {
-      const chosen =
-        selection === undefined
-          ? tasks.selections()
-          : structuredClone(selection);
-      tasks.validate(fingerprint, durationMs, chosen);
-      const check = tasks.checkpoint();
-      const taskId = randomUUID();
-      const emit = async (outcome: "requested" | "allowed") => {
-        try {
-          if (!options.onAudit) throw new Error();
-          const event = redact(
-            {
+    grantTaskScope: async (fingerprint, durationMs, selection) => {
+      // Never trust a same-code error from an adapter or a previous call.
+      const failures = new WeakMap<
+        PlumsError,
+        { callId: string; phase: string; executionState: "not_started" }
+      >();
+      return guard(async () => {
+        const chosen =
+          selection === undefined
+            ? tasks.selections()
+            : structuredClone(selection);
+        tasks.validate(fingerprint, durationMs, chosen);
+        const check = tasks.checkpoint();
+        const taskId = randomUUID();
+        const secrets = new Set<string>();
+        const emit = async (outcome: "requested" | "allowed") => {
+          try {
+            if (!options.onAudit) throw new Error();
+            for (const value of await knownSecrets(ctx)) secrets.add(value);
+            const values = [...secrets];
+            const safe: AuditEvent = {
               callId: taskId,
               taskId,
-              taskScope: chosen,
+              taskScope: chosen.map(
+                ({ packageId, permissionId, operation, ...extra }) => ({
+                  ...(redact(extra, values) as object),
+                  packageId: redact(packageId, values),
+                  permissionId: redact(permissionId, values),
+                  operation,
+                }),
+              ),
               durationMs,
               timestamp: new Date().toISOString(),
               phase: "task",
               outcome,
               executionState: "not_started",
-            },
-            await knownSecrets(ctx),
-          );
-          const safe = event as import("./capabilities/types.js").AuditEvent;
-          safe.taskScope?.forEach(Object.freeze);
-          if (safe.taskScope) Object.freeze(safe.taskScope);
-          await options.onAudit(Object.freeze(safe));
-        } catch {
-          throw new PlumsError({
-            code: CAPABILITY_FAILED,
-            message: "任务授权审计失败，没有发布新授权。",
-            details: {
+            };
+            safe.taskScope?.forEach(Object.freeze);
+            if (safe.taskScope) Object.freeze(safe.taskScope);
+            await options.onAudit(Object.freeze(safe));
+          } catch {
+            const control = {
               callId: taskId,
               phase: "audit_task",
-              executionState: "not_started",
-            },
-          });
-        }
-      };
-      await emit("requested");
-      check();
-      tasks.validate(fingerprint, durationMs, chosen);
-      await emit("allowed");
-      check();
-      return tasks.grant(fingerprint, durationMs, taskId, chosen);
-    }),
+              executionState: "not_started" as const,
+            };
+            const error = new PlumsError({
+              code: CAPABILITY_FAILED,
+              message: "任务授权审计失败，没有发布新授权。",
+              details: control,
+            });
+            failures.set(error, Object.freeze(control));
+            throw error;
+          }
+        };
+        await emit("requested");
+        check();
+        tasks.validate(fingerprint, durationMs, chosen);
+        await emit("allowed");
+        check();
+        return tasks.grant(fingerprint, durationMs, taskId, chosen);
+      }, failures)();
+    },
     // This entry point owns its redaction so an audit failure cannot obscure executionState.
     grantBackgroundConsent: guard((input) =>
       grantBackgroundConsent(capabilityCtx, input),

@@ -237,9 +237,10 @@ export async function updatePackage(
     });
   }
 
-  const activeSecrets = new Set(
-    secretKeys(manifest).map((key) => secretRef(installed.id, key)),
-  );
+  const activeSecrets = new Set([
+    ...secretKeys(manifest).map((key) => secretRef(installed.id, key)),
+    ...ctx.store.activeLocalCredentialRefs(installed.id, manifest),
+  ]);
   const droppedSecrets = ctx.store
     .getSecretRefs(installed.id)
     .filter((ref) => !activeSecrets.has(ref));

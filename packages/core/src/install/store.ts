@@ -26,6 +26,122 @@ import type { Grant } from "../capabilities/grants.js";
 import type { BackgroundConsent } from "../capabilities/types.js";
 export const DATABASE_FILE = "plums.db";
 
+interface SecretReferenceRow {
+  id: string;
+  secret_refs: string;
+  local_record: string | null;
+  reserved_refs: string | null;
+}
+function ownsLocalCredentialReference(
+  packageId: string,
+  value: unknown,
+): value is string {
+  const prefix = "secret:" + packageId + "/";
+  return (
+    typeof value === "string" &&
+    value.startsWith(prefix) &&
+    value.length > prefix.length &&
+    !/[\0-\x1f\x7f]/.test(value)
+  );
+}
+function localCredentialReferences(
+  credential: AgentLocalGrant["credentials"][number],
+): string[] {
+  return [
+    credential.secretRef,
+    credential.valueRef,
+    credential.usernameRef,
+    credential.encodedValueRef,
+    credential.encodedUsernameRef,
+  ].filter((value): value is string => typeof value === "string");
+}
+function validLocalCredentialReferences(
+  packageId: string,
+  credential: AgentLocalGrant["credentials"][number],
+): boolean {
+  if (
+    !ownsLocalCredentialReference(packageId, credential.secretRef) ||
+    ["valueRef", "usernameRef", "encodedValueRef", "encodedUsernameRef"].some(
+      (key) =>
+        Object.hasOwn(credential, key) &&
+        typeof credential[key as keyof typeof credential] !== "string",
+    )
+  )
+    return false;
+  if (
+    Object.keys(credential).some(
+      (key) =>
+        ![
+          "id",
+          "kind",
+          "host",
+          "secretRef",
+          "valueRef",
+          "usernameRef",
+          "encodedValueRef",
+          "encodedUsernameRef",
+        ].includes(key),
+    )
+  )
+    return false;
+  if (
+    credential.valueRef === undefined &&
+    ["usernameRef", "encodedValueRef", "encodedUsernameRef"].some((key) =>
+      Object.hasOwn(credential, key),
+    )
+  )
+    return false;
+  if (
+    credential.usernameRef !== undefined &&
+    !["pip-index-auth", "git-https"].includes(credential.kind)
+  )
+    return false;
+  if (
+    credential.encodedUsernameRef !== undefined &&
+    !["pip-index-auth", "git-https"].includes(credential.kind)
+  )
+    return false;
+  if (
+    credential.encodedUsernameRef !== undefined &&
+    credential.usernameRef === undefined
+  )
+    return false;
+  if (
+    credential.valueRef !== undefined &&
+    credential.kind === "git-https" &&
+    credential.usernameRef === undefined
+  )
+    return false;
+  const references = localCredentialReferences(credential);
+  return (
+    references.length > 0 &&
+    new Set(references).size === references.length &&
+    references.every((ref) => ownsLocalCredentialReference(packageId, ref))
+  );
+}
+function collectSecretReferences(rows: SecretReferenceRow[]): string[] {
+  const references = new Set<string>(),
+    packages = new Set<string>();
+  for (const row of rows) {
+    if (!packages.has(row.id)) {
+      packages.add(row.id);
+      for (const reference of JSON.parse(row.secret_refs) as string[])
+        references.add(reference);
+    }
+    for (const reference of JSON.parse(row.reserved_refs ?? "[]") as string[])
+      if (ownsLocalCredentialReference(row.id, reference))
+        references.add(reference);
+    if (row.local_record) {
+      const grant = JSON.parse(row.local_record) as AgentLocalGrant;
+      for (const credential of grant.credentials ?? [])
+        for (const reference of localCredentialReferences(credential))
+          if (ownsLocalCredentialReference(row.id, reference))
+            references.add(reference);
+    }
+  }
+  return [...references];
+}
+
 /** A package that is in the install list. */
 export interface InstalledPackage {
   id: string;
@@ -99,7 +215,9 @@ interface ConsentRow {
   format_version: Manifest["formatVersion"];
 }
 
-export const SCHEMA_VERSION = 7;
+// Schema 7 readers do not account for pending or multi-part local credentials.
+// They must refuse this database before reading or mutating its authorization state.
+export const SCHEMA_VERSION = 8;
 
 const INSTALLED_SELECT = `
   SELECT p.id, p.kind, p.name, p.version, p.enabled, p.installed_at, p.enabled_at,
@@ -158,18 +276,124 @@ export class InstallStore {
 
   /** Includes removed fields. Why: deletion can fail after an update changes the manifest. */
   getSecretRefs(id: string): string[] {
-    const row = this.statement(
-      "SELECT secret_refs FROM packages WHERE id = ?",
-    ).get(id) as { secret_refs: string } | undefined;
-    return row === undefined ? [] : (JSON.parse(row.secret_refs) as string[]);
+    return collectSecretReferences(
+      this.statement(
+        "SELECT p.id,p.secret_refs,l.record AS local_record,NULL AS reserved_refs,0 AS source,l.instance_id,l.engine_id FROM packages p LEFT JOIN agent_local_grants l ON l.package_id=p.id WHERE p.id=? UNION ALL SELECT package_id AS id,'[]' AS secret_refs,NULL AS local_record,json_array(ref) AS reserved_refs,1 AS source,'' AS instance_id,ref AS engine_id FROM local_credential_reservations WHERE package_id=? ORDER BY source,instance_id,engine_id",
+      ).all(id, id) as SecretReferenceRow[],
+    );
   }
 
-  /** All current and historical references, in the same order as list() then getSecretRefs(). */
+  /** One current-state query covers setting references and local credentials. */
   listSecretRefs(): string[] {
-    const rows = this.statement(
-      "SELECT secret_refs FROM packages ORDER BY id",
-    ).all() as { secret_refs: string }[];
-    return rows.flatMap((row) => JSON.parse(row.secret_refs) as string[]);
+    return collectSecretReferences(
+      this.statement(
+        "SELECT p.id,p.secret_refs,l.record AS local_record,NULL AS reserved_refs,0 AS source,l.instance_id,l.engine_id FROM packages p LEFT JOIN agent_local_grants l ON l.package_id=p.id UNION ALL SELECT package_id AS id,'[]' AS secret_refs,NULL AS local_record,json_array(ref) AS reserved_refs,1 AS source,'' AS instance_id,ref AS engine_id FROM local_credential_reservations ORDER BY id,source,instance_id,engine_id",
+      ).all() as SecretReferenceRow[],
+    );
+  }
+
+  private retainSecretRefs(id: string, extra: readonly string[] = []): void {
+    const references = [...new Set([...this.getSecretRefs(id), ...extra])];
+    if (references.length)
+      this.statement("UPDATE packages SET secret_refs=? WHERE id=?").run(
+        JSON.stringify(references),
+        id,
+      );
+  }
+
+  /** Trusted-host bookkeeping only: reserves unique references before asynchronous value writes. */
+  reserveLocalCredentialReferences(
+    id: string,
+    installedAt: string,
+    references: readonly string[],
+  ): boolean {
+    return this.connection()
+      .transaction(() => {
+        if (
+          this.get(id)?.installedAt !== installedAt ||
+          references.length === 0 ||
+          references.length > 80 ||
+          new Set(references).size !== references.length ||
+          references.some((ref) => !ownsLocalCredentialReference(id, ref))
+        )
+          return false;
+        for (const ref of references) {
+          const prior = this.statement(
+            "SELECT package_id,installed_at FROM local_credential_reservations WHERE ref=?",
+          ).get(ref) as
+            | { package_id: string; installed_at: string }
+            | undefined;
+          if (
+            prior &&
+            (prior.package_id !== id || prior.installed_at !== installedAt)
+          )
+            return false;
+        }
+        this.retainSecretRefs(id, references);
+        for (const ref of references)
+          this.statement(
+            "INSERT OR IGNORE INTO local_credential_reservations (ref,package_id,installed_at) VALUES (?,?,?)",
+          ).run(ref, id, installedAt);
+        return true;
+      })
+      .immediate();
+  }
+
+  /** Delete reservations only after value deletion or an atomically retained, committed grant. */
+  releaseLocalCredentialReferences(
+    id: string,
+    installedAt: string,
+    references: readonly string[],
+  ): void {
+    if (
+      references.length > 80 ||
+      references.some((ref) => !ownsLocalCredentialReference(id, ref))
+    )
+      throw new Error("Invalid local references");
+    this.connection()
+      .transaction(() => {
+        for (const ref of references)
+          this.statement(
+            "DELETE FROM local_credential_reservations WHERE ref=? AND package_id=? AND installed_at=?",
+          ).run(ref, id, installedAt);
+      })
+      .immediate();
+  }
+
+  activeLocalCredentialRefs(id: string, manifest: Manifest): string[] {
+    if (!isManifestV2(manifest)) return [];
+    const installed = this.get(id),
+      engines = manifest.permissions.filter((p) => p.kind === "engine");
+    const tier = engines.some((p) => (p.tier ?? "machine") === "machine")
+      ? "machine"
+      : "project";
+    return [
+      ...new Set(
+        this.listLocalGrants(id).flatMap((grant) => {
+          const declaration = engines.find((p) => p.target === grant.engineId);
+          if (
+            !installed ||
+            grant.installedAt !== installed.installedAt ||
+            !declaration ||
+            grant.permission !== enginePermissionKey(declaration) ||
+            grant.tier !== tier
+          )
+            return [];
+          return grant.credentials
+            .filter(
+              (credential) =>
+                validLocalCredentialReferences(id, credential) &&
+                declaration.credentials?.some(
+                  (d) =>
+                    d.id === credential.id &&
+                    d.kind === credential.kind &&
+                    d.host === credential.host,
+                ),
+            )
+            .flatMap(localCredentialReferences);
+        }),
+      ),
+    ];
   }
 
   /**
@@ -644,8 +868,11 @@ export class InstallStore {
             grant.toolchains.some(
               (t) => !declaration.toolchains?.includes(t.name),
             ) ||
+            new Set(grant.credentials.map((c) => c.id)).size !==
+              grant.credentials.length ||
             grant.credentials.some(
               (c) =>
+                !validLocalCredentialReferences(grant.packageId, c) ||
                 !grant.hosts.includes(c.host) ||
                 !declaration.credentials?.some(
                   (d) =>
@@ -658,6 +885,21 @@ export class InstallStore {
           if (keys.has(key)) return false;
           keys.add(key);
         }
+        const priorPackages = this.listLocalGrants()
+          .filter((grant) => grant.instanceId === input.tier.instanceId)
+          .map((grant) => grant.packageId);
+        for (const id of new Set([
+          ...priorPackages,
+          ...input.grants.map((grant) => grant.packageId),
+        ]))
+          this.retainSecretRefs(
+            id,
+            input.grants
+              .filter((grant) => grant.packageId === id)
+              .flatMap((grant) =>
+                grant.credentials.flatMap(localCredentialReferences),
+              ),
+          );
         this.statement(
           "INSERT OR REPLACE INTO agent_tier (instance_id,record) VALUES (?,?)",
         ).run(input.tier.instanceId, JSON.stringify(input.tier));
@@ -736,6 +978,7 @@ export class InstallStore {
     instanceId?: string,
   ): void {
     this.connection().transaction(() => {
+      this.retainSecretRefs(packageId);
       this.invalidatePendingEngineTrust();
       if (instanceId !== undefined) {
         if (engineId === undefined)
@@ -969,6 +1212,10 @@ function migrate(db: Database.Database): void {
       db.exec(
         "CREATE TABLE IF NOT EXISTS authority_grants (id TEXT PRIMARY KEY, owner_id TEXT NOT NULL, record TEXT NOT NULL); CREATE TABLE IF NOT EXISTS authority_grant_revision (id INTEGER PRIMARY KEY CHECK(id = 1), revision INTEGER NOT NULL)",
       );
+    // Pending values outlive package removal until the trusted host confirms deletion.
+    db.exec(
+      "CREATE TABLE IF NOT EXISTS local_credential_reservations (ref TEXT PRIMARY KEY,package_id TEXT NOT NULL,installed_at TEXT NOT NULL)",
+    );
     if (current < 7) migrateLocalAuthorization(db);
     migrateLegacyGrants(db);
     if (current < SCHEMA_VERSION) db.pragma(`user_version = ${SCHEMA_VERSION}`);

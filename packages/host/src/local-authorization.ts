@@ -17,6 +17,10 @@ import {
 } from "@plums/core";
 import { confirmOnce } from "./engine-coordinator.js";
 import type { Session } from "./host.js";
+import {
+  presentLocalAuthorizationEvent,
+  presentLocalAuthorizationConfirmation,
+} from "./foundation-presentation.js";
 
 export interface TierSelection {
   ceiling: AgentTierCeiling;
@@ -105,7 +109,7 @@ interface Options {
   dataDir: string;
   confirm: Confirm;
   audit(s: Session, event: AuditEvent): Promise<void>;
-  sanitize(s: Session, value: unknown): Promise<unknown>;
+  secrets(s: Session): Promise<string[]>;
   stop(s: Session, packageIds: string[]): Promise<void>;
 }
 /** Trusted management only. No method on this service is bound into the SDK or a panel. */
@@ -201,7 +205,10 @@ export class LocalAuthorizations {
         hostCount: next.grants.reduce((n, g) => n + g.hosts.length, 0),
       },
     };
-    const safe = (await this.options.sanitize(s, event)) as AuditEvent;
+    const safe = presentLocalAuthorizationEvent(
+      event,
+      await this.options.secrets(s),
+    );
     if (safe.localScope) {
       Object.values(safe.localScope).forEach((v) => {
         if (Array.isArray(v)) Object.freeze(v);
@@ -463,11 +470,14 @@ export class LocalAuthorizations {
         ),
       ),
     ].join("\n");
-    const request = (await this.options.sanitize(s, {
-      subject: s.record.name,
-      action: message,
-      message,
-    })) as Parameters<Confirm["ask"]>[0];
+    const request = presentLocalAuthorizationConfirmation(
+      {
+        subject: s.record.name,
+        action: message,
+        message,
+      },
+      await this.options.secrets(s),
+    );
     const allowed = await confirmOnce(
       this.options.confirm,
       request,

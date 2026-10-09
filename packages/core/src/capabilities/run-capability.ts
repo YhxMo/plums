@@ -230,6 +230,11 @@ async function ask(
   }
 }
 
+type FailureControl = {
+  callId: string;
+  phase: string;
+  executionState: ExecutionState;
+};
 function failure(
   callId: string,
   phase: string,
@@ -261,6 +266,63 @@ function failure(
   });
 }
 
+function presentFailure(
+  error: PlumsError,
+  secrets: readonly string[],
+  control?: Readonly<FailureControl>,
+): PlumsError {
+  if (!control) return redact(error, secrets);
+  const safe = redact(error, secrets);
+  const extra = Object.fromEntries(
+    Object.entries(error.details as Record<string, unknown>).filter(
+      ([key]) => !Object.hasOwn(control, key),
+    ),
+  );
+  return new PlumsError({
+    code: safe.code,
+    message: safe.message,
+    details: { ...(redact(extra, secrets) as object), ...control },
+  });
+}
+
+function presentEvent(
+  event: AuditEvent,
+  secrets: readonly string[],
+): AuditEvent {
+  // This event was constructed above the adapter boundary. Values from requests and
+  // declarations still redact; the generated correlation and state values stay usable.
+  const control = new Set([
+    "callId",
+    "timestamp",
+    "phase",
+    "outcome",
+    "executionState",
+    "kind",
+    "code",
+    "taskId",
+    "grantId",
+  ]);
+  const fields = new Set([
+    ...control,
+    "callerIds",
+    "extensionId",
+    "permissionId",
+    "operation",
+    "target",
+    "reason",
+  ]);
+  const safe: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(event)) {
+    Object.defineProperty(safe, fields.has(key) ? key : redact(key, secrets), {
+      value: control.has(key) ? structuredClone(value) : redact(value, secrets),
+      enumerable: true,
+      configurable: true,
+      writable: true,
+    });
+  }
+  return safe as unknown as AuditEvent;
+}
+
 /** No model loop or third-party execution: authorization and one injected sink call. */
 export async function runCapability(
   ctx: CapabilityContext,
@@ -270,6 +332,21 @@ export async function runCapability(
   additionalGate?: () => void | Promise<void>,
 ): Promise<CapabilityResult> {
   const callId = randomUUID();
+  // An adapter can replay an earlier error. Only this invocation's own failures
+  // have trusted control metadata; matching error codes or field names do not.
+  const failureControls = new WeakMap<PlumsError, Readonly<FailureControl>>();
+  const fail = (
+    phase: string,
+    executionState: ExecutionState,
+    known?: NonNullable<ReturnType<typeof SinkFailure.describe>>,
+  ) => {
+    const error = failure(callId, phase, executionState, known);
+    failureControls.set(
+      error,
+      Object.freeze({ callId, phase, executionState }),
+    );
+    return error;
+  };
   let state: ExecutionState = "not_started";
   let input: RunCapabilityInput;
   let copied = false;
@@ -286,6 +363,14 @@ export async function runCapability(
   > = {};
   const secrets = new Set<string>();
   let firstSecrets: Promise<string[] | undefined> | undefined;
+  const refreshSecrets = async () => {
+    if (firstSecrets !== undefined) {
+      const values = await firstSecrets;
+      if (values === undefined) throw new Error();
+      for (const secret of values) secrets.add(secret);
+    }
+    for (const secret of await knownSecrets(ctx)) secrets.add(secret);
+  };
   const emit = async (
     phase: AuditEvent["phase"],
     outcome: AuditEvent["outcome"],
@@ -294,12 +379,7 @@ export async function runCapability(
   ): Promise<void> => {
     try {
       if (ctx.onAudit === undefined) throw new Error();
-      if (firstSecrets !== undefined) {
-        const values = await firstSecrets;
-        if (values === undefined) throw new Error();
-        for (const secret of values) secrets.add(secret);
-      }
-      for (const secret of await knownSecrets(ctx)) secrets.add(secret);
+      await refreshSecrets();
       const event: AuditEvent = {
         ...meta,
         callId,
@@ -310,11 +390,11 @@ export async function runCapability(
         ...(code ? { code } : {}),
         ...(reason ? { reason } : {}),
       };
-      const safeEvent = redact(event, [...secrets]) as AuditEvent;
+      const safeEvent = presentEvent(event, [...secrets]);
       if (safeEvent.callerIds) Object.freeze(safeEvent.callerIds);
       await ctx.onAudit(Object.freeze(safeEvent));
     } catch {
-      throw failure(callId, `audit_${phase}`, state);
+      throw fail(`audit_${phase}`, state);
     }
   };
   try {
@@ -517,16 +597,20 @@ export async function runCapability(
             : permission.kind === "exec"
               ? `运行程序 ${permission.target}`
               : `把数据发送到 ${initialScope.host}`;
-      const safeRequest = redact(
-        {
-          subject: name,
-          action: `「${name}」想${action}。`,
-          message: `「${name}」想${action}。原因:${permission.reason}。允许吗?`,
-          reason: permission.reason,
-          ...(initialScope.host ? { host: initialScope.host } : {}),
-        },
-        [...secrets],
-      ) as ConfirmRequest;
+      // These schema fields are constructed here; only their presentation text
+      // comes from declarations. A matching credential must not rename a field.
+      const safeRequest: ConfirmRequest = {
+        subject: redact(name, [...secrets]),
+        action: redact(`「${name}」想${action}。`, [...secrets]),
+        message: redact(
+          `「${name}」想${action}。原因:${permission.reason}。允许吗?`,
+          [...secrets],
+        ),
+        reason: redact(permission.reason, [...secrets]),
+        ...(initialScope.host
+          ? { host: redact(initialScope.host, [...secrets]) }
+          : {}),
+      };
       const answer = await ask(ctx.confirm, safeRequest, ctx.confirmTimeoutMs);
       await emit("confirmation", answer);
       if (answer !== "allowed")
@@ -554,7 +638,7 @@ export async function runCapability(
         CAPABILITY_FAILED,
         known?.reason ?? "SINK_FAILED",
       );
-      throw failure(callId, "sink", state, known);
+      throw fail("sink", state, known);
     }
     state = "completed";
     await emit("result", "completed");
@@ -562,17 +646,25 @@ export async function runCapability(
       try {
         await recheck();
       } catch {
-        throw failure(callId, "result_authorization", state);
+        throw fail("result_authorization", state);
       }
     }
     return result;
   } catch (error) {
-    if (error instanceof PlumsError && error.code === CAPABILITY_FAILED)
-      throw secrets.size === 0 ? error : redact(error, [...secrets]);
+    if (error instanceof PlumsError && error.code === CAPABILITY_FAILED) {
+      if (!failureControls.has(error)) {
+        try {
+          await refreshSecrets();
+        } catch {
+          throw fail("redaction", state);
+        }
+      }
+      throw presentFailure(error, [...secrets], failureControls.get(error));
+    }
     const safeError =
       error instanceof PlumsError || (!copied && error instanceof TypeError)
         ? error
-        : failure(callId, "authorization", state);
+        : fail("authorization", state);
     await emit(
       "denied",
       "denied",
@@ -581,7 +673,7 @@ export async function runCapability(
     // Invalid request messages are fixed text; keep their public TypeError identity.
     throw safeError instanceof TypeError || secrets.size === 0
       ? safeError
-      : redact(safeError, [...secrets]);
+      : presentFailure(safeError, [...secrets], failureControls.get(safeError));
   }
 }
 

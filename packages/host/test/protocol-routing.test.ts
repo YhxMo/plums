@@ -1255,3 +1255,177 @@ it("revokes existing finite Grants when a new component automatically connects",
     core.close();
   }
 });
+
+async function replaceWatchdogProvider(
+  f: Awaited<ReturnType<typeof fixture>>,
+  source: string,
+) {
+  const update = await archive("a", provide(), source, [fsPermission], {
+    version: "1.1.0",
+  });
+  await f.host.updatePackage(
+    f.id,
+    ((await f.host.previewComponent(f.id, update)) as { token: string }).token,
+    "a",
+    true,
+  );
+  await f.bind();
+}
+
+it.each(["denial", "sink"] as const)(
+  "bounds stale provider cleanup after a swallowed %s and a permanent wait",
+  async (failure) => {
+    const f = await fixture();
+    await replaceWatchdogProvider(
+      f,
+      `export function activate(s){s.register('tools','store',async v=>{try{await s.capability('data',v);}catch{await new Promise(()=>{});}});}`,
+    );
+    const other = createCore({
+      dataDir: path.join(f.dir, "instances", f.id, "core"),
+      secrets: f.stores.get(f.id)!,
+      egress: f.egress,
+    });
+    let entered!: () => void;
+    const reached = new Promise<void>((resolve) => (entered = resolve));
+    let work: Promise<unknown> | undefined;
+    try {
+      if (failure === "denial")
+        f.confirm.ask.mockImplementation(async () => {
+          await other.disable("a");
+          await other.enable("a");
+          entered();
+          return true;
+        });
+      else {
+        const write = f.fs.write.bind(f.fs);
+        vi.spyOn(f.fs, "write").mockImplementation(async (request) => {
+          await write(request);
+          await other.disable("a");
+          await other.enable("a");
+          entered();
+          throw Error("private sink failure");
+        });
+      }
+      work = f
+        .invoke("run", {
+          kind: "fs",
+          operation: "write",
+          path: "record.txt",
+          data: [1],
+        })
+        .catch((error: unknown) => error);
+      await reached;
+      const outcome = await Promise.race([
+        work,
+        new Promise((resolve) =>
+          setTimeout(() => resolve({ unfinished: true }), 7200),
+        ),
+      ]);
+      expect(outcome).not.toHaveProperty("unfinished");
+      expect(f.fs.records).toHaveLength(failure === "denial" ? 0 : 1);
+      const request = f.audit.find(
+        (e) => e.phase === (failure === "denial" ? "confirmation" : "allow"),
+      )!;
+      expect(request.callId).toEqual(expect.any(String));
+      expect(
+        f.audit.find(
+          (e) => e.phase === (failure === "denial" ? "denied" : "result"),
+        ),
+      ).toMatchObject({
+        callId: request.callId,
+        executionState: failure === "denial" ? "not_started" : "unknown",
+      });
+      expect(JSON.stringify(outcome)).not.toContain("private");
+    } finally {
+      other.close();
+      await f.host.close();
+      await work;
+    }
+  },
+);
+
+it.each(["unknown", "completed"] as const)(
+  "preserves the original %s failure after a long host wait and near-budget error handling",
+  async (state) => {
+    const f = await fixture();
+    await replaceWatchdogProvider(
+      f,
+      `export function activate(s){s.register('tools','store',async v=>{try{await s.capability('data',v);}catch(original){try{await s.capability('data',{kind:'fs',operation:'read',path:v.path});}catch{};const end=Date.now()+4600;while(Date.now()<end){};throw original;}});}`,
+    );
+    const other = createCore({
+      dataDir: path.join(f.dir, "instances", f.id, "core"),
+      secrets: f.stores.get(f.id)!,
+      egress: f.egress,
+    });
+    let entered!: () => void, release!: () => void;
+    const reading = new Promise<void>((resolve) => (entered = resolve)),
+      response = new Promise<void>((resolve) => (release = resolve));
+    const write = f.fs.write.bind(f.fs),
+      read = f.fs.read.bind(f.fs);
+    vi.spyOn(f.fs, "write").mockImplementation(async (request) => {
+      await write(request);
+      // The next read needs a real metadata fixture at the authorized path.
+      await writeFile(request.path, new Uint8Array([1]));
+      if (state === "unknown") throw Error("private write failure");
+    });
+    let failedAudit = false;
+    if (state === "completed")
+      f.setAudit(async (event) => {
+        if (event.phase === "result" && !failedAudit) {
+          failedAudit = true;
+          throw Error("private audit failure");
+        }
+      });
+    vi.spyOn(f.fs, "read").mockImplementation(async (request) => {
+      entered();
+      await response;
+      return read(request);
+    });
+    let work: Promise<unknown> | undefined,
+      settled = false;
+    try {
+      work = f
+        .invoke("run", {
+          kind: "fs",
+          operation: "write",
+          path: "record.txt",
+          data: [1],
+        })
+        .catch((error: unknown) => error)
+        .finally(() => (settled = true));
+      await Promise.race([
+        reading,
+        work.then((error) => {
+          throw error;
+        }),
+      ]);
+      await other.disable("a");
+      await other.enable("a");
+      await new Promise((resolve) => setTimeout(resolve, 6200));
+      expect(settled).toBe(false);
+      release();
+      const error = await work,
+        first = f.audit.find((e) => e.phase === "allow")!;
+      expect(error).toMatchObject({
+        code: "CAPABILITY_FAILED",
+        details: {
+          callId: first.callId,
+          phase: state === "unknown" ? "sink" : "audit_result",
+          executionState: state,
+        },
+      });
+      expect(f.fs.records.map((r) => r.operation)).toEqual(["write", "read"]);
+      expect(
+        f.audit
+          .filter((e) => e.phase === "result")
+          .map((e) => e.executionState),
+      ).toEqual([state, "completed"]);
+      expect(JSON.stringify(error)).not.toContain("private");
+    } finally {
+      release();
+      other.close();
+      await f.host.close();
+      await work;
+    }
+  },
+);

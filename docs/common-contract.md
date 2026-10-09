@@ -20,7 +20,7 @@
 
 ## 2. 发现、绑定及不可变身份
 
-`discover(requirementId)` 返回当前 Agent 已安装、启用、依赖满足的候选。UI 区分声明匹配、内部符合性验证及真实第三方符合性证据，证据包含平台/制品摘要/测试版本，不把内部夹具标为第三方证据。单候选也经用户明确选择；导入时可集中选择，不能自动授予权限。
+`discover(requirementId)` 返回当前 Agent 已安装、启用、依赖满足的候选。UI 区分声明匹配、内部符合性验证及真实第三方符合性证据，证据包含平台/制品摘要/测试版本，不把内部夹具标为第三方证据。新建、完整 ZIP 导入及加入组件时，没有已有选择且只有一个兼容候选的协议需求自动绑定并通知用户；多候选仍须选择，绑定意图与用户选择优先，失效连接不自动重绑。自动绑定不能授予权限。
 
 绑定固定消费者安装身份、需求、提供者安装身份、制品 SHA-256、协议版本、功能、贡献入口与当前 generation。导入/导出的 `ProtocolBindingIntent` 只是便携选择，恢复时重新检查；不包含运行 handle、同意、资源资格或执行授权。`CommonBinding.handle` 是宿主生成、当前运行上下文限定的不透明句柄。包名出现在可信发现结果中，消费者代码只调用自己的槽和句柄。
 
@@ -86,7 +86,9 @@ deadline 使用宿主单调时钟预算，消费者 `timeoutMs` 只能缩短；�
 
 宿主构造 `CommonOperationContext`：真实调用链、callId/taskId、类别/操作、本次逻辑 target/permissionId、无凭据的意图、用户最大范围、期限、modeGeneration、唯一 assessmentId 及规范化操作 SHA-256 指纹。策略可查看本次审批所需参数，但不能读取宿主密钥、原始凭据/输出、管理数据库或其他执行授权。策略计算过程不得再次发起被评估的能力或递归触发自身；超过 10 秒、异常、非规范返回、fingerprint 不符一律拒绝为 `POLICY_UNAVAILABLE`，没有隐式人工/默认放行兜底。
 
-`CommonPolicyDecision` 仅有 `assessmentId/operationFingerprint/decision`，decision 为 allow/deny/confirm。allow 只是用户最大范围内本次请求的决定；confirm 必须显示宿主生成的真实上下文并由可信窗口返回布尔 true；deny 阻止执行。策略不能增加路径、资源、网络目标、操作或期限。结果再次校验当前绑定/资格/期限/完整链并审计后才执行；等待中切换/撤权使旧决定失效。
+`CommonPolicyDecision` 仅有 `assessmentId/operationFingerprint/decision`，decision 为 allow/deny/confirm。allow 只是用户最大范围内本次请求的决定；宿主经办能力的 confirm 必须显示宿主生成的真实上下文并由可信窗口返回布尔 true；本地入口的 confirm 可由有效执行项满足；deny 阻止执行。策略不能增加路径、资源、网络目标、操作或期限。结果再次校验当前绑定/资格/期限/完整链并审计后才执行；等待中切换/撤权使旧决定失效。
+
+本地入口以 `category: "local"` 接入同一协议；target 为 engineId，operation 为 start 或 method，意图不含请求参数。本地最大范围来自本组件已确认的执行项，不使用短期租约。策略评估器、普通 common 运行/任务、资源范围与短期能力范围可与已确认本地入口共存；宿主经办请求仍需其自身有效授权。
 
 模式偏好与策略绑定可以按 Agent 保存；有效授权租约只存在内存，默认任务 15 分钟、可明确选 1 小时。会话只承载展示及任务归属，不是隐藏权限范围。默认安全模式继续使用现有 read/list 也 task-or-confirm、未覆盖请求单次确认的桌面规则。完全访问/自动审查/高危人工及自定义模式都需要可信窗口选择活动范围，重启只恢复偏好，租约归零并重新批准；不得自动恢复全访问。新的组件、声明、策略制品或绑定变更撤销相关租约。
 
@@ -106,7 +108,7 @@ Node 后台不直接获得持久目录/网络权限；文件/HTTPS/命令请求�
 
 Seatbelt 的 sandbox-exec 与 sandbox.h 是已弃用的平台设施，不能视为苹果对长期 API 的承诺；本机头文件标注 “No longer supported”。Apple 的 [App Sandbox 文档](https://developer.apple.com/documentation/security/protecting-user-data-with-app-sandbox)及[继承规则](https://developer.apple.com/library/archive/documentation/Miscellaneous/Reference/EntitlementKeyReference/Chapters/EnablingAppSandbox.html)描述了另一种签名/App Sandbox 路径；它的静态容器/权限不直接提供本方案每调用的动态目录边界。首轮选择已实测的 Seatbelt，启动时及打包验收必须先探测文件/网络/进程拒绝，设施缺失或边界失败时返回 `RUNTIME_UNAVAILABLE`，禁止回退到普通权限。XPC/App Sandbox helper 和虚拟机作为未来替代；本轮不要求安装 VM 或额外服务。
 
-现有 `engines` 仍是明确获批后拥有普通本机权限的旧类型；UI 必须显示其无法受到受限模式逐次约束。新权限模式/受限任务不能启动旧引擎，也不能把旧引擎声明改名后认定为受控。普通权限旧引擎保留现有独立审批及生命周期，最终兼容验收必须覆盖它与新模式的互斥。
+现有 `engines` 按已确认的组件执行项运行，整机入口仍有普通本机权限，直接文件/网络/子进程操作不受宿主策略逐次约束。策略评估器可与本地入口共存，启动和请求经过 local 判定。普通 common 运行/任务、资源与短期能力范围可与整机入口同时活动。本地回调中的 common 子任务保留原链与本地运行上下文，并绑定实际父请求的取消和更早期限；资源按各方资格与有效范围交集授权，非 local 策略仍需租约。完整选择性生命周期和项目沙箱继续实施；不能把普通权限引擎改名后当作受控运行。
 
 ## 8. 独立 UI、恢复与兼容
 
@@ -140,7 +142,7 @@ Seatbelt 的 sandbox-exec 与 sandbox.h 是已弃用的平台设施，不能视�
 
 受控 Node/命令每次启动先用生产沙箱实测文件、网络、进程、环境与描述符边界；Node 固定 26.5.1，命令固定已选制品摘要及只读系统依赖。逻辑目录须是显式外部目录；平台 dataDir、其祖先/后代和 agent-data 不能作为命令范围。启动前检查目录实体、当前同意/权限/链和期限，程序得到只读快照、临时 scratch、显式读写根及空环境。单进程程序不能自行 fork/执行其他程序/联网。只读不由 write 推导。
 
-默认安全模式的命令启动经过 exec 单次可信确认；已选策略模式由有效策略决定 allow/deny/confirm；已有 fs/HTTPS 任务最大范围同样约束命令读写根，不选中的操作拒绝。所有实际文件/HTTPS/资源仍经宿主现有 Sink 与 CAS 路由。HTTPS 在 DNS/凭据等待后再次复核。旧普通权限引擎与 common 运行、任务或资源/能力范围互斥，防止普通权限进程成为受限模式旁路；旧前端引擎桥仍限定自己的组件。
+默认安全模式的命令启动经过 exec 单次可信确认；已选策略模式由有效策略决定 allow/deny/confirm；已有 fs/HTTPS 任务最大范围同样约束命令读写根，不选中的操作拒绝。所有实际文件/HTTPS/资源仍经宿主现有 Sink 与 CAS 路由。HTTPS 在 DNS/凭据等待后再次复核。按组件确认的整机入口可与 common 运行、任务及资源/能力范围同时活动，各自的声明、范围、策略与取消仍分别复核；前端引擎桥只管理自己的组件。
 
 停止等待真实子进程退出及快照清理，独立 supervisor 在 broker 断连后 TERM，三秒后 KILL。历史任务只保存无正文状态；中断且已分发的任务恢复 unknown，不重执行。允许审计失败为 not_started，执行完成后的审计/输出失败为 completed。撤权和绑定变化清除已有业务回放，保留管理状态。
 

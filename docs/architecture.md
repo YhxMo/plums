@@ -112,8 +112,16 @@ id 在 2.x 包中唯一。operations、cwdRoots 是非空、无重复数组；fs
 
 ## 6. 密钥
 
+可信宿主通过 `Core.listSecretReferences()` 一次查询读取当前、历史和预留引用，包含安装移除后仍待清理的引用；不返回值、不按组件读取清单，也不改写引用字符串。宿主读取对应 SecretStore 值用于脱敏，读取失败只返回固定 `SECRET_NOT_FOUND`，不带底层异常。Agent 导出在读取组件及附加文件后重新读取值，并保留本次导出先前读到的值，防止异步读取期间的新值或替换值漏检。
+
+可信管理入口 `foundationStatus` 与 `foundationPlan` 保留已验证的底座选择身份、宿主生成的安装身份和计划指纹，以及固定状态和诊断字段；密钥值与这些字段偶然重合时仍可正常管理。声明中的缺失特性文本和未知附加字段（含嵌套键名）继续按当前 Agent 的完整密钥值集合脱敏；此投影不用于业务正文、SDK 回复、错误、审计或导出。
+
+`resources.record.foundation` 使用同一可信底座投影；安装记录和清单的 id/kind/version、格式和安装状态在确切路径保留，声明文本、payload、未知附加字段及其嵌套键名继续脱敏。`tierPlan` 保留确认指纹、已校验选择及执行项的状态；主机映射只保留计划内已有组件/入口对应的路径。`tierStatus` 和 `tierPlan.current` 保留当前授权的身份、档位、安装时间、授权 nonce 和状态结构；声明文本、配置值、凭据引用文字、物理路径及未知附加字段继续脱敏。本地汇总确认只保留固定字段名，全部呈现文字仍脱敏；本地授权服务自己构建的审计保留关联、阶段、结果、档位与计数，逻辑根名和组件列表的字符串仍脱敏。其余管理与审计路径尚不采用这些投影。
+
+宿主在准备兼容报告、worker、前端和本地入口前读取完整密钥集合，再通过 `Core.matchesInstalledPackage` 比较当前安装与固定制品的完整清单和文件。此入口复制传入制品、校验包结构并在异步读取后复核安装身份，只返回布尔值，不返回源码、不授予运行权限；宿主使用摘要已验证的库快照执行或提供前端文件。公开 `getPackageContents` 和导出仍检查秘密包含，SDK 和业务回复仍完整脱敏。
+
 只存在内核管的存储里;扩展和包里只出现 `secretRef`。日志、错误、导出统一经过脱敏函数;导出包在结构上不含密钥。
-安装记录保留包曾声明过的密钥引用,不保存值。更新提交 manifest 时在同一事务内保留旧引用;若随后删除失败,返回 SECRET_NOT_FOUND(details 为 `{id, version, reason: SECRET_CLEANUP_FAILED}`),version 已安装。后续更新与卸载可重试,脱敏与导出检查也仍覆盖这些值。删除过程中即使值已删除而调用抛错,底层错误也不外露。数据库格式按 2→3→4→5 自动迁移；安装、启用、MCP、已有引用及权限 JSON 保持。schema 5 增加独立 MCP v2 批准表，schema 4 在 consents 增加 format_version，旧记录按已存清单补齐，不改写包文件；旧内核拒绝升级后的目录。schema 2 不能恢复以前已丢失的历史引用。
+安装记录保留包曾声明过的密钥引用,不保存值。更新提交 manifest 时在同一事务内保留旧引用;若随后删除失败,返回 SECRET_NOT_FOUND(details 为 `{id, version, reason: SECRET_CLEANUP_FAILED}`),version 已安装。后续更新与卸载可重试,脱敏与导出检查也仍覆盖这些值。删除过程中即使值已删除而调用抛错,底层错误也不外露。数据库格式按 2→3→4→5→6→7 自动迁移；安装、启用、MCP、已有引用及权限 JSON 保持。schema 5 增加独立 MCP v2 批准表，schema 4 在 consents 增加 format_version，旧记录按已存清单补齐，不改写包文件；旧内核拒绝升级后的目录。schema 2 不能恢复以前已丢失的历史引用。
 
 ## 7. 可替换接口(便于测试)
 
@@ -138,7 +146,7 @@ createCore({ dataDir, model?, egress, secrets, confirm?, fs?, exec?, roots?, pro
 ## 9. 统一错误
 
 `PlumsError { code, message, path?, details? }`。`message` 是人话,`path` 是 JSON Pointer 格式的字段路径(带开头斜杠,如 `/permissions/0/level`、`/dependencies/0`)。
-固定错误码(11 个):MANIFEST_INVALID、FORMAT_UNSUPPORTED、DEPENDENCY_MISSING、CONSENT_REQUIRED、PERMISSION_DENIED、CONFIRMATION_DENIED、SECRET_NOT_FOUND、IMPORT_INVALID、SHARE_FETCH_FAILED、SETTINGS_INVALID、CAPABILITY_FAILED。CAPABILITY_FAILED 用于能力 Sink/审计失败，details 为 callId、phase、executionState；不携带底层异常。not_started 为未调用 Sink，unknown 为已进入 Sink 但结果不确定，completed 为执行成功后结果审计失败；unknown/completed 禁止自动重试。
+固定错误码(12 个):MANIFEST_INVALID、FORMAT_UNSUPPORTED、DEPENDENCY_MISSING、CONSENT_REQUIRED、PERMISSION_DENIED、CONFIRMATION_DENIED、SECRET_NOT_FOUND、IMPORT_INVALID、SHARE_FETCH_FAILED、SETTINGS_INVALID、CAPABILITY_FAILED、TIER_UNAVAILABLE。TIER_UNAVAILABLE 表示项目执行的系统沙箱尚不可用，不能回退为普通本机权限。CAPABILITY_FAILED 用于能力 Sink/审计失败，details 为 callId、phase、executionState；不携带底层异常。not_started 为未调用 Sink，unknown 为已进入 Sink 但结果不确定，completed 为执行成功后结果审计失败；unknown/completed 禁止自动重试。
 `SECRET_NOT_FOUND` 也用于读取密钥失败:此时只带固定码和固定文案「读取密钥失败，原来的错误已隐藏，以免带出密钥。」,不带 path、details、cause,不含底层错误内容。
 
 ## 10. 里程碑 1 验收(主线:导入角色卡 → 安装扩展并看到权限清单 → 同意并启用 → 卸载)
@@ -230,6 +238,7 @@ M1 目标行为。
 - 独立 core 兼容默认 read/list 不询问；write/exec/egress 逐次询问。`capabilityApproval: "task-or-confirm"` 默认要求所有未被有效任务覆盖的能力单次确认，包括 read/list；DesktopHost 每次构造 core 都固定选用该策略，内部重建和重启不能降回兼容默认。可信宿主可批准有限期 fs/egress 操作子集，范围内复用确认；有效任务内未选择的 read/list 也单次确认。只有布尔 true 放行，缺失/异常/非布尔/超时拒绝，迟到同意不执行。新能力默认超时 120000 ms，宿主可配置；旧入口原有确认行为保持。
 - 请求字节、参数、cwd 和外发字段在第一个 await 前复制。确认后重读权限与同意；停用、卸载、权限范围/理由或真实路径变化拒绝当前调用。放行审计后也重新检查。
 - 每次生成 callId；onAudit 记录确认请求/结果、放行、执行结果和执行前拒绝。只包含能力类别、操作、逻辑目标、状态与错误码，不含路径、URL、文件内容、请求体、参数值、环境变量、stdout/stderr。通过密钥引用脱敏并保留本次读到的值，审计回调收到冻结事件。缺少审计或执行前失败不执行，结果审计失败明确报告动作已完成。
+- Core 能力入口的审计字段名及宿主生成的关联 ID、时间、阶段、结果和执行状态按确切结构保留；请求/声明中的字符串仍脱敏。能力失败只为本次调用内部创建的错误保留 callId/phase/executionState；适配器抛出的同码同名字段、重抛此前真实错误均不获此待遇。提前失败也等待首次密钥读取并刷新，读取失败隐藏原异常。能力确认的字段名保持固定，所有文字仍脱敏。任务范围授权审计保留本次生成的关联、阶段、结果、时长与已验证操作；选择中的组件/权限字符串及未知字段继续脱敏，每次审计刷新凭据并保留已读值。任务审计失败只保留本次内部创建错误的关联和 not_started 状态，不发布授权。公开 redact、SDK/业务回复以及其余 Grant、后台与迁移审计仍按原路径处理。
 - 真实 FsSink 必须在执行时保证目录边界，元数据检查不能消除 TOCTOU；真实 ExecSink 提供命令隔离。core 自带记录式实现，桌面宿主提供真实文件/HTTPS 适配及扩展互调。桌面任务范围按 Agent 实例、版本和目录固定，可停止/撤销；有任务批准与撤权审计，其他生命周期审计尚未完整交付；模型循环由外装示例扩展提供。
 
 ## 通用连接与可信引擎
@@ -238,6 +247,6 @@ SDK v2 的通用连接使用 `service / https / request`。外装连接器负责
 
 `kind: engine` 权限只声明可授权的本机引擎；用户经独立可信入口批准后才保存长期信任并启动。信任绑定 Agent 安装身份、引擎 id 和权限声明，正常升级保留，撤权和卸载清除。core 不解释引擎 payload、不运行代码，固定 Node 启动、JSONL 通信及进程组监管由 host 实现，详见 [engine.md](engine.md)。
 
-schema 5 以附加表保存连接批准、单调设置版本、引擎信任和撤销版本，保持已有安装、权限 JSON、MCP 和密钥引用。信任及设置值不随包或 Agent 导出。
+schema 6 保存有限 authority_grants 及撤销版本；schema 7 增加 agent_tier、agent_local_grants 与迁移审计确认记录。旧 engine_trust 保留为只读历史，匹配当前安装身份和完整声明的整机信任迁移为对应入口的执行项；上限不授予其他入口、目录或 fs/exec 确认覆盖。原安装、权限 JSON、MCP、密钥引用与有限 Grant 保留。有限 Grant 逐入口绑定当前执行项，authority_grant_legacy 为旧记录保存兼容锚点，不改写原记录或恢复已失效授权。迁移项在审计与确认标记保存成功后生效。授权及设置值不随包或 Agent 导出。 schema 8 增加 local_credential_reservations：在异步保存前预留组件安装身份与引用，安装移除后保留，删除成功或已提交授权保留后才释放。当前、历史及预留引用由一次固定 SQL 枚举，脱敏、导出检查及卸载共用；撤销和授权替换与历史引用保留同事务。元信息、实际标量与生成配置中的转义值各保存引用。旧 schema 7 读写器拒绝 8 版库，迁移不改原授权行。项目执行与管理 UI 仍在实施，当前启动边界见 [engine.md](engine.md)。
 
 阶段 4 的可信 `capabilityGate` 位于原授权/范围检查之后，策略不能增加声明、同意、MCP 批准或用户最大范围。选定且活动的第三方策略返回 allow/deny/confirm，覆盖原单次确认分支；没有策略时仍执行安全默认。等待前后及 Sink 前保留复核。策略租约过期清理完成后才批准新租约，见[策略 SDK](sdk-v2.md#第三方策略接入阶段-4)。

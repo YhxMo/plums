@@ -130,8 +130,9 @@ export async function exportAssembly(
   dir: string,
   record: AgentRecord,
   core: Core,
-  secrets: readonly string[],
+  secretValues: () => Promise<readonly string[]>,
 ) {
+  const known = await secretValues();
   const components: Record<string, Uint8Array> = {};
   for (const p of record.components ?? [])
     components[p.archive] = await core.exportPackage(
@@ -150,6 +151,7 @@ export async function exportAssembly(
       consumerDigest: exportedDigests.get(s.consumerId)!,
       providerDigest: exportedDigests.get(s.selected!.providerId)!,
     }));
+  const extras = await readExtras(dir, record);
   return createAgentBundle(
     {
       ...record.agent,
@@ -164,8 +166,8 @@ export async function exportAssembly(
         : {}),
     },
     components,
-    await readExtras(dir, record),
-    secrets,
+    extras,
+    [...known, ...(await secretValues())],
   );
 }
 export async function mutateAssembly<T>(

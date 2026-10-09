@@ -39,7 +39,14 @@ export interface AgentLocalGrant {
     id: string;
     kind: LocalCredentialKind;
     host: string;
+    /** Legacy raw value or versioned routing metadata. */
     secretRef: string;
+    /** Versioned credentials retain each actual injected scalar separately. */
+    valueRef?: string;
+    usernameRef?: string;
+    /** Exact escaped representations written to generated authentication configuration, when different. */
+    encodedValueRef?: string;
+    encodedUsernameRef?: string;
   }[];
   grantedAt: string;
   /** New confirmations carry a nonce so revoke/reconfirm cannot revive an in-flight request. */

@@ -9,7 +9,11 @@ let context: ivm.Context;
 let timer: ReturnType<typeof setTimeout> | undefined;
 let disposed = false;
 let active = "";
-let cpuMs = 0;
+let executionStartedAt = 0n;
+function beginExecution(id: string): void {
+  active = id;
+  executionStartedAt = isolate.wallTime;
+}
 // JSON transport objects must not become JavaScript object literals: __proto__
 // has different semantics in a literal than in JSON data.
 function jsonValue(value: unknown): string {
@@ -19,12 +23,11 @@ function jsonValue(value: unknown): string {
     : `JSON.parse(${JSON.stringify(encoded)})`;
 }
 async function evaluate(source: string): Promise<unknown> {
-  const start = performance.now();
   const result = await context.eval(source, { timeout: 5000, copy: true });
-  if (active) {
-    cpuMs += performance.now() - start;
-    if (cpuMs > 5000) throw Error("CPU budget exceeded");
-  }
+  // Count each isolate execution interval once, even when eval requests overlap.
+  // Host RPC waiting and eval queue waiting do not advance the isolate clock.
+  if (active && isolate.wallTime - executionStartedAt > 5_000_000_000n)
+    throw Error("CPU budget exceeded");
   return result;
 }
 async function pump(): Promise<void> {
@@ -35,7 +38,7 @@ async function pump(): Promise<void> {
     for (const item of JSON.parse(wire)) {
       if (item.type === "result" && item.id === active) {
         active = "";
-        cpuMs = 0;
+        executionStartedAt = 0n;
       }
       send(item);
     }
@@ -94,7 +97,7 @@ process.on("message", async (raw: unknown) => {
           throw Error("Module escape");
         return load(at);
       });
-      active = "start";
+      beginExecution("start");
       await entry.evaluate({ timeout: 5000 });
       const activate = await entry.namespace.get("activate", {
         reference: true,
@@ -119,14 +122,12 @@ process.on("message", async (raw: unknown) => {
       isolate.dispose();
       process.exit();
     } else if (m.type === "event") {
-      active = m.id;
-      cpuMs = 0;
+      beginExecution(m.id);
       await evaluate(
         `__event(${JSON.stringify(m.id)},${JSON.stringify(m.topic)},${jsonValue(m.event)});void 0`,
       );
     } else if (m.type === "invoke") {
-      active = m.id;
-      cpuMs = 0;
+      beginExecution(m.id);
       await evaluate(
         `__invoke(${JSON.stringify(m.id)},${JSON.stringify(m.kind)},${JSON.stringify(m.name)},${jsonValue(m.input)});void 0`,
       );

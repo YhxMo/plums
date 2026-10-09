@@ -27,6 +27,19 @@ node scripts/platform-conformance.mjs --package /absolute/component.zip --out .a
 
 ## 可核验的结果
 
+requirements-v1 的场景 SDK 矩阵使用独立运行器，所有 I/O 均为自造夹具与 Fake/Recording Sink。它验证普通 SDK v2 接口和授权门控，不替代上面的实际受控程序/执行边界套件：
+
+```sh
+pnpm build
+node scripts/scenario-sdk-conformance.mjs --foundation builtin --node /absolute/node-26.5.1/bin/node --out .artifacts/requirements-v1/scenario-foundation-builtin.json
+node scripts/scenario-sdk-conformance.mjs --foundation independent --node /absolute/node-26.5.1/bin/node --out .artifacts/requirements-v1/scenario-foundation-independent.json
+pnpm exec vitest run packages/host/test/scenarios/foundation.test.ts --maxWorkers=1
+```
+
+同一套件有 19 项，含 R13 全部 SDK 面和 failResponse。官方底座全部执行；独立原型仅执行声明支持的 8 项，其余 11 项必须启动前拒绝。每项记录需求、组件摘要、执行或拒绝预期与结果；报告记录精确底座选择、套件版本/摘要、环境与范围。`--case <编号>` 可重复指定部分项，报告标记 partial。vitest 将各项分开执行，遵守单项 20 秒预算，并额外检查不支持项没有启动会话或转用官方底座。CLI 在参数、断言或清理失败时退出 1，不复制异常正文或物理路径。
+
+场景 cards/chat/tavern/mcp 测试默认显式固定当前官方底座。设置 `PLUMS_SCENARIO_FOUNDATION_ARCHIVE=/absolute/test-foundation.zip` 可在各自全新临时数据目录导入并固定另一制品，不静默回退。独立原型不支持完整业务场景，相关组装应拒绝。R13 的 S-A～S-H 最终组合仍需各场景实现后另验；矩阵的 complete 只表示 19 项 SDK 检查完整。
+
 CLI 将 JSON 写到 stdout；可选 `--out` 同时保存文件。通过退出 0，任何必需检查、输入或清理失败退出 1。报告包含报告/套件版本、运行器 SHA-256、适配器文件 SHA-256、实际 OS/CPU/Node、逐项编号与层级、每场景的制品摘要、结果和限制。摘要固定到本次实际输入，不代表制品拥有权限。
 
 `status:passed` 只描述所运行的检查。公开函数支持 `caseIds` 做定向诊断，此时 `coverage:partial`；完整符合性记录必须 `coverage:complete` 且全部必需项通过。结构检查报告单独标为 `layer:structure`、`evidence:declared`、`behaviorVerified:false`。没有用单测数量或同名协议替代行为证据。

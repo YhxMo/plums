@@ -576,7 +576,9 @@ it("rolls back failed migration and rejects databases from a newer reader", asyn
   expect(
     check.prepare("SELECT * FROM engine_trust ORDER BY package_id").all(),
   ).toEqual(f.archive);
-  check.exec("DROP TABLE agent_local_grants; PRAGMA user_version=8");
+  check.exec(
+    `DROP TABLE agent_local_grants; PRAGMA user_version=${SCHEMA_VERSION + 1}`,
+  );
   check.close();
   const newer = new InstallStore(f.dataDir);
   expect(() => newer.open()).toThrow(/newer Plums/);

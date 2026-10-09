@@ -12,6 +12,14 @@ import {
   type FoundationSwitchPhase,
 } from "./foundation-state.js";
 import { OfficialAdapterArtifacts } from "./foundation-artifact.js";
+import {
+  presentFoundationBinding,
+  presentFoundationPlan,
+  presentResources,
+  presentTierPlan,
+  presentLocalAuthorizationState,
+} from "./foundation-presentation.js";
+import { installedComponent } from "./installed-component.js";
 import { WorkspaceLayouts } from "./workspace-layout.js";
 import {
   PolicyService,
@@ -625,7 +633,7 @@ export class DesktopHost {
       dataDir: options.dataDir,
       confirm: options.confirm,
       audit: (s, event) => this.writeAudit(s.record.instanceId, event),
-      sanitize: async (s, value) => redact(value, await this.secretValues(s)),
+      secrets: (s) => this.secretValues(s),
       stop: (s, packages) => this.engines.stopPackages(s, packages),
     });
   }
@@ -1094,23 +1102,14 @@ export class DesktopHost {
   }
   private async foundationContents(s: Session): Promise<PackageContents[]> {
     const contents: PackageContents[] = [];
-    for (const pin of s.record.components ?? []) {
-      const actual = await s.core.getPackageContents(pin.packageId),
-        expected = (await this.library.get(pin.digest)).contents;
-      if (
-        JSON.stringify(actual.manifest) !== JSON.stringify(expected.manifest) ||
-        Object.keys(actual.files).length !==
-          Object.keys(expected.files).length ||
-        Object.entries(expected.files).some(
-          ([p, b]) =>
-            !actual.files[p] ||
-            !Buffer.from(b).equals(Buffer.from(actual.files[p]!)),
-        )
-      )
-        denied();
-      contents.push(actual);
-    }
+    for (const pin of s.record.components ?? [])
+      contents.push(await this.installedContents(s, pin.packageId));
     return contents;
+  }
+  private async installedContents(s: Session, packageId: string) {
+    // Preserve fail-closed secret enumeration before preparing runtime contents.
+    await this.secretValues(s);
+    return installedComponent(s, this.library, packageId);
   }
   private async checkAgentFoundation(
     record: AgentRecord,
@@ -1212,14 +1211,14 @@ export class DesktopHost {
       fingerprint: digest(Buffer.from(JSON.stringify([s.record, installed]))),
       evidence: "declared" as const,
     };
-    return redact(result, await this.secretValues(s)) as typeof result;
+    return presentFoundationPlan(result, await this.secretValues(s));
   }
   async foundationStatus(id: string) {
     const s = await this.session(id);
-    return redact(
-      structuredClone(s.record.foundation!),
+    return presentFoundationBinding(
+      s.record.foundation!,
       await this.secretValues(s),
-    ) as AgentFoundationBinding;
+    );
   }
   async switchFoundation(
     id: string,
@@ -2246,7 +2245,7 @@ export class DesktopHost {
         };
       }),
     );
-    return redact(
+    return presentResources(
       { record: s.record, packages: details },
       await this.secretValues(s),
     );
@@ -2936,7 +2935,7 @@ export class DesktopHost {
       )
         denied();
       if (startup) {
-        const p = await s.core.getPackageContents(startup);
+        const p = await this.installedContents(s, startup);
         if (!desktopContribution(p.manifest, p.files)?.frontend) denied();
       }
       const next = compose(s.record, s.record.components!, {
@@ -3234,23 +3233,24 @@ export class DesktopHost {
     core: Core,
     secrets: SecretStore,
   ): Promise<string[]> {
-    const refs = (
-      await Promise.all(
-        (await core.listInstalled()).map((p) => core.getSecretReferences(p.id)),
-      )
-    ).flat();
-    return (await Promise.all(refs.map((r) => secrets.get(r)))).filter(
-      (v): v is string => v !== undefined,
-    );
+    try {
+      const refs = await core.listSecretReferences();
+      return (await Promise.all(refs.map((r) => secrets.get(r)))).filter(
+        (v): v is string => v !== undefined,
+      );
+    } catch {
+      // Failed lookups can quote values; do not return either the original error or partial data.
+      throw new PlumsError({
+        code: "SECRET_NOT_FOUND",
+        message: "读取密钥失败，原来的错误已隐藏，以免带出密钥。",
+      });
+    }
   }
   async exportAgent(id: string): Promise<Uint8Array> {
     return this.serial(id, async () => {
       const s = await this.session(id);
-      return exportAssembly(
-        this.directory(id),
-        s.record,
-        s.core,
-        await this.secretValues(s),
+      return exportAssembly(this.directory(id), s.record, s.core, () =>
+        this.secretValues(s),
       );
     });
   }
@@ -3863,7 +3863,7 @@ export class DesktopHost {
       const s = await this.session(id);
       await this.assertCoherent(id);
       await this.localAuthorizations.invalidate(s);
-      return redact(
+      return presentTierPlan(
         await this.localAuthorizations.plan(s, copied),
         await this.secretValues(s),
       );
@@ -3873,7 +3873,7 @@ export class DesktopHost {
     return this.serial(id, async () => {
       const s = await this.session(id);
       await this.localAuthorizations.invalidate(s);
-      return redact(
+      return presentLocalAuthorizationState(
         await s.core.localAuthorizationState(),
         await this.secretValues(s),
       );
@@ -4011,7 +4011,7 @@ export class DesktopHost {
       runtime = undefined;
     }
     if (!runtime) {
-      const contents = await s.core.getPackageContents(packageId),
+      const contents = await this.installedContents(s, packageId),
         declaration = desktopContribution(contents.manifest, contents.files);
       if (!declaration?.runtime) denied();
       if (
@@ -4030,19 +4030,6 @@ export class DesktopHost {
 
       const pin = s.record.components?.find((p) => p.packageId === packageId);
       if (!pin) denied();
-      const expected = (await this.library.get(pin.digest)).contents;
-      if (
-        JSON.stringify(expected.manifest) !==
-          JSON.stringify(contents.manifest) ||
-        Object.keys(expected.files).length !==
-          Object.keys(contents.files).length ||
-        Object.entries(expected.files).some(
-          ([p, b]) =>
-            !contents.files[p] ||
-            !Buffer.from(b).equals(Buffer.from(contents.files[p]!)),
-        )
-      )
-        denied();
       const lifecycle = s.core.runtimeAccessCheckpoint([packageId]);
       let created: HostFoundationSession | undefined;
       const foundationPin = structuredClone(s.record.foundation!);
@@ -4418,7 +4405,7 @@ export class DesktopHost {
     if (!startup) return null;
     const p = await s.core.getPackage(startup);
     if (!p.installed.enabled) return null;
-    const contents = await s.core.getPackageContents(startup);
+    const contents = await this.installedContents(s, startup);
     const declaration = desktopContribution(contents.manifest, contents.files);
     if (!declaration?.frontend) return null;
     return {
@@ -4433,20 +4420,8 @@ export class DesktopHost {
     await this.assertCoherent(s.record.instanceId);
     const pin = s.record.components?.find((p) => p.packageId === pkg);
     if (!pin || this.sessions.get(s.record.instanceId) !== s) denied();
-    const contents = await s.core.getPackageContents(pkg),
-      expected = (await this.library.get(pin.digest)).contents;
+    const contents = await this.installedContents(s, pkg);
     desktopContribution(contents.manifest, contents.files);
-    if (
-      JSON.stringify(contents.manifest) !== JSON.stringify(expected.manifest) ||
-      Object.keys(contents.files).length !==
-        Object.keys(expected.files).length ||
-      Object.entries(expected.files).some(
-        ([p, b]) =>
-          !contents.files[p] ||
-          !Buffer.from(b).equals(Buffer.from(contents.files[p]!)),
-      )
-    )
-      denied();
     if (!Object.hasOwn(contents.files, safePath(entry))) denied();
     return contents.files;
   }

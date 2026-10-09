@@ -15,6 +15,7 @@ import { addPolicy, select, grant } from "../policy-fixture.js";
 import { fixtureManifest, packExtension } from "../fixtures/extensions/pack.js";
 import { chatFixture, reply } from "./chat-fixture.js";
 import { MACHINE_AUTHORIZATION_COPY } from "../../src/local-authorization.js";
+import { SCHEMA_VERSION } from "../../../core/src/install/store.js";
 
 const native = process.platform === "darwin" && process.arch === "arm64";
 const Database = createRequire(
@@ -234,7 +235,7 @@ it.runIf(native)(
       hosts: [],
     });
     const check = new Database(database);
-    expect(check.pragma("user_version", { simple: true })).toBe(7);
+    expect(check.pragma("user_version", { simple: true })).toBe(SCHEMA_VERSION);
     for (const table of tables)
       expect(check.prepare(`SELECT * FROM ${table}`).all()).toEqual(
         rows[table],

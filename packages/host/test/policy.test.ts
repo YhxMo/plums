@@ -207,6 +207,8 @@ it("the advertised one-off policy budget also cancels a waiting confirmation bef
   const f = await fixture();
   await select(f.host, f.a.instanceId, "confirm");
   await grant(f.host, f.a.instanceId);
+  // Start both providers before measuring cancellation of a pending confirmation.
+  await f.direct();
   let confirmations = 0,
     reads = 0;
   f.options.confirm.ask = async () => {

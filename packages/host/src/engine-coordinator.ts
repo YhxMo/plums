@@ -26,6 +26,7 @@ import {
 import type { PolicyCheckpoint } from "./policy-service.js";
 import type { Session } from "./host.js";
 import type { ComponentLibrary } from "./library.js";
+import { installedComponent } from "./installed-component.js";
 function denied(): never {
   throw new PlumsError({
     code: PERMISSION_DENIED,
@@ -313,21 +314,8 @@ export class EngineCoordinator {
         if (combined.aborted) denied();
         const binding = s.record.components?.find((c) => c.packageId === pkg);
         if (!binding) denied();
-        const expected = (await this.options.library.get(binding.digest))
-            .contents,
-          installed = await s.core.getPackageContents(pkg);
-        if (
-          JSON.stringify(expected.manifest) !==
-            JSON.stringify(installed.manifest) ||
-          Object.keys(expected.files).length !==
-            Object.keys(installed.files).length ||
-          Object.entries(expected.files).some(
-            ([p, b]) =>
-              !installed.files[p] ||
-              !Buffer.from(b).equals(Buffer.from(installed.files[p]!)),
-          )
-        )
-          denied();
+        await this.options.secrets(s);
+        const expected = await installedComponent(s, this.options.library, pkg);
         // Execute a verified snapshot, so replacement of the install entry cannot redirect launch.
         allocation = this.options.allocateSnapshot?.(s);
         snapshotDir =

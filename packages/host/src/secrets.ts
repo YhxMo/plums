@@ -5,6 +5,7 @@ import {
   open,
   readFile,
   rename,
+  readdir,
   rm,
   writeFile,
 } from "node:fs/promises";
@@ -98,7 +99,32 @@ export class LocalSecretStore implements SecretStore {
     const file = this.file(ref);
     return serial(file, async () => {
       try {
-        if (await this.checkDirectory(false)) await rm(file, { force: true });
+        if (await this.checkDirectory(false)) {
+          await rm(file, { force: true });
+          // A crash can leave unpublished plaintext under this reference's hash.
+          const stem = path.basename(file) + ".";
+          for (const name of await readdir(this.directory)) {
+            if (!name.startsWith(stem)) continue;
+            const suffix = name.slice(stem.length);
+            if (
+              !/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\.pending$/.test(
+                suffix,
+              )
+            )
+              continue;
+            const pending = path.join(this.directory, name);
+            let stat;
+            try {
+              stat = await lstat(pending);
+            } catch (error) {
+              if ((error as NodeJS.ErrnoException).code === "ENOENT") continue;
+              throw error;
+            }
+            if (!stat.isFile() || stat.isSymbolicLink() || stat.nlink !== 1)
+              throw Error();
+            await rm(pending, { force: true });
+          }
+        }
         // Clean up an old ciphertext reference without asking the OS to decrypt it.
         // Desktop's single-instance lock also serializes legacy cleanup across processes.
         if (this.legacyFile)

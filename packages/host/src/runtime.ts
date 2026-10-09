@@ -37,6 +37,33 @@ export class ExtensionRuntime {
   private stopped = false;
   private failures = new Map<string, Error>();
   private inflight = 0;
+  private failureDeliveryMs = 0;
+  private failureDeliverySince: number | undefined;
+  private failureDeliveryTime(): number {
+    return (
+      this.failureDeliveryMs +
+      (this.failureDeliverySince === undefined
+        ? 0
+        : performance.now() - this.failureDeliverySince)
+    );
+  }
+  private pauseFailureDelivery(): void {
+    this.failureDeliveryMs = this.failureDeliveryTime();
+    this.failureDeliverySince = undefined;
+  }
+  private resumeFailureDelivery(): void {
+    if (
+      this.failures.size > 0 &&
+      this.inflight === 0 &&
+      this.failureDeliverySince === undefined
+    )
+      this.failureDeliverySince = performance.now();
+  }
+  private clearFailureDelivery(): void {
+    this.failures.clear();
+    this.failureDeliveryMs = 0;
+    this.failureDeliverySince = undefined;
+  }
   readonly controller = new AbortController();
   constructor(
     readonly id: string,
@@ -85,10 +112,15 @@ export class ExtensionRuntime {
     }
     this.watchdog = setInterval(() => {
       try {
-        // Host requests revalidate authorization at their own await boundaries.
-        // Let their denial or sink failure reach the SDK and worker result before
-        // an idle lifecycle check can discard its callId/executionState.
-        if (this.inflight === 0 && this.failures.size === 0) this.lifecycle?.();
+        // A pending host RPC retains its own authorization and execution outcome.
+        // After failure delivery, defer idle checks for five cumulative seconds
+        // outside host RPC waits. This handoff allowance does not change the
+        // isolate execution budget; repeated failures cannot renew it.
+        if (
+          this.inflight === 0 &&
+          (this.failures.size === 0 || this.failureDeliveryTime() >= 5000)
+        )
+          this.lifecycle?.();
       } catch {
         this.stop();
       }
@@ -209,7 +241,7 @@ export class ExtensionRuntime {
         },
         cleanup,
       };
-      this.failures.clear();
+      this.clearFailureDelivery();
       context.onDispatch?.();
       this.send({ ...message, id });
     });
@@ -256,7 +288,7 @@ export class ExtensionRuntime {
               },
             }),
         );
-      this.failures.clear();
+      this.clearFailureDelivery();
     } else if (m.type === "rpc") {
       try {
         if (
@@ -281,12 +313,14 @@ export class ExtensionRuntime {
             m.method.startsWith("engine."))
         )
           throw Error();
+        if (this.inflight === 0) this.pauseFailureDelivery();
         this.inflight++;
         let value: unknown;
         try {
           value = await this.bridge(m.method, m.args, pending.context);
         } finally {
           this.inflight--;
+          this.resumeFailureDelivery();
         }
         if (!this.stopped && !pending.context.signal.aborted)
           this.send({
@@ -304,6 +338,7 @@ export class ExtensionRuntime {
               ? error
               : new Error("Host request failed"),
           );
+          this.resumeFailureDelivery();
           this.send({
             type: "reply",
             id: m.id,

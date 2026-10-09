@@ -100,7 +100,7 @@ const { status, headers, body } = response.result;
 
 `plumsDesktop.engines` 声明引擎 id、标题、包内入口、固定 Node runtime、支持平台和 `jsonrpc-jsonl-v1`。每个引擎须对应唯一 `kind: engine`、`target: 引擎 id` 的公开权限。
 
-SDK `engine.start/request/cancel/stop/status` 只能控制当前组件声明的引擎。业务前端也有绑定当前组件的 `window.plums.engine`，可独立取消正在执行的长任务。用户长期信任、真实确认、JSONL 协议、受控回调及进程监管详见 [可信引擎](engine.md)。SDK 不提供写入长期授权、管理 Agent、读取密钥明文或指定任意可执行路径的接口。
+SDK `engine.start/request/cancel/stop/status` 只能控制当前组件声明的引擎。业务前端也有绑定当前组件的 `window.plums.engine`，可独立取消正在执行的长任务。SDK 委托保留上游调用链，按工具组件已有本地执行项与 Agent 上限授权；组件不能请求其他组件的入口。回调关联原请求，宿主经办能力仍检查调用链交集。汇总授权、真实确认、JSONL 协议、受控回调及进程监管详见 [可信引擎](engine.md)。SDK 不提供写入长期授权、管理 Agent、读取密钥明文或指定任意可执行路径的接口。
 
 ### 本机引擎数据上下文与 Grant
 
@@ -157,7 +157,7 @@ if (!result.outcome.ok)
 
 命令仍用 `sdk.capability(permissionId,{kind:"exec",args,cwd:{root,path}})`。作者清单声明 exec target/cwdRoots 与精确 fs read/write 权限；用户在可信页为逻辑 target 选择固定程序、读根、写根。程序摘要、目录实体和整链权限在执行前重新核验。命令单独传参，无宿主 shell、环境或任意程序路径输入。默认安全模式的命令启动经单次可信确认；阶段 4 策略模式通过有效策略决定是否确认，目录操作不得越过有效任务最大范围。依赖只允许系统只读库；直接绑定脚本、外部 dylib 与需要 fork 的程序不作为已支持路径。
 
-首轮实际验证为 macOS 27.0.1 arm64；Seatbelt 或边界探测失败时拒绝启动，无普通权限回退。旧普通权限 engines 与 common 运行/任务、资源范围和短期能力范围互斥；旧长期信任不转换成受控授权。完整语义、错误和未验收内容见[共同契约](common-contract.md)、阶段 3 记录（内部验证记录）。
+首轮实际验证为 macOS 27.0.1 arm64；Seatbelt 或边界探测失败时拒绝启动，无普通权限回退。engines 按组件已确认的执行项与 Agent 上限运行，可与 common 运行/任务、资源范围和短期能力范围并存；旧信任只迁移为原入口自身的整机执行项，不授予项目或资源范围。完整语义、错误和未验收内容见[共同契约](common-contract.md)、阶段 3 记录（内部验证记录）。
 
 ### 第三方策略接入（阶段 4）
 
@@ -202,7 +202,7 @@ export function activate(sdk) {
 }
 ```
 
-该固定决定仅演示协议，不是风险分类算法。业务消费者无需声明策略包依赖或修改源码：用户在可信管理页为整个 Agent 选择固定策略和模式名称，再逐项批准参与组件、类别、操作、逻辑目标及 15 分钟或 1 小时期限。模式名称只保存偏好，不能替代实际策略决定或扩大权限。无策略时保留安全确认；选择策略但没有有效租约时返回 `POLICY_UNAVAILABLE`，重启不恢复租约。
+该固定决定仅演示协议，不是风险分类算法。业务消费者无需声明策略包依赖或修改源码：用户在可信管理页为整个 Agent 选择固定策略和模式名称，再逐项批准参与组件、类别、操作、逻辑目标及 15 分钟或 1 小时期限。模式名称只保存偏好，不能替代实际策略决定或扩大权限。无策略时保留安全确认；宿主经办能力选择策略但没有有效租约时返回 `POLICY_UNAVAILABLE`，重启不恢复租约。本地启动与请求使用 `category:"local"/target:engineId/operation:"start"|method`，最大范围来自已有组件执行项，confirm 由该项满足，deny 仍拒绝；该路径无需短期租约，意图不含请求参数。
 
 `maximum.selection` 是完整逻辑最大范围；资源项还须匹配阶段 2 的唯一活动业务资源范围，完全访问例外只由该资源范围选择。文件/HTTPS 仍受现有短期能力范围约束；命令还需选择固定程序全部读写目录的对应操作，write 不包含 read。工具分发和 MCP 远程工具评估仍保留真实调用链、声明/同意及 MCP 指纹批准。最大范围各项按调用链逐组件取交集；未选项直接拒绝，confirm 不能补授权。
 

@@ -180,6 +180,8 @@ await core.runDelegatedCapability({
 
 `checkMcpToolsV2(id, completeTools)` 核对完整列表并撤销消失或变化的批准；`approveMcpToolsV2(id, permissionId, tools)` 仅由宿主在用户批准后调用。`authorizeMcpToolV2` 只检查、不执行；实际工具请求使用 `runDelegatedCapability` 的 mcpTool，在确认和审计后复核同一指纹。新版批准存于数据库 5 独立表，旧 MCP 表和旧入口不变。
 
+MCP v2 的连接器 permissionId 可对应 egress，或包含 request 操作的 `service/https` 权限；后者仍要求当前完整服务操作已获同意。HTTPS service 请求使用已绑定连接，逐调用者检查服务交集与范围，并在确认及审计后复核同一工具批准。批准结构只保存 tool、fingerprint、permissionId、approvedAt，不包含 URL、HTTP 会话或头。平台不实现 MCP wire 协议；远程客户端的测试子集见 [scenario-protocols.md](scenario-protocols.md)。
+
 真实适配器、隔离和外装包约定见 [desktop.md](desktop.md)。core 仍不解释 payload、不运行第三方代码，不负责网络解析或真实 I/O 隔离。
 
 ## 宿主签发的任务范围
@@ -196,15 +198,17 @@ await core.runDelegatedCapability({
 
 通用 `service / https / request` 的效果为 egress，沿用外发任务范围或单次确认。声明绑定的 origin、保存配置、密钥版本和调用链共同决定授权；外装组件构造业务正文、解析回复。`failResponse` 只能报告当前组件当前调用的真实完成请求，保持实际 callId、HTTP 状态和 completed 执行状态。接口见 [SDK v2](sdk-v2.md)。
 
-`kind: engine` 仅声明可由用户长期信任的本机引擎。它不能经 `runCapability` 或普通任务范围启动，不能借受控 ExecSink 启动普通权限引擎。阶段 4 的可信策略接入对新受限路径选择固定提供者、用户最大范围及有限期租约，旧普通引擎与选定策略互斥。长期记录仅由可信管理入口写入；独立引擎进程拥有普通本机用户权限。普通扩展的 fs/HTTPS/MCP 授权仍适用于引擎主动选择的受控贡献回调。完整边界与协议见 [engine.md](engine.md)。
+`kind: engine` 仅声明可由用户长期信任的本机引擎。它不能经 `runCapability` 或普通任务范围启动，不能借受控 ExecSink 启动普通权限引擎。阶段 4 的可信策略接入对新受限路径选择固定提供者、用户最大范围及有限期租约，本地启动和请求已接入 local 策略，使用已有组件执行项作为最大范围；deny 拒绝，confirm 由该项满足。宿主经办能力继续要求有效策略租约。长期记录仅由可信管理入口写入；独立引擎进程拥有普通本机用户权限。普通扩展的 fs/HTTPS/MCP 授权仍适用于引擎主动选择的受控贡献回调。完整边界与协议见 [engine.md](engine.md)。
 
 ## 持久化引擎处理授权（Grant）
 
 `Grant` / `GrantScope` 是 Agent 数据库中的有限期授权，与内存 `TaskScope` 分开。可信宿主先通过 `grantPlan({ownerId, engineId, scope})` 获取预览指纹，经独立授权窗口选择范围后调用 `createGrant({...plan, durationMs})`；有效期只接受 900000 或 3600000 毫秒。`listGrants(ownerId?)` 返回持久记录，`checkGrant(id, ownerId, {reads, outputs})` 检查当前有效性，`revokeGrant(id)` 先保存撤销再审计。SDK 不直接暴露签发接口。
 
-范围中的 `reads` / `outputs` 是引擎声明的固定资源标识；`services` 列出实际调用链各组件、permissionId、operation、已配置 binding。授权绑定实例、安装身份、组件版本与完整清单、同意状态、引擎信任、设置修订和模型连接指纹。重启保持有效期，不自动续期，导出只处理包制品，因此不携带 Grant。普通升级可以保留本机引擎信任，处理 Grant 仍需重新批准。
+范围中的 `reads` / `outputs` 是引擎声明的固定资源标识；`services` 列出实际调用链各组件、permissionId、operation、已配置 binding。授权绑定实例、安装身份、组件版本与完整清单、同意状态、所属整机入口的本地执行项及授权身份、设置修订和模型连接指纹。其他组件或其他入口的本地确认与撤权不会连带失效；所属入口撤权再批准不能恢复旧 Grant。重启保持有效期，不自动续期，导出只处理包制品，因此不携带 Grant。普通升级可以保留本地执行项，处理 Grant 仍需重新批准。
 
-授权审计成功并且数据库事务保存成功后才生效；预览、授权或审计等待期间的状态变化拒绝签发。请求传入可选 `grantId` 与成对的 `grantScope`。范围内的模型服务调用免除重复外发确认，仍执行原声明、同意、调用链交集及执行前后复核。有效授权之外的动作回落到单次确认，单次确认不扩大 Grant；授权本身失效或调用链改变则拒绝后续调用。保留内容外发能力的既有后台 consent 不能替代处理 Grant。
+已有 Grant 的原始记录不改写；数据库首次接入逐入口规则时保存旧指纹所用版本及所属执行项的兼容锚点。检查仍验证当前完整清单、服务范围与执行项一致性，不恢复原本已失效的记录。签发时在数据库写锁内复核所属执行项和有限 Grant 撤销版本，跨进程撤权不能通过迟到签发恢复授权。
+
+授权审计成功并且数据库事务保存成功后才生效；预览、授权或审计等待期间，所绑定的组件状态、服务范围或所属执行项变化拒绝签发。请求传入可选 `grantId` 与成对的 `grantScope`。范围内的模型服务调用免除重复外发确认，仍执行原声明、同意、调用链交集及执行前后复核。有效授权之外的动作回落到单次确认，单次确认不扩大 Grant；授权本身失效或调用链改变则拒绝后续调用。保留内容外发能力的既有后台 consent 不能替代处理 Grant。
 
 授权与执行事件保留 callId、grantId、身份、固定操作分类和状态；不记录资源正文、模型参数、原始输出、密钥或物理目录。本机引擎的本地读写范围由已受信任的引擎适配层执行，Grant 不构成 OS 沙箱。
 
@@ -212,8 +216,14 @@ await core.runDelegatedCapability({
 
 可信管理为 exec target 绑定固定程序摘要与显式外部读/写目录，SDK 仅传 args/cwd。调用链每方必须同意该 exec 权限，且拥有全部所选目录的 fs read/write 声明；write 不隐含 read。活动短期任务范围必须覆盖这些目录操作，未选中即拒绝；exec 自身每次单次确认。执行前复核目录实体、程序摘要、整链状态与期限，再进入默认拒绝的系统沙箱；无直接网络、fork/执行其他程序、继承环境/额外 fd。
 
-平台私有数据及 agent-data 不能作为程序读写根。程序只允许固定只读系统依赖；设施、依赖或真实边界探测失败则 RUNTIME_UNAVAILABLE。取消等待 supervisor 清理，unknown/completed 不自动重试。旧普通权限引擎不能与该受控模式、common 任务或资源范围同时运行。详情见[共同契约](common-contract.md#当前统一运行接入阶段-3)。
+平台私有数据及 agent-data 不能作为程序读写根。程序只允许固定只读系统依赖；设施、依赖或真实边界探测失败则 RUNTIME_UNAVAILABLE。取消等待 supervisor 清理，unknown/completed 不自动重试。按组件确认的整机入口可与该受控模式、common 任务及资源范围同时活动，各自授权仍单独复核。详情见[共同契约](common-contract.md#当前统一运行接入阶段-3)。
 
 ### 桌面第三方策略 gate
 
 可信宿主可注入 `capabilityGate`；core 在完成原有声明、同意、整链和实际范围检查后调用它，并在确认、审计和 Sink 前后反复执行返回的 `assertCurrent`。只有可信宿主 gate 接受时替代本次安全模式确认；core 不加载或解释第三方策略。DesktopHost 的 gate 使用固定策略、严格决定 schema、10 秒超时与有效用户最大范围。未选择策略继续使用上述桌面安全确认；已选择而缺租约/决定无效时拒绝，不能回落单次确认。SDK 没有 gate 配置权限。详见[SDK v2 策略接入](sdk-v2.md#第三方策略接入阶段-4)。
+
+### 本地入口策略
+
+SDK 的 `CommonOperationContext.category` 新增 `local`。本地启动使用 `operation: "start"`，请求使用真实 method，target 为当前组件自己的 engineId。指纹绑定复制请求和当前执行项；意图不含参数。选定策略每次评估，deny 优先；confirm 由已确认执行项满足，不询问。上限不足或执行项缺失时先拒绝，不让策略代替授权。十秒超时、无效决定或审计失败同样拒绝。旧策略若不接受 local 输入须更新，否则返回 `POLICY_UNAVAILABLE`。
+
+本地执行项不依赖短期策略租约；最大范围只列本组件入口与方法。本地请求的策略与放行/结果审计按同一 callId 关联。执行前复核绑定、授权及取消。已确认本地入口可与策略评估器、普通 common/资源/任务范围同时活动。本地回调中的 common 与资源操作保留真实父请求、原调用链及各方资格和范围交集；非 local 操作仍要求有效策略租约，不以本地授权替代。选择性生命周期和 fs/exec 档位确认覆盖继续实施。
