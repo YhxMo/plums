@@ -1,0 +1,130 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>场景测试聊天</title>
+    <style>
+      :root {
+        color-scheme: light;
+        --ink: #182521;
+        --muted: #4c6258;
+        --accent: #225c48;
+        --line: #789185;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        color: var(--ink);
+        background: #f4f7f3;
+        font:
+          16px/1.6 system-ui,
+          sans-serif;
+      }
+      main {
+        max-width: 760px;
+        padding: 24px;
+        margin: auto;
+      }
+      h1 {
+        margin: 0;
+        font-size: 24px;
+      }
+      header p {
+        margin: 4px 0 24px;
+        color: var(--muted);
+      }
+      ol {
+        list-style: none;
+        margin: 0 0 24px;
+        padding: 0;
+      }
+      li {
+        padding: 12px 16px;
+        margin-bottom: 12px;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: white;
+        overflow-wrap: anywhere;
+      }
+      li strong {
+        display: block;
+        color: var(--muted);
+        font-size: 14px;
+      }
+      li p {
+        margin: 4px 0 0;
+        white-space: pre-wrap;
+      }
+      label {
+        display: block;
+        margin-bottom: 8px;
+        font-weight: 600;
+      }
+      textarea {
+        width: 100%;
+        min-height: 104px;
+        padding: 12px;
+        font: inherit;
+        color: var(--ink);
+        background: white;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        resize: vertical;
+      }
+      button {
+        min-height: 44px;
+        margin-top: 12px;
+        padding: 8px 24px;
+        border: 0;
+        border-radius: 8px;
+        font: inherit;
+        color: white;
+        background: var(--accent);
+        cursor: pointer;
+      }
+      button:hover {
+        background: #174433;
+      }
+      button:disabled {
+        cursor: wait;
+        background: #4c6258;
+      }
+      :focus-visible {
+        outline: 3px solid var(--accent);
+        outline-offset: 3px;
+      }
+      #status {
+        min-height: 26px;
+        margin: 12px 0;
+        color: var(--muted);
+      }
+      @media (max-width: 480px) {
+        main {
+          padding: 16px;
+        }
+        button {
+          width: 100%;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <header>
+        <h1>场景测试聊天</h1>
+        <p>使用自造卡和 Fake 模型验证组件组合。</p>
+      </header>
+      <ol id="messages" aria-label="对话记录"></ol>
+      <p id="status" role="status" aria-live="polite">正在读取记录…</p>
+      <form>
+        <label for="text">消息</label>
+        <textarea id="text" name="text" required disabled></textarea>
+        <button type="submit" disabled>发送</button>
+      </form>
+    </main>
+    <script src="chat.js"></script>
+  </body>
+</html>

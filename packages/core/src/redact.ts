@@ -88,7 +88,13 @@ function walk(
 
     const out: Record<string, unknown> = {};
     for (const [key, child] of Object.entries(value)) {
-      out[replaceSecrets(key, secrets)] = walk(child, secrets, seen);
+      // JSON keys such as __proto__ are data, not inherited object setters.
+      Object.defineProperty(out, replaceSecrets(key, secrets), {
+        value: walk(child, secrets, seen),
+        enumerable: true,
+        configurable: true,
+        writable: true,
+      });
     }
     return out;
   } finally {

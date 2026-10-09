@@ -1,6 +1,9 @@
 import Database from "better-sqlite3";
 import path from "node:path";
 import { rmSync } from "node:fs";
+import { execFile, execFileSync } from "node:child_process";
+import { promisify } from "node:util";
+import { fileURLToPath } from "node:url";
 import { afterEach, expect, it, vi } from "vitest";
 import {
   createCore,
@@ -11,8 +14,11 @@ import {
   type AuditEvent,
   type CreateCoreOptions,
   type GrantUse,
+  type Grant,
 } from "@plums/core";
 import { makeCore, manifestZip, validManifestV2 } from "./package-helpers.js";
+import { legacyGrantFingerprint } from "./legacy-grant-helper.js";
+import { InstallStore } from "../src/install/store.js";
 const worlds: { core: Core; dataDir: string }[] = [];
 afterEach(() => {
   vi.restoreAllMocks();
@@ -21,7 +27,10 @@ afterEach(() => {
     rmSync(w.dataDir, { recursive: true, force: true });
   }
 });
-async function fixture(extra: Partial<CreateCoreOptions> = {}) {
+async function fixture(
+  extra: Partial<CreateCoreOptions> = {},
+  secondEntry = false,
+) {
   const events: Readonly<AuditEvent>[] = [],
     confirm = new ScriptedConfirm(),
     calls: unknown[] = [];
@@ -75,6 +84,16 @@ async function fixture(extra: Partial<CreateCoreOptions> = {}) {
                 target: "local",
                 reason: "Run local engine",
               },
+              ...(secondEntry
+                ? [
+                    {
+                      id: "other-engine",
+                      kind: "engine" as const,
+                      target: "other",
+                      reason: "Other entry",
+                    },
+                  ]
+                : []),
             ]
           : []),
       ],
@@ -142,6 +161,253 @@ async function fixture(extra: Partial<CreateCoreOptions> = {}) {
     },
   };
 }
+async function otherEngine(w: Awaited<ReturnType<typeof fixture>>) {
+  await w.core.importPackage(
+    await manifestZip({
+      ...validManifestV2("extension"),
+      id: "other",
+      permissions: [
+        {
+          id: "engine",
+          kind: "engine",
+          target: "local",
+          reason: "Other engine",
+        },
+      ],
+    }),
+  );
+  await w.core.grantConsent("other");
+  await w.core.enable("other");
+}
+const changeInChild = (dataDir: string, packageId: string, action: string) =>
+  promisify(execFile)(process.execPath, [
+    fileURLToPath(new URL("./grants-child.mjs", import.meta.url)),
+    dataDir,
+    packageId,
+    action,
+  ]);
+
+async function freezeLegacy(
+  w: Awaited<ReturnType<typeof fixture>>,
+  g: Grant,
+  schema: 6 | 7,
+) {
+  const local = (await w.core.localAuthorizationState()).grants.find(
+    (x) => x.packageId === g.ownerId && x.engineId === g.engineId,
+  )!;
+  const trust = Object.fromEntries(
+    [
+      "instanceId",
+      "packageId",
+      "engineId",
+      "installedAt",
+      "permission",
+      "grantedAt",
+    ].map((k) => [k, local[k as keyof typeof local]]),
+  );
+  w.core.close();
+  const db = new Database(path.join(w.dataDir, "plums.db"));
+  try {
+    db.prepare("UPDATE authority_grants SET record = ? WHERE id = ?").run(
+      JSON.stringify(g),
+      g.id,
+    );
+    db.exec("DROP TABLE IF EXISTS authority_grant_legacy");
+    if (schema === 6) {
+      db.prepare("INSERT INTO engine_trust VALUES (?,?,?)").run(
+        g.ownerId,
+        g.engineId,
+        JSON.stringify(trust),
+      );
+      db.exec(
+        "DROP TABLE agent_tier; DROP TABLE agent_local_grants; DROP TABLE local_authorization_migrations; PRAGMA user_version=6",
+      );
+    }
+  } finally {
+    db.close();
+  }
+}
+
+it("keeps finite Grants effective when another component is confirmed or revoked", async () => {
+  const w = await fixture();
+  await otherEngine(w);
+  const g = await w.create();
+  await w.core.grantEngineTrust(
+    await w.core.engineTrustSnapshot("other", "local"),
+  );
+  expect(await w.core.checkGrant(g.id, "assistant", w.use)).toEqual(g);
+  await w.core.revokeEngineTrust("other", "local");
+  await expect(w.run(g.id)).resolves.toHaveProperty("kind", "service");
+  expect(w.confirm.asked).toHaveLength(0);
+});
+
+it.each(["grant", "allow", "result"] as const)(
+  "keeps an unrelated cross-process confirmation from interrupting %s audit",
+  async (phase) => {
+    let armed = false;
+    const w = await fixture({
+      onAudit: async (e) => {
+        if (armed && e.grantId && e.phase === phase) {
+          armed = false;
+          await changeInChild(w.dataDir, "other", "grant");
+        }
+      },
+    });
+    await otherEngine(w);
+    armed = phase === "grant";
+    const g = await w.create();
+    armed = phase !== "grant";
+    await expect(w.run(g.id)).resolves.toHaveProperty("kind", "service");
+    expect(await w.core.checkGrant(g.id, "assistant", w.use)).toEqual(g);
+    expect(w.calls).toHaveLength(1);
+  },
+);
+
+it.each([6, 7] as const)(
+  "retains authentic legacy Grants from schema %s across unrelated changes and restart",
+  async (schema) => {
+    const w = await fixture();
+    await otherEngine(w);
+    const g = await w.create();
+    g.fingerprint = await legacyGrantFingerprint(w.core, w.dataDir, g);
+    await freezeLegacy(w, g, schema);
+    expect(await w.core.checkGrant(g.id, "assistant", w.use)).toEqual(g);
+    await w.core.grantEngineTrust(
+      await w.core.engineTrustSnapshot("other", "local"),
+    );
+    expect(await w.core.checkGrant(g.id, "assistant", w.use)).toEqual(g);
+    await w.core.revokeEngineTrust("other", "local");
+    w.core.close();
+    await expect(w.run(g.id)).resolves.toHaveProperty("kind", "service");
+    expect((await w.core.listGrants())[0]).toEqual(g);
+    await changeInChild(w.dataDir, "assistant", "restore");
+    expect(await w.core.checkGrant(g.id, "assistant", w.use)).toBeUndefined();
+  },
+);
+
+it.each([6, 7] as const)(
+  "never revives already stale legacy Grants while opening schema %s",
+  async (schema) => {
+    const w = await fixture();
+    await otherEngine(w);
+    const g = await w.create();
+    g.fingerprint = await legacyGrantFingerprint(w.core, w.dataDir, g);
+    // The old global fingerprint was already stale before this migration started.
+    await w.core.grantEngineTrust(
+      await w.core.engineTrustSnapshot("other", "local"),
+    );
+    await freezeLegacy(w, g, schema);
+    expect(await w.core.checkGrant(g.id, "assistant", w.use)).toBeUndefined();
+    await w.core.revokeEngineTrust("other", "local");
+    w.core.close();
+    expect(await w.core.checkGrant(g.id, "assistant", w.use)).toBeUndefined();
+    expect((await w.core.listGrants())[0]).toEqual(g);
+    await expect(w.run(g.id)).rejects.toMatchObject({
+      code: "PERMISSION_DENIED",
+    });
+    expect(w.calls).toHaveLength(0);
+  },
+);
+
+it("keeps another entry in the same component from invalidating the selected Grant", async () => {
+  const w = await fixture({}, true),
+    g = await w.create();
+  await w.core.grantEngineTrust(
+    await w.core.engineTrustSnapshot("assistant", "other"),
+  );
+  expect(await w.core.checkGrant(g.id, "assistant", w.use)).toEqual(g);
+  await w.core.revokeEngineTrust("assistant", "other");
+  await expect(w.run(g.id)).resolves.toHaveProperty("kind", "service");
+  expect(w.confirm.asked).toHaveLength(0);
+});
+
+it.each(["grant", "allow", "result"] as const)(
+  "blocks own cross-process revoke/reconfirm during %s audit",
+  async (phase) => {
+    let armed = false;
+    const w = await fixture({
+      onAudit: async (e) => {
+        if (armed && e.grantId && e.phase === phase) {
+          armed = false;
+          await changeInChild(w.dataDir, "assistant", "restore");
+        }
+      },
+    });
+    if (phase === "grant") {
+      armed = true;
+      await expect(w.create()).rejects.toMatchObject({
+        code: "PERMISSION_DENIED",
+      });
+      expect(await w.core.listGrants()).toHaveLength(0);
+    } else {
+      const g = await w.create();
+      armed = true;
+      await expect(w.run(g.id)).rejects.toMatchObject(
+        phase === "result"
+          ? {
+              code: "CAPABILITY_FAILED",
+              details: {
+                phase: "result_authorization",
+                executionState: "completed",
+              },
+            }
+          : { code: "PERMISSION_DENIED" },
+      );
+      expect(await w.core.checkGrant(g.id, "assistant", w.use)).toBeUndefined();
+    }
+    expect(w.calls).toHaveLength(phase === "result" ? 1 : 0);
+  },
+);
+
+it.each(["expired", "revoked", "binding", "settings"])(
+  "keeps legacy %s Grants invalid after compatibility anchoring",
+  async (reason) => {
+    const w = await fixture(),
+      g = await w.create();
+    g.fingerprint = await legacyGrantFingerprint(w.core, w.dataDir, g);
+    await freezeLegacy(w, g, 6);
+    expect(await w.core.checkGrant(g.id, "assistant", w.use)).toEqual(g);
+    if (reason === "expired")
+      vi.spyOn(Date, "now").mockReturnValue(g.expiresAt);
+    if (reason === "revoked") await w.core.revokeGrant(g.id);
+    if (reason === "binding") w.change();
+    if (reason === "settings") await w.core.setSettings("model", {});
+    expect(await w.core.checkGrant(g.id, "assistant", w.use)).toBeUndefined();
+    await expect(w.run(g.id)).rejects.toMatchObject({
+      code: reason === "binding" ? "CONSENT_REQUIRED" : "PERMISSION_DENIED",
+    });
+    expect(w.calls).toHaveLength(0);
+  },
+);
+it.each(["other", "assistant"])(
+  "checks the selected authorization under the save lock after %s changes at the persistence boundary",
+  async (packageId) => {
+    const w = await fixture();
+    await otherEngine(w);
+    const save = InstallStore.prototype.saveGrantIfCurrent;
+    const spy = vi
+      .spyOn(InstallStore.prototype, "saveGrantIfCurrent")
+      .mockImplementation(function (grant, revision, authorization) {
+        execFileSync(process.execPath, [
+          fileURLToPath(new URL("./grants-child.mjs", import.meta.url)),
+          w.dataDir,
+          packageId,
+          packageId === "assistant" ? "restore" : "grant",
+        ]);
+        return save.call(this, grant, revision, authorization);
+      });
+    if (packageId === "assistant") {
+      await expect(w.create()).rejects.toMatchObject({
+        code: "PERMISSION_DENIED",
+      });
+      expect(await w.core.listGrants()).toEqual([]);
+    } else {
+      const g = await w.create();
+      expect(await w.core.checkGrant(g.id, "assistant", w.use)).toEqual(g);
+    }
+    expect(spy).toHaveBeenCalledTimes(1);
+  },
+);
 it("uses a persisted finite grant without prompting and audits its identity, never content", async () => {
   const w = await fixture(),
     g = await w.create();
@@ -317,18 +583,26 @@ it("falls back to single confirmation outside a live grant, without expanding it
   expect((await w.core.listGrants())[0].scope.reads).not.toContain("files");
 });
 
-it("does not revive an old grant after engine trust is revoked and restored at the same clock time", async () => {
-  vi.useFakeTimers({ toFake: ["Date"] });
-  vi.setSystemTime(new Date("2026-10-06T08:00:00Z"));
-  try {
-    const w = await fixture(),
-      g = await w.create();
-    await w.core.revokeEngineTrust("assistant", "local");
-    await w.core.grantEngineTrust(
-      await w.core.engineTrustSnapshot("assistant", "local"),
-    );
-    expect(await w.core.checkGrant(g.id, "assistant", w.use)).toBeUndefined();
-  } finally {
-    vi.useRealTimers();
-  }
-});
+it.each([false, true])(
+  "does not revive a Grant (legacy=%s) after own revoke/restore at the same clock time",
+  async (legacy) => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date("2026-10-06T08:00:00Z"));
+    try {
+      const w = await fixture(),
+        g = await w.create();
+      if (legacy) {
+        g.fingerprint = await legacyGrantFingerprint(w.core, w.dataDir, g);
+        await freezeLegacy(w, g, 6);
+        expect(await w.core.checkGrant(g.id, "assistant", w.use)).toEqual(g);
+      }
+      await w.core.revokeEngineTrust("assistant", "local");
+      await w.core.grantEngineTrust(
+        await w.core.engineTrustSnapshot("assistant", "local"),
+      );
+      expect(await w.core.checkGrant(g.id, "assistant", w.use)).toBeUndefined();
+    } finally {
+      vi.useRealTimers();
+    }
+  },
+);

@@ -17,6 +17,12 @@ const send = (message) =>
     }) + "\n",
   );
 const run = (source) => vm.runInContext(source, context, { timeout: 5000 });
+const jsonValue = (value) => {
+  const encoded = JSON.stringify(value);
+  return encoded === undefined
+    ? "undefined"
+    : `JSON.parse(${JSON.stringify(encoded)})`;
+};
 const bootstrap = `(()=>{
 const handlers=new Map(),pending=new Map(),out=[],errors=new WeakMap();let next=0;
 const rpc=(method,args)=>new Promise((resolve,reject)=>{const callbackId=String(++next);pending.set(callbackId,{resolve,reject});out.push({type:'callback',callbackId,method,args});});
@@ -107,12 +113,12 @@ readline.createInterface({ input: process.stdin }).on("line", async (line) => {
       if (!context || busy || currentCall) throw Error("state");
       currentCall = m.callId;
       run(
-        `__invoke(${JSON.stringify(m.kind)},${JSON.stringify(m.name)},${JSON.stringify(m.input)})`,
+        `__invoke(${JSON.stringify(m.kind)},${JSON.stringify(m.name)},${jsonValue(m.input)})`,
       );
     } else if (m.type === "reply") {
       if (m.callId !== currentCall) throw Error("call");
       run(
-        `__settle(${JSON.stringify(m.callbackId)},${JSON.stringify(m.ok)},${JSON.stringify(m.value)})`,
+        `__settle(${JSON.stringify(m.callbackId)},${JSON.stringify(m.ok)},${jsonValue(m.value)})`,
       );
     } else if (m.type === "stop" || m.type === "cancel") {
       clearInterval(poll);

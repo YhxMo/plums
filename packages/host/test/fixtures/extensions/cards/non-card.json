@@ -1,0 +1,6 @@
+{
+  "fixture": "opaque ordinary JSON",
+  "future": {
+    "preserve": true
+  }
+}

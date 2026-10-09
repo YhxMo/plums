@@ -1,0 +1,79 @@
+{
+  "spec": "chara_card_v3",
+  "spec_version": "3.0",
+  "data": {
+    "name": "Synthetic tutor",
+    "description": "I am a synthetic private tutor.",
+    "personality": "Patient and precise.",
+    "scenario": "A fictional test harbor.",
+    "first_mes": "Welcome to the fixture harbor.",
+    "mes_example": "User: Where?\nGuide: Here.",
+    "creator_notes": "Invented solely for tests.",
+    "system_prompt": "Keep fixture replies brief.",
+    "post_history_instructions": "Remember the test harbor.",
+    "alternate_greetings": ["Fixture hello.", "Fixture welcome."],
+    "tags": ["synthetic", "tutor"],
+    "creator": "Plums tests",
+    "character_version": "fixture-3",
+    "extensions": {
+      "fixture/v3": {
+        "preserve": [
+          null,
+          {
+            "value": "opaque"
+          }
+        ]
+      }
+    },
+    "character_book": {
+      "name": "Synthetic harbor book",
+      "scan_depth": 3,
+      "extensions": {
+        "fixture/book": {
+          "opaque": true
+        }
+      },
+      "entries": [
+        {
+          "keys": ["lighthouse"],
+          "secondary_keys": ["night"],
+          "content": "The test lighthouse flashes blue.",
+          "enabled": true,
+          "insertion_order": 20,
+          "case_sensitive": true,
+          "constant": false,
+          "selective": true,
+          "position": "after_char",
+          "extensions": {
+            "fixture/entry": {
+              "keep": "yes"
+            }
+          },
+          "use_regex": false
+        },
+        {
+          "keys": [],
+          "content": "The test harbor is fictional.",
+          "enabled": true,
+          "insertion_order": 10,
+          "constant": true,
+          "extensions": {},
+          "use_regex": false
+        },
+        {
+          "keys": ["disabled"],
+          "content": "This test entry is disabled.",
+          "enabled": false,
+          "insertion_order": 0,
+          "extensions": {},
+          "use_regex": false
+        }
+      ]
+    },
+    "group_only_greetings": [],
+    "nickname": "Test tutor",
+    "creator_notes_multilingual": {
+      "en": "Synthetic note."
+    }
+  }
+}

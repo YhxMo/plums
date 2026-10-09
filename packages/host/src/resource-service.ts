@@ -291,6 +291,7 @@ export class ResourceService {
     op: ResourceOperation,
     lease?: Lease,
   ) {
+    if (context.signal.aborted) throw resourceFailure("NOT_AUTHORIZED");
     const actor = await s.core.getPackage(pkg),
       space = this.store.space(b.resourceId);
     const d = this.demand(s, pkg, actor.manifest, b.requirementId);
@@ -302,7 +303,6 @@ export class ResourceService {
       this.covered(s, pkg, b.resourceId, op, lease);
     if (!full && !this.qualified(s, pkg, b.resourceId, op))
       throw resourceFailure("NOT_AUTHORIZED");
-    if (context.engineScope) throw resourceFailure("NOT_AUTHORIZED");
     return {
       packageId: pkg,
       permissionId: d.permissionId,
@@ -391,11 +391,7 @@ export class ResourceService {
       await refreshing;
       await context.assertActive?.();
       this.hooks.active(s);
-      if (
-        context.signal.aborted ||
-        context.engineScope ||
-        !context.resourceInstanceId
-      )
+      if (context.signal.aborted || !context.resourceInstanceId)
         throw resourceFailure("NOT_AUTHORIZED");
       const agent = s.record.instanceId,
         epoch = this.store.epoch(agent),
@@ -409,7 +405,9 @@ export class ResourceService {
         JSON.stringify(actors) !== JSON.stringify(context.ancestry)
       )
         throw resourceFailure("NOT_AUTHORIZED");
-      const controller = s.controller;
+      const runtimeController = () =>
+        context.engineScope ? s.engineController : s.controller;
+      const controller = runtimeController();
       const authorityFor = async (
         target: ResourceBindingRecord,
         op: ResourceOperation,
@@ -418,7 +416,8 @@ export class ResourceService {
         this.hooks.active(s);
         if (
           context.signal.aborted ||
-          controller !== s.controller ||
+          controller !== runtimeController() ||
+          controller.signal.aborted ||
           epoch !== this.store.epoch(agent)
         )
           throw resourceFailure("STALE_BINDING");
@@ -459,6 +458,14 @@ export class ResourceService {
           )
         )
           throw resourceFailure("NOT_AUTHORIZED");
+        await context.assertActive?.();
+        if (
+          context.signal.aborted ||
+          controller !== runtimeController() ||
+          controller.signal.aborted ||
+          epoch !== this.store.epoch(agent)
+        )
+          throw resourceFailure("STALE_BINDING");
         return s.core.resourceAccessCheckpoint(inputs);
       };
       if (method === "list") {
@@ -510,7 +517,7 @@ export class ResourceService {
             binding: b,
             checkpoint,
             epoch,
-            controller: s.controller,
+            controller,
           });
           out.push({
             binding,
@@ -547,7 +554,7 @@ export class ResourceService {
         h.packageId !== pkg ||
         h.instance !== context.resourceInstanceId ||
         h.epoch !== epoch ||
-        h.controller !== s.controller
+        h.controller !== controller
       )
         throw resourceFailure("STALE_BINDING");
       let value: CommonJson | undefined;
@@ -566,6 +573,8 @@ export class ResourceService {
           >
         ).input;
       const assertHandle = () => {
+        if (this.handles.get(a.binding as string) !== h)
+          throw resourceFailure("STALE_BINDING");
         try {
           h.checkpoint.assertCurrent();
         } catch {
@@ -660,7 +669,8 @@ export class ResourceService {
         this.hooks.active(s);
         if (
           context.signal.aborted ||
-          h.controller !== s.controller ||
+          h.controller !== runtimeController() ||
+          h.controller.signal.aborted ||
           epoch !== this.store.epoch(agent) ||
           (reusable &&
             !actors.every((actor) =>

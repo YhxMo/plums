@@ -1,4 +1,4 @@
-/** Persisted user authorization. Only a trusted host may grant or revoke it. */
+/** @deprecated Schema-6 archive shape and machine-only compatibility view. */
 export interface EngineTrust {
   instanceId: string;
   packageId: string;
@@ -7,6 +7,7 @@ export interface EngineTrust {
   permission: string;
   grantedAt: string;
 }
+/** @deprecated Use the Agent's local authorization state for new management flows. */
 export interface EngineTrustSnapshot {
   instanceId: string;
   packageId: string;

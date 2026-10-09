@@ -315,6 +315,7 @@ export class CommonTasks {
       started: () => void,
       emit: (channel: string, data: unknown) => Promise<void>,
     ) => Promise<unknown>,
+    parentSignal?: AbortSignal,
   ) {
     const t = this.get(id, owner, signature);
     if (
@@ -394,7 +395,14 @@ export class CommonTasks {
         }
       }
     })();
-    void t.done.catch(() => {});
+    const cancelParent = () => {
+      void this.cancel(t).catch(() => {});
+    };
+    parentSignal?.addEventListener("abort", cancelParent, { once: true });
+    if (parentSignal?.aborted) cancelParent();
+    void t.done
+      .finally(() => parentSignal?.removeEventListener("abort", cancelParent))
+      .catch(() => {});
     return { callId, taskId: id };
   }
   private push(t: Task, raw: CommonEnvelope) {

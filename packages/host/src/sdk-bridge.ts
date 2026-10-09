@@ -79,11 +79,7 @@ export async function dispatchSdk(
   if (method.startsWith("resource."))
     return hooks.resource(method.slice("resource.".length), args, context);
   if (method.startsWith("engine.")) {
-    if (
-      desktopContribution(current.manifest)?.sdkVersion !== "2" ||
-      context.callers.length
-    )
-      denied();
+    if (desktopContribution(current.manifest)?.sdkVersion !== "2") denied();
     return redact(await hooks.engine(method, args), await hooks.secretValues());
   }
   switch (method) {

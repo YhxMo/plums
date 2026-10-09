@@ -10,6 +10,14 @@ let timer: ReturnType<typeof setTimeout> | undefined;
 let disposed = false;
 let active = "";
 let cpuMs = 0;
+// JSON transport objects must not become JavaScript object literals: __proto__
+// has different semantics in a literal than in JSON data.
+function jsonValue(value: unknown): string {
+  const encoded = JSON.stringify(value);
+  return encoded === undefined
+    ? "undefined"
+    : `JSON.parse(${JSON.stringify(encoded)})`;
+}
 async function evaluate(source: string): Promise<unknown> {
   const start = performance.now();
   const result = await context.eval(source, { timeout: 5000, copy: true });
@@ -114,17 +122,17 @@ process.on("message", async (raw: unknown) => {
       active = m.id;
       cpuMs = 0;
       await evaluate(
-        `__event(${JSON.stringify(m.id)},${JSON.stringify(m.topic)},${JSON.stringify(m.event)});void 0`,
+        `__event(${JSON.stringify(m.id)},${JSON.stringify(m.topic)},${jsonValue(m.event)});void 0`,
       );
     } else if (m.type === "invoke") {
       active = m.id;
       cpuMs = 0;
       await evaluate(
-        `__invoke(${JSON.stringify(m.id)},${JSON.stringify(m.kind)},${JSON.stringify(m.name)},${JSON.stringify(m.input)});void 0`,
+        `__invoke(${JSON.stringify(m.id)},${JSON.stringify(m.kind)},${JSON.stringify(m.name)},${jsonValue(m.input)});void 0`,
       );
     } else if (m.type === "reply") {
       await evaluate(
-        `__settle(${JSON.stringify(m.id)},${m.ok === true},${JSON.stringify(m.value ?? null)});void 0`,
+        `__settle(${JSON.stringify(m.id)},${m.ok === true},${jsonValue(m.value ?? null)});void 0`,
       );
     }
   } catch {

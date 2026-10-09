@@ -141,6 +141,15 @@ export type CapabilityResult =
 export type ExecutionState = "not_started" | "completed" | "unknown";
 export interface AuditEvent {
   callId: string;
+  agentId?: string;
+  migration?: { migrated: number; skipped: number };
+  tier?: import("../package/types.js").AgentTierCeiling;
+  localScope?: {
+    roots: string[];
+    readOnlyRoots: string[];
+    componentIds: string[];
+    hostCount: number;
+  };
   taskId?: string;
   grantId?: string;
   taskScope?: import("./task-scope.js").TaskScopeSelection[];
@@ -156,6 +165,8 @@ export interface AuditEvent {
   timestamp: string;
   extensionId?: string;
   callerIds?: string[];
+  providerId?: string;
+  requirementId?: string;
   permissionId?: string;
   kind?: CapabilityRequest["kind"] | "engine" | "resource";
   operation?: string;

@@ -85,7 +85,10 @@ export class ExtensionRuntime {
     }
     this.watchdog = setInterval(() => {
       try {
-        this.lifecycle?.();
+        // Host requests revalidate authorization at their own await boundaries.
+        // Let their denial or sink failure reach the SDK and worker result before
+        // an idle lifecycle check can discard its callId/executionState.
+        if (this.inflight === 0 && this.failures.size === 0) this.lifecycle?.();
       } catch {
         this.stop();
       }
@@ -253,6 +256,7 @@ export class ExtensionRuntime {
               },
             }),
         );
+      this.failures.clear();
     } else if (m.type === "rpc") {
       try {
         if (

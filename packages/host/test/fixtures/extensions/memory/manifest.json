@@ -1,0 +1,260 @@
+{
+  "formatVersion": "2.0",
+  "kind": "extension",
+  "id": "fixture.memory",
+  "name": "Synthetic memory",
+  "version": "1.0.0",
+  "description": "Test-only scenario component; not distributed",
+  "license": "Apache-2.0",
+  "dependencies": [],
+  "permissions": [
+    {
+      "id": "data",
+      "kind": "resource",
+      "target": "agent",
+      "operations": ["read", "write"],
+      "reason": "Test-only private business data"
+    }
+  ],
+  "payload": {
+    "plumsDesktop": {
+      "sdkVersion": "2",
+      "runtime": "main.js",
+      "common": {
+        "commonVersion": "1.0",
+        "features": ["resources-cas"],
+        "runtime": "isolate",
+        "resources": [
+          {
+            "id": "private",
+            "permissionId": "data",
+            "operations": ["read", "write"]
+          }
+        ]
+      },
+      "contributes": {
+        "tools": [
+          {
+            "name": "memory",
+            "title": "Test memory",
+            "inputSchema": {
+              "oneOf": [
+                {
+                  "type": "object",
+                  "properties": {
+                    "operation": {
+                      "const": "search"
+                    },
+                    "input": {
+                      "type": "object",
+                      "properties": {
+                        "query": {
+                          "type": "string"
+                        }
+                      },
+                      "required": ["query"],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": ["operation", "input"],
+                  "additionalProperties": false
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "operation": {
+                      "const": "upsert"
+                    },
+                    "input": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string"
+                        },
+                        "text": {
+                          "type": "string"
+                        }
+                      },
+                      "required": ["id", "text"],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": ["operation", "input"],
+                  "additionalProperties": false
+                }
+              ]
+            },
+            "outputSchema": {
+              "oneOf": [
+                {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "id": {
+                        "type": "string"
+                      },
+                      "text": {
+                        "type": "string"
+                      }
+                    },
+                    "required": ["id", "text"],
+                    "additionalProperties": false
+                  }
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string"
+                    }
+                  },
+                  "required": ["id"],
+                  "additionalProperties": false
+                }
+              ]
+            }
+          },
+          {
+            "name": "tools",
+            "title": "Test tools",
+            "inputSchema": {
+              "oneOf": [
+                {
+                  "type": "object",
+                  "properties": {
+                    "operation": {
+                      "const": "list"
+                    },
+                    "input": {
+                      "type": "object",
+                      "properties": {},
+                      "required": [],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": ["operation", "input"],
+                  "additionalProperties": false
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "operation": {
+                      "const": "call"
+                    },
+                    "input": {
+                      "type": "object",
+                      "properties": {
+                        "name": {
+                          "type": "string"
+                        },
+                        "arguments": {
+                          "type": "object"
+                        }
+                      },
+                      "required": ["name", "arguments"],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": ["operation", "input"],
+                  "additionalProperties": false
+                }
+              ]
+            },
+            "outputSchema": {
+              "oneOf": [
+                {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "name": {
+                        "type": "string"
+                      },
+                      "description": {
+                        "type": "string"
+                      },
+                      "inputSchema": {
+                        "type": "object"
+                      }
+                    },
+                    "required": ["name", "description", "inputSchema"],
+                    "additionalProperties": false
+                  }
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "ok": {
+                      "type": "boolean"
+                    },
+                    "content": {
+                      "type": "string"
+                    }
+                  },
+                  "required": ["ok", "content"],
+                  "additionalProperties": false
+                }
+              ]
+            }
+          }
+        ],
+        "commands": [
+          {
+            "name": "localProbe",
+            "title": "Test missing local permission",
+            "inputSchema": {
+              "type": "object",
+              "properties": {
+                "operation": {
+                  "enum": ["start", "request"]
+                },
+                "engineId": {
+                  "type": "string"
+                }
+              },
+              "required": ["operation", "engineId"],
+              "additionalProperties": false
+            },
+            "outputSchema": {
+              "type": "object"
+            }
+          }
+        ]
+      },
+      "protocols": {
+        "provides": [
+          {
+            "id": "memory",
+            "protocol": "org.plums.memory",
+            "version": "1.0.0",
+            "features": ["search", "upsert"],
+            "contribution": {
+              "kind": "tools",
+              "name": "memory"
+            }
+          },
+          {
+            "id": "tools",
+            "protocol": "org.plums.agent-tools",
+            "version": "1.0.0",
+            "features": ["list", "call"],
+            "contribution": {
+              "kind": "tools",
+              "name": "tools"
+            }
+          }
+        ]
+      },
+      "foundation": {
+        "requirementVersion": "1.0",
+        "protocolRange": "^1.0.0",
+        "sdk": {
+          "id": "org.plums.sdk",
+          "version": "2.0.0"
+        },
+        "features": ["sdk.register", "sdk.resources", "sdk.engine"]
+      }
+    }
+  }
+}

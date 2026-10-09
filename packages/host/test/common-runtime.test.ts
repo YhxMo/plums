@@ -535,9 +535,8 @@ it("an author cannot bypass the RSS limit by forging process memory reports", as
       .toBe(false);
   } else expect(result.executionState).toBe("unknown");
 }, 15000);
-it("pending controlled preparation excludes a legacy engine and revocation prevents author startup", async () => {
+it("pending controlled preparation coexists with a confirmed local entry and revocation still prevents author startup", async () => {
   const { vi } = await import("vitest"),
-    { ControlledExecution } = await import("../src/controlled-execution.js"),
     { createArchive } = await import("@plums/core"),
     { access } = await import("node:fs/promises");
   const f = await fixture("controlled-node");
@@ -586,6 +585,18 @@ it("pending controlled preparation excludes a legacy engine and revocation preve
     (await f.host.importLibrary(preview.token)).digest,
   );
   await f.host.enable(f.a.instanceId, "legacy");
+  {
+    const selection = {
+      ceiling: "machine" as const,
+      projects: [],
+      readOnly: [],
+      components: ["legacy"],
+    };
+    const plan = (await f.host.tierPlan(f.a.instanceId, selection)) as {
+      fingerprint: string;
+    };
+    await f.host.confirmTier(f.a.instanceId, plan.fingerprint, selection);
+  }
   let reached!: () => void,
     release!: () => void,
     snapshot = "",
@@ -617,9 +628,10 @@ it("pending controlled preparation excludes a legacy engine and revocation preve
     );
     void pending.catch(() => {});
     await ready;
-    await expect(
-      f.host.startEngine(f.a.instanceId, "legacy", "local"),
-    ).rejects.toMatchObject({ details: { reason: "NOT_AUTHORIZED" } });
+    await f.host.startEngine(f.a.instanceId, "legacy", "local");
+    expect(
+      await f.host.engineStatus(f.a.instanceId, "legacy", "local"),
+    ).toMatchObject({ state: "running", trusted: true });
     const stopping = f.host.revokeTaskScope(f.a.instanceId);
     release();
     await stopping;
@@ -628,14 +640,14 @@ it("pending controlled preparation excludes a legacy engine and revocation preve
     await f.host.startEngine(f.a.instanceId, "legacy", "local");
     const front = await f.host.openFrontend(f.a.instanceId);
     if (!front) throw Error();
-    await expect(
-      f.host.frontendCommon(
-        front.context.sessionId,
-        front.context.handle,
-        "create",
-        { options: { lifetime: "frontend" } },
-      ),
-    ).rejects.toMatchObject({ details: { reason: "NOT_AUTHORIZED" } });
+    const task = (await f.host.frontendCommon(
+      front.context.sessionId,
+      front.context.handle,
+      "create",
+      { options: { lifetime: "frontend" } },
+    )) as { taskId: string };
+    expect(task.taskId).toEqual(expect.any(String));
+    await f.host.stopCommonTask(f.a.instanceId, task.taskId);
     await f.host.stopEngine(f.a.instanceId, "legacy", "local");
   } finally {
     release();
@@ -796,3 +808,73 @@ it("controlled Node file work uses the actual host file adapter and complete con
   });
   expect(await readFile(path.join(work, "record"), "utf8")).toBe("Fixture");
 }, 20000);
+
+it.runIf(process.platform === "darwin" && process.arch === "arm64")(
+  "a running common task keeps its deadline and cancellation while an independent confirmed local process starts, stops and restarts",
+  async () => {
+    const { packExtension } = await import("./fixtures/extensions/pack.js");
+    const f = await fixture();
+    const preview = (await f.host.preview(
+      await packExtension("machine-probe-b"),
+    )) as { token: string };
+    const artifact = await f.host.importLibrary(preview.token);
+    await f.host.addLibraryComponent(f.a.instanceId, artifact.digest);
+    await f.host.enable(f.a.instanceId, "fixture.machine-probe-b");
+    const selection = {
+      ceiling: "machine" as const,
+      projects: [],
+      readOnly: [],
+      components: ["fixture.machine-probe-b"],
+    };
+    const plan = (await f.host.tierPlan(f.a.instanceId, selection)) as {
+      fingerprint: string;
+    };
+    await f.host.confirmTier(f.a.instanceId, plan.fingerprint, selection);
+    const frontend = await f.host.openFrontend(f.a.instanceId);
+    if (!frontend) throw Error("Expected common frontend");
+    const rpc = (method: string, args: Record<string, unknown>) =>
+      f.host.frontendCommon(
+        frontend.context.sessionId,
+        frontend.context.handle,
+        method,
+        args,
+      );
+    const task = (await rpc("create", {
+      options: { lifetime: "frontend", timeoutMs: 15000 },
+    })) as { taskId: string };
+    const binding = (await rpc("binding", { requirementId: "backend" })) as {
+      handle: string;
+    };
+    await rpc("invoke", {
+      binding: binding.handle,
+      operation: "hang",
+      input: null,
+      options: { taskId: task.taskId },
+    });
+    const state = async () =>
+      (await f.host.commonTasks(f.a.instanceId)).find(
+        (t) => t.description.taskId === task.taskId,
+      )!.snapshot.status.state;
+    await expect.poll(state).toBe("running");
+    const start = () =>
+      f.host.startEngine(f.a.instanceId, "fixture.machine-probe-b", "local");
+    const pid = () =>
+      f.host.engineCall(f.a.instanceId, "fixture.machine-probe-b", "request", {
+        engineId: "local",
+        method: "pid",
+        input: {},
+      });
+    await start();
+    const first = await pid();
+    expect(await state()).toBe("running");
+    await f.host.stopEngine(f.a.instanceId, "fixture.machine-probe-b", "local");
+    expect(await state()).toBe("running");
+    await start();
+    const second = await pid();
+    expect(second).not.toBe(first);
+    expect(await state()).toBe("running");
+    await f.host.stopCommonTask(f.a.instanceId, task.taskId);
+    expect(await state()).toBe("stopped");
+    expect(await pid()).toBe(second);
+  },
+);

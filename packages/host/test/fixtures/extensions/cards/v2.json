@@ -1,0 +1,70 @@
+{
+  "spec": "chara_card_v2",
+  "spec_version": "2.0",
+  "data": {
+    "name": "Harbor guide",
+    "description": "I am a synthetic harbor guide.",
+    "personality": "Patient and precise.",
+    "scenario": "A fictional test harbor.",
+    "first_mes": "Welcome to the fixture harbor.",
+    "mes_example": "User: Where?\nGuide: Here.",
+    "creator_notes": "Invented solely for tests.",
+    "system_prompt": "Keep fixture replies brief.",
+    "post_history_instructions": "Remember the test harbor.",
+    "alternate_greetings": ["Fixture hello.", "Fixture welcome."],
+    "tags": ["synthetic", "assistant"],
+    "creator": "Plums tests",
+    "character_version": "fixture-2",
+    "extensions": {
+      "fixture/unknown": {
+        "nested": ["keep", 7],
+        "enabled": true
+      }
+    },
+    "character_book": {
+      "name": "Synthetic harbor book",
+      "scan_depth": 3,
+      "extensions": {
+        "fixture/book": {
+          "opaque": true
+        }
+      },
+      "entries": [
+        {
+          "keys": ["lighthouse"],
+          "secondary_keys": ["night"],
+          "content": "The test lighthouse flashes blue.",
+          "enabled": true,
+          "insertion_order": 20,
+          "case_sensitive": true,
+          "constant": false,
+          "selective": true,
+          "position": "after_char",
+          "extensions": {
+            "fixture/entry": {
+              "keep": "yes"
+            }
+          }
+        },
+        {
+          "keys": [],
+          "content": "The test harbor is fictional.",
+          "enabled": true,
+          "insertion_order": 10,
+          "constant": true,
+          "extensions": {}
+        },
+        {
+          "keys": ["disabled"],
+          "content": "This test entry is disabled.",
+          "enabled": false,
+          "insertion_order": 0,
+          "extensions": {}
+        }
+      ]
+    }
+  },
+  "futureEnvelope": {
+    "preserve": true
+  }
+}

@@ -311,6 +311,7 @@ export function AssemblyEditor({
                   (plan.protocols ?? []).some(
                     (s) =>
                       !s.requirement.optional &&
+                      s.state !== "unbound" &&
                       !choices.some(
                         (b) =>
                           b.consumerId === s.consumerId &&
@@ -625,6 +626,7 @@ export function AssemblyEditor({
         <section className="panel">
           <h3>组件连接</h3>
           <ProtocolChoices
+            automatic
             requirements={plan.protocols}
             choices={choices}
             busy={busy || planning}

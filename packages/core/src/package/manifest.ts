@@ -1,6 +1,7 @@
 import type { ErrorObject } from "ajv";
 import { FORMAT_UNSUPPORTED, MANIFEST_INVALID, PlumsError } from "../errors.js";
 import { secretKeys } from "../secrets.js";
+import { validateEnginePermission } from "./engine-permission.js";
 import { isTrailingDotTarget, parseEgressTarget } from "./egress-target.js";
 import {
   FORMAT_VERSION_PATTERN,
@@ -85,6 +86,8 @@ export function checkManifest(value: unknown): Manifest {
           });
         }
         seen.add(permission.id);
+        if (permission.kind === "engine")
+          validateEnginePermission(permission, `/permissions/${index}`);
       }
     }
     const properties = manifest.settingsSchema?.properties ?? {};

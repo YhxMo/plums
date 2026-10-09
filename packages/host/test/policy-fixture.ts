@@ -71,7 +71,7 @@ export async function select(host: DesktopHost, id: string, policy: string) {
 export async function grant(
   host: DesktopHost,
   id: string,
-  filter = (row: { category: string; target: string }) => true,
+  filter = (_row: { category: string; target: string }) => true,
 ) {
   const plan = await host.policyPlan(id);
   await host.grantPolicyScope(

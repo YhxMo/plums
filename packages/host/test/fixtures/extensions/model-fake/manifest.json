@@ -1,0 +1,207 @@
+{
+  "formatVersion": "2.0",
+  "kind": "connector",
+  "id": "fixture.model-fake",
+  "name": "Synthetic model-fake",
+  "version": "1.0.0",
+  "description": "Test-only scenario component; not distributed",
+  "license": "Apache-2.0",
+  "dependencies": [],
+  "permissions": [
+    {
+      "id": "api",
+      "kind": "service",
+      "target": "https",
+      "operations": ["request"],
+      "reason": "Test-only model service"
+    }
+  ],
+  "payload": {
+    "plumsDesktop": {
+      "sdkVersion": "2",
+      "runtime": "main.js",
+      "connections": [
+        {
+          "id": "model",
+          "permissionId": "api",
+          "baseURLSetting": "baseURL",
+          "credentials": [
+            {
+              "setting": "apiKey",
+              "header": "Authorization",
+              "prefix": "Bearer "
+            }
+          ]
+        }
+      ],
+      "contributes": {
+        "connectors": [
+          {
+            "name": "model",
+            "title": "Test model",
+            "inputSchema": {
+              "type": "object",
+              "properties": {
+                "operation": {
+                  "const": "complete"
+                },
+                "input": {
+                  "type": "object",
+                  "properties": {
+                    "messages": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "role": {
+                            "enum": ["system", "user", "assistant", "tool"]
+                          },
+                          "content": {
+                            "type": "string"
+                          },
+                          "toolCallId": {
+                            "type": "string"
+                          },
+                          "toolCalls": {
+                            "type": "array",
+                            "items": {
+                              "type": "object",
+                              "properties": {
+                                "id": {
+                                  "type": "string"
+                                },
+                                "name": {
+                                  "type": "string"
+                                },
+                                "arguments": {
+                                  "type": "object"
+                                }
+                              },
+                              "required": ["id", "name", "arguments"],
+                              "additionalProperties": false
+                            }
+                          }
+                        },
+                        "required": ["role", "content"],
+                        "additionalProperties": false
+                      }
+                    },
+                    "tools": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "name": {
+                            "type": "string"
+                          },
+                          "description": {
+                            "type": "string"
+                          },
+                          "inputSchema": {
+                            "type": "object"
+                          }
+                        },
+                        "required": ["name", "description", "inputSchema"],
+                        "additionalProperties": false
+                      }
+                    }
+                  },
+                  "required": ["messages"],
+                  "additionalProperties": false
+                }
+              },
+              "required": ["operation", "input"],
+              "additionalProperties": false
+            },
+            "outputSchema": {
+              "type": "object",
+              "properties": {
+                "message": {
+                  "type": "object",
+                  "properties": {
+                    "role": {
+                      "const": "assistant"
+                    },
+                    "content": {
+                      "type": "string"
+                    },
+                    "toolCalls": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string"
+                          },
+                          "name": {
+                            "type": "string"
+                          },
+                          "arguments": {
+                            "type": "object"
+                          }
+                        },
+                        "required": ["id", "name", "arguments"],
+                        "additionalProperties": false
+                      }
+                    }
+                  },
+                  "required": ["role", "content"],
+                  "additionalProperties": false
+                }
+              },
+              "required": ["message"],
+              "additionalProperties": false
+            }
+          }
+        ]
+      },
+      "protocols": {
+        "provides": [
+          {
+            "id": "model",
+            "protocol": "org.plums.chat-model",
+            "version": "1.0.0",
+            "features": ["complete"],
+            "contribution": {
+              "kind": "connectors",
+              "name": "model"
+            }
+          }
+        ]
+      },
+      "foundation": {
+        "requirementVersion": "1.0",
+        "protocolRange": "^1.0.0",
+        "sdk": {
+          "id": "org.plums.sdk",
+          "version": "2.0.0"
+        },
+        "features": [
+          "sdk.register",
+          "sdk.connection",
+          "sdk.capability",
+          "sdk.failResponse"
+        ]
+      }
+    }
+  },
+  "settingsSchema": {
+    "type": "object",
+    "properties": {
+      "baseURL": {
+        "type": "string",
+        "title": "Base URL",
+        "description": "Synthetic model origin",
+        "default": "https://model.plums-fixture.test"
+      },
+      "apiKey": {
+        "type": "string",
+        "title": "API Key",
+        "description": "Synthetic test credential",
+        "x-secret": true
+      }
+    },
+    "required": ["baseURL", "apiKey"],
+    "additionalProperties": false
+  }
+}

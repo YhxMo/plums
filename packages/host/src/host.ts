@@ -20,6 +20,10 @@ import {
   type PolicyScopeSelection,
 } from "./policy-service.js";
 import { ControlledExecution } from "./controlled-execution.js";
+import {
+  LocalAuthorizations,
+  type TierSelection,
+} from "./local-authorization.js";
 import { CommonService } from "./common-service.js";
 import { ResourceStore } from "./resource-store.js";
 import {
@@ -39,6 +43,7 @@ import {
   protocolDenied,
   fixProtocolBinding,
   assemblyProtocols,
+  automaticProtocolChoices,
   requireProtocolSelections,
   protocolOrder,
   type ProtocolBinding,
@@ -243,6 +248,7 @@ function uuid(id: string): void {
   if (typeof id !== "string" || !/^[a-f0-9-]{36}$/.test(id)) denied();
 }
 export class DesktopHost {
+  private localAuthorizations: LocalAuthorizations;
   private policy: PolicyService;
   private policyRuntimes = new WeakMap<
     Session,
@@ -268,6 +274,10 @@ export class DesktopHost {
   private recoveryErrors = new Map<string, string>();
   private opening = new Map<string, Promise<Session>>();
   private epochs = new Map<string, number>();
+  private additions = new WeakMap<
+    Session,
+    { packages: Set<string>; journals: Set<string> }
+  >();
   private queues = new Map<string, Promise<unknown>>();
   private componentPreviews = new Map<
     string,
@@ -310,10 +320,18 @@ export class DesktopHost {
           if (this.sessions.get(s.record.instanceId) !== s) denied();
         },
         controlledAllowed: async (s) => {
-          if (this.engines.hasActive(s))
-            throw resourceFailure("NOT_AUTHORIZED");
+          await this.assertCoherent(s.record.instanceId);
+          await this.assertAgentFoundation(s);
         },
-        context: (s, pkg, signal) => this.invocationContext(s, pkg, signal),
+        context: (s, pkg, signal, parent) =>
+          this.invocationContext(
+            s,
+            pkg,
+            signal,
+            undefined,
+            parent?.engineScope,
+            parent,
+          ),
         invoke: (s, pkg, requirementId, input, context) =>
           invokeComponent(s, pkg, { requirementId, input }, context, {
             active: () => {
@@ -323,7 +341,13 @@ export class DesktopHost {
               )
                 denied();
             },
-            runtime: (target) => this.runtime(s, target, undefined, context),
+            runtime: (target) =>
+              this.runtime(
+                s,
+                target,
+                context.engineScope,
+                context.engineScope ? undefined : context,
+              ),
             retain: (target) =>
               this.common.retainComponent(s, target, context.taskId),
           }),
@@ -495,7 +519,35 @@ export class DesktopHost {
     );
     this.library = new ComponentLibrary(path.join(options.dataDir, "library"));
     this.engines = new EngineCoordinator({
-      canRun: (s) => this.assertLegacyEngine(s),
+      deadline: (s, taskId) =>
+        taskId
+          ? this.common.tasks.deadlineFor(s.record.instanceId, taskId)
+          : undefined,
+      canRun: (s, pkg) => this.assertLocalRuntime(s, pkg),
+      localCheckpoint: (s, pkg) =>
+        this.localAuthorizations.assertAvailable(s, pkg),
+      policy: (s, pkg, engine, method, input, callId, context, authorization) =>
+        this.policy.assess(s, {
+          packageId: pkg,
+          callId,
+          category: "local",
+          operation: method,
+          target: engine,
+          intent: { kind: "local", target: engine, operation: method },
+          fingerprintInput: input,
+          context,
+          localAuthorization: {
+            tier: authorization.grant.tier,
+            fingerprint: authorization.fingerprint,
+            recheck: async () => {
+              if (
+                (await this.engines.authorize(s, pkg, engine)).fingerprint !==
+                authorization.fingerprint
+              )
+                throw resourceFailure("STALE_BINDING", callId);
+            },
+          },
+        }),
       trackProcess: (s, child) =>
         this.foundationOwners.track(s.record.instanceId, child),
       allocateSnapshot: (s) =>
@@ -516,6 +568,7 @@ export class DesktopHost {
       },
       audit: (id, event) => this.writeAudit(id, event),
       sanitize: async (s, value) => redact(value, await this.secretValues(s)),
+      secrets: (s) => this.secretValues(s),
       event: (id, pkg, topic, data) => {
         const s = this.sessions.get(id);
         if (s)
@@ -535,17 +588,16 @@ export class DesktopHost {
         signal,
         authorization,
         engineScope,
+        context,
       ) =>
-        this.invoke(
+        this.invokeEngineCallback(
           id,
           owner,
-          target,
-          kind,
-          name,
-          input,
+          { packageId: target, kind, name, input },
           signal,
           authorization,
           engineScope,
+          context,
         ),
       protocolStatus: (id, owner, requirementId) =>
         this.protocolStatus(id, owner, requirementId),
@@ -557,16 +609,24 @@ export class DesktopHost {
         signal,
         authorization,
         engineScope,
+        context,
       ) =>
-        this.invokeProtocol(
+        this.invokeEngineCallback(
           id,
           owner,
-          requirementId,
-          input,
+          { requirementId, input },
           signal,
           authorization,
           engineScope,
+          context,
         ),
+    });
+    this.localAuthorizations = new LocalAuthorizations({
+      dataDir: options.dataDir,
+      confirm: options.confirm,
+      audit: (s, event) => this.writeAudit(s.record.instanceId, event),
+      sanitize: async (s, value) => redact(value, await this.secretValues(s)),
+      stop: (s, packages) => this.engines.stopPackages(s, packages),
     });
   }
   private directory(id: string): string {
@@ -631,7 +691,9 @@ export class DesktopHost {
               egress: this.options.egress ?? new HttpsSink(),
             });
             try {
-              await recoverAssembly(dir, core);
+              await recoverAssembly(dir, core, async (record) => {
+                await this.autoBindProtocols(core, record);
+              });
               await this.migrateRecord(dir, core);
               await this.migrateFoundation(dir);
             } finally {
@@ -1908,6 +1970,7 @@ export class DesktopHost {
         record.protocolBindings.push(
           await fixProtocolBinding(core, record, choice),
         );
+      await this.autoBindProtocols(core, record, staging);
       protocolOrder(
         bundle.packages.map((p) => p.contents.manifest),
         (await protocolPlan(core, record)).requirements,
@@ -1975,7 +2038,12 @@ export class DesktopHost {
         digests.includes(p.digest),
       );
       validateProtocolIntents(protocolBindings, selectedItems);
-      const protocols = assemblyProtocols(selectedItems, protocolBindings);
+      const protocols = assemblyProtocols(selectedItems, [
+        ...protocolBindings,
+        ...automaticProtocolChoices(
+          assemblyProtocols(selectedItems, protocolBindings),
+        ),
+      ]);
       requireProtocolSelections(protocols);
       protocolOrder(
         selectedItems.map((p) => p.manifest),
@@ -2472,8 +2540,7 @@ export class DesktopHost {
       const plan = await this.policyPlan(id);
       if (plan.fingerprint !== fingerprint)
         throw resourceFailure("STALE_BINDING");
-      if (plan.active || this.engines.hasActive(s))
-        throw resourceFailure("NOT_AUTHORIZED");
+      if (plan.active) throw resourceFailure("NOT_AUTHORIZED");
       return this.policy.grant(s, durationMs, copied, plan.available);
     });
   }
@@ -2585,6 +2652,66 @@ export class DesktopHost {
       await protocolPlan(s.core, s.record),
       await this.secretValues(s),
     );
+  }
+  private async autoBindProtocols(
+    core: Core,
+    record: AgentRecord,
+    staging?: string,
+    newConsumer?: string,
+  ): Promise<void> {
+    const choices = automaticProtocolChoices(
+      (await protocolPlan(core, record)).requirements,
+    );
+    if (!choices.length) return;
+    if (newConsumer && choices.some((c) => c.consumerId !== newConsumer))
+      protocolDenied("PROTOCOL_SELECTION_CHANGED");
+    const next = structuredClone(record);
+    next.protocolBindings ??= [];
+    for (const choice of choices)
+      next.protocolBindings.push({
+        ...(await fixProtocolBinding(core, record, choice)),
+        autoBound: true,
+      });
+    protocolOrder(
+      await Promise.all(
+        (await core.listInstalled()).map(
+          async (p) => (await core.getPackage(p.id)).manifest,
+        ),
+      ),
+      (await protocolPlan(core, next)).requirements,
+    );
+    for (const grant of await core.listGrants())
+      await core.revokeGrant(grant.id);
+    const secrets = await this.coreSecretValues(
+      core,
+      this.options.secretStore(record.instanceId),
+    );
+    for (const choice of choices) {
+      const event: Readonly<AuditEvent> = Object.freeze(
+        redact(
+          {
+            callId: randomUUID(),
+            timestamp: new Date().toISOString(),
+            extensionId: choice.consumerId,
+            providerId: choice.providerId,
+            requirementId: choice.requirementId,
+            operation: "protocol.auto-bind",
+            phase: "grant",
+            outcome: "allowed",
+            executionState: "not_started",
+          } satisfies AuditEvent,
+          secrets,
+        ) as AuditEvent,
+      );
+      if (staging && !this.options.audit)
+        await appendFile(
+          path.join(staging, "audit.jsonl"),
+          JSON.stringify(event) + "\n",
+          { mode: 0o600 },
+        );
+      else await this.writeAudit(record.instanceId, event);
+    }
+    record.protocolBindings = next.protocolBindings;
   }
   async setProtocolBinding(
     id: string,
@@ -2777,7 +2904,7 @@ export class DesktopHost {
           importInvalid("组件已安装；换版本请使用更新。");
         const item = (await this.library.put([p]))[0]!,
           next = compose(s.record, [...s.record.components!, binding(item)]);
-        await this.validateComposition(id, s, next, p);
+        const choices = await this.validateComposition(id, s, next, p, true);
         await this.changeComponent(
           id,
           s,
@@ -2785,6 +2912,8 @@ export class DesktopHost {
           item.manifest.id,
           item.manifest.version,
           () => s.core.importPackage(p.bytes),
+          true,
+          choices.every((choice) => choice.consumerId === item.manifest.id),
         );
       }),
     );
@@ -2876,6 +3005,7 @@ export class DesktopHost {
     s: Session,
     next: AgentRecord,
     replacement?: ComponentArtifact,
+    automaticProtocols = false,
   ) {
     const components: Record<string, Uint8Array> = {};
     for (const c of next.components!) {
@@ -2897,12 +3027,25 @@ export class DesktopHost {
       ),
       next.foundation!.selection,
     );
+    let choices: ProtocolBindingIntent[] = [];
+    if (automaticProtocols) {
+      const items = (await this.library.list()).filter((p) =>
+        next.components!.some((c) => c.digest === p.digest),
+      );
+      const selected = next.protocolBindings ?? [];
+      choices = automaticProtocolChoices(assemblyProtocols(items, selected));
+      protocolOrder(
+        items.map((p) => p.manifest),
+        assemblyProtocols(items, [...selected, ...choices]),
+      );
+    }
     await createAgentBundle(
       next.agent,
       components,
       await readExtras(this.directory(id), next),
       await this.secretValues(s),
     );
+    return choices;
   }
   private async changeComponent<T>(
     id: string,
@@ -2911,9 +3054,48 @@ export class DesktopHost {
     packageId: string,
     version: string | undefined,
     operation: () => Promise<T>,
+    automaticProtocols = false,
+    retainSession = false,
   ): Promise<T> {
     return this.withFoundationExclusive(id, async () => {
       await this.assertCoherent(id);
+      if (retainSession) {
+        const addition = {
+          packages: new Set(s.record.components!.map((c) => c.packageId)),
+          journals: new Set<string>(),
+        };
+        this.additions.set(s, addition);
+        try {
+          const result = await mutateAssembly(
+            this.directory(id),
+            s.core,
+            next,
+            packageId,
+            version,
+            operation,
+            async (record) =>
+              this.autoBindProtocols(s.core, record, undefined, packageId),
+            (contents) => addition.journals.add(contents),
+          );
+          const saved = JSON.parse(
+            await readFile(
+              path.join(this.directory(id), "record.json"),
+              "utf8",
+            ),
+          ) as AgentRecord;
+          if (JSON.stringify(saved) !== JSON.stringify(next)) denied();
+          // Core's bound I/O closures retain this record object. Only the additive
+          // pins and new consumer's connections change; roots and programs stay fixed.
+          Object.assign(s.record, next);
+          return result;
+        } catch (error) {
+          this.additions.delete(s);
+          await this.stopSession(id);
+          throw error;
+        } finally {
+          this.additions.delete(s);
+        }
+      }
       await this.stopRuntimes(s);
       try {
         return await mutateAssembly(
@@ -2923,6 +3105,11 @@ export class DesktopHost {
           packageId,
           version,
           operation,
+          automaticProtocols
+            ? async (record) => {
+                await this.autoBindProtocols(s.core, record);
+              }
+            : undefined,
         );
       } finally {
         await this.stopSession(id);
@@ -2942,6 +3129,7 @@ export class DesktopHost {
           parent.endsWith(path.sep) ? parent : parent + path.sep,
         );
       if (within(root, protectedDir) || within(protectedDir, root)) denied();
+      await this.localAuthorizations.invalidate(s, name);
       await this.commitRecord(id, {
         ...s.record,
         roots: { ...s.record.roots, [name]: root },
@@ -2958,6 +3146,7 @@ export class DesktopHost {
         denied();
       const s = await this.session(id);
       const roots = { ...s.record.roots };
+      await this.localAuthorizations.invalidate(s, name);
       delete roots[name];
       await this.commitRecord(id, { ...s.record, roots });
     });
@@ -3039,14 +3228,18 @@ export class DesktopHost {
     }
   }
   private async secretValues(s: Session): Promise<string[]> {
+    return this.coreSecretValues(s.core, s.secrets);
+  }
+  private async coreSecretValues(
+    core: Core,
+    secrets: SecretStore,
+  ): Promise<string[]> {
     const refs = (
       await Promise.all(
-        (await s.core.listInstalled()).map((p) =>
-          s.core.getSecretReferences(p.id),
-        ),
+        (await core.listInstalled()).map((p) => core.getSecretReferences(p.id)),
       )
     ).flat();
-    return (await Promise.all(refs.map((r) => s.secrets.get(r)))).filter(
+    return (await Promise.all(refs.map((r) => secrets.get(r)))).filter(
       (v): v is string => v !== undefined,
     );
   }
@@ -3607,6 +3800,7 @@ export class DesktopHost {
     method: string,
     args: Record<string, unknown>,
   ) {
+    args = structuredClone(args);
     const s = await this.session(id);
     if (
       desktopContribution((await s.core.getPackage(pkg)).manifest)
@@ -3623,13 +3817,22 @@ export class DesktopHost {
     pkg: string,
     method: string,
     args: Record<string, unknown>,
+    context?: InvocationContext,
   ): Promise<unknown> {
     if (method === "start" || method === "request")
-      await this.assertLegacyEngine(s);
+      await this.assertLocalRuntime(s, pkg);
     const engine = args.engineId as string;
+    if ((method === "start" || method === "request") && !context)
+      context = await this.invocationContext(
+        s,
+        pkg,
+        undefined,
+        undefined,
+        `${pkg}/${engine}`,
+      );
     switch (method) {
       case "start":
-        return this.engines.start(s, pkg, engine);
+        return this.engines.start(s, pkg, engine, context);
       case "request":
         return this.engines.request(
           s,
@@ -3638,6 +3841,7 @@ export class DesktopHost {
           args.method as string,
           args.input,
           args.requestId as string | undefined,
+          context,
         );
       case "cancel":
         return this.engines.cancel(s, pkg, engine, args.requestId as string);
@@ -3652,10 +3856,82 @@ export class DesktopHost {
   async engineStatus(id: string, pkg: string, engine: string) {
     return this.engines.status(await this.session(id), pkg, engine);
   }
+  async tierPlan(id: string, selection?: TierSelection) {
+    const copied =
+      selection === undefined ? undefined : structuredClone(selection);
+    return this.serial(id, async () => {
+      const s = await this.session(id);
+      await this.assertCoherent(id);
+      await this.localAuthorizations.invalidate(s);
+      return redact(
+        await this.localAuthorizations.plan(s, copied),
+        await this.secretValues(s),
+      );
+    });
+  }
+  async tierStatus(id: string) {
+    return this.serial(id, async () => {
+      const s = await this.session(id);
+      await this.localAuthorizations.invalidate(s);
+      return redact(
+        await s.core.localAuthorizationState(),
+        await this.secretValues(s),
+      );
+    });
+  }
+  async confirmTier(
+    id: string,
+    fingerprint: string,
+    selection: TierSelection,
+  ): Promise<boolean> {
+    const copied = structuredClone(selection);
+    const prepared = await this.serial(id, async () => {
+      const s = await this.session(id);
+      await this.assertCoherent(id);
+      await this.localAuthorizations.invalidate(s);
+      const plan = await this.localAuthorizations.plan(s, copied);
+      if (plan.fingerprint !== fingerprint) denied();
+      return { s, plan };
+    });
+    // Keep management available while the user answers; revocation must not queue behind a question.
+    if (!(await this.localAuthorizations.ask(prepared.s, prepared.plan)))
+      return false;
+    return this.serial(id, async () => {
+      const s = await this.session(id);
+      await this.assertCoherent(id);
+      await this.localAuthorizations.invalidate(s);
+      return this.localAuthorizations.confirm(s, fingerprint, copied);
+    });
+  }
+  async lowerTier(
+    id: string,
+    ceiling: import("@plums/core").AgentTierCeiling,
+  ): Promise<void> {
+    return this.serial(id, async () => {
+      const s = await this.session(id);
+      await this.localAuthorizations.invalidate(s);
+      await this.localAuthorizations.lower(s, ceiling);
+    });
+  }
+  async revokeLocal(id: string, packageId?: string): Promise<void> {
+    return this.serial(id, async () => {
+      await this.localAuthorizations.revoke(await this.session(id), packageId);
+    });
+  }
+  async removeTierDirectory(
+    id: string,
+    root: string,
+    readOnly = false,
+  ): Promise<void> {
+    return this.serial(id, async () => {
+      const s = await this.session(id);
+      await this.localAuthorizations.invalidate(s);
+      await this.localAuthorizations.removeDirectory(s, root, readOnly);
+    });
+  }
   async startEngine(id: string, pkg: string, engine: string) {
     const s = await this.session(id);
-    await this.assertLegacyEngine(s);
-    return this.engines.start(s, pkg, engine);
+    return this.dispatchEngine(s, pkg, "start", { engineId: engine });
   }
   async stopEngine(id: string, pkg: string, engine: string) {
     return this.serial(id, async () =>
@@ -3663,14 +3939,17 @@ export class DesktopHost {
     );
   }
   async revokeEngine(id: string, pkg: string, engine: string) {
-    return this.serial(id, async () =>
-      this.engines.revoke(await this.session(id), pkg, engine),
-    );
+    return this.serial(id, async () => this.revokeLocalEngine(id, pkg, engine));
   }
   private pendingRuntimes = new WeakMap<
     Session,
     Map<string, Promise<HostFoundationSession>>
   >();
+  private async revokeLocalEngine(id: string, pkg: string, engine: string) {
+    const s = await this.session(id);
+    await this.engines.status(s, pkg, engine);
+    await this.localAuthorizations.revoke(s, pkg);
+  }
   private async runtime(
     s: Session,
     packageId: string,
@@ -3708,7 +3987,7 @@ export class DesktopHost {
   ): Promise<HostFoundationSession> {
     const controller = engineScope ? s.engineController : s.controller;
     if (!preparation) {
-      await this.assertCoherent(s.record.instanceId);
+      await this.assertCoherent(s.record.instanceId, packageId);
       await this.assertAgentFoundation(s);
     }
     const detail = await s.core.getPackage(packageId);
@@ -3764,8 +4043,6 @@ export class DesktopHost {
         )
       )
         denied();
-      if (declaration.common && this.engines.hasActive(s))
-        throw resourceFailure("NOT_AUTHORIZED");
       const lifecycle = s.core.runtimeAccessCheckpoint([packageId]);
       let created: HostFoundationSession | undefined;
       const foundationPin = structuredClone(s.record.foundation!);
@@ -3793,7 +4070,6 @@ export class DesktopHost {
         if (
           controller !== (engineScope ? s.engineController : s.controller) ||
           controller.signal.aborted ||
-          (declaration.common && this.engines.hasActive(s)) ||
           this.sessions.get(s.record.instanceId) !== s ||
           context?.signal.aborted
         )
@@ -3874,6 +4150,10 @@ export class DesktopHost {
               });
               if (!gate) return undefined;
               invocation.signal = gate.signal;
+              invocation.deadline = Math.min(
+                invocation.deadline ?? Infinity,
+                gate.deadline,
+              );
               return gate.recheck;
             },
           },
@@ -3942,7 +4222,13 @@ export class DesktopHost {
       resource: (method, args, context) =>
         this.businessResources.call(s, packageId, method, args, context),
       engine: (method, args) =>
-        this.dispatchEngine(s, packageId, method.slice("engine.".length), args),
+        this.dispatchEngine(
+          s,
+          packageId,
+          method.slice("engine.".length),
+          args,
+          context,
+        ),
     });
   }
   async invoke(
@@ -3996,9 +4282,11 @@ export class DesktopHost {
     signal?: AbortSignal,
     authorization?: Pick<InvocationContext, "grantId" | "grantScope">,
     engineScope?: string,
+    parent?: InvocationContext,
   ): Promise<InvocationContext> {
     const combined = AbortSignal.any([
       ...(signal ? [signal] : []),
+      ...(parent ? [parent.signal] : []),
       engineScope ? s.engineController.signal : s.controller.signal,
     ]);
     const checkpoint = s.core.runtimeAccessCheckpoint([owner]);
@@ -4007,6 +4295,7 @@ export class DesktopHost {
     const assertActive = async () => {
       if (this.sessions.get(s.record.instanceId) !== s || combined.aborted)
         denied();
+      await parent?.assertActive?.();
       checkpoint.assertCurrent();
       const current = await s.core.getPackage(owner);
       if (
@@ -4018,28 +4307,61 @@ export class DesktopHost {
           protocolFingerprint(initial.manifest)
       )
         denied();
-      if (
-        engineScope &&
-        !(
-          await s.core.engineTrustSnapshot(
-            owner,
-            engineScope.slice(owner.length + 1),
-          )
-        ).trusted
-      )
-        denied();
+      if (engineScope) {
+        const localOwner = engineScope.split("/")[0]!;
+        if (!parent && localOwner !== owner) denied();
+        await this.engines.authorize(
+          s,
+          localOwner,
+          engineScope.slice(localOwner.length + 1),
+        );
+      }
       if (combined.aborted || this.sessions.get(s.record.instanceId) !== s)
         denied();
     };
     await assertActive();
     return {
+      ...parent,
       ...authorization,
       engineScope,
-      callers: [],
-      ancestry: [owner],
+      callers: parent ? structuredClone(parent.callers) : [],
+      ancestry: parent ? [...parent.ancestry] : [owner],
       signal: combined,
       assertActive,
     };
+  }
+  private async invokeEngineCallback(
+    id: string,
+    owner: string,
+    request: Parameters<typeof invokeComponent>[2],
+    signal: AbortSignal,
+    authorization:
+      | Pick<InvocationContext, "grantId" | "grantScope">
+      | undefined,
+    engineScope: string,
+    parent: InvocationContext,
+  ): Promise<unknown> {
+    const copied = structuredClone(request),
+      s = await this.session(id);
+    if (parent.ancestry.at(-1) !== owner || engineScope.split("/")[0] !== owner)
+      denied();
+    const context = await this.invocationContext(
+      s,
+      owner,
+      signal,
+      authorization,
+      engineScope,
+      parent,
+    );
+    return redact(
+      await invokeComponent(s, owner, copied, context, {
+        active: () => {
+          if (this.sessions.get(id) !== s || context.signal.aborted) denied();
+        },
+        runtime: (target) => this.runtime(s, target, engineScope),
+      }),
+      await this.secretValues(s),
+    );
   }
   async invokeProtocol(
     id: string,
@@ -4483,37 +4805,9 @@ export class DesktopHost {
     await p.assertActive();
     return result;
   }
-  private async assertLegacyEngine(s: Session) {
-    await this.assertCoherent(s.record.instanceId);
+  private async assertLocalRuntime(s: Session, packageId: string) {
+    await this.assertCoherent(s.record.instanceId, packageId);
     await this.assertAgentFoundation(s);
-    for (const key of this.pendingRuntimes.get(s)?.keys() ?? []) {
-      const [scope, pkg] = JSON.parse(key) as [string | null, string];
-      if (
-        scope === null &&
-        desktopContribution((await s.core.getPackage(pkg)).manifest)?.common
-      )
-        throw resourceFailure("NOT_AUTHORIZED");
-    }
-    if (
-      s.record.policy ||
-      this.businessResources.range(s) ||
-      s.core.taskScopeState() ||
-      this.common.tasks
-        .list(s.record.instanceId)
-        .some((t) =>
-          ["starting", "running", "cancelling"].includes(
-            t.snapshot.status.state,
-          ),
-        ) ||
-      (await s.core.listInstalled()).some(
-        (p) =>
-          p.enabled &&
-          s.record.components?.some((c) => c.packageId === p.id) &&
-          s.runtimes.get(p.id)?.alive &&
-          this.commonRuntimes.has(s.runtimes.get(p.id)!),
-      )
-    )
-      throw resourceFailure("NOT_AUTHORIZED");
   }
   async frontendEngine(
     sessionId: string,
@@ -4540,14 +4834,19 @@ export class DesktopHost {
     try {
       await p.assertActive();
       if (operation === "start" || operation === "request")
-        await this.assertLegacyEngine(p.agent);
+        await this.assertLocalRuntime(p.agent, p.context.componentId);
       const result =
         operation === "start"
           ? await this.engines.start(
               p.agent,
               p.context.componentId,
               copied.engineId as string,
-              { signal: p.signal, assertActive: p.assertActive },
+              {
+                signal: p.signal,
+                assertActive: p.assertActive,
+                callers: [],
+                ancestry: [p.context.componentId],
+              },
             )
           : await this.engineCall(
               p.context.agentId,
@@ -4561,7 +4860,7 @@ export class DesktopHost {
       p.signal.removeEventListener("abort", cancel);
     }
   }
-  private async assertCoherent(id: string): Promise<void> {
+  private async assertCoherent(id: string, packageId?: string): Promise<void> {
     if (this.recoveryErrors.has(id))
       importInvalid(this.recoveryErrors.get(id)!);
     for (const file of [
@@ -4570,7 +4869,19 @@ export class DesktopHost {
       "assembly-transaction.json",
     ]) {
       try {
-        await readFile(path.join(this.directory(id), file));
+        const contents = await readFile(
+          path.join(this.directory(id), file),
+          "utf8",
+        );
+        const s = this.sessions.get(id),
+          addition = s && this.additions.get(s);
+        if (
+          file === "assembly-transaction.json" &&
+          packageId !== undefined &&
+          addition?.packages.has(packageId) &&
+          addition.journals.has(contents)
+        )
+          continue;
       } catch (error) {
         if ((error as NodeJS.ErrnoException).code === "ENOENT") continue;
         throw error;

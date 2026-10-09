@@ -11,6 +11,10 @@ export const SHARE_FETCH_FAILED = "SHARE_FETCH_FAILED" as const;
 export const SETTINGS_INVALID = "SETTINGS_INVALID" as const;
 /** Capability sink/audit failure; details report callId, phase and executionState. */
 export const CAPABILITY_FAILED = "CAPABILITY_FAILED" as const;
+/** Project execution must fail closed until the OS sandbox is available and verified. */
+export const TIER_UNAVAILABLE = "TIER_UNAVAILABLE" as const;
+export const TIER_REQUIRED = "TIER_REQUIRED" as const;
+export const LOCAL_CONFIRM_REQUIRED = "LOCAL_CONFIRM_REQUIRED" as const;
 
 export const ERROR_CODES = Object.freeze([
   MANIFEST_INVALID,
@@ -24,6 +28,9 @@ export const ERROR_CODES = Object.freeze([
   SHARE_FETCH_FAILED,
   SETTINGS_INVALID,
   CAPABILITY_FAILED,
+  TIER_UNAVAILABLE,
+  TIER_REQUIRED,
+  LOCAL_CONFIRM_REQUIRED,
 ] as const);
 
 export type PlumsErrorCode = (typeof ERROR_CODES)[number];

@@ -4,7 +4,7 @@ import {
   requireManifest,
   type InstallContext,
 } from "../install/lifecycle.js";
-import { isManifestV2 } from "../package/types.js";
+import { isManifestV2, type ServicePermission } from "../package/types.js";
 import {
   mcpToolFingerprint,
   type McpTool,
@@ -28,14 +28,27 @@ function connector(
   if (permissionId !== undefined) {
     if (!installed.enabled) deny("NOT_ENABLED");
     const p = manifest.permissions.find(
-      (p) => p.id === permissionId && p.kind === "egress",
+      (p) =>
+        p.id === permissionId &&
+        (p.kind === "egress" ||
+          (p.kind === "service" &&
+            p.target === "https" &&
+            p.operations.includes("request"))),
     );
     if (!p) deny("PERMISSION_NOT_DECLARED");
     const c = ctx.store.getConsent(id);
     if (
       !c?.formatVersion.startsWith("2.") ||
       !c.permissions.some(
-        (q) => q.id === p.id && q.kind === "egress" && q.target === p.target,
+        (q) =>
+          q.id === p.id &&
+          q.kind === p.kind &&
+          q.target === p.target &&
+          (p.kind !== "service" ||
+            (q.kind === "service" &&
+              p.operations.every((operation) =>
+                (q as ServicePermission).operations.includes(operation),
+              ))),
       )
     )
       throw new PlumsError({

@@ -9,6 +9,45 @@ const SEMVER_PATTERN =
 
 const nonEmptyString = { type: "string", minLength: 1 } as const;
 
+export const ENGINE_PERMISSION_SCHEMA = {
+  type: "object",
+  required: ["id", "kind", "target", "reason"],
+  properties: {
+    id: nonEmptyString,
+    kind: { const: "engine" },
+    reason: nonEmptyString,
+    target: { type: "string", pattern: ID_PATTERN },
+    tier: { enum: ["project", "machine"] },
+    network: {
+      type: "object",
+      required: ["hosts"],
+      properties: {
+        hosts: { type: "array", uniqueItems: true, items: nonEmptyString },
+      },
+    },
+    toolchains: {
+      type: "array",
+      uniqueItems: true,
+      items: { enum: ["node", "git", "rust", "python", "go"] },
+    },
+    credentials: {
+      type: "array",
+      items: {
+        type: "object",
+        required: ["id", "kind", "host"],
+        properties: {
+          id: { type: "string", pattern: ID_PATTERN },
+          kind: {
+            enum: ["npm-token", "cargo-token", "pip-index-auth", "git-https"],
+          },
+          host: nonEmptyString,
+          reason: nonEmptyString,
+        },
+      },
+    },
+  },
+} as const;
+
 /**
  * The envelope schema. It deliberately does not set `additionalProperties: false`
  * so unknown fields survive an import and export round trip.
@@ -150,7 +189,7 @@ const MANIFEST_V2_SCHEMA = {
               properties: { kind: { const: "engine" } },
             },
             then: {
-              properties: { target: { type: "string", pattern: ID_PATTERN } },
+              properties: ENGINE_PERMISSION_SCHEMA.properties,
             },
           },
           {
@@ -276,3 +315,8 @@ export function manifestValidator(major: 1 | 2): ValidateFunction {
   }
   return validate;
 }
+
+export const enginePermissionValidator = new Ajv({
+  strict: false,
+  allErrors: false,
+}).compile(ENGINE_PERMISSION_SCHEMA);

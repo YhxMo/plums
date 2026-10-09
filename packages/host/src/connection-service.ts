@@ -294,10 +294,10 @@ export function httpsService(
       const url = new URL(input.path, b.origin);
       if (url.origin !== b.origin || url.username || url.password || url.hash)
         throw new SinkFailure("REQUEST_INVALID");
-      const headers: Record<string, string> = {};
+      const headers: Record<string, string> = Object.create(null);
       for (const [header, value] of Object.entries(input.headers ?? {})) {
         if (
-          !/^[A-Za-z][A-Za-z0-9-]*$/.test(header) ||
+          !/^[!#$%&'*+.^_`|~0-9A-Za-z-]+$/.test(header) ||
           typeof value !== "string" ||
           /[\r\n\0]/.test(value) ||
           /^(host|content-length|connection|transfer-encoding|proxy-authorization|proxy-connection)$/i.test(

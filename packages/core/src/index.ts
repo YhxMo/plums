@@ -8,9 +8,29 @@ export type {
   CreateGrantInput,
 } from "./capabilities/grants.js";
 export { VERSION } from "./version.js";
+export { validateEnginePermission } from "./package/engine-permission.js";
+export type {
+  LocalExecutionTier,
+  AgentTierCeiling,
+  LocalToolchain,
+  LocalCredentialKind,
+  LocalCredentialDeclaration,
+} from "./package/types.js";
+export type {
+  AgentTierRecord,
+  AgentLocalGrant,
+  LocalAuthorizationState,
+  LocalAuthorizationMigration,
+  LocalDirectory,
+  LocalComponentApproval,
+  LocalAuthorizationCommit,
+} from "./install/local-authorization.js";
 
 export {
   CAPABILITY_FAILED,
+  TIER_UNAVAILABLE,
+  TIER_REQUIRED,
+  LOCAL_CONFIRM_REQUIRED,
   CONFIRMATION_DENIED,
   CONSENT_REQUIRED,
   DEPENDENCY_MISSING,
@@ -161,6 +181,7 @@ export type {
   EngineTrust,
   EngineTrustSnapshot,
 } from "./install/engine-trust.js";
+export { enginePermissionKey } from "./install/engine-trust.js";
 
 export type { ResourcePermission, ResourceOperation } from "./package/types.js";
 export type {

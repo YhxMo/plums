@@ -6,9 +6,9 @@ import os from "node:os";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 
-async function protocolUiFixture() {
+async function protocolUiFixture(single = false) {
   const f = await fixture();
-  await f.page.evaluate(() => {
+  await f.page.evaluate((single) => {
     const state = (window as any).interaction;
     const requires = [
       {
@@ -28,7 +28,22 @@ async function protocolUiFixture() {
       packages[0].desktop.protocols = { requires };
     state.library[0].manifest.payload.plumsDesktop.protocols = { requires };
     const choices = Object.fromEntries(["a", "b"].map((id) => [id, []]));
-    state.protocols = { choices, fail: false, revision: 0 };
+    state.protocols = {
+      choices,
+      fail: false,
+      revision: 0,
+      single,
+      autoBound: false,
+    };
+    if (!single) {
+      const alternative = structuredClone(
+        state.library.find((p: any) => p.digest === "beta"),
+      );
+      alternative.digest = "alternative";
+      alternative.manifest.id = "alternative";
+      alternative.manifest.name = "记忆乙";
+      state.library.push(alternative);
+    }
     const candidates = [
       {
         name: "记忆甲",
@@ -107,6 +122,10 @@ async function protocolUiFixture() {
             ? "choose"
             : "missing",
         selected: choices[id]?.find((b: any) => b.requirementId === r.id),
+        ...(state.protocols.autoBound &&
+        choices[id]?.some((b: any) => b.requirementId === r.id)
+          ? { autoBound: true }
+          : {}),
       }));
     const original = (window as any).manager.call;
     (window as any).manager.call = async (method: string, args: any = {}) => {
@@ -119,6 +138,7 @@ async function protocolUiFixture() {
         state.calls.push({ method, args });
         if (state.protocols.fail) throw { message: "连接未保存，请重新选择" };
         choices[args.instanceId] = args.choice ? [args.choice] : [];
+        state.protocols.autoBound = false;
         state.protocols.revision++;
         return null;
       }
@@ -132,13 +152,23 @@ async function protocolUiFixture() {
                 candidates: r.candidates.filter((c: any) =>
                   args.digests.includes(c.intent.providerDigest),
                 ),
+                state:
+                  args.digests.filter((d: string) =>
+                    r.candidates.some(
+                      (c: any) =>
+                        c.compatibility.compatible &&
+                        c.intent.providerDigest === d,
+                    ),
+                  ).length === 1
+                    ? "unbound"
+                    : r.state,
               }))
             : [],
         };
       return original(method, args);
     };
     state.refresh();
-  });
+  }, single);
   return f;
 }
 
@@ -245,6 +275,7 @@ it("collects required protocol choices in a new assembly before creation", async
       .click();
     await dialog.getByLabel("选择 工具甲 1.0.0").check();
     await dialog.getByLabel("选择 工具乙 1.0.0").check();
+    await dialog.getByLabel("选择 记忆乙 1.0.0").check();
     const select = dialog.getByLabel("工具甲 的 store");
     await select.waitFor();
     expect(await create.isDisabled()).toBe(true);
@@ -270,6 +301,96 @@ it("collects required protocol choices in a new assembly before creation", async
           ).args.protocolBindings[0].providerId,
       ),
     ).toBe("beta");
+  } finally {
+    await f.close();
+  }
+});
+
+it("creates with a single protocol candidate and shows an automatic connection that can be replaced", async () => {
+  const f = await protocolUiFixture(true),
+    { page } = f;
+  try {
+    await page.getByRole("button", { name: "创建 Agent", exact: true }).click();
+    const dialog = page.getByTestId("assembly-dialog");
+    await dialog.getByLabel("Agent 名称", { exact: true }).fill("自动连接组合");
+    await dialog
+      .getByRole("button", { name: "扩展", exact: false })
+      .first()
+      .click();
+    await dialog.getByLabel("选择 工具甲 1.0.0").check();
+    await dialog.getByLabel("选择 工具乙 1.0.0").check();
+    await dialog
+      .getByText("创建后将自动连接 工具甲 的 store → 记忆甲", { exact: true })
+      .waitFor();
+    expect(
+      await dialog
+        .getByRole("button", { name: "创建 Agent", exact: true })
+        .isEnabled(),
+    ).toBe(true);
+    await dialog
+      .getByRole("button", { name: "创建 Agent", exact: true })
+      .click();
+    await expect
+      .poll(() =>
+        page.evaluate(
+          () =>
+            (window as any).interaction.calls.find(
+              (c: any) => c.method === "createAgent",
+            )?.args.protocolBindings,
+        ),
+      )
+      .toEqual([]);
+    await page
+      .getByTestId("setup-dialog")
+      .getByRole("button", { name: "稍后配置", exact: true })
+      .click();
+    await page.evaluate(() => {
+      const s = (window as any).interaction;
+      s.protocols.choices.a = [
+        {
+          consumerId: "alpha",
+          requirementId: "store",
+          providerId: "beta",
+          providerDigest: "beta",
+          provideId: "store",
+        },
+      ];
+      s.protocols.autoBound = true;
+      s.refresh();
+    });
+    await page.getByTestId("agent-switcher").click();
+    await page.getByRole("option", { name: "助手 a" }).click();
+    const panel = page.getByRole("region", { name: "组件连接" });
+    await panel
+      .getByText("已自动连接 工具甲 的 store → 记忆甲", { exact: true })
+      .waitFor();
+    const artifact = path.resolve(".artifacts/requirements-v1/r10-ui");
+    await mkdir(artifact, { recursive: true });
+    await panel.screenshot({ path: path.join(artifact, "automatic-1180.png") });
+    const select = panel.getByLabel("工具甲 的 store");
+    await panel
+      .getByRole("button", {
+        name: "工具甲 更换 store 的提供组件",
+        exact: true,
+      })
+      .click();
+    expect(await select.evaluate((el) => document.activeElement === el)).toBe(
+      true,
+    );
+    await select.selectOption({ label: "记忆乙 · 协议 1.2.0 · store" });
+    await panel.getByText("已连接", { exact: true }).waitFor();
+    expect(await panel.getByText("已自动连接", { exact: false }).count()).toBe(
+      0,
+    );
+    for (const width of [1180, 760, 375, 320]) {
+      await page.setViewportSize({ width, height: 850 });
+      expect(
+        await panel.evaluate((el) => el.scrollWidth <= el.clientWidth),
+      ).toBe(true);
+      await panel.screenshot({
+        path: path.join(artifact, `replacement-${width}.png`),
+      });
+    }
   } finally {
     await f.close();
   }

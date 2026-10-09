@@ -39,11 +39,18 @@ export interface PolicyOperation {
     target: string;
   }[];
   context: InvocationContext;
+  /** Trusted host authorization; never accepted from an extension or SDK input. */
+  localAuthorization?: {
+    tier: "project" | "machine";
+    fingerprint: string;
+    recheck(): Promise<void>;
+  };
 }
 export interface PolicyCheckpoint {
   assertCurrent(): void;
   recheck(): Promise<void>;
   signal: AbortSignal;
+  deadline: number;
 }
 interface Hooks {
   active(s: Session): void;
@@ -281,17 +288,36 @@ export class PolicyService {
     if (!binding) return undefined;
     const firstSecrets = this.hooks.secrets(s);
     void firstSecrets.catch(() => {});
-    const l = this.leases.get(s.record.instanceId);
-    if (!l) throw resourceFailure("POLICY_UNAVAILABLE", op.callId);
+    const local = op.category === "local" ? op.localAuthorization : undefined;
+    if (op.category === "local" && !local)
+      throw resourceFailure("NOT_AUTHORIZED", op.callId);
+    const l = local ? undefined : this.leases.get(s.record.instanceId);
+    if (!local && !l) throw resourceFailure("POLICY_UNAVAILABLE", op.callId);
+    const generation =
+      l?.generation ?? this.generations.get(s.record.instanceId) ?? 0;
+    const executionController = s.engineController;
+    const selection: PolicyScopeSelection[] = local
+      ? [
+          {
+            componentId: op.packageId,
+            category: "local",
+            operation: op.operation,
+            target: op.target,
+          },
+        ]
+      : l!.selection;
     const range = this.hooks.resources(s);
-    const maximumExpiresAt = Math.min(
-      l.expiresAt,
-      range && op.category === "resource"
-        ? Date.parse(range.expiresAt)
-        : l.expiresAt,
-      s.core.taskScopeState()?.expiresAt ?? l.expiresAt,
-    );
+    const maximumExpiresAt = local
+      ? (this.hooks.deadline(s, op.context.taskId) ?? Date.now() + 120_000)
+      : Math.min(
+          l!.expiresAt,
+          range && op.category === "resource"
+            ? Date.parse(range.expiresAt)
+            : l!.expiresAt,
+          s.core.taskScopeState()?.expiresAt ?? l!.expiresAt,
+        );
     const deadline = Math.min(
+      op.context.deadline ?? Infinity,
       this.hooks.deadline(s, op.context.taskId) ?? Date.now() + 120_000,
       maximumExpiresAt,
     );
@@ -299,7 +325,7 @@ export class PolicyService {
     const budgetExpires = performance.now() + remainingMs;
     const operationSignal = AbortSignal.any([
       op.context.signal,
-      l.controller.signal,
+      local ? executionController.signal : l!.controller.signal,
       AbortSignal.timeout(remainingMs),
     ]);
     const chain = [...op.context.ancestry];
@@ -307,15 +333,23 @@ export class PolicyService {
       !chain.length ||
       chain[chain.length - 1] !== op.packageId ||
       new Set(chain).size !== chain.length ||
-      chain.length > 16 ||
-      op.context.engineScope
+      chain.length > 16
     )
       throw resourceFailure("NOT_AUTHORIZED", op.callId);
     const checkpoint = s.core.runtimeAccessCheckpoint([
       ...new Set([...chain, binding.providerId]),
     ]);
     const checkSync = () => {
-      this.current(s, l);
+      if (l) this.current(s, l);
+      else {
+        this.hooks.active(s);
+        if (
+          s.engineController !== executionController ||
+          executionController.signal.aborted ||
+          (this.generations.get(s.record.instanceId) ?? 0) !== generation
+        )
+          throw resourceFailure("STALE_BINDING", op.callId);
+      }
       checkpoint.assertCurrent();
       if (
         operationSignal.aborted ||
@@ -324,8 +358,9 @@ export class PolicyService {
       )
         throw resourceFailure("STALE_BINDING", op.callId);
       if (
+        !local &&
         !chain.every((componentId) =>
-          l.selection.some(
+          selection.some(
             (v) =>
               v.componentId === componentId &&
               v.category === op.category &&
@@ -338,7 +373,7 @@ export class PolicyService {
       for (const required of op.required ?? [])
         if (
           !chain.every((componentId) =>
-            l.selection.some(
+            selection.some(
               (v) =>
                 v.componentId === componentId &&
                 v.category === required.category &&
@@ -367,6 +402,20 @@ export class PolicyService {
     const check = async () => {
       checkSync();
       await op.context.assertActive?.();
+      if (local) {
+        await local.recheck();
+        if (
+          JSON.stringify(
+            await this.candidate(
+              s,
+              binding.providerId,
+              binding.provideId,
+              binding.mode,
+            ),
+          ) !== JSON.stringify(binding)
+        )
+          throw resourceFailure("STALE_BINDING", op.callId);
+      }
       checkSync();
     };
     await check();
@@ -382,8 +431,9 @@ export class PolicyService {
         operation: op.operation,
         target: op.target,
         input: op.fingerprintInput,
-        maximum: l.selection,
-        modeGeneration: l.generation,
+        ...(local ? { localAuthorization: local.fingerprint } : {}),
+        maximum: selection,
+        modeGeneration: generation,
       });
     const secrets = new Set(await firstSecrets);
     for (const secret of await this.hooks.secrets(s)) secrets.add(secret);
@@ -402,19 +452,19 @@ export class PolicyService {
       intent,
       maximum: {
         operations: [
-          ...new Set(l.selection.map((v) => v.category + ":" + v.operation)),
+          ...new Set(selection.map((v) => v.category + ":" + v.operation)),
         ],
         resourceIds: [
           ...new Set(
-            l.selection
+            selection
               .filter((v) => v.category === "resource")
               .map((v) => v.target),
           ),
         ],
         expiresAt: maximumExpiresAt,
-        selection: structuredClone(l.selection),
+        selection: structuredClone(selection),
       },
-      modeGeneration: l.generation,
+      modeGeneration: generation,
     };
     const emit = async (
       outcome: AuditEvent["outcome"],
@@ -426,13 +476,21 @@ export class PolicyService {
           callId: op.callId,
           taskId: context.taskId,
           assessmentId,
-          modeGeneration: l.generation,
+          modeGeneration: generation,
           timestamp: new Date().toISOString(),
           phase,
           outcome,
           executionState: "not_started",
           extensionId: op.packageId,
           callerIds: chain.slice(0, -1),
+          ...(local
+            ? {
+                kind: "engine",
+                target: op.target,
+                operation: op.operation,
+                tier: local.tier,
+              }
+            : {}),
         },
         [...secrets],
       ) as AuditEvent;
@@ -483,7 +541,7 @@ export class PolicyService {
     await emit(decision.decision === "deny" ? "denied" : "allowed");
     if (decision.decision === "deny")
       throw resourceFailure("NOT_AUTHORIZED", op.callId);
-    if (decision.decision === "confirm") {
+    if (decision.decision === "confirm" && !local) {
       await emit("requested", "confirmation");
       const message = redact(
         `策略请求确认。Agent：${s.record.name}。调用链：${chain.join(" → ")}。操作：${op.category}/${op.operation}。目标：${op.target}。意图：${JSON.stringify(redact(op.intent, [...secrets]))}。有效期至：${new Date(context.maximum.expiresAt).toISOString()}。允许本次操作吗？`,
@@ -499,6 +557,7 @@ export class PolicyService {
       assertCurrent: checkSync,
       recheck: check,
       signal: operationSignal,
+      deadline,
     };
   }
 }

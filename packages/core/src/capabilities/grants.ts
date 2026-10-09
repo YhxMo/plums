@@ -127,6 +127,13 @@ export async function grantPlan(
   ctx: ServiceContext,
   raw: GrantInput,
 ): Promise<GrantPlan> {
+  return planGrant(ctx, raw);
+}
+async function planGrant(
+  ctx: ServiceContext,
+  raw: GrantInput,
+  legacy?: { revision: number; authorization: string },
+): Promise<GrantPlan> {
   const value = input(raw),
     owner = requireInstalled(ctx, value.ownerId),
     manifest = requireManifest(ctx, value.ownerId);
@@ -135,11 +142,20 @@ export async function grantPlan(
   );
   const trust = ctx.store
     .listEngineTrust(value.ownerId)
-    .find((t) => t.engineId === value.engineId);
+    .find(
+      (t) => t.instanceId === ctx.instanceId && t.engineId === value.engineId,
+    );
+  const authorization = ctx.store.engineGrantAuthorization(
+    ctx.instanceId,
+    value.ownerId,
+    value.engineId,
+  );
   if (
     !owner.enabled ||
     !permission ||
     !trust ||
+    !authorization ||
+    (legacy && legacy.authorization !== authorization) ||
     trust.instanceId !== ctx.instanceId ||
     trust.installedAt !== owner.installedAt ||
     trust.permission !== enginePermissionKey(permission)
@@ -159,8 +175,11 @@ export async function grantPlan(
         ctx.store.getConsent(id),
         ctx.store.settingsRevision(id),
       ]),
-      ctx.store.listEngineTrust(value.ownerId),
-      ctx.store.engineTrustRevision(),
+      ctx.store.engineGrantAuthorization(
+        ctx.instanceId,
+        value.ownerId,
+        value.engineId,
+      ),
       ctx.store.backgroundRevision(),
     ]);
   const before = state();
@@ -209,7 +228,7 @@ export async function grantPlan(
         ctx.store.getConsent(value.ownerId),
         ctx.store.settingsRevision(value.ownerId),
         trust,
-        ctx.store.engineTrustRevision(),
+        legacy ? legacy.revision : ["local-authorization", authorization],
         scopes,
       ]),
     )
@@ -259,7 +278,12 @@ export async function createGrant(
     typeof copied.fingerprint !== "string"
   )
     throw new TypeError("Invalid grant duration or fingerprint");
-  const revision = ctx.store.grantRevision(),
+  const authorization = ctx.store.engineGrantAuthorization(
+      ctx.instanceId,
+      copied.ownerId,
+      copied.engineId,
+    ),
+    revision = ctx.store.grantRevision(),
     first = await grantPlan(ctx, copied);
   if (first.fingerprint !== copied.fingerprint) deny();
   const grant: Grant = {
@@ -275,7 +299,7 @@ export async function createGrant(
     deny();
   let saved = false;
   try {
-    saved = ctx.store.saveGrantIfCurrent(grant, revision);
+    saved = ctx.store.saveGrantIfCurrent(grant, revision, authorization);
   } catch {
     throw new PlumsError({
       code: CAPABILITY_FAILED,
@@ -318,11 +342,26 @@ export async function checkGrant(
   )
     return undefined;
   try {
-    const plan = await grantPlan(ctx, grant);
+    const authorization = ctx.store.engineGrantAuthorization(
+      ctx.instanceId,
+      grant.ownerId,
+      grant.engineId,
+    );
+    const plan = await planGrant(
+      ctx,
+      grant,
+      ctx.store.legacyGrantBinding(grant.id, grant.fingerprint),
+    );
     const current = ctx.store.listGrants(ownerId).find((g) => g.id === id);
     return current &&
       !current.revokedAt &&
       current.expiresAt > Date.now() &&
+      authorization ===
+        ctx.store.engineGrantAuthorization(
+          ctx.instanceId,
+          grant.ownerId,
+          grant.engineId,
+        ) &&
       plan.fingerprint === grant.fingerprint
       ? structuredClone(grant)
       : undefined;

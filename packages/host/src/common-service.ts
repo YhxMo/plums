@@ -23,6 +23,7 @@ interface Hooks {
     s: Session,
     pkg: string,
     signal?: AbortSignal,
+    parent?: InvocationContext,
   ): Promise<InvocationContext>;
   invoke(
     s: Session,
@@ -329,8 +330,7 @@ export class CommonService {
     const copied = structuredClone(args);
     this.hooks.active(s);
     await context.assertActive?.();
-    if (context.engineScope || context.signal.aborted)
-      throw resourceFailure("NOT_AUTHORIZED");
+    if (context.signal.aborted) throw resourceFailure("NOT_AUTHORIZED");
     const declaration = desktopContribution(
       (await s.core.getPackage(pkg)).manifest,
     )?.common;
@@ -524,6 +524,18 @@ export class CommonService {
             : { timeoutMs: options.timeoutMs }),
         });
         if (request.kind !== "invoke") throw resourceFailure("INVALID_REQUEST");
+        // Local callbacks remain attached to the actual native request even when
+        // there is no common parent task. Ordinary top-level background work keeps
+        // its existing independent lifetime.
+        const parent =
+          context.taskId || context.engineScope ? context : undefined;
+        const parentDeadline =
+          parent?.deadline ??
+          (parent?.taskId
+            ? this.tasks.deadlineFor(s.record.instanceId, parent.taskId)
+            : undefined);
+        if (parentDeadline !== undefined && parentDeadline <= Date.now())
+          throw resourceFailure("DEADLINE_EXCEEDED");
         const task = options.taskId
           ? this.tasks.describe(options.taskId, owner.actor, owner.signature)
           : this.tasks.create(
@@ -540,6 +552,16 @@ export class CommonService {
           owner.signature,
           options.timeoutMs,
         );
+        if (parentDeadline !== undefined)
+          this.tasks.shorten(
+            task.taskId,
+            owner.actor,
+            owner.signature,
+            Math.min(
+              3_600_000,
+              Math.max(1, Math.floor(parentDeadline - Date.now())),
+            ),
+          );
         const startedCall = await this.tasks.start(
           task.taskId,
           owner.actor,
@@ -549,12 +571,10 @@ export class CommonService {
             let executionState: "not_started" | "unknown" | "completed" =
               "not_started";
             try {
-              const base = await this.hooks.context(
-                s,
-                pkg,
-                context.taskId
-                  ? AbortSignal.any([signal, context.signal])
-                  : signal,
+              const base = await this.hooks.context(s, pkg, signal, parent);
+              base.deadline = this.tasks.deadlineFor(
+                s.record.instanceId,
+                task.taskId,
               );
               const check = async () => {
                 chain.assertCurrent();
@@ -656,6 +676,7 @@ export class CommonService {
               );
             }
           },
+          parent?.signal,
         );
         this.taskEdges.set(task.taskId, {
           s,

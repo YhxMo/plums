@@ -277,3 +277,97 @@ it("binds a connection to its declared permission even when another generic gran
     core.close();
   }
 });
+
+it("preserves legal HTTP tokens and own special keys while overriding declared credentials", async () => {
+  const f = await fixture();
+  const punctuation = [
+    "!",
+    "#",
+    "$",
+    "%",
+    "&",
+    String.fromCharCode(39),
+    "*",
+    "+",
+    "-",
+    ".",
+    "^",
+    "_",
+    String.fromCharCode(96),
+    "|",
+    "~",
+  ];
+  const names = [
+    ...punctuation.map((point) => "X-" + point + "-Token"),
+    "0",
+    "__proto__",
+    "constructor",
+    "toString",
+    "prototype",
+    "valueOf",
+  ];
+  const send = vi.spyOn(f.egress, "send");
+  for (const name of names) {
+    await f.invoke("fetch", {
+      headers: Object.fromEntries([
+        [name, "own-field-value"],
+        ["x-test-token", "forged-header-key"],
+      ]),
+    });
+    const actual = send.mock.calls.at(-1)![0].headers!;
+    expect(Object.hasOwn(actual, name)).toBe(true);
+    expect(actual[name]).toBe("own-field-value");
+    expect(Object.getPrototypeOf(actual)).toBeNull();
+    expect(actual["X-Test-Token"]).toBe("private-fixture-key");
+    expect(Object.hasOwn(actual, "x-test-token")).toBe(false);
+    expect(send.mock.calls.at(-1)![0].url).toBe(
+      "https://public-api.example/forecast?city=test",
+    );
+  }
+  expect(f.egress.records).toHaveLength(names.length);
+  const audit = JSON.stringify(await f.host.audit(f.id));
+  expect(audit).not.toContain("own-field-value");
+  expect(audit).not.toContain("private-fixture-key");
+  expect(audit).not.toContain("forged-header-key");
+});
+
+it.each([
+  "",
+  "with space",
+  "Colon:Name",
+  "Bad\rName",
+  "Bad\nName",
+  "Bad\0Name",
+  "host",
+  "Content-Length",
+  "connection",
+  "TRANSFER-ENCODING",
+  "Proxy-Authorization",
+  "proxy-connection",
+])(
+  "rejects invalid or protected header names before the transport (%s)",
+  async (name) => {
+    const f = await fixture();
+    await expect(
+      f.invoke("fetch", { headers: Object.fromEntries([[name, "value"]]) }),
+    ).rejects.toMatchObject({
+      code: "CAPABILITY_FAILED",
+      details: { reason: "REQUEST_INVALID", executionState: "not_started" },
+    });
+    expect(f.egress.records).toHaveLength(0);
+  },
+);
+
+it.each(["bad\rvalue", "bad\nvalue", "bad\0value", 3, null])(
+  "rejects invalid header values before the transport (%s)",
+  async (value) => {
+    const f = await fixture();
+    await expect(
+      f.invoke("fetch", { headers: { "X-Test": value } }),
+    ).rejects.toMatchObject({
+      code: "CAPABILITY_FAILED",
+      details: { reason: "REQUEST_INVALID", executionState: "not_started" },
+    });
+    expect(f.egress.records).toHaveLength(0);
+  },
+);

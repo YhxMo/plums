@@ -2,6 +2,7 @@ import {
   IMPORT_INVALID,
   PlumsError,
   isManifestV2,
+  validateEnginePermission,
   type Manifest,
   type PackageFiles,
 } from "@plums/core";
@@ -45,6 +46,8 @@ export interface EngineRuntimeContext {
   componentId: string;
   engineId: string;
   dataDir: string;
+  tier: "project" | "machine";
+  projects: { root: string; path: string }[];
 }
 export interface EngineStatus {
   engineId: string;
@@ -118,6 +121,13 @@ export function validateDesktopV2(
     invalid("连接与可信引擎声明需要 SDK v2。");
   if (enginePermissions.length && !Array.isArray(c.engines))
     invalid("引擎权限必须对应声明的引擎。");
+  for (const permission of enginePermissions) {
+    try {
+      validateEnginePermission(permission);
+    } catch {
+      invalid("本地执行权限声明无效。");
+    }
+  }
   if (c.connections !== undefined) {
     if (
       manifest.kind !== "connector" ||

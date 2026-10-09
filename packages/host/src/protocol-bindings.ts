@@ -19,6 +19,7 @@ import type { AgentRecord } from "./host.js";
 import type { LibraryItem } from "./library.js";
 
 export interface ProtocolBinding extends ProtocolBindingIntent {
+  autoBound?: boolean;
   agentId: string;
   consumerInstalledAt: string;
   providerInstalledAt: string;
@@ -37,6 +38,7 @@ export interface ProtocolRequirementState {
   requirement: ProtocolRequirement;
   state: "bound" | "unbound" | "missing" | "choose" | "stale" | "disabled";
   selected?: ProtocolBindingIntent;
+  autoBound?: boolean;
   candidates: ProtocolCandidate[];
 }
 interface Component {
@@ -187,6 +189,18 @@ export function assemblyProtocols(
     selections,
   );
 }
+/** Fill only empty slots. Stale selections and explicit portable intents keep priority. */
+export function automaticProtocolChoices(
+  states: ProtocolRequirementState[],
+): ProtocolBindingIntent[] {
+  return states
+    .filter((s) => s.state === "unbound")
+    .map((s) =>
+      structuredClone(
+        s.candidates.find((c) => c.compatibility.compatible)!.intent,
+      ),
+    );
+}
 export function requireProtocolSelections(
   states: ProtocolRequirementState[],
   consumerId?: string,
@@ -250,6 +264,7 @@ export async function protocolPlan(core: Core, record: AgentRecord) {
         b.requirementId === state.requirement.id,
     );
     if (fixed && !validIdentity(record, items, fixed)) state.state = "stale";
+    if (fixed?.autoBound) state.autoBound = true;
   }
   return {
     fingerprint: protocolFingerprint([

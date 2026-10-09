@@ -221,7 +221,7 @@ export interface CommonOperationContext {
   callId: string;
   taskId: string;
   actors: readonly CommonActor[];
-  category: "resource" | "fs" | "https" | "exec" | "tool";
+  category: "resource" | "fs" | "https" | "exec" | "tool" | "local";
   operation: string;
   /** Trusted logical root, resource, program or contribution target. */
   target?: string;

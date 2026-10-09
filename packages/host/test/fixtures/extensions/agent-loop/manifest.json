@@ -1,0 +1,226 @@
+{
+  "formatVersion": "2.0",
+  "kind": "extension",
+  "id": "fixture.agent-loop",
+  "name": "Synthetic agent-loop",
+  "version": "1.0.0",
+  "description": "Test-only scenario component; not distributed",
+  "license": "Apache-2.0",
+  "dependencies": [],
+  "permissions": [
+    {
+      "id": "api",
+      "kind": "service",
+      "target": "https",
+      "operations": ["request"],
+      "reason": "Test-only model service"
+    },
+    {
+      "id": "data",
+      "kind": "resource",
+      "target": "agent",
+      "operations": ["read", "write"],
+      "reason": "Test-only private business data"
+    }
+  ],
+  "payload": {
+    "plumsDesktop": {
+      "sdkVersion": "2",
+      "runtime": "main.js",
+      "common": {
+        "commonVersion": "1.0",
+        "features": ["resources-cas"],
+        "runtime": "isolate",
+        "resources": [
+          {
+            "id": "private",
+            "permissionId": "data",
+            "operations": ["read", "write"]
+          }
+        ]
+      },
+      "frontend": "index.html",
+      "contributes": {
+        "commands": [
+          {
+            "name": "chat",
+            "title": "Test chat",
+            "inputSchema": {
+              "type": "object",
+              "properties": {
+                "text": {
+                  "type": "string",
+                  "minLength": 1
+                }
+              },
+              "required": ["text"],
+              "additionalProperties": false
+            },
+            "outputSchema": {
+              "oneOf": [
+                {
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "type": "object",
+                      "properties": {
+                        "role": {
+                          "const": "assistant"
+                        },
+                        "content": {
+                          "type": "string"
+                        },
+                        "toolCalls": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "id": {
+                                "type": "string"
+                              },
+                              "name": {
+                                "type": "string"
+                              },
+                              "arguments": {
+                                "type": "object"
+                              }
+                            },
+                            "required": ["id", "name", "arguments"],
+                            "additionalProperties": false
+                          }
+                        }
+                      },
+                      "required": ["role", "content"],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": ["message"],
+                  "additionalProperties": false
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "enum": ["LOOP_LIMIT_EXCEEDED", "CARD_UNRECOGNIZED"]
+                        }
+                      },
+                      "required": ["code"],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": ["error"],
+                  "additionalProperties": false
+                }
+              ]
+            }
+          },
+          {
+            "name": "history",
+            "title": "Test history",
+            "inputSchema": {
+              "type": "object",
+              "properties": {},
+              "required": [],
+              "additionalProperties": false
+            },
+            "outputSchema": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "role": {
+                    "enum": ["system", "user", "assistant", "tool"]
+                  },
+                  "content": {
+                    "type": "string"
+                  },
+                  "toolCallId": {
+                    "type": "string"
+                  },
+                  "toolCalls": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string"
+                        },
+                        "name": {
+                          "type": "string"
+                        },
+                        "arguments": {
+                          "type": "object"
+                        }
+                      },
+                      "required": ["id", "name", "arguments"],
+                      "additionalProperties": false
+                    }
+                  }
+                },
+                "required": ["role", "content"],
+                "additionalProperties": false
+              }
+            }
+          }
+        ]
+      },
+      "protocols": {
+        "requires": [
+          {
+            "id": "model",
+            "protocol": "org.plums.chat-model",
+            "range": "^1.0.0",
+            "features": ["complete"]
+          },
+          {
+            "id": "card",
+            "protocol": "org.plums.character-card",
+            "range": "^1.0.0",
+            "features": ["parse"],
+            "optional": true
+          },
+          {
+            "id": "memory",
+            "protocol": "org.plums.memory",
+            "range": "^1.0.0",
+            "features": ["search"],
+            "optional": true
+          },
+          {
+            "id": "context",
+            "protocol": "org.plums.agent-context",
+            "range": "^1.0.0",
+            "features": ["context"],
+            "optional": true
+          },
+          {
+            "id": "tools-coding",
+            "protocol": "org.plums.agent-tools",
+            "range": "^1.0.0",
+            "features": ["list", "call"],
+            "optional": true
+          },
+          {
+            "id": "tools-mcp",
+            "protocol": "org.plums.agent-tools",
+            "range": "^1.0.0",
+            "features": ["list", "call"],
+            "optional": true
+          }
+        ]
+      },
+      "foundation": {
+        "requirementVersion": "1.0",
+        "protocolRange": "^1.0.0",
+        "sdk": {
+          "id": "org.plums.sdk",
+          "version": "2.0.0"
+        },
+        "features": ["sdk.register", "sdk.resources", "sdk.protocols"]
+      }
+    }
+  }
+}

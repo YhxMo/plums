@@ -244,15 +244,21 @@ it.runIf(process.platform === "darwin").each(["timer", "status"])(
     await addPolicy(f.host, f.a.instanceId, "allow");
     await select(f.host, f.a.instanceId, "allow");
     const timer = globalThis.setTimeout;
-    // Preserve the production 15-minute lease; accelerate only its lifecycle callback.
-    const spy = vi
-      .spyOn(globalThis, "setTimeout")
-      .mockImplementation(((fn: any, delay: any, ...args: any[]) =>
-        timer(
-          fn,
-          delay === 900_000 && observedBy === "timer" ? 2000 : delay,
-          ...args,
-        )) as any);
+    let expireTimer: (() => void) | undefined;
+    // Preserve the production lease; trigger its real timer callback after both instances are ready.
+    const spy = vi.spyOn(globalThis, "setTimeout").mockImplementation(((
+      fn: any,
+      delay: any,
+      ...args: any[]
+    ) => {
+      const handle = timer(fn, delay, ...args);
+      if (delay === 900_000 && observedBy === "timer")
+        expireTimer = () => {
+          clearTimeout(handle);
+          timer(fn, 0, ...args);
+        };
+      return handle;
+    }) as any);
     try {
       await grant(f.host, f.a.instanceId);
     } finally {
@@ -291,6 +297,10 @@ it.runIf(process.platform === "darwin").each(["timer", "status"])(
     const ap = (ae.value.data as { pid: number }).pid,
       bp = (be.value.data as { pid: number }).pid;
     expect(ap).not.toBe(bp);
+    if (observedBy === "timer") {
+      expect(expireTimer).toBeTypeOf("function");
+      expireTimer!();
+    }
     if (observedBy === "status") {
       // Internal fixture advances only the monotonic expiry; production grant remains 15m.
       (f.host as any).policy.leases.get(f.a.instanceId).expires =

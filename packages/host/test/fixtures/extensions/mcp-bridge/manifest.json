@@ -1,0 +1,161 @@
+{
+  "formatVersion": "2.0",
+  "kind": "connector",
+  "id": "fixture.mcp-bridge",
+  "name": "Synthetic MCP bridge",
+  "version": "1.0.0",
+  "description": "Test-only MCP client; not distributed",
+  "license": "Apache-2.0",
+  "dependencies": [],
+  "permissions": [
+    {
+      "id": "api",
+      "kind": "service",
+      "target": "https",
+      "operations": ["request"],
+      "reason": "Test-only remote MCP service"
+    }
+  ],
+  "payload": {
+    "plumsDesktop": {
+      "sdkVersion": "2",
+      "runtime": "main.js",
+      "connections": [
+        {
+          "id": "mcp",
+          "permissionId": "api",
+          "baseURLSetting": "baseURL"
+        }
+      ],
+      "contributes": {
+        "connectors": [
+          {
+            "name": "tools",
+            "title": "Test tools",
+            "inputSchema": {
+              "oneOf": [
+                {
+                  "type": "object",
+                  "properties": {
+                    "operation": {
+                      "const": "list"
+                    },
+                    "input": {
+                      "type": "object",
+                      "properties": {},
+                      "required": [],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": ["operation", "input"],
+                  "additionalProperties": false
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "operation": {
+                      "const": "call"
+                    },
+                    "input": {
+                      "type": "object",
+                      "properties": {
+                        "name": {
+                          "type": "string"
+                        },
+                        "arguments": {
+                          "type": "object"
+                        }
+                      },
+                      "required": ["name", "arguments"],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": ["operation", "input"],
+                  "additionalProperties": false
+                }
+              ]
+            },
+            "outputSchema": {
+              "oneOf": [
+                {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "name": {
+                        "type": "string"
+                      },
+                      "description": {
+                        "type": "string"
+                      },
+                      "inputSchema": {
+                        "type": "object"
+                      }
+                    },
+                    "required": ["name", "description", "inputSchema"],
+                    "additionalProperties": false
+                  }
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "ok": {
+                      "type": "boolean"
+                    },
+                    "content": {
+                      "type": "string"
+                    }
+                  },
+                  "required": ["ok", "content"],
+                  "additionalProperties": false
+                }
+              ]
+            }
+          }
+        ]
+      },
+      "protocols": {
+        "provides": [
+          {
+            "id": "tools",
+            "protocol": "org.plums.agent-tools",
+            "version": "1.0.0",
+            "features": ["list", "call"],
+            "contribution": {
+              "kind": "connectors",
+              "name": "tools"
+            }
+          }
+        ]
+      },
+      "foundation": {
+        "requirementVersion": "1.0",
+        "protocolRange": "^1.0.0",
+        "sdk": {
+          "id": "org.plums.sdk",
+          "version": "2.0.0"
+        },
+        "features": [
+          "sdk.register",
+          "sdk.connection",
+          "sdk.capability",
+          "sdk.failResponse",
+          "sdk.mcpCheck"
+        ]
+      }
+    }
+  },
+  "settingsSchema": {
+    "type": "object",
+    "properties": {
+      "baseURL": {
+        "type": "string",
+        "title": "Base URL",
+        "description": "Synthetic MCP origin",
+        "default": "https://mcp.plums-fixture.test"
+      }
+    },
+    "required": ["baseURL"],
+    "additionalProperties": false
+  }
+}

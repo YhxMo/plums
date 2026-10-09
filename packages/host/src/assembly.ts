@@ -20,6 +20,7 @@ interface AssemblyTransaction {
   version: string | null;
   beforeVersion: string | null;
   next: AgentRecord;
+  automaticProtocols?: true;
 }
 async function readAssemblyTransaction(
   dir: string,
@@ -174,21 +175,26 @@ export async function mutateAssembly<T>(
   packageId: string,
   version: string | undefined,
   operation: () => Promise<T>,
+  prepareProtocols?: (record: AgentRecord) => Promise<void>,
+  onJournal?: (contents: string) => void,
 ): Promise<T> {
   const beforeVersion =
     (await core.listInstalled()).find((p) => p.id === packageId)?.version ??
     null;
   const journal = path.join(dir, "assembly-transaction.json");
-  await writeFile(
-    journal + ".pending",
-    JSON.stringify({
-      packageId,
-      version: version ?? null,
-      beforeVersion,
-      next,
-    }),
-  );
-  await rename(journal + ".pending", journal);
+  const publishJournal = async (transaction: AssemblyTransaction) => {
+    const contents = JSON.stringify(transaction);
+    onJournal?.(contents);
+    await writeFile(journal + ".pending", contents);
+    await rename(journal + ".pending", journal);
+  };
+  await publishJournal({
+    packageId,
+    version: version ?? null,
+    beforeVersion,
+    next,
+    ...(prepareProtocols ? { automaticProtocols: true } : {}),
+  });
   let result: T | undefined, failure: unknown;
   try {
     result = await operation();
@@ -202,13 +208,27 @@ export async function mutateAssembly<T>(
     version === undefined
       ? !installed
       : installed?.version === version && version !== beforeVersion
-  )
+  ) {
+    if (prepareProtocols) {
+      await prepareProtocols(next);
+      await publishJournal({
+        packageId,
+        version: version ?? null,
+        beforeVersion,
+        next,
+      });
+    }
     await saveRecord(dir, next);
+  }
   await rm(journal, { force: true });
   if (failure) throw failure;
   return result as T;
 }
-export async function recoverAssembly(dir: string, core: Core) {
+export async function recoverAssembly(
+  dir: string,
+  core: Core,
+  prepareProtocols?: (record: AgentRecord) => Promise<void>,
+) {
   const t = await readAssemblyTransaction(dir);
   if (!t) return;
   const installed = (await core.listInstalled()).find(
@@ -218,7 +238,12 @@ export async function recoverAssembly(dir: string, core: Core) {
     t.version === null
       ? !installed
       : installed?.version === t.version && t.version !== t.beforeVersion
-  )
+  ) {
+    if (t.automaticProtocols) {
+      if (!prepareProtocols) throw Error("Agent 组件连接恢复不可用。");
+      await prepareProtocols(t.next);
+    }
     await saveRecord(dir, t.next);
+  }
   await rm(path.join(dir, "assembly-transaction.json"), { force: true });
 }

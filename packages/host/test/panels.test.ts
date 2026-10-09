@@ -567,18 +567,43 @@ it("keeps only the newest concurrent frontend session active", async () => {
   );
   expect(active.filter((r) => r.status === "fulfilled")).toHaveLength(1);
 });
-it("cancels pending engine approval with its frontend but retains an already authorized running engine after frontend close", async () => {
-  let entered!: () => void, release!: (v: boolean) => void;
-  const pending = new Promise<void>((r) => (entered = r)),
-    answer = new Promise<boolean>((r) => (release = r));
-  const f = await fixture(
-    true,
-    async () => {
+it("cancels pending engine startup with its frontend but retains an already authorized running engine after frontend close", async () => {
+  let entered!: () => void, release!: () => void;
+  const pending = new Promise<void>((r) => {
+      entered = r;
+    }),
+    answer = new Promise<void>((r) => {
+      release = r;
+    });
+  const confirm = vi.fn(async () => true);
+  const f = await fixture(true, confirm, true);
+  await expect(
+    f.host.frontendEngine(
+      f.root.context.sessionId,
+      f.root.context.handle,
+      "start",
+      { engineId: "fixture" },
+    ),
+  ).rejects.toMatchObject({ code: "TIER_REQUIRED" });
+  expect(confirm).not.toHaveBeenCalled();
+  const selection = {
+    ceiling: "machine" as const,
+    projects: [],
+    readOnly: [],
+    components: ["orchestrator"],
+  };
+  const plan = await f.host.tierPlan(f.agent.instanceId, selection);
+  await f.host.confirmTier(f.agent.instanceId, plan.fingerprint, selection);
+  const previous = f.host.options.audit!;
+  let blocked = false;
+  f.host.options.audit = async (id, event) => {
+    await previous(id, event);
+    if (event.reason === "ENGINE_START" && !blocked) {
+      blocked = true;
       entered();
-      return answer;
-    },
-    true,
-  );
+      await answer;
+    }
+  };
   const starting = f.host
     .frontendEngine(f.root.context.sessionId, f.root.context.handle, "start", {
       engineId: "fixture",
@@ -586,11 +611,11 @@ it("cancels pending engine approval with its frontend but retains an already aut
     .catch((e) => e);
   await pending;
   f.host.closeFrontend(f.root.context.sessionId);
-  release(true);
+  release();
   expect(await starting).toMatchObject({ code: expect.any(String) });
   expect(
     await f.host.engineStatus(f.agent.instanceId, "orchestrator", "fixture"),
-  ).toMatchObject({ state: "stopped", trusted: false });
+  ).toMatchObject({ state: "stopped", trusted: true });
   const root = (await f.host.openFrontend(f.agent.instanceId))!;
   expect(
     await f.host.frontendEngine(
@@ -611,4 +636,5 @@ it("cancels pending engine approval with its frontend but retains an already aut
       input: {},
     }),
   ).toEqual({ ok: true });
+  expect(confirm).toHaveBeenCalledTimes(1);
 });

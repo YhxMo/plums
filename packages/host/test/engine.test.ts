@@ -29,10 +29,16 @@ afterEach(async () => {
     dirs.splice(0).map((d) => rm(d, { recursive: true, force: true })),
   );
 });
-async function fixture(code?: string, credentialProbe = false) {
+async function fixture(
+  code?: string,
+  credentialProbe = false,
+  tier?: "project",
+  authorized = true,
+) {
   const dir = await mkdtemp(path.join(os.tmpdir(), "plums-engine-"));
   dirs.push(dir);
   const manifest = engineManifest();
+  if (tier) Object.assign(manifest.permissions[0]!, { tier });
   const files = await engineFiles();
   if (credentialProbe) {
     manifest.settingsSchema = {
@@ -122,15 +128,59 @@ async function fixture(code?: string, credentialProbe = false) {
     };
     await host.updatePackage(id, preview.token, "engine-demo", true);
   }
-  return { dir, host, id, confirm, fs, egress, invoke, update, item, bytes };
+  const approve = async () => {
+    const selection = {
+      ceiling: "machine" as const,
+      projects: [],
+      readOnly: [],
+      components: ["engine-demo"],
+    };
+    const plan = await host.tierPlan(id, selection);
+    return host.confirmTier(id, plan.fingerprint, selection);
+  };
+  if (authorized && !tier) await approve();
+  return {
+    dir,
+    host,
+    id,
+    confirm,
+    fs,
+    egress,
+    invoke,
+    update,
+    item,
+    bytes,
+    approve,
+  };
 }
 const simple = `import{createInterface}from'node:readline';const send=(id,result)=>console.log(JSON.stringify({jsonrpc:'2.0',id,result}));createInterface({input:process.stdin}).on('line',l=>{const m=JSON.parse(l);if(m.method==='initialize')send(m.id,{protocol:'jsonrpc-jsonl-v1'});else if(m.method==='echo')send(m.id,m.params);});`;
+it("accepts project declarations but cannot launch them through the unsandboxed compatibility path", async () => {
+  const f = await fixture(simple, false, "project");
+  await expect(
+    f.host.startEngine(f.id, "engine-demo", "local"),
+  ).rejects.toMatchObject({ code: "TIER_REQUIRED" });
+  await expect(
+    f.host.engineCall(f.id, "engine-demo", "start", { engineId: "local" }),
+  ).rejects.toMatchObject({ code: "TIER_REQUIRED" });
+  await expect(
+    f.host.engineCall(f.id, "engine-demo", "request", {
+      engineId: "local",
+      method: "echo",
+      input: {},
+    }),
+  ).rejects.toMatchObject({ code: "TIER_REQUIRED" });
+  expect(await f.host.engineStatus(f.id, "engine-demo", "local")).toMatchObject(
+    { state: "stopped", trusted: false },
+  );
+  expect(f.confirm.ask).not.toHaveBeenCalled();
+});
 it("does not auto-start, merges concurrent startup and performs autonomous file, process and network I/O", async () => {
-  const f = await fixture();
+  const f = await fixture(undefined, false, undefined, false);
   expect(await f.invoke("status")).toMatchObject({
     state: "stopped",
     trusted: false,
   });
+  await f.approve();
   await Promise.all([
     f.invoke("start"),
     f.host.startEngine(f.id, "engine-demo", "local"),
@@ -172,7 +222,7 @@ it("does not auto-start, merges concurrent startup and performs autonomous file,
     { state: "running", trusted: true },
   );
   const audit = JSON.stringify(await f.host.audit(f.id));
-  expect(audit).toContain("ENGINE_AUTHORIZED");
+  expect(audit).toContain("LOCAL_AUTHORIZATION_CONFIRMED");
   expect(audit).not.toContain("private task text");
   expect(audit).not.toContain(f.dir);
 }, 15_000);
@@ -200,12 +250,13 @@ it("supports tasks longer than the isolate budget and real per-operation confirm
   expect(await readFile(file, "utf8")).toBe("written after user approval");
 }, 15_000);
 it.each([false, undefined, "true", 1])(
-  "requires Boolean true for first trust (%s)",
+  "requires Boolean true for summary authorization (%s)",
   async (answer) => {
-    const f = await fixture();
+    const f = await fixture(undefined, false, undefined, false);
     f.confirm.ask.mockResolvedValue(answer as boolean);
+    expect(await f.approve()).toBe(false);
     await expect(f.invoke("start")).rejects.toMatchObject({
-      code: "PERMISSION_DENIED",
+      code: "TIER_REQUIRED",
     });
     expect(await f.invoke("status")).toMatchObject({
       state: "stopped",
@@ -229,6 +280,10 @@ it("reuses trust after restart and normal update, but changes in engine permissi
   expect(f.confirm.ask).toHaveBeenCalledTimes(1);
   await f.update("1.2.0", true);
   expect(await f.invoke("status")).toMatchObject({ trusted: false });
+  await expect(f.invoke("start")).rejects.toMatchObject({
+    code: "LOCAL_CONFIRM_REQUIRED",
+  });
+  await f.approve();
   await f.invoke("start");
   expect(f.confirm.ask).toHaveBeenCalledTimes(2);
 }, 15_000);
@@ -253,7 +308,7 @@ it("new Agent, exported Agent and reinstall do not inherit trust", async () => {
   expect(await f.invoke("status")).toMatchObject({ trusted: false });
 });
 it("revocation during first confirmation cancels startup and cannot be undone by a late answer", async () => {
-  const f = await fixture();
+  const f = await fixture(undefined, false, undefined, false);
   let approve!: (v: boolean) => void;
   f.confirm.ask.mockImplementation(
     () =>
@@ -261,7 +316,7 @@ it("revocation during first confirmation cancels startup and cannot be undone by
         approve = r;
       }),
   );
-  const start = f.invoke("start");
+  const start = f.approve();
   const rejection = expect(start).rejects.toMatchObject({
     code: "PERMISSION_DENIED",
   });
@@ -277,7 +332,7 @@ it("revocation during first confirmation cancels startup and cannot be undone by
 it.each(["update", "delete"])(
   "%s while confirming does not launch stale code",
   async (operation) => {
-    const f = await fixture();
+    const f = await fixture(undefined, false, undefined, false);
     let approve!: (v: boolean) => void;
     f.confirm.ask.mockImplementation(
       () =>
@@ -285,8 +340,8 @@ it.each(["update", "delete"])(
           approve = r;
         }),
     );
-    const start = f.invoke("start");
-    const rejected = expect(start).rejects.toBeDefined();
+    const start = f.approve();
+    const rejected = expect(start).resolves.toBe(false);
     await vi.waitFor(() => expect(f.confirm.ask).toHaveBeenCalledTimes(1));
     if (operation === "update") await f.update("1.1.0");
     else await f.host.removeAgent(f.id);
@@ -300,13 +355,14 @@ it.each(["update", "delete"])(
   },
 );
 it("does not launch when saving user trust fails or lifecycle auditing fails", async () => {
-  const f = await fixture();
-  vi.spyOn(InstallStore.prototype, "saveEngineTrust").mockImplementationOnce(
-    () => {
-      throw Error("private database error");
-    },
-  );
-  await expect(f.invoke("start")).rejects.toBeDefined();
+  const f = await fixture(undefined, false, undefined, false);
+  vi.spyOn(
+    InstallStore.prototype,
+    "commitLocalAuthorization",
+  ).mockImplementationOnce(() => {
+    throw Error("private database error");
+  });
+  await expect(f.approve()).rejects.toBeDefined();
   expect(await f.invoke("status")).toMatchObject({
     trusted: false,
     state: "stopped",
@@ -314,7 +370,7 @@ it("does not launch when saving user trust fails or lifecycle auditing fails", a
   f.host.options.audit = async () => {
     throw Error("private audit error");
   };
-  await expect(f.invoke("start")).rejects.toBeDefined();
+  await expect(f.approve()).rejects.toBeDefined();
   expect(await f.invoke("status")).toMatchObject({ state: "stopped" });
 });
 it("refuses corrupted installed engine files before launch", async () => {
@@ -653,7 +709,7 @@ it("allows an explicitly trusted engine to operate across independent projects",
   expect(f.fs.records).toHaveLength(0);
 });
 it("rejects expired first trust and cannot revive it with a late answer", async () => {
-  const f = await fixture();
+  const f = await fixture(undefined, false, undefined, false);
   const deadline = new AbortController();
   const nativeTimeout = AbortSignal.timeout;
   vi.spyOn(AbortSignal, "timeout").mockImplementation((ms) =>
@@ -666,10 +722,10 @@ it("rejects expired first trust and cannot revive it with a late answer", async 
         answer = resolve;
       }),
   );
-  const start = f.host.startEngine(f.id, "engine-demo", "local");
+  const start = f.approve();
   await vi.waitFor(() => expect(f.confirm.ask).toHaveBeenCalledTimes(1));
   deadline.abort();
-  await expect(start).rejects.toMatchObject({ code: "PERMISSION_DENIED" });
+  await expect(start).resolves.toBe(false);
   answer(true);
   expect(await f.host.engineStatus(f.id, "engine-demo", "local")).toMatchObject(
     { state: "stopped", trusted: false },

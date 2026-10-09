@@ -8,6 +8,10 @@ import {
   enginePermissionKey,
   type EngineTrustSnapshot,
 } from "./install/engine-trust.js";
+import type {
+  LocalAuthorizationState,
+  LocalAuthorizationCommit,
+} from "./install/local-authorization.js";
 import { randomUUID } from "node:crypto";
 import {
   grantPlan,
@@ -27,6 +31,7 @@ import {
   type TaskScopeSelection,
 } from "./capabilities/task-scope.js";
 import {
+  copyJson,
   registerServices,
   grantBackgroundConsent,
   revokeBackgroundConsent,
@@ -40,7 +45,7 @@ import type {
 import * as mcpV2 from "./mcp/tools-v2.js";
 import type { McpApprovalV2 } from "./install/store.js";
 import { requireInstalled, requireManifest } from "./install/lifecycle.js";
-import type { Manifest } from "./package/types.js";
+import { isManifestV2, type Manifest } from "./package/types.js";
 import { rm } from "node:fs/promises";
 import {
   CAPABILITY_FAILED,
@@ -59,6 +64,7 @@ import { copyDelegatedInput } from "./capabilities/request.js";
 import {
   DEFAULT_CONFIRM_TIMEOUT_MS,
   type AuditHandler,
+  type AuditEvent,
   type CapabilityResult,
   type ExecSink,
   type FsSink,
@@ -169,12 +175,18 @@ export interface Core {
   resourceAccessCheckpoint(
     input: readonly ResourceAccessInput[],
   ): ResourceAccessCheckpoint;
-  /** User trust: trusted management entry points only, never exposed through ordinary SDK calls. */
+  /** Trusted management state only; reading the ceiling never authorizes execution. */
+  localAuthorizationState(): Promise<LocalAuthorizationState>;
+  /** Trusted host only, after confirmation, directory rechecks and audit; never an SDK API. */
+  commitLocalAuthorization(input: LocalAuthorizationCommit): Promise<boolean>;
+  /** @deprecated Compatibility for machine entries. Replace with Agent-level tier confirmation. */
   engineTrustSnapshot(
     packageId: string,
     engineId: string,
   ): Promise<EngineTrustSnapshot>;
+  /** @deprecated Machine-only compatibility; cannot approve project execution or fs/exec coverage. */
   grantEngineTrust(snapshot: EngineTrustSnapshot): Promise<boolean>;
+  /** @deprecated Revokes matching local entries; the schema-6 archive remains read-only. */
   revokeEngineTrust(packageId: string, engineId?: string): Promise<void>;
   /** Trusted host binding epoch. Includes saves where only a secret changed. */
   settingsRevision(id: string): Promise<number>;
@@ -563,12 +575,67 @@ export function createCore(options: CreateCoreOptions): Core {
       }
     };
 
+  let migrationAudit: Promise<void> | undefined;
+  const ensureLocalMigration = async (): Promise<void> => {
+    const report = store.localMigration(capabilityCtx.instanceId);
+    if (!report || report.audited) return;
+    if (!migrationAudit)
+      migrationAudit = (async () => {
+        try {
+          if (!options.onAudit) throw new Error("Missing audit");
+          const secrets = await knownSecrets(ctx);
+          const event = redact(
+            {
+              callId: report.callId,
+              timestamp: report.timestamp,
+              ...(options.instanceId ? { agentId: options.instanceId } : {}),
+              kind: "engine" as const,
+              phase: "grant" as const,
+              outcome: "allowed" as const,
+              executionState: "not_started" as const,
+              reason: "LOCAL_AUTHORIZATION_MIGRATED",
+              migration: Object.freeze({
+                migrated: report.migrated,
+                skipped: report.skipped,
+              }),
+            },
+            secrets,
+          ) as AuditEvent;
+          if (event.migration) Object.freeze(event.migration);
+          await options.onAudit(Object.freeze(event));
+          store.acknowledgeLocalMigration(
+            capabilityCtx.instanceId,
+            report.callId,
+          );
+        } catch {
+          throw new PlumsError({
+            code: CAPABILITY_FAILED,
+            message: "本地执行授权迁移审计未保存，迁移授权未生效。",
+            details: {
+              callId: report.callId,
+              phase: "migration_audit",
+              executionState: "not_started",
+            },
+          });
+        }
+      })().finally(() => {
+        migrationAudit = undefined;
+      });
+    await migrationAudit;
+  };
   const engineSnapshot = (
     packageId: string,
     engineId: string,
   ): EngineTrustSnapshot => {
     const installed = requireInstalled(ctx, packageId),
       manifest = requireManifest(ctx, packageId);
+    if (!isManifestV2(manifest))
+      throw new PlumsError({
+        code: "PERMISSION_DENIED",
+        message: "本地执行权限需要 2.x 清单。",
+        path: "/formatVersion",
+        details: { reason: "FORMAT_API_MISMATCH" },
+      });
     const declaration = manifest.permissions.find(
       (p) => "kind" in p && p.kind === "engine" && p.target === engineId,
     );
@@ -580,7 +647,11 @@ export function createCore(options: CreateCoreOptions): Core {
     const permission = enginePermissionKey(declaration),
       record = store
         .listEngineTrust(packageId)
-        .find((r) => r.engineId === engineId);
+        .find(
+          (r) =>
+            r.instanceId === capabilityCtx.instanceId &&
+            r.engineId === engineId,
+        );
     return {
       instanceId: capabilityCtx.instanceId,
       packageId,
@@ -598,10 +669,35 @@ export function createCore(options: CreateCoreOptions): Core {
   };
   return {
     version: VERSION,
-    engineTrustSnapshot: guard(async (id, engineId) =>
-      engineSnapshot(id, engineId),
-    ),
+    localAuthorizationState: guard(async () => {
+      await ensureLocalMigration();
+      return store.localAuthorizationState(capabilityCtx.instanceId);
+    }),
+    commitLocalAuthorization: guard(async (input) => {
+      input = structuredClone(input);
+      await ensureLocalMigration();
+      if (input.tier.instanceId !== capabilityCtx.instanceId) return false;
+      try {
+        return store.commitLocalAuthorization(input);
+      } catch {
+        throw new PlumsError({
+          code: CAPABILITY_FAILED,
+          message: "本地授权记录未保存。",
+          details: {
+            callId: randomUUID(),
+            phase: "local_authorization_commit",
+            executionState: "not_started",
+          },
+        });
+      }
+    }),
+    engineTrustSnapshot: guard(async (id, engineId) => {
+      await ensureLocalMigration();
+      return engineSnapshot(id, engineId);
+    }),
     grantEngineTrust: guard(async (snapshot) => {
+      snapshot = structuredClone(snapshot);
+      await ensureLocalMigration();
       const current = engineSnapshot(snapshot.packageId, snapshot.engineId);
       if (
         (
@@ -631,7 +727,7 @@ export function createCore(options: CreateCoreOptions): Core {
     }),
     revokeEngineTrust: guard(async (id, engineId) => {
       requireInstalled(ctx, id);
-      store.removeEngineTrust(id, engineId);
+      store.removeEngineTrust(id, engineId, capabilityCtx.instanceId);
     }),
     dataDir: resolvedDataDir,
     limits,
@@ -753,12 +849,25 @@ export function createCore(options: CreateCoreOptions): Core {
     runAction: guard((input) =>
       runAction({ ...ctx, egress: options.egress, confirm }, input),
     ),
-    grantPlan: guard((input) => grantPlan(capabilityCtx, input)),
-    createGrant: guard((input) => createGrant(capabilityCtx, input)),
-    listGrants: guard(async (ownerId) => store.listGrants(ownerId)),
-    checkGrant: guard((id, ownerId, scope) =>
-      checkGrant(capabilityCtx, id, ownerId, scope),
-    ),
+    grantPlan: guard(async (input) => {
+      const copied = copyJson(input) as unknown as GrantInput;
+      await ensureLocalMigration();
+      return grantPlan(capabilityCtx, copied);
+    }),
+    createGrant: guard(async (input) => {
+      const copied = copyJson(input) as unknown as CreateGrantInput;
+      await ensureLocalMigration();
+      return createGrant(capabilityCtx, copied);
+    }),
+    listGrants: guard(async (ownerId) => {
+      await ensureLocalMigration();
+      return store.listGrants(ownerId);
+    }),
+    checkGrant: guard(async (id, ownerId, scope) => {
+      const copied = copyJson(scope) as unknown as GrantUse;
+      await ensureLocalMigration();
+      return checkGrant(capabilityCtx, id, ownerId, copied);
+    }),
     revokeGrant: guard((id) => revokeGrant(capabilityCtx, id)),
     taskScopePlan: guard(async () => tasks.plan()),
     taskScopeCovers: (principals, request) =>

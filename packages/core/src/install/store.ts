@@ -1,4 +1,15 @@
 import { enginePermissionKey, type EngineTrust } from "./engine-trust.js";
+import { randomUUID } from "node:crypto";
+import { isManifestV2 } from "../package/types.js";
+import { validateEnginePermission } from "../package/engine-permission.js";
+import {
+  sandboxTier,
+  type AgentTierRecord,
+  type AgentLocalGrant,
+  type LocalAuthorizationMigration,
+  type LocalAuthorizationState,
+  type LocalAuthorizationCommit,
+} from "./local-authorization.js";
 import { mkdirSync } from "node:fs";
 import path from "node:path";
 import Database from "better-sqlite3";
@@ -88,7 +99,7 @@ interface ConsentRow {
   format_version: Manifest["formatVersion"];
 }
 
-export const SCHEMA_VERSION = 6;
+export const SCHEMA_VERSION = 7;
 
 const INSTALLED_SELECT = `
   SELECT p.id, p.kind, p.name, p.version, p.enabled, p.installed_at, p.enabled_at,
@@ -213,12 +224,22 @@ export class InstallStore {
         manifest.id,
       );
       this.invalidatePendingEngineTrust();
-      for (const trust of this.listEngineTrust(manifest.id)) {
+      for (const trust of this.listLocalGrants(manifest.id)) {
         const permission = manifest.permissions.find(
           (p) =>
             "kind" in p && p.kind === "engine" && p.target === trust.engineId,
         );
-        if (!permission || enginePermissionKey(permission) !== trust.permission)
+        const engines = isManifestV2(manifest)
+          ? manifest.permissions.filter((p) => p.kind === "engine")
+          : [];
+        const tier = engines.some((p) => (p.tier ?? "machine") === "machine")
+          ? "machine"
+          : "project";
+        if (
+          !permission ||
+          enginePermissionKey(permission) !== trust.permission ||
+          trust.tier !== tier
+        )
           this.removeEngineTrust(manifest.id, trust.engineId);
       }
       if (consent !== undefined) {
@@ -415,14 +436,57 @@ export class InstallStore {
       )?.revision ?? 0
     );
   }
-  saveGrantIfCurrent(grant: Grant, revision: number): boolean {
-    return this.connection().transaction(() => {
-      if (this.grantRevision() !== revision) return false;
-      this.statement(
-        "INSERT INTO authority_grants (id, owner_id, record) VALUES (?,?,?)",
-      ).run(grant.id, grant.ownerId, JSON.stringify(grant));
-      return true;
-    })();
+  /** Only the selected entry participates; unrelated local confirmations cannot invalidate a Grant. */
+  engineGrantAuthorization(
+    instanceId: string,
+    packageId: string,
+    engineId: string,
+  ): string | undefined {
+    if (
+      !this.listEngineTrust(packageId).some(
+        (g) => g.instanceId === instanceId && g.engineId === engineId,
+      )
+    )
+      return undefined;
+    const grant = this.listLocalGrants(packageId).find(
+      (g) => g.instanceId === instanceId && g.engineId === engineId,
+    );
+    return grant ? enginePermissionKey(grant) : undefined;
+  }
+  /** Frozen compatibility anchors never alter the original finite Grant record. */
+  legacyGrantBinding(
+    id: string,
+    fingerprint: string,
+  ): { revision: number; authorization: string } | undefined {
+    return this.statement(
+      "SELECT revision,authorization FROM authority_grant_legacy WHERE grant_id = ? AND fingerprint = ?",
+    ).get(id, fingerprint) as
+      | { revision: number; authorization: string }
+      | undefined;
+  }
+  saveGrantIfCurrent(
+    grant: Grant,
+    revision: number,
+    authorization: string | undefined,
+  ): boolean {
+    return this.connection()
+      .transaction(() => {
+        if (
+          this.grantRevision() !== revision ||
+          !authorization ||
+          this.engineGrantAuthorization(
+            grant.instanceId,
+            grant.ownerId,
+            grant.engineId,
+          ) !== authorization
+        )
+          return false;
+        this.statement(
+          "INSERT INTO authority_grants (id, owner_id, record) VALUES (?,?,?)",
+        ).run(grant.id, grant.ownerId, JSON.stringify(grant));
+        return true;
+      })
+      .immediate();
   }
   revokeGrant(id: string): void {
     this.connection().transaction(() => {
@@ -439,12 +503,80 @@ export class InstallStore {
     })();
   }
 
+  /** Compatibility view over effective machine grants; the schema-6 archive is read-only. */
   listEngineTrust(packageId: string): EngineTrust[] {
+    return this.listLocalGrants(packageId)
+      .filter(
+        (r) =>
+          r.tier === "machine" &&
+          this.agentTier(r.instanceId).ceiling === "machine" &&
+          (r.source !== "engine-trust" ||
+            this.localMigration(r.instanceId)?.audited === true),
+      )
+      .map(
+        ({
+          instanceId,
+          packageId,
+          engineId,
+          installedAt,
+          permission,
+          grantedAt,
+        }) => ({
+          instanceId,
+          packageId,
+          engineId,
+          installedAt,
+          permission,
+          grantedAt,
+        }),
+      );
+  }
+  listLocalGrants(packageId?: string): AgentLocalGrant[] {
     return (
-      this.statement(
-        "SELECT record FROM engine_trust WHERE package_id = ?",
-      ).all(packageId) as { record: string }[]
+      (packageId === undefined
+        ? this.statement(
+            "SELECT record FROM agent_local_grants ORDER BY instance_id,package_id,engine_id",
+          ).all()
+        : this.statement(
+            "SELECT record FROM agent_local_grants WHERE package_id = ? ORDER BY instance_id,engine_id",
+          ).all(packageId)) as { record: string }[]
     ).map((r) => JSON.parse(r.record));
+  }
+  localMigration(instanceId: string): LocalAuthorizationMigration | undefined {
+    const row = this.statement(
+      "SELECT record FROM local_authorization_migrations WHERE instance_id = ?",
+    ).get(instanceId) as { record: string } | undefined;
+    return row ? JSON.parse(row.record) : undefined;
+  }
+  acknowledgeLocalMigration(instanceId: string, callId: string): void {
+    this.connection()
+      .transaction(() => {
+        const report = this.localMigration(instanceId);
+        if (report && report.callId === callId && !report.audited) {
+          report.audited = true;
+          this.statement(
+            "UPDATE local_authorization_migrations SET record = ? WHERE instance_id = ?",
+          ).run(JSON.stringify(report), instanceId);
+        }
+      })
+      .immediate();
+  }
+  private agentTier(instanceId: string): AgentTierRecord {
+    const row = this.statement(
+      "SELECT record FROM agent_tier WHERE instance_id = ?",
+    ).get(instanceId) as { record: string } | undefined;
+    return row ? JSON.parse(row.record) : sandboxTier(instanceId);
+  }
+  localAuthorizationState(instanceId: string): LocalAuthorizationState {
+    const rows = this.statement(
+      "SELECT record FROM agent_local_grants WHERE instance_id = ? ORDER BY package_id,engine_id",
+    ).all(instanceId) as { record: string }[];
+    return {
+      tier: this.agentTier(instanceId),
+      grants: rows.map((r) => JSON.parse(r.record)),
+      revision: this.engineTrustRevision(),
+      migration: this.localMigration(instanceId),
+    };
   }
   engineTrustRevision(): number {
     return (
@@ -455,30 +587,172 @@ export class InstallStore {
       )?.revision ?? 0
     );
   }
+  commitLocalAuthorization(input: LocalAuthorizationCommit): boolean {
+    return this.connection()
+      .transaction(() => {
+        if (input.revision !== this.engineTrustRevision()) return false;
+        const assembly = this.list().map((p) => ({
+          packageId: p.id,
+          installedAt: p.installedAt,
+          permissions: enginePermissionKey(this.getManifest(p.id)!.permissions),
+        }));
+        const sameAssembly = (a: typeof assembly, b: typeof assembly) =>
+          enginePermissionKey(
+            [...a].sort((x, y) => x.packageId.localeCompare(y.packageId)),
+          ) ===
+          enginePermissionKey(
+            [...b].sort((x, y) => x.packageId.localeCompare(y.packageId)),
+          );
+        if (!sameAssembly(assembly, input.assembly)) return false;
+        const levels = { sandbox: 0, project: 1, machine: 2 };
+        if (
+          !Object.hasOwn(levels, input.tier.ceiling) ||
+          input.tier.components.some(
+            (c) =>
+              !assembly.some(
+                (p) => enginePermissionKey(p) === enginePermissionKey(c),
+              ),
+          )
+        )
+          return false;
+        const keys = new Set<string>();
+        for (const grant of input.grants) {
+          const manifest = this.getManifest(grant.packageId),
+            installed = this.get(grant.packageId);
+          if (
+            !manifest ||
+            !isManifestV2(manifest) ||
+            installed?.installedAt !== grant.installedAt ||
+            grant.instanceId !== input.tier.instanceId
+          )
+            return false;
+          const engines = manifest.permissions.filter(
+            (p) => p.kind === "engine",
+          );
+          const declaration = engines.find((p) => p.target === grant.engineId);
+          const tier = engines.some((p) => (p.tier ?? "machine") === "machine")
+            ? "machine"
+            : "project";
+          if (
+            !declaration ||
+            grant.permission !== enginePermissionKey(declaration) ||
+            grant.tier !== tier ||
+            levels[tier] > levels[input.tier.ceiling] ||
+            (tier === "project" && input.tier.projects.length === 0) ||
+            new Set(grant.hosts).size !== grant.hosts.length ||
+            grant.hosts.some((h) => !declaration.network?.hosts.includes(h)) ||
+            grant.toolchains.some(
+              (t) => !declaration.toolchains?.includes(t.name),
+            ) ||
+            grant.credentials.some(
+              (c) =>
+                !grant.hosts.includes(c.host) ||
+                !declaration.credentials?.some(
+                  (d) =>
+                    d.id === c.id && d.kind === c.kind && d.host === c.host,
+                ),
+            )
+          )
+            return false;
+          const key = JSON.stringify([grant.packageId, grant.engineId]);
+          if (keys.has(key)) return false;
+          keys.add(key);
+        }
+        this.statement(
+          "INSERT OR REPLACE INTO agent_tier (instance_id,record) VALUES (?,?)",
+        ).run(input.tier.instanceId, JSON.stringify(input.tier));
+        this.statement(
+          "DELETE FROM agent_local_grants WHERE instance_id = ?",
+        ).run(input.tier.instanceId);
+        for (const grant of input.grants)
+          this.statement(
+            "INSERT INTO agent_local_grants (instance_id,package_id,engine_id,record) VALUES (?,?,?,?)",
+          ).run(
+            grant.instanceId,
+            grant.packageId,
+            grant.engineId,
+            JSON.stringify(grant),
+          );
+        this.invalidatePendingEngineTrust();
+        return true;
+      })
+      .immediate();
+  }
   invalidatePendingEngineTrust(): void {
     this.statement(
       "INSERT INTO engine_trust_revision (id,revision) VALUES (1,1) ON CONFLICT(id) DO UPDATE SET revision = revision + 1",
     ).run();
   }
   saveEngineTrust(record: EngineTrust, revision: number): boolean {
-    return this.connection().transaction(() => {
-      if (this.engineTrustRevision() !== revision) return false;
-      this.statement(
-        "INSERT OR REPLACE INTO engine_trust (package_id,engine_id,record) VALUES (?,?,?)",
-      ).run(record.packageId, record.engineId, JSON.stringify(record));
-      return true;
-    })();
+    return this.connection()
+      .transaction(() => {
+        if (this.engineTrustRevision() !== revision) return false;
+        const manifest = this.getManifest(record.packageId),
+          installed = this.get(record.packageId);
+        const permission =
+          manifest && isManifestV2(manifest)
+            ? manifest.permissions.find(
+                (p) => p.kind === "engine" && p.target === record.engineId,
+              )
+            : undefined;
+        if (
+          !permission ||
+          (permission.tier ?? "machine") !== "machine" ||
+          installed?.installedAt !== record.installedAt ||
+          enginePermissionKey(permission) !== record.permission
+        )
+          return false;
+        const tier = this.agentTier(record.instanceId);
+        tier.ceiling = "machine";
+        this.statement(
+          "INSERT OR REPLACE INTO agent_tier (instance_id,record) VALUES (?,?)",
+        ).run(record.instanceId, JSON.stringify(tier));
+        const grant: AgentLocalGrant = {
+          ...record,
+          authorizationId: randomUUID(),
+          tier: "machine",
+          hosts: [],
+          toolchains: [],
+          configuration: [],
+          credentials: [],
+          source: "confirmation",
+        };
+        this.statement(
+          "INSERT OR REPLACE INTO agent_local_grants (instance_id,package_id,engine_id,record) VALUES (?,?,?,?)",
+        ).run(
+          record.instanceId,
+          record.packageId,
+          record.engineId,
+          JSON.stringify(grant),
+        );
+        this.invalidatePendingEngineTrust();
+        return true;
+      })
+      .immediate();
   }
-  removeEngineTrust(packageId: string, engineId?: string): void {
+  removeEngineTrust(
+    packageId: string,
+    engineId?: string,
+    instanceId?: string,
+  ): void {
     this.connection().transaction(() => {
       this.invalidatePendingEngineTrust();
-      if (engineId === undefined)
-        this.statement("DELETE FROM engine_trust WHERE package_id = ?").run(
-          packageId,
-        );
+      if (instanceId !== undefined) {
+        if (engineId === undefined)
+          this.statement(
+            "DELETE FROM agent_local_grants WHERE instance_id = ? AND package_id = ?",
+          ).run(instanceId, packageId);
+        else
+          this.statement(
+            "DELETE FROM agent_local_grants WHERE instance_id = ? AND package_id = ? AND engine_id = ?",
+          ).run(instanceId, packageId, engineId);
+      } else if (engineId === undefined)
+        this.statement(
+          "DELETE FROM agent_local_grants WHERE package_id = ?",
+        ).run(packageId);
       else
         this.statement(
-          "DELETE FROM engine_trust WHERE package_id = ? AND engine_id = ?",
+          "DELETE FROM agent_local_grants WHERE package_id = ? AND engine_id = ?",
         ).run(packageId, engineId);
     })();
   }
@@ -591,13 +865,15 @@ export class InstallStore {
 }
 
 function migrate(db: Database.Database): void {
-  const current = db.pragma("user_version", { simple: true }) as number;
-  if (current > SCHEMA_VERSION) {
-    throw new Error(
-      `The data directory was written by a newer Plums (database version ${current}, this build reads ${SCHEMA_VERSION}).`,
-    );
-  }
   db.transaction(() => {
+    // Read the version after taking the writer lock. A second opener must never
+    // replay archived trust after another process has migrated and revoked it.
+    const current = db.pragma("user_version", { simple: true }) as number;
+    if (current > SCHEMA_VERSION) {
+      throw new Error(
+        `The data directory was written by a newer Plums (database version ${current}, this build reads ${SCHEMA_VERSION}).`,
+      );
+    }
     if (current < 1) {
       db.exec(`
           CREATE TABLE packages (
@@ -693,8 +969,155 @@ function migrate(db: Database.Database): void {
       db.exec(
         "CREATE TABLE IF NOT EXISTS authority_grants (id TEXT PRIMARY KEY, owner_id TEXT NOT NULL, record TEXT NOT NULL); CREATE TABLE IF NOT EXISTS authority_grant_revision (id INTEGER PRIMARY KEY CHECK(id = 1), revision INTEGER NOT NULL)",
       );
+    if (current < 7) migrateLocalAuthorization(db);
+    migrateLegacyGrants(db);
     if (current < SCHEMA_VERSION) db.pragma(`user_version = ${SCHEMA_VERSION}`);
-  })();
+  }).immediate();
+}
+
+/** Capture the old global revision once, and pin each old Grant to its own current entry. */
+function migrateLegacyGrants(db: Database.Database): void {
+  if (
+    db
+      .prepare(
+        "SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'authority_grant_legacy'",
+      )
+      .get()
+  )
+    return;
+  db.exec(
+    "CREATE TABLE authority_grant_legacy (grant_id TEXT PRIMARY KEY, fingerprint TEXT NOT NULL, revision INTEGER NOT NULL, authorization TEXT NOT NULL)",
+  );
+  const revision =
+    (
+      db
+        .prepare("SELECT revision FROM engine_trust_revision WHERE id = 1")
+        .get() as { revision: number } | undefined
+    )?.revision ?? 0;
+  const rows = db
+    .prepare(
+      "SELECT a.id,a.record AS finite_grant,l.record AS local_grant FROM authority_grants a JOIN agent_local_grants l ON l.package_id = a.owner_id",
+    )
+    .all() as { id: string; finite_grant: string; local_grant: string }[];
+  const insert = db.prepare(
+    "INSERT INTO authority_grant_legacy (grant_id,fingerprint,revision,authorization) VALUES (?,?,?,?)",
+  );
+  for (const row of rows) {
+    const grant = JSON.parse(row.finite_grant) as Grant,
+      local = JSON.parse(row.local_grant) as AgentLocalGrant;
+    if (
+      grant.instanceId === local.instanceId &&
+      grant.ownerId === local.packageId &&
+      grant.engineId === local.engineId
+    )
+      insert.run(
+        row.id,
+        grant.fingerprint,
+        revision,
+        enginePermissionKey(local),
+      );
+  }
+}
+
+/** Schema-6 trust is copied only to its own matching machine entry, never to component coverage. */
+function migrateLocalAuthorization(db: Database.Database): void {
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS agent_tier (instance_id TEXT PRIMARY KEY, record TEXT NOT NULL);
+    CREATE TABLE IF NOT EXISTS agent_local_grants (instance_id TEXT NOT NULL, package_id TEXT NOT NULL, engine_id TEXT NOT NULL, record TEXT NOT NULL, PRIMARY KEY(instance_id,package_id,engine_id));
+    CREATE TABLE IF NOT EXISTS local_authorization_migrations (instance_id TEXT PRIMARY KEY, record TEXT NOT NULL);
+  `);
+  const reports = new Map<string, LocalAuthorizationMigration>();
+  const rows = db
+    .prepare(
+      "SELECT t.package_id,t.engine_id,t.record,p.manifest,p.installed_at FROM engine_trust t LEFT JOIN packages p ON p.id=t.package_id",
+    )
+    .all() as {
+    package_id: string;
+    engine_id: string;
+    record: string;
+    manifest: string | null;
+    installed_at: string | null;
+  }[];
+  const saveGrant = db.prepare(
+    "INSERT OR IGNORE INTO agent_local_grants (instance_id,package_id,engine_id,record) VALUES (?,?,?,?)",
+  );
+  const saveTier = db.prepare(
+    "INSERT OR IGNORE INTO agent_tier (instance_id,record) VALUES (?,?)",
+  );
+  for (const row of rows) {
+    let trust: EngineTrust;
+    try {
+      trust = JSON.parse(row.record);
+    } catch {
+      continue;
+    }
+    if (!trust || typeof trust.instanceId !== "string" || !trust.instanceId)
+      continue;
+    let report = reports.get(trust.instanceId);
+    if (!report) {
+      report = {
+        instanceId: trust.instanceId,
+        callId: randomUUID(),
+        timestamp: new Date().toISOString(),
+        migrated: 0,
+        skipped: 0,
+        audited: false,
+      };
+      reports.set(trust.instanceId, report);
+    }
+    let permission;
+    try {
+      const manifest = JSON.parse(row.manifest ?? "null") as Manifest | null;
+      if (!manifest || !isManifestV2(manifest))
+        throw new Error("Not a 2.x declaration");
+      permission = validateEnginePermission(
+        manifest?.permissions.find(
+          (p) =>
+            "kind" in p && p.kind === "engine" && p.target === row.engine_id,
+        ),
+      );
+    } catch {
+      /* Invalid or removed declarations cannot become local authority. */
+    }
+    if (
+      !permission ||
+      (permission.tier ?? "machine") !== "machine" ||
+      trust.packageId !== row.package_id ||
+      trust.engineId !== row.engine_id ||
+      trust.installedAt !== row.installed_at ||
+      typeof trust.grantedAt !== "string" ||
+      trust.permission !== enginePermissionKey(permission)
+    ) {
+      report.skipped++;
+      continue;
+    }
+    const grant: AgentLocalGrant = {
+      ...trust,
+      tier: "machine",
+      hosts: [],
+      toolchains: [],
+      configuration: [],
+      credentials: [],
+      source: "engine-trust",
+    };
+    saveGrant.run(
+      trust.instanceId,
+      trust.packageId,
+      trust.engineId,
+      JSON.stringify(grant),
+    );
+    const tier: AgentTierRecord = {
+      ...sandboxTier(trust.instanceId),
+      ceiling: "machine",
+    };
+    saveTier.run(trust.instanceId, JSON.stringify(tier));
+    report.migrated++;
+  }
+  const saveReport = db.prepare(
+    "INSERT OR IGNORE INTO local_authorization_migrations (instance_id,record) VALUES (?,?)",
+  );
+  for (const report of reports.values())
+    saveReport.run(report.instanceId, JSON.stringify(report));
 }
 
 function toInstalled(row: InstalledRow): InstalledPackage {

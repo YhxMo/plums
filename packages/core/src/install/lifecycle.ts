@@ -27,6 +27,7 @@ import {
 } from "../package/types.js";
 import type { ValidatedPackage } from "../package/validate.js";
 import { secretKeys, secretRef } from "../secrets.js";
+import { enginePermissionKey } from "./engine-trust.js";
 import type { SecretStore } from "../types.js";
 import type { ConsentRecord, InstallStore, InstalledPackage } from "./store.js";
 
@@ -101,6 +102,12 @@ function growth(
     (p) => p.kind === incoming.kind,
   );
   if (sameKind.length === 0) return "KIND_CHANGED";
+  if (incoming.kind === "engine")
+    return sameKind.some(
+      (p) => enginePermissionKey(p) === enginePermissionKey(incoming),
+    )
+      ? undefined
+      : "ENGINE_PERMISSION_CHANGED";
   if (incoming.kind === "service") {
     return sameKind.some(
       (p) =>

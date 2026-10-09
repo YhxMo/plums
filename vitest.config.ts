@@ -15,6 +15,7 @@ const electronTests = [
   "confirm-window",
   "frontend-scope",
   "panels",
+  "scenario-chat-ui",
 ];
 
 export default defineConfig({

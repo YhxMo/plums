@@ -23,6 +23,7 @@ import { DesktopHost } from "../src/host.js";
 const hosts: DesktopHost[] = [],
   dirs: string[] = [];
 afterEach(async () => {
+  vi.useRealTimers();
   vi.restoreAllMocks();
   await Promise.all(hosts.splice(0).map((h) => h.close()));
   await Promise.all(
@@ -531,7 +532,8 @@ it.each([false, true])(
     ).rejects.toMatchObject({ code: "CONFIRMATION_DENIED" });
     expect(f.fs.records).toHaveLength(0);
     f.setAudit(async (e) => {
-      if (e.phase === "allow") await f.host.disable(f.id, "a");
+      if (e.phase === "allow" && e.kind === "fs")
+        await f.host.disable(f.id, "a");
     });
     await expect(
       f.invoke(legacy ? "legacy" : "run", request),
@@ -646,6 +648,16 @@ it("supports real engine protocol callbacks and finite Grant authority, with no 
   const f = await fixture({ https: true, engine: true });
   await f.bind();
   await f.host.enable(f.id, "lesson");
+  {
+    const selection = {
+      ceiling: "machine" as const,
+      projects: [],
+      readOnly: [],
+      components: ["lesson"],
+    };
+    const plan = await f.host.tierPlan(f.id, selection);
+    await f.host.confirmTier(f.id, plan.fingerprint, selection);
+  }
   await f.host.startEngine(f.id, "lesson", "local");
   const call = (method: string, input: unknown) =>
     f.host.engineCall(f.id, "lesson", "request", {
@@ -742,22 +754,48 @@ it("supports real engine protocol callbacks and finite Grant authority, with no 
     outputs: ["reply"],
   })) as Grant;
   await f.bind();
+  {
+    const selection = {
+      ceiling: "machine" as const,
+      projects: [],
+      readOnly: [],
+      components: ["lesson"],
+    };
+    const plan = await f.host.tierPlan(f.id, selection);
+    await f.host.confirmTier(f.id, plan.fingerprint, selection);
+  }
   await f.host.startEngine(f.id, "lesson", "local");
   expect(
     await call("work", { ...input, grantId: secondGrant.id }),
   ).toMatchObject({ refused: { code: "PERMISSION_DENIED" } });
   await f.host.revokeEngine(f.id, "lesson", "local");
   await expect(call("work", input)).rejects.toMatchObject({
-    code: "PERMISSION_DENIED",
+    code: "LOCAL_CONFIRM_REQUIRED",
   });
 });
 it("cancels an outstanding engine protocol callback before its capability reaches the sink", async () => {
   const f = await fixture({ engine: true });
   await f.bind();
+  {
+    const selection = {
+      ceiling: "machine" as const,
+      projects: [],
+      readOnly: [],
+      components: ["lesson"],
+    };
+    const plan = await f.host.tierPlan(f.id, selection);
+    await f.host.confirmTier(f.id, plan.fingerprint, selection);
+  }
   await f.host.startEngine(f.id, "lesson", "local");
   let release!: (v: boolean) => void;
+  let ready!: () => void;
+  const confirmationReady = new Promise<void>((r) => (ready = r));
   f.confirm.ask.mockImplementation(
-    async () => new Promise<boolean>((r) => (release = r)),
+    async () =>
+      new Promise<boolean>((r) => {
+        release = r;
+        ready();
+      }),
   );
   const work = f.host.engineCall(f.id, "lesson", "request", {
     engineId: "local",
@@ -768,7 +806,8 @@ it("cancels an outstanding engine protocol callback before its capability reache
       input: { kind: "fs", operation: "write", path: "record.txt", data: [1] },
     },
   });
-  await vi.waitFor(() => expect(release).toBeTypeOf("function"));
+  await confirmationReady;
+  expect(release).toBeTypeOf("function");
   await f.host.engineCall(f.id, "lesson", "cancel", {
     engineId: "local",
     requestId: "cancel-fixture",
@@ -870,6 +909,16 @@ it("preserves every principal across mixed protocol and concrete dependency edge
 it("rejects engine callbacks with missing caller permissions before any execution", async () => {
   const f = await fixture({ engine: true, noPermission: true });
   await f.bind();
+  {
+    const selection = {
+      ceiling: "machine" as const,
+      projects: [],
+      readOnly: [],
+      components: ["lesson"],
+    };
+    const plan = await f.host.tierPlan(f.id, selection);
+    await f.host.confirmTier(f.id, plan.fingerprint, selection);
+  }
   await f.host.startEngine(f.id, "lesson", "local");
   const work = () =>
     f.host.engineCall(f.id, "lesson", "request", {
@@ -923,7 +972,126 @@ it("copies invocation input before the first wait and catches external disable/e
   }
 });
 
-it("keeps delegated isolates from escaping their callers through an independent engine", async () => {
+it.each(["run", "legacy"])(
+  "preserves the authorization denial on the %s edge when confirmation crosses watchdog checks",
+  async (name) => {
+    vi.useFakeTimers({ toFake: ["setInterval", "clearInterval"] });
+    const f = await fixture({ legacy: true });
+    await f.bind();
+    const other = createCore({
+      dataDir: path.join(f.dir, "instances", f.id, "core"),
+      secrets: f.stores.get(f.id)!,
+      egress: f.egress,
+    });
+    let entered!: () => void, answer!: (allow: boolean) => void;
+    const confirming = new Promise<void>((resolve) => (entered = resolve));
+    const response = new Promise<boolean>((resolve) => (answer = resolve));
+    try {
+      f.confirm.ask.mockImplementation(async () => {
+        await other.disable("a");
+        await other.enable("a");
+        entered();
+        return response;
+      });
+      const work = f
+        .invoke(name, {
+          kind: "fs",
+          operation: "write",
+          path: "record.txt",
+          data: [1],
+        })
+        .catch((error: unknown) => error);
+      await confirming;
+      await vi.advanceTimersByTimeAsync(2000);
+      expect(f.fs.records).toHaveLength(0);
+      answer(true);
+      expect(await work).toMatchObject({ code: "PERMISSION_DENIED" });
+      const requested = f.audit.find((e) => e.phase === "confirmation");
+      expect(requested?.callId).toEqual(expect.any(String));
+      expect(f.audit.find((e) => e.phase === "denied")).toMatchObject({
+        callId: requested!.callId,
+        code: "PERMISSION_DENIED",
+        executionState: "not_started",
+      });
+      expect(f.fs.records).toHaveLength(0);
+    } finally {
+      answer(true);
+      other.close();
+    }
+  },
+);
+
+it.each(["unknown", "completed"] as const)(
+  "preserves %s capability failure metadata across watchdog checks after sink dispatch",
+  async (state) => {
+    vi.useFakeTimers({ toFake: ["setInterval", "clearInterval"] });
+    const f = await fixture();
+    await f.bind();
+    const other = createCore({
+      dataDir: path.join(f.dir, "instances", f.id, "core"),
+      secrets: f.stores.get(f.id)!,
+      egress: f.egress,
+    });
+    let entered!: () => void, release!: () => void;
+    const dispatched = new Promise<void>((resolve) => (entered = resolve));
+    const response = new Promise<void>((resolve) => (release = resolve));
+    const write = f.fs.write.bind(f.fs);
+    vi.spyOn(f.fs, "write").mockImplementation(async (request) => {
+      await write(request);
+      if (state === "unknown") {
+        entered();
+        await response;
+        throw Error("private sink failure");
+      }
+    });
+    if (state === "completed")
+      f.setAudit(async (event) => {
+        if (event.phase === "result") {
+          entered();
+          await response;
+          throw Error("private audit failure");
+        }
+      });
+    try {
+      const work = f
+        .invoke("run", {
+          kind: "fs",
+          operation: "write",
+          path: "record.txt",
+          data: [1],
+        })
+        .catch((error: unknown) => error);
+      await dispatched;
+      await other.disable("a");
+      await other.enable("a");
+      await vi.advanceTimersByTimeAsync(2000);
+      expect(f.fs.records).toHaveLength(1);
+      release();
+      const error = await work;
+      const allowed = f.audit.find((e) => e.phase === "allow");
+      expect(allowed?.callId).toEqual(expect.any(String));
+      expect(error).toMatchObject({
+        code: "CAPABILITY_FAILED",
+        details: {
+          callId: allowed!.callId,
+          phase: state === "unknown" ? "sink" : "audit_result",
+          executionState: state,
+        },
+      });
+      expect(f.audit.find((e) => e.phase === "result")).toMatchObject({
+        callId: allowed!.callId,
+        executionState: state,
+      });
+      expect(JSON.stringify(error)).not.toContain("private");
+      expect(f.fs.records).toHaveLength(1);
+    } finally {
+      release();
+      other.close();
+    }
+  },
+);
+
+it("requires the provider's confirmed local execution item on a delegated engine edge", async () => {
   const f = await fixture();
   const c = provide();
   c.engines = [
@@ -960,18 +1128,42 @@ it("keeps delegated isolates from escaping their callers through an independent 
   );
   await f.bind();
   await expect(f.invoke("run", f.echo)).rejects.toMatchObject({
-    code: "PERMISSION_DENIED",
+    code: "TIER_REQUIRED",
   });
   expect(f.confirm.ask).not.toHaveBeenCalled();
   expect(await f.host.engineStatus(f.id, "a", "local")).toMatchObject({
     state: "stopped",
     trusted: false,
   });
+  const selection = {
+    ceiling: "machine" as const,
+    projects: [],
+    readOnly: [],
+    components: ["a"],
+  };
+  const plan = await f.host.tierPlan(f.id, selection);
+  await f.host.confirmTier(f.id, plan.fingerprint, selection);
+  f.confirm.ask.mockClear();
+  expect(await f.invoke("run", f.echo)).toMatchObject({
+    state: "running",
+    trusted: true,
+  });
+  expect(f.confirm.ask).not.toHaveBeenCalled();
 });
 
 it("preserves engine confirmation denial and stops stale callbacks during asynchronous allow audit", async () => {
   const f = await fixture({ engine: true });
   await f.bind();
+  {
+    const selection = {
+      ceiling: "machine" as const,
+      projects: [],
+      readOnly: [],
+      components: ["lesson"],
+    };
+    const plan = await f.host.tierPlan(f.id, selection);
+    await f.host.confirmTier(f.id, plan.fingerprint, selection);
+  }
   await f.host.startEngine(f.id, "lesson", "local");
   const call = () =>
     f.host.engineCall(f.id, "lesson", "request", {
@@ -992,8 +1184,74 @@ it("preserves engine confirmation denial and stops stale callbacks during asynch
     refused: { code: "CONFIRMATION_DENIED", executionState: "not_started" },
   });
   f.setAudit(async (e) => {
-    if (e.phase === "allow") await f.host.disable(f.id, "a");
+    if (e.phase === "allow" && e.kind === "fs") await f.host.disable(f.id, "a");
   });
   await expect(call()).rejects.toMatchObject({ code: "CAPABILITY_FAILED" });
   expect(f.fs.records).toHaveLength(0);
+});
+
+it("revokes existing finite Grants when a new component automatically connects", async () => {
+  const f = await fixture({ https: true, engine: true });
+  await f.bind();
+  await f.host.enable(f.id, "lesson");
+  {
+    const selection = {
+      ceiling: "machine" as const,
+      projects: [],
+      readOnly: [],
+      components: ["lesson"],
+    };
+    const plan = await f.host.tierPlan(f.id, selection);
+    await f.host.confirmTier(f.id, plan.fingerprint, selection);
+  }
+  await f.host.startEngine(f.id, "lesson", "local");
+  const grant = await f.host.engineCall(f.id, "lesson", "request", {
+    engineId: "local",
+    method: "grant",
+    input: {
+      action: "request",
+      requirementId: "store",
+      connectionId: "api",
+      reads: ["conversation"],
+      outputs: ["reply"],
+    },
+  });
+  expect(grant).toHaveProperty("id");
+  const c = consumer();
+  c.protocols!.requires![0]!.range = "^1.2.0";
+  const bytes = await archive("new-consumer", c, callerCode);
+  await f.host.addLibraryComponent(
+    f.id,
+    (
+      await f.host.importLibrary(
+        ((await f.host.preview(bytes)) as { token: string }).token,
+      )
+    ).digest,
+  );
+  expect(
+    (await f.host.protocolPlan(f.id)).requirements.find(
+      (s) => s.consumerId === "new-consumer",
+    ),
+  ).toMatchObject({ autoBound: true, selected: { providerId: "b" } });
+  const core = createCore({
+    dataDir: path.join(f.dir, "instances", f.id, "core"),
+    secrets: f.stores.get(f.id)!,
+    egress: f.egress,
+  });
+  try {
+    expect(await core.listGrants()).toEqual([
+      expect.objectContaining({
+        id: (grant as Grant).id,
+        revokedAt: expect.any(String),
+      }),
+    ]);
+    expect(
+      await core.checkGrant((grant as Grant).id, "lesson", {
+        reads: [],
+        outputs: [],
+      }),
+    ).toBeUndefined();
+  } finally {
+    core.close();
+  }
 });

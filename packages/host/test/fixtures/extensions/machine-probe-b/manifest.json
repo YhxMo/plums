@@ -1,0 +1,144 @@
+{
+  "formatVersion": "2.0",
+  "kind": "extension",
+  "id": "fixture.machine-probe-b",
+  "name": "Synthetic machine-probe-b",
+  "version": "1.0.0",
+  "description": "Test-only local execution; not distributed",
+  "license": "Apache-2.0",
+  "dependencies": [],
+  "permissions": [
+    {
+      "id": "local",
+      "kind": "engine",
+      "target": "local",
+      "reason": "Test-only ordinary local execution"
+    }
+  ],
+  "payload": {
+    "plumsDesktop": {
+      "sdkVersion": "2",
+      "runtime": "main.js",
+      "engines": [
+        {
+          "id": "local",
+          "title": "Synthetic local probe",
+          "entry": "engine.mjs",
+          "runtime": "node",
+          "platforms": ["darwin-arm64"],
+          "protocol": "jsonrpc-jsonl-v1"
+        }
+      ],
+      "contributes": {
+        "commands": [
+          {
+            "name": "probe",
+            "title": "Synthetic local probe",
+            "inputSchema": {
+              "oneOf": [
+                {
+                  "type": "object",
+                  "properties": {
+                    "method": {
+                      "const": "pid"
+                    },
+                    "input": {
+                      "type": "object",
+                      "properties": {},
+                      "required": [],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": ["method", "input"],
+                  "additionalProperties": false
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "method": {
+                      "const": "context"
+                    },
+                    "input": {
+                      "type": "object",
+                      "properties": {},
+                      "required": [],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": ["method", "input"],
+                  "additionalProperties": false
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "method": {
+                      "const": "write"
+                    },
+                    "input": {
+                      "type": "object",
+                      "properties": {
+                        "path": {
+                          "type": "string"
+                        },
+                        "content": {
+                          "type": "string"
+                        }
+                      },
+                      "required": ["path", "content"],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": ["method", "input"],
+                  "additionalProperties": false
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "method": {
+                      "const": "environment"
+                    },
+                    "input": {
+                      "type": "object",
+                      "properties": {
+                        "credential": {
+                          "type": "string",
+                          "minLength": 1
+                        }
+                      },
+                      "required": ["credential"],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": ["method", "input"],
+                  "additionalProperties": false
+                }
+              ]
+            },
+            "outputSchema": {
+              "anyOf": [
+                {
+                  "type": "object"
+                },
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "string"
+                }
+              ]
+            }
+          }
+        ]
+      },
+      "foundation": {
+        "requirementVersion": "1.0",
+        "protocolRange": "^1.0.0",
+        "sdk": {
+          "id": "org.plums.sdk",
+          "version": "2.0.0"
+        },
+        "features": ["sdk.register", "sdk.engine"]
+      }
+    }
+  }
+}

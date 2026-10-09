@@ -21,6 +21,10 @@ interface Pending {
   resolve: (v: unknown) => void;
   reject: (e: unknown) => void;
   timer?: NodeJS.Timeout;
+  hooks?: EngineHooks;
+  requestId?: string;
+  controller: AbortController;
+  dispose(): void;
 }
 interface Run {
   state: EngineStatus["state"];
@@ -42,6 +46,14 @@ export interface EngineHooks {
     context?: import("@plums/sdk").EngineRuntimeContext;
   }>;
   active(): Promise<void>;
+  /** Final synchronous check after async authorization and immediately before dispatch. */
+  assertCurrent?(): void;
+  /** Trusted request lifetime; never supplied in engine JSONL parameters. */
+  signal?: AbortSignal;
+  /** Legacy unbound callbacks are only safe for an owner's direct request. */
+  allowUnboundCallback?: boolean;
+  /** Callbacks cannot select a broader simultaneous request's authority. */
+  callbackScope?: string;
   callback(
     method: string,
     input: unknown,
@@ -57,13 +69,6 @@ export class EngineManager {
   constructor(private readonly nodePath = process.execPath) {}
   state(key: string): EngineStatus["state"] {
     return this.runs.get(key)?.state ?? "stopped";
-  }
-  activeFor(prefix: string): boolean {
-    return [...this.runs].some(
-      ([key, run]) =>
-        key.startsWith(prefix) &&
-        ["starting", "running", "stopping"].includes(run.state),
-    );
   }
   async start(key: string, hooks: EngineHooks): Promise<void> {
     const old = this.runs.get(key);
@@ -129,6 +134,7 @@ export class EngineManager {
         run.controller.abort();
         for (const [id, p] of run.pending) {
           clearTimeout(p.timer);
+          p.dispose();
           p.reject(failed(id, "ENGINE_EXITED"));
         }
         run.pending.clear();
@@ -188,12 +194,26 @@ export class EngineManager {
     params: unknown,
     id: string = randomUUID(),
     timeout?: number,
+    hooks?: EngineHooks,
+    requestId?: string,
   ): Promise<unknown> {
-    if (run.pending.size + run.callbacks.size >= 32 || run.pending.has(id))
+    if (
+      run.pending.size + run.callbacks.size >= 32 ||
+      run.pending.has(id) ||
+      (requestId !== undefined &&
+        [...run.pending.values()].some((p) => p.requestId === requestId))
+    )
       return Promise.reject(failed(id, "ENGINE_REQUEST_LIMIT", "not_started"));
-    const bytes = Buffer.byteLength(
-      JSON.stringify({ jsonrpc: "2.0", id, method, params }),
-    );
+    let bytes: number;
+    try {
+      bytes = Buffer.byteLength(
+        JSON.stringify({ jsonrpc: "2.0", id, method, params }),
+      );
+    } catch {
+      return Promise.reject(
+        failed(id, "ENGINE_MESSAGE_INVALID", "not_started"),
+      );
+    }
     if (
       bytes > MAX_MESSAGE ||
       [...run.pending.values()].reduce((n, p) => n + p.bytes, 0) +
@@ -203,18 +223,36 @@ export class EngineManager {
     )
       return Promise.reject(failed(id, "ENGINE_MESSAGE_LIMIT", "not_started"));
     return new Promise((resolve, reject) => {
-      const p: Pending = { resolve, reject, bytes };
+      const controller = new AbortController();
+      const abort = () => this.cancelPending(run, hooks!, id);
+      const p: Pending = {
+        resolve,
+        reject,
+        bytes,
+        hooks,
+        requestId,
+        controller,
+        dispose: () => {
+          hooks?.signal?.removeEventListener("abort", abort);
+          controller.abort();
+        },
+      };
       run.pending.set(id, p);
       if (timeout)
         p.timer = setTimeout(() => {
           run.pending.delete(id);
+          p.dispose();
           reject(failed(id, "ENGINE_HANDSHAKE_TIMEOUT", "not_started"));
         }, timeout);
       try {
+        if (hooks?.signal?.aborted)
+          throw failed(id, "ENGINE_AUTHORIZATION_CHANGED", "not_started");
         this.write(run, { jsonrpc: "2.0", id, method, params });
+        hooks?.signal?.addEventListener("abort", abort, { once: true });
       } catch (error) {
         run.pending.delete(id);
         clearTimeout(p.timer);
+        p.dispose();
         reject(error);
       }
     });
@@ -301,20 +339,62 @@ export class EngineManager {
       )
         throw Error("Callback buffer limit");
       const callbackController = new AbortController();
+      // The engine can identify a request, but only the host supplies its authority.
+      // A missing/stale association must never fall back to an owner-only chain.
+      const candidates = [...run.pending.values()].filter((p) => p.hooks);
+      const parent =
+        typeof m.parentRequestId === "string"
+          ? run.pending.get(m.parentRequestId)
+          : m.parentRequestId === undefined &&
+              candidates.length === 1 &&
+              candidates[0]!.hooks?.allowUnboundCallback !== false
+            ? candidates[0]
+            : undefined;
       run.callbacks.set(m.id, { bytes, controller: callbackController });
       void (async () => {
         let executionState: "not_started" | "unknown" | "completed" =
           "not_started";
         try {
-          await hooks.active();
+          if (
+            !parent?.hooks ||
+            parent.controller.signal.aborted ||
+            candidates.some(
+              (p) => p.hooks!.callbackScope !== parent.hooks!.callbackScope,
+            )
+          )
+            throw new PlumsError({
+              code: PERMISSION_DENIED,
+              message: "Host callback has no active request.",
+            });
+          const requestHooks = parent.hooks;
+          const signal = AbortSignal.any([
+            run.controller.signal,
+            callbackController.signal,
+            parent.controller.signal,
+          ]);
+          const active = async () => {
+            if (signal.aborted)
+              throw new PlumsError({
+                code: PERMISSION_DENIED,
+                message: "Host callback request ended.",
+              });
+            await requestHooks.active();
+            requestHooks.assertCurrent?.();
+            if (signal.aborted)
+              throw new PlumsError({
+                code: PERMISSION_DENIED,
+                message: "Host callback request ended.",
+              });
+          };
+          await active();
           executionState = "unknown";
-          const result = await hooks.callback(
+          const result = await requestHooks.callback(
             m.method as string,
             m.params,
-            AbortSignal.any([run.controller.signal, callbackController.signal]),
+            signal,
           );
           executionState = "completed";
-          await hooks.active();
+          await active();
           this.write(run, { jsonrpc: "2.0", id: m.id, result });
         } catch (error) {
           const code =
@@ -376,6 +456,7 @@ export class EngineManager {
     if (!p) return; // A late cancelled response cannot replay a task.
     run.pending.delete(m.id);
     clearTimeout(p.timer);
+    p.dispose();
     m.error === undefined
       ? p.resolve(m.result)
       : p.reject(failed(m.id, "ENGINE_TASK_FAILED", "completed"));
@@ -401,25 +482,67 @@ export class EngineManager {
         code: PERMISSION_DENIED,
         message: "Engine request refused.",
       });
-    await hooks.active();
-    const result = await this.send(run, method, input, id);
-    await hooks.active();
+    try {
+      await hooks.active();
+      hooks.assertCurrent?.();
+    } catch {
+      throw failed(
+        id ?? randomUUID(),
+        "ENGINE_AUTHORIZATION_CHANGED",
+        "not_started",
+      );
+    }
+    // Public cancellation labels can be reused. Wire identities cannot: a stale
+    // callback must not attach to a later task bearing the same caller label.
+    const result = await this.send(
+      run,
+      method,
+      input,
+      randomUUID(),
+      undefined,
+      hooks,
+      id,
+    );
+    try {
+      await hooks.active();
+      hooks.assertCurrent?.();
+    } catch {
+      throw failed(
+        id ?? randomUUID(),
+        "ENGINE_AUTHORIZATION_CHANGED",
+        "completed",
+      );
+    }
     return result;
   }
   async cancel(key: string, hooks: EngineHooks, id: string): Promise<void> {
     await hooks.active();
     const run = this.runs.get(key);
-    if (!run?.pending.has(id)) return;
-    this.write(run, {
-      jsonrpc: "2.0",
-      method: "$/cancelRequest",
-      params: { id },
-    });
-    const p = run.pending.get(id)!;
+    if (!run) return;
+    const pending = [...run.pending].find(
+      ([wireId, p]) => wireId === id || p.requestId === id,
+    );
+    if (pending) this.cancelPending(run, hooks, pending[0]);
+  }
+  private cancelPending(run: Run, hooks: EngineHooks, id: string): void {
+    const p = run.pending.get(id);
+    if (!p || p.controller.signal.aborted) return;
+    // Close every attached callback before telling the process to cancel.
+    p.dispose();
+    try {
+      this.write(run, {
+        jsonrpc: "2.0",
+        method: "$/cancelRequest",
+        params: { id },
+      });
+    } catch {}
     clearTimeout(p.timer);
     p.timer = setTimeout(() => {
       if (run.pending.has(id))
-        void this.terminate(key, run, hooks, true).catch(() => {});
+        // Find the still-owned run; a cancelled old run cannot kill a restart.
+        for (const [key, current] of this.runs)
+          if (current === run)
+            void this.terminate(key, run, hooks, true).catch(() => {});
     }, 5000);
   }
   private terminate(

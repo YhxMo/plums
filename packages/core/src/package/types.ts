@@ -36,8 +36,29 @@ export interface ServicePermission extends PermissionBase {
   kind: "service";
   operations: string[];
 }
+export type LocalExecutionTier = "project" | "machine";
+export type AgentTierCeiling = "sandbox" | LocalExecutionTier;
+export type LocalToolchain = "node" | "git" | "rust" | "python" | "go";
+export type LocalCredentialKind =
+  | "npm-token"
+  | "cargo-token"
+  | "pip-index-auth"
+  | "git-https";
+export interface LocalCredentialDeclaration {
+  id: string;
+  kind: LocalCredentialKind;
+  host: string;
+  reason?: string;
+  [key: string]: unknown;
+}
 export interface EnginePermission extends PermissionBase {
   kind: "engine";
+  /** Omission retains the legacy machine declaration; it does not grant execution. */
+  tier?: LocalExecutionTier;
+  /** Project-only HTTPS host candidates, individually approved by trusted management. */
+  network?: { hosts: string[]; [key: string]: unknown };
+  toolchains?: LocalToolchain[];
+  credentials?: LocalCredentialDeclaration[];
 }
 export type ResourceOperation = "read" | "write" | "delete";
 export interface ResourcePermission extends PermissionBase {

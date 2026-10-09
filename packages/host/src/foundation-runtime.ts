@@ -12,6 +12,8 @@ export interface InvocationContext {
   callers: CapabilityCaller[];
   ancestry: string[];
   signal: AbortSignal;
+  /** Host-fixed deadline inherited by attached calls; never supplied by SDK arguments. */
+  deadline?: number;
   invocationId?: string;
   engineScope?: string;
   grantId?: string;

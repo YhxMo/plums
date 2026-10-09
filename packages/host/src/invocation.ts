@@ -51,13 +51,19 @@ export async function invokeComponent(
     firstTarget = await s.core.getPackage(target);
   const consumerSettings = await s.core.settingsRevision(owner),
     providerSettings = await s.core.settingsRevision(target);
-  const pins = JSON.stringify([
-    s.record.components,
-    s.record.roots,
-    s.record.agent.startup,
-    s.record.characterId,
-    s.record.protocolBindings,
-  ]);
+  const edgePins = () =>
+    JSON.stringify([
+      s.record.components?.filter(
+        (c) => c.packageId === owner || c.packageId === target,
+      ),
+      s.record.roots,
+      s.record.agent.startup,
+      s.record.characterId,
+      s.record.protocolBindings?.filter(
+        (b) => b.consumerId === owner || b.consumerId === target,
+      ),
+    ]);
+  const pins = edgePins();
   const check = async () => {
     hooks.active();
     await context.assertActive?.();
@@ -74,13 +80,7 @@ export async function invokeComponent(
         protocolFingerprint(firstOwner.manifest) ||
       protocolFingerprint(currentTarget.manifest) !==
         protocolFingerprint(firstTarget.manifest) ||
-      JSON.stringify([
-        s.record.components,
-        s.record.roots,
-        s.record.agent.startup,
-        s.record.characterId,
-        s.record.protocolBindings,
-      ]) !== pins ||
+      edgePins() !== pins ||
       (await s.core.settingsRevision(owner)) !== consumerSettings ||
       (await s.core.settingsRevision(target)) !== providerSettings
     )

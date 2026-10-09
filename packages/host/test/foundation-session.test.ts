@@ -23,7 +23,12 @@ import {
   type FoundationRequirement,
   type FoundationProvider,
 } from "@plums/sdk";
-import { startFoundationSession } from "../src/index.js";
+import {
+  startFoundationSession,
+  createFoundationSession,
+  createOfficialFoundationRegistry,
+  OFFICIAL_FOUNDATION_REFERENCE,
+} from "../src/index.js";
 import { ExtensionRuntime, type InvocationContext } from "../src/runtime.js";
 import { SecureFsSink } from "../src/io.js";
 const node = path.resolve(".artifacts/node-v26.5.1-darwin-arm64/bin/node");
@@ -56,6 +61,75 @@ const declaration: FoundationProvider = {
   ],
 };
 const source = `export function activate(s){s.register('commands','check',async i=>({settings:await s.settings(),context:await s.context(),files:await s.capability('files',{kind:'fs',operation:'list',path:'.'}),value:i.value}));}`;
+it.each(["builtin", "independent"])(
+  "%s preserves opaque JSON own keys, ordinary prototypes and code-like strings in inputs and callback replies",
+  async (profile) => {
+    const f = await fixture();
+    try {
+      const source = `export function activate(s){const inspect=v=>({value:v,own:Object.hasOwn(v,'__proto__'),ordinary:Object.getPrototypeOf(v)===Object.prototype,nestedOwn:Object.hasOwn(v.nested[0],'__proto__'),nestedOrdinary:Object.getPrototypeOf(v.nested[0])===Object.prototype});s.register('commands','check',async i=>({input:inspect(i),reply:inspect(await s.settings()),polluted:({}).polluted??null}));}`;
+      const archive = await createArchive({
+        "manifest.json": Buffer.from(JSON.stringify(f.m)),
+        "main.js": Buffer.from(source),
+      });
+      const value = JSON.parse(
+        '{"__proto__":{"polluted":"own-data"},"constructor":{"value":7},"nested":[{"__proto__":null}],"text":"\\\"});globalThis.polluted=true;// ${not_code}\\nline"}',
+      );
+      let callbacks = 0;
+      const bridge = async (method: string) => {
+        expect(method).toBe("settings");
+        callbacks++;
+        return value;
+      };
+      const session =
+        profile === "independent"
+          ? await startFoundationSession({
+              ...f.options,
+              component: { ...f.options.component, archive },
+              bridge,
+            })
+          : await createFoundationSession(
+              createOfficialFoundationRegistry(node),
+              OFFICIAL_FOUNDATION_REFERENCE,
+              {
+                component: await validatePackage(archive),
+                actor: {
+                  agentId: "agent-a",
+                  componentId: "consumer",
+                  installationId: "install-a",
+                  componentVersion: "1.0.0",
+                  componentDigest: digest(archive),
+                },
+                bridge,
+                assertActive: async () => {},
+                assertCurrent: () => {},
+              },
+            );
+      sessions.push(session);
+      await session.ready();
+      await session.activate();
+      expect(callbacks).toBe(0);
+      const expected = {
+        value,
+        own: true,
+        ordinary: true,
+        nestedOwn: true,
+        nestedOrdinary: true,
+      };
+      expect(
+        await session.invoke("commands", "check", value, f.context),
+      ).toEqual({
+        input: expected,
+        reply: expected,
+        polluted: null,
+      });
+      expect(callbacks).toBe(1);
+      expect(Object.getPrototypeOf(value)).toBe(Object.prototype);
+      expect(Object.hasOwn(value, "__proto__")).toBe(true);
+    } finally {
+      f.core.close();
+    }
+  },
+);
 function manifest(id: string, payload: unknown, permissions: unknown[] = []) {
   return {
     formatVersion: "2.0",

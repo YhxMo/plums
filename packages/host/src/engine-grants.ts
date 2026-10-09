@@ -10,6 +10,7 @@ import {
 import type { EngineDeclaration } from "@plums/sdk";
 import { configuredConnection } from "./connection-service.js";
 import type { Session } from "./host.js";
+import type { InvocationContext } from "./foundation-runtime.js";
 
 export interface GrantApproval {
   subject: string;
@@ -51,12 +52,15 @@ export async function engineGrant(
   signal: AbortSignal,
   confirm: GrantConfirm | undefined,
   audit: (event: AuditEvent) => Promise<void>,
+  context?: InvocationContext,
 ): Promise<unknown> {
   a = structuredClone(a);
-  const assertActive = () => {
+  const assertActive = async () => {
+    if (signal.aborted) denied();
+    await context?.assertActive?.();
     if (signal.aborted) denied();
   };
-  assertActive();
+  await assertActive();
   const use = (): GrantUse => {
     const reads = ids(a.reads),
       outputs = ids(a.outputs);
@@ -79,13 +83,13 @@ export async function engineGrant(
     for (const g of all)
       if (await s.core.checkGrant(g.id, pkg, { reads: [], outputs: [] }))
         grants.push(g);
-    assertActive();
+    await assertActive();
     return grants;
   }
   if (a.action === "check") {
     if (typeof a.grantId !== "string") denied();
     const g = await s.core.checkGrant(a.grantId, pkg, use());
-    assertActive();
+    await assertActive();
     return g?.engineId === declaration.id ? g : null;
   }
   if (a.action === "revoke") {
@@ -95,6 +99,7 @@ export async function engineGrant(
       )
     )
       denied();
+    await assertActive();
     await s.core.revokeGrant(a.grantId as string);
     return null;
   }
@@ -113,11 +118,13 @@ export async function engineGrant(
       const g = await s.core.checkGrant(a.grantId as string, pkg, use());
       if (!g || g.engineId !== declaration.id) denied();
     }
+    await assertActive();
     await audit({
       callId: a.callId,
       ...(a.grantId ? { grantId: a.grantId as string } : {}),
       timestamp: new Date().toISOString(),
       extensionId: pkg,
+      callerIds: context?.ancestry.slice(0, -1),
       kind: "engine",
       target: declaration.id,
       operation: a.operation as string,
@@ -125,7 +132,7 @@ export async function engineGrant(
       outcome: a.phase === "allow" ? "allowed" : "completed",
       executionState: a.executionState as AuditEvent["executionState"],
     });
-    assertActive();
+    await assertActive();
     if (
       a.grantId !== undefined &&
       !(await s.core.checkGrant(a.grantId as string, pkg, use()))
@@ -181,7 +188,7 @@ export async function engineGrant(
       denied();
   }
   const checkEdge = async () => {
-    assertActive();
+    await assertActive();
     for (const binding of pathBindings)
       if (
         JSON.stringify(
@@ -210,7 +217,12 @@ export async function engineGrant(
   );
   if (!callerPermission) denied();
   const principals = [
-    ...new Set([pkg, ...pathBindings.map((p) => p.providerId), b.packageId]),
+    ...new Set([
+      ...(context?.ancestry ?? []),
+      pkg,
+      ...pathBindings.map((p) => p.providerId),
+      b.packageId,
+    ]),
   ];
   const services: GrantInput["scope"]["services"] = [];
   for (const principal of principals) {
@@ -256,7 +268,7 @@ export async function engineGrant(
     },
     signal,
   );
-  assertActive();
+  await assertActive();
   if (!choice) return null;
   if (
     ![900_000, 3_600_000].includes(choice.durationMs) ||
@@ -272,6 +284,7 @@ export async function engineGrant(
     scope: { ...input.scope, reads: choice.reads, outputs: choice.outputs },
   });
   // Freeze the selected scope before persistence; audit and state rechecks happen inside core.
+  await checkEdge();
   const grant = await s.core.createGrant({
     ...selectedGrant,
     durationMs: choice.durationMs,

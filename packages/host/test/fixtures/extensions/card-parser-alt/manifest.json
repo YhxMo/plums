@@ -1,0 +1,295 @@
+{
+  "formatVersion": "2.0",
+  "kind": "extension",
+  "id": "fixture.card-parser-alt",
+  "name": "Synthetic card-parser-alt",
+  "version": "1.0.0",
+  "description": "Test-only character parser; not distributed",
+  "license": "Apache-2.0",
+  "dependencies": [],
+  "permissions": [],
+  "payload": {
+    "plumsDesktop": {
+      "sdkVersion": "2",
+      "runtime": "main.js",
+      "contributes": {
+        "tools": [
+          {
+            "name": "card",
+            "title": "Test card protocol",
+            "inputSchema": {
+              "oneOf": [
+                {
+                  "type": "object",
+                  "properties": {
+                    "operation": {
+                      "type": "string",
+                      "const": "parse"
+                    },
+                    "input": {
+                      "type": "object",
+                      "properties": {
+                        "characterId": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 128
+                        }
+                      },
+                      "required": [],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": ["operation", "input"],
+                  "additionalProperties": false
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "operation": {
+                      "type": "string",
+                      "const": "list"
+                    },
+                    "input": {
+                      "type": "object",
+                      "properties": {},
+                      "required": [],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": ["operation", "input"],
+                  "additionalProperties": false
+                }
+              ]
+            },
+            "outputSchema": {
+              "oneOf": [
+                {
+                  "type": "object",
+                  "properties": {
+                    "source": {
+                      "type": "string",
+                      "enum": ["v1", "v2", "v3"]
+                    },
+                    "name": {
+                      "type": "string"
+                    },
+                    "description": {
+                      "type": "string"
+                    },
+                    "personality": {
+                      "type": "string"
+                    },
+                    "scenario": {
+                      "type": "string"
+                    },
+                    "firstMessage": {
+                      "type": "string"
+                    },
+                    "exampleMessages": {
+                      "type": "string"
+                    },
+                    "systemPrompt": {
+                      "type": "string"
+                    },
+                    "postHistoryInstructions": {
+                      "type": "string"
+                    },
+                    "creator": {
+                      "type": "string"
+                    },
+                    "characterVersion": {
+                      "type": "string"
+                    },
+                    "creatorNotes": {
+                      "type": "string"
+                    },
+                    "alternateGreetings": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "tags": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "extensions": {
+                      "type": "object",
+                      "additionalProperties": true
+                    },
+                    "characterBook": {
+                      "type": "object",
+                      "properties": {
+                        "name": {
+                          "type": "string"
+                        },
+                        "scanDepth": {
+                          "type": "integer",
+                          "minimum": 0
+                        },
+                        "entries": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "keys": {
+                                "type": "array",
+                                "items": {
+                                  "type": "string"
+                                }
+                              },
+                              "secondaryKeys": {
+                                "type": "array",
+                                "items": {
+                                  "type": "string"
+                                }
+                              },
+                              "content": {
+                                "type": "string"
+                              },
+                              "enabled": {
+                                "type": "boolean"
+                              },
+                              "insertionOrder": {
+                                "type": "number"
+                              },
+                              "caseSensitive": {
+                                "type": "boolean"
+                              },
+                              "constant": {
+                                "type": "boolean"
+                              },
+                              "selective": {
+                                "type": "boolean"
+                              },
+                              "position": {
+                                "type": "string",
+                                "enum": ["before_char", "after_char"]
+                              },
+                              "extensions": {
+                                "type": "object",
+                                "additionalProperties": true
+                              },
+                              "useRegex": {
+                                "type": "boolean"
+                              }
+                            },
+                            "required": [
+                              "keys",
+                              "secondaryKeys",
+                              "content",
+                              "enabled",
+                              "insertionOrder",
+                              "caseSensitive",
+                              "constant",
+                              "selective",
+                              "position",
+                              "extensions"
+                            ],
+                            "additionalProperties": false
+                          }
+                        },
+                        "extensions": {
+                          "type": "object",
+                          "additionalProperties": true
+                        },
+                        "tokenBudget": {
+                          "type": "number"
+                        },
+                        "recursiveScanning": {
+                          "type": "boolean"
+                        }
+                      },
+                      "required": ["entries", "extensions"],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "source",
+                    "name",
+                    "description",
+                    "personality",
+                    "scenario",
+                    "firstMessage",
+                    "exampleMessages",
+                    "systemPrompt",
+                    "postHistoryInstructions",
+                    "creator",
+                    "characterVersion",
+                    "creatorNotes",
+                    "alternateGreetings",
+                    "tags",
+                    "extensions"
+                  ],
+                  "additionalProperties": false
+                },
+                {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "id": {
+                        "type": "string"
+                      },
+                      "name": {
+                        "type": "string"
+                      },
+                      "version": {
+                        "type": "string"
+                      }
+                    },
+                    "required": ["id", "name", "version"],
+                    "additionalProperties": false
+                  }
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string",
+                          "const": "CARD_UNRECOGNIZED"
+                        }
+                      },
+                      "required": ["code"],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": ["error"],
+                  "additionalProperties": false
+                }
+              ]
+            }
+          }
+        ]
+      },
+      "protocols": {
+        "provides": [
+          {
+            "id": "card",
+            "protocol": "org.plums.character-card",
+            "version": "1.0.0",
+            "features": ["parse", "list"],
+            "contribution": {
+              "kind": "tools",
+              "name": "card"
+            }
+          }
+        ]
+      },
+      "foundation": {
+        "requirementVersion": "1.0",
+        "protocolRange": "^1.0.0",
+        "sdk": {
+          "id": "org.plums.sdk",
+          "version": "2.0.0"
+        },
+        "features": ["sdk.register", "sdk.character", "sdk.characters"]
+      }
+    }
+  }
+}

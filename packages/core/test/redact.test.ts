@@ -93,6 +93,30 @@ describe("redact", () => {
     });
   });
 
+  it("preserves opaque JSON keys as own data properties while redacting nested values", () => {
+    const input = JSON.parse(
+      JSON.stringify({
+        nested: JSON.parse(
+          '{"__proto__":{"token":"placeholder"},"constructor":{"prototype":{"opaque":true}}}',
+        ),
+      }).replace("placeholder", secret),
+    );
+    const output = redact(input, [secret]) as {
+      nested: Record<string, unknown>;
+    };
+    expect(Object.getPrototypeOf(output.nested)).toBe(Object.prototype);
+    expect(Object.hasOwn(output.nested, "__proto__")).toBe(true);
+    expect(output.nested["__proto__"]).toEqual({ token: REDACTED });
+    expect(output.nested["constructor"]).toEqual({
+      prototype: { opaque: true },
+    });
+    expect(JSON.stringify(output)).not.toContain(secret);
+    expect(JSON.stringify(redact(input, []))).toBe(JSON.stringify(input));
+    expect(input.nested["__proto__"].token).toBe(secret);
+    expect(Object.getPrototypeOf(input.nested)).toBe(Object.prototype);
+    expect(Object.prototype).not.toHaveProperty("token");
+  });
+
   it("drops a secret that is the entire path", () => {
     const pointer = "/settings/apiKey";
     const err = new PlumsError({

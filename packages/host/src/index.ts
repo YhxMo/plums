@@ -4,6 +4,11 @@ export type {
   GrantConfirm,
 } from "./engine-grants.js";
 export { DesktopHost } from "./host.js";
+export type {
+  TierSelection,
+  TierEntry,
+  TierPlan,
+} from "./local-authorization.js";
 export type { PanelResource, PanelDelivery } from "./panels.js";
 export type {
   HostOptions,

@@ -1,0 +1,101 @@
+{
+  "spec": "chara_card_v2",
+  "spec_version": "2.0",
+  "data": {
+    "name": "Harbor guide",
+    "description": "I am a synthetic harbor guide.",
+    "personality": "Patient and precise.",
+    "scenario": "A fictional test harbor.",
+    "first_mes": "Welcome to the fixture harbor.",
+    "mes_example": "User: Where?\nGuide: Here.",
+    "creator_notes": "Invented solely for tests.",
+    "system_prompt": "Keep fixture replies brief.",
+    "post_history_instructions": "Remember the test harbor.",
+    "alternate_greetings": ["Fixture hello.", "Fixture welcome."],
+    "tags": ["synthetic", "assistant"],
+    "creator": "Plums tests",
+    "character_version": "fixture-2",
+    "extensions": {
+      "fixture/unknown": {
+        "nested": ["keep", 7],
+        "enabled": true
+      }
+    },
+    "character_book": {
+      "name": "Synthetic harbor book",
+      "scan_depth": 2,
+      "extensions": {
+        "fixture/book": {
+          "opaque": true
+        }
+      },
+      "entries": [
+        {
+          "keys": [],
+          "content": "Always before card.",
+          "enabled": true,
+          "insertion_order": 10,
+          "constant": true,
+          "extensions": {}
+        },
+        {
+          "keys": ["port"],
+          "content": "Keyword before card.",
+          "enabled": true,
+          "insertion_order": 5,
+          "extensions": {}
+        },
+        {
+          "keys": ["LIGHT"],
+          "secondary_keys": ["night"],
+          "content": "Selective after card.",
+          "enabled": true,
+          "insertion_order": 40,
+          "selective": true,
+          "position": "after_char",
+          "extensions": {}
+        },
+        {
+          "keys": ["Exact"],
+          "content": "Case-sensitive before card.",
+          "enabled": true,
+          "insertion_order": 20,
+          "case_sensitive": true,
+          "extensions": {}
+        },
+        {
+          "keys": ["outside"],
+          "content": "Outside scan depth.",
+          "enabled": true,
+          "insertion_order": 15,
+          "extensions": {}
+        },
+        {
+          "keys": ["missing"],
+          "content": "Unmatched entry.",
+          "enabled": true,
+          "insertion_order": 0,
+          "extensions": {}
+        },
+        {
+          "keys": [],
+          "content": "Disabled constant.",
+          "enabled": false,
+          "insertion_order": 0,
+          "constant": true,
+          "extensions": {}
+        },
+        {
+          "keys": ["recursive"],
+          "content": "Recursion must stay off.",
+          "enabled": true,
+          "insertion_order": 50,
+          "extensions": {}
+        }
+      ]
+    }
+  },
+  "futureEnvelope": {
+    "preserve": true
+  }
+}
