@@ -613,6 +613,37 @@ process.on("message", async (raw: unknown) => {
           a.selection as import("@plums/host").TierSelection | undefined,
         );
         break;
+      case "projectStatus":
+        value = await host.projectStatus(id);
+        break;
+      case "refreshProjectConfiguration":
+        await host.refreshProjectConfiguration(id);
+        break;
+      case "provideCredential":
+        value = await host.provideCredential(
+          id,
+          a.fingerprint as string,
+          pkg,
+          a.engineId as string,
+          a.credentialId as string,
+          a.value as string,
+          a.username as string | undefined,
+        );
+        break;
+      case "revokeCredential":
+        await host.revokeCredential(
+          id,
+          pkg,
+          a.engineId as string,
+          a.credentialId as string,
+        );
+        break;
+      case "cacheStatus":
+        value = await host.cacheStatus(id);
+        break;
+      case "clearCache":
+        await host.clearCache(id, a.packageId as string | undefined);
+        break;
       case "tierStatus":
         value = await host.tierStatus(id);
         break;

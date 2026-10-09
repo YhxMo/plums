@@ -1,10 +1,19 @@
 import { it, expect } from "vitest";
 import { _electron as electron, expect as uiExpect } from "@playwright/test";
 import { createRequire } from "node:module";
-import { cp, mkdir, symlink, rm, writeFile } from "node:fs/promises";
+import {
+  cp,
+  mkdir,
+  symlink,
+  rm,
+  writeFile,
+  mkdtemp,
+  lstat,
+} from "node:fs/promises";
 import path from "node:path";
 import { createArchive } from "@plums/core";
 import { fixture } from "../../host/test/common-fixture.js";
+import { cachePaths } from "../../host/src/project-cache.js";
 import { engineManifest } from "../../host/test/platform-fixtures.js";
 
 it.runIf(process.platform === "darwin" && process.arch === "arm64")(
@@ -164,6 +173,208 @@ it.runIf(process.platform === "darwin" && process.arch === "arm64")(
     } finally {
       await app.close();
       await rm(f.dir, { recursive: true, force: true });
+    }
+  },
+  120000,
+);
+
+it.runIf(process.platform === "darwin" && process.arch === "arm64")(
+  "project support performs trusted credential approval, revocation, cache clearing and real failed self-check",
+  async () => {
+    const f = await fixture(),
+      project = await mkdtemp("/private/tmp/plums-project-ui-");
+    const manifest = engineManifest();
+    manifest.dependencies = [];
+    manifest.permissions = [
+      {
+        id: "local-engine",
+        kind: "engine",
+        target: "local",
+        tier: "project",
+        network: { hosts: ["npm.example.test"] },
+        credentials: [
+          {
+            id: "npm",
+            kind: "npm-token",
+            host: "npm.example.test",
+            reason: "Synthetic download",
+          },
+        ],
+        reason: "Synthetic project",
+      },
+    ] as typeof manifest.permissions;
+    const archive = await createArchive({
+      "manifest.json": Buffer.from(JSON.stringify(manifest)),
+      "runtime/main.js": Buffer.from("export function activate(){}"),
+      "ui/index.html": Buffer.from("<p>Fixture</p>"),
+      "engine/main.mjs": Buffer.from("throw Error('must not launch')"),
+    });
+    const imported = await f.host.importLibrary(
+      ((await f.host.preview(archive)) as { token: string }).token,
+    );
+    await f.host.addLibraryComponent(f.a.instanceId, imported.digest);
+    await f.host.enable(f.a.instanceId, manifest.id);
+    await f.host.bindRoot(f.a.instanceId, "workspace", project);
+    const selection = {
+      ceiling: "project" as const,
+      projects: ["workspace"],
+      readOnly: [],
+      components: [manifest.id],
+      hosts: { [manifest.id]: { local: ["npm.example.test"] } },
+    };
+    const plan = await f.host.tierPlan(f.a.instanceId, selection);
+    expect(
+      await f.host.confirmTier(f.a.instanceId, plan.fingerprint, selection),
+    ).toBe(true);
+    await f.host.close();
+    const cacheRoot = cachePaths(f.dir, f.a.instanceId, manifest.id).root,
+      cacheFile = path.join(cacheRoot, "synthetic-cache");
+    await mkdir(cacheRoot, { recursive: true, mode: 0o700 });
+    await writeFile(cacheFile, "synthetic cache");
+
+    const stage = path.join(f.dir, "desktop"),
+      root = process.cwd();
+    await cp(
+      path.join(root, "packages/desktop/dist"),
+      path.join(stage, "dist"),
+      { recursive: true },
+    );
+    for (const [name, pkg] of [
+      ["isolated-vm", "host"],
+      ["better-sqlite3", "core"],
+    ]) {
+      const resolver = createRequire(
+        path.join(root, `packages/${pkg}/package.json`),
+      );
+      await mkdir(path.join(stage, "node_modules"), { recursive: true });
+      await symlink(
+        path.dirname(resolver.resolve(name + "/package.json")),
+        path.join(stage, "node_modules", name),
+      );
+    }
+    const app = await electron.launch({
+      executablePath: createRequire(import.meta.url)("electron"),
+      args: [path.join(stage, "dist/main.js")],
+      env: {
+        ...process.env,
+        PLUMS_NODE: path.join(
+          root,
+          ".artifacts/node-v26.5.1-darwin-arm64/bin/node",
+        ),
+        PLUMS_DATA_DIR: f.dir,
+      },
+    });
+
+    try {
+      const page = await app.firstWindow();
+      await page.getByRole("article", { name: "查看 Fixture A" }).click();
+      const panel = page.getByRole("region", { name: "Agent 权限" });
+      await uiExpect(
+        panel.getByLabel("凭据（npm）", { exact: true }),
+      ).toBeEnabled();
+      const token = "SYNTHETIC_UI_TOKEN";
+      await panel.getByLabel("凭据（npm）", { exact: true }).fill(token);
+      await app.evaluate(({ app, BrowserWindow }) => {
+        app.focus({ steal: true });
+        BrowserWindow.getAllWindows()[0]?.focus();
+      });
+      await panel
+        .getByRole("button", { name: "批准凭据 npm", exact: true })
+        .click();
+      await expect
+        .poll(() =>
+          app
+            .windows()
+            .find((w) => w.url().endsWith("confirm.html"))
+            ?.url(),
+        )
+        .toBeDefined();
+      const confirmation = app
+        .windows()
+        .find((w) => w.url().endsWith("confirm.html"))!;
+      await confirmation.bringToFront();
+      await app.evaluate(({ app, BrowserWindow }) => {
+        app.focus({ steal: true });
+        BrowserWindow.getAllWindows()
+          .find((w) => w.getTitle() === "Plums · 安全确认")
+          ?.focus();
+      });
+      await uiExpect(
+        confirmation.getByText("令牌注入后扩展代码可以读到它", {
+          exact: false,
+        }),
+      ).toBeVisible();
+      expect(await confirmation.locator("body").innerText()).not.toContain(
+        token,
+      );
+      await uiExpect(
+        panel.getByLabel("凭据（npm）", { exact: true }),
+      ).toHaveValue("");
+      await confirmation
+        .getByRole("button", { name: "允许", exact: true })
+        .click();
+      await uiExpect(
+        panel.getByRole("button", { name: "撤销凭据 npm", exact: true }),
+      ).toBeVisible();
+      expect(await panel.innerText()).not.toContain(token);
+      await panel
+        .getByRole("button", { name: "撤销凭据 npm", exact: true })
+        .click();
+      await uiExpect(
+        panel.getByRole("button", { name: "撤销凭据 npm", exact: true }),
+      ).toHaveCount(0);
+      const cacheRow = panel
+        .locator(".local-project-support .root-row")
+        .filter({ hasText: manifest.name });
+      await uiExpect(
+        cacheRow.getByRole("button", { name: "清空缓存", exact: true }),
+      ).toBeEnabled();
+      await cacheRow
+        .getByRole("button", { name: "清空缓存", exact: true })
+        .click();
+      await expect
+        .poll(async () =>
+          lstat(cacheFile).then(
+            () => true,
+            () => false,
+          ),
+        )
+        .toBe(false);
+      await uiExpect(cacheRow).toContainText("0 字节 · 0 个文件");
+      await panel
+        .getByRole("button", { name: "重新自检项目边界", exact: true })
+        .click();
+      await uiExpect(
+        panel.getByText("项目自检：边界检查失败", { exact: false }),
+      ).toBeVisible();
+      await uiExpect(
+        panel
+          .getByTestId("local-entry-engine-demo-local")
+          .getByRole("button", { name: "启动进程", exact: true }),
+      ).toBeDisabled();
+      expect(await panel.innerText()).not.toContain("内核已阻止硬链接");
+      const outputs = path.join(root, ".artifacts/macos-continuation/ui");
+      await mkdir(outputs, { recursive: true });
+      for (const width of [1120, 800, 360]) {
+        await app.evaluate(({ BrowserWindow }, width) => {
+          const w = BrowserWindow.getAllWindows()[0]!;
+          w.setMinimumSize(0, 0);
+          w.setSize(width, 900);
+        }, width);
+        await page.setViewportSize({ width, height: 900 });
+        expect(
+          await page.evaluate(
+            () => document.documentElement.scrollWidth <= innerWidth,
+          ),
+        ).toBe(true);
+        await panel.screenshot({
+          path: path.join(outputs, `project-support-${width}.png`),
+        });
+      }
+    } finally {
+      await app.close();
+      await rm(f.dir, { recursive: true, force: true });
+      await rm(project, { recursive: true, force: true });
     }
   },
   120000,

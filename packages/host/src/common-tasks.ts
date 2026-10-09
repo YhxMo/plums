@@ -345,6 +345,7 @@ export class CommonTasks {
           },
           (channel, data) => this.emit(t, channel, data),
         );
+        this.expire(t);
         if (t.controller.signal.aborted)
           throw resourceFailure(
             "CANCELLED",
@@ -360,6 +361,7 @@ export class CommonTasks {
           outcome: { ok: true, value: value as never },
         });
       } catch (e) {
+        this.expire(t);
         let code: CommonErrorCode = "PROVIDER_FAILED",
           state = t.snapshot.status.executionState;
         if (e instanceof PlumsError) {
@@ -404,6 +406,14 @@ export class CommonTasks {
       .finally(() => parentSignal?.removeEventListener("abort", cancelParent))
       .catch(() => {});
     return { callId, taskId: id };
+  }
+  private expire(t: Task) {
+    // Provider promises can settle before a delayed timeout callback gets CPU.
+    if (!t.controller.signal.aborted && performance.now() >= t.deadline) {
+      t.reason = "DEADLINE_EXCEEDED";
+      t.snapshot.status.state = "cancelling";
+      t.controller.abort();
+    }
   }
   private push(t: Task, raw: CommonEnvelope) {
     const m = parseCommonEnvelope(raw) as CommonEnvelope & { sequence: number };

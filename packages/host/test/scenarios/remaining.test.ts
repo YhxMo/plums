@@ -5,12 +5,18 @@ import path from "node:path";
 import os from "node:os";
 import {
   createArchive,
+  createCore,
   MemorySecretStore,
   RecordingEgressSink,
   RecordingFsSink,
   readArchive,
 } from "@plums/core";
 import { DesktopHost } from "../../src/host.js";
+import type { AgentRecord } from "../../src/host.js";
+import {
+  protocolPlan,
+  fixProtocolBinding,
+} from "../../src/protocol-bindings.js";
 import { ProjectSandbox } from "../../src/project-sandbox.js";
 import { fixtureManifest, packExtension } from "../fixtures/extensions/pack.js";
 import { chatFixture } from "./chat-fixture.js";
@@ -71,6 +77,58 @@ it("test-only fixtures declare project tools, an isolated crash entry and the fi
     expect.objectContaining({ kind: "engine", tier: "project" }),
   );
   expect(f.artifacts.get("policy-fake")!.manifest.permissions).toEqual([]);
+});
+it("coding-tools list/call features and schemas are compatible with the loop requirement", async () => {
+  const dir = await mkdtemp(path.join(os.tmpdir(), "plums-coding-protocol-"));
+  dirs.push(dir);
+  const core = createCore({
+    dataDir: dir,
+    egress: new RecordingEgressSink(),
+    secrets: new MemorySecretStore(),
+  });
+  try {
+    const components = [];
+    for (const name of ["agent-loop", "coding-tools"]) {
+      const bytes = await packExtension(name),
+        manifest = await fixtureManifest(name);
+      await core.importPackage(bytes);
+      await core.grantConsent(manifest.id);
+      await core.enable(manifest.id);
+      components.push({
+        packageId: manifest.id,
+        digest: createHash("sha256").update(bytes).digest("hex"),
+      });
+    }
+    const record = {
+      instanceId: "fixture-agent",
+      components,
+      roots: {},
+      agent: { startup: {} },
+    } as unknown as AgentRecord;
+    const plan = await protocolPlan(core, record);
+    const slot = plan.requirements.find(
+      (r) => r.requirement.id === "tools-coding",
+    )!;
+    const candidate = slot.candidates.find(
+      (c) => c.intent.providerId === "fixture.coding-tools",
+    )!;
+    expect(candidate.compatibility.compatible).toBe(true);
+    record.protocolBindings = [
+      await fixProtocolBinding(core, record, candidate.intent),
+    ];
+    expect(
+      (await protocolPlan(core, record)).requirements.find(
+        (r) => r.requirement.id === "tools-coding",
+      )?.state,
+    ).toBe("bound");
+    const d = (await fixtureManifest("coding-tools")).payload.plumsDesktop as {
+      contributes: { tools: { inputSchema: unknown; outputSchema: unknown }[] };
+    };
+    expect(d.contributes.tools[0]?.inputSchema).toHaveProperty("oneOf");
+    expect(d.contributes.tools[0]?.outputSchema).toHaveProperty("oneOf");
+  } finally {
+    core.close();
+  }
 });
 it.runIf(native)(
   "S-B rejects sandbox, unconfirmed and unavailable project entries without starting a machine fallback",

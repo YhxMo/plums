@@ -72,7 +72,7 @@ it("frontend cancel cannot restore implicit reads through main IPC, broker and a
   const agent = await host.createAgent("Scope fixture", [item.digest]);
   await host.enable(agent.instanceId, "files");
   await host.setStartup(agent.instanceId, "files");
-  host.close();
+  await host.close();
   await writeFile(
     path.join(dataDir, "instances", agent.instanceId, "agent-data", "task.txt"),
     "synthetic",

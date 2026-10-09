@@ -4,6 +4,23 @@ export type {
   GrantConfirm,
 } from "./engine-grants.js";
 export { DesktopHost } from "./host.js";
+export {
+  cachePaths,
+  cacheUsage,
+  clearCache,
+  prepareCache,
+} from "./project-cache.js";
+export { ProjectProxy } from "./project-proxy.js";
+export type { ProjectProxyOptions } from "./project-proxy.js";
+export { detectToolchains, minimalRoot } from "./project-toolchain.js";
+export type { DetectedToolchain, ToolchainProbe } from "./project-toolchain.js";
+export {
+  collectConfiguration,
+  renderConfiguration,
+  acceptable,
+  ALLOWED_FIELDS,
+} from "./project-config.js";
+export type { ReadConfig } from "./project-config.js";
 export type {
   TierSelection,
   TierEntry,
@@ -92,3 +109,10 @@ export type {
   AgentFoundationBinding,
   FoundationSwitchPhase,
 } from "./foundation-state.js";
+
+export {
+  readProjectConfiguration,
+  writeProjectConfiguration,
+} from "./project-config-files.js";
+
+export type { ProjectBoundaryReport } from "./project-sandbox.js";

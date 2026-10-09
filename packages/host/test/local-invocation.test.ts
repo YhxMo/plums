@@ -38,7 +38,7 @@ if(m.method==='$/cancelRequest'){if(tasks.get(m.params.id)==='ignore')return;tas
 if(callbacks.has(m.id)){const task=callbacks.get(m.id);callbacks.delete(m.id);last=m.error?m.error.data:m.result;if(task)send({id:task,result:m.error?{refused:m.error.data}:m.result});return;}
 if(m.method==='write'){await writeFile(m.params.path,m.params.text);send({id:m.id,result:'written'});return;}
 if(m.method==='wait'){previous=m.id;tasks.set(m.id,true);return;}
-if(m.method==='ignore'){tasks.set(m.id,'ignore');return;}
+if(m.method==='ignore'){tasks.set(m.id,'ignore');send({method:'engine.event',params:{topic:'fixture.ignore.started',data:null}});return;}
 if(m.method==='remember'){previous=m.id;send({id:m.id,result:true});return;}
 if(m.method==='seen'){send({id:m.id,result:last??null});return;}
 if(m.method==='callback'||m.method==='stale'||m.method==='unbound'){
@@ -51,10 +51,23 @@ async function fixture(
   dirs.push(dir);
   const confirm = { ask: vi.fn(async () => true) },
     fs = new RecordingFsSink(),
-    audit: Readonly<AuditEvent>[] = [];
+    audit: Readonly<AuditEvent>[] = [],
+    events: { topic: string; data: unknown }[] = [];
   let auditHook: (e: Readonly<AuditEvent>) => Promise<void> = async () => {};
   const stores = new Map<string, MemorySecretStore>();
+  let ignored!: () => void;
+  const ignoreStarted = new Promise<void>((r) => {
+    ignored = r;
+  });
   const hostOptions: HostOptions = {
+    event: (_id, _pkg, topic, data) => {
+      events.push({ topic, data });
+      if (
+        topic === "engine.event" &&
+        (data as { topic?: string }).topic === "fixture.ignore.started"
+      )
+        ignored();
+    },
     dataDir: dir,
     confirm,
     fs,
@@ -210,6 +223,8 @@ async function fixture(
     dir,
     fs,
     audit,
+    events,
+    ignoreStarted,
     confirm,
     run,
     approve,
@@ -415,7 +430,7 @@ it("terminates a process that ignores upstream cancellation without replaying it
   const task = f.run("ignore", null, abort.signal),
     rejected = expect(task).rejects.toBeDefined();
   await ready;
-  await new Promise((r) => setTimeout(r, 100));
+  await f.ignoreStarted;
   abort.abort();
   await rejected;
   await expect

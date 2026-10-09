@@ -1,9 +1,15 @@
 import { useEffect, useState } from "react";
 import type { AgentTierCeiling, EnginePermission } from "@plums/core";
-import type { TierPlan, TierSelection, AgentRecord } from "@plums/host";
+import type {
+  TierPlan,
+  TierSelection,
+  AgentRecord,
+  ProjectBoundaryReport,
+} from "@plums/host";
 import type { Resource } from "../shared/types.js";
 import { useAction } from "../hooks/useAction.js";
 import { PermissionList } from "./PermissionList.js";
+import { ProjectSupport, type CacheStatus } from "./ProjectSupport.js";
 
 const tiers = { sandbox: "沙箱", project: "项目", machine: "整机" };
 const levels = { sandbox: 0, project: 1, machine: 2 };
@@ -25,10 +31,13 @@ export function LocalPermissions({
   const [plan, setPlan] = useState<TierPlan>(),
     [selection, setSelection] = useState<TierSelection>(),
     [review, setReview] = useState<TierPlan>(),
-    [error, setError] = useState("");
+    [cache, setCache] = useState<CacheStatus[]>([]),
+    [error, setError] = useState(""),
+    [boundary, setBoundary] = useState<ProjectBoundaryReport>();
   const action = useAction(record.instanceId);
   useEffect(() => {
     let current = true;
+    setBoundary(undefined);
     window.manager
       .call("tierPlan", { instanceId: record.instanceId })
       .then((p) => {
@@ -43,6 +52,14 @@ export function LocalPermissions({
       })
       .catch(() => {
         if (current) setError("权限状态未能读取，请重新读取。");
+      });
+    window.manager
+      .call("cacheStatus", { instanceId: record.instanceId })
+      .then((value) => {
+        if (current && Array.isArray(value)) setCache(value as CacheStatus[]);
+      })
+      .catch(() => {
+        if (current) setError("缓存状态未能读取，请重新读取。");
       });
     return () => {
       current = false;
@@ -60,6 +77,11 @@ export function LocalPermissions({
       setPlan(next);
       setSelection(next.selection);
       setReview(undefined);
+      setCache(
+        (await window.manager.call("cacheStatus", {
+          instanceId: record.instanceId,
+        })) as CacheStatus[],
+      );
     });
   const change = (value: Partial<TierSelection>) => {
     setSelection((old) => (old ? { ...old, ...value } : old));
@@ -388,55 +410,46 @@ export function LocalPermissions({
               >
                 在可信窗口确认
               </button>
+              <ProjectSupport
+                entries={review.entries.filter((e) =>
+                  review.selection.components.includes(e.packageId),
+                )}
+                cache={cache}
+              />
             </section>
           )}
         </>
       )}
-      <section className="local-project-support" aria-label="项目运行配套">
-        <h3>项目运行配套 · 当前不可用</h3>
-        <p>
-          项目档位仅适用于受信任项目。建议纳入版本控制并保持提交干净以便回滚，宿主不提供回滚。硬链接创建拦截与启动前校验不是内核级
-          inode 防线，非后代进程运行期新增别名仍有风险。
-        </p>
-        <dl>
-          <div>
-            <dt>工具链</dt>
-            <dd>
-              {engineDeclarations
-                .flatMap(({ p, permission }) =>
-                  (permission.toolchains ?? []).map(
-                    (tool) => `${p.name}：${tool}`,
-                  ),
-                )
-                .join("、") || "尚未声明工具链"}
-              。探测与项目启动尚未接入。
-            </dd>
-          </div>
-          <div>
-            <dt>生成配置</dt>
-            <dd>
-              项目配置尚未生成。仅允许字段可进入隔离配置，认证令牌永不复制。
-            </dd>
-          </div>
-          <div>
-            <dt>Agent 缓存</dt>
-            <dd>项目入口尚未创建专用缓存目录。</dd>
-          </div>
-          <div>
-            <dt>凭据与代理</dt>
-            <dd>
-              {engineDeclarations
-                .flatMap(({ p, permission }) =>
-                  (permission.credentials ?? []).map(
-                    (c) => `${p.name}：${c.kind} → ${c.host}`,
-                  ),
-                )
-                .join("、") || "尚未声明凭据"}
-              。按主机注入与项目代理尚不可用；默认无网络。
-            </dd>
-          </div>
-        </dl>
-      </section>
+      <ProjectSupport
+        entries={plan?.entries ?? []}
+        cache={cache}
+        pending={action.pending}
+        clear={(packageId) => void run("clearCache", { packageId })}
+        boundary={boundary}
+        check={() =>
+          void action.run(async () => {
+            setBoundary(
+              (await window.manager.call("projectStatus", {
+                instanceId: record.instanceId,
+              })) as ProjectBoundaryReport,
+            );
+          }, false)
+        }
+        refreshConfiguration={() => void run("refreshProjectConfiguration")}
+        credentials={(packageId, engineId, credentialId, value, username) =>
+          void run(
+            value === undefined ? "revokeCredential" : "provideCredential",
+            {
+              packageId,
+              engineId,
+              credentialId,
+              ...(value === undefined
+                ? {}
+                : { value, username, fingerprint: plan?.fingerprint }),
+            },
+          )
+        }
+      />
       <section aria-label="本地进程">
         <h3>本地进程</h3>
         <p>关闭业务界面保留进程；停用、变更或撤权只停止受影响组件。</p>
@@ -455,7 +468,7 @@ export function LocalPermissions({
                 resource={p}
                 engine={engine}
                 confirmed={confirmed}
-                unavailable={project}
+                unavailable={project && !boundary?.ready}
                 run={run}
               />
             );

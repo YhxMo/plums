@@ -35,6 +35,10 @@ async function run(input, signal) {
         results.push({ written: true });
         break;
       case "wait":
+        send({
+          method: "engine.event",
+          params: { topic: "fixture.wait.started", data: null },
+        });
         await wait(action.ms, undefined, { signal });
         results.push({ waited: true });
         break;

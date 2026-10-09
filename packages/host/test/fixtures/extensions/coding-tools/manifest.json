@@ -13,14 +13,9 @@
       "kind": "engine",
       "target": "local",
       "tier": "project",
-      "toolchains": [
-        "node",
-        "git"
-      ],
+      "toolchains": ["node", "git"],
       "network": {
-        "hosts": [
-          "pkg.plums-fixture.test"
-        ]
+        "hosts": ["pkg.plums-fixture.test"]
       },
       "reason": "Test-only project execution"
     }
@@ -35,9 +30,7 @@
           "title": "Synthetic project tools",
           "entry": "engine.mjs",
           "runtime": "node",
-          "platforms": [
-            "darwin-arm64"
-          ],
+          "platforms": ["darwin-arm64"],
           "protocol": "jsonrpc-jsonl-v1"
         }
       ],
@@ -47,23 +40,83 @@
             "name": "coding",
             "title": "Synthetic coding tools",
             "inputSchema": {
-              "type": "object",
-              "properties": {
-                "operation": {
-                  "enum": [
-                    "list",
-                    "call"
-                  ]
+              "oneOf": [
+                {
+                  "type": "object",
+                  "properties": {
+                    "operation": {
+                      "const": "list"
+                    },
+                    "input": {
+                      "type": "object",
+                      "properties": {},
+                      "required": [],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": ["operation", "input"],
+                  "additionalProperties": false
                 },
-                "input": {
-                  "type": "object"
+                {
+                  "type": "object",
+                  "properties": {
+                    "operation": {
+                      "const": "call"
+                    },
+                    "input": {
+                      "type": "object",
+                      "properties": {
+                        "name": {
+                          "type": "string"
+                        },
+                        "arguments": {
+                          "type": "object"
+                        }
+                      },
+                      "required": ["name", "arguments"],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": ["operation", "input"],
+                  "additionalProperties": false
                 }
-              },
-              "required": [
-                "operation",
-                "input"
-              ],
-              "additionalProperties": false
+              ]
+            },
+            "outputSchema": {
+              "oneOf": [
+                {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "name": {
+                        "type": "string"
+                      },
+                      "description": {
+                        "type": "string"
+                      },
+                      "inputSchema": {
+                        "type": "object"
+                      }
+                    },
+                    "required": ["name", "description", "inputSchema"],
+                    "additionalProperties": false
+                  }
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "ok": {
+                      "type": "boolean"
+                    },
+                    "content": {
+                      "type": "string"
+                    }
+                  },
+                  "required": ["ok", "content"],
+                  "additionalProperties": false
+                }
+              ]
             }
           }
         ]
@@ -75,10 +128,7 @@
           "id": "org.plums.sdk",
           "version": "2.0.0"
         },
-        "features": [
-          "sdk.register",
-          "sdk.engine"
-        ]
+        "features": ["sdk.register", "sdk.engine"]
       },
       "protocols": {
         "provides": [
@@ -89,7 +139,8 @@
             "contribution": {
               "kind": "tools",
               "name": "coding"
-            }
+            },
+            "features": ["list", "call"]
           }
         ]
       }

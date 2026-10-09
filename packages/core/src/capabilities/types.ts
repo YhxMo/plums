@@ -150,8 +150,16 @@ export interface AuditEvent {
     componentIds: string[];
     hostCount: number;
   };
+  /** Declared credential identity only; never a value, reference or physical path. */
+  localCredential?: {
+    packageId: string;
+    engineId: string;
+    id: string;
+    host: string;
+  };
   taskId?: string;
   grantId?: string;
+  localAuthorizationId?: string;
   taskScope?: import("./task-scope.js").TaskScopeSelection[];
   durationMs?: number;
   resourceMode?: "task" | "full-access";
@@ -214,3 +222,15 @@ export type CapabilityGate = (input: {
   /** Computed after authorization and reusable scope checks, never supplied by a caller. */
   requiresConfirmation: boolean;
 }) => Promise<{ assertCurrent(): void | Promise<void> } | undefined>;
+
+export interface LocalCoverage {
+  authorizationId?: string;
+  tier: "project" | "machine";
+}
+/** Trusted host coverage replaces only a filesystem/controlled-command question. */
+export type LocalCoverageCheck = (input: {
+  principals: readonly CapabilityCaller[];
+  request: RunCapabilityInput["request"];
+  rootPath: string;
+  program?: string;
+}) => LocalCoverage | undefined | Promise<LocalCoverage | undefined>;

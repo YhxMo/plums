@@ -28,13 +28,17 @@ const system = [
   "/usr/local",
   "/private/etc",
 ];
-const excluded = [
+export const PROJECT_EXCLUDED = [
   ".ssh",
   "Library/Keychains",
   ".gnupg",
   ".npmrc",
   ".gitconfig",
   ".yarnrc.yml",
+  ".yarnrc",
+  ".config/pip",
+  ".pip",
+  ".cargo/config.toml",
   ".git-credentials",
   ".netrc",
   ".pypirc",
@@ -125,7 +129,7 @@ export function projectProfile(options: ProjectProfileOptions): string {
  ${o.proxyPort === undefined ? "" : `(allow network-outbound (remote tcp4 "localhost:${o.proxyPort}"))`}
  (deny file-read* file-write* (require-all (subpath ${quote(o.dataDir)}) (require-not (subpath ${quote(o.privateRoot)})) (require-not (subpath ${quote(o.snapshot)}))))
  (deny file-write* ${subpaths([o.snapshot, ...o.toolchains])})
- (deny file-read* file-write* ${subpaths(excluded.map((p) => path.join(o.userHome, p)))})
+ (deny file-read* file-write* ${subpaths(PROJECT_EXCLUDED.map((p) => path.join(o.userHome, p)))})
  (deny process-exec (literal "/usr/bin/open") (literal "/bin/launchctl") (literal "/usr/bin/osascript") (literal "/usr/bin/sandbox-exec"))
  (allow file-link ${subpaths(o.projects)})
  (deny file-link (require-not (require-any ${subpaths(o.projects)})))

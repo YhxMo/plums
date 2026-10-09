@@ -49,6 +49,7 @@ export interface CapabilityContext extends InstallContext {
   exec?: ExecSink;
   egress: EgressSink;
   capabilityGate?: import("./types.js").CapabilityGate;
+  localCoverage?: import("./types.js").LocalCoverageCheck;
   confirm?: Confirm;
   confirmTimeoutMs: number;
   onAudit?: AuditHandler;
@@ -301,6 +302,8 @@ function presentEvent(
     "code",
     "taskId",
     "grantId",
+    "tier",
+    "localAuthorizationId",
   ]);
   const fields = new Set([
     ...control,
@@ -353,6 +356,8 @@ export async function runCapability(
   let meta: Pick<
     AuditEvent,
     | "grantId"
+    | "tier"
+    | "localAuthorizationId"
     | "taskId"
     | "callerIds"
     | "extensionId"
@@ -508,9 +513,46 @@ export async function runCapability(
     if (input.grantId && !grant) refuse("GRANT_SCOPE_CHANGED", "/grantId");
     if (grant) meta.grantId = grant.grant.id;
     if (task && !grant?.covered) meta.taskId = task.taskId;
+    const readLocal = async () => {
+      if (
+        (input.request.kind !== "fs" && input.request.kind !== "exec") ||
+        !ctx.localCoverage
+      )
+        return;
+      const value = await ctx.localCoverage({
+        principals: principals.map((p) => ({ ...p })),
+        request: structuredClone(input.request),
+        rootPath: initialScope.location!.rootPath,
+        program: initialScope.program,
+      });
+      if (value === undefined) return;
+      if (
+        !value ||
+        (value.tier !== "project" && value.tier !== "machine") ||
+        (value.authorizationId !== undefined &&
+          typeof value.authorizationId !== "string")
+      )
+        refuse("LOCAL_COVERAGE_INVALID");
+      return { tier: value.tier, authorizationId: value.authorizationId };
+    };
+    const local = await readLocal();
+    const checkLocal = async () => {
+      const next = await readLocal();
+      if (
+        local?.tier !== next?.tier ||
+        local?.authorizationId !== next?.authorizationId ||
+        !!local !== !!next
+      )
+        refuse("LOCAL_COVERAGE_CHANGED");
+    };
+    if (local) {
+      meta.tier = local.tier;
+      meta.localAuthorizationId = local.authorizationId;
+    }
     let gate: { assertCurrent(): void | Promise<void> } | undefined;
     const recheck = async (): Promise<Scope> => {
       await gate?.assertCurrent();
+      await checkLocal();
       if (grant)
         await capabilityGrant(
           ctx,
@@ -560,6 +602,7 @@ export async function runCapability(
         ctx.tasks?.covers(principals, input.request)?.taskId !== task.taskId
       )
         refuse("TASK_SCOPE_CHANGED");
+      await checkLocal();
       await gate?.assertCurrent();
       return checked;
     };
@@ -568,6 +611,7 @@ export async function runCapability(
         ? initialScope.service?.effect === "external-write" ||
           (outbound(initialScope.service?.effect) && !task && !grant?.covered)
         : !task &&
+          !local &&
           (ctx.tasks?.requiresApproval() ||
             input.request.kind !== "fs" ||
             input.request.operation === "write");

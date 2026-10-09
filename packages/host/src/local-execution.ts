@@ -46,9 +46,7 @@ export class AgentExecutionService {
         code: "PERMISSION_DENIED",
         message: "组件未声明此本地入口。",
       });
-    const tier = permissions.some((p) => p.tier !== "project")
-        ? "machine"
-        : "project",
+    const tier = permission.tier ?? "machine",
       state = await s.core.localAuthorizationState();
     if (levels[tier] > levels[state.tier.ceiling])
       throw new PlumsError({
@@ -69,7 +67,7 @@ export class AgentExecutionService {
         code: "LOCAL_CONFIRM_REQUIRED",
         message: "此组件的本地执行需要汇总确认。",
       });
-    if (permissions.some((p) => p.tier === "project")) {
+    if (tier === "project") {
       for (const directory of state.tier.projects)
         await checkProjectLinks(directory.path);
       await this.project.assertAvailable();

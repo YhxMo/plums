@@ -40,7 +40,7 @@
 
 `kind: engine` 可声明 `tier: "project" | "machine"`；省略时按整机声明处理，清单不会被补写。项目声明可带 `network: {hosts: [...]}`、`toolchains`（node、git、rust、python、go）和 `credentials: [{id, kind, host, reason?}]`。这些字段只用于项目档位；主机候选沿用外发主机规则且仅允许 HTTPS 443，凭据必须指定候选范围内的具体主机。凭据 kind 为 npm-token、cargo-token、pip-index-auth 或 git-https，id 不得重复。字段只是请求声明，不授予执行、网络或凭据；未知字段继续保留，完整 engine 声明变化须重新同意。
 
-当前阶段的每 Agent 执行服务管理该 Agent 的授权检查和独立入口进程。启动与每次请求都检查当前安装身份、完整入口声明、组件声明档位、上限和已确认执行项。上限不足返回 `TIER_REQUIRED`，缺少匹配执行项返回 `LOCAL_CONFIRM_REQUIRED`，不打开逐引擎首次信任窗口。含项目声明的组件在取得授权后执行独立的项目沙箱自检，仍返回 `TIER_UNAVAILABLE`；项目运行入口尚未接入。SDK 委托已接入完整请求调用链与取消；项目执行与管理界面按 [requirements-v1](requirements/requirements-v1.md) 继续实施。
+当前阶段的每 Agent 执行服务管理该 Agent 的授权检查和独立入口进程。启动与每次请求都检查当前安装身份、完整入口声明、组件声明档位、上限和已确认执行项。上限不足返回 `TIER_REQUIRED`，缺少匹配执行项返回 `LOCAL_CONFIRM_REQUIRED`，不打开逐引擎首次信任窗口。项目入口在取得授权后执行独立的项目沙箱自检，仍返回 `TIER_UNAVAILABLE`；同组件的整机入口按自身档位检查，不将项目入口提升为整机。项目运行入口尚未接入。SDK 委托已接入完整请求调用链与取消；项目执行与管理界面按 [requirements-v1](requirements/requirements-v1.md) 继续实施。
 
 ### 项目配置自检与当前边界
 
@@ -52,9 +52,11 @@
 
 上述扫描不是内核级 inode 防线。配置生成后由非后代进程新增别名及校验与使用之间的竞争仍可能越界；历史诊断对裸配置的既有/运行期硬链接与脱组进程结论不因此撤销。全后代容器与项目运行入口尚未完成，`assertAvailable` 始终返回 `TIER_UNAVAILABLE`，没有整机或无沙箱回退。原 `controlledProfile` 与其禁止派生的自检保持独立，未通过的 R17 检查未改为跳过或放宽。
 
+Darwin arm64 的自造实验确认，同沙箱广播能清理五种脱组后代并保留另一独立入口，但后代也能杀死单收割者并留下孤儿。另一个实验按收割者程序路径限定信号权限，普通子进程被拒绝；重执行该未防注入的程序时，DYLD 注入代码却能取得该权限。因此两个候选均未接入生产。程序路径条件本身不构成可信代码身份，进程表和信号 0 也未形成零残留证明。
+
 构建后可运行 `pnpm exec node scripts/platform-conformance.mjs --runtime project --node <固定 Node 路径> --out <报告路径>`。项目报告与 common/SDK 证据分开，当前返回失败与非零退出状态；其他平台报告 `skipped`，同样不能作为项目可用证据。测试验证的是正确拒绝与诊断结论，不是 R17 已验收。
 
-Agent 私有数据库版本为 8。`agent_tier` 保存档位上限与目录、组件确认范围，`agent_local_grants` 保存按安装身份、入口与完整声明固定的本地执行项。新数据库的读取默认上限为沙箱、无授权。上限本身不能使任何引擎获准执行；旧信任迁移只生成对应入口的执行项，不生成 fs/exec 确认覆盖。版本 8 增加本地凭据预留引用；旧版本 6/7 拒绝新库。凭据选择、注入与配置重建尚未接入。
+Agent 私有数据库版本为 8。`agent_tier` 保存档位上限与目录、组件确认范围，`agent_local_grants` 保存按安装身份、入口与完整声明固定的本地执行项。新数据库的读取默认上限为沙箱、无授权。上限本身不能使任何引擎获准执行；旧信任迁移只生成对应入口的执行项，不生成 fs/exec 确认覆盖。版本 8 增加本地凭据预留引用；旧版本 6/7 拒绝新库。可信手动凭据批准、撤销与引用回滚已接入；项目运行时注入、启动配置重建及按批/本机配置来源批准尚未接入。
 
 6→7 迁移只复制安装身份与当前完整声明一致的旧整机信任。存在匹配项时，上限为整机以容纳这些入口；没有匹配项时保持沙箱。不复制目录、主机、凭据或组件确认覆盖，不授予其他引擎。旧 `engine_trust` 记录作为只读历史保留；原有限 Grant 及其授权版本、安装、同意、启用、密钥引用和 MCP 记录均保留。
 
@@ -62,13 +64,13 @@ Agent 私有数据库版本为 8。`agent_tier` 保存档位上限与目录、�
 
 ### 可信宿主汇总授权接口
 
-`DesktopHost.tierPlan(agentId, selection?)` 返回当前授权、各组件完整 permissions、本地声明档位、待确认状态和 fingerprint。`TierSelection` 指定上限、已绑定根中的项目目录与只读目录、此次审阅的组件及各入口获准的候选主机。组件声明档位取该组件全部 engine 权限的最高档位。项目目录保存真实路径和 dev/ino；授权记录不进入导出。
+`DesktopHost.tierPlan(agentId, selection?)` 返回当前授权、各组件完整 permissions、本地声明档位、待确认状态和 fingerprint。`TierSelection` 指定上限、已绑定根中的项目目录与只读目录、此次审阅的组件及各入口获准的候选主机。每个入口分别采用自身 engine 权限的声明档位。项目目录保存真实路径和 dev/ino；授权记录不进入导出。
 
 `confirmTier(agentId, fingerprint, selection)` 在可信确认入口一次列出所选组件和范围。涉及整机时包含“该扩展可读取和修改本机所有文件（包括 Plums 自身数据和其他 Agent 的密钥）、运行任意程序、访问网络”。只有布尔 true 才继续；拒绝、取消、超时和异常均不写授权。确认等待期间管理操作仍可执行；回答后和审计后复核 fingerprint、目录身份、授权版本及完整组装，迟到确认不能恢复被撤销的授权。数据库在写锁内原子提交上限与各执行项，失败不留下半份授权。拒绝和成功确认都记录元信息审计。
 
 `lowerTier(agentId, ceiling)`、`removeTierDirectory(agentId, root, readOnly?)`、`revokeLocal(agentId, packageId?)` 不询问，按变更停止受影响组件的进程并等待清理后保存。清理失败仍保存撤权并返回安全错误；确认范围变更的清理失败不能新增授权。移除一个目录后保留剩余项目范围；根解绑、重绑或身份变化则撤销依赖该范围的项目执行项，整机执行项保持。`tierStatus` 与 `tierPlan` 读取时也检测目录身份变化。所有事件只含档位、逻辑根名、组件 id 和主机数，不含物理路径、正文或凭据值。这些管理方法没有绑定到 SDK、包前端或本地入口，`host.confirm` 和 `host.grant` 不能签发此授权。
 
-当前接口只确认上限、目录、组件声明和主机，管理权限区已接入这些操作与独立进程控制。工具链探测、隔离配置、凭据批准、项目沙箱与 fs/exec 免单次确认仍未交付。项目执行项保存不代表项目进程可启动。
+当前接口确认上限、目录、组件声明和主机；项目入口计划还包含工具链探测结果及注入的配置读取器返回的允许字段，变化时标为待确认。每个入口采用自身声明档位，混合项目/整机声明不再提升整个组件。管理权限区显示这些结果和真实缓存占用/清空。fs/受控 exec 的确认覆盖已接入；原生安全配置读取/原子落盘模块与可信手动凭据管理已接入；项目原生容器、启动和运行时注入仍未交付。项目执行项保存不代表项目进程可启动。
 
 组装变化使等待中的旧确认失效；自动连接新提供者时停止受影响消费者。组件停止同时关闭相关界面句柄和资源租约，保留无关本地入口；Agent 级任务撤销关闭全部界面，显式资源撤销在审计失败时也先使旧范围失效。
 
@@ -120,6 +122,8 @@ await window.plums.engine.cancel("local", "task-1");
 
 握手限时 30 秒；每条消息最多 1 MiB；每会话最多 32 个未完成请求、8 MiB 缓冲及待完成请求正文。业务请求不使用 isolate 的五秒执行预算；不属于 common 任务的单次请求最长 120 秒，附属于任务时使用父任务期限，已有上游期限与策略只能缩短期限。公开 requestId 只作宿主取消标签；JSONL 请求 id 每次由宿主重新生成。取消或原调用者信号中止时，宿主先关闭该请求的回调范围，再发送 `$/cancelRequest`；五秒内未完成则终止整个引擎，未确定任务返回 `CAPABILITY_FAILED`，`executionState: unknown`。崩溃和断连不自动重放任务。
 
+公开取消只匹配当前已发送的请求，未知标签不保留到未来请求；测试须等待真实执行标记，不能用固定 100ms 等待假定请求已登记。common 任务在提供者成功或失败结算时重新检查单调时钟期限，即使计时器回调延迟也返回 `DEADLINE_EXCEEDED` 并中止子范围，不返回迟到内容。
+
 引擎通知 `engine.event`，参数为 `{topic, data}`。宿主绑定组件身份后转发给该 Agent 的业务前端。事件和结果按宿主已知密钥脱敏；原始 stderr 不进入业务事件或审计。
 
 引擎可发起受控回调：
@@ -133,7 +137,7 @@ await window.plums.engine.cancel("local", "task-1");
 
 ## 生命周期和清理
 
-当前管理页提供状态、启动、停止和旧“撤销信任”入口，权限区替换仍待实施。关闭业务前端或渲染进程崩溃只停止普通扩展运行与短期范围，保留独立引擎供管理页接管；重新打开界面可查询并重新连接。停用、更新、组合、配置或目录绑定变化会停止相关运行。
+管理权限区提供档位与范围汇总、凭据批准/撤销、缓存清空和真实项目自检；各入口独立显示启动、停止与崩溃状态。关闭业务前端或渲染进程崩溃只停止普通扩展运行与短期范围，保留独立引擎供管理页接管；重新打开界面可查询并重新连接。停用、更新、组合、配置或目录绑定变化会停止相关运行。
 
 `addLibraryComponent` 和 `importComponent` 加入组件时，若原有组件与连接保持不变，保留当前会话与本地进程。新组件只完成安装，仍需同意、启用和自身本地执行确认；既有执行项不转授新组件。新消费者的单候选自动连接可以在此路径发布，已有消费者新增自动连接则继续走完整重建。等待中的调用只复核自身调用边的组件和连接，同时保留原链、目录、默认卡、设置及授权检查。
 
@@ -174,3 +178,29 @@ SDK v2 引擎可用 `host.protocolStatus` 查询自身需求，或用 `host.invo
 进程容器必须终止全部后代（含脱组者），不通过整体禁止 posix_spawn 替代。此实现尚未完成，项目启动继续失败关闭。生命周期审计取运行入口的实际档位；授权提交失败或 CAS 冲突会追加同 callId 的 LOCAL_AUTHORIZATION_NOT_APPLIED 对账事件，此前 allowed 授权事件不表示记录已生效。
 
 组件停用、设置、升级、卸载与本地撤权停止该组件及依赖它的消费者，保留无关入口；策略租约到期只停止租约所选组件及其消费者。新增普通任务范围不停止本地入口。目录变更重建 core 的固定绑定，保留无关本地服务和进程；Agent 删除、整体关停和 Agent 级范围变更仍等待全部清理。
+
+## 可移植的项目配套与确认覆盖
+
+工具链探测先解析真实可执行文件，再取最小安装根：Node 取具体版本前缀，Git 支持 CommandLineTools、Homebrew 的具体版本及 usr 前缀，Rust 使用 rustup 指出的具体 toolchain（另检查 cargo），Python 取解释器前缀，Go 使用 GOROOT。主目录本身、其祖先、包含或位于始终排除位置的根均拒绝；不授权整个 .cargo、.rustup 或版本管理器。宿主 PATH 仅用于查找工具，不执行用户登录 shell 或启动文件；探测器可注入以隔离真实主目录。启动前重新探测及 PATH 注入依赖未交付的项目入口。
+
+`collectConfiguration`/`renderConfiguration` 只接受 Git 的 user.name/user.email/init.defaultBranch/core.autocrlf/core.eol/pull.rebase，npm 的 registry/@scope:registry，cargo 的 registries.<名称>.index 与 source.<名称>.replace-with/registry，以及 pip 的 global.index-url/global.extra-index-url/global.trusted-host。认证、include、alias、hooks、SSH 命令与 URL 重写字段拒绝；URL 内嵌用户名密码或 token/auth/key/secret/password 查询键时丢弃整项，拒绝控制字符。`HostOptions.configurationReader` 可提供宿主读取器；默认不读取原配置。管理页显式“读取配置允许字段”使用目录句柄读取常规文件（128 KiB），拒绝符号链接、硬链接与 FIFO，不执行 include、helper 或环境插值。生成模块以 0600 权限原子替换 Git/npm/cargo/pip 配置，并返回隔离配置环境；变化须重新汇总确认。项目 launcher 的只读配置与环境注入尚未接入。
+
+缓存位于每 Agent 的 cache/<组件 id 的 SHA-256>，创建权限 0700；变量映射覆盖 npm、pnpm、Yarn、Cargo、pip、Go、XDG 与临时目录。cacheStatus/clearCache 仅由可信管理桥调用，清空先停止受影响组件，拒绝符号链接和特殊文件；删除 Agent 时随实例目录清除。项目启动时创建和重定向缓存尚未接入。
+
+ProjectProxy 已实现独立 IPv4 回环 CONNECT 服务，仅批准主机的 443 端口可用；复用 HTTPS 公网地址规则，混合公网/内网解析也拒绝，连接固定到验证过的 IP，并在连接前等待审计。停止关闭活动连接。不解密 TLS，不放行直连；每入口代理的创建/关闭与原生 launcher 接线暂缓。
+
+宿主在已确认组装与项目目录内覆盖 fs/受控 exec 的单次确认：检查所有调用者的安装身份及完整权限，复核项目目录 dev/ino，exec 还检查固定程序及全部读写根。core 的 localCoverage 回调不授予声明外操作，确认、放行审计与 Sink 前重复复核；撤权、重确认、降级或目录变化阻止未开始调用。放行/结果审计包含 tier 与 localAuthorizationId，不含物理路径；HTTPS、资源、MCP 不覆盖，策略 deny 仍优先。
+
+真实历史 schema 7（69c01b7）回归验证升级到 8 保留当时已确认入口与上限；第二个未确认入口不获授权，新 Agent 仍默认沙箱。这与将已有整机确认强制重置为沙箱不同；迁移不凭附件示例扩大或删去现有授权。
+
+## macOS 容器实验与可信凭据管理
+
+沙箱外随机标记候选未通过本机校准：`sandbox_check` 对不存在的 `/usr/lib/.plums-*` 成员路径、控制路径及未沙箱 helper 均返回 1；同一调用检查已存在的 `/usr/lib` 则均返回 0，系统导出的 `SANDBOX_CHECK_NO_REPORT` 为 `0x40000000`。不能把不存在路径的拒绝当作成员证明；11 个实验断言失败，未执行 nonce 清理、未接入生产或 launcher。项目继续 `TIER_UNAVAILABLE`。下一候选仅记录为 launchd/XPC job 容器另立设计，或受控 exec 无 fork。
+
+真实实验验证：同沙箱信号广播可终止 setsid、setpgid、double-fork、POSIX_SPAWN_SETPGROUP 与普通 posix_spawn 后代，另一独立沙箱及外部哨兵不受影响。先使用非破坏的 SIGCONT 确认信号范围，再测试终止。该结果仍不足以采用单收割者：同沙箱后代可以杀死收割者并留下孤儿；本机 kill(pid,0) 与 proc_pidinfo 不能作为可靠的沙箱成员判定。现有生产监管仍仅进程组，不采用有丢失孤儿窗口的树轮询，项目启动继续失败关闭。
+
+项目诊断另列 knownRisks：运行期由非后代加入的硬链接别名读写及外部 inode 变化。当前诊断仍保留原始失败检查，既有别名、容器和 launcher 未完成时不得放行；这些观察不是内核级 inode 防线。
+
+DesktopHost.provideCredential(agentId, fingerprint, packageId, engineId, credentialId, value, username?) 仅由可信管理桥调用。当前入口及主机须已确认，凭据声明须匹配；可信窗口说明令牌的可读性，回答后复核 fingerprint。值不进入 TierSelection/计划/审计/导出。Core 先预留独立元数据、原值、用户名和转义值引用，再由宿主写该 Agent 的 SecretStore；提交失败只回滚未提交值，提交已生效时不误删。批准/撤销审计与授权变更使用同一通道，撤销先停止受影响组件再删值，失败保留历史引用供卸载重试。当前支持手动粘贴，按批和配置来源选择、真实项目注入及带凭据启动审计仍未完成。
+
+ProjectStatus 返回真实平台诊断。界面显示通过数与失败状态，项目入口保持禁用；清空缓存先停止相关组件。可信宿主规范化 macOS 数据根（如 /var 的真实路径）后计算缓存位置，缓存内部符号链接与特殊文件仍拒绝。

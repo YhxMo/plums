@@ -20,4 +20,7 @@
 
 两个 `machine-probe` 夹具在临时目录中运行真实独立本地进程，不读真实主目录，不联网。第一个回调 Fake 模型，第二个用于证明旧信任不扩大。记忆的 localProbe 是缺少本地执行权限的负向检查。`scenarios/machine.test.ts` 还覆盖普通 common/资源/任务范围和策略租约同时活动；本地回调的 common/资源接入、选择性生命周期与项目沙箱继续实施。
 
-本轮新增 coding-tools、crash-probe、policy-fake。前两者默认声明项目档位；策略夹具只返回固定决定，不做风险审查。remaining.test.ts 的整机 crash 变体仅验证可用的生命周期，不作为 S-G 项目成功路径。S-E 在全新目录直接导入后上限为沙箱、无本地授权；导入制品固定到导出 ZIP 字节的摘要。S-B 尚因候选功能声明不匹配阻塞；项目入口仍不可用，不将拒绝行为当成功场景。
+本轮新增 coding-tools、crash-probe、policy-fake。前两者默认声明项目档位；策略夹具只返回固定决定，不做风险审查。remaining.test.ts 的整机 crash 变体仅验证可用的生命周期，不作为 S-G 项目成功路径。S-E 在全新目录直接导入后上限为沙箱、无本地授权；导入制品固定到导出 ZIP 字节的摘要。S-B 的候选功能声明已修复，成功路径仍受原生项目入口阻塞；项目入口仍不可用，不将拒绝行为当成功场景。
+
+
+coding-tools 的 run 测试协议使用 `{program:string,args:string[],cwd?:string}`，不接受 command 字符串；cwd 与文件路径必须落在 initialize 指定的项目目录内。结果为 `{exitCode,stdout,stderr,truncated?:true}`，每路输出最多 64 KiB，并按 UTF-8 边界截断；list/call 输出分别是工具定义数组和 `{ok,content}`。夹具的路径检查仅提供稳定错误，不能代替系统沙箱。独立 Node 协议测试不代表真实项目档位已可运行。

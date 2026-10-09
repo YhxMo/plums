@@ -58,6 +58,8 @@ deadline 使用宿主单调时钟预算，消费者 `timeoutMs` 只能缩短；�
 
 `tasks.create({lifetime:"frontend"|"agent",timeoutMs?})` 创建宿主拥有的 taskId，不授予 I/O，也不能选择另一个 Agent/组件作为 owner。Agent 后台归属需要组件 `background:true` 声明以及可信管理窗口明确启用该组件后台；默认随前端关闭取消。owner 是宿主绑定的当前组件运行身份，前端容器身份另行限定桥，不能伪造。每 task 最多一个 root invoke（`options.taskId`），再次 root 调用拒绝；嵌套调用有独立 callId，由宿主关联父任务。未指定 taskId 的 invoke 自动创建前端归属任务。任务期限与权限租约分别复核，后台驻留不保证期限后仍可执行。
 
+提供者成功或失败结算时复核单调时钟期限；计时器回调尚未运行但期限已过，也中止任务范围并返回 `DEADLINE_EXCEEDED`。迟到内容不交付，取消状态与执行状态分别保留。
+
 `tasks.status(taskId)` 返回当前 `CommonTaskSnapshot`：status 包含状态、根 callId（接受前缺省）、executionState、lastSequence（接受前 -1），以及可用时独立保留的终态 result。查询/attach 都限定同 Agent、当前组件或经可信管理明确允许接管的兼容 UI，整条执行链和新消费者资格重新核验；仅有 taskId 不足以访问。终态正文仅内存保留 5 分钟，不进入持久日志；重启只恢复状态元数据，没有 result 正文。`REPLAY_GAP` 不使当前 status/result 失效，也不重新执行。
 
 事件每条最多 256 KiB，活动调用缓冲最多 8 MiB/256 条（先达到者生效）。SDK 异步迭代消费；宿主对慢消费者施加背压，无法收敛时停止生产并返回 `LIMIT_EXCEEDED`，不能无限内存积累。终态独立保存，不因事件缓冲溢出丢失。业务正文只在运行内存中短暂缓存，不进入审计或默认持久日志。

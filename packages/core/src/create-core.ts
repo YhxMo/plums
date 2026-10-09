@@ -149,6 +149,7 @@ export interface CreateCoreOptions {
   services?: Readonly<Record<string, HostService>>;
   capabilityApproval?: "legacy" | "task-or-confirm";
   capabilityGate?: import("./capabilities/types.js").CapabilityGate;
+  localCoverage?: import("./capabilities/types.js").LocalCoverageCheck;
   secrets: SecretStore;
   /** Logical directory names to host-selected paths; copied at creation. */
   roots?: Readonly<Record<string, string>>;
@@ -183,6 +184,18 @@ export interface Core {
   localAuthorizationState(): Promise<LocalAuthorizationState>;
   /** Trusted host only, after confirmation, directory rechecks and audit; never an SDK API. */
   commitLocalAuthorization(input: LocalAuthorizationCommit): Promise<boolean>;
+  /** Trusted host: register scalar references before asynchronous credential writes. */
+  reserveLocalCredentialReferences(
+    id: string,
+    installedAt: string,
+    refs: readonly string[],
+  ): Promise<boolean>;
+  /** Release only after deletion or a committed grant has retained the references. */
+  releaseLocalCredentialReferences(
+    id: string,
+    installedAt: string,
+    refs: readonly string[],
+  ): Promise<void>;
   /** @deprecated Compatibility for machine entries. Replace with Agent-level tier confirmation. */
   engineTrustSnapshot(
     packageId: string,
@@ -512,6 +525,7 @@ export function createCore(options: CreateCoreOptions): Core {
     egress: options.egress,
     confirm: options.confirm,
     capabilityGate: options.capabilityGate,
+    localCoverage: options.localCoverage,
     confirmTimeoutMs,
     onAudit: options.onAudit,
     tasks,
@@ -755,6 +769,20 @@ export function createCore(options: CreateCoreOptions): Core {
         });
       }
     }),
+    reserveLocalCredentialReferences: guardAuthorization(
+      async (call, id, installedAt, refs) => {
+        await ensureLocalMigration(call);
+        return store.reserveLocalCredentialReferences(id, installedAt, [
+          ...refs,
+        ]);
+      },
+    ),
+    releaseLocalCredentialReferences: guardAuthorization(
+      async (call, id, installedAt, refs) => {
+        await ensureLocalMigration(call);
+        store.releaseLocalCredentialReferences(id, installedAt, [...refs]);
+      },
+    ),
     engineTrustSnapshot: guardAuthorization(async (call, id, engineId) => {
       await ensureLocalMigration(call);
       return engineSnapshot(id, engineId);

@@ -20,6 +20,7 @@ import { InstallStore, SCHEMA_VERSION } from "../src/install/store.js";
 import { enginePermissionKey } from "../src/install/engine-trust.js";
 import { makeCore, manifestZip } from "./package-helpers.js";
 import { legacyGrantFingerprint } from "./legacy-grant-helper.js";
+import { buildHistoricalCore } from "./historical-core.js";
 const opened: Core[] = [],
   dirs: string[] = [];
 const child = (dataDir: string, action: string) =>
@@ -61,6 +62,113 @@ function reopen(options: CreateCoreOptions) {
   opened.push(c);
   return c;
 }
+it("upgrades an authentic schema-seven database without extending its confirmed local authority", async () => {
+  const historical = await buildHistoricalCore(7);
+  dirs.push(historical.dir);
+  const f = world({ instanceId: "agent-a", onAudit: () => {} });
+  f.core.close();
+  const options = {
+    dataDir: f.dataDir,
+    instanceId: "agent-a",
+    secrets: new MemorySecretStore(),
+    egress: new RecordingEgressSink(),
+    onAudit: () => {},
+  };
+  const old = historical.old.createCore(options);
+  opened.push(old);
+  for (const id of ["first", "second"]) {
+    await old.importPackage(await manifestZip({ ...manifest, id }));
+    await old.grantConsent(id);
+    await old.enable(id);
+  }
+  expect(
+    await old.grantEngineTrust(await old.engineTrustSnapshot("first", "local")),
+  ).toBe(true);
+  const before = await old.localAuthorizationState();
+  old.close();
+  const raw = new Database(path.join(f.dataDir, "plums.db"));
+  expect(raw.pragma("user_version", { simple: true })).toBe(7);
+  raw.close();
+  const core = reopen(options),
+    state = await core.localAuthorizationState();
+  expect(state.tier).toEqual(before.tier);
+  expect(state.grants).toEqual(before.grants);
+  expect(state.grants.map((g) => g.packageId)).toEqual(["first"]);
+  expect(state.tier.projects).toEqual([]);
+  expect(state.tier.readOnly).toEqual([]);
+  expect(state.tier.components).toEqual([]);
+  expect((await core.engineTrustSnapshot("second", "local")).trusted).toBe(
+    false,
+  );
+  const unconfirmed = reopen({ ...options, instanceId: "new-agent" });
+  expect((await unconfirmed.localAuthorizationState()).tier.ceiling).toBe(
+    "sandbox",
+  );
+  const migrated = new Database(path.join(f.dataDir, "plums.db"));
+  expect(migrated.pragma("user_version", { simple: true })).toBe(
+    SCHEMA_VERSION,
+  );
+  migrated.close();
+});
+it("keeps project and machine grants separate within a component and through an unchanged upgrade", async () => {
+  const f = world(),
+    project: EnginePermission = {
+      ...engine,
+      id: "project",
+      target: "project",
+      tier: "project",
+    };
+  const mixed: ManifestV2 = { ...manifest, permissions: [engine, project] };
+  await f.core.importPackage(await manifestZip(mixed));
+  await f.core.grantConsent(mixed.id);
+  await f.core.enable(mixed.id);
+  const installed = (await f.core.listInstalled())[0]!,
+    state = await f.core.localAuthorizationState();
+  const component = {
+    packageId: mixed.id,
+    installedAt: installed.installedAt,
+    permissions: enginePermissionKey(mixed.permissions),
+  };
+  const grants = [engine, project].map((permission) => ({
+    instanceId: "agent-a",
+    packageId: mixed.id,
+    engineId: permission.target,
+    installedAt: installed.installedAt,
+    permission: enginePermissionKey(permission),
+    tier: permission.tier ?? ("machine" as const),
+    hosts: [],
+    toolchains: [],
+    configuration: [],
+    credentials: [],
+    source: "confirmation" as const,
+    grantedAt: new Date().toISOString(),
+  }));
+  expect(
+    await f.core.commitLocalAuthorization({
+      ...state,
+      assembly: [component],
+      tier: {
+        ...state.tier,
+        ceiling: "machine",
+        projects: [
+          { root: "workspace", path: "/fixture/project", dev: "1", ino: "1" },
+        ],
+        components: [component],
+      },
+      grants,
+    }),
+  ).toBe(true);
+  await f.core.updatePackage(await manifestZip({ ...mixed, version: "1.1.0" }));
+  expect(
+    (await f.core.localAuthorizationState()).grants.map((g) => [
+      g.engineId,
+      g.tier,
+    ]),
+  ).toEqual([
+    ["local", "machine"],
+    ["project", "project"],
+  ]);
+});
 const services: CreateCoreOptions["services"] = {
   https: {
     operations: { request: "egress" },

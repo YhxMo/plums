@@ -2,6 +2,7 @@ import { expect, it, vi } from "vitest";
 import { ProjectSandbox } from "../src/project-sandbox.js";
 import {
   projectProfile,
+  PROJECT_EXCLUDED,
   type ProjectProfileOptions,
 } from "../src/project-profile.js";
 import { spawnSync } from "node:child_process";
@@ -23,6 +24,16 @@ const options: ProjectProfileOptions = {
   toolchains: ["/fixture/user/toolchain"],
   readOnly: [],
 };
+it("keeps every always-excluded path denied after the read allow rules", () => {
+  const text = projectProfile({ ...options, readOnly: [options.userHome] });
+  const deny = text.lastIndexOf("(deny file-read* file-write*");
+  expect(deny).toBeGreaterThan(text.lastIndexOf("(allow file-read*"));
+  for (const excluded of PROJECT_EXCLUDED)
+    expect(text.slice(deny)).toContain(
+      JSON.stringify(path.join(options.userHome, excluded)),
+    );
+  expect(text).toContain('(require-not (subpath "/fixture/platform/own"))');
+});
 it.each([
   "/",
   "relative",
@@ -71,6 +82,15 @@ it.runIf(supported)(
         cleanupCompleted: true,
       });
       expect(report.checks.length).toBeGreaterThan(40);
+      expect(report.knownRisks).toEqual(
+        expect.arrayContaining(
+          [
+            "readLateHardlink",
+            "writeLateHardlink",
+            "unchanged:outside/late-hard-data",
+          ].map((id) => ({ id, status: "failed" })),
+        ),
+      );
       for (const id of [
         "nodeChild",
         "readProject",

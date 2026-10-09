@@ -83,6 +83,8 @@ export type {
   ExecSink,
   FsEntry,
   FsLocation,
+  LocalCoverage,
+  LocalCoverageCheck,
   FsRequest,
   FsSink,
   RunCapabilityInput,

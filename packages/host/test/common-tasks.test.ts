@@ -7,11 +7,43 @@ import { randomUUID } from "node:crypto";
 import type { CommonActor } from "@plums/sdk";
 const dirs: string[] = [];
 afterEach(async () => {
+  vi.restoreAllMocks();
   vi.useRealTimers();
   await Promise.all(
     dirs.splice(0).map((d) => rm(d, { recursive: true, force: true })),
   );
 });
+it.each([false, true])(
+  "an elapsed deadline wins a provider %s settlement before its delayed timer runs",
+  async (reject) => {
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    const now = vi.spyOn(performance, "now").mockReturnValue(1000);
+    const { tasks } = await setup();
+    const t = tasks.create(owner, "signature", "front", "frontend", 250);
+    let signal!: AbortSignal;
+    await tasks.start(
+      t.taskId,
+      owner,
+      "signature",
+      randomUUID(),
+      async (active, started) => {
+        signal = active;
+        started();
+        now.mockReturnValue(1250);
+        if (reject) throw Error("private provider failure");
+        return "private late result";
+      },
+    );
+    expect(tasks.status(t.taskId, owner, "signature")).toMatchObject({
+      status: { state: "stopped" },
+      result: { outcome: { ok: false, error: { code: "DEADLINE_EXCEEDED" } } },
+    });
+    expect(signal.aborted).toBe(true);
+    expect(
+      JSON.stringify(tasks.poll(t.taskId, owner, "signature", -1)),
+    ).not.toContain("private");
+  },
+);
 const owner: CommonActor = {
   agentId: "agent",
   componentId: "component",

@@ -267,6 +267,13 @@ export class SecureFsSink implements FsSink {
   async read(req: FsLocation): Promise<Uint8Array> {
     return new Uint8Array(await this.execute("read", req));
   }
+  /** Trusted configuration reader: descriptor traversal, no links, bounded regular files. */
+  async readConfiguration(req: FsLocation): Promise<Uint8Array> {
+    return new Uint8Array(await this.execute("config-read", req));
+  }
+  async makeDirectory(req: FsLocation): Promise<void> {
+    await this.execute("mkdir", req);
+  }
   async write(req: FsLocation & { data: Uint8Array }): Promise<void> {
     await this.execute("write", req, req.data);
   }

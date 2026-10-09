@@ -125,4 +125,7 @@ V1 验证六个基础字符串。V2 使用 `chara_card_v2/2.0` 封装；V3 使�
 
 ## 剩余项目夹具（未完成验收）
 
-`fixture.coding-tools` 提供 org.plums.agent-tools/1.0.0 的 list/call，声明项目入口、node/git 和测试主机候选；不自动授予网络。`fixture.crash-probe` 仅提供 ping/crash。`fixture.policy-fake` 经 org.plums.policy/1.0.0 返回固定决定，无审查算法或外发。它们仅在 vitest 中打包。S-B 的候选 list/call 功能声明尚未匹配，项目运行仍失败关闭；整机变体只验证生命周期。S-E 的导入摘要取便携 ZIP 中实际组件字节，授权与档位不导出。
+`fixture.coding-tools` 提供 org.plums.agent-tools/1.0.0 的 list/call，声明项目入口、node/git 和测试主机候选；不自动授予网络。`fixture.crash-probe` 仅提供 ping/crash。`fixture.policy-fake` 经 org.plums.policy/1.0.0 返回固定决定，无审查算法或外发。它们仅在 vitest 中打包。S-B 的候选 list/call 功能声明与输入/输出 schema 已匹配，项目运行仍失败关闭；整机变体只验证生命周期。S-E 的导入摘要取便携 ZIP 中实际组件字节，授权与档位不导出。
+
+
+coding-tools 的 run 测试协议使用 `{program:string,args:string[],cwd?:string}`，不接受 command 字符串；cwd 与文件路径必须落在 initialize 指定的项目目录内。结果为 `{exitCode,stdout,stderr,truncated?:true}`，每路输出最多 64 KiB，并按 UTF-8 边界截断；list/call 输出分别是工具定义数组和 `{ok,content}`。夹具的路径检查仅提供稳定错误，不能代替系统沙箱。独立 Node 协议测试不代表真实项目档位已可运行。

@@ -155,6 +155,9 @@ export function presentLocalAuthorizationEvent(
       executionState: true,
       reason: true,
       tier: true,
+      localCredential: {
+        fields: { packageId: false, engineId: false, id: false, host: false },
+      },
       localScope: {
         fields: {
           roots: false,
@@ -173,7 +176,12 @@ export function presentLocalAuthorizationConfirmation(
   secrets: readonly string[],
 ): ConfirmRequest {
   return project(value, secrets, {
-    fields: { subject: false, action: false, message: false, presentation: true },
+    fields: {
+      subject: false,
+      action: false,
+      message: false,
+      presentation: true,
+    },
   }) as ConfirmRequest;
 }
 
@@ -307,6 +315,33 @@ export function presentTierPlan(
                   tier: true,
                   hosts: false,
                   state: true,
+                  toolchains: {
+                    elements: {
+                      fields: {
+                        name: true,
+                        root: false,
+                        executable: false,
+                        found: true,
+                        reason: true,
+                      },
+                    },
+                  },
+                  credentials: {
+                    elements: {
+                      fields: {
+                        id: true,
+                        kind: true,
+                        host: false,
+                        reason: false,
+                        approved: true,
+                      },
+                    },
+                  },
+                  configuration: {
+                    elements: {
+                      fields: { tool: true, field: false, value: false },
+                    },
+                  },
                 },
               },
             },

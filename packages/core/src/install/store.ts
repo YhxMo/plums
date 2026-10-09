@@ -364,9 +364,6 @@ export class InstallStore {
     if (!isManifestV2(manifest)) return [];
     const installed = this.get(id),
       engines = manifest.permissions.filter((p) => p.kind === "engine");
-    const tier = engines.some((p) => (p.tier ?? "machine") === "machine")
-      ? "machine"
-      : "project";
     return [
       ...new Set(
         this.listLocalGrants(id).flatMap((grant) => {
@@ -376,7 +373,7 @@ export class InstallStore {
             grant.installedAt !== installed.installedAt ||
             !declaration ||
             grant.permission !== enginePermissionKey(declaration) ||
-            grant.tier !== tier
+            grant.tier !== (declaration.tier ?? "machine")
           )
             return [];
           return grant.credentials
@@ -453,16 +450,12 @@ export class InstallStore {
           (p) =>
             "kind" in p && p.kind === "engine" && p.target === trust.engineId,
         );
-        const engines = isManifestV2(manifest)
-          ? manifest.permissions.filter((p) => p.kind === "engine")
-          : [];
-        const tier = engines.some((p) => (p.tier ?? "machine") === "machine")
-          ? "machine"
-          : "project";
         if (
           !permission ||
           enginePermissionKey(permission) !== trust.permission ||
-          trust.tier !== tier
+          !("kind" in permission) ||
+          permission.kind !== "engine" ||
+          trust.tier !== (permission.tier ?? "machine")
         )
           this.removeEngineTrust(manifest.id, trust.engineId);
       }
@@ -854,9 +847,7 @@ export class InstallStore {
             (p) => p.kind === "engine",
           );
           const declaration = engines.find((p) => p.target === grant.engineId);
-          const tier = engines.some((p) => (p.tier ?? "machine") === "machine")
-            ? "machine"
-            : "project";
+          const tier = declaration?.tier ?? "machine";
           if (
             !declaration ||
             grant.permission !== enginePermissionKey(declaration) ||

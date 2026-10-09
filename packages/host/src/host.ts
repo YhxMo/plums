@@ -4,6 +4,11 @@ import {
 } from "./audit-presentation.js";
 import { readFileSync } from "node:fs";
 import {
+  cachePaths,
+  cacheUsage,
+  clearCache as clearProjectCache,
+} from "./project-cache.js";
+import {
   FoundationOwnership,
   foundationJournal,
   foundationBinding,
@@ -212,6 +217,9 @@ export interface HostOptions {
   grantConfirm?: GrantConfirm;
   secretStore: (instanceId: string) => SecretStore;
   nodePath?: string;
+  homeDir?: string;
+  toolchainProbe?: import("./project-toolchain.js").ToolchainProbe;
+  configurationReader?: import("./project-config.js").ReadConfig;
   /** Default for new or legacy Agents only; existing persisted pins are never changed. */
   foundation?: FoundationSelection;
   /** Internal transaction fault seam; not exposed to components. */
@@ -642,6 +650,9 @@ export class DesktopHost {
     });
     this.localAuthorizations = new LocalAuthorizations({
       dataDir: options.dataDir,
+      homeDir: options.homeDir,
+      toolchainProbe: options.toolchainProbe,
+      configurationReader: options.configurationReader,
       confirm: options.confirm,
       audit: (s, event) => this.writeAudit(s.record.instanceId, event),
       secrets: (s) => this.secretValues(s),
@@ -2111,6 +2122,7 @@ export class DesktopHost {
     const core: Core = createCore({
       capabilityApproval: "task-or-confirm",
       capabilityGate: (input) => this.capabilityPolicy(s, input),
+      localCoverage: (input) => this.localAuthorizations.coverage(s, input),
       instanceId: id,
       services: { https: httpsService(() => s.core, egress) },
       dataDir: path.join(dir, "core"),
@@ -2638,8 +2650,8 @@ export class DesktopHost {
   }
   async revokeTaskScope(id: string) {
     const s = await this.session(id);
-    this.panels.closeAgent(id);
     const taskId = s.core.taskScopeState()?.taskId;
+    this.panels.closeAgent(id);
     s.core.revokeTaskScope();
     this.stopOrdinary(s);
     await this.common.stopAgent(s);
@@ -4027,6 +4039,101 @@ export class DesktopHost {
       );
     });
   }
+  async cacheStatus(id: string) {
+    return this.serial(id, async () => {
+      const s = await this.session(id);
+      return Promise.all(
+        (await s.core.listInstalled())
+          .filter((p) => p.kind === "extension")
+          .map(async (p) => ({
+            packageId: p.id,
+            ...(await cacheUsage(
+              cachePaths(await realpath(this.options.dataDir), id, p.id).root,
+            )),
+          })),
+      );
+    });
+  }
+  async clearCache(id: string, packageId?: string): Promise<void> {
+    return this.serial(id, async () => {
+      const s = await this.session(id);
+      const packages = (await s.core.listInstalled()).filter(
+        (p) => p.kind === "extension" && (!packageId || p.id === packageId),
+      );
+      if (packageId && !packages.length) denied();
+      await this.stopRuntimes(
+        s,
+        packages.map((p) => p.id),
+      );
+      for (const p of packages)
+        await clearProjectCache(
+          cachePaths(await realpath(this.options.dataDir), id, p.id).root,
+        );
+    });
+  }
+  async refreshProjectConfiguration(id: string): Promise<void> {
+    return this.serial(id, async () =>
+      this.localAuthorizations.refreshConfiguration(await this.session(id)),
+    );
+  }
+  async projectStatus(id: string) {
+    await this.session(id);
+    const { ProjectSandbox } = await import("./project-sandbox.js");
+    const sandbox = new ProjectSandbox(this.options.nodePath);
+    try {
+      return await sandbox.inspect();
+    } finally {
+      await sandbox.close();
+    }
+  }
+  async provideCredential(
+    id: string,
+    fingerprint: string,
+    packageId: string,
+    engineId: string,
+    credentialId: string,
+    value: string,
+    username?: string,
+  ): Promise<boolean> {
+    const s = await this.session(id);
+    if (
+      !(await this.localAuthorizations.askCredential(
+        s,
+        fingerprint,
+        packageId,
+        engineId,
+        credentialId,
+      ))
+    )
+      return false;
+    await this.serial(id, async () =>
+      this.localAuthorizations.provideCredential(
+        await this.session(id),
+        fingerprint,
+        packageId,
+        engineId,
+        credentialId,
+        value,
+        username,
+      ),
+    );
+    return true;
+  }
+  async revokeCredential(
+    id: string,
+    packageId: string,
+    engineId: string,
+    credentialId: string,
+  ): Promise<void> {
+    return this.serial(id, async () =>
+      this.localAuthorizations.revokeCredential(
+        await this.session(id),
+        packageId,
+        engineId,
+        credentialId,
+      ),
+    );
+  }
   async tierStatus(id: string) {
     return this.serial(id, async () => {
       const s = await this.session(id);
@@ -4049,7 +4156,12 @@ export class DesktopHost {
       await this.localAuthorizations.invalidate(s);
       const plan = await this.localAuthorizations.plan(s, copied);
       if (plan.fingerprint !== fingerprint) denied();
-      return { s, plan, assembly: JSON.stringify(s.record.components) };
+      return {
+        s,
+        plan,
+        assembly: JSON.stringify(s.record.components),
+        memberIds: (s.record.components ?? []).map((c) => c.packageId).sort(),
+      };
     });
     // Keep management available while the user answers; revocation must not queue behind a question.
     if (!(await this.localAuthorizations.ask(prepared.s, prepared.plan)))
@@ -4057,8 +4169,19 @@ export class DesktopHost {
     return this.serial(id, async () => {
       const s = await this.session(id);
       await this.assertCoherent(id);
-      if (JSON.stringify(s.record.components) !== prepared.assembly)
-        return false;
+      if (JSON.stringify(s.record.components) !== prepared.assembly) {
+        if (
+          JSON.stringify(
+            (s.record.components ?? []).map((c) => c.packageId).sort(),
+          ) === JSON.stringify(prepared.memberIds)
+        )
+          return false;
+        throw new PlumsError({
+          code: "PERMISSION_DENIED",
+          message: "本地授权计划已变化。",
+          details: { reason: "LOCAL_AUTHORIZATION_CHANGED" },
+        });
+      }
       await this.localAuthorizations.invalidate(s);
       return this.localAuthorizations.confirm(s, fingerprint, copied);
     });

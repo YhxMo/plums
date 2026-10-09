@@ -12,18 +12,27 @@ export const HISTORICAL_CORE_COMMIT =
   "27be7067d3b1571608561a8bf277370b0ddf74d2";
 const ARCHIVE_SHA256 =
   "8c9db29cfba0ecae3a59fffdca8863d4c020048254b5474961c68a85c53582ed";
-export async function buildHistoricalCore() {
+export const HISTORICAL_CORE_SEVEN_COMMIT =
+  "69c01b734ffb9c8e9143d40b98641abb73f04c85";
+const SEVEN_ARCHIVE_SHA256 =
+  "20914c1d3aeed3b8e95a65b2999bdbe46dc788ace3f07129ede7ef2c00d717b6";
+export async function buildHistoricalCore(version: 6 | 7 = 6) {
   const root = fileURLToPath(new URL("../../../", import.meta.url));
   const dir = await mkdtemp(
-    path.join(os.tmpdir(), "plums-authentic-core-six-"),
+    path.join(os.tmpdir(), `plums-authentic-core-${version}-`),
   );
   try {
     const archive = execFileSync(
       "git",
-      ["archive", HISTORICAL_CORE_COMMIT, "packages/core/src"],
+      [
+        "archive",
+        version === 7 ? HISTORICAL_CORE_SEVEN_COMMIT : HISTORICAL_CORE_COMMIT,
+        "packages/core/src",
+      ],
       { cwd: root, maxBuffer: 4 * 1024 * 1024 },
     );
-    if (createHash("sha256").update(archive).digest("hex") !== ARCHIVE_SHA256)
+    const archiveDigest = version === 7 ? SEVEN_ARCHIVE_SHA256 : ARCHIVE_SHA256;
+    if (createHash("sha256").update(archive).digest("hex") !== archiveDigest)
       throw Error(
         "Historical Core source archive does not match its fixture identity",
       );
@@ -71,9 +80,9 @@ export async function buildHistoricalCore() {
       InstallStore: typeof import("../src/install/store.js").InstallStore;
       SCHEMA_VERSION: number;
     };
-    if (store.SCHEMA_VERSION !== 6)
-      throw Error("Historical Core must create schema 6");
-    return { dir, old, store, archiveDigest: ARCHIVE_SHA256 };
+    if (store.SCHEMA_VERSION !== version)
+      throw Error(`Historical Core must create schema ${version}`);
+    return { dir, old, store, archiveDigest };
   } catch (error) {
     await (
       await import("node:fs/promises")

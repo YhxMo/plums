@@ -218,7 +218,7 @@ MCP v2 的连接器 permissionId 可对应 egress，或包含 request 操作的 
 
 ## 桌面受控命令
 
-可信管理为 exec target 绑定固定程序摘要与显式外部读/写目录，SDK 仅传 args/cwd。调用链每方必须同意该 exec 权限，且拥有全部所选目录的 fs read/write 声明；write 不隐含 read。活动短期任务范围必须覆盖这些目录操作，未选中即拒绝；exec 自身每次单次确认。执行前复核目录实体、程序摘要、整链状态与期限，再进入默认拒绝的系统沙箱；无直接网络、fork/执行其他程序、继承环境/额外 fd。
+可信管理为 exec target 绑定固定程序摘要与显式外部读/写目录，SDK 仅传 args/cwd。调用链每方必须同意该 exec 权限，且拥有全部所选目录的 fs read/write 声明；write 不隐含 read。活动短期任务范围必须覆盖这些目录操作，未选中即拒绝；exec 在未被已确认项目/组装覆盖时单次确认。执行前复核目录实体、程序摘要、整链状态与期限，再进入默认拒绝的系统沙箱；无直接网络、fork/执行其他程序、继承环境/额外 fd。
 
 平台私有数据及 agent-data 不能作为程序读写根。程序只允许固定只读系统依赖；设施、依赖或真实边界探测失败则 RUNTIME_UNAVAILABLE。取消等待 supervisor 清理，unknown/completed 不自动重试。按组件确认的整机入口可与该受控模式、common 任务及资源范围同时活动，各自授权仍单独复核。详情见[共同契约](common-contract.md#当前统一运行接入阶段-3)。
 
@@ -230,12 +230,19 @@ MCP v2 的连接器 permissionId 可对应 egress，或包含 request 操作的 
 
 SDK 的 `CommonOperationContext.category` 新增 `local`。本地启动使用 `operation: "start"`，请求使用真实 method，target 为当前组件自己的 engineId。指纹绑定复制请求和当前执行项；意图不含参数。选定策略每次评估，deny 优先；confirm 由已确认执行项满足，不询问。上限不足或执行项缺失时先拒绝，不让策略代替授权。十秒超时、无效决定或审计失败同样拒绝。旧策略若不接受 local 输入须更新，否则返回 `POLICY_UNAVAILABLE`。
 
-本地执行项不依赖短期策略租约；最大范围只列本组件入口与方法。本地请求的策略与放行/结果审计按同一 callId 关联。执行前复核绑定、授权及取消。已确认本地入口可与策略评估器、普通 common/资源/任务范围同时活动。本地回调中的 common 与资源操作保留真实父请求、原调用链及各方资格和范围交集；非 local 操作仍要求有效策略租约，不以本地授权替代。选择性生命周期和 fs/exec 档位确认覆盖继续实施。
+本地执行项不依赖短期策略租约；最大范围只列本组件入口与方法。本地请求的策略与放行/结果审计按同一 callId 关联。执行前复核绑定、授权及取消。已确认本地入口可与策略评估器、普通 common/资源/任务范围同时活动。本地回调中的 common 与资源操作保留真实父请求、原调用链及各方资格和范围交集；非 local 操作仍要求有效策略租约，不以本地授权替代。选择性生命周期与 fs/exec 档位确认覆盖已接入；原生项目启动继续失败关闭。
 
 ## 补充的项目与策略边界
 
-项目内已汇总确认组件的 fs 与受控 exec 可免单次确认；声明、同意、调用链交集、路径复核、策略 deny 与审计照旧，HTTPS、资源、MCP 不覆盖。该覆盖尚待接入。路线 A 已接入授权、绑定复核与启动时的目录句柄别名扫描，以及 Seatbelt 创建阶段的 link 和祖先目录保护；不是内核级 inode 防线。非后代进程运行期新增别名是已知风险，项目只适用于受信任目录；全后代容器未完成，项目启动仍不可用。
+项目内已汇总确认组件的 fs 与受控 exec 可免单次确认；声明、同意、调用链交集、路径复核、策略 deny 与审计照旧，HTTPS、资源、MCP 不覆盖。该覆盖已接入，逐次核对所有调用者的组件确认、项目 dev/ino、受控程序及其所有读写根；等待期间授权身份变化返回 LOCAL_COVERAGE_CHANGED，放行/结果审计保留 tier 与 localAuthorizationId。路线 A 已接入授权、绑定复核与启动时的目录句柄别名扫描，以及 Seatbelt 创建阶段的 link 和祖先目录保护；不是内核级 inode 防线。非后代进程运行期新增别名是已知风险，项目只适用于受信任目录；全后代容器未完成，项目启动仍不可用。
 
 策略 deny 不可被授权覆盖，allow 仅在可信最大范围内替代所需单次确认。补充契约要求策略超时、崩溃、失效或无效决定：本需单次确认时回退可信窗口，无确认环节时 POLICY_UNAVAILABLE；自动放行审计包含提供者身份与请求指纹。该分情形回退已接入，审计 reason 区分 POLICY_ALLOW/POLICY_DENY/POLICY_CONFIRM/POLICY_FAILED，确认事件保留回退原因；审计失败不执行。宿主不内置审查模型或自动批准开关。
 
 连接内部配置使用已保存的原始非秘密设置及秘密就绪状态；describeSettings 只作脱敏呈现，不参与绑定解析或授权指纹。通用 HTTPS 请求头接受 HTTP token 头名（含合法标点），拒绝换行、NUL 及 Host、Content-Length、Connection、Transfer-Encoding、Proxy-Authorization、Proxy-Connection；声明凭据覆盖同名输入头。MCP v2 接受 service/https/request 权限的已同意连接器，仍复核工具指纹、完整操作同意及调用链。
+
+
+项目配套包括真实工具链根探测、配置允许字段过滤、Agent/组件缓存管理和独立 CONNECT 代理。允许字段为 Git user.name/user.email/init.defaultBranch/core.autocrlf/core.eol/pull.rebase，npm registry/@scope:registry，cargo registries.<名称>.index/source.<名称>.replace-with/registry，pip global.index-url/global.extra-index-url/global.trusted-host。含认证的 URL 和认证、include、alias、hooks 字段不复制。配置显式安全读取、独立原子生成模块和手动凭据批准/撤销已有原生验证；配置、凭据、工具链、代理与缓存运行时接线尚未接入，详见 [engine.md](engine.md)。始终排除规则补入 .yarnrc、.config/pip、.pip 和 .cargo/config.toml，额外只读目录不能覆盖这些拒绝项。
+
+可信宿主可预留/释放本地凭据引用，以覆盖异步写入失败、授权 CAS 失败与卸载重试；这些 Core 管理方法不暴露给 SDK。批准绑定当前入口/主机及授权计划，值与转义值只存 SecretStore；授予/撤销审计不含值和物理路径。项目实际注入和完整容器仍未完成。
+
+本地凭据授予与撤销审计的 `localCredential` 只包含 packageId、engineId、声明 id 和 host；不包含值、密钥引用、配置内容或物理路径，文本仍脱敏并冻结。

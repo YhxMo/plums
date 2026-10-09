@@ -33,6 +33,11 @@ int main(int argc,char **argv) {
     if(next){int child=openat(parent,part,O_RDONLY|O_DIRECTORY|O_NOFOLLOW|O_CLOEXEC);if(child<0)fail();close(parent);parent=child;}else last=part;part=next;
   }
   if(!last)fail();
+  if(!strcmp(op,"mkdir")) {
+    if(mkdirat(parent,last,0700)&&errno!=EEXIST)fail();
+    int directory=openat(parent,last,O_RDONLY|O_DIRECTORY|O_NOFOLLOW|O_CLOEXEC);
+    if(directory<0)fail();close(directory);close(parent);close(rootfd);free(copy);return 0;
+  }
   if(!strcmp(op,"write")) {
     struct stat before,after;int existed=fstatat(parent,last,&before,AT_SYMLINK_NOFOLLOW)==0;
     if((!existed&&errno!=ENOENT)||(existed&&!S_ISREG(before.st_mode)))fail();
@@ -48,7 +53,7 @@ int main(int argc,char **argv) {
   }
   int flags=O_NOFOLLOW|O_NONBLOCK|O_CLOEXEC;
   if(!strcmp(op,"list"))flags|=O_RDONLY|O_DIRECTORY;
-  else if(!strcmp(op,"read"))flags|=O_RDONLY;
+  else if(!strcmp(op,"read")||!strcmp(op,"config-read"))flags|=O_RDONLY;
   else fail();
   int fd=openat(parent,last,flags,0600);if(fd<0)fail();struct stat st;if(fstat(fd,&st))fail();
   if(!strcmp(op,"list")) {
@@ -59,8 +64,11 @@ int main(int argc,char **argv) {
       json(S_ISREG(es.st_mode)?"file":S_ISDIR(es.st_mode)?"directory":S_ISLNK(es.st_mode)?"symlink":"other");putchar('}');
     }putchar(']');closedir(dir);
   } else {
-    if(!S_ISREG(st.st_mode))fail();char buf[65536];size_t total=0;ssize_t n;
-    while((n=read(fd,buf,sizeof(buf)))>0){total+=(size_t)n;if(total>LIMIT)fail();if(fwrite(buf,1,(size_t)n,stdout)!=(size_t)n)fail();}if(n<0)fail();
+    if(!S_ISREG(st.st_mode))fail();
+    size_t limit=LIMIT;
+    if(!strcmp(op,"config-read")){limit=128*1024;if(st.st_nlink!=1||st.st_size<0||(unsigned long long)st.st_size>limit)fail();}
+    char buf[65536];size_t total=0;ssize_t n;
+    while((n=read(fd,buf,sizeof(buf)))>0){total+=(size_t)n;if(total>limit)fail();if(fwrite(buf,1,(size_t)n,stdout)!=(size_t)n)fail();}if(n<0)fail();
     close(fd);
   }
   close(parent);close(rootfd);free(copy);return 0;

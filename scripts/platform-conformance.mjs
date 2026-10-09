@@ -35,6 +35,7 @@ export async function runProjectConformance({ nodePath } = {}) {
       profileDigest: result.profileDigest,
       probeDigest: result.probeDigest,
       cleanupCompleted: result.cleanupCompleted,
+      knownRisks: result.knownRisks,
       cases: [
         ...result.checks,
         {

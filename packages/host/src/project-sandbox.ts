@@ -68,6 +68,8 @@ export interface ProjectBoundaryReport {
   platform: string;
   arch: string;
   checks: readonly Readonly<{ id: string; status: "passed" | "failed" }>[];
+  /** Observed runtime aliases added by a non-descendant; never described as inode isolation. */
+  knownRisks: readonly Readonly<{ id: string; status: "passed" | "failed" }>[];
   profileDigest?: string;
   probeDigest?: string;
   cleanupCompleted: boolean;
@@ -83,6 +85,7 @@ const frozen = (r: ProjectBoundaryReport): ProjectBoundaryReport =>
   Object.freeze({
     ...r,
     checks: Object.freeze(r.checks.map((c) => Object.freeze({ ...c }))),
+    knownRisks: Object.freeze(r.knownRisks.map((c) => Object.freeze({ ...c }))),
   });
 const checkRuntime = async (configured: string): Promise<string> => {
   const node = await realpath(configured);
@@ -149,6 +152,7 @@ export class ProjectSandbox {
           platform: process.platform,
           arch: process.arch,
           checks: [],
+          knownRisks: [],
           cleanupCompleted: true,
         }),
       );
@@ -174,6 +178,7 @@ export class ProjectSandbox {
       platform: process.platform,
       arch: process.arch,
       checks: [],
+      knownRisks: [],
       cleanupCompleted: true,
     };
     if (process.platform !== "darwin" || process.arch !== "arm64")
@@ -408,6 +413,13 @@ export class ProjectSandbox {
           : "passed",
       });
       report.checks = checks;
+      report.knownRisks = checks.filter((c) =>
+        [
+          "readLateHardlink",
+          "writeLateHardlink",
+          "unchanged:outside/late-hard-data",
+        ].includes(c.id),
+      );
       report.status = checks.every((c) => c.status === "passed")
         ? "passed"
         : "failed";

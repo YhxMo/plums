@@ -10,6 +10,7 @@ if (process.platform === "darwin") {
     "controlled-probe",
     "project-probe",
     "project-scan",
+    "project-members",
   ])
     execFileSync(
       "clang",

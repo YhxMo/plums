@@ -34,6 +34,7 @@ async function fixture(
   credentialProbe = false,
   tier?: "project",
   authorized = true,
+  event?: import("../src/host.js").HostOptions["event"],
 ) {
   const dir = await mkdtemp(path.join(os.tmpdir(), "plums-engine-"));
   dirs.push(dir);
@@ -82,6 +83,7 @@ async function fixture(
     secrets = new Map<string, MemorySecretStore>();
   const confirm = { ask: vi.fn(async () => true) };
   const host = new DesktopHost({
+    event,
     dataDir: dir,
     confirm,
     fs,
@@ -399,7 +401,23 @@ it("refuses corrupted installed engine files before launch", async () => {
   );
 });
 it("cancels a cooperative task and keeps the trusted engine usable", async () => {
-  const f = await fixture();
+  let entered!: () => void;
+  const ready = new Promise<void>((r) => {
+    entered = r;
+  });
+  const f = await fixture(
+    undefined,
+    false,
+    undefined,
+    true,
+    (_id, _pkg, topic, data) => {
+      if (
+        topic === "engine.event" &&
+        (data as { topic?: string }).topic === "fixture.wait.started"
+      )
+        entered();
+    },
+  );
   await f.invoke("start");
   const task = f.invoke("run", {
     requestId: "cancellable",
@@ -410,7 +428,7 @@ it("cancels a cooperative task and keeps the trusted engine usable", async () =>
     code: "CAPABILITY_FAILED",
     details: { executionState: "completed" },
   });
-  await new Promise((r) => setTimeout(r, 100));
+  await ready;
   await f.host.engineCall(f.id, "engine-demo", "cancel", {
     engineId: "local",
     requestId: "cancellable",
@@ -419,7 +437,25 @@ it("cancels a cooperative task and keeps the trusted engine usable", async () =>
   expect(await f.invoke("status")).toMatchObject({ state: "running" });
 });
 it("enforces request and message limits; cancellation kills an unresponsive engine without replay", async () => {
-  const f = await fixture(simple);
+  let entered!: () => void;
+  const ready = new Promise<void>((r) => {
+    entered = r;
+  });
+  const f = await fixture(
+    `let received=0;${simple.replace("else if(m.method==='echo')", "else if(m.method==='run'){console.log(JSON.stringify({jsonrpc:'2.0',method:'engine.event',params:{topic:'fixture.received',data:++received}}));}else if(m.method==='echo')")}`,
+    false,
+    undefined,
+    true,
+    (_id, _pkg, topic, data) => {
+      const event = data as { topic?: string; data?: unknown };
+      if (
+        topic === "engine.event" &&
+        event.topic === "fixture.received" &&
+        event.data === 32
+      )
+        entered();
+    },
+  );
   await f.invoke("start");
   // The ordinary contribution still supplies the owning identity; run is unanswered by this fixture engine.
   const tasks = Array.from({ length: 32 }, (_, i) =>
@@ -431,7 +467,7 @@ it("enforces request and message limits; cancellation kills an unresponsive engi
     }),
   );
   const settled = Promise.allSettled(tasks);
-  await new Promise((r) => setTimeout(r, 100));
+  await ready;
   await expect(
     f.host.engineCall(f.id, "engine-demo", "request", {
       engineId: "local",

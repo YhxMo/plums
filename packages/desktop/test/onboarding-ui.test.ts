@@ -114,6 +114,7 @@ it("guides a ready Agent through configuration, keeps failed saves reviewable an
       (window as any).uiFixture = state;
       (window as any).manager = {
         async call(method: string, args?: any) {
+          if (method === "cacheStatus") return [];
           if (method === "agentState") return null;
           if (method === "agentStatus")
             return state.packages.every((p) => p.enabled)
@@ -392,6 +393,7 @@ it("keeps initial loading and failure distinct and rejects outdated Agent and li
       (window as any).shellFixture = state;
       (window as any).manager = {
         async call(method: string, args?: any) {
+          if (method === "cacheStatus") return [];
           if (method === "agentState") return null;
           if (method === "agentStatus") return "ready";
           if (method === "audit") return [];
@@ -629,6 +631,7 @@ it("renders the shell and dialogs in both themes at desktop and narrow widths wi
       };
       (window as any).manager = {
         async call(method: string) {
+          if (method === "cacheStatus") return [];
           if (method === "agentState") return null;
           if (method === "agentStatus") return "needs-config";
           if (method === "audit") return [];

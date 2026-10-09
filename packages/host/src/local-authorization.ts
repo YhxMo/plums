@@ -1,4 +1,16 @@
 import { checkProjectLinks } from "./project-links.js";
+import { readProjectConfiguration } from "./project-config-files.js";
+import {
+  prepareCredential,
+  credentialReferences,
+} from "./project-credentials.js";
+import { homedir } from "node:os";
+import {
+  detectToolchains,
+  type DetectedToolchain,
+  type ToolchainProbe,
+} from "./project-toolchain.js";
+import { collectConfiguration, type ReadConfig } from "./project-config.js";
 import { createHash, randomUUID } from "node:crypto";
 import { lstat, realpath } from "node:fs/promises";
 import path from "node:path";
@@ -42,6 +54,15 @@ export interface TierEntry {
     tier: "project" | "machine";
     hosts: string[];
     state: "confirmed" | "pending" | "tier-required";
+    toolchains: DetectedToolchain[];
+    configuration: AgentLocalGrant["configuration"];
+    credentials: {
+      id: string;
+      kind: import("@plums/core").LocalCredentialKind;
+      host: string;
+      reason?: string;
+      approved: boolean;
+    }[];
   }[];
 }
 export interface TierPlan {
@@ -108,6 +129,9 @@ function permissionDescription(
 }
 interface Options {
   dataDir: string;
+  homeDir?: string;
+  toolchainProbe?: ToolchainProbe;
+  configurationReader?: ReadConfig;
   confirm: Confirm;
   audit(s: Session, event: AuditEvent): Promise<void>;
   secrets(s: Session): Promise<string[]>;
@@ -116,9 +140,98 @@ interface Options {
 /** Trusted management only. No method on this service is bound into the SDK or a panel. */
 export class LocalAuthorizations {
   private changing = new Map<string, Set<string>>();
+  private configurations = new WeakMap<
+    Session,
+    AgentLocalGrant["configuration"]
+  >();
+  async refreshConfiguration(s: Session) {
+    const items = await readProjectConfiguration(
+      this.options.homeDir ?? homedir(),
+    );
+    this.configurations.set(s, items);
+  }
   constructor(private options: Options) {}
   assertAvailable(s: Session, packageId: string) {
     if (this.changing.get(s.record.instanceId)?.has(packageId)) changed();
+  }
+  async coverage(
+    s: Session,
+    input: Parameters<import("@plums/core").LocalCoverageCheck>[0],
+  ): Promise<import("@plums/core").LocalCoverage | undefined> {
+    if (input.request.kind !== "fs" && input.request.kind !== "exec") return;
+    const checkpoint = s.core.runtimeAccessCheckpoint(
+      input.principals.map((p) => p.packageId),
+    );
+    const state = await s.core.localAuthorizationState();
+    if (state.tier.ceiling === "sandbox") return;
+    for (const principal of input.principals) {
+      this.assertAvailable(s, principal.packageId);
+      const installed = (await s.core.listInstalled()).find(
+        (p) => p.id === principal.packageId,
+      );
+      const { manifest } = await s.core.getPackage(principal.packageId);
+      if (
+        !installed ||
+        !state.tier.components.some(
+          (c) =>
+            c.packageId === installed.id &&
+            c.installedAt === installed.installedAt &&
+            c.permissions === enginePermissionKey(manifest.permissions),
+        )
+      )
+        return;
+    }
+    const projects: LocalDirectory[] = [];
+    for (const saved of state.tier.projects) {
+      try {
+        const actual = await this.directory(s, saved.root);
+        if (enginePermissionKey(actual) !== enginePermissionKey(saved)) return;
+        projects.push(actual);
+      } catch {
+        return;
+      }
+    }
+    if (!projects.some((p) => within(p.path, input.rootPath))) return;
+    if (input.request.kind === "exec") {
+      for (const principal of input.principals) {
+        const { manifest } = await s.core.getPackage(principal.packageId);
+        const permission = manifest.permissions.find(
+          (p) => p.id === principal.permissionId,
+        );
+        if (
+          !permission ||
+          !("kind" in permission) ||
+          permission.kind !== "exec"
+        )
+          return;
+        const binding = s.record.controlledPrograms?.[permission.target];
+        if (!binding || binding.program !== input.program) return;
+        for (const root of [...binding.reads, ...binding.writes]) {
+          try {
+            const actual = await this.directory(s, root),
+              saved = binding.rootIdentities[root];
+            if (
+              !saved ||
+              String(saved.dev) !== actual.dev ||
+              String(saved.ino) !== actual.ino ||
+              !projects.some((p) => within(p.path, actual.path))
+            )
+              return;
+          } catch {
+            return;
+          }
+        }
+      }
+    }
+    const latest = await s.core.localAuthorizationState();
+    checkpoint.assertCurrent();
+    if (enginePermissionKey(latest) !== enginePermissionKey(state)) return;
+    return {
+      tier: state.tier.ceiling,
+      authorizationId: createHash("sha256")
+        .update(enginePermissionKey([state.revision, state.tier]))
+        .digest("hex"),
+    };
   }
   private async directory(
     s: Session,
@@ -174,6 +287,7 @@ export class LocalAuthorizations {
     phase: "grant" | "revoke",
     callId: string,
     outcome: "allowed" | "denied" | "failed" = "allowed",
+    localCredential?: AuditEvent["localCredential"],
   ) {
     const event: AuditEvent = {
       callId,
@@ -185,6 +299,7 @@ export class LocalAuthorizations {
       executionState: "not_started",
       reason,
       tier: next.tier.ceiling,
+      ...(localCredential ? { localCredential: { ...localCredential } } : {}),
       localScope: {
         roots: [
           ...new Set(
@@ -217,6 +332,7 @@ export class LocalAuthorizations {
       event,
       await this.options.secrets(s),
     );
+    if (safe.localCredential) Object.freeze(safe.localCredential);
     if (safe.localScope) {
       Object.values(safe.localScope).forEach((v) => {
         if (Array.isArray(v)) Object.freeze(v);
@@ -317,9 +433,6 @@ export class LocalAuthorizations {
             (p): p is EnginePermission => p.kind === "engine",
           )
         : [];
-      const tier = engines.some((e) => (e.tier ?? "machine") === "machine")
-        ? "machine"
-        : "project";
       entries.push({
         packageId: p.id,
         name: p.name,
@@ -331,39 +444,81 @@ export class LocalAuthorizations {
             c.permissions === enginePermissionKey(manifest.permissions),
         ),
         permissions: manifest.permissions,
-        engines: engines.map((e) => {
-          const hosts = selection.hosts?.[p.id]?.[e.target] ?? [];
-          if (
-            !Array.isArray(hosts) ||
-            new Set(hosts).size !== hosts.length ||
-            hosts.some((h) => !e.network?.hosts.includes(h))
-          )
-            changed();
-          const saved = current.grants.find(
-            (g) => g.packageId === p.id && g.engineId === e.target,
-          );
-          const sameScope =
-            enginePermissionKey(saved?.hosts) === enginePermissionKey(hosts) &&
-            (tier === "machine" ||
-              enginePermissionKey([
-                current.tier.projects,
-                current.tier.readOnly,
-              ]) === enginePermissionKey([projects, readOnly]));
-          return {
-            engineId: e.target,
-            tier,
-            hosts,
-            state:
-              levels[tier] > levels[selection.ceiling]
-                ? "tier-required"
-                : saved?.installedAt === p.installedAt &&
-                    saved.permission === enginePermissionKey(e) &&
-                    saved.tier === tier &&
-                    sameScope
-                  ? "confirmed"
-                  : "pending",
-          };
-        }),
+        engines: await Promise.all(
+          engines.map(async (e) => {
+            const tier = e.tier ?? "machine";
+            const toolchains =
+              tier === "project" && selection.ceiling !== "sandbox"
+                ? await detectToolchains(e.toolchains ?? [], {
+                    homeDir: this.options.homeDir ?? homedir(),
+                    probe: this.options.toolchainProbe,
+                  })
+                : [];
+            const configuration =
+              tier === "project"
+                ? this.options.configurationReader
+                  ? await collectConfiguration(this.options.configurationReader)
+                  : (this.configurations.get(s) ??
+                    current.grants.find(
+                      (g) => g.packageId === p.id && g.engineId === e.target,
+                    )?.configuration ??
+                    [])
+                : [];
+            const hosts = selection.hosts?.[p.id]?.[e.target] ?? [];
+            if (
+              !Array.isArray(hosts) ||
+              new Set(hosts).size !== hosts.length ||
+              hosts.some((h) => !e.network?.hosts.includes(h))
+            )
+              changed();
+            const saved = current.grants.find(
+              (g) => g.packageId === p.id && g.engineId === e.target,
+            );
+            const sameScope =
+              enginePermissionKey(saved?.hosts) ===
+                enginePermissionKey(hosts) &&
+              enginePermissionKey(saved?.toolchains ?? []) ===
+                enginePermissionKey(
+                  toolchains
+                    .filter((t) => t.found)
+                    .map(({ name, root, executable }) => ({
+                      name,
+                      root,
+                      executable,
+                    })),
+                ) &&
+              enginePermissionKey(saved?.configuration ?? []) ===
+                enginePermissionKey(configuration) &&
+              (tier === "machine" ||
+                enginePermissionKey([
+                  current.tier.projects,
+                  current.tier.readOnly,
+                ]) === enginePermissionKey([projects, readOnly]));
+            return {
+              engineId: e.target,
+              tier,
+              hosts,
+              toolchains,
+              configuration,
+              credentials: (e.credentials ?? []).map((c) => ({
+                ...c,
+                approved: !!saved?.credentials.some(
+                  (x) =>
+                    x.id === c.id && x.kind === c.kind && x.host === c.host,
+                ),
+              })),
+              state:
+                levels[tier] > levels[selection.ceiling]
+                  ? "tier-required"
+                  : saved?.installedAt === p.installedAt &&
+                      saved.permission === enginePermissionKey(e) &&
+                      saved.tier === tier &&
+                      sameScope
+                    ? "confirmed"
+                    : "pending",
+            };
+          }),
+        ),
       });
     }
     if (
@@ -437,8 +592,10 @@ export class LocalAuthorizations {
           permission: enginePermissionKey(permission),
           tier: e.tier,
           hosts: e.hosts,
-          toolchains: unchanged ? saved.toolchains : [],
-          configuration: unchanged ? saved.configuration : [],
+          toolchains: e.toolchains
+            .filter((t) => t.found)
+            .map(({ name, root, executable }) => ({ name, root, executable })),
+          configuration: e.configuration,
           credentials: unchanged
             ? saved.credentials.filter((c) => e.hosts.includes(c.host))
             : [],
@@ -499,6 +656,18 @@ export class LocalAuthorizations {
             `“${e.name}”声明：${permissionDescription(p, e.formatVersion)}`,
         ),
       ),
+      ...selected.flatMap((e) =>
+        e.engines.flatMap((g) => [
+          ...g.toolchains.map(
+            (t) =>
+              `${e.name} / ${g.engineId} 工具链 ${t.name}：${t.found ? t.root : "未找到或无法确定安全安装位置"}。`,
+          ),
+          ...g.configuration.map(
+            (c) =>
+              `${e.name} / ${g.engineId} 配置 ${c.tool}.${c.field}=${c.value}。`,
+          ),
+        ]),
+      ),
     ].join("\n");
     const request = presentLocalAuthorizationConfirmation(
       {
@@ -552,6 +721,211 @@ export class LocalAuthorizations {
       },
     );
     return true;
+  }
+  async credentialPlan(
+    s: Session,
+    fingerprint: string,
+    packageId: string,
+    engineId: string,
+    credentialId: string,
+  ) {
+    const plan = await this.plan(s);
+    if (plan.fingerprint !== fingerprint) changed();
+    const entry = plan.entries.find((e) => e.packageId === packageId),
+      engine = entry?.engines.find((e) => e.engineId === engineId);
+    const permission = entry?.permissions.find(
+      (p): p is EnginePermission =>
+        "kind" in p && p.kind === "engine" && p.target === engineId,
+    );
+    const declaration = permission?.credentials?.find(
+      (c) => c.id === credentialId,
+    );
+    const grant = plan.current.grants.find(
+      (g) => g.packageId === packageId && g.engineId === engineId,
+    );
+    if (
+      !declaration ||
+      !grant ||
+      engine?.state !== "confirmed" ||
+      grant.tier !== "project" ||
+      !grant.hosts.includes(declaration.host)
+    )
+      changed();
+    return { plan, declaration, grant };
+  }
+  async askCredential(
+    s: Session,
+    fingerprint: string,
+    packageId: string,
+    engineId: string,
+    credentialId: string,
+  ): Promise<boolean> {
+    const { declaration } = await this.credentialPlan(
+      s,
+      fingerprint,
+      packageId,
+      engineId,
+      credentialId,
+    );
+    const message = `批准 ${packageId} / ${engineId} 的 ${declaration.kind} 凭据，主机 ${declaration.host}。用途：${declaration.reason ?? "未声明用途"}。令牌注入后扩展代码可以读到它，只能发往已批准主机或写进项目目录。项目运行当前不可用。`;
+    return confirmOnce(
+      this.options.confirm,
+      presentLocalAuthorizationConfirmation(
+        {
+          presentation: "local-authorization",
+          subject: s.record.name,
+          action: message,
+          message,
+        },
+        await this.options.secrets(s),
+      ),
+      s.controller.signal,
+    );
+  }
+  private async deleteCredentialValues(
+    s: Session,
+    refs: string[],
+  ): Promise<void> {
+    const results = await Promise.allSettled(
+      refs.map((ref) => s.secrets.delete(ref)),
+    );
+    if (results.some((r) => r.status === "rejected"))
+      throw new PlumsError({
+        code: "SECRET_NOT_FOUND",
+        message: "凭据清理未完成。",
+        details: { reason: "SECRET_CLEANUP_FAILED" },
+      });
+  }
+  async provideCredential(
+    s: Session,
+    fingerprint: string,
+    packageId: string,
+    engineId: string,
+    credentialId: string,
+    value: string,
+    username?: string,
+  ): Promise<void> {
+    const { plan, declaration, grant } = await this.credentialPlan(
+      s,
+      fingerprint,
+      packageId,
+      engineId,
+      credentialId,
+    );
+    const { credential, values } = prepareCredential(
+        packageId,
+        declaration,
+        value,
+        username,
+      ),
+      refs = values.map(([ref]) => ref);
+    if (
+      !(await s.core.reserveLocalCredentialReferences(
+        packageId,
+        grant.installedAt,
+        refs,
+      ))
+    )
+      changed();
+    let committed = false;
+    try {
+      for (const [ref, text] of values) await s.secrets.set(ref, text);
+      const next: LocalAuthorizationCommit = {
+        ...plan.current,
+        assembly: await this.assembly(s),
+        grants: plan.current.grants.map((g) =>
+          g === grant
+            ? {
+                ...g,
+                credentials: [
+                  ...g.credentials.filter((c) => c.id !== credentialId),
+                  credential,
+                ],
+                authorizationId: randomUUID(),
+              }
+            : g,
+        ),
+      };
+      await this.replace(
+        s,
+        plan.current,
+        next,
+        "LOCAL_CREDENTIAL_GRANTED",
+        "grant",
+        undefined,
+        { packageId, engineId, id: credentialId, host: declaration.host },
+      );
+      committed = true;
+      await s.core.releaseLocalCredentialReferences(
+        packageId,
+        grant.installedAt,
+        refs,
+      );
+      await this.deleteCredentialValues(
+        s,
+        grant.credentials
+          .filter((c) => c.id === credentialId)
+          .flatMap(credentialReferences),
+      );
+    } catch (error) {
+      // A commit may have succeeded before later cleanup/audit failed. Never erase committed values.
+      committed ||= (await s.core.localAuthorizationState()).grants.some((g) =>
+        g.credentials.some((c) => c.secretRef === credential.secretRef),
+      );
+      if (!committed) {
+        await this.deleteCredentialValues(s, refs);
+        await s.core.releaseLocalCredentialReferences(
+          packageId,
+          grant.installedAt,
+          refs,
+        );
+      }
+      if (error instanceof PlumsError) throw error;
+      throw new PlumsError({
+        code: "CAPABILITY_FAILED",
+        message: "凭据未能保存。",
+        details: {
+          reason: "LOCAL_CREDENTIAL_WRITE_FAILED",
+          executionState: "not_started",
+        },
+      });
+    }
+  }
+  async revokeCredential(
+    s: Session,
+    packageId: string,
+    engineId: string,
+    credentialId: string,
+  ): Promise<void> {
+    const current = await s.core.localAuthorizationState(),
+      grant = current.grants.find(
+        (g) => g.packageId === packageId && g.engineId === engineId,
+      );
+    const old = grant?.credentials.find((c) => c.id === credentialId);
+    if (!grant || !old) changed();
+    const next: LocalAuthorizationCommit = {
+      ...current,
+      assembly: await this.assembly(s),
+      grants: current.grants.map((g) =>
+        g === grant
+          ? {
+              ...g,
+              credentials: g.credentials.filter((c) => c.id !== credentialId),
+              authorizationId: randomUUID(),
+            }
+          : g,
+      ),
+    };
+    await this.replace(
+      s,
+      current,
+      next,
+      "LOCAL_CREDENTIAL_REVOKED",
+      "revoke",
+      undefined,
+      { packageId, engineId, id: credentialId, host: old.host },
+    );
+    await this.deleteCredentialValues(s, credentialReferences(old));
   }
   async lower(s: Session, ceiling: AgentTierCeiling): Promise<void> {
     const current = await s.core.localAuthorizationState();
@@ -632,6 +1006,7 @@ export class LocalAuthorizations {
     reason: string,
     phase: "grant" | "revoke",
     recheck?: () => Promise<void>,
+    localCredential?: AuditEvent["localCredential"],
   ) {
     const callId = randomUUID();
     next.tier.components = next.tier.components.filter((c) =>
@@ -660,7 +1035,16 @@ export class LocalAuthorizations {
     this.changing.set(s.record.instanceId, new Set(affected));
     try {
       try {
-        await this.event(s, current, next, reason, phase, callId);
+        await this.event(
+          s,
+          current,
+          next,
+          reason,
+          phase,
+          callId,
+          "allowed",
+          localCredential,
+        );
       } catch {
         failed("local_authorization_audit", callId);
       }
@@ -697,6 +1081,7 @@ export class LocalAuthorizations {
           phase,
           callId,
           "failed",
+          localCredential,
         );
         failed("local_authorization_commit", callId);
       }
@@ -709,6 +1094,7 @@ export class LocalAuthorizations {
           phase,
           callId,
           "failed",
+          localCredential,
         );
         changed();
       }
