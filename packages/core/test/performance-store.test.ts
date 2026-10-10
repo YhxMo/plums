@@ -19,7 +19,7 @@ import {
   type CapabilityRequest,
   type Core,
   type CreateCoreOptions,
-} from "@plums/core";
+} from "@plumsjs/core";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   expectPlumsError,

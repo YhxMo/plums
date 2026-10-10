@@ -9,8 +9,8 @@ import {
   type PanelPost,
   type PanelMessage,
   type PanelLayout,
-} from "@plums/sdk";
-import type { PackageFiles } from "@plums/core";
+} from "@plumsjs/sdk";
+import type { PackageFiles } from "@plumsjs/core";
 import {
   protocolPlan,
   protocolFingerprint,

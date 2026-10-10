@@ -17,12 +17,12 @@ import {
   MemorySecretStore,
   RecordingEgressSink,
   validatePackage,
-} from "@plums/core";
+} from "@plumsjs/core";
 import {
   desktopContribution,
   type FoundationRequirement,
   type FoundationProvider,
-} from "@plums/sdk";
+} from "@plumsjs/sdk";
 import {
   startFoundationSession,
   createFoundationSession,

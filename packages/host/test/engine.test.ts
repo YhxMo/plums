@@ -10,7 +10,7 @@ import {
   MemorySecretStore,
   RecordingEgressSink,
   RecordingFsSink,
-} from "@plums/core";
+} from "@plumsjs/core";
 import { InstallStore } from "../../core/src/install/store.js";
 import { DesktopHost } from "../src/host.js";
 import { EngineManager, type EngineHooks } from "../src/engine-manager.js";

@@ -10,7 +10,7 @@ import {
   type Core,
   type Manifest,
   type Permission,
-} from "@plums/core";
+} from "@plumsjs/core";
 import { afterEach, describe, expect, it } from "vitest";
 import {
   expectPlumsError,

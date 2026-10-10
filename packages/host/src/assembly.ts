@@ -2,12 +2,12 @@ import { protocolPlan } from "./protocol-bindings.js";
 import { digest, importInvalid } from "./library.js";
 import { readFile, writeFile, mkdir, rename, rm } from "node:fs/promises";
 import path from "node:path";
-import { type Core, type PackageFiles } from "@plums/core";
+import { type Core, type PackageFiles } from "@plumsjs/core";
 import {
   createAgentBundle,
   safePath,
   portableProtocolIntent,
-} from "@plums/sdk";
+} from "@plumsjs/sdk";
 import type { AgentRecord } from "./host.js";
 import type { LibraryItem } from "./library.js";
 export function checkRecordVersion(record: AgentRecord): void {

@@ -1,7 +1,7 @@
 import { describe, it, expect, afterEach, vi } from "vitest";
 import { ExtensionRuntime } from "../src/runtime.js";
 import type { RuntimeBridge } from "../src/foundation-runtime.js";
-import { CAPABILITY_FAILED, PlumsError } from "@plums/core";
+import { CAPABILITY_FAILED, PlumsError } from "@plumsjs/core";
 const runtimes: ExtensionRuntime[] = [];
 afterEach(async () => {
   vi.useRealTimers();

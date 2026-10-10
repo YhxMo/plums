@@ -2,7 +2,7 @@ import { readFile, readdir } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { deflateSync } from "node:zlib";
-import { createArchive, type ManifestV2 } from "@plums/core";
+import { createArchive, type ManifestV2 } from "@plumsjs/core";
 
 export const fixturesDirectory = fileURLToPath(new URL("./", import.meta.url));
 function fixturePath(name: string): string {

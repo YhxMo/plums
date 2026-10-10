@@ -1,5 +1,5 @@
 import { Ajv, type ValidateFunction } from "ajv";
-import { PlumsError, IMPORT_INVALID, CAPABILITY_FAILED } from "@plums/core";
+import { PlumsError, IMPORT_INVALID, CAPABILITY_FAILED } from "@plumsjs/core";
 
 // Draft-07, synchronous local schemas. No coercion, defaults or remote loading.
 const ajv = new Ajv({ strict: true, allErrors: false, validateFormats: false });

@@ -16,8 +16,8 @@ import {
   IMPORT_INVALID,
   type PackageContents,
   type Manifest,
-} from "@plums/core";
-import { desktopContribution } from "@plums/sdk";
+} from "@plumsjs/core";
+import { desktopContribution } from "@plumsjs/sdk";
 export interface LibraryItem {
   digest: string;
   manifest: Manifest;

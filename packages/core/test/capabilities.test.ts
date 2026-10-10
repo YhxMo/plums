@@ -30,7 +30,7 @@ import {
   type Core,
   type CreateCoreOptions,
   type ManifestV2,
-} from "@plums/core";
+} from "@plumsjs/core";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   expectPlumsError,

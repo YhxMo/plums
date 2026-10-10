@@ -8,7 +8,7 @@ import {
   type DesktopContribution,
   type PanelDeclaration,
 } from "../src/index.js";
-import { createArchive, type ManifestV2 } from "@plums/core";
+import { createArchive, type ManifestV2 } from "@plumsjs/core";
 
 const panel: PanelDeclaration = {
   id: "board",

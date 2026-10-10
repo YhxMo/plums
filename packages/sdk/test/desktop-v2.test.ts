@@ -4,7 +4,7 @@ import {
   validatePackage,
   IMPORT_INVALID,
   type ManifestV2,
-} from "@plums/core";
+} from "@plumsjs/core";
 import { desktopContribution } from "../src/index.js";
 
 const field = {

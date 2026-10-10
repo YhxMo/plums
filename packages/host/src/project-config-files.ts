@@ -2,7 +2,7 @@ import { existsSync } from "node:fs";
 import { lstat, realpath } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
-import { PlumsError, type AgentLocalGrant } from "@plums/core";
+import { PlumsError, type AgentLocalGrant } from "@plumsjs/core";
 import { SecureFsSink } from "./io.js";
 import {
   collectConfiguration,

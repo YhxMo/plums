@@ -4,7 +4,7 @@ import {
   REDACTED,
   SECRET_NOT_FOUND,
   redact,
-} from "@plums/core";
+} from "@plumsjs/core";
 import { describe, expect, it } from "vitest";
 
 const secret = "sk-live-EXAMPLE";

@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { IMPORT_INVALID, PlumsError, type Manifest } from "@plums/core";
+import { IMPORT_INVALID, PlumsError, type Manifest } from "@plumsjs/core";
 import { desktopContribution } from "./index.js";
 import {
   checkProtocolCompatibility,

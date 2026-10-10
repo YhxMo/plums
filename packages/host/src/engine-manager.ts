@@ -2,8 +2,8 @@ import { existsSync } from "node:fs";
 import { fork, type ChildProcess } from "node:child_process";
 import { randomUUID } from "node:crypto";
 import { fileURLToPath } from "node:url";
-import { PlumsError, CAPABILITY_FAILED, PERMISSION_DENIED } from "@plums/core";
-import type { EngineStatus } from "@plums/sdk";
+import { PlumsError, CAPABILITY_FAILED, PERMISSION_DENIED } from "@plumsjs/core";
+import type { EngineStatus } from "@plumsjs/sdk";
 const MAX_MESSAGE = 1024 * 1024;
 function failed(
   callId: string,
@@ -43,7 +43,7 @@ export interface EngineHooks {
   prepare(signal: AbortSignal): Promise<{
     entry: string;
     cwd: string;
-    context?: import("@plums/sdk").EngineRuntimeContext;
+    context?: import("@plumsjs/sdk").EngineRuntimeContext;
   }>;
   active(): Promise<void | { fingerprint: string }>;
   /** Final synchronous check after async authorization and immediately before dispatch. */

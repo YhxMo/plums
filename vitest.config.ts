@@ -114,9 +114,9 @@ export default defineConfig({
   },
   resolve: {
     alias: {
-      "@plums/core": path.join(root, "packages/core/src/index.ts"),
-      "@plums/sdk/settings": path.join(root, "packages/sdk/src/settings.ts"),
-      "@plums/sdk": path.join(root, "packages/sdk/src/index.ts"),
+      "@plumsjs/core": path.join(root, "packages/core/src/index.ts"),
+      "@plumsjs/sdk/settings": path.join(root, "packages/sdk/src/settings.ts"),
+      "@plumsjs/sdk": path.join(root, "packages/sdk/src/index.ts"),
     },
   },
 });

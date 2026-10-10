@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
-import type { DesktopHost, ResourceRangeSelection } from "@plums/host";
-import type { ResourceOperation } from "@plums/sdk";
+import type { DesktopHost, ResourceRangeSelection } from "@plumsjs/host";
+import type { ResourceOperation } from "@plumsjs/sdk";
 import { useAction } from "../hooks/useAction.js";
 type Plan = Awaited<ReturnType<DesktopHost["resourcePlan"]>>;
 const ops: ResourceOperation[] = ["read", "write", "delete"];

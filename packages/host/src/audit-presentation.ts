@@ -1,4 +1,4 @@
-import { redact, type AuditEvent } from "@plums/core";
+import { redact, type AuditEvent } from "@plumsjs/core";
 
 type Projection =
   | boolean

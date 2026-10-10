@@ -1,6 +1,6 @@
 import { it, expect } from "vitest";
 import { desktopContribution } from "../src/index.js";
-import type { ManifestV2 } from "@plums/core";
+import type { ManifestV2 } from "@plumsjs/core";
 const manifest: ManifestV2 = {
   formatVersion: "2.0",
   kind: "extension",

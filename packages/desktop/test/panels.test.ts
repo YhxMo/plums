@@ -5,7 +5,7 @@ import { mkdtemp, rm, cp, mkdir, symlink, writeFile } from "node:fs/promises";
 import { createServer } from "node:http";
 import os from "node:os";
 import path from "node:path";
-import { createArchive, MemorySecretStore, type ManifestV2 } from "@plums/core";
+import { createArchive, MemorySecretStore, type ManifestV2 } from "@plumsjs/core";
 import { DesktopHost } from "../../host/src/host.js";
 
 it("displays isolated bound panels, authenticates student messages and rejects network/navigation and expired view identities across screen lifecycles", async () => {

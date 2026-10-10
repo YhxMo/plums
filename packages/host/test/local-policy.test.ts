@@ -7,7 +7,7 @@ import {
   MemorySecretStore,
   RecordingEgressSink,
   type AuditEvent,
-} from "@plums/core";
+} from "@plumsjs/core";
 import { DesktopHost, type HostOptions } from "../src/host.js";
 import { engineManifest } from "./platform-fixtures.js";
 import { addPolicy, select } from "./policy-fixture.js";

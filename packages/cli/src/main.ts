@@ -12,7 +12,7 @@ import {
   createCore,
   type Core,
   type ImportedPackage,
-} from "@plums/core";
+} from "@plumsjs/core";
 
 export interface CliResult {
   exitCode: number;

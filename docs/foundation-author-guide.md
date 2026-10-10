@@ -57,7 +57,7 @@ import {
   registerLibraryFoundation,
   createFoundationSession,
   type HostFoundationSession,
-} from "@plums/host";
+} from "@plumsjs/host";
 
 const preview = (await host.preview(providerZip)) as { token: string };
 const item = await host.importLibrary(preview.token);

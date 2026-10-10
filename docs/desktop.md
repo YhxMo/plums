@@ -91,7 +91,7 @@ Agent 详情页可绑定、更换或解除组件声明的逻辑目录名（示�
 
 ## 桌面声明和 SDK v1
 
-宿主与管理界面共用 `@plums/sdk/settings` 的 `missingRequiredSettings(description)` 判断必填配置缺项。该纯函数接收 core 的 `SettingsDescription`，按密钥配置标记、缺值和空白字符串判断；`false` 与 `0` 是有效值。此入口可在浏览器中使用，无需加载组合包的 Node.js I/O；实际设置仍由 core 校验。
+宿主与管理界面共用 `@plumsjs/sdk/settings` 的 `missingRequiredSettings(description)` 判断必填配置缺项。该纯函数接收 core 的 `SettingsDescription`，按密钥配置标记、缺值和空白字符串判断；`false` 与 `0` 是有效值。此入口可在浏览器中使用，无需加载组合包的 Node.js I/O；实际设置仍由 core 校验。
 
 组件在自己的 payload 命名空间登记：
 
@@ -130,7 +130,7 @@ export function activate(sdk) {
 }
 ```
 
-SDK 包 `@plums/sdk` 提供类型、声明验证、组合包创建与验证。运行时 SDK 包含 `register`、`invoke(packageId, kind, name, input)`、`capability(permissionId, request, mcpTool?)`、`character(packageId?)`、`characters()`、`settings`、`emit`、`onEvent(topic, handler)`、`mcpCheck`。SDK v2 的 `protocols.status/invoke` 通过管理窗口选择的固定连接调用提供者，旧 `invoke` 仍只访问声明的具体依赖；两条路径都不能循环；调用深度最多 16，I/O 权限按完整调用链交集授权。事件只投递当前实例已启动的扩展；处理事件时保留发布者调用链，事件不能提高接收方权限。`characters()` 只返回当前 Agent 已启用角色卡的 id、名称和版本；`character(id?)` 读取已启用卡的原始 payload，省略 id 读取默认卡，没有可用默认卡时返回 null，显式读取未启用/其他 Agent 的卡被拒绝。参数不能选择其他实例或覆盖宿主身份。
+SDK 包 `@plumsjs/sdk` 提供类型、声明验证、组合包创建与验证。运行时 SDK 包含 `register`、`invoke(packageId, kind, name, input)`、`capability(permissionId, request, mcpTool?)`、`character(packageId?)`、`characters()`、`settings`、`emit`、`onEvent(topic, handler)`、`mcpCheck`。SDK v2 的 `protocols.status/invoke` 通过管理窗口选择的固定连接调用提供者，旧 `invoke` 仍只访问声明的具体依赖；两条路径都不能循环；调用深度最多 16，I/O 权限按完整调用链交集授权。事件只投递当前实例已启动的扩展；处理事件时保留发布者调用链，事件不能提高接收方权限。`characters()` 只返回当前 Agent 已启用角色卡的 id、名称和版本；`character(id?)` 读取已启用卡的原始 payload，省略 id 读取默认卡，没有可用默认卡时返回 null，显式读取未启用/其他 Agent 的卡被拒绝。参数不能选择其他实例或覆盖宿主身份。
 
 前端为任意框架的构建后 HTML/CSS/JS。页面使用 `window.plums`：`context()`、`invoke(kind,name,input,packageId?)`、`onEvent(callback)`、`cancel()`、`openManager()`。它只拥有当前实例及当前前端扩展的身份，没有管理 IPC、文件、密钥或直接联网接口。
 
@@ -207,3 +207,13 @@ Agent 管理页按组件显示声明的后台开关、真实任务状态、停�
 项目配套区提供真实自检和可信凭据批准/撤销，失败检查显示通过数且继续禁用项目启动。凭据输入为密码字段，提交时立即清空，确认窗只显示 kind/主机/用途并说明令牌可被扩展读取；值不回显。配置只在用户点击“读取配置允许字段”时安全读取，变化后需重新汇总确认。缓存查询与清空已验证 macOS 原生路径，清空先停止受影响组件。项目 launcher、配置/缓存/工具链/代理/凭据运行时注入尚未完成，管理操作通过不能算作项目运行验收。
 
 等待汇总确认期间增加或移除组件，使旧计划返回 `PERMISSION_DENIED / LOCAL_AUTHORIZATION_CHANGED`；同一组件升级导致旧确认取消并返回 false。两者均不提交迟到授权。停止并撤权在关闭相关界面前保留 taskId，撤销审计关联原任务。
+
+## 随包许可证
+
+`Plums.app/Contents/Resources/` 随附项目的 `LICENSE`、`NOTICE`，生产依赖全文
+`THIRD_PARTY_NOTICES.txt`、Electron 的 `LICENSE.electron`、Chromium 的
+`LICENSES.chromium.html` 和 Node 的 `node/LICENSE`。声明生成器按安装的生产依赖
+闭包和锁文件核对版本、许可证白名单及许可证文件；开发工具不进入声明。
+打包在 ad-hoc 签名之前写入这些文件，DMG 生成前的清单门拒绝缺项，
+并继续拒绝测试夹具和实验 helper。独立 Node 的声明包含 V8 等捆绑依赖，
+SQLite 的公有领域说明随第三方声明一起提供。

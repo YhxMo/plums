@@ -1,11 +1,11 @@
-import type { AgentRecord, LibraryItem } from "@plums/host";
+import type { AgentRecord, LibraryItem } from "@plumsjs/host";
 import type {
   Manifest,
   InstalledPackage,
   SettingsDescription,
   McpTool,
-} from "@plums/core";
-import type { DesktopContribution, EngineStatus } from "@plums/sdk";
+} from "@plumsjs/core";
+import type { DesktopContribution, EngineStatus } from "@plumsjs/sdk";
 
 export type Resource = InstalledPackage & {
   manifest: Manifest;
@@ -22,12 +22,12 @@ export type CatalogItem = LibraryItem & {
   missingDependencies: { id: string; range: string }[];
 };
 export interface AssemblyDraft {
-  foundation?: import("@plums/sdk").FoundationAgent;
+  foundation?: import("@plumsjs/sdk").FoundationAgent;
   name: string;
   digests: string[];
   characterId?: string;
   startup?: string;
-  protocolBindings?: import("@plums/sdk").ProtocolBindingIntent[];
+  protocolBindings?: import("@plumsjs/sdk").ProtocolBindingIntent[];
 }
 export interface AgentDetail {
   record: AgentRecord;

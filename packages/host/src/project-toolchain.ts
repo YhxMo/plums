@@ -3,7 +3,7 @@ import { access, realpath } from "node:fs/promises";
 import { constants } from "node:fs";
 import path from "node:path";
 import { promisify } from "node:util";
-import type { LocalToolchain } from "@plums/core";
+import type { LocalToolchain } from "@plumsjs/core";
 import { PROJECT_EXCLUDED } from "./project-profile.js";
 
 export interface DetectedToolchain {

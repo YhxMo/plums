@@ -5,7 +5,7 @@ import net from "node:net";
 import path from "node:path";
 import { AsyncLocalStorage } from "node:async_hooks";
 import { fileURLToPath } from "node:url";
-import { SinkFailure } from "@plums/core";
+import { SinkFailure } from "@plumsjs/core";
 import type {
   EgressSink,
   EgressRequest,
@@ -14,13 +14,13 @@ import type {
   FsLocation,
   FsEntry,
   SecretStore,
-} from "@plums/core";
-import type { DesktopContribution } from "@plums/sdk";
+} from "@plumsjs/core";
+import type { DesktopContribution } from "@plumsjs/sdk";
 
 export interface IoContext {
   signal: AbortSignal;
   invocation?: import("./runtime.js").InvocationContext;
-  mcpTool?: import("@plums/core").McpTool;
+  mcpTool?: import("@plumsjs/core").McpTool;
   packageId: string;
   permissionId: string;
   contribution?: DesktopContribution;

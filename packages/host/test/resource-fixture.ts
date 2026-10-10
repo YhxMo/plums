@@ -1,9 +1,9 @@
 import { DesktopHost, type HostOptions } from "../src/host.js";
-import { createArchive, MemorySecretStore, type ManifestV2 } from "@plums/core";
+import { createArchive, MemorySecretStore, type ManifestV2 } from "@plumsjs/core";
 import { mkdtemp } from "node:fs/promises";
 import path from "node:path";
 import os from "node:os";
-import type { ResourceOperation } from "@plums/sdk";
+import type { ResourceOperation } from "@plumsjs/sdk";
 export const allOps: ResourceOperation[] = ["read", "write", "delete"];
 export const providerManifest: ManifestV2 = {
   formatVersion: "2.0",

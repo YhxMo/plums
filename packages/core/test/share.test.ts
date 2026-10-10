@@ -8,7 +8,7 @@ import {
   secretRef,
   type EgressRequest,
   type EgressResult,
-} from "@plums/core";
+} from "@plumsjs/core";
 import { describe, expect, it } from "vitest";
 import {
   buildZip,

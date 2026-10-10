@@ -4,7 +4,7 @@ import {
   desktopContribution,
   type FoundationProvider,
   type FoundationSelection,
-} from "@plums/sdk";
+} from "@plumsjs/sdk";
 import { ComponentLibrary } from "./library.js";
 import {
   FoundationRegistry,

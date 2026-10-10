@@ -7,7 +7,7 @@ import {
   type ResourceAccessInput,
   type ResourceAccessCheckpoint,
   type InstalledPackage,
-} from "@plums/core";
+} from "@plumsjs/core";
 import {
   desktopContribution,
   parseCommonEnvelope,
@@ -16,7 +16,7 @@ import {
   type CommonJson,
   type CommonExecutionState,
   type CommonErrorCode,
-} from "@plums/sdk";
+} from "@plumsjs/sdk";
 import type { Session } from "./host.js";
 import type { InvocationContext } from "./foundation-runtime.js";
 import { ResourceStore, type ResourceBindingRecord } from "./resource-store.js";

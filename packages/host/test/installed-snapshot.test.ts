@@ -11,7 +11,7 @@ import {
   REDACTED,
   secretRef,
   type SecretStore,
-} from "@plums/core";
+} from "@plumsjs/core";
 import { DesktopHost } from "../src/host.js";
 import { FoundationRegistry } from "../src/foundation-factory.js";
 const hosts: DesktopHost[] = [],

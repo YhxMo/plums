@@ -16,7 +16,7 @@ import {
   createArchive,
   createCore,
   RecordingEgressSink,
-} from "@plums/core";
+} from "@plumsjs/core";
 import { DesktopHost } from "../src/host.js";
 const hosts: DesktopHost[] = [],
   dirs: string[] = [];
@@ -476,7 +476,7 @@ it("rejects a different declared data format with an adapter requirement and kee
   const f = await setup(),
     a = await f.host.createAgent("A");
   const bytes = await f.host.exportLibrary(f.selection.digest);
-  const { readArchive } = await import("@plums/core");
+  const { readArchive } = await import("@plumsjs/core");
   const files = await readArchive(bytes),
     m = JSON.parse(Buffer.from(files["manifest.json"]!).toString());
   m.payload.plumsFoundation.dataFormats = ["org.example.other/1"];

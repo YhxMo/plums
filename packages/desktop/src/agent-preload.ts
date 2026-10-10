@@ -1,4 +1,4 @@
-import { createCommonPlatformSdk } from "@plums/sdk/common-client";
+import { createCommonPlatformSdk } from "@plumsjs/sdk/common-client";
 import { contextBridge, ipcRenderer, webUtils } from "electron";
 document.addEventListener(
   "dragover",
@@ -32,7 +32,7 @@ const resources = Object.freeze({
     binding: string,
     key: string,
     expectedRevision: string,
-    value: import("@plums/sdk").CommonJson,
+    value: import("@plumsjs/sdk").CommonJson,
   ) =>
     call("resource", {
       operation: "write",
@@ -87,9 +87,9 @@ contextBridge.exposeInMainWorld(
       open: (requirementId: string, panelId: string) =>
         call("openPanel", { requirementId, panelId }),
       close: (handle: string) => call("closePanel", { handle }),
-      layout: (layout: import("@plums/sdk").PanelLayout) =>
+      layout: (layout: import("@plumsjs/sdk").PanelLayout) =>
         call("panelLayout", { layout }),
-      post: (message: import("@plums/sdk").PanelPost) =>
+      post: (message: import("@plumsjs/sdk").PanelPost) =>
         call("postPanel", { message }),
       respond: (
         messageId: string,
@@ -98,12 +98,12 @@ contextBridge.exposeInMainWorld(
         input: unknown,
       ) => call("panelRespond", { messageId, kind, name, input }),
       onMessage(
-        callback: (message: import("@plums/sdk").PanelMessage) => void,
+        callback: (message: import("@plumsjs/sdk").PanelMessage) => void,
       ) {
         let subscribed = true;
         const fn = async (
           _event: unknown,
-          value: import("@plums/sdk").PanelMessage,
+          value: import("@plumsjs/sdk").PanelMessage,
         ) => {
           try {
             const context = await call("context");

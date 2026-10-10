@@ -1,6 +1,6 @@
 import { afterEach, expect, it } from "vitest";
-import { desktopContribution } from "@plums/sdk";
-import { createArchive, readArchive, type AuditEvent } from "@plums/core";
+import { desktopContribution } from "@plumsjs/sdk";
+import { createArchive, readArchive, type AuditEvent } from "@plumsjs/core";
 import { fixtureManifest, packExtension } from "../fixtures/extensions/pack.js";
 import { reply, toolReply } from "./chat-fixture.js";
 import {

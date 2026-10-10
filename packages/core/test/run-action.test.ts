@@ -12,7 +12,7 @@ import {
   type EgressRequest,
   type EgressSink,
   type Manifest,
-} from "@plums/core";
+} from "@plumsjs/core";
 import { afterEach, describe, expect, it } from "vitest";
 import {
   expectPlumsError,

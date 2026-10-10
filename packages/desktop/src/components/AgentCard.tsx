@@ -1,4 +1,4 @@
-import type { AgentRecord } from "@plums/host";
+import type { AgentRecord } from "@plumsjs/host";
 import { StatusChip, startLabel, type AgentStatus } from "./StatusChip.js";
 import { Popover } from "./Popover.js";
 import { Icon } from "./Icon.js";

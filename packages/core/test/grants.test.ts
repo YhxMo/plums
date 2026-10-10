@@ -15,7 +15,7 @@ import {
   type CreateCoreOptions,
   type GrantUse,
   type Grant,
-} from "@plums/core";
+} from "@plumsjs/core";
 import { makeCore, manifestZip, validManifestV2 } from "./package-helpers.js";
 import { legacyGrantFingerprint } from "./legacy-grant-helper.js";
 import { InstallStore } from "../src/install/store.js";

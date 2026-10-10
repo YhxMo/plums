@@ -6,8 +6,8 @@ import { BusinessResources } from "../components/BusinessResources.js";
 import { ProtocolBindings } from "../components/ProtocolBindings.js";
 import { useAction } from "../hooks/useAction.js";
 import { latestUpdate } from "../shared/version.js";
-import type { PermissionV2 } from "@plums/core";
-import type { AgentRecord } from "@plums/host";
+import type { PermissionV2 } from "@plumsjs/core";
+import type { AgentRecord } from "@plumsjs/host";
 import type { CatalogItem, Resource } from "../shared/types.js";
 import {
   StatusChip,

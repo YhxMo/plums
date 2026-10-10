@@ -7,7 +7,7 @@ import {
   MemorySecretStore,
   RecordingEgressSink,
   type ManifestV2,
-} from "@plums/core";
+} from "@plumsjs/core";
 import { httpsService } from "../src/connection-service.js";
 import { DesktopHost } from "../src/host.js";
 const dirs: string[] = [],

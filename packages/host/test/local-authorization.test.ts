@@ -17,7 +17,7 @@ import {
   MemorySecretStore,
   RecordingEgressSink,
   type AuditEvent,
-} from "@plums/core";
+} from "@plumsjs/core";
 import { DesktopHost, type HostOptions, type Session } from "../src/host.js";
 import { EngineCoordinator } from "../src/engine-coordinator.js";
 import { ProjectSandbox } from "../src/project-sandbox.js";

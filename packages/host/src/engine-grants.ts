@@ -6,8 +6,8 @@ import {
   type GrantUse,
   type GrantInput,
   type AuditEvent,
-} from "@plums/core";
-import type { EngineDeclaration } from "@plums/sdk";
+} from "@plumsjs/core";
+import type { EngineDeclaration } from "@plumsjs/sdk";
 import { configuredConnection } from "./connection-service.js";
 import type { Session } from "./host.js";
 import type { InvocationContext } from "./foundation-runtime.js";

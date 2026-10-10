@@ -6,10 +6,10 @@ import {
   MemorySecretStore,
   type ManifestV2,
   type AuditEvent,
-} from "@plums/core";
+} from "@plumsjs/core";
 import { DesktopHost } from "../src/host.js";
 import { SecureFsSink } from "../src/io.js";
-import { createCommonPlatformSdk } from "@plums/sdk";
+import { createCommonPlatformSdk } from "@plumsjs/sdk";
 const standalone = path.resolve(
   ".artifacts/node-v26.5.1-darwin-arm64/bin/node",
 );

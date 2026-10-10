@@ -1,6 +1,6 @@
 # 桌面 1.0.0：兼容、恢复与本地审阅
 
-日期：2026-10-07。桌面、宿主和 `@plums/sdk` 的包版本为 **1.0.0**；这是共同契约稳定线的本地审阅版本，尚未对外发布。SDK 桥 `sdkVersion:"1"/"2"`、共同契约 `commonVersion:"1.0"`、包格式 1.x/2.x、Agent ZIP `bundleVersion:"1.0"` 与业务协议 SemVer 分别演进。core/CLI 继续为 0.2.0。
+日期：2026-10-07。桌面、宿主和 `@plumsjs/sdk` 的包版本为 **1.0.0**；这是共同契约稳定线的本地审阅版本，尚未对外发布。SDK 桥 `sdkVersion:"1"/"2"`、共同契约 `commonVersion:"1.0"`、包格式 1.x/2.x、Agent ZIP `bundleVersion:"1.0"` 与业务协议 SemVer 分别演进。core/CLI 继续为 0.2.0。
 
 ## 兼容承诺
 

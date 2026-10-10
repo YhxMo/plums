@@ -5,7 +5,7 @@ import {
   isManifestV2,
   type Manifest,
   type PackageFiles,
-} from "@plums/core";
+} from "@plumsjs/core";
 import type { DesktopContribution, ContributionKind } from "./index.js";
 import type { EngineSdk } from "./desktop-v2.js";
 

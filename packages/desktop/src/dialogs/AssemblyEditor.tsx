@@ -1,13 +1,13 @@
 import { ProtocolChoices } from "../components/ProtocolBindings.js";
-import type { ProtocolRequirementState } from "@plums/host";
+import type { ProtocolRequirementState } from "@plumsjs/host";
 import type {
   FoundationAgent,
   FoundationSelection,
   ProtocolBindingIntent,
-} from "@plums/sdk";
+} from "@plumsjs/sdk";
 import { useEffect, useRef, useState } from "react";
-import type { AgentRecord } from "@plums/host";
-import type { DesktopContribution } from "@plums/sdk";
+import type { AgentRecord } from "@plumsjs/host";
+import type { DesktopContribution } from "@plumsjs/sdk";
 import { ManagedDialog } from "../managed-dialog.js";
 import type { CatalogItem, AssemblyDraft } from "../shared/types.js";
 import { newerVersion } from "../shared/version.js";
@@ -107,7 +107,7 @@ export function AssemblyEditor({
             (
               value as Awaited<
                 ReturnType<
-                  import("@plums/host").DesktopHost["foundationManagement"]
+                  import("@plumsjs/host").DesktopHost["foundationManagement"]
                 >
               >
             ).catalog.map((a) => a.selection),

@@ -3,7 +3,7 @@ import {
   PlumsError,
   type AgentLocalGrant,
   type LocalCredentialDeclaration,
-} from "@plums/core";
+} from "@plumsjs/core";
 export type ApprovedCredential = AgentLocalGrant["credentials"][number];
 export function credentialReferences(c: ApprovedCredential): string[] {
   return [

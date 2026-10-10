@@ -1,6 +1,6 @@
 import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
-import { secretRef, type Manifest, type Permission } from "@plums/core";
+import { secretRef, type Manifest, type Permission } from "@plumsjs/core";
 import { describe, expect, it } from "vitest";
 import {
   FAKE_SECRET,

@@ -9,7 +9,7 @@ import {
   RecordingFsSink,
   type ManifestV2,
   type Core,
-} from "@plums/core";
+} from "@plumsjs/core";
 import { DesktopHost, type AgentRecord } from "../src/host.js";
 import { enablePrepared } from "../src/agent-launch.js";
 import * as assembly from "../src/assembly.js";

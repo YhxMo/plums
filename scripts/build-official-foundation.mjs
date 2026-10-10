@@ -51,7 +51,7 @@ const bundle = await build({
   minify: true,
   stdin: {
     contents:
-      'export {createOfficialFoundationSession} from "./official-foundation.js"; export {PlumsError} from "@plums/core";',
+      'export {createOfficialFoundationSession} from "./official-foundation.js"; export {PlumsError} from "@plumsjs/core";',
     resolveDir: dist,
     sourcefile: "official-adapter.mjs",
   },

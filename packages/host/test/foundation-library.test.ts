@@ -7,12 +7,12 @@ import {
   MemorySecretStore,
   type ManifestV2,
   type AuditEvent,
-} from "@plums/core";
+} from "@plumsjs/core";
 import type {
   FoundationProvider,
   FoundationRequirement,
   FoundationSelection,
-} from "@plums/sdk";
+} from "@plumsjs/sdk";
 import { DesktopHost } from "../src/index.js";
 import { FoundationRegistry } from "../src/foundation-factory.js";
 import {
@@ -531,7 +531,7 @@ it("keeps SDK error provenance and does not stop an otherwise valid instance for
   );
   await f.session.ready();
   await f.session.activate();
-  const { PlumsError } = await import("@plums/core");
+  const { PlumsError } = await import("@plumsjs/core");
   const error = new PlumsError({
     code: "PERMISSION_DENIED",
     message: "Denied",

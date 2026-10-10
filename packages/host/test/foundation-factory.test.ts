@@ -4,8 +4,8 @@ import {
   MemorySecretStore,
   RecordingFsSink,
   type PackageContents,
-} from "@plums/core";
-import type { FoundationSession } from "@plums/sdk";
+} from "@plumsjs/core";
+import type { FoundationSession } from "@plumsjs/sdk";
 import * as hostApi from "../src/index.js";
 import { DesktopHost } from "../src/host.js";
 import type {

@@ -20,7 +20,7 @@ import {
   createCore,
   type Manifest,
   type ManifestV2,
-} from "@plums/core";
+} from "@plumsjs/core";
 import { describe, expect, it } from "vitest";
 import { runCli, type CliOptions } from "../src/main.js";
 

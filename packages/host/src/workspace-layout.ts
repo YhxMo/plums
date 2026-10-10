@@ -1,7 +1,7 @@
 import { createHash, randomUUID } from "node:crypto";
 import { mkdir, readFile, rename, rm, open } from "node:fs/promises";
 import path from "node:path";
-import { copyPanelLayout, panelDenied, type PanelRect } from "@plums/sdk";
+import { copyPanelLayout, panelDenied, type PanelRect } from "@plumsjs/sdk";
 
 export interface WorkspaceViewSelection {
   id: string;

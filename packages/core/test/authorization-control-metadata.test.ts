@@ -16,7 +16,7 @@ import {
   type Core,
   type CreateCoreOptions,
   type ConfirmRequest,
-} from "@plums/core";
+} from "@plumsjs/core";
 
 const cores: Core[] = [],
   directories: string[] = [];

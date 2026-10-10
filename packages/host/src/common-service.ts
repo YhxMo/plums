@@ -1,12 +1,12 @@
 import { randomUUID } from "node:crypto";
-import { PlumsError } from "@plums/core";
+import { PlumsError } from "@plumsjs/core";
 import {
   desktopContribution,
   parseCommonEnvelope,
   negotiateCommonContract,
   type CommonActor,
   type CommonBinding,
-} from "@plums/sdk";
+} from "@plumsjs/sdk";
 import type { Session } from "./host.js";
 import type { InvocationContext } from "./foundation-runtime.js";
 import {

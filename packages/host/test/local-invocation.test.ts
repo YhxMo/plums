@@ -9,7 +9,7 @@ import {
   RecordingFsSink,
   type AuditEvent,
   type ManifestV2,
-} from "@plums/core";
+} from "@plumsjs/core";
 import { DesktopHost, type HostOptions } from "../src/host.js";
 import { engineManifest } from "./platform-fixtures.js";
 import { addPolicy, select } from "./policy-fixture.js";

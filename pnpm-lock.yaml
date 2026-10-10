@@ -13,15 +13,15 @@ importers:
       "@playwright/test":
         specifier: 1.63.0
         version: 1.63.0
+      "@plumsjs/cli":
+        specifier: workspace:*
+        version: link:packages/cli
       "@types/node":
         specifier: ^22.15.30
         version: 22.20.4
       esbuild:
         specifier: ^0.25.0
         version: 0.25.12
-      plums:
-        specifier: workspace:*
-        version: link:packages/cli
       prettier:
         specifier: 3.6.2
         version: 3.6.2
@@ -34,7 +34,7 @@ importers:
 
   packages/cli:
     dependencies:
-      "@plums/core":
+      "@plumsjs/core":
         specifier: workspace:*
         version: link:../core
 
@@ -71,13 +71,13 @@ importers:
 
   packages/desktop:
     dependencies:
-      "@plums/core":
+      "@plumsjs/core":
         specifier: workspace:*
         version: link:../core
-      "@plums/host":
+      "@plumsjs/host":
         specifier: workspace:*
         version: link:../host
-      "@plums/sdk":
+      "@plumsjs/sdk":
         specifier: workspace:*
         version: link:../sdk
       react:
@@ -102,10 +102,10 @@ importers:
 
   packages/host:
     dependencies:
-      "@plums/core":
+      "@plumsjs/core":
         specifier: workspace:*
         version: link:../core
-      "@plums/sdk":
+      "@plumsjs/sdk":
         specifier: workspace:*
         version: link:../sdk
       isolated-vm:
@@ -121,7 +121,7 @@ importers:
 
   packages/sdk:
     dependencies:
-      "@plums/core":
+      "@plumsjs/core":
         specifier: workspace:*
         version: link:../core
       ajv:

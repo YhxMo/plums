@@ -1,4 +1,4 @@
-import type { AuditEvent } from "@plums/core";
+import type { AuditEvent } from "@plumsjs/core";
 import type { Resource } from "../shared/types.js";
 export function ExecutionRecordList({
   events,

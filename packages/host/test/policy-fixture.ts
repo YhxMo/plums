@@ -1,4 +1,4 @@
-import { createArchive, type ManifestV2 } from "@plums/core";
+import { createArchive, type ManifestV2 } from "@plumsjs/core";
 import type { DesktopHost } from "../src/host.js";
 export const policyBodies: Record<string, string> = {
   allow: `return decision('allow');`,

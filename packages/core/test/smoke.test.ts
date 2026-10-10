@@ -8,7 +8,7 @@ import {
   MemorySecretStore,
   RecordingEgressSink,
   ScriptedConfirm,
-} from "@plums/core";
+} from "@plumsjs/core";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 describe("createCore", () => {

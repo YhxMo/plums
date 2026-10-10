@@ -8,7 +8,7 @@
     "node": ">=22"
   },
   "scripts": {
-    "build": "pnpm --filter @plums/core build && pnpm --filter plums build && pnpm --filter @plums/sdk build && pnpm --filter @plums/host build && pnpm --filter @plums/desktop build",
+    "build": "pnpm --filter @plumsjs/core build && pnpm --filter @plumsjs/cli build && pnpm --filter @plumsjs/sdk build && pnpm --filter @plumsjs/host build && pnpm --filter @plumsjs/desktop build",
     "test": "node scripts/prepare-test-runtime.mjs && pnpm run build && vitest run",
     "conformance:platform": "pnpm build && node scripts/platform-conformance.mjs",
     "bench:performance": "pnpm build && node --expose-gc scripts/bench-performance.mjs",
@@ -21,7 +21,7 @@
     "@playwright/test": "1.63.0",
     "@types/node": "^22.15.30",
     "esbuild": "^0.25.0",
-    "plums": "workspace:*",
+    "@plumsjs/cli": "workspace:*",
     "prettier": "3.6.2",
     "typescript": "^5.9.2",
     "vitest": "^3.2.4"
@@ -33,5 +33,6 @@
   "homepage": "https://github.com/YhxMo/plums#readme",
   "bugs": {
     "url": "https://github.com/YhxMo/plums/issues"
-  }
+  },
+  "license": "Apache-2.0"
 }

@@ -439,7 +439,7 @@ it.each(["before-commit", "after-commit"])(
 );
 it("intersects the full real SDK caller chain and cannot enlarge a caller's resource declaration", async () => {
   const f = await fixture();
-  const { createArchive } = await import("@plums/core");
+  const { createArchive } = await import("@plumsjs/core");
   const manifest = {
     ...providerManifest,
     id: "records-consumer",

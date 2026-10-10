@@ -2,7 +2,7 @@ import { execFile } from "node:child_process";
 import { existsSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
-import { PlumsError } from "@plums/core";
+import { PlumsError } from "@plumsjs/core";
 const run = promisify(execFile);
 /** Trusted project roots only; descriptor traversal counts all aliases visible in each root.
  * This is admission validation, not a kernel inode boundary or a runtime guarantee. */

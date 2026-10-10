@@ -4,7 +4,7 @@ import { KindIcon } from "../components/KindIcon.js";
 import { useState } from "react";
 import { ManagedDialog } from "../managed-dialog.js";
 import { SettingsFields, initialSettings } from "../settings-fields.js";
-import type { AgentRecord } from "@plums/host";
+import type { AgentRecord } from "@plumsjs/host";
 import type { Resource } from "../shared/types.js";
 interface Props {
   record: AgentRecord;

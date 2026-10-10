@@ -1,6 +1,6 @@
 import { afterEach, expect, it } from "vitest";
 import { rmSync } from "node:fs";
-import { desktopContribution } from "@plums/sdk";
+import { desktopContribution } from "@plumsjs/sdk";
 import type { Core, EnginePermission, ManifestV2 } from "../src/index.js";
 import { validateEnginePermission } from "../src/index.js";
 import { makeCore, manifestZip } from "./package-helpers.js";

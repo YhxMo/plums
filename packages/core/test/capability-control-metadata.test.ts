@@ -16,7 +16,7 @@ import {
   type AuditEvent,
   type Core,
   type CreateCoreOptions,
-} from "@plums/core";
+} from "@plumsjs/core";
 
 const cores: Core[] = [],
   directories: string[] = [];

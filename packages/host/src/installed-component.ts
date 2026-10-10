@@ -1,4 +1,4 @@
-import { PlumsError, PERMISSION_DENIED } from "@plums/core";
+import { PlumsError, PERMISSION_DENIED } from "@plumsjs/core";
 import type { Session } from "./host.js";
 import type { ComponentLibrary } from "./library.js";
 

@@ -14,7 +14,7 @@ import { fileURLToPath } from "node:url";
 import { existsSync } from "node:fs";
 import { createHash } from "node:crypto";
 import { resourceFailure } from "./resource-error.js";
-import type { ExecResult, PackageFiles } from "@plums/core";
+import type { ExecResult, PackageFiles } from "@plumsjs/core";
 const sibling = (file: string) => {
   const p = fileURLToPath(new URL("./" + file, import.meta.url));
   return existsSync(p)

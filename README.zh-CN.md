@@ -94,6 +94,13 @@ pnpm desktop:dev
 | 了解权限与能力调用     | [能力调用接口](./docs/capabilities.md)            |
 | 升级和恢复本地数据     | [兼容与恢复](./docs/desktop-recovery.md)          |
 
+## npm 包作用域
+
+工作区使用 npm 组织作用域 `@plumsjs`：`@plumsjs/core`、`@plumsjs/cli`、
+`@plumsjs/sdk`、`@plumsjs/host` 和 `@plumsjs/desktop`。
+CLI 命令仍为 `plums`。npm 发布时间待定，目前按上文从源码构建。
+SDK、host、desktop 和工作区根目录保留已有的 `private: true` 设置。
+
 ## 开发
 
 在仓库根目录执行：
@@ -109,3 +116,7 @@ pnpm desktop:package
 ## 许可证
 
 本项目采用 [Apache-2.0](./LICENSE) 许可证。
+
+[NOTICE](./NOTICE) 记录项目版权主体。桌面包在 `Plums.app/Contents/Resources/`
+随附生产依赖声明：`THIRD_PARTY_NOTICES.txt`、`LICENSE.electron`、
+`LICENSES.chromium.html` 和 `node/LICENSE`。

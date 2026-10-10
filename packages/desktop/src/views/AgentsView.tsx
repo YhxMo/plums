@@ -1,4 +1,4 @@
-import type { AgentRecord } from "@plums/host";
+import type { AgentRecord } from "@plumsjs/host";
 import { AgentCard } from "../components/AgentCard.js";
 import type { AgentStatus } from "../components/StatusChip.js";
 import { EmptyState } from "../components/EmptyState.js";

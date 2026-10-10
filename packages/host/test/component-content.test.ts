@@ -17,7 +17,7 @@ import {
   RecordingFsSink,
   type Manifest,
   secretRef,
-} from "@plums/core";
+} from "@plumsjs/core";
 import { DesktopHost } from "../src/host.js";
 import type { ComponentSource } from "../src/component-drafts.js";
 

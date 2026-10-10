@@ -4,7 +4,7 @@ import {
   isManifestV2,
   PlumsError,
   type AgentLocalGrant,
-} from "@plums/core";
+} from "@plumsjs/core";
 import { EngineManager, type EngineHooks } from "./engine-manager.js";
 import type { Session } from "./host.js";
 import { ProjectSandbox } from "./project-sandbox.js";

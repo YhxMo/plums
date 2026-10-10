@@ -11,7 +11,7 @@ import {
   REDACTED,
   type SecretStore,
   type Manifest,
-} from "@plums/core";
+} from "@plumsjs/core";
 import { DesktopHost } from "../src/host.js";
 import type { TierPlan } from "../src/local-authorization.js";
 import type { TierSelection } from "../src/local-authorization.js";

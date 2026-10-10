@@ -1,5 +1,5 @@
 import { readFile } from "node:fs/promises";
-import type { FoundationSelection } from "@plums/sdk";
+import type { FoundationSelection } from "@plumsjs/sdk";
 import type { DesktopHost } from "../../src/host.js";
 
 /** Fresh scenario data only; caller-supplied foundation archives are explicit test inputs. */

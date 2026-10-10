@@ -1,9 +1,9 @@
-import type { CapabilityCaller, PackageContents } from "@plums/core";
+import type { CapabilityCaller, PackageContents } from "@plumsjs/core";
 import type {
   ContributionKind,
   FoundationSession,
   FoundationActor,
-} from "@plums/sdk";
+} from "@plumsjs/sdk";
 
 /** Trusted call state. A provider cannot choose or replace these principals. */
 export interface InvocationContext {
@@ -17,12 +17,12 @@ export interface InvocationContext {
   invocationId?: string;
   engineScope?: string;
   grantId?: string;
-  grantScope?: import("@plums/core").GrantUse;
+  grantScope?: import("@plumsjs/core").GrantUse;
   resourceInstanceId?: string;
   taskId?: string;
   commonCallId?: string;
   onDispatch?: () => void;
-  frontend?: import("@plums/sdk").PanelContext;
+  frontend?: import("@plumsjs/sdk").PanelContext;
 }
 export type RuntimeBridge = (
   method: string,

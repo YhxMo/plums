@@ -1,4 +1,4 @@
-import type { Confirm } from "@plums/core";
+import type { Confirm } from "@plumsjs/core";
 
 export async function confirmOnce(
   confirm: Confirm,

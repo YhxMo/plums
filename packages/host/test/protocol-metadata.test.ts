@@ -7,8 +7,8 @@ import {
   MemorySecretStore,
   RecordingEgressSink,
   type ManifestV2,
-} from "@plums/core";
-import { createAgentBundle, type DesktopContribution } from "@plums/sdk";
+} from "@plumsjs/core";
+import { createAgentBundle, type DesktopContribution } from "@plumsjs/sdk";
 import { DesktopHost } from "../src/host.js";
 
 it("does not turn matching protocol claims into a dependency edge in either host or sandbox calls", async () => {

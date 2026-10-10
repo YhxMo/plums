@@ -8,8 +8,8 @@ import {
   RecordingEgressSink,
   RecordingFsSink,
   type ManifestV2,
-} from "@plums/core";
-import { desktopContribution, type FoundationSelection } from "@plums/sdk";
+} from "@plumsjs/core";
+import { desktopContribution, type FoundationSelection } from "@plumsjs/sdk";
 import { scenarioBinding, scenarioFoundation } from "./foundation-selection.js";
 import type { protocolPlan } from "../../src/protocol-bindings.js";
 import { DesktopHost } from "../../src/host.js";

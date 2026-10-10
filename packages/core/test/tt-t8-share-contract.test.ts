@@ -17,7 +17,7 @@ import {
   type Confirm,
   type EgressRequest,
   type EgressResult,
-} from "@plums/core";
+} from "@plumsjs/core";
 import { afterEach, describe, expect, it } from "vitest";
 import { serializeError } from "./contract-helpers.js";
 import {

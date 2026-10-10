@@ -3,7 +3,7 @@ import { mkdtemp, readFile, readdir, rm } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { DesktopHost } from "../src/host.js";
-import { MemorySecretStore } from "@plums/core";
+import { MemorySecretStore } from "@plumsjs/core";
 const failure = vi.hoisted(() => ({ mode: "" }));
 vi.mock("node:fs/promises", async (original) => {
   const real = await original<typeof import("node:fs/promises")>();

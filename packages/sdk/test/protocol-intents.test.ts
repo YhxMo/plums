@@ -5,7 +5,7 @@ import {
   type ProtocolBindingIntent,
   type DesktopContribution,
 } from "../src/index.js";
-import type { ManifestV2 } from "@plums/core";
+import type { ManifestV2 } from "@plumsjs/core";
 const protocol = "org.example.store",
   contribution = { kind: "tools" as const, name: "store" };
 const manifest = (id: string, c: DesktopContribution): ManifestV2 => ({

@@ -1,4 +1,4 @@
-import { PlumsError } from "@plums/core";
+import { PlumsError } from "@plumsjs/core";
 import { DatabaseSync } from "node:sqlite";
 import { mkdirSync, chmodSync } from "node:fs";
 import path from "node:path";
@@ -7,7 +7,7 @@ import type {
   CommonJson,
   ResourceOperation,
   ResourceSnapshot,
-} from "@plums/sdk";
+} from "@plumsjs/sdk";
 import { resourceFailure } from "./resource-error.js";
 
 export interface BusinessResource {

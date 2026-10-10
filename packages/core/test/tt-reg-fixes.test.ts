@@ -9,7 +9,7 @@ import {
   secretRef,
   type Core,
   type Manifest,
-} from "@plums/core";
+} from "@plumsjs/core";
 import { describe, expect, it } from "vitest";
 import { serializeError } from "./contract-helpers.js";
 import {

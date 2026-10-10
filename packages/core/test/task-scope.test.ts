@@ -16,7 +16,7 @@ import {
   ScriptedConfirm,
   type Core,
   type AuditEvent,
-} from "@plums/core";
+} from "@plumsjs/core";
 import { manifestZip, validManifestV2 } from "./package-helpers.js";
 const dirs: string[] = [],
   cores: Core[] = [];

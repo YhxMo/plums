@@ -3,7 +3,7 @@ import { readFile, readdir, rm } from "node:fs/promises";
 import path from "node:path";
 import { DesktopHost } from "../src/host.js";
 import { workspaceFixture } from "./workspace-fixture.js";
-import { createCommonPlatformSdk } from "@plums/sdk";
+import { createCommonPlatformSdk } from "@plumsjs/sdk";
 const resources = {
   list: async () => [],
   read: async () => ({ exists: false, revision: "0" }),

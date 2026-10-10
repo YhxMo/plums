@@ -2,7 +2,7 @@ import { spawnSync } from "node:child_process";
 import { mkdirSync, readdirSync, readFileSync } from "node:fs";
 import { open, type FileHandle } from "node:fs/promises";
 import path from "node:path";
-import { PlumsError, type Manifest } from "@plums/core";
+import { PlumsError, type Manifest } from "@plumsjs/core";
 import { describe, expect, it } from "vitest";
 import { serializeError } from "./contract-helpers.js";
 import {

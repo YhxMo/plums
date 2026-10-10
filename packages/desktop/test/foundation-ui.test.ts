@@ -5,7 +5,7 @@ import { mkdtemp, cp, mkdir, symlink, readFile, rm } from "node:fs/promises";
 import path from "node:path";
 import os from "node:os";
 import { DesktopHost } from "../../host/src/host.js";
-import { MemorySecretStore, createArchive } from "@plums/core";
+import { MemorySecretStore, createArchive } from "@plumsjs/core";
 const require = createRequire(import.meta.url);
 it.runIf(process.platform === "darwin")(
   "trusted desktop chooses a third-party exact pin, disables it, and preserves its state through a broker restart",

@@ -1,5 +1,5 @@
 import path from "node:path";
-import { PlumsError } from "@plums/core";
+import { PlumsError } from "@plumsjs/core";
 
 /** Trusted, canonical host paths. This profile alone is not an admission decision:
  * Seatbelt path filters do not exclude existing or subsequently added inode aliases. */

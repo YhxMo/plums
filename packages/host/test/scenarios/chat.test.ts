@@ -1,5 +1,5 @@
 import { afterEach, expect, it } from "vitest";
-import { desktopContribution } from "@plums/sdk";
+import { desktopContribution } from "@plumsjs/sdk";
 import { fixtureManifest } from "../fixtures/extensions/pack.js";
 import { chatFixture, reply, toolReply } from "./chat-fixture.js";
 
@@ -88,7 +88,7 @@ it("injects only the bound synthetic credential at the Sink and keeps it out of 
     "synthetic-scenario-credential",
   );
   const exported = await f.host.exportAgent(agent.instanceId);
-  const { readArchive } = await import("@plums/core");
+  const { readArchive } = await import("@plumsjs/core");
   // The exported archive's decoded files, not compressed bytes, are inspected below.
   const files = await readArchive(exported);
   const decoded: string[] = [];

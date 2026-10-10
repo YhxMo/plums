@@ -12,8 +12,8 @@ import {
   RecordingEgressSink,
   REDACTED,
   type SecretStore,
-} from "@plums/core";
-import type { FoundationSelection } from "@plums/sdk";
+} from "@plumsjs/core";
+import type { FoundationSelection } from "@plumsjs/sdk";
 import { DesktopHost } from "../src/host.js";
 import { InstallStore } from "../../core/src/install/store.js";
 

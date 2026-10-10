@@ -1,7 +1,7 @@
 import { afterEach, expect, it, vi } from "vitest";
 import { rm } from "node:fs/promises";
 import path from "node:path";
-import { createCore, RecordingEgressSink } from "@plums/core";
+import { createCore, RecordingEgressSink } from "@plumsjs/core";
 import { callbackFixture, callbackActors } from "./local-callback-fixture.js";
 
 const fixtures: Pick<

@@ -2,7 +2,7 @@
 
 底座是扩展代码的执行提供者。可信宿主保留 Agent/安装身份、权限、配置和密钥、审计与生命周期。替代底座自己加载扩展、实现所声明的 SDK；不能通过包装官方运行实例宣称独立实现。
 
-本文件包含公开协议、可信注册与官方适配、公共库第三方接入、Agent 固定与切换，以及阶段 5 的官方制品和桌面管理。`DesktopHost` 已通过同一公共会话工厂运行官方或库内第三方组件会话；每 Agent 精确固定、需求检查和事务恢复见 [选择与切换](foundation-agent-selection.md)。官方离线 ZIP、旧版本执行、可信桌面入口和便携流程见 [桌面底座管理](foundation-desktop.md)。完整符合性另待后续阶段。独立 JSONL 原型仍可由公开 `@plums/host.startFoundationSession` 启动；其执行证据只覆盖最小 SDK 子集。可信库接入和作者接口见 [作者指南](foundation-author-guide.md)，官方工厂说明见 [阶段 2 决策](decisions/foundation-2.md)。
+本文件包含公开协议、可信注册与官方适配、公共库第三方接入、Agent 固定与切换，以及阶段 5 的官方制品和桌面管理。`DesktopHost` 已通过同一公共会话工厂运行官方或库内第三方组件会话；每 Agent 精确固定、需求检查和事务恢复见 [选择与切换](foundation-agent-selection.md)。官方离线 ZIP、旧版本执行、可信桌面入口和便携流程见 [桌面底座管理](foundation-desktop.md)。完整符合性另待后续阶段。独立 JSONL 原型仍可由公开 `@plumsjs/host.startFoundationSession` 启动；其执行证据只覆盖最小 SDK 子集。可信库接入和作者接口见 [作者指南](foundation-author-guide.md)，官方工厂说明见 [阶段 2 决策](decisions/foundation-2.md)。
 
 ## 分开的版本与字段
 
@@ -82,7 +82,7 @@
 
 ## 离线解析
 
-公开类型和函数位于 `@plums/sdk`：`FoundationProvider`、`FoundationRequirement`、`FoundationSelection`、`FoundationAgent`、`FoundationCompatibility`、`FoundationActor`、`FoundationSession<Context>`、两个方向的消息类型，以及 parseFoundationProvider / Requirement / Selection / Agent / Message、foundationProvider 和 checkFoundationCompatibility。
+公开类型和函数位于 `@plumsjs/sdk`：`FoundationProvider`、`FoundationRequirement`、`FoundationSelection`、`FoundationAgent`、`FoundationCompatibility`、`FoundationActor`、`FoundationSession<Context>`、两个方向的消息类型，以及 parseFoundationProvider / Requirement / Selection / Agent / Message、foundationProvider 和 checkFoundationCompatibility。
 
 Draft-07 schema 在 [schemas](schemas/foundation-provider-1.json)：provider、requirement、selection、agent、message 五份。生成命令 `node scripts/foundation-schema.mjs`，核验命令 `node scripts/foundation-schema.mjs --check`；先执行 `pnpm build`。message schema 只校验提供者→宿主的 ready/activated/callback/result/fatal 消息；宿主→提供者的 prepare/activate/invoke/reply/cancel/stop/event 帧使用独立的宿主消息类型，不属于该 schema 的校验范围。schema 校验结构，公开解析器还检查安全入口、重复 SDK id、SemVer/range、必需会话功能和需求功能重叠。`foundationProvider(manifest, files)` 再检查包类别、权限、身份、声明互斥和入口存在。
 
@@ -249,7 +249,7 @@ settings/context 使用同样帧和 args={}，reply.value 分别是设置 object
 以下片段表示原型接入点，`providerZip`/`consumerZip` 是已准备的字节，`providerSelection` 含精确 ZIP 摘要；`verifyCurrentInstallation` 与 `dispatchAuthorizedSdk` 是可信宿主已有检查/桥闭包，不由包提供。阶段 3 的库适配已把此独立受控提供者接入 DesktopHost 的同一可信桥；直接 archive 原型接口继续保留。公共库作者接入示例见 [作者指南](foundation-author-guide.md)。
 
 ```ts
-import { startFoundationSession } from "@plums/host";
+import { startFoundationSession } from "@plumsjs/host";
 const session = await startFoundationSession({
   nodePath: fixedNode26Path,
   provider: { archive: providerZip, selection: providerSelection },

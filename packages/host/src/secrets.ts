@@ -12,7 +12,7 @@ import {
 import { constants } from "node:fs";
 import { createHash, randomUUID } from "node:crypto";
 import path from "node:path";
-import type { SecretStore } from "@plums/core";
+import type { SecretStore } from "@plumsjs/core";
 export interface SecretCipher {
   encrypt(value: string): Promise<string>;
   decrypt(value: string): Promise<string>;

@@ -18,8 +18,8 @@ import {
   RecordingFsSink,
   secretRef,
   type ManifestV2,
-} from "@plums/core";
-import { createAgentBundle, validateAgentBundle } from "@plums/sdk";
+} from "@plumsjs/core";
+import { createAgentBundle, validateAgentBundle } from "@plumsjs/sdk";
 import { DesktopHost } from "../src/host.js";
 import { pngRole } from "../src/library.js";
 const dirs: string[] = [],
@@ -797,7 +797,7 @@ it.each(["1", "2"])(
         "export function activate(s){s.register('commands','read',()=>s.capability('files',{kind:'fs',operation:'read',path:'fixture.txt'}));s.register('commands','settings',()=>s.settings());}",
       ),
     });
-    const { createAgentBundle } = await import("@plums/sdk");
+    const { createAgentBundle } = await import("@plumsjs/sdk");
     const archive = await createAgentBundle(
       {
         bundleVersion: "1.0",

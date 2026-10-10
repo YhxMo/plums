@@ -15,8 +15,8 @@ import {
   RecordingEgressSink,
   RecordingFsSink,
   type ManifestV2,
-} from "@plums/core";
-import { createAgentBundle } from "@plums/sdk";
+} from "@plumsjs/core";
+import { createAgentBundle } from "@plumsjs/sdk";
 import { DesktopHost } from "../src/host.js";
 const dirs: string[] = [];
 const hosts: DesktopHost[] = [];

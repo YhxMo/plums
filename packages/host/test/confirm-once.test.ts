@@ -1,6 +1,6 @@
 import { afterEach, expect, it, vi } from "vitest";
 import { rm } from "node:fs/promises";
-import { secretRef } from "@plums/core";
+import { secretRef } from "@plumsjs/core";
 import { confirmOnce } from "../src/confirm-once.js";
 import { callbackFixture } from "./local-callback-fixture.js";
 import type { Session } from "../src/host.js";

@@ -266,7 +266,7 @@ it("the advertised one-off policy budget also cancels a waiting confirmation bef
 it.runIf(process.platform === "darwin").each(["timer", "status"])(
   "policy lease expiry observed by %s stops its actual controlled instance and task while another Agent continues",
   async (observedBy) => {
-    const { createCommonPlatformSdk } = await import("@plums/sdk");
+    const { createCommonPlatformSdk } = await import("@plumsjs/sdk");
     const f = await commonFixture(
       "controlled-node",
       `export function activate(s){s.register('tools','test',async()=>{await s.emit('ready',{pid:process.pid});await new Promise(()=>{});});}`,

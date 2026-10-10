@@ -1,13 +1,13 @@
 import { FoundationManager } from "../components/FoundationManager.js";
 import { useEffect, useState, useRef } from "react";
-import type { ComponentSource, AgentRecord } from "@plums/host";
+import type { ComponentSource, AgentRecord } from "@plumsjs/host";
 import type { Resource, CatalogItem, AssemblyDraft } from "../shared/types.js";
 import {
   ImportPreview,
   type ImportPreviewData as Preview,
 } from "../dialogs/ImportPreview.js";
 import { AgentSetup } from "../dialogs/AgentSetup.js";
-import { missingRequiredSettings } from "@plums/sdk/settings";
+import { missingRequiredSettings } from "@plumsjs/sdk/settings";
 import { AssemblyEditor } from "../dialogs/AssemblyEditor.js";
 import { ComponentContentDialog } from "../dialogs/ComponentContentDialog.js";
 import { ComponentConfigDialog } from "../dialogs/ComponentConfigDialog.js";

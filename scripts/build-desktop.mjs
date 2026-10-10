@@ -23,7 +23,7 @@ await build({
     {
       name: "trusted-host-adapter",
       setup(b) {
-        b.onResolve({ filter: /^@plums\/(host|core)$/ }, () => ({
+        b.onResolve({ filter: /^@plumsjs\/(host|core)$/ }, () => ({
           path: "./host-adapter/index.mjs",
           external: true,
         }));

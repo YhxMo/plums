@@ -1,7 +1,7 @@
 import { mkdtemp } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
-import { createArchive, MemorySecretStore, type ManifestV2 } from "@plums/core";
+import { createArchive, MemorySecretStore, type ManifestV2 } from "@plumsjs/core";
 import { DesktopHost } from "../src/host.js";
 export async function workspaceFixture(
   runtime: "isolate" | "controlled-node" = "isolate",

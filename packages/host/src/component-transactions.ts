@@ -1,7 +1,7 @@
 import { readFile, rename, rm } from "node:fs/promises";
 import path from "node:path";
-import { createCore, type SecretStore, type EgressSink } from "@plums/core";
-import { type AgentBundle, type AgentBundleManifest } from "@plums/sdk";
+import { createCore, type SecretStore, type EgressSink } from "@plumsjs/core";
+import { type AgentBundle, type AgentBundleManifest } from "@plumsjs/sdk";
 import type { AgentRecord } from "./host.js";
 import { saveRecord } from "./assembly.js";
 export function bundleExtras(bundle: AgentBundle) {

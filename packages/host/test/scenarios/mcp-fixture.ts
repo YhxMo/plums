@@ -3,9 +3,9 @@ import {
   type EgressRequest,
   type EgressResult,
   type McpTool,
-} from "@plums/core";
+} from "@plumsjs/core";
 import { FakeModelSink, chatFixture } from "./chat-fixture.js";
-import type { FoundationSelection } from "@plums/sdk";
+import type { FoundationSelection } from "@plumsjs/sdk";
 
 export const modern = "2026-07-28",
   legacy = "2025-11-25";

@@ -1,4 +1,4 @@
-import type { Permission, PermissionV1, PermissionV2 } from "@plums/core";
+import type { Permission, PermissionV1, PermissionV2 } from "@plumsjs/core";
 const operationNames: Record<string, string> = {
   read: "读取",
   list: "查看列表",

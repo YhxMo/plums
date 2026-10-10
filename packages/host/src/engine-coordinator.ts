@@ -5,7 +5,7 @@ import {
 import { resolveProtocol } from "./protocol-bindings.js";
 import { engineGrant, type GrantConfirm } from "./engine-grants.js";
 import { connectionBindings } from "./connection-service.js";
-import type { GrantUse } from "@plums/core";
+import type { GrantUse } from "@plumsjs/core";
 import { createHash, randomUUID } from "node:crypto";
 import { mkdir, writeFile, rm } from "node:fs/promises";
 import path from "node:path";
@@ -14,8 +14,8 @@ import {
   PERMISSION_DENIED,
   type AuditEvent,
   type Confirm,
-} from "@plums/core";
-import { desktopContribution, type EngineStatus } from "@plums/sdk";
+} from "@plumsjs/core";
+import { desktopContribution, type EngineStatus } from "@plumsjs/sdk";
 import { ioContext } from "./io.js";
 import type { EngineHooks } from "./engine-manager.js";
 import {

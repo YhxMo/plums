@@ -4,7 +4,7 @@ import { mkdtemp, rm, readFile } from "node:fs/promises";
 import path from "node:path";
 import os from "node:os";
 import { randomUUID } from "node:crypto";
-import type { CommonActor } from "@plums/sdk";
+import type { CommonActor } from "@plumsjs/sdk";
 const dirs: string[] = [];
 afterEach(async () => {
   vi.restoreAllMocks();

@@ -36,7 +36,7 @@ import {
   type PackageContents,
   type PackageFiles,
   type CapabilityRequest,
-} from "@plums/core";
+} from "@plumsjs/core";
 import semver from "semver";
 import {
   validateProtocolIntents,

@@ -20,7 +20,7 @@ import {
   type EgressSink,
   type Manifest,
   type Permission,
-} from "@plums/core";
+} from "@plumsjs/core";
 import { afterEach, beforeEach, expect, vi } from "vitest";
 
 export const FAKE_SECRET = "plums-fake-secret-9f3a7c1e-DO-NOT-USE";

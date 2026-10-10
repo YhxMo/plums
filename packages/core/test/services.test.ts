@@ -8,7 +8,7 @@ import {
   type Core,
   type CreateCoreOptions,
   type RunCapabilityInput,
-} from "@plums/core";
+} from "@plumsjs/core";
 import {
   makeCore,
   validManifestV2,

@@ -2,6 +2,10 @@
 
 ## 未发布
 
+- npm 工作区作用域统一为 `@plumsjs`，CLI 包名改为 `@plumsjs/cli`，命令仍为 `plums`；现有私有包标记保留，发布时间待定。
+
+- Desktop packages now include NOTICE, production dependency notices, Electron/Chromium licenses and Node.js bundled attribution; the package inventory rejects missing declarations.
+
 - Unified the project name as Plums in docs and metadata.
 - Added security disclosure, contribution and community policies, with structured issue and pull request templates.
 

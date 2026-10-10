@@ -5,7 +5,7 @@ import {
   IMPORT_INVALID,
   type Manifest,
   type PackageFiles,
-} from "@plums/core";
+} from "@plumsjs/core";
 import {
   foundationProviderSchema,
   foundationRequirementSchema,

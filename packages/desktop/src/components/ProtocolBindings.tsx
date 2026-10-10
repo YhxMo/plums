@@ -1,6 +1,6 @@
 import { useEffect, useId, useState } from "react";
-import type { ProtocolRequirementState } from "@plums/host";
-import type { ProtocolBindingIntent } from "@plums/sdk";
+import type { ProtocolRequirementState } from "@plumsjs/host";
+import type { ProtocolBindingIntent } from "@plumsjs/sdk";
 import { useAction } from "../hooks/useAction.js";
 
 const statusText = {

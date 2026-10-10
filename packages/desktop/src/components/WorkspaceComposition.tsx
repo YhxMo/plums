@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import type { DesktopHost, AgentRecord } from "@plums/host";
+import type { DesktopHost, AgentRecord } from "@plumsjs/host";
 import type { Resource } from "../shared/types.js";
 type Plan = Awaited<ReturnType<DesktopHost["workspacePlan"]>>;
 export function WorkspaceComposition({

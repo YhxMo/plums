@@ -1,5 +1,5 @@
 {
-  "name": "plums",
+  "name": "@plumsjs/cli",
   "version": "0.2.0",
   "description": "Command-line shell for the Plums kernel.",
   "license": "Apache-2.0",
@@ -18,7 +18,7 @@
     "build": "tsc -p tsconfig.json"
   },
   "dependencies": {
-    "@plums/core": "workspace:*"
+    "@plumsjs/core": "workspace:*"
   },
   "repository": {
     "type": "git",

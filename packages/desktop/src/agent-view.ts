@@ -1,7 +1,7 @@
 import { WebContentsView, session } from "electron";
 import { randomUUID, createHash } from "node:crypto";
 import path from "node:path";
-import type { PanelContext } from "@plums/sdk";
+import type { PanelContext } from "@plumsjs/sdk";
 
 export interface AgentViewResource {
   context: PanelContext;

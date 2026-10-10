@@ -4,8 +4,8 @@
 
 ## 1. 范围
 
-纯开源内核(Apache-2.0),不含界面、服务、托管、市场。交付物是一个 TypeScript 库 `@plums/core` 加一个命令行 `plums`。
-内核负责:包格式与加载、依赖解析、权限和同意检查、密钥引用、外发确认、文件/链接分享，以及 2.x 能力授权与审计。0.2.0 已提供 fs/exec/egress 统一入口与记录式执行，真实 I/O、进程隔离、联网及第三方代码由独立 `@plums/host` / Electron 桌面实现，见 [desktop.md](desktop.md)。
+纯开源内核(Apache-2.0),不含界面、服务、托管、市场。交付物是一个 TypeScript 库 `@plumsjs/core` 加一个命令行 `plums`。
+内核负责:包格式与加载、依赖解析、权限和同意检查、密钥引用、外发确认、文件/链接分享，以及 2.x 能力授权与审计。0.2.0 已提供 fs/exec/egress 统一入口与记录式执行，真实 I/O、进程隔离、联网及第三方代码由独立 `@plumsjs/host` / Electron 桌面实现，见 [desktop.md](desktop.md)。
 
 ## 2. 技术栈(推荐)
 

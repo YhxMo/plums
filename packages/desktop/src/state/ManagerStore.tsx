@@ -8,7 +8,7 @@ import {
   useMemo,
   type ReactNode,
 } from "react";
-import type { AgentRecord, DesktopTheme, DesktopSettings } from "@plums/host";
+import type { AgentRecord, DesktopTheme, DesktopSettings } from "@plumsjs/host";
 import type { Resource, CatalogItem, AgentDetail } from "../shared/types.js";
 import type { AgentStatus } from "../components/StatusChip.js";
 import type { AgentRuntimeState } from "../shared/types.js";

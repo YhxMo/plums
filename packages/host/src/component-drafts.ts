@@ -19,8 +19,8 @@ import {
   PlumsError,
   IMPORT_INVALID,
   type PackageFiles,
-} from "@plums/core";
-import { safePath } from "@plums/sdk";
+} from "@plumsjs/core";
+import { safePath } from "@plumsjs/sdk";
 import { SecureFsSink } from "./io.js";
 import { digest, type ComponentArtifact } from "./library.js";
 

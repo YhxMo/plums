@@ -39,7 +39,7 @@ await writeFile(
 await build({
   stdin: {
     contents:
-      'export * from "./index.js"; export { PlumsError } from "@plums/core";',
+      'export * from "./index.js"; export { PlumsError } from "@plumsjs/core";',
     resolveDir: dist,
     sourcefile: "trusted-host-adapter.mjs",
   },

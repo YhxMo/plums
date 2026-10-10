@@ -22,7 +22,7 @@ import {
   VERSION,
   createCore,
   type Manifest,
-} from "@plums/core";
+} from "@plumsjs/core";
 import { afterEach, describe, expect, it } from "vitest";
 
 /**

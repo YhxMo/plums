@@ -13,7 +13,7 @@ import {
   type ManifestV1,
   type ManifestV2,
   PlumsError,
-} from "@plums/core";
+} from "@plumsjs/core";
 import { expect } from "vitest";
 import { ZipFile } from "yazl";
 

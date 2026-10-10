@@ -6,7 +6,7 @@ import {
   CAPABILITY_FAILED,
   type PackageFiles,
   type PackageContents,
-} from "@plums/core";
+} from "@plumsjs/core";
 import {
   desktopContribution,
   foundationProvider,
@@ -21,7 +21,7 @@ import {
   type FoundationSession,
   type DesktopContribution,
   type ContributionKind,
-} from "@plums/sdk";
+} from "@plumsjs/sdk";
 import {
   ControlledExecution,
   type ControlledProcess,

@@ -1,4 +1,4 @@
-import type { Confirm, ConfirmRequest, Permission } from "@plums/core";
+import type { Confirm, ConfirmRequest, Permission } from "@plumsjs/core";
 import { describe, expect, it } from "vitest";
 import {
   editConsent,

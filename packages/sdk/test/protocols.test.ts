@@ -4,7 +4,7 @@ import {
   IMPORT_INVALID,
   validatePackage,
   type ManifestV2,
-} from "@plums/core";
+} from "@plumsjs/core";
 import {
   checkProtocolCompatibility,
   createAgentBundle,

@@ -11,8 +11,8 @@ import { readFileSync, readdirSync } from "node:fs";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import path from "node:path";
 import { createHash, randomUUID, verify as verifySignature } from "node:crypto";
-import { readArchive, type PackageFiles } from "@plums/core";
-import type { FoundationSelection } from "@plums/sdk";
+import { readArchive, type PackageFiles } from "@plumsjs/core";
+import type { FoundationSelection } from "@plumsjs/sdk";
 import { digest } from "./library.js";
 import {
   OFFICIAL_FOUNDATION_PROVIDER,
@@ -96,12 +96,12 @@ import {
   parseFoundationProvider,
   parseFoundationSelection,
   type FoundationProvider,
-} from "@plums/sdk";
+} from "@plumsjs/sdk";
 import {
   FoundationRegistry,
   type FoundationReference,
 } from "./foundation-factory.js";
-import { PlumsError, validatePackage } from "@plums/core";
+import { PlumsError, validatePackage } from "@plumsjs/core";
 import type {
   FoundationAdapterOptions,
   HostFoundationSession,

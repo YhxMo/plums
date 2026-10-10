@@ -3,11 +3,12 @@ import { createRequire } from "node:module";
 import path from "node:path";
 import os from "node:os";
 import { afterEach, expect, it, vi } from "vitest";
-import { createArchive } from "@plums/core";
+import { createArchive } from "@plumsjs/core";
 import {
   assertPackageManifest,
   EXPERIMENTAL_HELPERS,
   ALLOWED_ZIPS,
+  REQUIRED_LICENSE_FILES,
   checkPackageManifest,
 } from "../../../scripts/package-manifest.mjs";
 
@@ -18,6 +19,12 @@ import {
 } from "../../../scripts/host-native-assets.mjs";
 
 const roots: string[] = [];
+async function licenses(root: string) {
+  for (const name of REQUIRED_LICENSE_FILES) {
+    await mkdir(path.dirname(path.join(root, name)), { recursive: true });
+    await writeFile(path.join(root, name), "Synthetic license");
+  }
+}
 afterEach(async () => {
   for (const root of roots.splice(0))
     await rm(root, { recursive: true, force: true });
@@ -25,6 +32,7 @@ afterEach(async () => {
 it("rejects an unpacked fixture while accepting production files", async () => {
   const root = await mkdtemp(path.join(os.tmpdir(), "plums-package-manifest-"));
   roots.push(root);
+  await licenses(root);
   await mkdir(path.join(root, "app/dist"), { recursive: true });
   await writeFile(path.join(root, "app/dist/main.js"), "synthetic");
   expect(await checkPackageManifest(root)).toContain("app/dist/main.js");
@@ -56,7 +64,9 @@ it.each(EXPERIMENTAL_HELPERS)(
   },
 );
 it("allows only the declared ZIP inventory paths", () => {
-  expect(() => assertPackageManifest(ALLOWED_ZIPS)).not.toThrow();
+  expect(() =>
+    assertPackageManifest([...ALLOWED_ZIPS, ...REQUIRED_LICENSE_FILES]),
+  ).not.toThrow();
   expect(() => assertPackageManifest(["other/official.zip"])).toThrow(
     "Test fixture",
   );
@@ -74,6 +84,7 @@ it.each([
 it("checks an unpacked app, official ZIP contents and ASAR inventories", async () => {
   const root = await mkdtemp(path.join(os.tmpdir(), "plums-package-manifest-"));
   roots.push(root);
+  await licenses(root);
   const foundation = path.join(root, "app/dist/foundation-resources");
   await mkdir(foundation, { recursive: true });
   const archive = path.join(foundation, "official.zip");
@@ -106,6 +117,7 @@ it("checks an unpacked app, official ZIP contents and ASAR inventories", async (
 it("the callable manifest gate accepts clean Resources and rejects a fixture", async () => {
   const root = await mkdtemp(path.join(os.tmpdir(), "plums-manifest-gate-"));
   roots.push(root);
+  await licenses(root);
   await mkdir(path.join(root, "app/dist"), { recursive: true });
   await writeFile(path.join(root, "app/dist/main.js"), "synthetic");
   expect(await packaging.runManifestGate(root)).toContain("app/dist/main.js");
@@ -116,6 +128,7 @@ it("the exported main entry always gates Resources before creating an image", as
   expect(Object.keys(packaging).sort()).toEqual(["main", "runManifestGate"]);
   const root = await mkdtemp(path.join(os.tmpdir(), "plums-packaging-main-"));
   roots.push(root);
+  await licenses(root);
   const fixture = path.join(root, "test/fixtures");
   await mkdir(fixture, { recursive: true });
   await writeFile(path.join(fixture, "synthetic"), "synthetic");
@@ -138,3 +151,17 @@ it("the exported main entry always gates Resources before creating an image", as
   ).resolves.toBeUndefined();
   expect(createImage).toHaveBeenCalledExactlyOnceWith(prepared);
 });
+it.each(REQUIRED_LICENSE_FILES)(
+  "rejects an app missing required license %s",
+  async (name) => {
+    const root = await mkdtemp(
+      path.join(os.tmpdir(), "plums-missing-license-"),
+    );
+    roots.push(root);
+    await licenses(root);
+    await rm(path.join(root, name));
+    await expect(checkPackageManifest(root)).rejects.toThrow(
+      "Required desktop license missing: " + name,
+    );
+  },
+);

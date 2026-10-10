@@ -1,5 +1,5 @@
 {
-  "name": "@plums/sdk",
+  "name": "@plumsjs/sdk",
   "version": "1.0.0",
   "private": true,
   "type": "module",
@@ -27,7 +27,7 @@
     "build": "tsc -p tsconfig.json"
   },
   "dependencies": {
-    "@plums/core": "workspace:*",
+    "@plumsjs/core": "workspace:*",
     "semver": "^7.8.5",
     "ajv": "^8.20.0"
   },

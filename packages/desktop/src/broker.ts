@@ -1,6 +1,6 @@
-import { DesktopHost, LocalSecretStore, ioContext } from "@plums/host";
+import { DesktopHost, LocalSecretStore, ioContext } from "@plumsjs/host";
 import path from "node:path";
-import { PlumsError } from "@plums/core";
+import { PlumsError } from "@plumsjs/core";
 // Closing panels and runtimes may emit notifications after the parent has gone.
 function send(message: object): void {
   if (process.connected && process.send) process.send(message, () => {});
@@ -64,7 +64,7 @@ const host = new DesktopHost({
   },
   grantConfirm: async (request, signal) =>
     (await parent("grant-confirm", request, signal)) as
-      | import("@plums/host").GrantChoice
+      | import("@plumsjs/host").GrantChoice
       | undefined,
   secretStore: (id) =>
     new LocalSecretStore(
@@ -112,7 +112,7 @@ process.on("message", async (raw: unknown) => {
       case "foundationPlan":
         value = await host.foundationPlan(
           id,
-          a.selection as import("@plums/sdk").FoundationSelection | undefined,
+          a.selection as import("@plumsjs/sdk").FoundationSelection | undefined,
         );
         break;
       case "foundationStatus":
@@ -122,7 +122,7 @@ process.on("message", async (raw: unknown) => {
         value = await host.switchFoundation(
           id,
           a.fingerprint as string,
-          a.selection as import("@plums/sdk").FoundationSelection,
+          a.selection as import("@plumsjs/sdk").FoundationSelection,
         );
         break;
       case "setFoundationEnabled":
@@ -136,13 +136,13 @@ process.on("message", async (raw: unknown) => {
         break;
       case "removeFoundation":
         await host.removeFoundation(
-          a.selection as import("@plums/sdk").FoundationSelection,
+          a.selection as import("@plumsjs/sdk").FoundationSelection,
         );
         break;
       case "exportFoundation":
         value = [
           ...(await host.exportFoundation(
-            a.selection as import("@plums/sdk").FoundationSelection,
+            a.selection as import("@plumsjs/sdk").FoundationSelection,
           )),
         ];
         break;
@@ -169,12 +169,12 @@ process.on("message", async (raw: unknown) => {
         break;
       case "inspectComponent":
         value = await host.inspectComponent(
-          a.source as import("@plums/host").ComponentSource,
+          a.source as import("@plumsjs/host").ComponentSource,
         );
         break;
       case "openComponentDraft":
         value = await host.openComponentDraft(
-          a.source as import("@plums/host").ComponentSource,
+          a.source as import("@plumsjs/host").ComponentSource,
         );
         break;
       case "readComponentDraft":
@@ -183,7 +183,7 @@ process.on("message", async (raw: unknown) => {
       case "retainComponentDraft":
         await host.retainComponentDraft(
           a.token as string,
-          a.editor as import("@plums/host").ComponentEditorState,
+          a.editor as import("@plumsjs/host").ComponentEditorState,
         );
         break;
       case "writeComponentDraft":
@@ -240,9 +240,9 @@ process.on("message", async (raw: unknown) => {
           a.characterId as string | undefined,
           a.startup as string | undefined,
           a.protocolBindings as
-            | import("@plums/sdk").ProtocolBindingIntent[]
+            | import("@plumsjs/sdk").ProtocolBindingIntent[]
             | undefined,
-          a.foundation as import("@plums/sdk").FoundationAgent | undefined,
+          a.foundation as import("@plumsjs/sdk").FoundationAgent | undefined,
         );
         break;
       case "editAgent":
@@ -279,7 +279,7 @@ process.on("message", async (raw: unknown) => {
           a.fingerprint as string,
           a.resourceId as string,
           a.componentId as string,
-          a.operations as import("@plums/sdk").ResourceOperation[],
+          a.operations as import("@plumsjs/sdk").ResourceOperation[],
         );
         break;
       case "setResourceBinding":
@@ -304,7 +304,7 @@ process.on("message", async (raw: unknown) => {
           a.fingerprint as string,
           a.mode as "task" | "full-access",
           a.durationMs as number,
-          a.selection as import("@plums/host").ResourceRangeSelection[],
+          a.selection as import("@plumsjs/host").ResourceRangeSelection[],
         );
         break;
       case "revokeResourceRange":
@@ -345,7 +345,7 @@ process.on("message", async (raw: unknown) => {
           id,
           a.fingerprint as string,
           a.durationMs as number,
-          a.selection as import("@plums/host").PolicyScopeSelection[],
+          a.selection as import("@plumsjs/host").PolicyScopeSelection[],
         );
         break;
       case "revokePolicyScope":
@@ -389,7 +389,7 @@ process.on("message", async (raw: unknown) => {
           id,
           a.fingerprint as string,
           a.durationMs as number,
-          a.selection as import("@plums/core").TaskScopeSelection[],
+          a.selection as import("@plumsjs/core").TaskScopeSelection[],
         );
         break;
       case "revokeTaskScope":
@@ -526,14 +526,14 @@ process.on("message", async (raw: unknown) => {
         value = await host.panelLayout(
           a.sessionId as string,
           a.source as string,
-          a.layout as import("@plums/sdk").PanelLayout,
+          a.layout as import("@plumsjs/sdk").PanelLayout,
         );
         break;
       case "postPanel":
         await host.postPanel(
           a.sessionId as string,
           a.source as string,
-          a.message as import("@plums/sdk").PanelPost,
+          a.message as import("@plumsjs/sdk").PanelPost,
         );
         break;
       case "frontendContext":
@@ -573,7 +573,7 @@ process.on("message", async (raw: unknown) => {
           a.fingerprint as string,
           a.consumerId as string,
           a.requirementId as string,
-          a.choice as import("@plums/sdk").ProtocolBindingIntent | undefined,
+          a.choice as import("@plumsjs/sdk").ProtocolBindingIntent | undefined,
         );
         break;
       case "protocolStatus":
@@ -610,7 +610,7 @@ process.on("message", async (raw: unknown) => {
       case "tierPlan":
         value = await host.tierPlan(
           id,
-          a.selection as import("@plums/host").TierSelection | undefined,
+          a.selection as import("@plumsjs/host").TierSelection | undefined,
         );
         break;
       case "projectStatus":
@@ -651,7 +651,7 @@ process.on("message", async (raw: unknown) => {
         value = await host.confirmTier(
           id,
           a.fingerprint as string,
-          a.selection as import("@plums/host").TierSelection,
+          a.selection as import("@plumsjs/host").TierSelection,
         );
         break;
       case "lowerTier":

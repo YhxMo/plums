@@ -12,7 +12,7 @@ import {
   rmSync,
 } from "node:fs";
 import path from "node:path";
-import { PlumsError } from "@plums/core";
+import { PlumsError } from "@plumsjs/core";
 import {
   parseCommonEnvelope,
   type CommonActor,
@@ -21,7 +21,7 @@ import {
   type CommonErrorCode,
   type CommonTaskDescription,
   type CommonTaskSnapshot,
-} from "@plums/sdk";
+} from "@plumsjs/sdk";
 import { resourceFailure } from "./resource-error.js";
 type Result = Extract<CommonEnvelope, { kind: "result" }>;
 interface Task {

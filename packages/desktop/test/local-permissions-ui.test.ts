@@ -11,7 +11,7 @@ import {
   lstat,
 } from "node:fs/promises";
 import path from "node:path";
-import { createArchive } from "@plums/core";
+import { createArchive } from "@plumsjs/core";
 import { fixture } from "../../host/test/common-fixture.js";
 import { cachePaths } from "../../host/src/project-cache.js";
 import { engineManifest } from "../../host/test/platform-fixtures.js";

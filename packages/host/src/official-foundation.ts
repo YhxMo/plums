@@ -1,4 +1,4 @@
-import { desktopContribution, type FoundationProvider } from "@plums/sdk";
+import { desktopContribution, type FoundationProvider } from "@plumsjs/sdk";
 import {
   ControlledExecution,
   type ControlledProcess,

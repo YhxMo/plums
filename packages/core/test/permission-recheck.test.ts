@@ -1,4 +1,4 @@
-import { type Core } from "@plums/core";
+import { type Core } from "@plumsjs/core";
 import { afterEach, expect, it } from "vitest";
 import {
   expectPlumsError,

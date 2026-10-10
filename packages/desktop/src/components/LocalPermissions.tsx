@@ -1,11 +1,11 @@
 import { useEffect, useState } from "react";
-import type { AgentTierCeiling, EnginePermission } from "@plums/core";
+import type { AgentTierCeiling, EnginePermission } from "@plumsjs/core";
 import type {
   TierPlan,
   TierSelection,
   AgentRecord,
   ProjectBoundaryReport,
-} from "@plums/host";
+} from "@plumsjs/host";
 import type { Resource } from "../shared/types.js";
 import { useAction } from "../hooks/useAction.js";
 import { PermissionList } from "./PermissionList.js";

@@ -8,11 +8,11 @@ import {
   type CapabilityRequest,
   type McpTool,
   type AuditEvent,
-} from "@plums/core";
-import { desktopContribution, type ContributionKind } from "@plums/sdk";
+} from "@plumsjs/core";
+import { desktopContribution, type ContributionKind } from "@plumsjs/sdk";
 import { ioContext } from "./io.js";
 import { configuredConnection } from "./connection-service.js";
-import { CAPABILITY_FAILED, SinkFailure } from "@plums/core";
+import { CAPABILITY_FAILED, SinkFailure } from "@plumsjs/core";
 import type { Session, HostOptions } from "./host.js";
 import type {
   HostFoundationSession,

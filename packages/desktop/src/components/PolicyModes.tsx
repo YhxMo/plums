@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import type { DesktopHost, PolicyScopeSelection } from "@plums/host";
+import type { DesktopHost, PolicyScopeSelection } from "@plumsjs/host";
 const modeNames: Record<string, string> = {
   "full-access": "完全访问",
   automatic: "自动审查",

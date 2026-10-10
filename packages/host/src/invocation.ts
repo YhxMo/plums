@@ -1,5 +1,5 @@
 import semver from "semver";
-import { desktopContribution, type ContributionKind } from "@plums/sdk";
+import { desktopContribution, type ContributionKind } from "@plumsjs/sdk";
 import type { Session } from "./host.js";
 import type {
   InvocationContext,

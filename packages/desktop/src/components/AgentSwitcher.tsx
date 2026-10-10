@@ -1,4 +1,4 @@
-import type { AgentRecord } from "@plums/host";
+import type { AgentRecord } from "@plumsjs/host";
 import { SelectMenu } from "./SelectMenu.js";
 export function AgentSwitcher({
   agents,

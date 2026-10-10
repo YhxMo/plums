@@ -8,7 +8,7 @@ import {
   RecordingFsSink,
   type ManifestV2,
   type AuditEvent,
-} from "@plums/core";
+} from "@plumsjs/core";
 import { DesktopHost } from "../src/host.js";
 import type { PanelDelivery } from "../src/panels.js";
 
@@ -483,7 +483,7 @@ it("bounds message throughput and excludes content from exports", async () => {
     details: { reason: "PANEL_BACKPRESSURE" },
   });
   const exported = await f.host.exportAgent(f.agent.instanceId);
-  const { validateAgentBundle } = await import("@plums/sdk");
+  const { validateAgentBundle } = await import("@plumsjs/sdk");
   const bundle = await validateAgentBundle(exported);
   expect(JSON.stringify(bundle.agent)).not.toContain(f.root.context.sessionId);
   expect(JSON.stringify(bundle.agent)).not.toContain(f.panel.context.handle);

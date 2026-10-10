@@ -11,7 +11,7 @@ import {
   secretRef,
   type Core,
   type SecretStore,
-} from "@plums/core";
+} from "@plumsjs/core";
 import { InstallStore } from "../../core/src/install/store.js";
 import { DesktopHost } from "../src/host.js";
 

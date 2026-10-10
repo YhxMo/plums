@@ -1,4 +1,4 @@
-import type { AgentLocalGrant } from "@plums/core";
+import type { AgentLocalGrant } from "@plumsjs/core";
 
 export const ALLOWED_FIELDS = {
   git: [

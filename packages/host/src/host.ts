@@ -54,7 +54,7 @@ import {
 import { resourceFailure } from "./resource-error.js";
 import { invokeComponent } from "./invocation.js";
 import { PanelSessions, type PanelDelivery } from "./panels.js";
-import type { PanelLayout, PanelPost } from "@plums/sdk";
+import type { PanelLayout, PanelPost } from "@plumsjs/sdk";
 import {
   protocolPlan,
   protocolStatus,
@@ -147,7 +147,7 @@ import {
   validatePackage,
   createArchive,
   DEFAULT_PACKAGE_LIMITS,
-} from "@plums/core";
+} from "@plumsjs/core";
 import {
   negotiateCommonContract,
   validateAgentBundle,
@@ -166,7 +166,7 @@ import {
   parseFoundationAgent,
   type FoundationAgent,
   type FoundationSelection,
-} from "@plums/sdk";
+} from "@plumsjs/sdk";
 import type {
   HostFoundationSession,
   InvocationContext,
@@ -1672,7 +1672,7 @@ export class DesktopHost {
   }
   private async checkDraftVersion(
     p: ComponentArtifact,
-    base: import("@plums/core").Manifest,
+    base: import("@plumsjs/core").Manifest,
   ) {
     const m = p.contents.manifest;
     for (const field of ["id", "kind"] as const)
@@ -2322,7 +2322,7 @@ export class DesktopHost {
     const safe = redact(message, values);
     return confirmOnce(this.options.confirm, { message: safe }, signal);
   }
-  private credentialFree(input: unknown): import("@plums/sdk").CommonJson {
+  private credentialFree(input: unknown): import("@plumsjs/sdk").CommonJson {
     const clean = (value: any): any => {
       if (value instanceof Uint8Array)
         return {
@@ -2352,7 +2352,7 @@ export class DesktopHost {
   private async capabilityPolicy(
     s: Session,
     input: Parameters<
-      NonNullable<import("@plums/core").CreateCoreOptions["capabilityGate"]>
+      NonNullable<import("@plumsjs/core").CreateCoreOptions["capabilityGate"]>
     >[0],
   ) {
     const io = ioContext.getStore(),
@@ -2659,7 +2659,7 @@ export class DesktopHost {
     id: string,
     fingerprint: string,
     durationMs: number,
-    selection?: import("@plums/core").TaskScopeSelection[],
+    selection?: import("@plumsjs/core").TaskScopeSelection[],
   ) {
     return this.serial(id, async () => {
       const s = await this.session(id);
@@ -3689,7 +3689,7 @@ export class DesktopHost {
     fingerprint: string,
     resourceId: string,
     componentId: string,
-    operations: import("@plums/sdk").ResourceOperation[],
+    operations: import("@plumsjs/sdk").ResourceOperation[],
   ) {
     const copied = validOperations(operations);
     return this.serial(id, async () => {
@@ -4207,7 +4207,7 @@ export class DesktopHost {
   }
   async lowerTier(
     id: string,
-    ceiling: import("@plums/core").AgentTierCeiling,
+    ceiling: import("@plumsjs/core").AgentTierCeiling,
   ): Promise<void> {
     return this.serial(id, async () => {
       const s = await this.session(id);

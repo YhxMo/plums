@@ -2,7 +2,7 @@ import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { expect, it } from "vitest";
 import { ProjectSupport } from "../src/components/ProjectSupport.js";
-import type { TierPlan } from "@plums/host";
+import type { TierPlan } from "@plumsjs/host";
 
 it("shows actual project support data without a path input or a runnable project claim", () => {
   const entries: TierPlan["entries"] = [

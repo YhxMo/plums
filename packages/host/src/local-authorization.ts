@@ -27,7 +27,7 @@ import {
   type Permission,
   type AuditEvent,
   type Confirm,
-} from "@plums/core";
+} from "@plumsjs/core";
 import { confirmOnce } from "./confirm-once.js";
 import type { Session } from "./host.js";
 import {
@@ -58,7 +58,7 @@ export interface TierEntry {
     configuration: AgentLocalGrant["configuration"];
     credentials: {
       id: string;
-      kind: import("@plums/core").LocalCredentialKind;
+      kind: import("@plumsjs/core").LocalCredentialKind;
       host: string;
       reason?: string;
       approved: boolean;
@@ -156,8 +156,8 @@ export class LocalAuthorizations {
   }
   async coverage(
     s: Session,
-    input: Parameters<import("@plums/core").LocalCoverageCheck>[0],
-  ): Promise<import("@plums/core").LocalCoverage | undefined> {
+    input: Parameters<import("@plumsjs/core").LocalCoverageCheck>[0],
+  ): Promise<import("@plumsjs/core").LocalCoverage | undefined> {
     if (input.request.kind !== "fs" && input.request.kind !== "exec") return;
     const checkpoint = s.core.runtimeAccessCheckpoint(
       input.principals.map((p) => p.packageId),

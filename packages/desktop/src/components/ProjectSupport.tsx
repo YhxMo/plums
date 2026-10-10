@@ -1,5 +1,5 @@
 import { useState } from "react";
-import type { TierPlan, ProjectBoundaryReport } from "@plums/host";
+import type { TierPlan, ProjectBoundaryReport } from "@plumsjs/host";
 
 export interface CacheStatus {
   packageId: string;

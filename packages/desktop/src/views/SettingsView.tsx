@@ -1,6 +1,6 @@
 import { Switch } from "../components/Switch.js";
 import { SelectMenu } from "../components/SelectMenu.js";
-import type { DesktopTheme } from "@plums/host";
+import type { DesktopTheme } from "@plumsjs/host";
 export function SettingsView({
   dnsMode,
   theme,

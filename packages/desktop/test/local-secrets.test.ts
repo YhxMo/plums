@@ -12,7 +12,7 @@ import {
 import { createRequire } from "node:module";
 import path from "node:path";
 import os from "node:os";
-import { createArchive, MemorySecretStore } from "@plums/core";
+import { createArchive, MemorySecretStore } from "@plumsjs/core";
 import { DesktopHost } from "../../host/src/host.js";
 import { LocalSecretStore } from "../../host/src/secrets.js";
 

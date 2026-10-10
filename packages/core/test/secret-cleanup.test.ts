@@ -8,7 +8,7 @@ import {
   type Core,
   type Manifest,
   secretRef,
-} from "@plums/core";
+} from "@plumsjs/core";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import {
   expectPlumsError,

@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
-import type { DesktopHost } from "@plums/host";
-import type { FoundationSelection } from "@plums/sdk";
+import type { DesktopHost } from "@plumsjs/host";
+import type { FoundationSelection } from "@plumsjs/sdk";
 import { useAction } from "../hooks/useAction.js";
 type Management = Awaited<ReturnType<DesktopHost["foundationManagement"]>>;
 type Plan = Awaited<ReturnType<DesktopHost["foundationPlan"]>>;

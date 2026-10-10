@@ -8,7 +8,7 @@ import {
   secretRef,
   type Core,
   type Manifest,
-} from "@plums/core";
+} from "@plumsjs/core";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { captureOutput } from "./contract-helpers.js";
 import {

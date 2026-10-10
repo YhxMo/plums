@@ -5,7 +5,7 @@ import {
   SinkFailure,
   type AuditEvent,
   type Core,
-} from "@plums/core";
+} from "@plumsjs/core";
 import { makeCore, manifestZip, validManifestV2 } from "./package-helpers.js";
 const worlds: { core: Core; dataDir: string }[] = [];
 afterEach(() => {

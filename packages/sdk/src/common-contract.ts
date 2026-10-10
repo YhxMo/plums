@@ -1,5 +1,5 @@
 import { Ajv, type ValidateFunction } from "ajv";
-import { CAPABILITY_FAILED, PlumsError } from "@plums/core";
+import { CAPABILITY_FAILED, PlumsError } from "@plumsjs/core";
 import {
   commonEnvelopeSchema,
   commonDeclarationSchema,

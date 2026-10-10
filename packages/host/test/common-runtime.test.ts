@@ -5,7 +5,7 @@ import { afterEach, expect, it } from "vitest";
 import { mkdtemp, rm, mkdir, writeFile, readFile } from "node:fs/promises";
 import path from "node:path";
 import os from "node:os";
-import { type ManifestV2 } from "@plums/core";
+import { type ManifestV2 } from "@plumsjs/core";
 import { DesktopHost } from "../src/host.js";
 const hosts: DesktopHost[] = [],
   dirs: string[] = [];
@@ -419,7 +419,7 @@ it("allow-audit failure never dispatches, while result-audit failure reports com
 });
 it("cross-process disable and re-enable during an audit wait cannot revive an old common edge", async () => {
   const { createCore, MemorySecretStore, RecordingEgressSink } = await import(
-    "@plums/core"
+    "@plumsjs/core"
   );
   const f = await fixture(),
     b = await f.sdk.binding("backend");
@@ -545,7 +545,7 @@ it("an author cannot bypass the RSS limit by forging process memory reports", as
 }, 15000);
 it("pending controlled preparation coexists with a confirmed local entry and revocation still prevents author startup", async () => {
   const { vi } = await import("vitest"),
-    { createArchive } = await import("@plums/core"),
+    { createArchive } = await import("@plumsjs/core"),
     { access } = await import("node:fs/promises");
   const f = await fixture("controlled-node");
   const manifest: ManifestV2 = {
@@ -666,7 +666,7 @@ it("post-launch authorization exceptions wait for the actual process and snapsho
   const { vi } = await import("vitest"),
     { ControlledExecution } = await import("../src/controlled-execution.js"),
     { createCore, MemorySecretStore, RecordingEgressSink } = await import(
-      "@plums/core"
+      "@plumsjs/core"
     ),
     f = await fixture("controlled-node"),
     binding = await f.sdk.binding("backend"),
@@ -726,7 +726,7 @@ it("post-launch authorization exceptions wait for the actual process and snapsho
   }
 }, 15000);
 it("two Agents run the same controlled artifact concurrently and stopping one preserves the other", async () => {
-  const { createCommonPlatformSdk } = await import("@plums/sdk");
+  const { createCommonPlatformSdk } = await import("@plumsjs/sdk");
   const f = await fixture(
     "controlled-node",
     `export function activate(s){s.register('tools','test',async()=>{await s.emit('ready',{pid:process.pid});await new Promise(()=>{});});}`,
@@ -790,7 +790,7 @@ it("controlled Node file work uses the actual host file adapter and complete con
   await f.host.bindRoot(f.a.instanceId, "work", work);
   const front = await f.host.openFrontend(f.a.instanceId);
   if (!front) throw Error();
-  const { createCommonPlatformSdk } = await import("@plums/sdk"),
+  const { createCommonPlatformSdk } = await import("@plumsjs/sdk"),
     sdk = createCommonPlatformSdk(
       (m, a) =>
         f.host.frontendCommon(

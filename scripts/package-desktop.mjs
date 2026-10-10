@@ -6,6 +6,7 @@ import { createHash } from "node:crypto";
 import path from "node:path";
 import { checkPackageManifest } from "./package-manifest.mjs";
 import { pathToFileURL } from "node:url";
+import { generateThirdPartyNotices } from "./generate-third-party-notices.mjs";
 
 export async function runManifestGate(resourceDir) {
   return checkPackageManifest(resourceDir);
@@ -139,6 +140,18 @@ async function prepareApplication() {
     },
   );
   await cp(path.join(nodeDir, "LICENSE"), path.join(resource, "node/LICENSE"));
+  const notices = await generateThirdPartyNotices({
+    root,
+    nodeLicense: path.join(resource, "node/LICENSE"),
+  });
+  for (const [source, name] of [
+    [path.join(root, "LICENSE"), "LICENSE"],
+    [path.join(root, "NOTICE"), "NOTICE"],
+    [notices.output, "THIRD_PARTY_NOTICES.txt"],
+    [notices.electronLicense, "LICENSE.electron"],
+    [notices.chromiumSource, "LICENSES.chromium.html"],
+  ])
+    await cp(source, path.join(resource, name));
   execFileSync(
     "codesign",
     ["--force", "--sign", "-", path.join(resource, "node/bin/node")],

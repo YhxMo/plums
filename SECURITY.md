@@ -18,7 +18,7 @@ Do not open a public issue with vulnerability details, credentials, private
 paths, or personal data. Include a minimal reproduction with synthetic data,
 the Plums version or commit, platform, component declarations, and tier.
 
-Initial acknowledgement: 【用户填写：确认时限】.
+Initial acknowledgement: 7 days.
 
 ## In scope
 

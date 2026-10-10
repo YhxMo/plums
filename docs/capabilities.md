@@ -1,6 +1,6 @@
 # 2.x 能力调用与宿主执行接口
 
-`@plums/core` 0.2.0 提供 `core.runCapability({ extensionId, permissionId, request })`，只接受已安装、已同意并启用的 2.x extension。清单中的 `payload` 不参与授权。1.x 继续使用 `runAction` 和原 MCP 入口；2.x 连接器与调用链通过新增 `runDelegatedCapability` 和 MCP v2 批准接口运行，见文末。
+`@plumsjs/core` 0.2.0 提供 `core.runCapability({ extensionId, permissionId, request })`，只接受已安装、已同意并启用的 2.x extension。清单中的 `payload` 不参与授权。1.x 继续使用 `runAction` 和原 MCP 入口；2.x 连接器与调用链通过新增 `runDelegatedCapability` 和 MCP v2 批准接口运行，见文末。
 
 ## 创建与绑定
 
@@ -14,7 +14,7 @@ import {
   RecordingExecSink,
   ScriptedConfirm,
   type AuditEvent,
-} from "@plums/core";
+} from "@plumsjs/core";
 
 const audit: AuditEvent[] = [];
 const core = createCore({

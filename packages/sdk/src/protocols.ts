@@ -1,4 +1,4 @@
-import { IMPORT_INVALID, PlumsError } from "@plums/core";
+import { IMPORT_INVALID, PlumsError } from "@plumsjs/core";
 import semver from "semver";
 import type { ContributionKind, DesktopContribution } from "./index.js";
 

@@ -1,7 +1,7 @@
 import { afterEach, expect, it, vi } from "vitest";
 import { readFile, writeFile, rm } from "node:fs/promises";
 import path from "node:path";
-import { createCore, RecordingEgressSink, secretRef } from "@plums/core";
+import { createCore, RecordingEgressSink, secretRef } from "@plumsjs/core";
 import { callbackFixture } from "./local-callback-fixture.js";
 import { ComponentLibrary } from "../src/library.js";
 import { EngineManager } from "../src/engine-manager.js";

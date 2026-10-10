@@ -1,6 +1,6 @@
 import { existsSync } from "node:fs";
 import path from "node:path";
-import { RecordingEgressSink, secretRef, type Manifest } from "@plums/core";
+import { RecordingEgressSink, secretRef, type Manifest } from "@plumsjs/core";
 import { describe, expect, it } from "vitest";
 import {
   captureOutput,

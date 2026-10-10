@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import type { AgentRuntimeState } from "../shared/types.js";
-import type { AgentRecord } from "@plums/host";
+import type { AgentRecord } from "@plumsjs/host";
 import { tabs, type Tab, type NavTab } from "../app/route.js";
 import { AgentSwitcher } from "./AgentSwitcher.js";
 import { Icon, type IconName } from "./Icon.js";

@@ -1,6 +1,6 @@
 import { afterEach, expect, it, vi } from "vitest";
-import * as sdk from "@plums/sdk";
-import type { Core, ManifestV2 } from "@plums/core";
+import * as sdk from "@plumsjs/sdk";
+import type { Core, ManifestV2 } from "@plumsjs/core";
 import {
   assemblyProtocols,
   fixProtocolBinding,

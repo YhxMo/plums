@@ -4,13 +4,13 @@ import type {
   LocalAuthorizationState,
   AuditEvent,
   Confirm,
-} from "@plums/core";
+} from "@plumsjs/core";
 import type { TierPlan } from "../../src/local-authorization.js";
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { createRequire } from "node:module";
 import { execFileSync } from "node:child_process";
-import { createCommonPlatformSdk, desktopContribution } from "@plums/sdk";
+import { createCommonPlatformSdk, desktopContribution } from "@plumsjs/sdk";
 import { addPolicy, select, grant } from "../policy-fixture.js";
 import { fixtureManifest, packExtension } from "../fixtures/extensions/pack.js";
 import { chatFixture, reply } from "./chat-fixture.js";

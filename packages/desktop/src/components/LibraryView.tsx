@@ -1,6 +1,6 @@
 import { useAction } from "../hooks/useAction.js";
 import { newerVersion } from "../shared/version.js";
-import type { AgentRecord } from "@plums/host";
+import type { AgentRecord } from "@plumsjs/host";
 import type { CatalogItem } from "../shared/types.js";
 import { EmptyState } from "./EmptyState.js";
 import { KindIcon } from "./KindIcon.js";

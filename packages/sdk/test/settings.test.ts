@@ -1,5 +1,5 @@
 import { expect, it } from "vitest";
-import type { SettingsDescription } from "@plums/core";
+import type { SettingsDescription } from "@plumsjs/core";
 import { missingRequiredSettings } from "../src/settings.js";
 
 it("uses configured secret flags and accepts false, zero and described defaults", () => {

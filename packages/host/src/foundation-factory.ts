@@ -1,6 +1,6 @@
 import semver from "semver";
 import { randomUUID } from "node:crypto";
-import { CAPABILITY_FAILED, PlumsError } from "@plums/core";
+import { CAPABILITY_FAILED, PlumsError } from "@plumsjs/core";
 import {
   checkFoundationCompatibility,
   desktopContribution,
@@ -11,7 +11,7 @@ import {
   type FoundationProvider,
   type FoundationSelection,
   parseFoundationSelection,
-} from "@plums/sdk";
+} from "@plumsjs/sdk";
 import type {
   FoundationSessionOptions,
   FoundationAdapterOptions,

@@ -19,7 +19,7 @@ import {
   type Core,
   type LocalDirectory,
   type ManifestV2,
-} from "@plums/core";
+} from "@plumsjs/core";
 import { LocalAuthorizations } from "../src/local-authorization.js";
 import type { Session } from "../src/host.js";
 

@@ -1,6 +1,6 @@
 import { Ajv } from "ajv";
 import { rmSync } from "node:fs";
-import type { SettingSpec } from "@plums/core";
+import type { SettingSpec } from "@plumsjs/core";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   expectPlumsError,

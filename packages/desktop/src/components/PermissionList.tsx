@@ -1,4 +1,4 @@
-import type { Permission } from "@plums/core";
+import type { Permission } from "@plumsjs/core";
 import { permissionCopy } from "../shared/permission-copy.js";
 import { Icon } from "./Icon.js";
 export function PermissionList({

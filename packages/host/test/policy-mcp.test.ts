@@ -1,6 +1,6 @@
 import { afterEach, expect, it } from "vitest";
 import { rm } from "node:fs/promises";
-import { createArchive, type ManifestV2 } from "@plums/core";
+import { createArchive, type ManifestV2 } from "@plumsjs/core";
 import { fixture } from "./common-fixture.js";
 import { addPolicy, select, grant } from "./policy-fixture.js";
 import { DesktopHost } from "../src/host.js";

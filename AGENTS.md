@@ -6,7 +6,7 @@ Plums（Apache-2.0）是 TypeScript 工作区，包含 core、CLI、扩展 SDK�
 
 - `packages/core/src/index.ts` 是公开 API 入口；内核负责包校验、安装状态、权限、设置、密钥引用、分享与 MCP 工具批准。
 - `packages/host/src/index.ts` 提供公共库、Agent 组装、隔离运行时与真实 I/O；`packages/sdk/src/index.ts` 定义扩展接口；`packages/desktop/src/main.ts` 与 `packages/desktop/src/renderer.tsx` 提供可信管理界面。聊天、模型适配、工具流程和业务前端由外装组件提供，示例不自动安装。
-- `packages/cli/src/main.ts` 只调用 `@plums/core` 公开 API；当前使用 `MemorySecretStore` 和 `RecordingEgressSink`，没有真实联网或持久化密钥。
+- `packages/cli/src/main.ts` 只调用 `@plumsjs/core` 公开 API；当前使用 `MemorySecretStore` 和 `RecordingEgressSink`，没有真实联网或持久化密钥。
 - 契约参考 `README.md`、`docs/architecture.md`、`docs/capabilities.md`、`docs/desktop.md`、`docs/sdk-v2.md` 和 `docs/engine.md`；`docs/scenario-protocols.md` 记录测试夹具业务协议，非平台契约。确认文案见 `docs/confirm-copy.md`；核对实际代码与测试后维护规则，不把路线图写成现有能力。
 - 新包默认格式为 2.0，读取 1.x/2.x；`Manifest`/`Permission` 为联合类型，先按清单格式分支，再处理 2.x 权限的 kind。`runCapability` 接受 2.x extension；宿主使用 `runDelegatedCapability` 支持调用链与 connector；旧动作/MCP 入口仍仅接受 1.x，2.x MCP 使用独立批准接口。
 

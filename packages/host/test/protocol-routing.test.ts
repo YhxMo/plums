@@ -11,13 +11,13 @@ import {
   type ManifestV2,
   type AuditEvent,
   type Grant,
-} from "@plums/core";
+} from "@plumsjs/core";
 import {
   createAgentBundle,
   validateAgentBundle,
   type DesktopContribution,
   type ProtocolBindingIntent,
-} from "@plums/sdk";
+} from "@plumsjs/sdk";
 import { DesktopHost } from "../src/host.js";
 
 const hosts: DesktopHost[] = [],

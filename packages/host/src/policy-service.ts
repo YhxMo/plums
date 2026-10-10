@@ -1,12 +1,12 @@
 import { policyAuditEvent } from "./audit-presentation.js";
 import { createHash, randomUUID } from "node:crypto";
-import { redact, type AuditEvent } from "@plums/core";
+import { redact, type AuditEvent } from "@plumsjs/core";
 import {
   desktopContribution,
   parseCommonPolicyDecision,
   type CommonOperationContext,
   type CommonJson,
-} from "@plums/sdk";
+} from "@plumsjs/sdk";
 import type { Session } from "./host.js";
 import type { InvocationContext } from "./foundation-runtime.js";
 import { resourceFailure } from "./resource-error.js";

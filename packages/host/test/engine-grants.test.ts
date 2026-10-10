@@ -9,7 +9,7 @@ import {
   RecordingEgressSink,
   type Grant,
   type ManifestV2,
-} from "@plums/core";
+} from "@plumsjs/core";
 import {
   DesktopHost,
   type GrantApproval,

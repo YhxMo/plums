@@ -7,8 +7,8 @@ import {
   RecordingFsSink,
   type EgressRequest,
   type EgressResult,
-} from "@plums/core";
-import { desktopContribution, type FoundationSelection } from "@plums/sdk";
+} from "@plumsjs/core";
+import { desktopContribution, type FoundationSelection } from "@plumsjs/sdk";
 import { DesktopHost, type HostOptions } from "../../src/host.js";
 import type { protocolPlan } from "../../src/protocol-bindings.js";
 import { cardFixture, packExtension } from "../fixtures/extensions/pack.js";

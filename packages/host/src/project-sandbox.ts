@@ -16,7 +16,7 @@ import { createServer, type Server } from "node:net";
 import { createSocket } from "node:dgram";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { PlumsError } from "@plums/core";
+import { PlumsError } from "@plumsjs/core";
 import { projectProfile } from "./project-profile.js";
 
 const allowed = [

@@ -16,7 +16,7 @@ import {
   type AuditEvent,
   type Core,
   type Grant,
-} from "@plums/core";
+} from "@plumsjs/core";
 import { InstallStore } from "../src/install/store.js";
 
 const cores: Core[] = [],

@@ -2,7 +2,7 @@
 
 数据目录默认是用户目录下的 `.plums`。`--home <目录>` 或环境变量 `PLUMS_HOME` 可以改掉。
 
-新建清单可使用 `@plums/core` 导出的 `PACKAGE_FORMAT_VERSION` 作为 `formatVersion` 默认值（当前为 `"2.0"`）；`SUPPORTED_FORMAT_MAJOR` 从它推导。内核读取 1.x 与 2.x，导出保留传入的版本，例如 `1.7` 或 `2.7`。
+新建清单可使用 `@plumsjs/core` 导出的 `PACKAGE_FORMAT_VERSION` 作为 `formatVersion` 默认值（当前为 `"2.0"`）；`SUPPORTED_FORMAT_MAJOR` 从它推导。内核读取 1.x 与 2.x，导出保留传入的版本，例如 `1.7` 或 `2.7`。
 
 2.x 权限包括 `kind: fs | exec | egress | service | engine`，每条有唯一 `id`、`target` 和 `reason`。fs 的 `operations` 显式列出 read/write/list，write 不隐含 read；exec 的 `cwdRoots` 列出逻辑工作目录根；egress 沿用 HTTPS 域名和端口规则。`inspect` 返回 formatVersion 和完整声明，CLI 的 inspect、enable 输出也保留全部字段。跨格式更新，或新增操作、改变类别/目标、增加 exec 目录范围，都需重新同意。
 

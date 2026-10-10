@@ -3,7 +3,7 @@ import type {
   ComponentSource,
   ComponentInspection,
   ComponentDraft,
-} from "@plums/host";
+} from "@plumsjs/host";
 import { ManagedDialog } from "../managed-dialog.js";
 
 type JsonTab = "manifest" | "payload";

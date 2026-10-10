@@ -1,4 +1,4 @@
-import type { SettingsDescription } from "@plums/core";
+import type { SettingsDescription } from "@plumsjs/core";
 
 /** Required configuration still missing from the host's settings description. */
 export function missingRequiredSettings(

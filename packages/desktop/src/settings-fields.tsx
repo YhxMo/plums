@@ -1,4 +1,4 @@
-import type { SettingsDescription } from "@plums/core";
+import type { SettingsDescription } from "@plumsjs/core";
 
 export function initialSettings(settings: SettingsDescription) {
   const values = { ...settings.values };

@@ -94,6 +94,14 @@ The detailed guides are currently written in Simplified Chinese.
 | Understand permissions and capability calls | [Capabilities](./docs/capabilities.md)                       |
 | Upgrade and recover local data              | [Compatibility and recovery](./docs/desktop-recovery.md)     |
 
+## npm package scope
+
+The workspace uses the npm organization scope `@plumsjs`: `@plumsjs/core`,
+`@plumsjs/cli`, `@plumsjs/sdk`, `@plumsjs/host`, and `@plumsjs/desktop`.
+The CLI command remains `plums`. npm publication is pending; use the source
+build instructions above. The SDK, host, desktop, and workspace root retain
+their existing `private: true` setting.
+
 ## Development
 
 Run these commands from the repository root:
@@ -109,3 +117,7 @@ pnpm desktop:package
 ## License
 
 Licensed under [Apache-2.0](./LICENSE).
+
+[NOTICE](./NOTICE) identifies the project copyright holder. Desktop packages include
+production third-party license texts in `Plums.app/Contents/Resources/`:
+`THIRD_PARTY_NOTICES.txt`, `LICENSE.electron`, `LICENSES.chromium.html`, and `node/LICENSE`.

@@ -8,7 +8,7 @@ import {
   RecordingEgressSink,
   type Core,
   type ManifestV2,
-} from "@plums/core";
+} from "@plumsjs/core";
 import { LocalAuthorizations } from "../src/local-authorization.js";
 import { credentialFragments } from "../src/project-credentials.js";
 import type { Session } from "../src/host.js";

@@ -9,7 +9,7 @@ import {
   type CapabilityRequest,
   type Core,
   type ManifestV2,
-} from "@plums/core";
+} from "@plumsjs/core";
 import { dispatchSdk } from "../src/sdk-bridge.js";
 import { ioContext } from "../src/io.js";
 import type { Session } from "../src/host.js";

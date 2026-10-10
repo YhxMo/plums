@@ -12,7 +12,7 @@ import {
   redact,
   type AuditEvent,
   type SecretStore,
-} from "@plums/core";
+} from "@plumsjs/core";
 import { DesktopHost } from "../src/host.js";
 import {
   MACHINE_AUTHORIZATION_COPY,

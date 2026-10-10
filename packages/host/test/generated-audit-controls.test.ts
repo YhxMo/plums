@@ -11,7 +11,7 @@ import {
   redact,
   type AuditEvent,
   type ManifestV2,
-} from "@plums/core";
+} from "@plumsjs/core";
 import { DesktopHost } from "../src/host.js";
 import { resourceFixture } from "./resource-fixture.js";
 import { addPolicy, select, grant } from "./policy-fixture.js";

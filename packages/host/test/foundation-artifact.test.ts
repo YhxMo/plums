@@ -13,7 +13,7 @@ import { pathToFileURL } from "node:url";
 import path from "node:path";
 import os from "node:os";
 import { DesktopHost } from "../src/host.js";
-import { MemorySecretStore, createArchive } from "@plums/core";
+import { MemorySecretStore, createArchive } from "@plumsjs/core";
 it("relocates the exact executing trusted adapter and rejects changed bundle bytes without changing its pin", async () => {
   const root = await mkdtemp(path.join(os.tmpdir(), "plums-adapter-")),
     options = {

@@ -13,7 +13,7 @@ import {
   type Core,
   type Manifest,
   type McpTool,
-} from "@plums/core";
+} from "@plumsjs/core";
 import { afterEach, describe, expect, it } from "vitest";
 import {
   expectPlumsError,

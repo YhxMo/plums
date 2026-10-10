@@ -122,7 +122,7 @@ Seatbelt 的 sandbox-exec 与 sandbox.h 是已弃用的平台设施，不能视�
 
 ## 9. 开发与符合性入口
 
-从 `@plums/sdk` 导入 `CommonPlatformSdk/parseCommonEnvelope/parseCommonDeclaration/parseCommonPolicyDecision/CommonReplyTracker`；从提供者和需求的独立命名槽开始设计，不使用包名调用。例如消费者获取 `sdk.binding("records")` 后执行 `sdk.invoke(binding.handle,"find",{query:"fixture"})`，通过 `call.events` 消费事件、`call.result` 获取终态、`call.cancel()` 请求取消。资源修改先 read，再携带 revision 执行 write/delete；业务 null 与不存在通过 exists 区分。
+从 `@plumsjs/sdk` 导入 `CommonPlatformSdk/parseCommonEnvelope/parseCommonDeclaration/parseCommonPolicyDecision/CommonReplyTracker`；从提供者和需求的独立命名槽开始设计，不使用包名调用。例如消费者获取 `sdk.binding("records")` 后执行 `sdk.invoke(binding.handle,"find",{query:"fixture"})`，通过 `call.events` 消费事件、`call.result` 获取终态、`call.cancel()` 请求取消。资源修改先 read，再携带 revision 执行 write/delete；业务 null 与不存在通过 exists 区分。
 
 本阶段可运行的入口：先 `pnpm build`，再 `pnpm exec vitest run packages/sdk/test/common-contract.test.ts`；`node scripts/common-contract-schema.mjs --check` 核对独立 schema；`node scripts/common-contract-execution-probe.mjs --out <report.json>` 在 macOS arm64 自造临时数据上验证直接边界和停止行为。它不会使用真实业务数据、凭据或外部服务器。原型成功不代表所有桌面运行路径已经集成。
 

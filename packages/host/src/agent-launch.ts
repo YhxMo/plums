@@ -8,9 +8,9 @@ import {
   IMPORT_INVALID,
   SETTINGS_INVALID,
   type Core,
-} from "@plums/core";
+} from "@plumsjs/core";
 import type { AgentRecord } from "./host.js";
-import { missingRequiredSettings } from "@plums/sdk/settings";
+import { missingRequiredSettings } from "@plumsjs/sdk/settings";
 import {
   connectionAccess,
   grantConnectionAccess,

@@ -1,6 +1,6 @@
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
-import type { Manifest, SettingsSchema } from "@plums/core";
+import type { Manifest, SettingsSchema } from "@plumsjs/core";
 import { describe, expect, it } from "vitest";
 import { serializeError } from "./contract-helpers.js";
 import {

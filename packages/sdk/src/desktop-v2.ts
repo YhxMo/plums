@@ -5,7 +5,7 @@ import {
   validateEnginePermission,
   type Manifest,
   type PackageFiles,
-} from "@plums/core";
+} from "@plumsjs/core";
 
 export interface ConnectionCredential {
   setting: string;

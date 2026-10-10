@@ -1,5 +1,5 @@
 import { afterEach, expect, it, vi } from "vitest";
-import { createArchive, validatePackage } from "@plums/core";
+import { createArchive, validatePackage } from "@plumsjs/core";
 import { createHash } from "node:crypto";
 import { rm } from "node:fs/promises";
 import {

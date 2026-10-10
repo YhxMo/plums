@@ -19,6 +19,14 @@ export const EXPERIMENTAL_HELPERS = Object.freeze([
 export const ALLOWED_ZIPS = Object.freeze([
   "app/dist/foundation-resources/official.zip",
 ]);
+export const REQUIRED_LICENSE_FILES = Object.freeze([
+  "LICENSE",
+  "NOTICE",
+  "THIRD_PARTY_NOTICES.txt",
+  "LICENSE.electron",
+  "LICENSES.chromium.html",
+  "node/LICENSE",
+]);
 const experimentalNames = new RegExp(
   "(^|/)(" + EXPERIMENTAL_HELPERS.join("|") + ")([.][^/]+)?(/|$)",
 );
@@ -33,6 +41,10 @@ export function assertPackageManifest(files) {
     )
       throw Error("Test fixture in desktop package: " + entry);
   }
+  const inventory = new Set(files.map((entry) => entry.replaceAll("\\", "/")));
+  for (const name of REQUIRED_LICENSE_FILES)
+    if (!inventory.has(name))
+      throw Error("Required desktop license missing: " + name);
 }
 
 async function zipNames(file) {
@@ -75,7 +87,8 @@ export async function checkPackageManifest(resource) {
         files.push(...contents);
         // ZIP fixture paths in an ASAR are rejected by the same inventory guard.
       } else if (entry.name.endsWith(".zip")) {
-        assertPackageManifest([name]);
+        if (!ALLOWED_ZIPS.includes(name))
+          throw Error("Test fixture in desktop package: " + name);
         files.push(...(await zipNames(file)).map((n) => name + "/" + n));
       }
     }

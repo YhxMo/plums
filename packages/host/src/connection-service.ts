@@ -12,8 +12,8 @@ import {
   type EgressSink,
   type HostService,
   type JsonValue,
-} from "@plums/core";
-import { desktopContribution, type ConnectionDeclaration } from "@plums/sdk";
+} from "@plumsjs/core";
+import { desktopContribution, type ConnectionDeclaration } from "@plumsjs/sdk";
 import { ioContext } from "./io.js";
 
 const digest = (v: unknown) =>

@@ -373,7 +373,7 @@ it("reopening while a session closes keeps the new owner and still excludes anot
       }),
     ).resolves.toEqual({ value: 2 });
     const { DesktopHost } = await import("../src/host.js");
-    const { MemorySecretStore } = await import("@plums/core");
+    const { MemorySecretStore } = await import("@plumsjs/core");
     const other = new DesktopHost({
       dataDir: f.dir,
       nodePath: process.execPath,

@@ -10,7 +10,7 @@ import {
   RecordingEgressSink,
   RecordingFsSink,
   readArchive,
-} from "@plums/core";
+} from "@plumsjs/core";
 import { DesktopHost } from "../../src/host.js";
 import type { AgentRecord } from "../../src/host.js";
 import {

@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { mcpToolFingerprint, type McpTool } from "@plums/core";
+import { mcpToolFingerprint, type McpTool } from "@plumsjs/core";
 import { describe, expect, it } from "vitest";
 
 const LEAK = "plums-mcp-desc-LEAK-9f3a7c1e-DO-NOT-ECHO";

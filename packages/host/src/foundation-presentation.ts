@@ -3,8 +3,8 @@ import {
   type AuditEvent,
   type ConfirmRequest,
   type LocalAuthorizationState,
-} from "@plums/core";
-import type { FoundationSelection } from "@plums/sdk";
+} from "@plumsjs/core";
+import type { FoundationSelection } from "@plumsjs/sdk";
 import type { AgentFoundationBinding } from "./foundation-state.js";
 import type { TierPlan } from "./local-authorization.js";
 

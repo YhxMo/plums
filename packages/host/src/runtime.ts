@@ -3,12 +3,12 @@ import { existsSync } from "node:fs";
 import { fork, type ChildProcess } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { randomUUID } from "node:crypto";
-import { PlumsError, CAPABILITY_FAILED } from "@plums/core";
+import { PlumsError, CAPABILITY_FAILED } from "@plumsjs/core";
 import {
   validateContributionValue,
   type ContributionKind,
   type DesktopContribution,
-} from "@plums/sdk";
+} from "@plumsjs/sdk";
 
 import type { InvocationContext, RuntimeBridge } from "./foundation-runtime.js";
 export type { InvocationContext, RuntimeBridge } from "./foundation-runtime.js";

@@ -15,7 +15,7 @@ import {
   SECRET_NOT_FOUND,
   SETTINGS_INVALID,
   SHARE_FETCH_FAILED,
-} from "@plums/core";
+} from "@plumsjs/core";
 import { describe, expect, it } from "vitest";
 
 describe("public error codes", () => {

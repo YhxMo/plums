@@ -1,4 +1,4 @@
-import type { AgentRecord } from "@plums/host";
+import type { AgentRecord } from "@plumsjs/host";
 import { Popover } from "./Popover.js";
 import { Icon } from "./Icon.js";
 export function UsageBadge({

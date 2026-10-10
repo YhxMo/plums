@@ -1,8 +1,8 @@
 import { Icon } from "../components/Icon.js";
 import { PermissionList } from "../components/PermissionList.js";
 import { useState } from "react";
-import type { Permission } from "@plums/core";
-import type { AgentBundleManifest } from "@plums/sdk";
+import type { Permission } from "@plumsjs/core";
+import type { AgentBundleManifest } from "@plumsjs/sdk";
 import { ManagedDialog } from "../managed-dialog.js";
 export type ImportPreviewData = {
   token: string;

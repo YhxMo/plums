@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 import { lstat, mkdir, readdir, rm, chmod } from "node:fs/promises";
 import path from "node:path";
-import { PlumsError } from "@plums/core";
+import { PlumsError } from "@plumsjs/core";
 
 function unsafe(): never {
   throw new PlumsError({

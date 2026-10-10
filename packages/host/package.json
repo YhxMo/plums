@@ -1,5 +1,5 @@
 {
-  "name": "@plums/host",
+  "name": "@plumsjs/host",
   "version": "1.0.0",
   "private": true,
   "type": "module",
@@ -19,8 +19,8 @@
     "build": "tsc -p tsconfig.json && node ../../scripts/build-host-native.mjs"
   },
   "dependencies": {
-    "@plums/core": "workspace:*",
-    "@plums/sdk": "workspace:*",
+    "@plumsjs/core": "workspace:*",
+    "@plumsjs/sdk": "workspace:*",
     "semver": "^7.8.5",
     "isolated-vm": "7.0.1"
   },

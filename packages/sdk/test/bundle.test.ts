@@ -1,6 +1,6 @@
 import { it, expect } from "vitest";
 import { ZipFile } from "yazl";
-import { createArchive, validatePackage, type ManifestV2 } from "@plums/core";
+import { createArchive, validatePackage, type ManifestV2 } from "@plumsjs/core";
 import {
   createAgentBundle,
   validateAgentBundle,

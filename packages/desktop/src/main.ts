@@ -14,7 +14,7 @@ import { fileURLToPath } from "node:url";
 import { writeFile } from "node:fs/promises";
 import { mkdirSync } from "node:fs";
 import path from "node:path";
-import type { Permission, ConfirmRequest } from "@plums/core";
+import type { Permission, ConfirmRequest } from "@plumsjs/core";
 import { ConfirmPrompter } from "./confirm-window.js";
 import { permissionCopy } from "./shared/permission-copy.js";
 import {
@@ -23,7 +23,7 @@ import {
   type AgentView,
   type AgentViewResource,
 } from "./agent-view.js";
-import type { PanelLayout } from "@plums/sdk";
+import type { PanelLayout } from "@plumsjs/sdk";
 
 protocol.registerSchemesAsPrivileged([
   {
@@ -231,9 +231,9 @@ async function openAgent(
   if (epoch !== viewEpoch) return false;
   const task = (await rpc("taskScopePlan", {
     instanceId,
-  })) as import("@plums/core").TaskScopePlan & {
+  })) as import("@plumsjs/core").TaskScopePlan & {
     name: string;
-    active?: import("@plums/core").TaskScopeState;
+    active?: import("@plumsjs/core").TaskScopeState;
   };
   if (epoch !== viewEpoch) return false;
   if (!task.active && task.entries.length) {
@@ -489,7 +489,7 @@ app.whenReady().then(async () => {
       packageId: string;
       topic: string;
       data: unknown;
-      delivery: import("@plums/host").PanelDelivery;
+      delivery: import("@plumsjs/host").PanelDelivery;
     };
     if (m.type === "reply") {
       const pending = requests.get(m.id);
@@ -564,7 +564,7 @@ app.whenReady().then(async () => {
         if (m.method === "grant-confirm") {
           const controller = new AbortController();
           approvals.set(m.id, controller);
-          const args = m.args as import("@plums/host").GrantApproval;
+          const args = m.args as import("@plumsjs/host").GrantApproval;
           let selected: import("./confirm-window.js").TaskChoice | undefined;
           const allowed = await prompter.ask(
             {
@@ -789,8 +789,8 @@ app.whenReady().then(async () => {
           value = null;
         } else if (method === "saveComponentDraft") {
           const snapshot = (await rpc("componentDraftSnapshot", args)) as {
-            source: import("@plums/host").ComponentSource;
-            manifest: import("@plums/core").Manifest;
+            source: import("@plumsjs/host").ComponentSource;
+            manifest: import("@plumsjs/core").Manifest;
           };
           let approved = true;
           if (snapshot.source.kind === "agent")
@@ -926,7 +926,7 @@ app.whenReady().then(async () => {
           await rpc(method, args);
           const settings = (await rpc(
             "desktopSettings",
-          )) as import("@plums/host").DesktopSettings;
+          )) as import("@plumsjs/host").DesktopSettings;
           nativeTheme.themeSource = settings.theme;
           value = null;
         } else if (
@@ -1106,7 +1106,7 @@ app.whenReady().then(async () => {
           const context = (await rpc(
             "frontendContext",
             binding,
-          )) as import("@plums/sdk").PanelContext;
+          )) as import("@plumsjs/sdk").PanelContext;
           const { width, height } = window.getContentBounds();
           value = {
             ...context,
@@ -1267,7 +1267,7 @@ app.whenReady().then(async () => {
   await ready;
   const settings = (await rpc(
     "desktopSettings",
-  )) as import("@plums/host").DesktopSettings;
+  )) as import("@plumsjs/host").DesktopSettings;
   nativeTheme.themeSource = settings.theme;
   updateBackground();
   await window.loadFile(path.join(base, "renderer/index.html"));

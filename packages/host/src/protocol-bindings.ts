@@ -5,7 +5,7 @@ import {
   IMPORT_INVALID,
   type Core,
   type Manifest,
-} from "@plums/core";
+} from "@plumsjs/core";
 import {
   desktopContribution,
   checkProtocolCompatibility,
@@ -15,7 +15,7 @@ import {
   type ProtocolProvider,
   type ProtocolCompatibility,
   type ProtocolDeclarations,
-} from "@plums/sdk";
+} from "@plumsjs/sdk";
 import type { AgentRecord } from "./host.js";
 import type { LibraryItem } from "./library.js";
 

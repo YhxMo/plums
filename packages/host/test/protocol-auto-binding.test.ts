@@ -10,12 +10,12 @@ import {
   RecordingFsSink,
   type ManifestV2,
   type AuditEvent,
-} from "@plums/core";
+} from "@plumsjs/core";
 import {
   createAgentBundle,
   validateAgentBundle,
   type DesktopContribution,
-} from "@plums/sdk";
+} from "@plumsjs/sdk";
 import { DesktopHost } from "../src/host.js";
 import { compose, binding } from "../src/assembly.js";
 

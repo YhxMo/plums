@@ -2,7 +2,7 @@ import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { EventEmitter } from "node:events";
 import https from "node:https";
 import { lookup } from "node:dns/promises";
-import { MemorySecretStore } from "@plums/core";
+import { MemorySecretStore } from "@plumsjs/core";
 import { HttpsSink, ioContext, type DnsMode } from "../src/io.js";
 vi.mock("node:dns/promises", () => ({ lookup: vi.fn() }));
 const dnsQueries: { url: string; headers: unknown }[] = [];

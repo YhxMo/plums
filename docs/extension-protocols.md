@@ -56,7 +56,7 @@ SDK v2 已实现声明校验、元数据兼容判断，当前 Agent 内发现、
 ## 兼容判断与安全边界
 
 ```ts
-import { checkProtocolCompatibility } from "@plums/sdk";
+import { checkProtocolCompatibility } from "@plumsjs/sdk";
 
 const result = checkProtocolCompatibility(requirement, provider);
 // { compatible: true }

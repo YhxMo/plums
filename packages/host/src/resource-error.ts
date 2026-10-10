@@ -1,5 +1,5 @@
-import { CAPABILITY_FAILED, PlumsError } from "@plums/core";
-import type { CommonErrorCode, CommonExecutionState } from "@plums/sdk";
+import { CAPABILITY_FAILED, PlumsError } from "@plumsjs/core";
+import type { CommonErrorCode, CommonExecutionState } from "@plumsjs/sdk";
 export function resourceFailure(
   reason: CommonErrorCode,
   callId?: string,

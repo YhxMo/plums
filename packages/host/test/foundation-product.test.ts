@@ -14,8 +14,8 @@ import {
 import os from "node:os";
 import path from "node:path";
 import { sign } from "node:crypto";
-import { MemorySecretStore, createArchive, readArchive } from "@plums/core";
-import { parseFoundationAgent } from "@plums/sdk";
+import { MemorySecretStore, createArchive, readArchive } from "@plumsjs/core";
+import { parseFoundationAgent } from "@plumsjs/sdk";
 import { DesktopHost } from "../src/host.js";
 import { digest } from "../src/library.js";
 const roots: string[] = [],

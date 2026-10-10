@@ -10,7 +10,7 @@ SDK v2 保留 SDK v1 普通扩展的贡献、设置、角色、事件、能力�
 
 SDK v2 扩展可在 `plumsDesktop.panels` 声明与协议提供项关联的 HTML 面板。用户先在管理窗口固定组件连接，工作界面再用 `window.plums.panels.open(requirementId, panelId)` 打开该提供者的面板。每个面板独立使用沙箱、Electron 会话和组件身份；外装界面通过 `panels.layout` 提交工作区布局。
 
-`@plums/sdk` 导出 `PanelDeclaration`、`PanelContext`、`PanelLayout`、`PanelPost`、`PanelMessage`、`FrontendPanelsSdk` 和 `PlumsFrontendSdk`。`panels.post/onMessage` 只连接主界面与有效绑定的面板；`panels.respond` 用收到的消息凭证调用本组件贡献，保留发送者的授权交集和会话复核。关闭、重建、更新与更换连接使旧句柄失效；消息正文不进入能力审计。声明、示例、消息限制和生命周期见[扩展协议](extension-protocols.md#隔离面板与限定消息)。
+`@plumsjs/sdk` 导出 `PanelDeclaration`、`PanelContext`、`PanelLayout`、`PanelPost`、`PanelMessage`、`FrontendPanelsSdk` 和 `PlumsFrontendSdk`。`panels.post/onMessage` 只连接主界面与有效绑定的面板；`panels.respond` 用收到的消息凭证调用本组件贡献，保留发送者的授权交集和会话复核。关闭、重建、更新与更换连接使旧句柄失效；消息正文不进入能力审计。声明、示例、消息限制和生命周期见[扩展协议](extension-protocols.md#隔离面板与限定消息)。
 
 ## 通用连接
 

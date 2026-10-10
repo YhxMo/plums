@@ -10,7 +10,7 @@ import {
   RecordingFsSink,
   type ManifestV2,
   type AuditEvent,
-} from "@plums/core";
+} from "@plumsjs/core";
 import { DesktopHost } from "../src/host.js";
 import { HttpsSink, SecureFsSink } from "../src/io.js";
 vi.mock("node:dns/promises", () => ({

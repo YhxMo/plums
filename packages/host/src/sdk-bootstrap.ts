@@ -1,4 +1,4 @@
-import { createCommonPlatformSdk } from "@plums/sdk/common-client";
+import { createCommonPlatformSdk } from "@plumsjs/sdk/common-client";
 export const bootstrap = String.raw`
 (() => {
   const out = [], pending = new Map(), handlers = new Map(), failures=new WeakMap(), events=new Map(); let next = 0;

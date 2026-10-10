@@ -4,7 +4,7 @@ import { readFile, mkdtemp, mkdir, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
 import os from "node:os";
 import { spawnSync } from "node:child_process";
-import { createArchive } from "@plums/core";
+import { createArchive } from "@plumsjs/core";
 import { open } from "../../../scripts/platform-conformance-host.mjs";
 import {
   PLATFORM_CASE_IDS,

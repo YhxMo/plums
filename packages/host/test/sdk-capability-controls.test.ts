@@ -13,7 +13,7 @@ import {
   redact,
   type AuditEvent,
   type ManifestV2,
-} from "@plums/core";
+} from "@plumsjs/core";
 import { DesktopHost } from "../src/host.js";
 import { ControlledExecution } from "../src/controlled-execution.js";
 

@@ -1,4 +1,4 @@
-import type { AgentRecord } from "@plums/host";
+import type { AgentRecord } from "@plumsjs/host";
 import type { CatalogItem } from "../shared/types.js";
 import { kindLabel, type ComponentKind } from "../shared/terms.js";
 import { LibraryView } from "../components/LibraryView.js";
