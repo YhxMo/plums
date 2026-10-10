@@ -130,8 +130,7 @@ The detailed guides are currently written in Simplified Chinese.
 
 The workspace uses the npm organization scope `@plumsjs`: `@plumsjs/core`,
 `@plumsjs/cli`, `@plumsjs/sdk`, `@plumsjs/host`, and `@plumsjs/desktop`.
-The CLI command remains `plums`. Use the source build instructions above. The SDK, host, desktop, and workspace root retain
-their existing `private: true` setting.
+The CLI command remains `plums`. Use the source build instructions above. The SDK, host, desktop, and workspace root are not currently published to npm.
 
 ## Development
 

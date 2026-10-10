@@ -2,7 +2,7 @@
 
 底座是扩展代码的执行提供者。可信宿主保留 Agent/安装身份、权限、配置和密钥、审计与生命周期。替代底座自己加载扩展、实现所声明的 SDK；不能通过包装官方运行实例宣称独立实现。
 
-本文件包含公开协议、可信注册与官方适配、公共库第三方接入、Agent 固定与切换，以及官方制品和桌面管理。`DesktopHost` 已通过同一公共会话工厂运行官方或库内第三方组件会话；每 Agent 精确固定、需求检查和事务恢复见 [选择与切换](foundation-agent-selection.md)。官方离线 ZIP、旧版本执行、可信桌面入口和便携流程见 [桌面底座管理](foundation-desktop.md)。完整符合性另待后续阶段。独立 JSONL 原型仍可由公开 `@plumsjs/host.startFoundationSession` 启动；其执行证据只覆盖最小 SDK 子集。可信库接入和作者接口见 [作者指南](foundation-author-guide.md)。
+本文件包含公开协议、可信注册与官方适配、公共库第三方接入、Agent 固定与切换，以及官方制品和桌面管理。`DesktopHost` 已通过同一公共会话工厂运行官方或库内第三方组件会话；每 Agent 精确固定、需求检查和事务恢复见 [选择与切换](foundation-agent-selection.md)。官方离线 ZIP、旧版本执行、可信桌面入口和便携流程见 [桌面底座管理](foundation-desktop.md)。完整符合性尚未验证。独立 JSONL 原型仍可由公开 `@plumsjs/host.startFoundationSession` 启动；其执行证据只覆盖最小 SDK 子集。可信库接入和作者接口见 [作者指南](foundation-author-guide.md)。
 
 ## 分开的版本与字段
 
@@ -47,7 +47,7 @@
 }
 ```
 
-入口必须是存在的安全相对包路径；拒绝绝对路径、反斜线、NUL、空段、`.`、`..` 和驱动器路径。只有经过包检查并与固定 ZIP 摘要匹配的入口可以启动。首轮承载仅支持 macOS arm64 的固定 Node 26.5.1；其他平台明确拒绝，不退到无沙箱启动。
+入口必须是存在的安全相对包路径；拒绝绝对路径、反斜线、NUL、空段、`.`、`..` 和驱动器路径。只有经过包检查并与固定 ZIP 摘要匹配的入口可以启动。当前承载仅支持 macOS arm64 的固定 Node 26.5.1；其他平台明确拒绝，不退到无沙箱启动。
 
 `features` 描述会话功能，当前必需 invoke/callback/cancel。SDK features 按 SDK 分组，不跨 SDK 合并。声明 1.1 支持可选 `sdks[].featureRanges: [{range, features}]`，仅对满足该 range 的 SDK 版本添加功能。`hostFeatures` 描述提供者需要的公共宿主功能，未知且未提供的功能导致不兼容。声明和版本范围只提供离线候选诊断，不自动产生行为认证。可信官方声明另有 `execution: builtin-adapter`。第三方提供者解析拒绝此执行方式；只有应用认可签名或固定迁移摘要的官方归档可进入独立可信官方加载器，见 [官方制品格式](foundation-desktop.md#官方离线制品与构建)。
 
@@ -128,9 +128,9 @@ ready/activated 重复、错版本/SDK/features、跨 session/call 的回调、�
 
 默认握手/激活各 10 秒，单次调用总期限 120 秒；可信测试可缩短，总期限上限 120 秒。OS supervisor 采样 CPU/RSS：准备和每次激活/调用窗口最多约 5 秒 CPU，250ms 采样有少量精度余量，等待宿主不消耗 CPU；超出关闭。提供者 Node old-space 64 MiB，进程 RSS 上限 256 MiB；它们与官方 isolate 的内存预算分别管理。原型 VM 同步脚本还设 5 秒 timeout。
 
-单帧最大 1 MiB，单次最多 32 个同时回调、1024 个总回调；stdout 分段由宿主增量解码和限额，stdin 有界。原型通过 prepare 传输源码，只支持总 prepare 帧小于 1 MiB 的最小扩展；大型/二进制制品快照和完整 SDK 由后续阶段验收。取消、期限、断连、协议破坏后的执行状态：未发送 invoke 是 not_started，已发送后无法确认副作用是 unknown，收到终态是 completed；真实能力错误保留 core 的 callId/phase/executionState。提供者无权修改宿主执行凭据。
+单帧最大 1 MiB，单次最多 32 个同时回调、1024 个总回调；stdout 分段由宿主增量解码和限额，stdin 有界。原型通过 prepare 传输源码，只支持总 prepare 帧小于 1 MiB 的最小扩展；大型/二进制制品快照和完整 SDK 尚未验证。取消、期限、断连、协议破坏后的执行状态：未发送 invoke 是 not_started，已发送后无法确认副作用是 unknown，收到终态是 completed；真实能力错误保留 core 的 callId/phase/executionState。提供者无权修改宿主执行凭据。
 
-## 实际原型与验收入口
+## 原型实现与验证入口
 
 独立加载器在 `packages/host/test/fixtures/independent-foundation.mjs`，仅导入 Node 公开 API，实现自己的模块链接、SDK Promise/RPC、注册和调用，不导入 ExtensionRuntime、controlled-worker、sdk-bootstrap，也不包装官方实例。同一个 ZIP 的 main.js 由官方 ExtensionRuntime 和独立加载器执行，测试比较业务结果，同时保留各自新生成的调用身份。
 
@@ -168,7 +168,7 @@ export function activate(plums) {
 | `context()`                                   | Promise<{agentId, componentId, invocationId, frontend?}>；method=context，args={}；宿主固定身份，frontend 是既有公开 PanelContext |
 | `capability(permissionId, request, mcpTool?)` | Promise<JSON>；method=capability，args={permissionId, request, mcpTool?}；宿主依当前安装、调用链、权限、范围、确认和审计执行      |
 
-本阶段 capability 的实际原生验收是 fs/list。request 是 `{kind:"fs", operation:"list", path:"."}`，path 为绑定目录内相对路径。value 是 `{callId, kind:"fs", operation:"list", entries:[{name,type}]}`；type 是 file/directory，callId 为 core 生成的能力调用 id，与会话的贡献 callId 分开。其他能力请求沿用公开 CapabilityRequest，但本原型尚未验证二进制 read/write 传输、HTTPS、exec 或 MCP，不能据此声明这些兼容。
+当前版本 capability 的原生验证范围是 fs/list。request 是 `{kind:"fs", operation:"list", path:"."}`，path 为绑定目录内相对路径。value 是 `{callId, kind:"fs", operation:"list", entries:[{name,type}]}`；type 是 file/directory，callId 为 core 生成的能力调用 id，与会话的贡献 callId 分开。其他能力请求沿用公开 CapabilityRequest，但本原型尚未验证二进制 read/write 传输、HTTPS、exec 或 MCP，不能据此声明这些兼容。
 
 所有子集 SDK Promise 拒绝都构造扩展 realm 内的通用 Error，并保存宿主 reply 的 failureId。如果该错误传播到贡献失败终态，value 必须为 `{failureId}`；宿主据此还原本次记录的真实错误，不接纳作者自报 code/phase/executionState。扩展可以自行捕获拒绝并返回正常业务结果，这不改变真实宿主审计和执行凭据。贡献返回 undefined 编码为 null；其他正常结果必须可 JSON 序列化，不能包含 BigInt、循环引用或跨进程对象。
 

@@ -126,7 +126,7 @@ pnpm desktop:dev
 工作区使用 npm 组织作用域 `@plumsjs`：`@plumsjs/core`、`@plumsjs/cli`、
 `@plumsjs/sdk`、`@plumsjs/host` 和 `@plumsjs/desktop`。
 CLI 命令仍为 `plums`。按上文从源码构建。
-SDK、host、desktop 和工作区根目录保留已有的 `private: true` 设置。
+SDK、host、desktop 和工作区根目录暂未发布到 npm。
 
 ## 开发
 

@@ -1,4 +1,5 @@
 import { readFile, realpath, mkdtemp, rm, access } from "node:fs/promises";
+import { readFileSync } from "node:fs";
 import { execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import { tmpdir } from "node:os";
@@ -14,6 +15,10 @@ import {
 import { parseMacosMajor } from "./macos-version.mjs";
 
 const repository = fileURLToPath(new URL("../", import.meta.url));
+const privacyAllowlist = JSON.parse(
+  readFileSync(new URL("./privacy-allowlist.json", import.meta.url), "utf8"),
+);
+const lineDigest = (line) => createHash("sha256").update(line).digest("hex");
 export const APACHE_LICENSE_SHA256 =
   "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30";
 export const REQUIRED_PUBLIC_FILES = Object.freeze([
@@ -35,14 +40,31 @@ export function scanTrackedPrivacy(contents, expressions) {
   if (!expressions.length) throw Error("External denylist must not be empty");
   let patterns;
   try {
-    patterns = expressions.map((expression) => new RegExp(expression, "i"));
+    patterns = expressions.map((expression) => new RegExp(expression, "gi"));
   } catch {
     throw Error("Invalid external denylist expression");
   }
   const hits = [];
   for (const [file, text] of contents)
     text.split("\n").forEach((line, index) => {
-      if (patterns.some((pattern) => pattern.test(line)))
+      // Bind each exception to exact source bytes and only the reviewed spans.
+      const allowed =
+        privacyAllowlist.find(
+          (entry) => entry.file === file && entry.sha256 === lineDigest(line),
+        )?.spans ?? [];
+      if (
+        patterns.some((pattern) =>
+          [...line.matchAll(pattern)].some(
+            (match) =>
+              !allowed.some(
+                ([start, end]) =>
+                  match[0].length > 0 &&
+                  match.index >= start &&
+                  match.index + match[0].length <= end,
+              ),
+          ),
+        )
+      )
         hits.push({ file, line: index + 1 });
     });
   return hits;

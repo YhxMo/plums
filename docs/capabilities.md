@@ -188,7 +188,7 @@ MCP v2 的连接器 permissionId 可对应 egress，或包含 request 操作的 
 
 ## 宿主签发的任务范围
 
-独立核心入口保持上述兼容默认，桌面固定使用 `task-or-confirm` 策略。可信宿主可通过 `taskScopePlan()` 获取当前实例预览，然后在用户确认后调用 `grantTaskScope(fingerprint, durationMs, selection)`。`selection` 为 `{packageId, permissionId, operation}` 列表，操作是 `read/list/write/send`，必须是预览中的明确声明子集；省略表示选中预览全部 fs/egress 权限，不包括 exec。有效期必须大于零且最多一小时。角色卡、未启用组件、未绑定目录不进入范围。SDK 不暴露这些管理方法。
+独立核心入口保持上述兼容默认，桌面固定使用 `task-or-confirm` 策略。可信宿主可通过 `taskScopePlan()` 获取当前实例预览，然后在可信窗口确认后调用 `grantTaskScope(fingerprint, durationMs, selection)`。`selection` 为 `{packageId, permissionId, operation}` 列表，操作是 `read/list/write/send`，必须是预览中的明确声明子集；省略表示选中预览全部 fs/egress 权限，不包括 exec。有效期必须大于零且最多一小时。角色卡、未启用组件、未绑定目录不进入范围。SDK 不暴露这些管理方法。
 
 范围仅存当前 core 实例内存，绑定实例随机身份、安装/启用记录、清单与版本、同意记录、目录绑定及目录实体身份和外部数据库连接变更版本。升级、设置改变、停用、关闭、`revokeTaskScope()` 均失效；宿主另外在停止、组装与目录绑定变更时撤销并终止运行。`taskScopeState()` 返回 taskId 与到期时间。撤销不撤回已经完成的 I/O。
 

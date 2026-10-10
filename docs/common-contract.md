@@ -16,7 +16,7 @@
 
 共同信封接受 `1.N`（N 为非负十进制整数），未知字段保留，未知消息 kind 拒绝；必需新功能必须明确协商，不能靠 minor 猜测支持。1.x 只增加可选字段/功能，不改变已有字段含义、错误状态或安全规则；破坏性变更使用新 major。业务协议分别遵循 SemVer，新必需操作、行为或不兼容数据格式提高业务 major。数据格式兼容不由协议名字推导；适配/业务数据迁移由作者提供，平台不得默默改写正文。
 
-首轮功能名固定为 `resources-cas`、`events`、`task-attach`、`controlled-node`、`controlled-exec`、`policy-v1`、`ui-attach`。这些是可用实现的能力报告，不是授权。`negotiateCommonContract` 只比较必需功能；宿主仅在对应实现已验收时报告功能。
+当前版本功能名固定为 `resources-cas`、`events`、`task-attach`、`controlled-node`、`controlled-exec`、`policy-v1`、`ui-attach`。这些是可用实现的能力报告，不是授权。`negotiateCommonContract` 只比较必需功能；宿主仅在对应实现已验证时报告功能。
 
 ## 2. 发现、绑定及不可变身份
 
@@ -84,7 +84,7 @@ deadline 使用宿主单调时钟预算，消费者 `timeoutMs` 只能缩短；�
 
 ## 6. 策略与权限模式
 
-策略是普通兼容提供者，使用 `org.plums.policy` 业务协议 1.0.0、贡献 `tools` 的 evaluate 操作；算法完全由第三方提供。只有可信管理窗口可以为 Agent 选择/切换一个策略绑定和最大授权范围，不从普通前端或业务 SDK 接收模式修改。首轮采用一个活动策略；复合算法可作为单个策略扩展，宿主不隐式合并不同策略的 allow。
+策略是普通兼容提供者，使用 `org.plums.policy` 业务协议 1.0.0、贡献 `tools` 的 evaluate 操作；算法完全由第三方提供。只有可信管理窗口可以为 Agent 选择/切换一个策略绑定和最大授权范围，不从普通前端或业务 SDK 接收模式修改。当前版本采用一个活动策略；复合算法可作为单个策略扩展，宿主不隐式合并不同策略的 allow。
 
 宿主构造 `CommonOperationContext`：真实调用链、callId/taskId、类别/操作、本次逻辑 target/permissionId、无凭据的意图、用户最大范围、期限、modeGeneration、唯一 assessmentId 及规范化操作 SHA-256 指纹。策略可查看本次审批所需参数，但不能读取宿主密钥、原始凭据/输出、管理数据库或其他执行授权。策略计算过程不得再次发起被评估的能力或递归触发自身；补充契约新增宿主记录的 tier 与 requiresConfirmation；本地 intent 只提供脱敏命令摘要。超过 10 秒、异常、非规范返回、fingerprint 不符或提供者失效时，本需单次确认的操作回退可信确认窗口，无确认环节拒绝为 `POLICY_UNAVAILABLE`，从不失败到放行。tier 从宿主授权记录读取，requiresConfirmation 由 core 或资源宿主在授权后计算；扩展输入不能覆盖。回退不恢复已失效租约，可信窗口只批准本次操作；范围撤销、调用方变更和审计失败仍阻止执行。
 
@@ -98,7 +98,7 @@ deadline 使用宿主单调时钟预算，消费者 `timeoutMs` 只能缩短；�
 
 ## 7. macOS 执行边界
 
-首轮验证范围为 macOS 27.0.1 arm64、Node 26.5.1；最低验收系统为 27.0.1，不声称更早 macOS、Intel、Windows/Linux 已通过。后续可增加逐平台验证。是实际原型可行性证据；完整桌面与打包版由验收。
+当前验证范围为 macOS 27.0.1 arm64、Node 26.5.1；最低验证系统为 27.0.1，不声称更早 macOS、Intel、Windows/Linux 已通过。原型结果仅证明已验证范围内的可行性；完整桌面与打包版须分别验证。
 
 选定三种受限路径：无 Node 对象的 V8 isolate、受控 Node 后台、宿主受控命令。后两者在默认拒绝的 macOS Seatbelt 中运行，只有固定只读系统/运行时/制品内容、每实例临时 scratch 及明确授予的命令读/写目录；环境清空，不继承额外文件描述符。平台的数据库/密钥/设置/授权/真实 Agent 数据目录不能暴露给后台或命令。业务资源经统一桥读写。
 
@@ -108,7 +108,7 @@ Node 后台不直接获得持久目录/网络权限；文件/HTTPS/命令请求�
 
 每个启动程序以新 session/group leader 运行并禁止 fork，防止通过 setsid 脱离监管；外部 supervisor 对取消、撤权、超时和 broker 断连执行 TERM，生产实现 3 秒后 KILL，等待退出再确认清理。授权根或模式变化不能修改已运行进程的旧沙箱：立即停止对应实例并重建，旧请求不自动重发。未来子命令组成的树由宿主跟踪全部单进程实例，而不是相信扩展提交的 pid。
 
-Seatbelt 的 sandbox-exec 与 sandbox.h 是已弃用的平台设施，不能视为苹果对长期 API 的承诺；本机头文件标注 “No longer supported”。Apple 的 [App Sandbox 文档](https://developer.apple.com/documentation/security/protecting-user-data-with-app-sandbox)及[继承规则](https://developer.apple.com/library/archive/documentation/Miscellaneous/Reference/EntitlementKeyReference/Chapters/EnablingAppSandbox.html)描述了另一种签名/App Sandbox 路径；它的静态容器/权限不直接提供本方案每调用的动态目录边界。首轮选择已实测的 Seatbelt，启动时及打包验收必须先探测文件/网络/进程拒绝，设施缺失或边界失败时返回 `RUNTIME_UNAVAILABLE`，禁止回退到普通权限。XPC/App Sandbox helper 和虚拟机作为未来替代；本轮不要求安装 VM 或额外服务。
+Seatbelt 的 sandbox-exec 与 sandbox.h 是已弃用的平台设施，不能视为苹果对长期 API 的承诺；本机头文件标注 “No longer supported”。Apple 的 [App Sandbox 文档](https://developer.apple.com/documentation/security/protecting-user-data-with-app-sandbox)及[继承规则](https://developer.apple.com/library/archive/documentation/Miscellaneous/Reference/EntitlementKeyReference/Chapters/EnablingAppSandbox.html)描述了另一种签名/App Sandbox 路径；它的静态容器/权限不直接提供本方案每调用的动态目录边界。当前实现使用已实测的 Seatbelt，启动时及打包验证必须先探测文件/网络/进程拒绝，设施缺失或边界失败时返回 `RUNTIME_UNAVAILABLE`，禁止回退到普通权限。XPC/App Sandbox helper 和虚拟机作为未来替代；当前实现不要求安装 VM 或额外服务。
 
 现有 `engines` 按已确认的组件执行项运行，整机入口仍有普通本机权限，直接文件/网络/子进程操作不受宿主策略逐次约束。策略评估器可与本地入口共存，启动和请求经过 local 判定。普通 common 运行/任务、资源与短期能力范围可与整机入口同时活动。本地回调中的 common 子任务保留原链与本地运行上下文，并绑定实际父请求的取消和更早期限；资源按各方资格与有效范围交集授权，非 local 策略仍需租约。组件与租约变更已按受影响组件及其消费者清理；项目沙箱继续实施；不能把普通权限引擎改名后当作受控运行。
 
@@ -124,9 +124,9 @@ Seatbelt 的 sandbox-exec 与 sandbox.h 是已弃用的平台设施，不能视�
 
 从 `@plumsjs/sdk` 导入 `CommonPlatformSdk/parseCommonEnvelope/parseCommonDeclaration/parseCommonPolicyDecision/CommonReplyTracker`；从提供者和需求的独立命名槽开始设计，不使用包名调用。例如消费者获取 `sdk.binding("records")` 后执行 `sdk.invoke(binding.handle,"find",{query:"fixture"})`，通过 `call.events` 消费事件、`call.result` 获取终态、`call.cancel()` 请求取消。资源修改先 read，再携带 revision 执行 write/delete；业务 null 与不存在通过 exists 区分。
 
-本阶段可运行的入口：先 `pnpm build`，再 `pnpm exec vitest run packages/sdk/test/common-contract.test.ts`；`node scripts/common-contract-schema.mjs --check` 核对独立 schema；`node scripts/common-contract-execution-probe.mjs --out <report.json>` 在 macOS arm64 自造临时数据上验证直接边界和停止行为。它不会使用真实业务数据、凭据或外部服务器。原型成功不代表所有桌面运行路径已经集成。
+当前版本可运行的入口：先 `pnpm build`，再 `pnpm exec vitest run packages/sdk/test/common-contract.test.ts`；`node scripts/common-contract-schema.mjs --check` 核对独立 schema；`node scripts/common-contract-execution-probe.mjs --out <report.json>` 在 macOS arm64 自造临时数据上验证直接边界和停止行为。它不会使用真实业务数据、凭据或外部服务器。原型成功不代表所有桌面运行路径已经集成。
 
-后续公开黑盒工具必须分别报告结构声明、host 行为、真实执行边界、内部夹具及第三方证据，覆盖同制品双 Agent 并发、提供者替换、共享/独立资源、CAS/恢复、取消/回放、四种策略及两个 UI。没有第三方作者实际接入记录时标明“未验证第三方实现”，不能把相同名字当作行为兼容。
+公开黑盒工具必须分别报告结构声明、host 行为、真实执行边界、内部夹具及第三方证据，覆盖同制品双 Agent 并发、提供者替换、共享/独立资源、CAS/恢复、取消/回放、四种策略及两个 UI。没有第三方作者实际接入记录时标明“未验证第三方实现”，不能把相同名字当作行为兼容。
 
 ### 当前桌面资源接入
 
@@ -164,4 +164,4 @@ Electron 桥在消费者世界建立事件迭代器，preload 只代理固定身
 
 共同界面的 legacy `plums.onEvent` 只接收本组件事件；跨组件业务事件经已绑定共同调用及任务资格传递。未声明 common 的旧默认 startup 前端保留同 Agent legacy 总线兼容；可信宿主按声明与当前容器决定，备用及侧界面不继承该广播资格。`panels.closed/session` 等可信生命周期通知继续送达相关容器。
 
-桌面、宿主与 SDK 0.1.0 预览版的版本关系、旧桥保留承诺、恢复及打包验收入口见[桌面兼容与恢复](desktop-recovery.md)。
+桌面、宿主与 SDK 0.1.0 预览版的版本关系、旧桥保留承诺、恢复及打包验证入口见[桌面兼容与恢复](desktop-recovery.md)。

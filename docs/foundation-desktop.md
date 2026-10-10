@@ -72,4 +72,4 @@ ABI 1 的 `code/adapter.mjs` 导出 `createOfficialFoundationSession(options, no
 
 `build-official-foundation.mjs` 在本地开发时生成并复用 `.build-cache/foundation-signing/private.pem`，私钥不进入源码、ZIP、应用或证据快照。正式发布构建须用 `PLUMS_OFFICIAL_SIGNING_KEY` 指定稳定发布身份；更换发布信任根需用 `PLUMS_OFFICIAL_TRUST_KEYS` 指定含旧 PEM 公钥的 JSON 数组文件。当前本地制品只证明本次构建的签名连续性，不宣称上游发行认证。旧制品若不在应用信任根中，只保留记录并报告不可用，不降级为信任任意本机 ZIP。
 
-完整第三方 SDK 黑盒符合性和专门验证扩展/Agent 整合包仍延期到 6/7B。当前第三方执行证据仅为 SDK 2.0.0 register/settings/context/capability 与原生 fs/list。
+完整第三方 SDK 黑盒符合性和专门验证扩展/Agent 整合包尚未完成。当前第三方执行证据仅为 SDK 2.0.0 register/settings/context/capability 与原生 fs/list。

@@ -1,19 +1,19 @@
-本文是内核技术方案,以此为准;变更需经架构师批准
+本文描述内核的公开接口、安全约束与兼容行为。
 
 # Plums 内核技术方案（1.x 兼容与 2.x 能力调用）
 
 ## 1. 范围
 
 纯开源内核(Apache-2.0),不含界面、服务、托管、市场。交付物是一个 TypeScript 库 `@plumsjs/core` 加一个命令行 `plums`。
-内核负责:包格式与加载、依赖解析、权限和同意检查、密钥引用、外发确认、文件/链接分享，以及 2.x 能力授权与审计。0.2.0 已提供 fs/exec/egress 统一入口与记录式执行，真实 I/O、进程隔离、联网及第三方代码由独立 `@plumsjs/host` / Electron 桌面实现，见 [desktop.md](desktop.md)。
+内核负责:包格式与加载、依赖解析、权限和同意检查、密钥引用、外发确认、文件/链接分享，以及 2.x 能力授权与审计。当前版本提供 fs/exec/egress 统一入口与记录式执行，真实 I/O、进程隔离、联网及第三方代码由独立 `@plumsjs/host` / Electron 桌面实现，见 [desktop.md](desktop.md)。
 
-## 2. 技术栈(推荐)
+## 2. 技术栈
 
 - 语言与运行时:TypeScript,Node.js 当前 LTS,pnpm 单仓库。
 - 校验:JSON Schema(Ajv)。manifest 与扩展设置项都用它。
 - 测试:Vitest。
-- MCP:官方 TypeScript SDK,按 2026-07-28 版规范;具体版本实现时核实。
-- 密钥:优先系统钥匙串,没有时退回加密文件;具体库实现时选并验证。
+- MCP:内核负责工具指纹与批准，传输和协议由外装连接器实现。
+- 密钥:宿主通过 SecretStore 接口保存，内核只保存引用；CLI 使用 MemorySecretStore，桌面使用 Agent 私有本地存储。
 - 存储:数据目录下的文件加一个 SQLite(同意记录、安装状态)。
 - 命令行:无框架依赖的薄封装,只调用库的公开 API。
   理由:MCP 和 Agent Skills 的官方 SDK 与示例以 TS 为主,宿主将来既可能是命令行也可能是 Electron 或网页,库形态都能用。
@@ -149,9 +149,9 @@ createCore({ dataDir, model?, egress, secrets, confirm?, fs?, exec?, roots?, pro
 固定错误码(12 个):MANIFEST_INVALID、FORMAT_UNSUPPORTED、DEPENDENCY_MISSING、CONSENT_REQUIRED、PERMISSION_DENIED、CONFIRMATION_DENIED、SECRET_NOT_FOUND、IMPORT_INVALID、SHARE_FETCH_FAILED、SETTINGS_INVALID、CAPABILITY_FAILED、TIER_UNAVAILABLE。TIER_UNAVAILABLE 表示项目执行的系统沙箱尚不可用，不能回退为普通本机权限。CAPABILITY_FAILED 用于能力 Sink/审计失败，details 为 callId、phase、executionState；不携带底层异常。not_started 为未调用 Sink，unknown 为已进入 Sink 但结果不确定，completed 为执行成功后结果审计失败；unknown/completed 禁止自动重试。
 `SECRET_NOT_FOUND` 也用于读取密钥失败:此时只带固定码和固定文案「读取密钥失败，原来的错误已隐藏，以免带出密钥。」,不带 path、details、cause,不含底层错误内容。
 
-## 10. 里程碑 1 验收(主线:导入角色卡 → 安装扩展并看到权限清单 → 同意并启用 → 卸载)
+## 10. 行为验证(主线:导入角色卡 → 安装扩展并看到权限清单 → 同意并启用 → 卸载)
 
-里程碑 1 的命令行不含 `share import`,真实 EgressSink、持久化 SecretStore 和命令行 `share import` 留到里程碑 2。
+当前命令行不含 `share import`，使用 RecordingEgressSink 和 MemorySecretStore；真实外发与持久化密钥由宿主提供。
 
 1. 导入合法包成功;坏包返回对应错误码和字段路径;导出再导入内容一致。已安装的 id 再次导入一律被拒,返回 IMPORT_INVALID,`details` 为 `{id, reason: ALREADY_INSTALLED}`,不带 `path`。同 id 并发导入只会有一个成功,其余返回该错误,跨进程落败者也不删除或覆盖成功者的目录。内存排队只在同一进程内、同一数据目录生效:另一个数据目录里的同 id 不会被这次排队挡住。为什么:导入队列的键是数据目录加 id,而且队列只活在当前进程里;跨进程冲突由文件发布和数据库唯一键处理。
 2. `inspect(包)` 不安装就返回 formatVersion 与完整权限清单；1.x 每条带 level 与 reason，2.x 带 kind、operations/cwdRoots 等原始声明。
@@ -169,13 +169,13 @@ createCore({ dataDir, model?, egress, secrets, confirm?, fs?, exec?, roots?, pro
     - 10.4 残留 settings 在 `importPackage`,以及新版有 `settingsSchema` 因而要读该文件的 `updatePackage`:缺必填、类型错、新 schema 更严失败:import 不写任何包文件,update 旧版保持不变(IMPORT_INVALID,`path` 为 `/settings/<key>`)。NOT_JSON 与 NO_SCHEMA 见 §15。
     - 10.5 `updatePackage` 遇到没有 `settingsSchema` 的新版:更新成功;启用状态与设置文件字节不变(不读不删)。之后某版再带 `settingsSchema` 时按 10.4 校验。
 
-## 11. 拍板结果(Plums 已通过,三项均按建议)
+## 11. 实现范围
 
 1. 技术栈:TypeScript + Node LTS + pnpm + Ajv + Vitest。
-2. 第一版不做作者签名,只在信封里留可选 `signature` 字段,不校验。
-3. V2/V3 适配器排到里程碑 2。
+2. 当前内核不验证业务包作者签名,只在信封里留可选 `signature` 字段,不校验。
+3. 角色卡 V2/V3 适配器属于独立宿主，不属于内核。
 
-## 12. 补充定论(v0.1.1)
+## 12. 包安全限制与动作授权
 
 - 包的安全限制:解压后总大小 ≤ 20MB、文件数 ≤ 1000、单路径 ≤ 255 字符,宿主可配置。路径越界、绝对路径、超限都返回 IMPORT_INVALID,且校验通过前不写出任何文件。大小写不敏感碰撞(含 manifest 的大小写别名,如 `MANIFEST.JSON`)和「既是文件又是文件夹」的冲突,在导入(解压与落盘)和导出前都由同一个检查拒绝,统一归 IMPORT_INVALID。大小写碰撞的 `path` 为后出现的 zip 条目名(JSON Pointer,如 `/a.txt`;别名则为该条目,如 `/MANIFEST.JSON`),不带 details;「既是文件又是文件夹」不带 `path`(导入和导出都如此)。包内目录条目在冲突检查时去掉尾部的一个斜杠(zip 用末尾 `/` 表示目录,比较的是去掉之后的名字,如 `dir/` 按 `dir`)。为什么:磁盘上的目录名不带这个斜杠,`dir/` 和 `dir` 会撞在一起。因此目录大小写碰撞的 `path` 是去掉斜杠后的条目(如 `/dir`),目录本身不写入包内文件列表。导出时 `files` 里放了精确文件名 `manifest.json`,是 IMPORT_INVALID,`path` 为 `/manifest.json`。为什么与别名同一写法:两条都是在指出那一个条目,别名已经是 `/MANIFEST.JSON`。
 - 1.x 动作入口 `core.runAction({ extensionId, permissionId, request })`,检查顺序:
@@ -184,9 +184,9 @@ createCore({ dataDir, model?, egress, secrets, confirm?, fs?, exec?, roots?, pro
   3. 档位取自 manifest 声明,调用方不能指定;write/egress 需 confirm.ask 通过,无 handler 或被拒 → CONFIRMATION_DENIED
   4. 以上全通过,egress 才调用 EgressSink.send
 
-## 13. 外发目标限制(v0.1.2)
+## 13. 外发目标限制
 
-egress 权限的 `target` 必须约束实际目的地,里程碑 1 就要做。
+egress 权限的 `target` 必须约束实际目的地。
 
 - **target 写法**:主机名,可带端口,不含协议和路径。例如 `api.example.com`、`api.example.com:8443`、`*.example.com`。通配符只允许出现在开头的 `*.`,且其后至少两级域名,所以 `*.example.com` 合法,`*.com` 和 `*.co.uk` 这类过宽写法不合法。
 - **匹配规则**:
@@ -207,26 +207,26 @@ egress 权限的 `target` 必须约束实际目的地,里程碑 1 就要做。
 - **确认文案**:由内核统一生成,显示目的主机和 reason,不展示完整 URL。
 - **分享链接下载**:是用户主动给出的链接,不受扩展 target 约束,但仍走 EgressSink 和 confirm,确认文案显示目的主机。
 
-验收补充(接在第 10 节第 10 条之后): 11. egress 的 target 为 `api.example.com` 时:请求 `https://api.example.com/x` 通过(经 confirm);`https://evil.com`、`https://api.example.com.evil.com`、`http://api.example.com`、`https://api.example.com:8443`、`https://1.2.3.4`、`https://user@api.example.com`、`https://localhost`、`https://localhost./x`、`https://api.example.com./x` 都返回 PERMISSION_DENIED,RecordingEgressSink 无记录、confirm 未被调用。`*.example.com` 匹配 `a.b.example.com`,不匹配 `example.com`。12. egress 的 target 带协议、路径、为 IP,或为 `*.com` 这类过宽通配符时,inspect 与安装返回 MANIFEST_INVALID,path 指向该 target。13. 目的地返回 3xx 时,内核不跟随,响应原样返回给调用方,sink 只有一次记录。
+外发边界验证: 11. egress 的 target 为 `api.example.com` 时:请求 `https://api.example.com/x` 通过(经 confirm);`https://evil.com`、`https://api.example.com.evil.com`、`http://api.example.com`、`https://api.example.com:8443`、`https://1.2.3.4`、`https://user@api.example.com`、`https://localhost`、`https://localhost./x`、`https://api.example.com./x` 都返回 PERMISSION_DENIED,RecordingEgressSink 无记录、confirm 未被调用。`*.example.com` 匹配 `a.b.example.com`,不匹配 `example.com`。12. egress 的 target 带协议、路径、为 IP,或为 `*.com` 这类过宽通配符时,inspect 与安装返回 MANIFEST_INVALID,path 指向该 target。13. 目的地返回 3xx 时,内核不跟随,响应原样返回给调用方,sink 只有一次记录。
 
 ## 14. 已知限制
 
 - **卸载有崩溃窗口**:卸载过程中进程崩溃,可能留下已删除记录但数据目录仍在的状态,下次启动不自动修复。卸载中途崩溃也可能出现密钥已删但仍显示已安装的状态。
-- **孤儿 `data/<id>/settings.json`(M1 修复项)**:卸载崩溃或手工删除可能留下该文件;导入如何拒绝、无 schema 的更新如何忽略,见 §10.4/10.5。
-- **不检查反向依赖**:里程碑 1 不检查反向依赖(卸载或停用被别的包依赖的包时不做提示)。
+- **孤儿 `data/<id>/settings.json`**:卸载崩溃或手工删除可能留下该文件;导入如何拒绝、无 schema 的更新如何忽略,见 §10.4/10.5。
+- **不检查反向依赖**:当前内核不检查反向依赖(卸载或停用被别的包依赖的包时不做提示)。
 - **`approveMcpTools` 不绑定调用方期望的指纹**:同意的是"当前列出的工具集合",调用方无法声明期望指纹,所以同意与展示之间工具变化靠 TOOL_ADDED/TOOL_CHANGED 在下次调用时拦截。
 
 ## 15. 设置项声明与校验
 
-M1 目标行为。
+设置项遵循以下声明与校验规则。
 
 - 每个属性对象必填 `type`(`string`/`number`/`integer`/`boolean`)、`title`、`description`。这与 `settingsSchema.required`(必须有值的设置项 key 列表)不是一回事,后者的校验见下面的 `setSettings`。
 - 可选 `minimum`、`maximum`、`enum`、`x-secret`。`minimum`/`maximum` 仅对 `number`/`integer`;声明在其他类型上则 MANIFEST_INVALID,`path` 为 `/settingsSchema/properties/<key>/minimum` 或 `/settingsSchema/properties/<key>/maximum`。
 - `default` 可选,存在时必须与 `type` 一致,还须满足该属性已声明的 `minimum`/`maximum`/`enum`。违反时 MANIFEST_INVALID,`path` 为 `/settingsSchema/properties/<key>/default`。
 - `x-secret` 属性的白名单仍是 `type`/`title`/`description`/`x-secret`。`default` 只对非 secret 属性开放;secret 属性带 `default` 一律 MANIFEST_INVALID。
-- `setSettings` 写入前用 Ajv 校验:先 `settingsSchema.required` 与类型,再回填 `default`,`default` 本身也要过校验。校验失败的 `path` 为 `/settings/<key>`,错误信息不得包含 secret 值;`details` 为 `{key, reason}`,不含被拒的值。`reason` 取 REQUIRED、TYPE、MINIMUM、MAXIMUM、ENUM,残留 settings 校验共用。SECRET_NOT_FOUND 覆盖 x-secret 引用。该码也用于读取密钥失败,此时只带固定码和固定文案,不带 path/details(见 §9)。schema 校验失败用 M1 新增的 SETTINGS_INVALID(见 §9)。在 settings 校验里 IMPORT_INVALID 只用于导入和更新时对残留 settings 的校验失败,且都在写盘前:import 不写任何包文件,update 旧版保持不变。残留文件整体问题的 `reason` 为 NOT_JSON(文件不是合法 JSON,或不是 JSON 对象,`path` 为 `/settings`)和 NO_SCHEMA(仅 import,新包无 schema 而文件存在,`path` 为 `/settings`);这两类没有 key,`details` 只有 `{reason}`。
+- `setSettings` 写入前用 Ajv 校验:先 `settingsSchema.required` 与类型,再回填 `default`,`default` 本身也要过校验。校验失败的 `path` 为 `/settings/<key>`,错误信息不得包含 secret 值;`details` 为 `{key, reason}`,不含被拒的值。`reason` 取 REQUIRED、TYPE、MINIMUM、MAXIMUM、ENUM,残留 settings 校验共用。SECRET_NOT_FOUND 覆盖 x-secret 引用。该码也用于读取密钥失败,此时只带固定码和固定文案,不带 path/details(见 §9)。schema 校验失败用 SETTINGS_INVALID(见 §9)。在 settings 校验里 IMPORT_INVALID 只用于导入和更新时对残留 settings 的校验失败,且都在写盘前:import 不写任何包文件,update 旧版保持不变。残留文件整体问题的 `reason` 为 NOT_JSON(文件不是合法 JSON,或不是 JSON 对象,`path` 为 `/settings`)和 NO_SCHEMA(仅 import,新包无 schema 而文件存在,`path` 为 `/settings`);这两类没有 key,`details` 只有 `{reason}`。
 - `title` 即界面标签,不新增 `label` 字段。
-- `describeSettings` 接口与参考渲染器留给里程碑 2。
+- `describeSettings` 提供已安装组件的设置描述，可信宿主负责渲染设置界面。
 
 ## 16. 能力总线
 

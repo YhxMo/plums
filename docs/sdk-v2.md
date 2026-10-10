@@ -159,7 +159,7 @@ if (!result.outcome.ok)
 
 命令仍用 `sdk.capability(permissionId,{kind:"exec",args,cwd:{root,path}})`。作者清单声明 exec target/cwdRoots 与精确 fs read/write 权限；用户在可信页为逻辑 target 选择固定程序、读根、写根。程序摘要、目录实体和整链权限在执行前重新核验。命令单独传参，无宿主 shell、环境或任意程序路径输入。默认安全模式的命令启动经单次可信确认；策略模式通过有效策略决定是否确认，目录操作不得越过有效任务最大范围。依赖只允许系统只读库；直接绑定脚本、外部 dylib 与需要 fork 的程序不作为已支持路径。
 
-首轮实际验证为 macOS 27.0.1 arm64；Seatbelt 或边界探测失败时拒绝启动，无普通权限回退。engines 按组件已确认的执行项与 Agent 上限运行，可与 common 运行/任务、资源范围和短期能力范围并存；旧信任只迁移为原入口自身的整机执行项，不授予项目或资源范围。
+当前实际验证范围为 macOS 27.0.1 arm64；Seatbelt 或边界探测失败时拒绝启动，无普通权限回退。engines 按组件已确认的执行项与 Agent 上限运行，可与 common 运行/任务、资源范围和短期能力范围并存；旧信任只迁移为原入口自身的整机执行项，不授予项目或资源范围。
 
 ### 第三方策略接入
 
@@ -212,7 +212,7 @@ export function activate(sdk) {
 
 只接受 allow/deny/confirm。CommonOperationContext 包含宿主记录的 tier 与授权后计算的 requiresConfirmation；本地 intent 仅含入口与方法摘要，不含参数。额外结果字段、错 assessmentId/指纹、异常、递归请求、提供者失效或超过 10 秒：需要单次确认时回到可信窗口，无确认环节时 POLICY_UNAVAILABLE。自动决定审计保留 providerId/artifactDigest/mode/operationFingerprint/tier 与关联 ID，不保存正文。confirm 展示宿主真实 Agent/链/操作/逻辑目标/意图/期限，120 秒内仅布尔 true 放行。策略等待、确认、审计以及实际执行前复核整链、绑定、范围与期限。撤权、切换、组件/声明/目录/资源/配置变化终止相关运行；到期也取消已授权任务和受管进程。unknown/completed 不自动重试。
 
-作者界面用 `await plums.common.policy.status()` 读取选定模式、策略组件和活动范围；没有选择、批准或撤销的业务 SDK。管理操作仅存在于可信窗口。当前证据为内部四种确定性策略、真实宿主及 macOS 受控程序/Electron 路由；不代表可靠自动审查算法、真实第三方符合性或稳定安装包验收。
+作者界面用 `await plums.common.policy.status()` 读取选定模式、策略组件和活动范围；没有选择、批准或撤销的业务 SDK。管理操作仅存在于可信窗口。当前证据为内部四种确定性策略、真实宿主及 macOS 受控程序/Electron 路由；不代表可靠自动审查算法、真实第三方符合性或稳定安装包验证。
 
 策略上下文的 `deadline` 是实际单调执行预算对应的时间戳，取调用、策略租约与相关最大范围的最短期限；普通单次调用最多 120 秒。策略计算、确认等待和执行前复核共用该期限，不在策略返回后重新延长。
 
@@ -237,4 +237,4 @@ unsubscribe();
 
 共同界面的 legacy `plums.onEvent` 只接收本组件事件；跨组件业务事件经已绑定共同调用及任务资格传递。未声明 common 的旧默认 startup 前端保留同 Agent legacy 总线兼容；可信宿主按声明与当前容器决定，备用及侧界面不继承该广播资格。`panels.closed/session` 等可信生命周期通知继续送达相关容器。
 
-桌面、宿主与 SDK 0.1.0 预览版的版本关系、旧桥保留承诺、恢复及打包验收入口见[桌面兼容与恢复](desktop-recovery.md)。
+桌面、宿主与 SDK 0.1.0 预览版的版本关系、旧桥保留承诺、恢复及打包验证入口见[桌面兼容与恢复](desktop-recovery.md)。

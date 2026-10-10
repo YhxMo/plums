@@ -38,7 +38,7 @@ pnpm exec vitest run packages/host/test/scenarios/foundation.test.ts --maxWorker
 
 同一套件有 19 项，含 场景 SDK 矩阵 全部 SDK 面和 failResponse。官方底座全部执行；独立原型仅执行声明支持的 8 项，其余 11 项必须启动前拒绝。每项记录需求、组件摘要、执行或拒绝预期与结果；报告记录精确底座选择、套件版本/摘要、环境与范围。`--case <编号>` 可重复指定部分项，报告标记 partial。vitest 将各项分开执行，遵守单项 20 秒预算，并额外检查不支持项没有启动会话或转用官方底座。CLI 在参数、断言或清理失败时退出 1，不复制异常正文或物理路径。
 
-场景 cards/chat/tavern/mcp 测试默认显式固定当前官方底座。设置 `PLUMS_SCENARIO_FOUNDATION_ARCHIVE=/absolute/test-foundation.zip` 可在各自全新临时数据目录导入并固定另一制品，不静默回退。独立原型不支持完整业务场景，相关组装应拒绝。场景 SDK 矩阵 的 全部业务场景 最终组合仍需各场景实现后另验；矩阵的 complete 只表示 19 项 SDK 检查完整。
+场景 cards/chat/tavern/mcp 测试默认显式固定当前官方底座。设置 `PLUMS_SCENARIO_FOUNDATION_ARCHIVE=/absolute/test-foundation.zip` 可在各自全新临时数据目录导入并固定另一制品，不静默回退。独立原型不支持完整业务场景，相关组装应拒绝。场景 SDK 矩阵 不证明全部业务场景的集成行为，各场景仍须独立验证；矩阵的 complete 只表示 19 项 SDK 检查完整。
 
 CLI 将 JSON 写到 stdout；可选 `--out` 同时保存文件。通过退出 0，任何必需检查、输入或清理失败退出 1。报告包含报告/套件版本、运行器 SHA-256、适配器文件 SHA-256、实际 OS/CPU/Node、逐项编号与层级、每场景的制品摘要、结果和限制。摘要固定到本次实际输入，不代表制品拥有权限。
 
@@ -73,7 +73,7 @@ CLI 将 JSON 写到 stdout；可选 `--out` 同时保存文件。通过退出 0�
 | E02     | controlled-node 直接读/写/联网/spawn 拒绝，监听器零连接且文件保持；isolate 没有 Node globals                       | 运行边界         |
 | N01–N04 | 两原生界面同后端、容器身份/管理边界、真实导航/网络拒绝和跨世界事件迭代                                             | Electron 原生    |
 
-E02 的 isolate 检查是 V8 API 暴露边界；不把它描述为 Node 系统调用探针。E01 在两 runtime 中都由宿主受控命令执行。网络监听器仅监听本地合成服务。完整网络、符号链接、RSS、信号、broker 断连与 supervisor 清理的定向生产边界用例见[证据矩阵](common-contract-compatibility.md)，按最终源码重新执行；它们与黑盒报告分别记录。
+E02 的 isolate 检查是 V8 API 暴露边界；不把它描述为 Node 系统调用探针。E01 在两 runtime 中都由宿主受控命令执行。网络监听器仅监听本地合成服务。完整网络、符号链接、RSS、信号、broker 断连与 supervisor 清理的定向生产边界用例见[证据矩阵](common-contract-compatibility.md)，按待验证源码执行；它们与黑盒报告分别记录。
 
 ## 接入自己的适配器
 
@@ -111,7 +111,7 @@ node scripts/platform-conformance.mjs --adapter /absolute/author-adapter.mjs --r
 
 业务协议的符合性由独立组件作者验证，不由平台套件代替。SDK v1/v2 普通桥在共同 1.x 保留；移除需新 major、迁移说明及至少一个稳定版本的提前通知。宿主模型适配服务不恢复；普通本机引擎单独审批且不能参与受限模式。安装包与升级测试须单独执行。
 
-桌面、宿主与 SDK 0.1.0 预览版的版本关系、旧桥保留承诺、恢复及打包验收入口见[桌面兼容与恢复](desktop-recovery.md)。
+桌面、宿主与 SDK 0.1.0 预览版的版本关系、旧桥保留承诺、恢复及打包验证入口见[桌面兼容与恢复](desktop-recovery.md)。
 
 ## 打包版复验
 

@@ -89,6 +89,12 @@ node scripts/check-public-ready.mjs --denylist "$PUBLIC_READY_DENYLIST"
 
 Set `PUBLIC_READY_DENYLIST` to a private regex list outside the checkout; do not
 commit the list or its matched values. The gate reports locations and counts only.
+Reviewed false positives are recorded in `scripts/privacy-allowlist.json` by
+exact file path, SHA-256 of the original line, and character spans. They cover
+third-party copyright contacts, synthetic fixture paths, member access in test
+reports, and metadata rejection syntax. A changed line loses its exception;
+matches outside the recorded spans still fail. Review each source span before
+updating its digest. The allowlist does not exempt whole files or patterns.
 It checks public files, unresolved metadata/Gatekeeper text, known private strings,
 licenses, documented target/runtime, package and installer versions, fresh bundled
 notices, the release guard, package inventory and npm scope. It is not part of

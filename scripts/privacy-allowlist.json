@@ -1,0 +1,167 @@
+[
+  {
+    "file": "packages/desktop/test/platform-conformance-ui.test.ts",
+    "sha256": "4b80eda0eb60f1306176d9febccfafd3e77d9d470f9bfd1050bb2e0eb15ed604",
+    "spans": [
+      [12, 22],
+      [42, 52]
+    ],
+    "reason": "Test and conformance report member access"
+  },
+  {
+    "file": "packages/host/native/project-probe.c",
+    "sha256": "5368bb5356d10d2d302aa0c6ac3a3ab819c4b7668890366e248f164a3ec8af71",
+    "spans": [[16, 49]],
+    "reason": "Synthetic native probe path"
+  },
+  {
+    "file": "packages/host/test/project-toolchain.test.ts",
+    "sha256": "51cd9395f14abc20aa978a759b09849bfb51b16e309e8edfd7a1ffc2726852bf",
+    "spans": [[3, 25]],
+    "reason": "Synthetic toolchain fixture path"
+  },
+  {
+    "file": "packages/host/test/scenarios/chat.test.ts",
+    "sha256": "b62a6c2e9a4637984b5c875110abf433e14a8b1adc3778728c45ac4b59b66378",
+    "spans": [[24, 34]],
+    "reason": "Test and conformance report member access"
+  },
+  {
+    "file": "packages/host/test/scenarios/chat.test.ts",
+    "sha256": "d388588d0e80c70eda4a9905521dee1f88ab171c28f096b5610a19b577103428",
+    "spans": [[35, 45]],
+    "reason": "Test and conformance report member access"
+  },
+  {
+    "file": "packages/host/test/scenarios/foundation.test.ts",
+    "sha256": "2a0ede76059e75543e399669049d6f9a25f1b22bd24df81ddf46d833d6dc4fd7",
+    "spans": [[12, 22]],
+    "reason": "Test and conformance report member access"
+  },
+  {
+    "file": "packages/host/test/scenarios/foundation.test.ts",
+    "sha256": "7c0b791ba4ccf8e50193bfce2f3fde4e54f2f2ed723cdbec0d850b6dd656a906",
+    "spans": [[9, 19]],
+    "reason": "Test and conformance report member access"
+  },
+  {
+    "file": "packages/host/test/scenarios/foundation.test.ts",
+    "sha256": "4dd6e15a63b73140504527c498c9745e5c697d3ff73039d02e070b89d92cf480",
+    "spans": [[24, 34]],
+    "reason": "Test and conformance report member access"
+  },
+  {
+    "file": "packages/host/test/scenarios/foundation.test.ts",
+    "sha256": "330e9e51282a88cf14247356674a697932bc833ba6dddf6a22eb590d3bd33b89",
+    "spans": [[22, 32]],
+    "reason": "Test and conformance report member access"
+  },
+  {
+    "file": "packages/host/test/scenarios/foundation.test.ts",
+    "sha256": "af1fa07b30917a5d3dfa575f01039054a5599b3d7c1ddae43003bf2413a81ac4",
+    "spans": [[22, 32]],
+    "reason": "Test and conformance report member access"
+  },
+  {
+    "file": "packages/host/test/scenarios/machine.test.ts",
+    "sha256": "04fea46352c32fdd034a237baab8daffcfa4259b686a0db7dbf1dab1ec3a45a7",
+    "spans": [[5, 15]],
+    "reason": "Test and conformance report member access"
+  },
+  {
+    "file": "packages/host/test/scenarios/mcp.test.ts",
+    "sha256": "ef8388ed185907117c79559dfb48534bb8e15dec6a4e9201fee0fd40c628bfe2",
+    "spans": [[3, 13]],
+    "reason": "Test and conformance report member access"
+  },
+  {
+    "file": "packages/host/test/scenarios/remaining.test.ts",
+    "sha256": "04fea46352c32fdd034a237baab8daffcfa4259b686a0db7dbf1dab1ec3a45a7",
+    "spans": [[5, 15]],
+    "reason": "Test and conformance report member access"
+  },
+  {
+    "file": "packages/host/test/scenarios/remaining.test.ts",
+    "sha256": "e711f2fcce9c81c320bd8ca984b4e440a522b9a1126db28820d43a6ba4aec76a",
+    "spans": [[10, 20]],
+    "reason": "Test and conformance report member access"
+  },
+  {
+    "file": "packages/host/test/scenarios/remaining.test.ts",
+    "sha256": "9d32c15177fdb4a202d96cadbc9bd7753421033067e4139ebff8a60246e30287",
+    "spans": [[5, 15]],
+    "reason": "Test and conformance report member access"
+  },
+  {
+    "file": "packages/host/test/scenarios/remaining.test.ts",
+    "sha256": "1185bfcfbdeee2f0e984ef79879106d45992e88c0fc89a9befc11afb2006e603",
+    "spans": [[7, 17]],
+    "reason": "Test and conformance report member access"
+  },
+  {
+    "file": "packages/host/test/scenarios/remaining.test.ts",
+    "sha256": "27f18186b50c4c3f9ac7127b8dee7ed2fd9fdc2f8691b8a8c8af98fcae7e0bca",
+    "spans": [[7, 17]],
+    "reason": "Test and conformance report member access"
+  },
+  {
+    "file": "packages/host/test/scenarios/tavern.test.ts",
+    "sha256": "0dc0020700e8953e48713274dc7efad57dfee25a031e488a6fc9e42cb032e50d",
+    "spans": [[3, 13]],
+    "reason": "Test and conformance report member access"
+  },
+  {
+    "file": "packages/host/test/scenarios/tavern.test.ts",
+    "sha256": "c3965750ad6cd528c482d4e6762a951b6af9a3df0ab41575851b0af03ab75a28",
+    "spans": [[5, 15]],
+    "reason": "Test and conformance report member access"
+  },
+  {
+    "file": "packages/host/test/scenarios/tavern.test.ts",
+    "sha256": "151edd7bfd65c9092730e2486dc051b5b2f3490b8ae05538978bc804fb5fa2ad",
+    "spans": [[7, 17]],
+    "reason": "Test and conformance report member access"
+  },
+  {
+    "file": "scripts/check-public-ready.mjs",
+    "sha256": "96fbca6ded7a46a6cb2f40e0ca8b8494f56e20bff1c51e12139728f53d806212",
+    "spans": [[58, 62]],
+    "reason": "Metadata rejection rule or negative test syntax"
+  },
+  {
+    "file": "scripts/check-public-ready.mjs",
+    "sha256": "9dc639daba6ce3d5a2b79812eef33bf9ccc15a403a3ab3e22c7c67d42091ddfa",
+    "spans": [[33, 38]],
+    "reason": "Metadata rejection rule or negative test syntax"
+  },
+  {
+    "file": "scripts/platform-conformance.mjs",
+    "sha256": "6e2f1c2c7ae93cb7cf60778060d9bf00efaceab6eb3d0957b10b797090eb8401",
+    "spans": [[56, 66]],
+    "reason": "Test and conformance report member access"
+  },
+  {
+    "file": "scripts/platform-conformance.mjs",
+    "sha256": "cf6b133c906956cfd7ea11ae5d211d7428c41ddf094f39ca481e426297c4742f",
+    "spans": [[14, 24]],
+    "reason": "Test and conformance report member access"
+  },
+  {
+    "file": "scripts/test/public-ready.test.ts",
+    "sha256": "70318a10f936d9a9a65e5cff3f7c7d0299253fcdd8dd73a2dd42af2a93267ffa",
+    "spans": [[10, 15]],
+    "reason": "Metadata rejection rule or negative test syntax"
+  },
+  {
+    "file": "THIRD_PARTY_NOTICES.txt",
+    "sha256": "5356f2260ecac79a489f436fdd73cf80a9c585c8bc1dd0c1714d804ea4775935",
+    "spans": [[37, 56]],
+    "reason": "Third-party copyright contact"
+  },
+  {
+    "file": "THIRD_PARTY_NOTICES.txt",
+    "sha256": "dad8d4bae6171208b15c4567f20a62e2d95db2e23d5c422162cabafe3c36df6c",
+    "spans": [[47, 78]],
+    "reason": "Third-party copyright contact"
+  }
+]

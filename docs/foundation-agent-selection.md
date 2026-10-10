@@ -65,4 +65,4 @@ await host.setFoundationEnabled(agentId, false);
 
 第三方 library 绑定继续对注册及每次创建读取真实 ZIP，按精确摘要固定已验证入口并创建只读快照。选择中的本地安装身份不进入 Agent ZIP。显式 Agent foundation 字段的 requirement/selection 保留，默认绑定也会导出精确便携选择。选择可单独出现，显式 requirement 和同 major 未知字段保持。接收端缺失或不兼容时允许导入到停用修复状态；创建、启用和执行仍严格检查，导入不授予权限。
 
-本轮复用已有内部原型与最小夹具。独立执行证据只覆盖 SDK 2.0.0 register/settings/context/capability 与原生 fs/list。完整 SDK 黑盒符合性、专门验证消费者扩展、可分发替代底座验收 ZIP 和 Agent 整合包仍延期到 6/7B。
+当前实现使用内部原型与最小夹具验证。独立执行证据只覆盖 SDK 2.0.0 register/settings/context/capability 与原生 fs/list。完整 SDK 黑盒符合性、专门验证消费者扩展、可分发替代底座验证 ZIP 和 Agent 整合包尚未完成。

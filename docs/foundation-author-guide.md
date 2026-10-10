@@ -2,7 +2,7 @@
 
 本指南供独立实现底座的作者与可信宿主集成者使用。已把公共库中的第三方提供者接入 `FoundationRegistry`、`createFoundationSession` 和 `DesktopHost` 的真实 SDK 能力桥。第三方实现自己加载组件、注册贡献并实现其声明的 SDK，不需要导入官方 Runtime、worker 或 SDK bootstrap。
 
-当前独立执行证据只覆盖官方 SDK 2.0.0 的 `register`、`settings`、`context` 和 `capability`（原生 fs/list）。完整 SDK、专门消费者验证扩展、可分发替代底座验收 ZIP、Agent 验证整合包和黑盒符合性工具仍延期。提供者声明的兼容结果始终是 `declared`，不能当作认证。
+当前独立执行证据只覆盖官方 SDK 2.0.0 的 `register`、`settings`、`context` 和 `capability`（原生 fs/list）。完整 SDK、专门消费者验证扩展、可分发替代底座验证 ZIP、Agent 验证整合包和黑盒符合性工具尚未完成。提供者声明的兼容结果始终是 `declared`，不能当作认证。
 
 ## 制作提供者 ZIP
 
@@ -140,18 +140,18 @@ stdin/stdout 每行一个 UTF-8 JSON 对象。stdout 只能输出协议帧；std
 5. 接收 reply，完成对应 callbackId 的 Promise；业务终态发 result。尚有宿主回调时不得提前发送终态。
 6. cancel/stop 或断连时结束会话。宿主主动终止进程，作者确认不能拖延清理。
 
-完整 prepare、ready、activate、invoke、callback、reply、result 示例及方法映射见 [公开消息规格](foundation-contract.md#完整的一次-jsonl-往返)。prepare 的源码 files 为 UTF-8 字符串，单帧最大 1 MiB；此传输尚未验收大制品或二进制 SDK 结果。当前最小组件需要显式声明上述 SDK features；未协商的方法拒绝。
+完整 prepare、ready、activate、invoke、callback、reply、result 示例及方法映射见 [公开消息规格](foundation-contract.md#完整的一次-jsonl-往返)。prepare 的源码 files 为 UTF-8 字符串，单帧最大 1 MiB；此传输尚未验证大制品或二进制 SDK 结果。当前最小组件需要显式声明上述 SDK features；未协商的方法拒绝。
 
 独立作者自行实现 SDK Promise、注册与模块加载。可阅读仓库内部 `packages/host/test/fixtures/independent-foundation.mjs` 理解已执行的四方法子集；它是自造测试夹具，不是可分发完整底座模板。`register` 无宿主回调；`settings`/`context` 参数为 `{}`；`capability` 参数为 `{permissionId,request,mcpTool?}`。fs/list 请求与结果见公开契约。
 
 宿主拒绝回调时，reply 只给 `HOST_DENIED` 和 `failureId`。SDK Promise 构造组件 realm 内的 Error 并关联该 failureId；如果错误传播到终态，result 的 `ok:false`、`value:{failureId}` 让宿主还原真实 SDK 错误。作者自己的失败使用 `ok:false`、`value:null`。不得伪造 code、phase 或 executionState。
 
-## 执行监督与验收范围
+## 执行监督与验证范围
 
-首轮支持 macOS arm64。固定 Node 只运行包内已验证入口的只读快照；不运行官方 worker。每组件各有提供者进程与宿主端点，环境不继承密钥。OS 沙箱拒绝业务目录读写、网络、进程派生和任意 exec。扩展源码经 JSONL 提供，提供者不能从本机安装目录自行读取。
+当前支持 macOS arm64。固定 Node 只运行包内已验证入口的只读快照；不运行官方 worker。每组件各有提供者进程与宿主端点，环境不继承密钥。OS 沙箱拒绝业务目录读写、网络、进程派生和任意 exec。扩展源码经 JSONL 提供，提供者不能从本机安装目录自行读取。
 
 提供者声明不会授予业务权限；prepare、ready 和注册没有可执行的 SDK 回调上下文。宿主限制帧、回调并发/总数、stdin、CPU 和内存。Node old-space 64 MiB、RSS 上限 256 MiB；CPU 窗口约 5 秒，有采样余量，等待宿主不消耗 CPU。普通权限 engine 不等于受控底座，当前独立 JSONL 载体拒绝含 engine 声明的组件。
 
 停止后同一会话不能复活。取消、超时、崩溃、协议破坏和撤权立即停止当前组件会话；close 等待监督进程退出及快照清理。清理失败返回固定错误并保留清理责任。已派发且无法确认结果的贡献为 unknown，真实终态为 completed，未派发为 not_started；不得自动重放 unknown/completed，不切回官方来重试副作用。
 
-当前内部回归证明：公共库离线发现、固定摘要注册、同版本不同制品、真实 DesktopHost 的两个 Agent、宿主身份、准备零业务回调、原生文件 list 的确认与审计、直接 I/O 拒绝、确认期间撤权、崩溃/超时/取消及清理。未知 SDK 行为、所有消息槽、实际外部作者实现、可分发制品和完整黑盒符合性仍需后续验收，不能从本指南推导已通过。
+当前内部回归证明：公共库离线发现、固定摘要注册、同版本不同制品、真实 DesktopHost 的两个 Agent、宿主身份、准备零业务回调、原生文件 list 的确认与审计、直接 I/O 拒绝、确认期间撤权、崩溃/超时/取消及清理。未知 SDK 行为、所有消息槽、实际外部作者实现、可分发制品和完整黑盒符合性仍需独立验证，不能从本指南推导已通过。
