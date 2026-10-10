@@ -45,7 +45,7 @@ export interface EngineHooks {
     cwd: string;
     context?: import("@plums/sdk").EngineRuntimeContext;
   }>;
-  active(): Promise<void>;
+  active(): Promise<void | { fingerprint: string }>;
   /** Final synchronous check after async authorization and immediately before dispatch. */
   assertCurrent?(): void;
   /** Trusted request lifetime; never supplied in engine JSONL parameters. */

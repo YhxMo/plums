@@ -14,6 +14,7 @@ import {
   type ProtocolRequirement,
   type ProtocolProvider,
   type ProtocolCompatibility,
+  type ProtocolDeclarations,
 } from "@plums/sdk";
 import type { AgentRecord } from "./host.js";
 import type { LibraryItem } from "./library.js";
@@ -104,57 +105,60 @@ function discover(
   components: Component[],
   selections: ProtocolBindingIntent[],
 ): ProtocolRequirementState[] {
+  const protocols = new Map<Component, ProtocolDeclarations | undefined>();
+  // Reuse only this discovery's declarations, preserving first-validation order.
+  const protocolsFor = (component: Component) => {
+    if (!protocols.has(component))
+      protocols.set(
+        component,
+        desktopContribution(component.manifest)?.protocols,
+      );
+    return protocols.get(component);
+  };
   return components.flatMap((consumer) =>
-    (desktopContribution(consumer.manifest)?.protocols?.requires ?? []).map(
-      (requirement) => {
-        const candidates: ProtocolCandidate[] = components
-          .filter((p) => p !== consumer)
-          .flatMap((provider) =>
-            (desktopContribution(provider.manifest)?.protocols?.provides ?? [])
-              .filter((p) => p.protocol === requirement.protocol)
-              .map((provided) => ({
-                name: provider.manifest.name,
-                enabled: provider.enabled,
-                intent: intent(consumer, requirement, provider, provided),
-                compatibility: checkProtocolCompatibility(
-                  requirement,
-                  provided,
-                ),
-              })),
-          );
-        const selected = selections.find(
-          (b) =>
-            b.consumerId === consumer.manifest.id &&
-            b.requirementId === requirement.id,
+    (protocolsFor(consumer)?.requires ?? []).map((requirement) => {
+      const candidates: ProtocolCandidate[] = components
+        .filter((p) => p !== consumer)
+        .flatMap((provider) =>
+          (protocolsFor(provider)?.provides ?? [])
+            .filter((p) => p.protocol === requirement.protocol)
+            .map((provided) => ({
+              name: provider.manifest.name,
+              enabled: provider.enabled,
+              intent: intent(consumer, requirement, provider, provided),
+              compatibility: checkProtocolCompatibility(requirement, provided),
+            })),
         );
-        const match =
-          selected &&
-          candidates.find(
-            (c) => c.compatibility.compatible && sameIntent(selected, c.intent),
-          );
-        const count = candidates.filter(
-          (c) => c.compatibility.compatible,
-        ).length;
-        return {
-          consumerId: consumer.manifest.id,
-          consumerName: consumer.manifest.name,
-          requirement: structuredClone(requirement),
-          state: selected
-            ? match
-              ? match.enabled
-                ? "bound"
-                : "disabled"
-              : "stale"
-            : count
-              ? count > 1
-                ? "choose"
-                : "unbound"
-              : "missing",
-          ...(selected ? { selected: structuredClone(selected) } : {}),
-          candidates,
-        };
-      },
-    ),
+      const selected = selections.find(
+        (b) =>
+          b.consumerId === consumer.manifest.id &&
+          b.requirementId === requirement.id,
+      );
+      const match =
+        selected &&
+        candidates.find(
+          (c) => c.compatibility.compatible && sameIntent(selected, c.intent),
+        );
+      const count = candidates.filter((c) => c.compatibility.compatible).length;
+      return {
+        consumerId: consumer.manifest.id,
+        consumerName: consumer.manifest.name,
+        requirement: structuredClone(requirement),
+        state: selected
+          ? match
+            ? match.enabled
+              ? "bound"
+              : "disabled"
+            : "stale"
+          : count
+            ? count > 1
+              ? "choose"
+              : "unbound"
+            : "missing",
+        ...(selected ? { selected: structuredClone(selected) } : {}),
+        candidates,
+      };
+    }),
   );
 }
 async function components(

@@ -251,6 +251,42 @@ it("uses ordinary single confirmation for local resource access outside a reusab
   expect(f.confirm.ask).toHaveBeenCalledTimes(2);
 });
 
+it("does not commit a local resource write confirmed after its parent cancels", async () => {
+  const f = await fixture({ noRange: true }),
+    abort = new AbortController();
+  let entered!: () => void, release!: (value: boolean) => void;
+  const ready = new Promise<void>((resolve) => (entered = resolve));
+  f.confirm.ask.mockImplementation(
+    () =>
+      new Promise<boolean>((resolve) => {
+        release = resolve;
+        entered();
+      }),
+  );
+  const running = f.run(
+      { op: "write", value: "late-confirm-record" },
+      abort.signal,
+    ),
+    refused = expect(running).rejects.toBeDefined();
+  await ready;
+  abort.abort();
+  release(true);
+  await refused;
+  f.confirm.ask.mockResolvedValue(true);
+  expect(await f.direct({ op: "read" })).toEqual({
+    exists: false,
+    revision: "0",
+  });
+  expect(
+    f.audit.filter(
+      (event) =>
+        event.kind === "resource" &&
+        event.operation === "write" &&
+        event.phase === "allow",
+    ),
+  ).toHaveLength(0);
+});
+
 it("rechecks the upstream lifecycle after a local resource allow audit before its transaction", async () => {
   const f = await fixture();
   const other = createCore({

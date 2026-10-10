@@ -4,6 +4,7 @@ import { execFileSync } from "node:child_process";
 import { createRequire } from "node:module";
 import { createHash } from "node:crypto";
 import path from "node:path";
+import { checkPackageManifest } from "./package-manifest.mjs";
 const root = process.cwd(),
   output = path.resolve(process.argv[2] ?? "release"),
   artifacts = path.join(root, ".artifacts"),
@@ -143,6 +144,7 @@ execFileSync(
   ],
   { cwd: path.join(resource, "app"), stdio: "inherit" },
 );
+await checkPackageManifest(resource);
 const dmg = path.join(output, `Plums-${desktopVersion}-arm64.dmg`);
 execFileSync(
   "hdiutil",

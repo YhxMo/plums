@@ -29,6 +29,7 @@ import {
   presentLocalAuthorizationState,
 } from "./foundation-presentation.js";
 import { installedComponent } from "./installed-component.js";
+import { currentRecheck, installationToken } from "./recheck-cache.js";
 import { WorkspaceLayouts } from "./workspace-layout.js";
 import {
   PolicyService,
@@ -474,7 +475,7 @@ export class DesktopHost {
       },
       secrets: (s) => this.secretValues(s),
       audit: (s, event) => this.writeAudit(s.record.instanceId, event),
-      confirm: (message, signal) => this.policyConfirm(message, signal),
+      confirm: (message, signal) => this.confirmOperation(message, signal),
     });
     this.businessResources = new ResourceService(
       new ResourceStore(path.join(options.dataDir, "business-resources")),
@@ -487,25 +488,8 @@ export class DesktopHost {
           path.join(this.directory(s.record.instanceId), "core", "plums.db"),
         audit: (s, e) => this.writeAudit(s.record.instanceId, e),
         secrets: (s) => this.secretValues(s),
-        confirm: async (_s, message, signal) => {
-          if (signal.aborted) return false;
-          return new Promise<boolean>((resolve) => {
-            const timer = setTimeout(() => finish(false), 120_000);
-            const finish = (v: boolean) => {
-              clearTimeout(timer);
-              signal.removeEventListener("abort", cancel);
-              resolve(v === true);
-            };
-            const cancel = () => finish(false);
-            signal.addEventListener("abort", cancel, { once: true });
-            Promise.resolve()
-              .then(() => options.confirm.ask({ message }))
-              .then(
-                (v) => finish(v === true),
-                () => finish(false),
-              );
-          });
-        },
+        confirm: (_s, message, signal) =>
+          this.confirmOperation(message, signal),
         policy: (s, op) => this.policy.assess(s, op),
         fault: options.resourceCommitFault,
       },
@@ -1202,11 +1186,47 @@ export class DesktopHost {
   private async assertAgentFoundation(s: Session) {
     if (!s.record.foundation?.enabled)
       throw foundationFailure("FOUNDATION_DISABLED");
-    await this.checkAgentFoundation(
-      s.record,
-      await this.foundationContents(s),
-      s.record.foundation.selection,
-    );
+    const complete = async () => {
+      await this.checkAgentFoundation(
+        s.record,
+        await this.foundationContents(s),
+        s.record.foundation!.selection,
+      );
+      return true;
+    };
+    const scope = currentRecheck();
+    if (!scope) {
+      await complete();
+      return;
+    }
+    // Enumeration remains fail closed even when immutable contents are memoized.
+    let references: string[];
+    try {
+      references = await s.core.listSecretReferences();
+    } catch {
+      throw new PlumsError({
+        code: "SECRET_NOT_FOUND",
+        message: "读取密钥失败，原来的错误已隐藏，以免带出密钥。",
+      });
+    }
+    const token = JSON.stringify([
+      await installationToken(s),
+      references.sort(),
+    ]);
+    const key = JSON.stringify([
+      s.record.instanceId,
+      s.record.components,
+      s.record.foundation,
+      s.record.agent.foundation,
+    ]);
+    if (scope.full) {
+      await complete();
+      // Async verification cannot populate a newer epoch with an older result.
+      if ((await installationToken(s)) === JSON.parse(token)[0])
+        scope.epoch.foundation.set(token, key, true);
+    } else {
+      await scope.epoch.foundation.inflight(token, key, complete);
+    }
   }
   async foundationPlan(id: string, selection?: FoundationSelection) {
     const fixed = selection ? parseFoundationSelection(selection) : undefined,
@@ -2258,19 +2278,21 @@ export class DesktopHost {
     const details = await Promise.all(
       packages.map(async (p) => {
         const { manifest } = await s.core.getPackage(p.id);
+        const settings = await s.core.describeSettings(p.id),
+          desktop = desktopContribution(manifest);
         return {
           ...p,
           manifest,
-          settings: await s.core.describeSettings(p.id),
-          desktop: desktopContribution(manifest),
+          settings,
+          desktop,
           ...(await connectionAccess(s.core, p.id, s.record)),
           mcpTools: s.mcpTools.get(p.id),
           engines: await Promise.all(
-            (desktopContribution(manifest)?.engines ?? []).map((d) =>
+            (desktop?.engines ?? []).map((d) =>
               this.engines.status(s, p.id, d.id),
             ),
           ),
-          compatibility: desktopContribution(manifest)?.model
+          compatibility: desktop?.model
             ? "This component requires an explicit upgrade to an external SDK v2 connector."
             : undefined,
         };
@@ -2281,7 +2303,7 @@ export class DesktopHost {
       await this.secretValues(s),
     );
   }
-  private async policyConfirm(
+  private async confirmOperation(
     message: string,
     signal: AbortSignal,
   ): Promise<boolean> {

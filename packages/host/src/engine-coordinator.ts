@@ -30,6 +30,7 @@ import type { PolicyCheckpoint } from "./policy-service.js";
 import type { Session } from "./host.js";
 import type { ComponentLibrary } from "./library.js";
 import { installedComponent } from "./installed-component.js";
+import { RequestRechecks, withRecheck } from "./recheck-cache.js";
 function denied(): never {
   throw new PlumsError({
     code: PERMISSION_DENIED,
@@ -289,6 +290,7 @@ export class EngineCoordinator {
         denied();
       this.options.localCheckpoint?.(s, pkg);
       if (signal.aborted) denied();
+      return current;
     };
     return {
       trackProcess: (child) => this.options.trackProcess?.(s, child),
@@ -653,19 +655,18 @@ export class EngineCoordinator {
     if (!hooks) denied();
     const callId = randomUUID();
     let gate: PolicyCheckpoint | undefined;
-    const check = async () => {
-      await context?.assertActive?.();
-      if (context?.signal.aborted) denied();
-      await gate?.recheck();
-      await hooks.active();
-      if (
-        (await this.authorize(s, pkg, engine)).fingerprint !==
-        authorization.fingerprint
-      )
-        denied();
-      gate?.assertCurrent();
-      if (context?.signal.aborted) denied();
-    };
+    const epoch = new RequestRechecks();
+    const check = async (full = false) =>
+      withRecheck(epoch, full, async () => {
+        await context?.assertActive?.();
+        if (context?.signal.aborted) denied();
+        await gate?.recheck();
+        const current = await hooks.active();
+        if (!current || current.fingerprint !== authorization.fingerprint)
+          denied();
+        gate?.assertCurrent();
+        if (context?.signal.aborted) denied();
+      });
     const audit = (
       phase: "allow" | "result",
       outcome: AuditEvent["outcome"],
@@ -690,7 +691,7 @@ export class EngineCoordinator {
         secrets,
         firstSecrets,
       );
-    await check();
+    await check(true);
     gate = await this.assessPolicy(
       s,
       pkg,
@@ -794,7 +795,7 @@ export class EngineCoordinator {
     }
     await audit("result", "completed", state);
     try {
-      await check();
+      await check(true);
     } catch {
       throw new PlumsError({
         code: "CAPABILITY_FAILED",

@@ -1,5 +1,5 @@
 import { build } from "esbuild";
-import { copyFile, cp, rm } from "node:fs/promises";
+import { cp, rm } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 const root = fileURLToPath(new URL("../", import.meta.url));
 for (const kind of ["agent", "manager", "confirm"])
@@ -35,33 +35,18 @@ await build({
     js: "import {createRequire as __createRequire} from 'node:module';const require=__createRequire(import.meta.url);",
   },
 });
-await copyFile(
-  root + "packages/host/dist/worker.js",
-  root + "packages/desktop/dist/worker.js",
-);
-// The secure file helper is macOS-only; Linux builds can validate JS/UI without it.
-if (process.platform === "darwin")
-  await copyFile(
-    root + "packages/host/dist/secure-fs",
-    root + "packages/desktop/dist/secure-fs",
-  );
-
-await copyFile(
-  root + "packages/host/dist/engine-supervisor.js",
-  root + "packages/desktop/dist/engine-supervisor.js",
-);
-
+// Runtime files are delivered by host-adapter; remove earlier root copies too.
 for (const name of [
+  "worker.js",
+  "secure-fs",
+  "engine-supervisor.js",
   "controlled-worker.cjs",
   "controlled-supervisor.js",
-  ...(process.platform === "darwin"
-    ? ["controlled-probe", "project-probe", "project-scan"]
-    : []),
+  "controlled-probe",
+  "project-probe",
+  "project-scan",
 ])
-  await copyFile(
-    root + "packages/host/dist/" + name,
-    root + "packages/desktop/dist/" + name,
-  );
+  await rm(root + "packages/desktop/dist/" + name, { force: true });
 
 await rm(root + "packages/desktop/dist/host-adapter", {
   recursive: true,

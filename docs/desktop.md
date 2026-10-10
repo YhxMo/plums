@@ -12,7 +12,7 @@ pnpm desktop:dev
 pnpm desktop:package
 ```
 
-打包脚本从 Node 官方发行目录下载 26.5.1，核对 SHA-256，随应用附带独立 Node，避免 Electron 与隔离库的原生 ABI 混用。Electron 44.5.1、isolated-vm 7.0.1 固定版本。产物位于 `release/Plums-darwin-arm64/Plums.app`、`release/Plums-1.0.0-arm64.dmg`。本地应用采用临时签名；开发者签名、公证、自动更新尚未接入。
+打包脚本从 Node 官方发行目录下载 26.5.1，核对 SHA-256，随应用附带独立 Node，避免 Electron 与隔离库的原生 ABI 混用。Electron 44.5.1、isolated-vm 7.0.1 固定版本。产物位于 `release/Plums-darwin-arm64/Plums.app`、`release/Plums-1.0.0-arm64.dmg`。本地应用采用临时签名；开发者签名、公证、自动更新尚未接入。 生成 DMG 前扫描 Resources、ASAR 文件清单及独立 ZIP 内条目，拒绝测试夹具、逃逸/注入实验和未采用的容器 helper；仅允许官方底座的固定 ZIP 路径。该检查的自造清单回归已接入，本轮未运行完整打包验收。
 
 ## 管理界面
 

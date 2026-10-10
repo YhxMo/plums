@@ -8,6 +8,7 @@ import {
 import { EngineManager, type EngineHooks } from "./engine-manager.js";
 import type { Session } from "./host.js";
 import { ProjectSandbox } from "./project-sandbox.js";
+import { currentRecheck, installationToken } from "./recheck-cache.js";
 
 const levels = { sandbox: 0, project: 1, machine: 2 };
 export interface LocalExecutionAuthorization {
@@ -32,7 +33,20 @@ export class AgentExecutionService {
   ): Promise<LocalExecutionAuthorization> {
     const s = this.session,
       checkpoint = s.core.runtimeAccessCheckpoint([packageId]),
-      { manifest, installed } = await s.core.getPackage(packageId);
+      scope = currentRecheck();
+    const read = async () => ({
+      detail: await s.core.getPackage(packageId),
+      state: await s.core.localAuthorizationState(),
+    });
+    const snapshot =
+      scope && !scope.full
+        ? await scope.epoch.authorization.inflight(
+            await installationToken(s),
+            packageId,
+            read,
+          )
+        : await read();
+    const { manifest, installed } = snapshot.detail;
     checkpoint.assertCurrent();
     if (!isManifestV2(manifest) || !installed.enabled)
       throw new PlumsError({
@@ -47,7 +61,7 @@ export class AgentExecutionService {
         message: "组件未声明此本地入口。",
       });
     const tier = permission.tier ?? "machine",
-      state = await s.core.localAuthorizationState();
+      state = snapshot.state;
     if (levels[tier] > levels[state.tier.ceiling])
       throw new PlumsError({
         code: "TIER_REQUIRED",
