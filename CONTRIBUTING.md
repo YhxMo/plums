@@ -73,3 +73,20 @@ Do not copy code from AGPL/GPL projects. Compatibility work must use public spec
 Use the issue forms for ordinary defects and feature requests. Follow
 [SECURITY.md](SECURITY.md) for security problems, and do not disclose them in public
 issues. Community participation follows [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md).
+
+## Pre-public checks
+
+After packaging, run the tracked-document link check and the separate readiness gate:
+
+```sh
+node scripts/check-doc-links.mjs
+node scripts/check-public-ready.mjs --denylist "$PUBLIC_READY_DENYLIST"
+```
+
+Set `PUBLIC_READY_DENYLIST` to a private regex list outside the checkout; do not
+commit the list or its matched values. The gate reports locations and counts only.
+It checks public files, unresolved metadata/Gatekeeper text, known private strings,
+licenses, documented target/runtime, package and installer versions, fresh bundled
+notices, the release guard, package inventory and npm scope. It is not part of
+default CI while metadata remains pending. External document links are listed
+without network requests. These checks do not replace full history or artifact audits.

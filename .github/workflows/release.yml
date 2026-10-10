@@ -1,0 +1,97 @@
+name: Preview release
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+
+permissions: {}
+
+jobs:
+  build:
+    runs-on: macos-15
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      actions: read
+    steps:
+      - name: Require successful CI for this commit
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          conclusion=$(gh run list --repo "$GITHUB_REPOSITORY" --commit "$GITHUB_SHA" --workflow ci.yml --json conclusion --jq '.[0].conclusion')
+          test "$conclusion" = success
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: "26.5.1"
+      - uses: pnpm/action-setup@41ff72655975bd51cab0327fa583b6e92b6d3061 # v4.2.0
+      - run: pnpm install --frozen-lockfile
+      - run: node scripts/prepare-test-runtime.mjs
+      - run: node scripts/prepare-electron.mjs
+      - name: Check preview version and tag
+        run: |
+          node scripts/check-versions.mjs
+          if [ "$GITHUB_EVENT_NAME" = push ]; then
+            version=$(node -p 'JSON.parse(require("node:fs").readFileSync("package.json", "utf8")).version')
+            test "$GITHUB_REF_NAME" = "v$version"
+          fi
+      - run: pnpm build
+      - run: pnpm desktop:package
+      - run: codesign --verify --deep --strict release/Plums-darwin-arm64/Plums.app
+      - run: node scripts/package-smoke.mjs release/Plums-darwin-arm64/Plums.app
+      - name: Generate downloadable checksums
+        run: |
+          cp THIRD_PARTY_NOTICES.txt release/THIRD_PARTY_NOTICES.txt
+          cd release
+          shasum -a 256 Plums-*.dmg THIRD_PARTY_NOTICES.txt > SHA256SUMS
+          shasum -a 256 -c SHA256SUMS
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: plums-preview-${{ github.sha }}
+          if-no-files-found: error
+          path: |
+            release/Plums-*.dmg
+            release/SHA256SUMS
+            release/THIRD_PARTY_NOTICES.txt
+
+  attest:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+      attestations: write
+    steps:
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: plums-preview-${{ github.sha }}
+          path: release
+      - uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
+        with:
+          subject-path: |
+            release/Plums-*.dmg
+            release/SHA256SUMS
+            release/THIRD_PARTY_NOTICES.txt
+
+  release:
+    needs: [build, attest]
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+        with:
+          persist-credentials: false
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: plums-preview-${{ github.sha }}
+          path: release
+      - name: Create draft preview
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release create "$GITHUB_REF_NAME" --draft --prerelease --verify-tag --title "Plums $GITHUB_REF_NAME" --notes-file .github/release-notes-template.md release/Plums-*.dmg release/SHA256SUMS release/THIRD_PARTY_NOTICES.txt

@@ -28,12 +28,14 @@ CI 另设只读 `diagnostics` job，与三个测试 job 并行。它在构建后
 
 以下 tag 经 GitHub REST `git/ref/tags/<tag>` 解析；pnpm 的 annotated tag 再用 `git/tags/<object>` 解引用为 commit。原始 API 输出在 `.artifacts/gate12/*-tag.json`。网络首次失败后重试取得全部记录。
 
-| Action                  | Tag    | 固定 commit                                |
-| ----------------------- | ------ | ------------------------------------------ |
-| actions/checkout        | v4.3.1 | `34e114876b0b11c390a56381ad16ebd13914f8d5` |
-| actions/setup-node      | v4.4.0 | `49933ea5288caeca8642d1e84afbd3f7d6820020` |
-| pnpm/action-setup       | v4.2.0 | `41ff72655975bd51cab0327fa583b6e92b6d3061` |
-| actions/upload-artifact | v4.6.2 | `ea165f8d65b6e75b540449e92b4886f43607fa02` |
+| Action                          | Tag    | 固定 commit                                |
+| ------------------------------- | ------ | ------------------------------------------ |
+| actions/checkout                | v4.3.1 | `34e114876b0b11c390a56381ad16ebd13914f8d5` |
+| actions/setup-node              | v4.4.0 | `49933ea5288caeca8642d1e84afbd3f7d6820020` |
+| pnpm/action-setup               | v4.2.0 | `41ff72655975bd51cab0327fa583b6e92b6d3061` |
+| actions/upload-artifact         | v4.6.2 | `ea165f8d65b6e75b540449e92b4886f43607fa02` |
+| actions/download-artifact       | v4.3.0 | `d3f86a106a0bac45b974a628896c90dbdf5c8093` |
+| actions/attest-build-provenance | v4.2.2 | `4d101475d8b20a2381f78447822ac1eab6504dd8` |
 
 顶层权限为空，job 只读 contents；checkout 不保存凭据。工作流无 secrets，不使用 pull_request_target，不使用环境批准或发布入口。同一PR的新运行取消旧运行；main push不取消。报告上传使用 always，即使失败也保留 JSON（没有报告则上传步骤失败）。
 
@@ -101,7 +103,6 @@ A 使用默认两个 serial 项目，42/42、Vitest 103.56s（墙钟 104.37s）�
 
 2026-10-10 最终提交 `c05394eed933a11bc87f1182e6b10c32f84d5c90`：默认168文件全部运行，2513项中2512通过/0失败/1平台跳过/0todo，423.10s，含构建墙钟430.787s。两个serial组晚于unit且不重叠；跳过清单与覆盖守卫一致。20分钟job预算约为本机墙钟的2.8倍。首次全量因两处夹具准备/保存位置修复重跑一次；提交与打包证据见[本地发布验证证据](release-evidence.md)。CI仍未真实运行。
 
-
 ## PR #36 分组运行与崩溃证据（2026-10-10）
 
 默认项目由 `ci/groups.json` 恰好分配给 unit/platform/electron；覆盖守卫校验配置与实际报告的文件归属。平台候选通过 `rg` 搜索 sandbox-exec、bindControlledProgram 和 darwin 条件后逐文件复核；SDK 控制用例的真实程序绑定、scenario foundation 的受控 Node 也归入 platform。core 的纯授权/迁移用例仍归入 unit，实验文件仍不属于默认组。
@@ -111,7 +112,6 @@ unit 的 CI 并发先采用计划默认值 2，本地仍为 4；两个 serial �
 [Vitest 3 的 logHeapUsage](https://v3.vitest.dev/config/#logheapusage)输出每个文件的堆使用量。本机小子集已产生heap usage行；运行器保留默认forks池，`/usr/bin/time -l`输出最大RSS。pending/status/JSON与完整日志上传为reports-unit/platform/electron，14天保留。缺JSON或信号中止判为crashed，保留最后50行；失败、遗漏、重复文件、组归属错误和不同提交均使report失败。report在三个组结束后汇总，不替代各组自身失败结论。
 
 unit/platform/electron的job预算分别25/25/30分钟，report为15分钟；用例20秒、平台一致性180秒及原生运行预算均不变。包清单门保留在unit。download-artifact v4.3.0的REST标签原文为 `{"sha":"d3f86a106a0bac45b974a628896c90dbdf5c8093","type":"commit"}`，workflow固定此SHA。
-
 
 ## macos-15 原始诊断与4B决定
 
@@ -125,12 +125,11 @@ push run 38054025148（头 `2b2ced91f2c6111d799cb7fb28e62f28ed4612d3`）的独�
 
 项目成员的11项未验收实验仅在PLUMS_NATIVE_EXPERIMENTS=1收集；它们增加共用OS门，原因固定为 `macOS 27 acceptance only`。对应清单增加when.experiments=true，只在显式实验报告中参与双向核验，默认覆盖仍明确排除实验文件。记录型project-members-variants继续在15执行并产出verdict；绿的记录型测试不证明容器可用，项目仍TIER_UNAVAILABLE。第10步停止：4B未满足降低最低系统的证据闸门，Info.plist与最低系统措辞保持27.0.1。
 
-
 ## 测试前准备Electron与固定Node哈希
 
 Electron44.5.1的index.js在path.txt/可执行文件缺失时会自行联网；electron job现在在pnpm install之后显式运行 `node scripts/prepare-electron.mjs`，ELECTRON_CACHE为runner.temp/electron-cache。脚本重建提取目录，直接调用已解析的install.js；@electron/get按照锁文件保护的Electron包内官方checksums校验ZIP，包括缓存命中，禁止切换到远端清单兜底。没有增加cache action。
 
-本机官方ZIP SHA-256为 `1d75703019bb16461ae65f3081d7e6f5c0b11e901d0ccb5c343bcf7bcdd6435c`，与包内checksums一致。ZIP不含_CodeSignature资源封套，直接深度验签原文 `code has no resources but signature indicates they must be present`，不是通过。准备脚本从校验后的ZIP重建，再为测试副本生成本地ad-hoc封套，随后codesign --verify --deep通过。该签名不是发布者身份、Developer ID或公证；没有修改发布应用。它核对path.txt、可执行权限、实际--version与锁定44.5.1，再深度验签；失败使job红。
+本机官方ZIP SHA-256为 `1d75703019bb16461ae65f3081d7e6f5c0b11e901d0ccb5c343bcf7bcdd6435c`，与包内checksums一致。ZIP不含\_CodeSignature资源封套，直接深度验签原文 `code has no resources but signature indicates they must be present`，不是通过。准备脚本从校验后的ZIP重建，再为测试副本生成本地ad-hoc封套，随后codesign --verify --deep通过。该签名不是发布者身份、Developer ID或公证；没有修改发布应用。它核对path.txt、可执行权限、实际--version与锁定44.5.1，再深度验签；失败使job红。
 
 13个Electron项目的setupFiles只读检查path.txt、可执行文件与版本，先于加载测试文件执行，不导入会下载的electron/index.js；缺失即报“run node scripts/prepare-electron.mjs before the tests”。本地UI验收也需先运行此准备命令。
 
@@ -138,24 +137,21 @@ Electron44.5.1的index.js在path.txt/可执行文件缺失时会自行联网；e
 
 升级时先取得新版本官方清单；用Node发布者公钥验证SHASUMS256.txt.sig/.asc（有gpg和经过可信渠道核对的钥匙时），保存原始输出。核对归档实际sha256后同步ci/node-runtime.json、prepare-test-runtime、package-desktop和workflow的精确版本，执行哈希拒绝回归与覆盖守卫。无签名验证时必须继续披露该限制。证据step5-node-verification.log、step5-electron-verification{,-2}.log与step5-tests-final.json，本次哈希/缺Electron回归2/2。
 
-
 ## 触发去重
 
-保留pull_request、main push与workflow_dispatch，取消codex/** push自动触发。没有PR的分支不会自动运行CI，应手动dispatch或开PR。并发组仍绑定PR编号或ref，cancel-in-progress仅对pull_request为true；main不取消。一个PR提交不再重复消耗push与pull_request两套macOS job。去重前已触发的两个run都仍须保存原始结论。
-
+保留pull_request、main push与workflow_dispatch，取消codex/\*\* push自动触发。没有PR的分支不会自动运行CI，应手动dispatch或开PR。并发组仍绑定PR编号或ref，cancel-in-progress仅对pull_request为true；main不取消。一个PR提交不再重复消耗push与pull_request两套macOS job。去重前已触发的两个run都仍须保存原始结论。
 
 ## 固定SHA核对（PR #36，2026-10-10）
 
 本次重新调用REST git/ref/tags；pnpm annotated tag经git/tags再次解引用。下面是object的sha/type原文，均与workflow逐字一致，无需升级。证据 `.artifacts/ci/{actions-*-tag,pnpm-action-setup-{tag,commit},download-artifact-tag}.json`。
 
-| Action / tag | API object原文 | 核对 |
-| --- | --- | --- |
-| actions/checkout / v4.3.1 | `{"sha":"34e114876b0b11c390a56381ad16ebd13914f8d5","type":"commit"}` | 一致 |
-| actions/setup-node / v4.4.0 | `{"sha":"49933ea5288caeca8642d1e84afbd3f7d6820020","type":"commit"}` | 一致 |
-| pnpm/action-setup / v4.2.0 | `{"sha":"9fd676a19091d4595eefd76e4bd31c97133911f1","type":"tag"} → {"sha":"41ff72655975bd51cab0327fa583b6e92b6d3061","type":"commit"}` | 一致 |
-| actions/upload-artifact / v4.6.2 | `{"sha":"ea165f8d65b6e75b540449e92b4886f43607fa02","type":"commit"}` | 一致 |
-| actions/download-artifact / v4.3.0 | `{"sha":"d3f86a106a0bac45b974a628896c90dbdf5c8093","type":"commit"}` | 一致 |
-
+| Action / tag                       | API object原文                                                                                                                         | 核对 |
+| ---------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- | ---- |
+| actions/checkout / v4.3.1          | `{"sha":"34e114876b0b11c390a56381ad16ebd13914f8d5","type":"commit"}`                                                                   | 一致 |
+| actions/setup-node / v4.4.0        | `{"sha":"49933ea5288caeca8642d1e84afbd3f7d6820020","type":"commit"}`                                                                   | 一致 |
+| pnpm/action-setup / v4.2.0         | `{"sha":"9fd676a19091d4595eefd76e4bd31c97133911f1","type":"tag"} → {"sha":"41ff72655975bd51cab0327fa583b6e92b6d3061","type":"commit"}` | 一致 |
+| actions/upload-artifact / v4.6.2   | `{"sha":"ea165f8d65b6e75b540449e92b4886f43607fa02","type":"commit"}`                                                                   | 一致 |
+| actions/download-artifact / v4.3.0 | `{"sha":"d3f86a106a0bac45b974a628896c90dbdf5c8093","type":"commit"}`                                                                   | 一致 |
 
 Dependabot仅配置github-actions、每周、最多5个PR，保留SHA旁版本注释；没有开启npm依赖更新。顶层空权限、job只读contents、checkout不保存凭据、无secrets与无pull_request_target保持。
 
@@ -166,3 +162,13 @@ Dependabot仅配置github-actions、每周、最多5个PR，保留SHA旁版本�
 step3的push diagnostics job 114218707136在原15分钟预算后被取消（API结束13:20:03 UTC，启动13:00:02；包括取消清理余量），未取得新的members-variants artifact。平台组也尚未完成，不能推定其verdict或失败位置。旧default日志有NO_GO/actualProfile:false，但不能代替本次缺失报告。
 
 为下一次远端运行加入固定命令标识的probe begin/end与cleanup begin/end标记，不记录物理路径、PID、nonce或参数内容；不会改变断言、同步调用、20秒用例预算或job预算。它使终态日志能定位最后一个原生边界；记录型测试仍实际运行，不新增跳过。本机该定向1/1，报告INCONCLUSIVE/outer sandbox or killed no-network probe，只说明本机外层环境，不能当作27人工验收。证据members-trace-local.{json,log}及members-trace-local-variants.json。
+
+## 预览草稿发布流程
+
+`.github/workflows/release.yml` 仅由 v\* tag 或手动触发，不接受 PR。build job 先经只读 Actions API 检查同一 GITHUB_SHA 的 ci.yml 最近一次结论必须是 success，再冻结安装、准备运行时、核对 0.1.0 与 tag、构建/打包、严格验签、临时目录启动并生成 SHA256SUMS。打包流程本身核对真实 Resources/ASAR/ZIP 清单及六个必需许可证。制品只有 DMG、校验和与第三方声明。
+
+attest job 依赖 build，单独取得 id-token/attestations 写权限，为 DMG、SHA256SUMS 与声明生成来源证明。release job 依赖两者，仅在 tag push 时取得 contents 写权限，使用 `gh release create --draft --prerelease --verify-tag`；手动触发不创建 Release。所有 Action 固定完整 commit，checkout 不保存凭据。`check-release-workflow.mjs` 使用文本结构守卫，不引入 YAML 依赖；actionlint 独立验证 YAML 与 Actions 语义。
+
+attest-build-provenance v4.2.2 的 GitHub git/ref/tags API 返回 commit，已直接核对完整 SHA。GitHub Free/Pro/Team 仅在公开仓库提供来源证明，私有/内部仓库需要 Enterprise Cloud；见[官方适用范围](https://docs.github.com/en/actions/how-tos/secure-your-work/use-artifact-attestations/use-artifact-attestations)。当前账号是否满足私有仓库条件尚未验证，不能省略或降级 attest。若无法在私有仓库演练，公开后首发前须重新验证。
+
+最终 SHA 的 CI 与 release 手动演练尚待批准推送后执行；新工作流必须先出现在默认分支，GitHub 才能发现 workflow_dispatch。没有创建 tag 或 Release。浏览器下载的 Gatekeeper 提示仍待用户在目标 Mac 实测，README 与发布说明保留待验标记。
