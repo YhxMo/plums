@@ -12,6 +12,8 @@
 
 ## About
 
+**0.1.0 preview software.** Read the permission boundaries and known limitations before installing extensions.
+
 Plums brings character cards, extensions, and service connectors into one desktop workspace. Import a complete Agent, or assemble your own and choose its work interface.
 
 The desktop app manages components, configuration, permissions, and execution. Chat, model integrations, and other workflows are provided by separately maintained extensions and connectors.
@@ -40,13 +42,38 @@ To run from source, install:
 git clone https://github.com/YhxMo/plums.git
 cd plums
 pnpm install --frozen-lockfile
+pnpm desktop:package
 ```
 
 Core and CLI can also be used separately with Node.js 22 or later.
 
+The application and DMG are written to `release/`.
+
+### Preview downloads and Gatekeeper
+
+When a preview artifact is available, download its `SHA256SUMS` and verify the files
+before opening the DMG:
+
+```sh
+shasum -a 256 -c SHA256SUMS
+gh attestation verify Plums-0.1.0-arm64.dmg --repo YhxMo/plums
+```
+
+The preview uses ad-hoc signing and is not notarized. A browser download may be
+blocked by Gatekeeper. Right-click **Open**, or use **System Settings → Privacy &
+Security → Open Anyway**, if your macOS version offers that option.
+**Gatekeeper prompts and these steps are pending user validation on the target Mac.**
+
+`xattr -dr com.apple.quarantine Plums.app` removes the quarantine marker and bypasses
+that system check. Use it only for a package whose source, checksum, and provenance
+you have verified. It is not evidence of notarization or a trusted developer signature.
+
 ## Platform support
 
 Desktop support is limited to macOS 27.0.1 on Apple Silicon (arm64), using Node.js 26.5.1 and pnpm 10 for the full source build. Other desktop platforms are unsupported. Core and CLI can be used separately on Node.js 22 or later. See [CI and platform gates](./docs/ci.md) for the official foundation and native test conditions.
+
+The minimum follows the packaged application's system requirement. CI uses macOS
+15 arm64; acceptance on macOS 27 remains a separate manual check.
 
 ## Permission tiers and known limitations
 
@@ -55,6 +82,10 @@ Desktop support is limited to macOS 27.0.1 on Apple Silicon (arm64), using Node.
 - **Machine tier:** authorized extensions have **no Plums sandbox**. They can read and modify local files accessible to your account, including Plums data and other Agents' credentials, run arbitrary programs, and access the network. After you stop or revoke this entry, children it started that are detached from its process group may continue running. Install extensions only from sources you trust.
 - **Runtime hard links:** creation checks and startup validation do not form a kernel inode boundary. New aliases created at runtime by unrelated processes remain an unprotected risk for the future project tier, which is currently unavailable.
 - **Local installation packages:** ad-hoc signed and not notarized; the system may block them. Verify the source and hash in its verification record before choosing to run a local build. Automatic updates are unavailable.
+
+See the [security model](./docs/security-model.md) for authorization, revocation,
+and audit boundaries. Report vulnerabilities through [SECURITY.md](./SECURITY.md).
+For development and contributions, follow [CONTRIBUTING.md](./CONTRIBUTING.md).
 
 ## Quick Start
 

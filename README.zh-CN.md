@@ -12,6 +12,8 @@
 
 ## 简介
 
+**0.1.0 预览软件。** 安装扩展前，请阅读权限边界和已知限制。
+
 Plums 将角色卡、功能扩展和服务连接器放进同一个桌面工作空间。你可以导入完整 Agent，也可以按需组装组件，选择自己的工作界面。
 
 桌面应用负责组件管理、配置、权限和运行；聊天、模型接入及其他工作流程由独立维护的扩展和连接器提供。
@@ -40,13 +42,35 @@ Plums 将角色卡、功能扩展和服务连接器放进同一个桌面工作�
 git clone https://github.com/YhxMo/plums.git
 cd plums
 pnpm install --frozen-lockfile
+pnpm desktop:package
 ```
 
 单独使用 core 或 CLI 时，也支持 Node.js 22 及后续版本。
 
+应用和 DMG 输出到 `release/`。
+
+### 下载预览版与 Gatekeeper
+
+预览制品可用后，下载随附的 `SHA256SUMS`，打开 DMG 前先校验文件：
+
+```sh
+shasum -a 256 -c SHA256SUMS
+gh attestation verify Plums-0.1.0-arm64.dmg --repo YhxMo/plums
+```
+
+预览包采用 ad-hoc 签名，未公证。浏览器下载的包可能被 Gatekeeper 拦截。
+如果系统提供对应选项，可尝试右键「打开」，或进入「系统设置 → 隐私与安全性 → 仍要打开」。
+**Gatekeeper 实际提示文字及上述操作步骤待用户实测。**
+
+`xattr -dr com.apple.quarantine Plums.app` 会移除隔离标记并绕过该项系统检查。
+只对已核对来源、校验和与构建来源证明的包使用该命令。
+它不能证明应用已公证或具有可信开发者签名。
+
 ## 平台与限制
 
 桌面端仅支持 macOS 27.0.1、Apple Silicon（arm64），完整源码构建使用 Node.js 26.5.1 和 pnpm 10。其他桌面平台未受支持；core 与 CLI 可在 Node.js 22 及后续版本单独使用。官方底座与原生测试的平台条件见 [CI 与平台门控](./docs/ci.md)。
+
+最低版本遵循应用包的实际系统要求。CI 使用 macOS 15 arm64，macOS 27 验收仍需独立人工检查。
 
 ## 权限档位与已知限制
 
@@ -55,6 +79,9 @@ pnpm install --frozen-lockfile
 - **整机档位：** 已授权扩展**没有 Plums 沙箱**。它可读取和修改你的系统账户能够访问的本机文件，包括 Plums 自身数据和其他 Agent 的密钥，运行任意程序并访问网络。停止或撤销该入口后，它启动且已脱离其进程组的子进程可能继续运行。只安装你信任来源的扩展。
 - **运行期硬链接：** 创建阶段拦截与启动前校验不构成内核级 inode 防线。非后代进程在运行期新增别名仍是未防护风险；该限制针对尚不可用的项目档位。
 - **本地安装包：** 采用 ad-hoc 签名，未公证，可能被系统拦截。选择运行前，请先核对来源与验证记录中的哈希。当前没有自动更新。
+
+授权、撤销和审计边界见[安全模型](./docs/security-model.md)。
+漏洞报告遵循 [SECURITY.md](./SECURITY.md)，开发与贡献遵循 [CONTRIBUTING.md](./CONTRIBUTING.md)。
 
 ## 快速开始
 

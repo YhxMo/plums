@@ -1,3 +1,4 @@
+import { checkVersions } from "./check-versions.mjs";
 import { packager } from "@electron/packager";
 import { cp, mkdir, readFile, writeFile, rm, access } from "node:fs/promises";
 import { execFileSync } from "node:child_process";
@@ -21,8 +22,7 @@ async function prepareApplication() {
     await readFile(path.join(root, "packages/desktop/package.json"), "utf8"),
   );
   const desktopVersion = desktopPackage.version;
-  if (!/^[1-9][0-9]*\.[0-9]+\.[0-9]+$/.test(desktopVersion))
-    throw Error("A stable desktop version is required");
+  await checkVersions(root);
   if (process.platform !== "darwin" || process.arch !== "arm64")
     throw Error("This packaging target is macOS arm64");
   const nodeVersion = "26.5.1",

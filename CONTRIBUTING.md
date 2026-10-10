@@ -40,6 +40,12 @@ pnpm desktop:package
 Core and CLI declare Node.js 22+ support; this full-workspace validation procedure
 uses the pinned desktop runtime. Use [the core guide](docs/core-guide.md) for their API.
 
+## Version check
+
+All workspace packages and the core/CLI version are `0.1.0` preview.
+Run `node scripts/check-versions.mjs` before packaging.
+The npm scope is `@plumsjs`; npm publication is pending.
+
 ## Pull requests
 
 - Keep each commit focused on one change and describe its public behavior.

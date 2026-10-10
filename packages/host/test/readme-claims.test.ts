@@ -51,3 +51,41 @@ it("README files carry the detached-children limitation exactly once per languag
   for (const { text, limitation } of readmes())
     expect(text.split(limitation)).toHaveLength(2);
 });
+
+it("README files link security and contribution policies and describe checksum/provenance verification", () => {
+  for (const { text } of readmes()) {
+    for (const file of [
+      "docs/security-model.md",
+      "SECURITY.md",
+      "CONTRIBUTING.md",
+    ])
+      expect(text).toContain(`./${file}`);
+    for (const command of [
+      "shasum -a 256 -c SHA256SUMS",
+      "gh attestation verify",
+      "xattr -dr com.apple.quarantine Plums.app",
+    ])
+      expect(text).toContain(command);
+    expect(text).toContain("@plumsjs/cli");
+  }
+});
+
+it("the security model states authorization, revocation, audit and current containment limits", () => {
+  const text = readFileSync(
+    new URL("../../../docs/security-model.md", import.meta.url),
+    "utf8",
+  );
+  for (const phrase of [
+    "上限只限制、不授予权限",
+    "TIER_UNAVAILABLE",
+    "没有 Plums 沙箱",
+    "task-or-confirm",
+    "deny 优先",
+    "DesktopHost.close()",
+    "已脱离其进程组",
+    "不记录业务正文",
+    "非后代进程",
+    "未公证",
+  ])
+    expect(text).toContain(phrase);
+});

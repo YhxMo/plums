@@ -12,7 +12,7 @@ pnpm desktop:dev
 pnpm desktop:package
 ```
 
-打包脚本从 Node 官方发行目录下载 26.5.1，核对 SHA-256，随应用附带独立 Node，避免 Electron 与隔离库的原生 ABI 混用。Electron 44.5.1、isolated-vm 7.0.1 固定版本。产物位于 `release/Plums-darwin-arm64/Plums.app`、`release/Plums-1.0.0-arm64.dmg`。 使用 `node scripts/package-smoke.mjs release/Plums-darwin-arm64/Plums.app` 在临时数据目录核对主窗口、版本与正常退出，输出一行 JSON。本地应用采用临时签名；开发者签名、公证、自动更新尚未接入。 生成 DMG 前扫描 Resources、ASAR 文件清单及独立 ZIP 内条目，拒绝测试夹具、逃逸/注入实验和未采用的容器 helper；仅允许官方底座的固定 ZIP 路径。该检查的自造清单回归已接入；当前最终提交的全量、打包、签名、DMG 与临时目录启动实测见[本地发布验证证据](release-evidence.md)。本包采用 ad-hoc 签名且未公证，spctl 实测拒绝；清单单测不能代替打包实测。实验 helper 守卫按名称拦截，不识别文件内容，因此不能识别改名别名。
+打包脚本从 Node 官方发行目录下载 26.5.1，核对 SHA-256，随应用附带独立 Node，避免 Electron 与隔离库的原生 ABI 混用。Electron 44.5.1、isolated-vm 7.0.1 固定版本。产物位于 `release/Plums-darwin-arm64/Plums.app`、`release/Plums-0.1.0-arm64.dmg`。 使用 `node scripts/package-smoke.mjs release/Plums-darwin-arm64/Plums.app` 在临时数据目录核对主窗口、版本与正常退出，输出一行 JSON。本地应用采用临时签名；开发者签名、公证、自动更新尚未接入。 生成 DMG 前扫描 Resources、ASAR 文件清单及独立 ZIP 内条目，拒绝测试夹具、逃逸/注入实验和未采用的容器 helper；仅允许官方底座的固定 ZIP 路径。该检查的自造清单回归已接入；当前最终提交的全量、打包、签名、DMG 与临时目录启动实测见[本地发布验证证据](release-evidence.md)。本包采用 ad-hoc 签名且未公证，spctl 实测拒绝；清单单测不能代替打包实测。实验 helper 守卫按名称拦截，不识别文件内容，因此不能识别改名别名。
 
 ## 管理界面
 
