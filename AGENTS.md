@@ -12,8 +12,10 @@ Plums（Apache-2.0）是 TypeScript 工作区，包含 core、CLI、扩展 SDK�
 
 ## 命令与验证
 
-- 安装：`pnpm install --frozen-lockfile`；构建：`pnpm build`；全量测试：`pnpm test`（包含构建）。
+- 安装：`pnpm install --frozen-lockfile`；构建：`pnpm build`；全量测试：`pnpm test`（准备固定 Node/Electron 运行时并构建）。
 - 定向测试先运行 `pnpm build`，再运行 `pnpm exec vitest run <测试文件>`；CLI 和跨进程测试会加载 `dist`。版本命令：`pnpm exec plums version`。
+- 只重写历史或提交元数据且文件树不变时，重点验证文件树一致、提交结构、身份、日期、文案与历史隐私；按任务要求完成构建和测试，没有内容变化或新增失败证据时不重复全量测试，不为历史整理扩展代码修复。
+- 首轮失败与单独重跑结果分别报告；单独通过不能证明原始原因已解决。测试失败诊断先创建输出目录，诊断采集失败不得覆盖原始异常。
 - 性能基准：`pnpm bench:performance`（包含构建），可用 `--out <report.json>` 保存报告，方法见 `docs/performance.md`。耗时和内存按同机同环境比较；回归测试断言查询执行次数、语句复用和缓存边界，不设 CI 毫秒门槛，SELECT 执行与 prepare 次数分别统计。
 - 桌面开发：`pnpm desktop:dev`；macOS Apple Silicon 打包：`pnpm desktop:package`；平台符合性：`pnpm conformance:platform`。本仓库仅交付应用、宿主、公开 SDK 与官方底座，业务扩展和角色卡独立维护，不提交。例外：`packages/host/test/fixtures/extensions/` 下的测试扩展与自造角色卡夹具仅供 vitest 验收，在测试时打包；不进入构建产物或安装包，不作为官方扩展发布，应用不提供自动安装入口。 桌面打包在生成 DMG 前核对 Resources、ASAR 与 ZIP 文件清单，拒绝夹具及未采用的原生实验 helper，只允许官方底座固定 ZIP；清单单测不能代替打包实测。夹具不得包含真实角色卡、真实密钥或复制自 AGPL/GPL 项目的代码。
 - 常规测试用自造夹具和 Fake/Recording 适配器隔离真实外发、密钥及业务文件执行；CLI、运行时和桌面测试允许启动受测子进程。路径边界用临时元数据夹具，core 确认超时用虚拟计时器，隔离运行时超时按真实预算测试；POSIX FIFO 用例在 Windows 跳过。原生集成测试使用临时数据目录与自造凭据；系统密钥存储验收仅在显式选择时进行。
@@ -50,6 +52,8 @@ Plums（Apache-2.0）是 TypeScript 工作区，包含 core、CLI、扩展 SDK�
 - 维护公开 API 与错误的 code/path/details 契约，`path` 使用 JSON Pointer；错误、日志和导出不得泄漏密钥值或被拒的设置值。公开的 `validatePackage`、`inspectPackage` 不作为内部重复删除。
 - 合并或去重测试时保留双方独有的行为断言；代码组合完成后重新验证，历史提交的测试结果不能替代最终组合的结果。纯规则文档修改只需静态核对与格式检查。
 - 不提交 `node_modules/`、`dist/`、`coverage/`、`release/`、`.build-cache/`、运行数据、真实角色卡或密钥；兼容实现只参考公开规范，不复制 AGPL/GPL 项目代码。
+- 清理测试产物时，核对本次运行创建的路径及使用状态，只删除归属明确的目录；不按临时目录名前缀批量删除其他运行的数据，保留仍需使用的构建依赖、历史备份和验证报告。
+- 公开接口与使用指南描述当前行为、能力限制及复现步骤，不夹带一次性排查经过或未解释的内部方案编号。验证资料须已跟踪、可公开取得或有复现命令，不以未提供的本地缓存报告作为依据；迁移与兼容说明指向当前夹具或测试，保留必要的源版本溯源信息。
 
 ## 模型配置
 
