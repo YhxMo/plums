@@ -13,7 +13,8 @@
     "conformance:platform": "pnpm build && node scripts/platform-conformance.mjs",
     "bench:performance": "pnpm build && node --expose-gc scripts/bench-performance.mjs",
     "desktop:dev": "pnpm build && node scripts/run-desktop.mjs",
-    "desktop:package": "pnpm build && node scripts/package-desktop.mjs"
+    "desktop:package": "pnpm build && node scripts/package-desktop.mjs",
+    "test:experiments": "PLUMS_NATIVE_EXPERIMENTS=1 vitest run packages/host/test/project-members.experiments.test.ts --project experiments --maxWorkers=1"
   },
   "devDependencies": {
     "@electron/packager": "20.3.0",

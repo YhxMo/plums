@@ -1,9 +1,10 @@
 import { afterEach, expect, it, vi } from "vitest";
-import { rm } from "node:fs/promises";
+import { readFile, writeFile, rm } from "node:fs/promises";
 import path from "node:path";
 import { createCore, RecordingEgressSink, secretRef } from "@plums/core";
 import { callbackFixture } from "./local-callback-fixture.js";
 import { ComponentLibrary } from "../src/library.js";
+import { EngineManager } from "../src/engine-manager.js";
 import type { Session } from "../src/host.js";
 
 const fixtures: Awaited<ReturnType<typeof callbackFixture>>[] = [];
@@ -156,4 +157,74 @@ it("first and last recheck of a request bypass the memo", async () => {
   expect(beforeAllow).toBeGreaterThanOrEqual(4);
   expect(atResult).toBeGreaterThan(0);
   expect(matches.mock.calls.length - atResult).toBeGreaterThanOrEqual(4);
+});
+
+it("a library or installed-file change that bypasses Core between the allow audit and the Sink denies the request", async () => {
+  const f = await fixture(),
+    s = session(f);
+  await f.run({ op: "read" });
+  const pin = s.record.components!.find((p) => p.packageId === "store")!;
+  const file = path.join(f.dir, "library", "objects", pin.digest + ".zip");
+  const bytes = await readFile(file);
+  const sink = vi.spyOn(EngineManager.prototype, "request");
+  let changed = false;
+  f.setAudit(async (e) => {
+    if (e.kind === "engine" && e.phase === "allow") {
+      changed = true;
+      await writeFile(file, Buffer.from("synthetic-invalid-archive"));
+    }
+  });
+  try {
+    await expect(
+      f.run({ op: "write", value: "forbidden" }),
+    ).rejects.toMatchObject({
+      code: "IMPORT_INVALID",
+      details: { executionState: "not_started" },
+    });
+    expect(changed).toBe(true);
+    expect(sink).not.toHaveBeenCalled();
+  } finally {
+    f.setAudit(async () => {});
+    await writeFile(file, bytes);
+  }
+  expect(await f.direct({ op: "read" })).toMatchObject({ exists: false });
+});
+it("a SecretStore read failure at the post-allow recheck denies before the Sink", async () => {
+  const f = await fixture(),
+    s = session(f);
+  const ref = secretRef(
+    "store",
+    "local-00000000-0000-4000-8000-000000000002/value",
+  );
+  const detail = await s.core.getPackage("store");
+  await s.core.reserveLocalCredentialReferences(
+    "store",
+    detail.installed.installedAt,
+    [ref],
+  );
+  await s.secrets.set(ref, "SYNTHETIC_POST_ALLOW_VALUE");
+  await f.run({ op: "read" });
+  const get = vi.spyOn(s.secrets, "get"),
+    sink = vi.spyOn(EngineManager.prototype, "request");
+  let changed = false;
+  f.setAudit(async (e) => {
+    if (e.kind === "engine" && e.phase === "allow") {
+      changed = true;
+      get.mockRejectedValueOnce(Error("synthetic-post-allow-read-error"));
+    }
+  });
+  const error = await f
+    .run({ op: "write", value: "forbidden" })
+    .catch((e) => e);
+  expect(changed).toBe(true);
+  expect(error).toMatchObject({
+    code: "SECRET_NOT_FOUND",
+    details: { executionState: "not_started" },
+  });
+  expect(JSON.stringify(error)).not.toContain(
+    "synthetic-post-allow-read-error",
+  );
+  expect(sink).not.toHaveBeenCalled();
+  f.setAudit(async () => {});
+  expect(await f.direct({ op: "read" })).toMatchObject({ exists: false });
 });

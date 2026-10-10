@@ -26,3 +26,6 @@ secrets*.json
 *.dmg
 *.zip
 !packages/core/test/fixtures/packages/**/*.zip
+
+# Local tool logs (not project files)
+/error.log

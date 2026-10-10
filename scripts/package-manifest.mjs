@@ -15,7 +15,7 @@ export function assertPackageManifest(files) {
     const name = entry.replaceAll("\\", "/").replace(/^\/+/, "").toLowerCase();
     if (
       /(^|\/)test\/fixtures(\/|$)/.test(name) ||
-      /(^|\/)(escape-probe|dyld-hook|project-members)(\.[^/]+)?(\/|$)/.test(
+      /(^|\/)(escape-probe|dyld-hook|project-members|project-members-probe)(\.[^/]+)?(\/|$)/.test(
         name,
       ) ||
       (name.endsWith(".zip") &&

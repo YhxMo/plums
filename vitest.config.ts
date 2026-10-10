@@ -35,11 +35,28 @@ export default defineConfig({
           // Bound file concurrency while keeping assertions and runtime budgets unchanged.
           maxWorkers: 4,
           include: ["packages/*/test/**/*.test.ts"],
-          exclude: electronTests.map(
-            (name) => `packages/desktop/test/${name}.test.ts`,
-          ),
+          exclude: [
+            ...electronTests.map(
+              (name) => `packages/desktop/test/${name}.test.ts`,
+            ),
+            "packages/host/test/project-members.experiments.test.ts",
+          ],
         },
       },
+      ...(process.env.PLUMS_NATIVE_EXPERIMENTS === "1"
+        ? [
+            {
+              extends: true as const,
+              test: {
+                name: "experiments",
+                include: [
+                  "packages/host/test/project-members.experiments.test.ts",
+                ],
+                maxWorkers: 1,
+              },
+            },
+          ]
+        : []),
       ...electronTests.map((name, index) => ({
         extends: true as const,
         test: {

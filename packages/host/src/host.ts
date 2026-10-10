@@ -1088,7 +1088,9 @@ export class DesktopHost {
       // Consume its rejection immediately while retaining it for the caller.
       void pending.catch(() => {});
     }
-    // Validate the actual archive on every lookup as well as inside factory creation.
+    // Verify built-in archives on each lookup outside request reuse and during factory creation.
+    // Within a request, only checks other than start/post-allow/end may reuse an unchanged
+    // token (recheck-cache.ts); complete checks still reach officialArtifacts.verify.
     if (fixed.source === "builtin") {
       await this.officialArtifacts.verify(fixed);
       return pending;

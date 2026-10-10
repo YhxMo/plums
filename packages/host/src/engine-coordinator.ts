@@ -712,7 +712,7 @@ export class EngineCoordinator {
     let state: AuditEvent["executionState"] = "not_started",
       result: unknown;
     try {
-      await check();
+      await check(true);
       state = "unknown";
       result = await this.service(s).manager.request(
         key,

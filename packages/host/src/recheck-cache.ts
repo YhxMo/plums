@@ -1,3 +1,5 @@
+import { lstatSync, readdirSync } from "node:fs";
+import path from "node:path";
 import { AsyncLocalStorage } from "node:async_hooks";
 import type { Session } from "./host.js";
 
@@ -17,22 +19,24 @@ export class EpochMemo<T> {
   }
   get(token: string, key: string): T | undefined {
     this.select(token);
-    return this.values.get(key);
+    const value = this.values.get(key);
+    return value === undefined ? undefined : structuredClone(value);
   }
   set(token: string, key: string, value: T): void {
     this.select(token);
-    this.values.set(key, value);
+    this.values.set(key, structuredClone(value));
   }
   inflight(token: string, key: string, run: () => Promise<T>): Promise<T> {
     this.select(token);
-    if (this.values.has(key)) return Promise.resolve(this.values.get(key)!);
+    if (this.values.has(key)) return Promise.resolve(this.get(token, key)!);
     const existing = this.pending.get(key);
     if (existing) return existing;
     const generation = this.generation;
     const pending = Promise.resolve()
       .then(run)
       .then((value) => {
-        if (this.generation === generation) this.values.set(key, value);
+        if (this.generation === generation)
+          this.values.set(key, structuredClone(value));
         return value;
       })
       .finally(() => {
@@ -63,12 +67,41 @@ export function withRecheck<T>(
   return current.run({ epoch, full }, run);
 }
 
-/** Store has no single write gate. Use its published installation/local revision snapshot.
+/** Metadata is a change hint, not content verification. Complete rechecks still hash archives
+ * and compare installed bytes, including after the allow audit. Never follow symlinks. */
+function installationMetadata(root: string): unknown[] {
+  const entries: unknown[] = [];
+  const visit = (relative: string) => {
+    const file = path.join(root, relative),
+      stat = lstatSync(file);
+    entries.push([relative, stat.ino, stat.size, stat.mtimeMs]);
+    if (stat.isDirectory())
+      for (const name of readdirSync(file).sort())
+        visit(path.join(relative, name));
+  };
+  try {
+    visit("");
+  } catch {
+    entries.push(["unavailable"]);
+  }
+  return entries;
+}
+/** Store has no single write gate. Public dataDir fixes the documented packages/<id> layout.
  * Synchronous runtime checkpoints still detect cross-connection disable/enable ABA. */
 export async function installationToken(s: Session): Promise<string> {
   const [installed, state] = await Promise.all([
     s.core.listInstalled(),
     s.core.localAuthorizationState(),
   ]);
-  return JSON.stringify([installed, state.revision]);
+  return JSON.stringify([
+    installed,
+    state.revision,
+    (s.record.components ?? []).map((pin) => [
+      pin.packageId,
+      pin.digest,
+      installationMetadata(
+        path.join(s.core.dataDir, "packages", pin.packageId),
+      ),
+    ]),
+  ]);
 }
