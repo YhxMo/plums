@@ -1,0 +1,12 @@
+[
+  {
+    "file": "packages/core/test/authentic-migration-audit.test.ts",
+    "passed": 12
+  },
+  {
+    "file": "packages/core/test/local-authorization.test.ts",
+    "mustPass": [
+      "upgrades an authentic schema-seven database without extending its confirmed local authority"
+    ]
+  }
+]

@@ -624,6 +624,8 @@ test("E02-direct-runtime-boundary", "execution-boundary", async (s) => {
   }
 });
 
+export const PLATFORM_CASE_IDS = Object.freeze(cases.map((entry) => entry.id));
+
 /** Adapter code is trusted test code. A passing report never upgrades a runtime binding's evidence. */
 export async function runPlatformConformance(
   adapter,

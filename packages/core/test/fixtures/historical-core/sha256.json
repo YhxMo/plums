@@ -1,0 +1,12 @@
+[
+  {
+    "archive": "core-schema-6.tar",
+    "commit": "27be7067d3b1571608561a8bf277370b0ddf74d2",
+    "sha256": "8c9db29cfba0ecae3a59fffdca8863d4c020048254b5474961c68a85c53582ed"
+  },
+  {
+    "archive": "core-schema-7.tar",
+    "commit": "69c01b734ffb9c8e9143d40b98641abb73f04c85",
+    "sha256": "20914c1d3aeed3b8e95a65b2999bdbe46dc788ace3f07129ede7ef2c00d717b6"
+  }
+]

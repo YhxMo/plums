@@ -7,6 +7,24 @@ const serialConfirmationTests = [
   "packages/host/test/local-callbacks.test.ts",
   "packages/host/test/confirm-once.test.ts",
 ];
+const platformTests = [
+  "common-runtime",
+  "controlled-execution",
+  "platform-conformance",
+  "policy-execution",
+  "policy",
+  "task-scope",
+  "local-authorization",
+  "project-container",
+  "project-members",
+  "project-members-variants",
+  "project-sandbox",
+  "project-creation",
+  "project-support-plan",
+  "project-config-files",
+  "sdk-capability-controls",
+].map((name) => `packages/host/test/${name}.test.ts`);
+platformTests.push("packages/host/test/scenarios/foundation.test.ts");
 const electronTests = [
   "foundation-ui",
   "common-runtime-ui",
@@ -37,15 +55,24 @@ export default defineConfig({
           name: "unit",
           // Real Node children and OS sandbox probes share machine resources.
           // Bound file concurrency while keeping assertions and runtime budgets unchanged.
-          maxWorkers: 4,
+          maxWorkers: process.env.CI ? 2 : 4,
           include: ["packages/*/test/**/*.test.ts"],
           exclude: [
+            ...platformTests,
             ...serialConfirmationTests,
             ...electronTests.map(
               (name) => `packages/desktop/test/${name}.test.ts`,
             ),
             "packages/host/test/project-members.experiments.test.ts",
           ],
+        },
+      },
+      {
+        extends: true,
+        test: {
+          name: "platform",
+          include: platformTests,
+          maxWorkers: 1,
         },
       },
       ...serialConfirmationTests.map((file, index) => ({
@@ -77,6 +104,7 @@ export default defineConfig({
         test: {
           name,
           include: [`packages/desktop/test/${name}.test.ts`],
+          setupFiles: ["packages/desktop/test/support/electron-ready.ts"],
           // Vitest 3 sorts group numbers lexically: keep all native groups at
           // equal width so adding a tenth suite preserves the declared order.
           sequence: { groupOrder: index + 101 },

@@ -2,6 +2,7 @@ import { it, expect } from "vitest";
 import { execFileSync } from "node:child_process";
 import {
   assertCoverage,
+  assertProjectGroups,
   EXPERIMENT_FILES,
 } from "../../../scripts/check-test-coverage.mjs";
 
@@ -28,6 +29,27 @@ const fixture = () => ({
     { name: "local-callbacks-serial", groupOrder: 200, maxWorkers: 1 },
     { name: "confirm-once-serial", groupOrder: 201, maxWorkers: 1 },
   ],
+});
+it("requires every default project in exactly one CI group and excludes experiments", () => {
+  const projects = ["unit", "platform", "electron", "experiments"];
+  const groups = {
+    unit: ["unit"],
+    platform: ["platform"],
+    electron: ["electron"],
+  };
+  expect(() => assertProjectGroups(projects, groups)).not.toThrow();
+  expect(() =>
+    assertProjectGroups(projects, { ...groups, platform: [] }),
+  ).toThrow();
+  expect(() =>
+    assertProjectGroups(projects, { ...groups, unit: ["unit", "platform"] }),
+  ).toThrow("found 2");
+  expect(() =>
+    assertProjectGroups(projects, {
+      ...groups,
+      electron: ["electron", "experiments"],
+    }),
+  ).toThrow("Unexpected CI project");
 });
 it("every repository test belongs to exactly its intended project and CI uses the fixed runtime", () => {
   const report = JSON.parse(

@@ -1,3 +1,4 @@
+import { projectNativeAcceptance } from "./support/os-gate.js";
 import { randomBytes } from "node:crypto";
 import {
   spawn,
@@ -10,7 +11,7 @@ import path from "node:path";
 import { promisify } from "node:util";
 import { afterEach, expect, it } from "vitest";
 
-const native = process.platform === "darwin" && process.arch === "arm64";
+const native = projectNativeAcceptance;
 // Unverified reap scenarios run only in the explicit experiments project.
 // The old nonexistent-path marker is unchanged; see members variants in handoff.
 const experiments = native && process.env.PLUMS_NATIVE_EXPERIMENTS === "1";

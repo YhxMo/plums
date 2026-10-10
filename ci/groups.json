@@ -1,0 +1,19 @@
+{
+  "unit": ["unit", "local-callbacks-serial", "confirm-once-serial"],
+  "platform": ["platform"],
+  "electron": [
+    "foundation-ui",
+    "common-runtime-ui",
+    "workspace-ui",
+    "platform-conformance-ui",
+    "policy-ui",
+    "local-permissions-ui",
+    "resources-ui",
+    "onboarding-ui",
+    "interaction-ui",
+    "confirm-window",
+    "frontend-scope",
+    "panels",
+    "scenario-chat-ui"
+  ]
+}

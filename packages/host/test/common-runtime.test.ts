@@ -1,3 +1,4 @@
+import { controlledSystemProgramSupported } from "./support/os-gate.js";
 import { useSourceOfficialFixture } from "./official-fixture.js";
 import { fixture as commonFixture } from "./common-fixture.js";
 import { afterEach, expect, it } from "vitest";
@@ -166,72 +167,79 @@ it("real controlled Node cannot directly read external data, network, spawn or f
   });
   expect(await readFile(path.join(outside, "data"), "utf8")).toBe("fixture");
 }, 20000);
-it("real command route executes a fixed host program with explicit read/write roots and no shell", async () => {
-  const permission: ManifestV2["permissions"] = [
-    {
-      id: "run",
-      kind: "exec",
-      target: "echo",
-      cwdRoots: ["work"],
-      reason: "Fixture command",
-    },
-    {
-      id: "read",
-      kind: "fs",
-      target: "work",
-      operations: ["read"],
-      reason: "Read fixture",
-    },
-  ];
-  const f = await fixture(
-    "controlled-node",
-    `export function activate(s){s.register('tools','test',v=>s.capability('run',{kind:'exec',args:v.input.args,cwd:{root:'work',path:'.'}}));}`,
-    permission,
-  );
-  const work = await mkdtemp(path.join(os.tmpdir(), "plums-command-"));
-  dirs.push(work);
-  await mkdir(path.join(work, "nested"));
-  await f.host.bindRoot(f.a.instanceId, "work", work);
-  await f.host.bindControlledProgram(
-    f.a.instanceId,
-    "echo",
-    "/bin/echo",
-    ["work"],
-    [],
-  );
-  const frontend = await f.host.openFrontend(f.a.instanceId);
-  if (!frontend) throw Error();
-  const rpc = (m: string, a: Record<string, unknown>) =>
-    f.host.frontendCommon(
-      frontend.context.sessionId,
-      frontend.context.handle,
-      m,
-      a,
-    );
-  const b = (await rpc("binding", { requirementId: "backend" })) as {
-    handle: string;
-  };
-  const info = (await rpc("invoke", {
-    binding: b.handle,
-    operation: "exec",
-    input: { args: ["literal $(echo escaped)"] },
-  })) as { taskId: string };
-  let status: any;
-  do {
-    await new Promise((r) => setTimeout(r, 20));
-    status = await rpc("status", { taskId: info.taskId });
-  } while (!status.result);
-  expect(status.result).toMatchObject({
-    executionState: "completed",
-    outcome: {
-      ok: true,
-      value: {
+it.skipIf(!controlledSystemProgramSupported)(
+  "real command route executes a fixed host program with explicit read/write roots and no shell",
+  async () => {
+    const permission: ManifestV2["permissions"] = [
+      {
+        id: "run",
         kind: "exec",
-        result: { exitCode: 0, stdout: "literal $(echo escaped)\n" },
+        target: "echo",
+        cwdRoots: ["work"],
+        reason: "Fixture command",
       },
-    },
-  });
-}, 20000);
+      {
+        id: "read",
+        kind: "fs",
+        target: "work",
+        operations: ["read"],
+        reason: "Read fixture",
+      },
+    ];
+    const f = await fixture(
+      "controlled-node",
+      `export function activate(s){s.register('tools','test',v=>s.capability('run',{kind:'exec',args:v.input.args,cwd:{root:'work',path:'.'}}));}`,
+      permission,
+    );
+    const work = await mkdtemp(path.join(os.tmpdir(), "plums-command-"));
+    dirs.push(work);
+    await mkdir(path.join(work, "nested"));
+    await f.host.bindRoot(f.a.instanceId, "work", work);
+    await f.host.bindControlledProgram(
+      f.a.instanceId,
+      "echo",
+      "/bin/echo",
+      ["work"],
+      [],
+    );
+    const frontend = await f.host.openFrontend(f.a.instanceId);
+    if (!frontend) throw Error();
+    const rpc = (m: string, a: Record<string, unknown>) =>
+      f.host.frontendCommon(
+        frontend.context.sessionId,
+        frontend.context.handle,
+        m,
+        a,
+      );
+    const b = (await rpc("binding", { requirementId: "backend" })) as {
+      handle: string;
+    };
+    const info = (await rpc("invoke", {
+      binding: b.handle,
+      operation: "exec",
+      input: { args: ["literal $(echo escaped)"] },
+    })) as { taskId: string };
+    let status: any;
+    do {
+      await new Promise((r) => setTimeout(r, 20));
+      status = await rpc("status", { taskId: info.taskId });
+    } while (!status.result);
+    expect(
+      status.result,
+      `controlled failure: ${status.result.outcome?.error?.code ?? "none"}`,
+    ).toMatchObject({
+      executionState: "completed",
+      outcome: {
+        ok: true,
+        value: {
+          kind: "exec",
+          result: { exitCode: 0, stdout: "literal $(echo escaped)\n" },
+        },
+      },
+    });
+  },
+  20000,
+);
 it("denies stale frontend handles, invalid JSON, and author attempts to choose task ownership", async () => {
   const f = await fixture(),
     b = await f.sdk.binding("backend");

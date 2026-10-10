@@ -224,3 +224,10 @@ ProjectProxy 已实现独立 IPv4 回环 CONNECT 服务，仅批准主机的 443
 DesktopHost.provideCredential(agentId, fingerprint, packageId, engineId, credentialId, value, username?) 仅由可信管理桥调用。当前入口及主机须已确认，凭据声明须匹配；可信窗口说明令牌的可读性，回答后复核 fingerprint。值不进入 TierSelection/计划/审计/导出。Core 先预留独立元数据、原值、用户名和转义值引用，再由宿主写该 Agent 的 SecretStore；提交失败只回滚未提交值，提交已生效时不误删。批准/撤销审计与授权变更使用同一通道，撤销先停止受影响组件再删值，失败保留历史引用供卸载重试。当前支持手动粘贴，按批和配置来源选择、真实项目注入及带凭据启动审计仍未完成。
 
 ProjectStatus 返回真实平台诊断。界面显示通过数与失败状态，项目入口保持禁用；清空缓存先停止相关组件。可信宿主规范化 macOS 数据根（如 /var 的真实路径）后计算缓存位置，缓存内部符号链接与特殊文件仍拒绝。
+
+
+## 项目容器与原生验收
+
+PR #36 的macos-15诊断显示重签系统arm64e副本被preview ABI拒绝（原始程序成功，副本签名校验成功但直接SIGSEGV、Seatbelt SIGKILL）；受控系统命令的4个默认用例按OS主版本显式门控，并由ci/expected-skips.json双向核验，macOS27必须运行。其余公开平台case、一般失败关闭测试及macos-15已通过的项目沙箱/组清理/创建边界测试继续运行。最低系统仍为27.0.1。
+
+项目档位原生容器与校准实验为“仅 macOS 27 验收”。11项成员实验的原因固定 `macOS 27 acceptance only`，条件为major<27且显式开启experiments；27上不能凭OS跳过，环境与机制阻塞仍须真实记录。project-members-variants保持记录型，不加跳过，macos-15的verdict用于证据，不能宣称项目档位可用。当前生产仍没有可靠全后代容器/项目launcher，项目入口继续返回TIER_UNAVAILABLE；发版前人工清单见release-evidence.md。

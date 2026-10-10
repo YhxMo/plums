@@ -3,18 +3,18 @@ name: macOS arm64 CI
 on:
   pull_request:
   push:
-    branches: [main, "codex/**"]
+    branches: [main]
   workflow_dispatch:
 
 permissions: {}
 concurrency:
   group: ci-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
-  test:
+  unit:
     runs-on: macos-15
-    timeout-minutes: 20
+    timeout-minutes: 25
     permissions:
       contents: read
     steps:
@@ -39,17 +39,219 @@ jobs:
       - run: pnpm build
       - name: Guard test-file coverage and runtime versions
         run: node scripts/check-test-coverage.mjs
-      - name: Run every default test project
-        run: pnpm exec vitest run --reporter=default --reporter=json --outputFile=ci-report.json
+      - name: Select heap limit from runner memory
+        id: memory
+        run: |
+          node --input-type=module - <<'NODE'
+          import { execFileSync } from 'node:child_process';
+          import { appendFileSync } from 'node:fs';
+          const bytes = Number(execFileSync('/usr/sbin/sysctl', ['-n', 'hw.memsize'], { encoding: 'utf8' }).trim());
+          if (!Number.isSafeInteger(bytes) || bytes <= 0) throw Error('Invalid runner memory');
+          const heap = Math.min(4096, Math.floor(bytes / 1048576 * 0.4));
+          appendFileSync(process.env.GITHUB_OUTPUT, `heap=${heap}\n`);
+          console.log(JSON.stringify({ memoryBytes: bytes, heapMiB: heap, unitWorkers: 2 }));
+          NODE
+      - name: Run unit test group
+        env:
+          NODE_OPTIONS: --max-old-space-size=${{ steps.memory.outputs.heap }}
+        run: node scripts/ci-run-group.mjs unit
       - name: Check package manifest gate
         if: ${{ !cancelled() }}
         run: pnpm exec vitest run packages/host/test/package-manifest.test.ts --maxWorkers=1
-      - name: Report all platform skips
-        if: ${{ !cancelled() }}
-        run: node scripts/ci-skip-report.mjs ci-report.json
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         if: always()
         with:
-          name: vitest-macos-arm64
-          path: ci-report.json
+          name: reports-unit
+          path: reports/
+          retention-days: 14
+          if-no-files-found: error
+
+  platform:
+    runs-on: macos-15
+    timeout-minutes: 25
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: "26.5.1"
+      - uses: pnpm/action-setup@41ff72655975bd51cab0327fa583b6e92b6d3061 # v4.2.0
+      - name: Record environment
+        run: |
+          sw_vers
+          uname -m
+          node -v
+          pnpm -v
+          echo 'CI is not the macOS 27.0.1 product target; passing here does not prove target-system acceptance.'
+          test "$(uname -m)" = arm64
+      - run: pnpm install --frozen-lockfile
+      - name: Prepare standalone native test runtime
+        run: node scripts/prepare-test-runtime.mjs
+      - run: pnpm build
+      - name: Guard test-file coverage and runtime versions
+        run: node scripts/check-test-coverage.mjs
+      - name: Select heap limit from runner memory
+        id: memory
+        run: |
+          node --input-type=module - <<'NODE'
+          import { execFileSync } from 'node:child_process';
+          import { appendFileSync } from 'node:fs';
+          const bytes = Number(execFileSync('/usr/sbin/sysctl', ['-n', 'hw.memsize'], { encoding: 'utf8' }).trim());
+          if (!Number.isSafeInteger(bytes) || bytes <= 0) throw Error('Invalid runner memory');
+          const heap = Math.min(4096, Math.floor(bytes / 1048576 * 0.4));
+          appendFileSync(process.env.GITHUB_OUTPUT, `heap=${heap}\n`);
+          console.log(JSON.stringify({ memoryBytes: bytes, heapMiB: heap, unitWorkers: 2 }));
+          NODE
+      - name: Run platform test group
+        env:
+          NODE_OPTIONS: --max-old-space-size=${{ steps.memory.outputs.heap }}
+        run: node scripts/ci-run-group.mjs platform
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        if: always()
+        with:
+          name: reports-platform
+          path: reports/
+          retention-days: 14
+          if-no-files-found: error
+
+  electron:
+    runs-on: macos-15
+    timeout-minutes: 30
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: "26.5.1"
+      - uses: pnpm/action-setup@41ff72655975bd51cab0327fa583b6e92b6d3061 # v4.2.0
+      - name: Record environment
+        run: |
+          sw_vers
+          uname -m
+          node -v
+          pnpm -v
+          echo 'CI is not the macOS 27.0.1 product target; passing here does not prove target-system acceptance.'
+          test "$(uname -m)" = arm64
+      - run: pnpm install --frozen-lockfile
+      - name: Prepare verified Electron outside the tests
+        env:
+          ELECTRON_CACHE: ${{ runner.temp }}/electron-cache
+        run: node scripts/prepare-electron.mjs
+      - name: Prepare standalone native test runtime
+        run: node scripts/prepare-test-runtime.mjs
+      - run: pnpm build
+      - name: Guard test-file coverage and runtime versions
+        run: node scripts/check-test-coverage.mjs
+      - name: Select heap limit from runner memory
+        id: memory
+        run: |
+          node --input-type=module - <<'NODE'
+          import { execFileSync } from 'node:child_process';
+          import { appendFileSync } from 'node:fs';
+          const bytes = Number(execFileSync('/usr/sbin/sysctl', ['-n', 'hw.memsize'], { encoding: 'utf8' }).trim());
+          if (!Number.isSafeInteger(bytes) || bytes <= 0) throw Error('Invalid runner memory');
+          const heap = Math.min(4096, Math.floor(bytes / 1048576 * 0.4));
+          appendFileSync(process.env.GITHUB_OUTPUT, `heap=${heap}\n`);
+          console.log(JSON.stringify({ memoryBytes: bytes, heapMiB: heap, unitWorkers: 2 }));
+          NODE
+      - name: Run electron test group
+        env:
+          NODE_OPTIONS: --max-old-space-size=${{ steps.memory.outputs.heap }}
+        run: node scripts/ci-run-group.mjs electron
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        if: always()
+        with:
+          name: reports-electron
+          path: reports/
+          retention-days: 14
+          if-no-files-found: error
+
+  report:
+    needs: [unit, platform, electron]
+    if: ${{ !cancelled() }}
+    runs-on: macos-15
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: "26.5.1"
+      - uses: pnpm/action-setup@41ff72655975bd51cab0327fa583b6e92b6d3061 # v4.2.0
+      - name: Record environment
+        run: |
+          sw_vers
+          uname -m
+          node -v
+          pnpm -v
+          echo 'CI is not the macOS 27.0.1 product target; passing here does not prove target-system acceptance.'
+          test "$(uname -m)" = arm64
+      - run: pnpm install --frozen-lockfile
+      - name: Prepare standalone native test runtime
+        run: node scripts/prepare-test-runtime.mjs
+      - run: pnpm build
+      - name: Guard test-file coverage and runtime versions
+        run: node scripts/check-test-coverage.mjs
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          pattern: reports-*
+          path: reports/
+          merge-multiple: true
+      - name: Aggregate all groups and enforce coverage, skips and migrations
+        run: node scripts/ci-aggregate.mjs
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        if: always()
+        with:
+          name: ci-aggregate
+          path: reports/aggregate.json
+          retention-days: 14
+          if-no-files-found: error
+
+  diagnostics:
+    runs-on: macos-15
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: "26.5.1"
+      - uses: pnpm/action-setup@41ff72655975bd51cab0327fa583b6e92b6d3061 # v4.2.0
+      - run: pnpm install --frozen-lockfile
+      - name: Prepare standalone native test runtime
+        run: node scripts/prepare-test-runtime.mjs
+      - run: pnpm build
+      - name: Record platform profile
+        run: node scripts/ci-platform-profile.mjs
+      - name: Preserve profile before native member probes
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: ci-platform-profile
+          path: reports/diagnostics/profile.json
+          retention-days: 14
+          if-no-files-found: error
+      - name: Record sandbox member calibration
+        run: |
+          pnpm exec vitest run packages/host/test/project-members-variants.test.ts --maxWorkers=1
+      - name: Collect sandbox member evidence
+        if: always()
+        run: cp .artifacts/macos-continuation/members-variants.json reports/diagnostics/
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        if: always()
+        with:
+          name: ci-diagnostics
+          path: reports/diagnostics/
+          retention-days: 14
           if-no-files-found: error

@@ -22,13 +22,15 @@ afterEach(async () => {
     } catch {}
   }
   pids.clear();
-  for (const child of children.splice(0)) {
+  for (const [index, child] of children.splice(0).entries()) {
+    console.log("members cleanup begin", index);
     child.kill("SIGKILL");
     if (child.exitCode === null && child.signalCode === null)
       await new Promise((r) => child.once("exit", r));
     child.stdin?.destroy();
     child.stdout?.destroy();
     child.stderr?.destroy();
+    console.log("members cleanup end", index);
   }
   if (root) await rm(root, { recursive: true, force: true });
 });
@@ -38,8 +40,19 @@ const member = (r: { nonce: Answer; control: Answer }) =>
 it.runIf(native)(
   "records raw sandbox_check variants and their calibration verdict",
   async () => {
+    let probeSequence = 0;
     const run = (file: string, args: string[]) => {
+      const sequence = ++probeSequence;
+      // Fixed command identifiers only: retain the last native boundary reached
+      // when a synchronous OS call prevents Vitest from writing its JSON.
+      console.log(
+        "members probe begin",
+        sequence,
+        path.basename(file),
+        args[0] ?? "execute",
+      );
       const result = spawnSync(file, args, { encoding: "utf8", env: {} });
+      console.log("members probe end", sequence, result.status, result.signal);
       return {
         status: result.status,
         signal: result.signal,

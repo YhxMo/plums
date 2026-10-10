@@ -1,3 +1,4 @@
+import { controlledSystemProgramSupported } from "./support/os-gate.js";
 import { afterEach, expect, it } from "vitest";
 import { mkdtemp, rm } from "node:fs/promises";
 import os from "node:os";
@@ -13,7 +14,7 @@ afterEach(async () => {
     dirs.splice(0).map((d) => rm(d, { recursive: true, force: true })),
   );
 });
-it.runIf(process.platform === "darwin")(
+it.skipIf(!controlledSystemProgramSupported)(
   "actual controlled command honors allow and deny and cannot inherit an unselected directory operation",
   async () => {
     const f = await fixture(
@@ -60,7 +61,10 @@ it.runIf(process.platform === "darwin")(
     await f.host.revokePolicyScope(f.a.instanceId);
     await grant(f.host, f.a.instanceId);
     const allowed = await run();
-    expect(allowed.outcome).toMatchObject({
+    expect(
+      allowed.outcome,
+      `controlled failure: ${allowed.outcome?.error?.code ?? "none"}`,
+    ).toMatchObject({
       ok: true,
       value: {
         kind: "exec",

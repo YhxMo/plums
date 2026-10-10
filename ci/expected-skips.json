@@ -3,5 +3,181 @@
     "file": "packages/host/test/project-sandbox.test.ts",
     "name": "project conformance records a skip on other platforms",
     "reason": "This negative-platform case uses runIf(!supported); macOS arm64 runs the supported-platform cases instead."
+  },
+  {
+    "file": "packages/host/test/common-runtime.test.ts",
+    "name": "real command route executes a fixed host program with explicit read/write roots and no shell",
+    "reason": "macos-15 re-signed system arm64e binary rejected by preview ABI; macOS 27 target acceptance required",
+    "when": {
+      "macosMajor": {
+        "lt": 27
+      }
+    },
+    "issue": "docs/ci.md#macos-15-原始诊断与4b决定"
+  },
+  {
+    "file": "packages/host/test/policy-execution.test.ts",
+    "name": "actual controlled command honors allow and deny and cannot inherit an unselected directory operation",
+    "reason": "macos-15 re-signed system arm64e binary rejected by preview ABI; macOS 27 target acceptance required",
+    "when": {
+      "macosMajor": {
+        "lt": 27
+      }
+    },
+    "issue": "docs/ci.md#macos-15-原始诊断与4b决定"
+  },
+  {
+    "file": "packages/host/test/platform-conformance.test.ts",
+    "name": "public platform E01-four-policies-real-controlled-command through the actual isolate host",
+    "reason": "macos-15 re-signed system arm64e binary rejected by preview ABI; macOS 27 target acceptance required",
+    "when": {
+      "macosMajor": {
+        "lt": 27
+      }
+    },
+    "issue": "docs/ci.md#macos-15-原始诊断与4b决定"
+  },
+  {
+    "file": "packages/host/test/platform-conformance.test.ts",
+    "name": "public platform E01-four-policies-real-controlled-command through the actual controlled-node host",
+    "reason": "macos-15 re-signed system arm64e binary rejected by preview ABI; macOS 27 target acceptance required",
+    "when": {
+      "macosMajor": {
+        "lt": 27
+      }
+    },
+    "issue": "docs/ci.md#macos-15-原始诊断与4b决定"
+  },
+  {
+    "file": "packages/host/test/project-members.experiments.test.ts",
+    "name": "calibration: member denied, control allowed, host allowed",
+    "reason": "macOS 27 acceptance only",
+    "when": {
+      "macosMajor": {
+        "lt": 27
+      },
+      "experiments": true
+    },
+    "issue": "docs/engine.md#项目容器与原生验收"
+  },
+  {
+    "file": "packages/host/test/project-members.experiments.test.ts",
+    "name": "reap leaves no descendant for setsid",
+    "reason": "macOS 27 acceptance only",
+    "when": {
+      "macosMajor": {
+        "lt": 27
+      },
+      "experiments": true
+    },
+    "issue": "docs/engine.md#项目容器与原生验收"
+  },
+  {
+    "file": "packages/host/test/project-members.experiments.test.ts",
+    "name": "reap leaves no descendant for setpgid",
+    "reason": "macOS 27 acceptance only",
+    "when": {
+      "macosMajor": {
+        "lt": 27
+      },
+      "experiments": true
+    },
+    "issue": "docs/engine.md#项目容器与原生验收"
+  },
+  {
+    "file": "packages/host/test/project-members.experiments.test.ts",
+    "name": "reap leaves no descendant for double-fork",
+    "reason": "macOS 27 acceptance only",
+    "when": {
+      "macosMajor": {
+        "lt": 27
+      },
+      "experiments": true
+    },
+    "issue": "docs/engine.md#项目容器与原生验收"
+  },
+  {
+    "file": "packages/host/test/project-members.experiments.test.ts",
+    "name": "reap leaves no descendant for spawn-setpgroup",
+    "reason": "macOS 27 acceptance only",
+    "when": {
+      "macosMajor": {
+        "lt": 27
+      },
+      "experiments": true
+    },
+    "issue": "docs/engine.md#项目容器与原生验收"
+  },
+  {
+    "file": "packages/host/test/project-members.experiments.test.ts",
+    "name": "reap leaves no descendant for posix-spawn",
+    "reason": "macOS 27 acceptance only",
+    "when": {
+      "macosMajor": {
+        "lt": 27
+      },
+      "experiments": true
+    },
+    "issue": "docs/engine.md#项目容器与原生验收"
+  },
+  {
+    "file": "packages/host/test/project-members.experiments.test.ts",
+    "name": "a descendant that SIGKILLs the supervisor cannot (signal scope) and is still reaped",
+    "reason": "macOS 27 acceptance only",
+    "when": {
+      "macosMajor": {
+        "lt": 27
+      },
+      "experiments": true
+    },
+    "issue": "docs/engine.md#项目容器与原生验收"
+  },
+  {
+    "file": "packages/host/test/project-members.experiments.test.ts",
+    "name": "a DYLD-injected re-exec of a member cannot signal outside the sandbox and is still reaped",
+    "reason": "macOS 27 acceptance only",
+    "when": {
+      "macosMajor": {
+        "lt": 27
+      },
+      "experiments": true
+    },
+    "issue": "docs/engine.md#项目容器与原生验收"
+  },
+  {
+    "file": "packages/host/test/project-members.experiments.test.ts",
+    "name": "reaping entry A leaves an identical-profile entry B and an unsandboxed sentry alive (different nonce)",
+    "reason": "macOS 27 acceptance only",
+    "when": {
+      "macosMajor": {
+        "lt": 27
+      },
+      "experiments": true
+    },
+    "issue": "docs/engine.md#项目容器与原生验收"
+  },
+  {
+    "file": "packages/host/test/project-members.experiments.test.ts",
+    "name": "a fork-bomb-ish descendant (N=64 forks within the grace window) is reaped to zero within budget",
+    "reason": "macOS 27 acceptance only",
+    "when": {
+      "macosMajor": {
+        "lt": 27
+      },
+      "experiments": true
+    },
+    "issue": "docs/engine.md#项目容器与原生验收"
+  },
+  {
+    "file": "packages/host/test/project-members.experiments.test.ts",
+    "name": "sandbox_check error is reported as unknown, never as zero residual",
+    "reason": "macOS 27 acceptance only",
+    "when": {
+      "macosMajor": {
+        "lt": 27
+      },
+      "experiments": true
+    },
+    "issue": "docs/engine.md#项目容器与原生验收"
   }
 ]

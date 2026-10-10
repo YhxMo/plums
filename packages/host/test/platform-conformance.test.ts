@@ -1,3 +1,4 @@
+import { controlledSystemProgramSupported } from "./support/os-gate.js";
 import { it, expect, beforeAll } from "vitest";
 import { readFile, mkdtemp, mkdir, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
@@ -5,7 +6,10 @@ import os from "node:os";
 import { spawnSync } from "node:child_process";
 import { createArchive } from "@plums/core";
 import { open } from "../../../scripts/platform-conformance-host.mjs";
-import { runPlatformConformance } from "../../../scripts/platform-conformance.mjs";
+import {
+  PLATFORM_CASE_IDS,
+  runPlatformConformance,
+} from "../../../scripts/platform-conformance.mjs";
 import { inspectPlatformPackage } from "../../../scripts/platform-conformance.mjs";
 const reportDirectory = path.resolve(
   process.env.PLUMS_CONFORMANCE_REPORT_DIR ??
@@ -20,12 +24,44 @@ beforeAll(() =>
 it.runIf(process.platform === "darwin").each(["isolate", "controlled-node"])(
   "the public platform suite passes through the actual %s host, SDK and execution boundaries",
   async (runtime) => {
-    const report = await runPlatformConformance(await open({ runtime }));
+    const report = await runPlatformConformance(await open({ runtime }), {
+      caseIds: PLATFORM_CASE_IDS.filter(
+        (id: string) => id !== "E01-four-policies-real-controlled-command",
+      ),
+    });
     await writeFile(
       path.join(reportDirectory, `${runtime}-combined.json`),
       JSON.stringify(report, null, 2) + "\n",
     );
-    expect(report.cases.filter((c: any) => c.status !== "passed")).toEqual([]);
+    expect(
+      report.cases.filter((c: any) => c.status !== "passed"),
+      `platform failures: ${report.cases
+        .filter((c: any) => c.status !== "passed")
+        .map((c: any) => `${c.id}/${c.status}`)
+        .join(", ")}`,
+    ).toEqual([]);
+    expect(report.status).toBe("passed");
+    expect(report.thirdPartyAuthorVerified).toBe(false);
+  },
+  180_000,
+);
+// Keep every other public case running on macos-15; E01 is a separately reported test.
+it
+  .skipIf(!controlledSystemProgramSupported)
+  .each(["isolate", "controlled-node"])(
+  "public platform E01-four-policies-real-controlled-command through the actual %s host",
+  async (runtime) => {
+    const report = await runPlatformConformance(await open({ runtime }), {
+      caseIds: ["E01-four-policies-real-controlled-command"],
+    });
+    await writeFile(
+      path.join(reportDirectory, `${runtime}-controlled-command.json`),
+      JSON.stringify(report, null, 2) + "\n",
+    );
+    expect(
+      report.cases.filter((c: any) => c.status !== "passed"),
+      `platform failures: ${report.cases.map((c: any) => `${c.id}/${c.status}`).join(", ")}`,
+    ).toEqual([]);
     expect(report.status).toBe("passed");
     expect(report.thirdPartyAuthorVerified).toBe(false);
   },

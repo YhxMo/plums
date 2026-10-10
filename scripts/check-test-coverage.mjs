@@ -14,6 +14,31 @@ const SERIAL_FILES = Object.freeze([
   ["packages/host/test/local-callbacks.test.ts", "local-callbacks-serial"],
   ["packages/host/test/confirm-once.test.ts", "confirm-once-serial"],
 ]);
+export function assertProjectGroups(projects, groups) {
+  const names = projects
+    .map((project) => (typeof project === "string" ? project : project.name))
+    .filter((name) => name !== "experiments");
+  const assignments = Object.values(groups);
+  if (
+    assignments.some(
+      (group) =>
+        !Array.isArray(group) ||
+        !group.length ||
+        group.some((name) => typeof name !== "string"),
+    )
+  )
+    throw Error("CI groups must contain nonempty project lists");
+  const grouped = assignments.flat();
+  const failures = [];
+  for (const name of names) {
+    const count = grouped.filter((project) => project === name).length;
+    if (count !== 1)
+      failures.push(`${name}: expected exactly one CI group, found ${count}`);
+  }
+  for (const name of grouped)
+    if (!names.includes(name)) failures.push(`Unexpected CI project: ${name}`);
+  if (failures.length) throw Error(failures.join("\n"));
+}
 
 async function testFiles(directory, root) {
   const files = [];
@@ -138,6 +163,12 @@ if (
   try {
     const coverage = await inspectCoverage();
     assertCoverage(coverage, process.env.PLUMS_NATIVE_EXPERIMENTS === "1");
+    assertProjectGroups(
+      coverage.projects,
+      JSON.parse(
+        await readFile(path.join(repository, "ci/groups.json"), "utf8"),
+      ),
+    );
     await checkRuntimeVersions();
     console.log(
       JSON.stringify({
