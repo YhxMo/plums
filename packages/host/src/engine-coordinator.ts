@@ -30,6 +30,7 @@ import type { PolicyCheckpoint } from "./policy-service.js";
 import type { Session } from "./host.js";
 import type { ComponentLibrary } from "./library.js";
 import { installedComponent } from "./installed-component.js";
+import { confirmOnce } from "./confirm-once.js";
 import { RequestRechecks, withRecheck } from "./recheck-cache.js";
 function denied(): never {
   throw new PlumsError({
@@ -37,31 +38,7 @@ function denied(): never {
     message: "引擎未获授权或当前声明已变化。",
   });
 }
-export async function confirmOnce(
-  confirm: Confirm,
-  request: Parameters<Confirm["ask"]>[0],
-  signal: AbortSignal,
-): Promise<boolean> {
-  if (signal.aborted) return false;
-  const combined = AbortSignal.any([signal, AbortSignal.timeout(120_000)]);
-  let cancel!: () => void;
-  const aborted = new Promise<boolean>((resolve) => {
-    cancel = () => resolve(false);
-    combined.addEventListener("abort", cancel, { once: true });
-  });
-  try {
-    return (
-      (await Promise.race([
-        Promise.resolve()
-          .then(() => confirm.ask(request))
-          .catch(() => false),
-        aborted,
-      ])) === true && !combined.aborted
-    );
-  } finally {
-    combined.removeEventListener("abort", cancel);
-  }
-}
+
 interface Options {
   allocateSnapshot?: (s: Session) => { root: string; release(): void };
   trackProcess?: (

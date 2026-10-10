@@ -82,7 +82,7 @@ interface Hooks {
   ): Promise<unknown>;
   secrets(s: Session): Promise<string[]>;
   audit(s: Session, event: AuditEvent): Promise<void>;
-  confirm(message: string, signal: AbortSignal): Promise<boolean>;
+  confirm(s: Session, message: string, signal: AbortSignal): Promise<boolean>;
 }
 interface Lease {
   session: Session;
@@ -640,6 +640,7 @@ export class PolicyService {
       );
       const allowed =
         (await this.hooks.confirm(
+          s,
           message,
           fallback || !l
             ? operationSignal

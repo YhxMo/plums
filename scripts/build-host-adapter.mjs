@@ -1,4 +1,6 @@
 import { build } from "esbuild";
+import { SHIPPED_NATIVE_HELPERS } from "./host-native-assets.mjs";
+export { SHIPPED_NATIVE_HELPERS } from "./host-native-assets.mjs";
 import {
   copyFile,
   mkdir,
@@ -22,12 +24,7 @@ for (const pkg of ["host", "core", "sdk"]) {
     if (
       !name.endsWith(".js") &&
       !name.endsWith(".cjs") &&
-      ![
-        "secure-fs",
-        "controlled-probe",
-        "project-probe",
-        "project-scan",
-      ].includes(name)
+      !SHIPPED_NATIVE_HELPERS.includes(name)
     )
       continue;
     inputs[pkg + "/" + name] = createHash("sha256")
@@ -61,8 +58,6 @@ for (const name of [
   "engine-supervisor.js",
   "controlled-supervisor.js",
   "controlled-worker.cjs",
-  ...(process.platform === "darwin"
-    ? ["secure-fs", "controlled-probe", "project-probe", "project-scan"]
-    : []),
+  ...(process.platform === "darwin" ? SHIPPED_NATIVE_HELPERS : []),
 ])
   await copyFile(path.join(dist, name), path.join(target, name));

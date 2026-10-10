@@ -23,12 +23,26 @@ int main(int argc, char **argv) {
   if (!child) { execl(argv[0], argv[0], "leaf", "exec", NULL); _exit(3); }
   child = fork();
   if (!child) { if (setsid() < 0) _exit(4); leaf("setsid"); }
+  child = fork();
+  if (!child) {
+    if (setsid() < 0) _exit(4);
+    pid_t grandchild = fork();
+    if (!grandchild) leaf("double-fork");
+    _exit(grandchild < 0 ? 4 : 0);
+  }
   posix_spawnattr_t attr; posix_spawnattr_init(&attr);
   posix_spawnattr_setflags(&attr, POSIX_SPAWN_SETPGROUP);
   posix_spawnattr_setpgroup(&attr, 0);
   char *args[] = {argv[0], "leaf", "spawn-setpgroup", NULL};
   int spawned = posix_spawn(&child, argv[0], NULL, &attr, args, environ);
   printf("spawn %d\n", spawned); fflush(stdout); posix_spawnattr_destroy(&attr);
+  posix_spawnattr_init(&attr);
+  posix_spawnattr_setflags(&attr, POSIX_SPAWN_START_SUSPENDED);
+  char *true_args[] = {"/usr/bin/true", NULL};
+  int true_result = posix_spawn(&child, "/usr/bin/true", NULL, &attr, true_args, environ);
+  printf("true-spawn %d\n", true_result);
+  if (!true_result) printf("pid true-exec %d\n", child);
+  fflush(stdout); posix_spawnattr_destroy(&attr);
   pid_t nested = fork();
   if (!nested) {
     execl("/usr/bin/sandbox-exec", "sandbox-exec", "-p", "(version 1)(allow default)", argv[0], "leaf", "nested", NULL);

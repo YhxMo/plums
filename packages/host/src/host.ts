@@ -1,3 +1,4 @@
+import { confirmOnce } from "./confirm-once.js";
 import {
   protocolBindingAuditEvent,
   managementAuditEvent,
@@ -475,7 +476,8 @@ export class DesktopHost {
       },
       secrets: (s) => this.secretValues(s),
       audit: (s, event) => this.writeAudit(s.record.instanceId, event),
-      confirm: (message, signal) => this.confirmOperation(message, signal),
+      confirm: (s, message, signal) =>
+        this.confirmOperation(s, message, signal),
     });
     this.businessResources = new ResourceService(
       new ResourceStore(path.join(options.dataDir, "business-resources")),
@@ -488,8 +490,8 @@ export class DesktopHost {
           path.join(this.directory(s.record.instanceId), "core", "plums.db"),
         audit: (s, e) => this.writeAudit(s.record.instanceId, e),
         secrets: (s) => this.secretValues(s),
-        confirm: (_s, message, signal) =>
-          this.confirmOperation(message, signal),
+        confirm: (s, message, signal) =>
+          this.confirmOperation(s, message, signal),
         policy: (s, op) => this.policy.assess(s, op),
         fault: options.resourceCommitFault,
       },
@@ -2306,26 +2308,13 @@ export class DesktopHost {
     );
   }
   private async confirmOperation(
+    s: Session,
     message: string,
     signal: AbortSignal,
   ): Promise<boolean> {
     if (signal.aborted) return false;
-    return new Promise((resolve) => {
-      const finish = (value: boolean) => {
-        clearTimeout(timer);
-        signal.removeEventListener("abort", abort);
-        resolve(value === true);
-      };
-      const abort = () => finish(false);
-      const timer = setTimeout(() => finish(false), 120_000);
-      signal.addEventListener("abort", abort, { once: true });
-      Promise.resolve()
-        .then(() => this.options.confirm.ask({ message }))
-        .then(
-          (v) => finish(v === true),
-          () => finish(false),
-        );
-    });
+    const safe = redact(message, await this.secretValues(s));
+    return confirmOnce(this.options.confirm, { message: safe }, signal);
   }
   private credentialFree(input: unknown): import("@plums/sdk").CommonJson {
     const clean = (value: any): any => {

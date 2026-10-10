@@ -10,6 +10,7 @@ import {
 } from "node:fs/promises";
 import path from "node:path";
 import { afterEach, expect, it } from "vitest";
+import { projectProfile } from "../src/project-profile.js";
 const native = process.platform === "darwin" && process.arch === "arm64";
 const children: ChildProcess[] = [],
   pids = new Set<number>();
@@ -32,6 +33,8 @@ afterEach(async () => {
   if (root) await rm(root, { recursive: true, force: true });
 });
 type Answer = { ret: number; errno: number; constant: string };
+const member = (r: { nonce: Answer; control: Answer }) =>
+  r.nonce.ret !== 0 && r.nonce.ret !== -1 && r.control.ret === 0;
 it.runIf(native)(
   "records raw sandbox_check variants and their calibration verdict",
   async () => {
@@ -44,11 +47,27 @@ it.runIf(native)(
         stderr: result.stderr,
       };
     };
+    const helper = path.resolve("packages/host/dist/project-members-probe");
+    const self = run(helper, ["self"]);
+    const knownSandbox = run("/usr/bin/sandbox-exec", [
+      "-p",
+      "(version 1)(allow default)",
+      helper,
+      "self",
+    ]);
     const environment = {
       uname: run("/usr/bin/uname", ["-a"]),
       macOS: run("/usr/bin/sw_vers", []),
-      node: process.version,
-      context: "Codex shell; Terminal computer use denied",
+      node: run(process.execPath, ["-v"]),
+      self: {
+        ...self,
+        answer: self.status === 0 ? JSON.parse(self.stdout) : null,
+      },
+      knownSandbox: {
+        ...knownSandbox,
+        answer:
+          knownSandbox.status === 0 ? JSON.parse(knownSandbox.stdout) : null,
+      },
       allowDefault: run("/usr/bin/sandbox-exec", [
         "-p",
         "(version 1)(allow default)",
@@ -60,6 +79,46 @@ it.runIf(native)(
         "/usr/bin/true",
       ]),
     };
+    const save = async (report: unknown) => {
+      await mkdir(".artifacts/macos-continuation", { recursive: true });
+      await writeFile(
+        ".artifacts/macos-continuation/members-variants.json",
+        JSON.stringify(report, null, 2) + "\n",
+      );
+    };
+    // NULL/0 is calibrated with a known sandbox before interpreting the host result.
+    // A killed no-network probe also invalidates the environment, even if self reports 0.
+    const outer =
+      environment.self.answer?.sandboxed === true ||
+      environment.noNetwork.signal === "SIGKILL";
+    const calibrated =
+      environment.self.answer?.ret === 0 &&
+      environment.self.answer?.errno === 0 &&
+      environment.knownSandbox.answer?.ret === 1 &&
+      environment.knownSandbox.answer?.errno === 0;
+    if (
+      outer ||
+      !calibrated ||
+      environment.allowDefault.status !== 0 ||
+      environment.noNetwork.status !== 0
+    ) {
+      const reason = outer
+        ? "outer sandbox or killed no-network probe"
+        : "host sandbox state could not be calibrated";
+      await save({
+        environment,
+        verdict: "INCONCLUSIVE",
+        reason,
+        blocked: ["V0–V3", "N-A–N-E", "container and launcher"],
+      });
+      console.log("members variants INCONCLUSIVE", reason);
+      expect(environment.knownSandbox.answer).toMatchObject({
+        sandboxed: true,
+        ret: 1,
+        errno: 0,
+      });
+      return;
+    }
     root = await realpath(
       await mkdtemp("/private/tmp/plums-members-variants-"),
     );
@@ -78,7 +137,7 @@ it.runIf(native)(
       binary,
     ]);
     expect(build.status, build.stderr).toBe(0);
-    const base = `(version 1)(deny default)(allow file-read* (literal "/") (subpath "${root}") (subpath "/usr") (subpath "/System") (subpath "/private/etc") (literal "/dev/null"))(allow file-write* (subpath "${root}"))(allow sysctl-read)(allow process-info* (target self))(allow process-fork)(allow process-exec (literal "${binary}") (literal "/usr/bin/sandbox-exec"))(allow signal (target same-sandbox))`;
+    const base = `(version 1)(deny default)(allow file-read* (literal "/") (subpath "${root}") (subpath "/usr") (subpath "/System") (subpath "/private/etc") (literal "/dev/null"))(allow file-write* (subpath "${root}"))(allow sysctl-read)(allow process-info* (target self))(allow process-fork)(allow process-exec (literal "${binary}") (literal "/usr/bin/true") (literal "/usr/bin/sandbox-exec"))(allow signal (target same-sandbox))`;
     async function start(profile?: string) {
       const child = spawn(
         profile ? "/usr/bin/sandbox-exec" : binary,
@@ -117,7 +176,6 @@ it.runIf(native)(
         ready: stdout.includes("ready"),
       };
     }
-    const helper = path.resolve("packages/host/dist/project-members-probe");
     function check(
       pid: number,
       op: string,
@@ -230,6 +288,177 @@ it.runIf(native)(
           );
       variants[name] = { a, b, results, go };
     }
+    // Query both filter kinds on the same processes, including deny-default outsiders.
+    const otherNonce = randomBytes(32).toString("hex"),
+      otherControl = randomBytes(32).toString("hex");
+    for (const file of [otherNonce, otherControl])
+      await writeFile(path.join(markers, file), "", { mode: 0o600 });
+    const sharedMarkers = `(allow file-read-data (subpath "${markers}"))(allow mach-lookup (global-name-prefix "plums.marker."))`;
+    const denies = (value: string) =>
+      `(deny file-read-data (literal "${path.join(markers, value)}"))(deny mach-lookup (global-name "plums.marker.${value}"))`;
+    const a = await start(base + sharedMarkers + denies(nonce)),
+      b = await start(base + sharedMarkers + denies(otherNonce)),
+      thirdParty = await start(
+        base + `(deny file-read* (subpath "${markers}"))`,
+      );
+    const objects = {
+      ...Object.fromEntries(
+        Object.entries(a.objects).map(([k, v]) => ["A/" + k, v]),
+      ),
+      ...Object.fromEntries(
+        Object.entries(b.objects).map(([k, v]) => ["B/" + k, v]),
+      ),
+      ...Object.fromEntries(
+        Object.entries(thirdParty.objects).map(([k, v]) => [
+          "thirdParty/" + k,
+          v,
+        ]),
+      ),
+      ...Object.fromEntries(
+        Object.entries(outside.objects).map(([k, v]) => ["outside/" + k, v]),
+      ),
+      host: process.pid,
+    };
+    const paired = Object.fromEntries(
+      Object.entries(objects).map(([label, pid]) => [
+        label,
+        {
+          V1: {
+            nonce: check(
+              pid,
+              "file-read-data",
+              "path",
+              path.join(markers, nonce),
+            ),
+            control: check(
+              pid,
+              "file-read-data",
+              "path",
+              path.join(markers, control),
+            ),
+          },
+          V2: {
+            nonce: check(
+              pid,
+              "mach-lookup",
+              "global-name",
+              `plums.marker.${nonce}`,
+            ),
+            control: check(
+              pid,
+              "mach-lookup",
+              "global-name",
+              `plums.marker.${control}`,
+            ),
+          },
+        },
+      ]),
+    );
+    const platform = path.join(root, "platform"),
+      privateRoot = path.join(platform, "own");
+    const profileOptions = {
+      node: binary,
+      snapshot: path.join(root, "snapshot"),
+      projects: [path.join(root, "project")],
+      privateRoot,
+      home: path.join(privateRoot, "home"),
+      temporary: path.join(privateRoot, "tmp"),
+      cache: path.join(privateRoot, "cache"),
+      userHome: path.join(root, "user"),
+      dataDir: platform,
+      toolchains: [],
+      readOnly: [root],
+    };
+    for (const dir of [
+      profileOptions.snapshot,
+      ...profileOptions.projects,
+      profileOptions.home,
+      profileOptions.temporary,
+      profileOptions.cache,
+      profileOptions.userHome,
+    ])
+      await mkdir(dir, { recursive: true });
+    const actual = await start(
+      projectProfile(profileOptions) +
+        `(allow mach-lookup (global-name-prefix "plums.marker."))(deny mach-lookup (global-name "plums.marker.${nonce}"))`,
+    );
+    const actualResults = Object.fromEntries(
+      Object.entries(actual.objects).map(([label, pid]) => [
+        label,
+        {
+          nonce: check(
+            pid,
+            "mach-lookup",
+            "global-name",
+            `plums.marker.${nonce}`,
+          ),
+          control: check(
+            pid,
+            "mach-lookup",
+            "global-name",
+            `plums.marker.${control}`,
+          ),
+        },
+      ]),
+    );
+    const descendants = [
+      "entry",
+      "fork",
+      "exec",
+      "setsid",
+      "double-fork",
+      "spawn-setpgroup",
+      "true-exec",
+    ];
+    const negativeA = ["entry", "fork"].every(
+      (k) =>
+        paired[`thirdParty/${k}`] &&
+        ["V1", "V2"].every((v) => {
+          const r = paired[`thirdParty/${k}`][v as "V1" | "V2"];
+          return !member(r) && r.nonce.ret > 0 && r.control.ret > 0;
+        }),
+    );
+    const negativeB = descendants.every(
+      (k) =>
+        paired[`B/${k}`] &&
+        ["V1", "V2"].every((v) => {
+          const r = paired[`B/${k}`][v as "V1" | "V2"];
+          return !member(r) && r.nonce.ret === 0 && r.control.ret === 0;
+        }),
+    );
+    const actualProfile =
+      actual.ready &&
+      descendants.every((k) => actualResults[k] && member(actualResults[k]));
+    const constantAgreement = Object.values(paired).every(
+      (r) => member(r.V1) === member(r.V2),
+    );
+    const positiveAndOutside = descendants.every(
+      (k) =>
+        paired[`A/${k}`] &&
+        member(paired[`A/${k}`].V2) &&
+        paired[`outside/${k}`] &&
+        !member(paired[`outside/${k}`].V2),
+    );
+    const controls = {
+      negativeA,
+      negativeB,
+      actualProfile,
+      constantAgreement,
+      positiveAndOutside,
+    };
+    const supplementalErrors =
+      !a.ready ||
+      !b.ready ||
+      !thirdParty.ready ||
+      !actual.ready ||
+      [
+        ...Object.values(paired).flatMap((r) => [r.V1, r.V2]),
+        ...Object.values(actualResults),
+      ].some((r) =>
+        [r.nonce, r.control].some(
+          (answer) => answer.ret === -1 || answer.errno !== 0,
+        ),
+      );
     const errors = Object.values(variants).some(
       (v) =>
         !v.a.ready ||
@@ -238,24 +467,36 @@ it.runIf(native)(
           (r) => r.nonce.ret === -1 || r.control.ret === -1,
         ),
     );
-    const outer = environment.allowDefault.status !== 0;
     const verdict =
-      errors || outer
+      errors || supplementalErrors
         ? "INCONCLUSIVE"
-        : variants.V3.go && (variants.V1.go || variants.V2.go)
+        : variants.V3.go &&
+            variants.V2.go &&
+            Object.values(controls).every(Boolean)
           ? "GO"
           : "NO_GO";
-    const reason = outer
-      ? "outer sandbox or sandbox-exec unavailable"
-      : errors
+    const reason =
+      errors || supplementalErrors
         ? "entry or private API error"
-        : `V1=${variants.V1.go}; V2=${variants.V2.go}; V3=${variants.V3.go}`;
-    const report = { environment, variants, verdict, reason };
-    await mkdir(".artifacts/macos-continuation", { recursive: true });
-    await writeFile(
-      ".artifacts/macos-continuation/members-variants.json",
-      JSON.stringify(report, null, 2) + "\n",
+        : `V1=${variants.V1.go}; V2=${variants.V2.go}; V3=${variants.V3.go}; ${JSON.stringify(controls)}`;
+    await save({
+      environment,
+      variants,
+      paired,
+      actual,
+      actualResults,
+      controls,
+      verdict,
+      reason,
+    });
+    // Record before asserting: a false positive must turn the test red, with its raw evidence intact.
+    expect(negativeA, "N-A deny-default outsiders must never be members").toBe(
+      true,
     );
+    expect(
+      negativeB,
+      "N-B an independently marked entry must never be a member",
+    ).toBe(true);
     console.log("members variants", verdict, reason);
     expect(["GO", "NO_GO", "INCONCLUSIVE"]).toContain(verdict);
   },

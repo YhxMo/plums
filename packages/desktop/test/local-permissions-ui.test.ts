@@ -85,6 +85,12 @@ it.runIf(process.platform === "darwin" && process.arch === "arm64")(
       await uiExpect(
         panel.getByText("Plums 自身数据和其他 Agent 的密钥", { exact: false }),
       ).toBeVisible();
+      await uiExpect(
+        panel.getByText(
+          "停止或撤销该入口后，它启动且已脱离其进程组的子进程可能继续运行。",
+          { exact: false },
+        ),
+      ).toBeVisible();
       await panel
         .getByRole("button", { name: "在可信窗口确认", exact: true })
         .click();
@@ -109,6 +115,12 @@ it.runIf(process.platform === "darwin" && process.arch === "arm64")(
         confirmation.getByText("Plums 自身数据和其他 Agent 的密钥", {
           exact: false,
         }),
+      ).toBeVisible();
+      await uiExpect(
+        confirmation.getByText(
+          "停止或撤销该入口后，它启动且已脱离其进程组的子进程可能继续运行。",
+          { exact: false },
+        ),
       ).toBeVisible();
       await confirmation
         .getByRole("button", { name: "允许", exact: true })
@@ -269,6 +281,15 @@ it.runIf(process.platform === "darwin" && process.arch === "arm64")(
       const page = await app.firstWindow();
       await page.getByRole("article", { name: "查看 Fixture A" }).click();
       const panel = page.getByRole("region", { name: "Agent 权限" });
+      await panel
+        .getByRole("button", { name: "查看汇总", exact: true })
+        .click();
+      await uiExpect(
+        panel.getByText(
+          "停止或撤销该入口后，它启动且已脱离其进程组的子进程可能继续运行。",
+          { exact: false },
+        ),
+      ).toHaveCount(0);
       await uiExpect(
         panel.getByLabel("凭据（npm）", { exact: true }),
       ).toBeEnabled();

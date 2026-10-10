@@ -38,6 +38,8 @@ afterEach(async () => {
 });
 const simple =
   "import{createInterface}from'node:readline';let context;const send=(id,result)=>console.log(JSON.stringify({jsonrpc:'2.0',id,result}));createInterface({input:process.stdin}).on('line',l=>{const m=JSON.parse(l);if(m.method==='initialize'){context=m.params.context;send(m.id,{protocol:'jsonrpc-jsonl-v1'});}else if(m.method==='context')send(m.id,context);else if(m.method==='pid')send(m.id,process.pid);else if(m.method==='crash')process.exit(1);else send(m.id,m.params);});";
+const detachedDisclosure =
+  "停止或撤销该入口后，它启动且已脱离其进程组的子进程可能继续运行。";
 async function component(
   id: string,
   tier?: "project",
@@ -895,4 +897,83 @@ it("unserializable request input is refused before dispatch with a safe executio
   expect(await f.host.engineStatus(f.id, "first", "local")).toMatchObject({
     state: "running",
   });
+});
+
+it("machine entry's tier summary discloses that detached children may outlive stop", async () => {
+  const f = await fixture();
+  expect(await f.approve()).toBe(true);
+  const message = f.confirm.ask.mock.calls[0]![0].message;
+  expect(message.split(detachedDisclosure)).toHaveLength(3);
+  for (const id of ["first", "second"]) {
+    const entry = message
+      .split("\n")
+      .find((line: string) => line.startsWith(`${id}：`))!;
+    expect(entry).toContain(MACHINE_AUTHORIZATION_COPY);
+    expect(entry.split(detachedDisclosure)).toHaveLength(2);
+  }
+  expect(JSON.stringify(f.audit)).not.toContain(detachedDisclosure);
+});
+
+it("project and sandbox entries and plain components do not carry the disclosure", async () => {
+  const f = await fixture("project");
+  const plain = await f.put(
+    await createArchive({
+      "manifest.json": Buffer.from(
+        JSON.stringify({
+          formatVersion: "1.0",
+          kind: "extension",
+          id: "plain",
+          name: "Plain fixture",
+          version: "1.0.0",
+          description: "Synthetic plain component",
+          dependencies: [],
+          permissions: [],
+          payload: {},
+        }),
+      ),
+    }),
+  );
+  await f.host.addLibraryComponent(f.id, plain.digest);
+  await f.host.enable(f.id, "plain");
+  expect(
+    await f.approve({
+      ...f.selection,
+      components: ["first", "second", "plain"],
+    }),
+  ).toBe(true);
+  const projectMessage = f.confirm.ask.mock.calls.at(-1)![0].message;
+  expect(projectMessage).toContain("项目档位");
+  expect(projectMessage).toContain("Plain fixture：无本地执行");
+  expect(projectMessage).not.toContain(detachedDisclosure);
+  expect(
+    await f.approve({
+      ceiling: "sandbox",
+      projects: [],
+      readOnly: [],
+      components: ["plain"],
+    }),
+  ).toBe(true);
+  const sandboxMessage = f.confirm.ask.mock.calls.at(-1)![0].message;
+  expect(sandboxMessage).toContain("档位上限：沙箱");
+  expect(sandboxMessage).not.toContain(detachedDisclosure);
+});
+
+it("a request-time local call after confirmation asks nothing and does not repeat it", async () => {
+  const f = await fixture();
+  await f.approve();
+  await f.host.startEngine(f.id, "first", "local");
+  expect(f.confirm.ask).toHaveBeenCalledTimes(1);
+  expect(f.confirm.ask.mock.calls[0]![0].message).toContain(detachedDisclosure);
+  f.confirm.ask.mockClear();
+  for (let i = 0; i < 2; i++) {
+    expect(
+      await f.host.engineCall(f.id, "first", "request", {
+        engineId: "local",
+        method: "pid",
+        input: {},
+      }),
+    ).toEqual(expect.any(Number));
+  }
+  expect(f.confirm.ask).not.toHaveBeenCalled();
+  expect(JSON.stringify(f.audit)).not.toContain(detachedDisclosure);
 });

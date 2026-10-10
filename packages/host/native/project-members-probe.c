@@ -7,6 +7,15 @@
 #include <unistd.h>
 typedef int (*Check)(pid_t, const char *, int, ...);
 int main(int argc, char **argv) {
+  Check check = (Check)dlsym(RTLD_DEFAULT, "sandbox_check");
+  if (argc == 2 && !strcmp(argv[1], "self")) {
+    errno = 0;
+    int ret = check ? check(getpid(), NULL, 0) : -1;
+    if (!check) errno = ENOSYS;
+    printf("{\"sandboxed\":%s,\"ret\":%d,\"errno\":%d}\n",
+      ret > 0 ? "true" : "false", ret, errno);
+    return 0;
+  }
   if (argc != 6 || strcmp(argv[1], "check")) return 2;
   int kind;
   const char *constant = "known";
@@ -18,7 +27,6 @@ int main(int argc, char **argv) {
   } else return 2;
   int *flag = dlsym(RTLD_DEFAULT, "SANDBOX_CHECK_NO_REPORT");
   int no_report = flag ? *flag : 0x40000000;
-  Check check = (Check)dlsym(RTLD_DEFAULT, "sandbox_check");
   errno = 0;
   int ret = check ? check((pid_t)atoi(argv[2]), argv[3], kind | no_report, argv[5]) : -1;
   if (!check) errno = ENOSYS;

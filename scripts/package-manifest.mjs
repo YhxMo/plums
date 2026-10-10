@@ -10,16 +10,26 @@ const packagerRequire = createRequire(
   scriptRequire.resolve("@electron/packager"),
 );
 
+export const EXPERIMENTAL_HELPERS = Object.freeze([
+  "escape-probe",
+  "dyld-hook",
+  "project-members",
+  "project-members-probe",
+]);
+export const ALLOWED_ZIPS = Object.freeze([
+  "app/dist/foundation-resources/official.zip",
+]);
+const experimentalNames = new RegExp(
+  "(^|/)(" + EXPERIMENTAL_HELPERS.join("|") + ")([.][^/]+)?(/|$)",
+);
+
 export function assertPackageManifest(files) {
   for (const entry of files) {
     const name = entry.replaceAll("\\", "/").replace(/^\/+/, "").toLowerCase();
     if (
       /(^|\/)test\/fixtures(\/|$)/.test(name) ||
-      /(^|\/)(escape-probe|dyld-hook|project-members|project-members-probe)(\.[^/]+)?(\/|$)/.test(
-        name,
-      ) ||
-      (name.endsWith(".zip") &&
-        name !== "app/dist/foundation-resources/official.zip")
+      experimentalNames.test(name) ||
+      (name.endsWith(".zip") && !ALLOWED_ZIPS.includes(name))
     )
       throw Error("Test fixture in desktop package: " + entry);
   }

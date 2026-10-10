@@ -28,7 +28,7 @@ import {
   type AuditEvent,
   type Confirm,
 } from "@plums/core";
-import { confirmOnce } from "./engine-coordinator.js";
+import { confirmOnce } from "./confirm-once.js";
 import type { Session } from "./host.js";
 import {
   presentLocalAuthorizationEvent,
@@ -74,7 +74,7 @@ export interface TierPlan {
   readOnly: LocalDirectory[];
 }
 export const MACHINE_AUTHORIZATION_COPY =
-  "该扩展可读取和修改本机所有文件（包括 Plums 自身数据和其他 Agent 的密钥）、运行任意程序、访问网络";
+  "该扩展可读取和修改本机所有文件（包括 Plums 自身数据和其他 Agent 的密钥）、运行任意程序、访问网络。停止或撤销该入口后，它启动且已脱离其进程组的子进程可能继续运行。";
 const levels = { sandbox: 0, project: 1, machine: 2 };
 const tierNames = { sandbox: "沙箱", project: "项目", machine: "整机" };
 const permissionNames: Record<string, string> = {

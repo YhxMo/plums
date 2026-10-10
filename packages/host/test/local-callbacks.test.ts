@@ -500,3 +500,39 @@ it("carries the earlier parent tool policy deadline into a local request inside 
   });
   expect(f.confirm.ask).not.toHaveBeenCalled();
 });
+
+it("does not commit a local resource write when policy confirmation arrives after its parent cancels", async () => {
+  const f = await fixture({ policy: "return decision('confirm');" }),
+    abort = new AbortController();
+  let entered!: () => void, release!: (value: boolean) => void;
+  const ready = new Promise<void>((r) => {
+    entered = r;
+  });
+  f.confirm.ask.mockImplementation(
+    () =>
+      new Promise<boolean>((r) => {
+        release = r;
+        entered();
+      }),
+  );
+  const running = f.run(
+    { op: "write", value: "late-policy-confirm-record" },
+    abort.signal,
+  );
+  const refused = expect(running).rejects.toBeDefined();
+  await ready;
+  abort.abort();
+  release(true);
+  await refused;
+  f.confirm.ask.mockResolvedValue(true);
+  expect(await f.direct({ op: "read" })).toEqual({
+    exists: false,
+    revision: "0",
+  });
+  expect(
+    f.audit.filter(
+      (e) =>
+        e.kind === "resource" && e.operation === "write" && e.phase === "allow",
+    ),
+  ).toHaveLength(0);
+});

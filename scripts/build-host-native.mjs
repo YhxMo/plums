@@ -1,18 +1,13 @@
 import { build } from "esbuild";
+import { NATIVE_HELPERS } from "./host-native-assets.mjs";
+export { NATIVE_HELPERS } from "./host-native-assets.mjs";
 import { execFileSync } from "node:child_process";
 import { mkdirSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 const root = fileURLToPath(new URL("../", import.meta.url));
 if (process.platform === "darwin") {
   mkdirSync(root + "packages/host/dist", { recursive: true });
-  for (const name of [
-    "secure-fs",
-    "controlled-probe",
-    "project-probe",
-    "project-scan",
-    "project-members",
-    "project-members-probe",
-  ])
+  for (const name of NATIVE_HELPERS)
     execFileSync(
       "clang",
       [
