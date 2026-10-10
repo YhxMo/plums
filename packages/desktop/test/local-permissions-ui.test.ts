@@ -86,10 +86,12 @@ it.runIf(process.platform === "darwin" && process.arch === "arm64")(
         panel.getByText("Plums 自身数据和其他 Agent 的密钥", { exact: false }),
       ).toBeVisible();
       await uiExpect(
-        panel.getByText(
-          "停止或撤销该入口后，它启动且已脱离其进程组的子进程可能继续运行。",
-          { exact: false },
-        ),
+        panel
+          .getByRole("region", { name: "待确认汇总" })
+          .getByText(
+            "停止或撤销该入口后，它启动且已脱离其进程组的子进程可能继续运行。",
+            { exact: false },
+          ),
       ).toBeVisible();
       await panel
         .getByRole("button", { name: "在可信窗口确认", exact: true })
@@ -400,3 +402,93 @@ it.runIf(process.platform === "darwin" && process.arch === "arm64")(
   },
   120000,
 );
+
+it("the revoke/stop control of a machine entry shows the detached-children limitation, a project entry does not", async () => {
+  const f = await fixture();
+  const root = process.cwd();
+  const manifests = [engineManifest(), engineManifest()];
+  manifests[1]!.id = "engine-project";
+  for (const [index, manifest] of manifests.entries()) {
+    manifest.dependencies = [];
+    manifest.permissions = [
+      {
+        id: "local-engine",
+        kind: "engine",
+        target: "local",
+        tier: index === 0 ? "machine" : "project",
+        reason: "Synthetic tier",
+      },
+    ] as typeof manifest.permissions;
+    const archive = await createArchive({
+      "manifest.json": Buffer.from(JSON.stringify(manifest)),
+      "runtime/main.js": Buffer.from("export function activate(){}"),
+      "ui/index.html": Buffer.from("<p>Synthetic fixture</p>"),
+      "engine/main.mjs": Buffer.from("throw Error('must not launch')"),
+    });
+    const imported = await f.host.importLibrary(
+      ((await f.host.preview(archive)) as { token: string }).token,
+    );
+    await f.host.addLibraryComponent(f.a.instanceId, imported.digest);
+    await f.host.enable(f.a.instanceId, manifest.id);
+  }
+  await f.host.close();
+  const stage = path.join(f.dir, "desktop");
+  await cp(path.join(root, "packages/desktop/dist"), path.join(stage, "dist"), {
+    recursive: true,
+  });
+  await mkdir(path.join(stage, "node_modules"), { recursive: true });
+  for (const [name, pkg] of [
+    ["isolated-vm", "host"],
+    ["better-sqlite3", "core"],
+  ]) {
+    const resolver = createRequire(
+      path.join(root, `packages/${pkg}/package.json`),
+    );
+    await symlink(
+      path.dirname(resolver.resolve(name + "/package.json")),
+      path.join(stage, "node_modules", name),
+    );
+  }
+  const app = await electron.launch({
+    executablePath: createRequire(import.meta.url)("electron"),
+    args: [path.join(stage, "dist/main.js")],
+    env: {
+      ...process.env,
+      PLUMS_NODE: path.join(
+        root,
+        ".artifacts/node-v26.5.1-darwin-arm64/bin/node",
+      ),
+      PLUMS_DATA_DIR: f.dir,
+    },
+  });
+  try {
+    const page = await app.firstWindow();
+    await page.getByRole("article", { name: "查看 Fixture A" }).click();
+    const panel = page.getByRole("region", { name: "Agent 权限" });
+    for (const manifest of manifests) {
+      const entry = panel.getByTestId(`local-entry-${manifest.id}-local`);
+      await uiExpect(
+        entry.getByRole("button", { name: "停止进程", exact: true }),
+      ).toBeVisible();
+      await uiExpect(
+        entry.getByRole("button", {
+          name: `撤销 ${manifest.name} 的本地执行`,
+          exact: true,
+        }),
+      ).toBeVisible();
+      const limitation = entry.getByText(
+        "停止或撤销该入口后，它启动且已脱离其进程组的子进程可能继续运行。",
+        { exact: true },
+      );
+      if (manifest.id === "engine-demo")
+        await uiExpect(limitation).toBeVisible();
+      else await uiExpect(limitation).toHaveCount(0);
+    }
+    await panel.getByTestId("local-entry-engine-demo-local").screenshot({
+      path: path.join(root, ".artifacts/gate12/stop-disclosure.png"),
+    });
+  } finally {
+    await app.close();
+    await rm(f.dir, { recursive: true, force: true });
+  }
+});

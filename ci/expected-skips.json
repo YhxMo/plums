@@ -1,0 +1,7 @@
+[
+  {
+    "file": "packages/host/test/project-sandbox.test.ts",
+    "name": "project conformance records a skip on other platforms",
+    "reason": "This negative-platform case uses runIf(!supported); macOS arm64 runs the supported-platform cases instead."
+  }
+]

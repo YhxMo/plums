@@ -6,6 +6,25 @@ import { callbackFixture } from "./local-callback-fixture.js";
 import { ComponentLibrary } from "../src/library.js";
 import { EngineManager } from "../src/engine-manager.js";
 import type { Session } from "../src/host.js";
+import * as fsPromises from "node:fs/promises";
+import { AgentExecutionService } from "../src/local-execution.js";
+import { currentRecheck } from "../src/recheck-cache.js";
+
+vi.mock("node:fs/promises", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("node:fs/promises")>();
+  return { ...actual, lstat: vi.fn(actual.lstat) };
+});
+
+// 2026-10-10: .artifacts/concurrency/restart-load-1.jsonl, chain-baseline.
+// One write+read chain with a synthetic secret: authorize=918, foundation
+// full/non-full/outside-checkpoint=6/402/20, metadata walks=1656. Ceil(count*1.2).
+const RECHECK_COUNT_CEILINGS = {
+  authorize: 1102,
+  foundationFull: 8,
+  foundationNonFull: 483,
+  foundationOutside: 24,
+  metadataWalks: 1988,
+};
 
 const fixtures: Awaited<ReturnType<typeof callbackFixture>>[] = [];
 async function fixture() {
@@ -227,4 +246,70 @@ it("a SecretStore read failure at the post-allow recheck denies before the Sink"
   expect(sink).not.toHaveBeenCalled();
   f.setAudit(async () => {});
   expect(await f.direct({ op: "read" })).toMatchObject({ exists: false });
+});
+
+it("a write+read callback chain keeps authorize, foundation and token-walk counts within the measured ceiling", async () => {
+  const f = await fixture(),
+    s = session(f);
+  const ref = secretRef(
+    "store",
+    "local-00000000-0000-4000-8000-000000000003/value",
+  );
+  const detail = await s.core.getPackage("store");
+  expect(
+    await s.core.reserveLocalCredentialReferences(
+      "store",
+      detail.installed.installedAt,
+      [ref],
+    ),
+  ).toBe(true);
+  await s.secrets.set(ref, "SYNTHETIC_RECHECK_CEILING_VALUE");
+  const authorize = vi.spyOn(AgentExecutionService.prototype, "authorize");
+  const foundationHost = f.host as unknown as {
+    assertAgentFoundation(s: Session): Promise<void>;
+  };
+  const original = foundationHost.assertAgentFoundation.bind(f.host);
+  const foundation = { full: 0, nonFull: 0, outside: 0 };
+  vi.spyOn(foundationHost, "assertAgentFoundation").mockImplementation(
+    (session) => {
+      const scope = currentRecheck();
+      foundation[scope ? (scope.full ? "full" : "nonFull") : "outside"]++;
+      return original(session);
+    },
+  );
+  // Each installationMetadata walk starts with one lstat of a component root.
+  // Count that I/O boundary without exporting a production profiling interface.
+  const roots = new Set(
+    s.record.components!.map((pin) =>
+      path.join(s.core.dataDir, "packages", pin.packageId),
+    ),
+  );
+  vi.mocked(fsPromises.lstat).mockClear();
+  expect(await f.run({ op: "write", value: "synthetic" })).toMatchObject(
+    success,
+  );
+  expect(await f.run({ op: "read" })).toMatchObject(success);
+  const metadataWalks = vi
+    .mocked(fsPromises.lstat)
+    .mock.calls.filter(([file]) => roots.has(String(file))).length;
+  expect(authorize.mock.calls.length).toBeGreaterThan(0);
+  expect(authorize.mock.calls.length).toBeLessThanOrEqual(
+    RECHECK_COUNT_CEILINGS.authorize,
+  );
+  expect(foundation.full).toBeGreaterThan(0);
+  expect(foundation.full).toBeLessThanOrEqual(
+    RECHECK_COUNT_CEILINGS.foundationFull,
+  );
+  expect(foundation.nonFull).toBeGreaterThan(0);
+  expect(foundation.nonFull).toBeLessThanOrEqual(
+    RECHECK_COUNT_CEILINGS.foundationNonFull,
+  );
+  expect(foundation.outside).toBeGreaterThan(0);
+  expect(foundation.outside).toBeLessThanOrEqual(
+    RECHECK_COUNT_CEILINGS.foundationOutside,
+  );
+  expect(metadataWalks).toBeGreaterThan(0);
+  expect(metadataWalks).toBeLessThanOrEqual(
+    RECHECK_COUNT_CEILINGS.metadataWalks,
+  );
 });

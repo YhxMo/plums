@@ -155,3 +155,45 @@ it("never revives a saved cross-process handle or resource range after disable a
     if (p.exitCode === null) await once(p, "exit");
   }
 });
+
+it("keeps the saved cross-process handle available for stale-binding validation after an explicit component restart", async () => {
+  const f = await fixture({});
+  const p = fork(
+    path.join(process.cwd(), "packages/host/test/resource-child.mjs"),
+    [],
+    {
+      execArgv: [],
+      env: {
+        PLUMS_FIXTURE_DIR: f.dir,
+        PLUMS_FIXTURE_AGENT: f.a,
+        PLUMS_FIXTURE_RESOURCE: f.shared,
+      },
+      stdio: ["ignore", "ignore", "ignore", "ipc"],
+    },
+  );
+  const send = async (message: object) => {
+    const answer = once(p, "message");
+    p.send(message);
+    return (await answer)[0] as any;
+  };
+  try {
+    await once(p, "message");
+    const remembered = await send({
+      input: { op: "remember", resourceId: f.shared },
+    });
+    expect(remembered).toMatchObject({ ok: true, value: expect.any(String) });
+    expect(await send({ restart: true })).toEqual({ ok: true });
+    expect(
+      await send({
+        input: { op: "read", saved: true, key: "restarted-handle" },
+      }),
+    ).toMatchObject({
+      ok: false,
+      reason: "STALE_BINDING",
+      executionState: "not_started",
+    });
+  } finally {
+    p.kill();
+    if (p.exitCode === null) await once(p, "exit");
+  }
+});

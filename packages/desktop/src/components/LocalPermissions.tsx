@@ -13,6 +13,8 @@ import { ProjectSupport, type CacheStatus } from "./ProjectSupport.js";
 
 const tiers = { sandbox: "沙箱", project: "项目", machine: "整机" };
 const levels = { sandbox: 0, project: 1, machine: 2 };
+const MACHINE_STOP_LIMITATION =
+  "停止或撤销该入口后，它启动且已脱离其进程组的子进程可能继续运行。";
 const states = {
   stopped: "已停止",
   starting: "启动中",
@@ -397,7 +399,7 @@ export function LocalPermissions({
                 <p className="error-text">
                   整机扩展可读取和修改本机所有文件，包括 Plums 自身数据和其他
                   Agent 的密钥，运行任意程序并访问网络。
-                  停止或撤销该入口后，它启动且已脱离其进程组的子进程可能继续运行。
+                  {MACHINE_STOP_LIMITATION}
                 </p>
               )}
               <button
@@ -469,6 +471,9 @@ export function LocalPermissions({
                 resource={p}
                 engine={engine}
                 confirmed={confirmed}
+                machine={
+                  !!declaration && (declaration.tier ?? "machine") === "machine"
+                }
                 unavailable={project && !boundary?.ready}
                 run={run}
               />
@@ -486,12 +491,14 @@ function LocalProcess({
   resource,
   engine,
   confirmed,
+  machine,
   unavailable,
   run,
 }: {
   resource: Resource;
   engine: NonNullable<Resource["engines"]>[number];
   confirmed: boolean;
+  machine: boolean;
   unavailable: boolean;
   run: (method: string, args: Record<string, unknown>) => Promise<boolean>;
 }) {
@@ -543,6 +550,7 @@ function LocalProcess({
           撤销本地执行
         </button>
       </div>
+      {machine && <p className="error-text">{MACHINE_STOP_LIMITATION}</p>}
       {action.error && <p role="alert">{action.error}</p>}
     </div>
   );

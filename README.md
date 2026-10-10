@@ -23,7 +23,7 @@ The desktop app manages components, configuration, permissions, and execution. C
 - **Import or assemble.** Use a complete Agent ZIP or combine individual components, with or without character cards.
 - **Reuse components.** Keep a shared component library and choose specific versions for each Agent.
 - **Separate workspaces.** Each Agent has its own settings, credentials, permissions, and runtime data.
-- **Control access.** Review declared permissions, approve task scopes, and manage access from the desktop app. Local engines require separate trust approval.
+- **Control access.** Review declared permissions, approve task scopes, and manage access from the desktop app. Each Agent has a permission tier ceiling (sandbox < project < machine, default sandbox). Components run local code only after declaring local execution, receiving your assembly approval, and staying within that ceiling.
 - **Share Agents.** Export an Agent ZIP without settings values, credentials, approvals, or runtime data.
 
 ## Quick Install
@@ -43,6 +43,18 @@ pnpm install --frozen-lockfile
 ```
 
 Core and CLI can also be used separately with Node.js 22 or later.
+
+## Platform support
+
+Desktop support is limited to macOS 27.0.1 on Apple Silicon (arm64), using Node.js 26.5.1 and pnpm 10 for the full source build. Other desktop platforms are unsupported. Core and CLI can be used separately on Node.js 22 or later. See [CI and platform gates](./docs/ci.md) for the official foundation and native test conditions.
+
+## Permission tiers and known limitations
+
+- **Sandbox (default):** no local process execution.
+- **Project tier: currently unavailable.** Launch returns `TIER_UNAVAILABLE` and never falls back to machine execution or an unsandboxed process. Reliable descendant containment and escape acceptance remain incomplete; see [local execution](./docs/engine.md).
+- **Machine tier:** authorized extensions have **no Plums sandbox**. They can read and modify local files accessible to your account, including Plums data and other Agents' credentials, run arbitrary programs, and access the network. After you stop or revoke this entry, children it started that are detached from its process group may continue running. Install extensions only from sources you trust.
+- **Runtime hard links:** creation checks and startup validation do not form a kernel inode boundary. New aliases created at runtime by unrelated processes remain an unprotected risk for the future project tier, which is currently unavailable.
+- **Local installation packages:** ad-hoc signed and not notarized; the system may block them. Verify the source and hash in its verification record before choosing to run a local build. Automatic updates are unavailable.
 
 ## Quick Start
 
@@ -92,7 +104,7 @@ pnpm test
 pnpm desktop:package
 ```
 
-`pnpm test` includes a build. Desktop packaging targets macOS Apple Silicon and writes the application and DMG to `release/`.
+`pnpm test` includes a build. The default configuration runs multiple projects in parallel and ordered groups; see [CI and scheduling](./docs/ci.md). Desktop packaging targets macOS Apple Silicon and writes the application and DMG to `release/`.
 
 ## License
 

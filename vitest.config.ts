@@ -3,6 +3,10 @@ import { fileURLToPath } from "node:url";
 import { defineConfig } from "vitest/config";
 
 const root = path.dirname(fileURLToPath(import.meta.url));
+const serialConfirmationTests = [
+  "packages/host/test/local-callbacks.test.ts",
+  "packages/host/test/confirm-once.test.ts",
+];
 const electronTests = [
   "foundation-ui",
   "common-runtime-ui",
@@ -25,7 +29,7 @@ export default defineConfig({
     // Test timeout sits above the child process's 10s limit.
     testTimeout: 20_000,
     // Native fullscreen and blur-to-deny confirmation share the OS focus.
-    // Run each Electron file in its own group; other suites remain parallel.
+    // Electron and timing-sensitive host files run in separate ordered groups.
     projects: [
       {
         extends: true,
@@ -36,6 +40,7 @@ export default defineConfig({
           maxWorkers: 4,
           include: ["packages/*/test/**/*.test.ts"],
           exclude: [
+            ...serialConfirmationTests,
             ...electronTests.map(
               (name) => `packages/desktop/test/${name}.test.ts`,
             ),
@@ -43,6 +48,16 @@ export default defineConfig({
           ],
         },
       },
+      ...serialConfirmationTests.map((file, index) => ({
+        extends: true as const,
+        test: {
+          name: index === 0 ? "local-callbacks-serial" : "confirm-once-serial",
+          include: [file],
+          maxWorkers: 1,
+          // Separate groups guarantee no overlap, including under a root worker override.
+          sequence: { groupOrder: 200 + index },
+        },
+      })),
       ...(process.env.PLUMS_NATIVE_EXPERIMENTS === "1"
         ? [
             {

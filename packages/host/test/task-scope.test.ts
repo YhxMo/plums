@@ -100,6 +100,7 @@ async function fixture(realFiles = false) {
             { name: "escape", title: "Escape" },
             { name: "read", title: "Read" },
             { name: "list", title: "List" },
+            { name: "ready", title: "Ready" },
           ],
         },
       },
@@ -108,7 +109,7 @@ async function fixture(realFiles = false) {
   const bytes = await createArchive({
     "manifest.json": Buffer.from(JSON.stringify(manifest)),
     "main.js": Buffer.from(
-      `export function activate(s){for(const operation of ['read','list'])s.register('commands',operation,()=>s.capability('files',{kind:'fs',operation,path:operation==='list'?'.':'task.txt'}));s.register('commands','send',async()=>{await s.capability('net',{kind:'egress',url:'https://api.example.com/a',headers:{Authorization:'untrusted'}});return s.capability('net',{kind:'egress',url:'https://api.example.com/b'})});s.register('commands','files',async()=>{await s.capability('files',{kind:'fs',operation:'write',path:'task.txt',data:[111,107]});return s.capability('files',{kind:'fs',operation:'read',path:'task.txt'})});s.register('commands','escape',()=>s.capability('net',{kind:'egress',url:'https://elsewhere.example.com/'}))}`,
+      `export function activate(s){s.register('commands','ready',()=>true);for(const operation of ['read','list'])s.register('commands',operation,()=>s.capability('files',{kind:'fs',operation,path:operation==='list'?'.':'task.txt'}));s.register('commands','send',async()=>{await s.capability('net',{kind:'egress',url:'https://api.example.com/a',headers:{Authorization:'untrusted'}});return s.capability('net',{kind:'egress',url:'https://api.example.com/b'})});s.register('commands','files',async()=>{await s.capability('files',{kind:'fs',operation:'write',path:'task.txt',data:[111,107]});return s.capability('files',{kind:'fs',operation:'read',path:'task.txt'})});s.register('commands','escape',()=>s.capability('net',{kind:'egress',url:'https://elsewhere.example.com/'}))}`,
     ),
   });
   const preview = (await host.preview(bytes)) as { token: string };
@@ -324,6 +325,9 @@ it("keeps desktop read/list fail-closed after expiry and host restart without re
 });
 it("revokes a pending single-use read before the sink and requires confirmation on reinvoke", async () => {
   const w = await fixture();
+  // Prepare the fixture worker before the existing confirmation polling budget.
+  // This command has no capability calls; the read below still needs confirmation.
+  expect(await w.invoke("ready")).toBe(true);
   let answer: ((allow: boolean) => void) | undefined;
   w.confirm.ask.mockImplementation(
     () =>

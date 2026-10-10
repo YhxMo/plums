@@ -139,6 +139,10 @@ await window.plums.engine.cancel("local", "task-1");
 
 管理权限区提供档位与范围汇总、凭据批准/撤销、缓存清空和真实项目自检；各入口独立显示启动、停止与崩溃状态。关闭业务前端或渲染进程崩溃只停止普通扩展运行与短期范围，保留独立引擎供管理页接管；重新打开界面可查询并重新连接。停用、更新、组合、配置或目录绑定变化会停止相关运行。
 
+组件 worker 可能因停止、撤权、重新启用或租约到期被重启；组件不得依赖 activation 内存状态跨重启保留。调用方保存的 opaque 句柄在重启后仍须由宿主按当前绑定复核，失效时以 `STALE_BINDING` 拒绝，缺失或无效输入以 `INVALID_REQUEST` 拒绝，不自动恢复旧授权。
+
+2026-10-10 的九文件四 worker 定向剖面（239/239）在 `resources-metadata::never revives a saved cross-process handle or resource range after disable and re-enable` 捕获预期重启：另一宿主停用再启用组件后，调用方的 `AuthorizedFoundationSession.check` 检出身份失效并停止旧实例，worker 在启动 309ms 后被停止、正常 `exit:0`，78ms 后重建；loadavg 为 4.8623/3.7871/3.6001。这次重启未见五秒执行预算、异常退出或策略租约到期触发。未插桩的历史全量无法还原准确先后顺序，本次证据支持预期生命周期路径，不证明所有负载超时均已归因。原始事件与静态入口清单见 `.artifacts/concurrency/profile-summary.json`、`restart-load-1.jsonl`、`worker-entrypoints.json`；显式重启后仍保存调用方句柄的既有回归继续覆盖该行为。
+
 `addLibraryComponent` 和 `importComponent` 加入组件时，若原有组件与连接保持不变，保留当前会话与本地进程。新组件只完成安装，仍需同意、启用和自身本地执行确认；既有执行项不转授新组件。新消费者的单候选自动连接可以在此路径发布，已有消费者新增自动连接则继续走完整重建。等待中的调用只复核自身调用边的组件和连接，同时保留原链、目录、默认卡、设置及授权检查。
 
 此路径只允许既有组件穿过当前宿主正在发布的准确加入日志。陌生日志、被修改的日志及其他事务日志继续阻断；发布失败关闭会话并保留恢复记录。它不改变更新、移除、目录或手动连接的生命周期，相关范围可以与本地入口共存，范围变更仍按既有清理路径执行。
