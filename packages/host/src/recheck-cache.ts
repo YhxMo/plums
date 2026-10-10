@@ -1,4 +1,5 @@
-import { lstatSync, readdirSync } from "node:fs";
+import { lstat, readdir } from "node:fs/promises";
+import { randomUUID } from "node:crypto";
 import path from "node:path";
 import { AsyncLocalStorage } from "node:async_hooks";
 import type { Session } from "./host.js";
@@ -57,6 +58,7 @@ export class RequestRechecks {
 const current = new AsyncLocalStorage<{
   epoch: RequestRechecks;
   full: boolean;
+  tokens: WeakMap<Session, Promise<InstallationIdentity>>;
 }>();
 export const currentRecheck = () => current.getStore();
 export function withRecheck<T>(
@@ -64,44 +66,103 @@ export function withRecheck<T>(
   full: boolean,
   run: () => Promise<T>,
 ): Promise<T> {
-  return current.run({ epoch, full }, run);
+  return current.run({ epoch, full, tokens: new WeakMap() }, run);
 }
 
 /** Metadata is a change hint, not content verification. Complete rechecks still hash archives
  * and compare installed bytes, including after the allow audit. Never follow symlinks. */
-function installationMetadata(root: string): unknown[] {
-  const entries: unknown[] = [];
-  const visit = (relative: string) => {
+export const INSTALLATION_METADATA_LIMIT = 4096;
+async function installationMetadata(
+  root: string,
+): Promise<{ entries: unknown[]; overflow: boolean }> {
+  const entries: [string, number, number, number][] = [];
+  let visited = 0,
+    count = 1,
+    unavailable = false;
+  const visit = async (relative: string): Promise<void> => {
+    if (visited >= INSTALLATION_METADATA_LIMIT) return;
+    visited++;
     const file = path.join(root, relative),
-      stat = lstatSync(file);
+      stat = await lstat(file);
     entries.push([relative, stat.ino, stat.size, stat.mtimeMs]);
-    if (stat.isDirectory())
-      for (const name of readdirSync(file).sort())
-        visit(path.join(relative, name));
+    if (stat.isDirectory()) {
+      const names = await readdir(file);
+      count += names.length;
+      await Promise.all(
+        names
+          .slice(0, INSTALLATION_METADATA_LIMIT - visited)
+          .map(async (name) => {
+            try {
+              await visit(path.join(relative, name));
+            } catch {
+              unavailable = true;
+            }
+          }),
+      );
+    }
   };
   try {
-    visit("");
+    await visit("");
   } catch {
-    entries.push(["unavailable"]);
+    unavailable = true;
   }
-  return entries;
+  entries.sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0));
+  const result: unknown[] = entries;
+  if (unavailable) result.push(["unavailable"]);
+  const overflow = count > INSTALLATION_METADATA_LIMIT;
+  if (overflow) result.push(["overflow", count]);
+  return { entries: result, overflow };
 }
 /** Store has no single write gate. Public dataDir fixes the documented packages/<id> layout.
  * Synchronous runtime checkpoints still detect cross-connection disable/enable ABA. */
-export async function installationToken(s: Session): Promise<string> {
+interface InstallationIdentity {
+  parts: unknown[];
+  reusable: boolean;
+}
+async function readInstallationIdentity(
+  s: Session,
+): Promise<InstallationIdentity> {
   const [installed, state] = await Promise.all([
     s.core.listInstalled(),
     s.core.localAuthorizationState(),
   ]);
-  return JSON.stringify([
-    installed,
-    state.revision,
-    (s.record.components ?? []).map((pin) => [
-      pin.packageId,
-      pin.digest,
-      installationMetadata(
+  const metadata = await Promise.all(
+    (s.record.components ?? []).map(async (pin) => ({
+      pin,
+      metadata: await installationMetadata(
         path.join(s.core.dataDir, "packages", pin.packageId),
       ),
-    ]),
+    })),
+  );
+  return {
+    parts: [
+      installed,
+      state.revision,
+      metadata.map(({ pin, metadata }) => [
+        pin.packageId,
+        pin.digest,
+        metadata.entries,
+      ]),
+    ],
+    reusable: !metadata.some((m) => m.metadata.overflow),
+  };
+}
+/** One non-full checkpoint may read the same identity more than once. Share only
+ * within that checkpoint; the next check and all full checks always read again. */
+export async function installationToken(s: Session): Promise<string> {
+  const scope = currentRecheck();
+  let pending = scope && !scope.full ? scope.tokens.get(s) : undefined;
+  if (!pending) {
+    pending = readInstallationIdentity(s);
+    if (scope && !scope.full) {
+      scope.tokens.set(s, pending);
+      void pending.catch(() => scope.tokens.delete(s));
+    }
+  }
+  const identity = await pending;
+  // Every overflow caller receives a different token, including coalesced readers.
+  return JSON.stringify([
+    ...identity.parts,
+    ...(identity.reusable ? [] : [["uncached", randomUUID()]]),
   ]);
 }

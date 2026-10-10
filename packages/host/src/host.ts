@@ -2313,7 +2313,13 @@ export class DesktopHost {
     signal: AbortSignal,
   ): Promise<boolean> {
     if (signal.aborted) return false;
-    const safe = redact(message, await this.secretValues(s));
+    let values: string[];
+    try {
+      values = await this.secretValues(s);
+    } catch {
+      return false;
+    }
+    const safe = redact(message, values);
     return confirmOnce(this.options.confirm, { message: safe }, signal);
   }
   private credentialFree(input: unknown): import("@plums/sdk").CommonJson {

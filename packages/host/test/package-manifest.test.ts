@@ -2,7 +2,7 @@ import { mkdtemp, mkdir, rm, writeFile } from "node:fs/promises";
 import { createRequire } from "node:module";
 import path from "node:path";
 import os from "node:os";
-import { afterEach, expect, it } from "vitest";
+import { afterEach, expect, it, vi } from "vitest";
 import { createArchive } from "@plums/core";
 import {
   assertPackageManifest,
@@ -11,6 +11,7 @@ import {
   checkPackageManifest,
 } from "../../../scripts/package-manifest.mjs";
 
+import * as packaging from "../../../scripts/package-desktop.mjs";
 import {
   NATIVE_HELPERS,
   SHIPPED_NATIVE_HELPERS,
@@ -100,4 +101,40 @@ it("checks an unpacked app, official ZIP contents and ASAR inventories", async (
   );
   await rm(stage, { recursive: true });
   await expect(checkPackageManifest(root)).rejects.toThrow("Test fixture");
+});
+
+it("the callable manifest gate accepts clean Resources and rejects a fixture", async () => {
+  const root = await mkdtemp(path.join(os.tmpdir(), "plums-manifest-gate-"));
+  roots.push(root);
+  await mkdir(path.join(root, "app/dist"), { recursive: true });
+  await writeFile(path.join(root, "app/dist/main.js"), "synthetic");
+  expect(await packaging.runManifestGate(root)).toContain("app/dist/main.js");
+  await writeFile(path.join(root, "app/dist/escape-probe"), "synthetic");
+  await expect(packaging.runManifestGate(root)).rejects.toThrow("Test fixture");
+});
+it("the exported main entry always gates Resources before creating an image", async () => {
+  expect(Object.keys(packaging).sort()).toEqual(["main", "runManifestGate"]);
+  const root = await mkdtemp(path.join(os.tmpdir(), "plums-packaging-main-"));
+  roots.push(root);
+  const fixture = path.join(root, "test/fixtures");
+  await mkdir(fixture, { recursive: true });
+  await writeFile(path.join(fixture, "synthetic"), "synthetic");
+  const prepared = {
+      resource: root,
+      application: "synthetic",
+      output: "synthetic",
+      desktopVersion: "1.0.0",
+    },
+    prepare = vi.fn(async () => prepared),
+    createImage = vi.fn(async () => {});
+  await expect(packaging.main({ prepare, createImage })).rejects.toThrow(
+    "Test fixture",
+  );
+  expect(prepare).toHaveBeenCalledOnce();
+  expect(createImage).not.toHaveBeenCalled();
+  await rm(path.join(root, "test"), { recursive: true });
+  await expect(
+    packaging.main({ prepare, createImage }),
+  ).resolves.toBeUndefined();
+  expect(createImage).toHaveBeenCalledExactlyOnceWith(prepared);
 });

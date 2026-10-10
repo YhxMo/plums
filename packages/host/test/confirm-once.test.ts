@@ -133,3 +133,78 @@ it.each(["resource", "policy"])(
     );
   },
 );
+
+it.each(["resource", "policy"])(
+  "%s: a secret read failure while preparing a confirmation denies instead of throwing",
+  async (mode) => {
+    const f = await callbackFixture({
+      noRange: mode === "resource",
+      ...(mode === "policy"
+        ? {
+            policy:
+              "if(c.category==='local')return decision('confirm');return decision(c.category==='resource'&&c.operation==='write'?'confirm':'allow');",
+          }
+        : {}),
+    });
+    fixtures.push(f);
+    const s = (
+      f.host as unknown as { sessions: Map<string, Session> }
+    ).sessions.get(f.id)!;
+    const ref = secretRef(
+      "store",
+      "local-00000000-0000-4000-8000-000000000004/value",
+    );
+    await s.core.reserveLocalCredentialReferences(
+      "store",
+      (await s.core.getPackage("store")).installed.installedAt,
+      [ref],
+    );
+    await s.secrets.set(ref, "SYNTHETIC_CONFIRM_READ_VALUE");
+    const host = f.host as any,
+      originalConfirm = host.confirmOperation.bind(host),
+      originalGet = s.secrets.get.bind(s.secrets);
+    let preparing = false,
+      failed = false;
+    const confirmation = vi
+      .spyOn(host, "confirmOperation")
+      .mockImplementation(async (...args) => {
+        preparing = true;
+        try {
+          return await originalConfirm(...args);
+        } finally {
+          preparing = false;
+        }
+      });
+    vi.spyOn(s.secrets, "get").mockImplementation(async (value) => {
+      if (preparing && !failed) {
+        failed = true;
+        throw Error("synthetic-confirm-secret-read-error");
+      }
+      return originalGet(value);
+    });
+    expect(await f.run({ op: "write", value: "forbidden" })).toMatchObject({
+      outcome: { ok: false, error: { code: "NOT_AUTHORIZED" } },
+    });
+    expect(confirmation).toHaveBeenCalledOnce();
+    expect(f.confirm.ask).not.toHaveBeenCalled();
+    expect(f.audit).toContainEqual(
+      expect.objectContaining({
+        phase: "confirmation",
+        outcome: "denied",
+        ...(mode === "policy" ? { reason: "POLICY_CONFIRM" } : {}),
+      }),
+    );
+    expect(
+      f.audit.filter(
+        (e) =>
+          e.kind === "resource" &&
+          e.phase === "allow" &&
+          e.operation === "write",
+      ),
+    ).toHaveLength(0);
+    expect(await f.direct({ op: "read" })).toMatchObject({ exists: false });
+    expect(JSON.stringify(f.audit)).not.toContain(
+      "synthetic-confirm-secret-read-error",
+    );
+  },
+);
