@@ -16,8 +16,10 @@ import { chatFixture } from "./chat-fixture.js";
 import { fixtureManifest, packExtension } from "../fixtures/extensions/pack.js";
 import { scenarioFoundation } from "./foundation-selection.js";
 
-const directory = path.resolve(".artifacts/requirements-v1");
-const nodePath = path.resolve(".artifacts/node-v26.5.1-darwin-arm64/bin/node");
+const directory = path.resolve(".build-cache/scenarios");
+const nodePath = path.resolve(
+  ".build-cache/node-v26.5.1-darwin-arm64/bin/node",
+);
 const reports = new Map<string, any>();
 const supported = new Set([
   "register",

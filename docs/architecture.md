@@ -228,7 +228,7 @@ M1 目标行为。
 - `title` 即界面标签,不新增 `label` 字段。
 - `describeSettings` 接口与参考渲染器留给里程碑 2。
 
-## 16. M2-A 能力总线（0.2.0）
+## 16. 能力总线
 
 公开接口及完整宿主示例见 [capabilities.md](capabilities.md)。`runCapability({ extensionId, permissionId, request })` 只接受 2.x extension，按声明精确选择 fs/exec/egress。1.x 使用旧入口，2.x MCP 使用独立批准接口与 delegated capability。
 
@@ -249,6 +249,6 @@ SDK v2 的通用连接使用 `service / https / request`。外装连接器负责
 
 schema 6 保存有限 authority_grants 及撤销版本；schema 7 增加 agent_tier、agent_local_grants 与迁移审计确认记录。旧 engine_trust 保留为只读历史，匹配当前安装身份和完整声明的整机信任迁移为对应入口的执行项；上限不授予其他入口、目录或 fs/exec 确认覆盖。原安装、权限 JSON、MCP、密钥引用与有限 Grant 保留。有限 Grant 逐入口绑定当前执行项，authority_grant_legacy 为旧记录保存兼容锚点，不改写原记录或恢复已失效授权。迁移项在审计与确认标记保存成功后生效。授权及设置值不随包或 Agent 导出。 schema 8 增加 local_credential_reservations：在异步保存前预留组件安装身份与引用，安装移除后保留，删除成功或已提交授权保留后才释放。当前、历史及预留引用由一次固定 SQL 枚举，脱敏、导出检查及卸载共用；撤销和授权替换与历史引用保留同事务。元信息、实际标量与生成配置中的转义值各保存引用。旧 schema 7 读写器拒绝 8 版库，迁移不改原授权行。项目执行与管理 UI 仍在实施，当前启动边界见 [engine.md](engine.md)。
 
-阶段 4 的可信 `capabilityGate` 位于原授权/范围检查之后，策略不能增加声明、同意、MCP 批准或用户最大范围。选定且活动的第三方策略返回 allow/deny/confirm，覆盖原单次确认分支；没有策略时仍执行安全默认。等待前后及 Sink 前保留复核。策略租约过期清理完成后才批准新租约，见[策略 SDK](sdk-v2.md#第三方策略接入阶段-4)。
+可信 `capabilityGate` 位于原授权/范围检查之后，策略不能增加声明、同意、MCP 批准或用户最大范围。选定且活动的第三方策略返回 allow/deny/confirm，覆盖原单次确认分支；没有策略时仍执行安全默认。等待前后及 Sink 前保留复核。策略租约过期清理完成后才批准新租约，见[策略 SDK](sdk-v2.md#第三方策略接入)。
 
-真实旧库迁移回归从固定历史提交 `27be7067d3b1571608561a8bf277370b0ddf74d2` 构建 schema 6 内核，由该版本公开 API 创建安装、同意、启用、设置引用、MCP、旧信任与有限 Grant，再以当前内核升级至 8。测试不依赖 `.artifacts/`，不伪造旧表；旧读写器拒绝升级后的库且拒绝前后文件摘要保持。
+真实旧库迁移回归从固定历史源码夹具构建 schema 6 内核，由该版本公开 API 创建安装、同意、启用、设置引用、MCP、旧信任与有限 Grant，再以当前内核升级至 8。测试使用固定历史源码夹具，不依赖 Git 历史或伪造旧表；旧读写器拒绝升级后的库且拒绝前后文件摘要保持。

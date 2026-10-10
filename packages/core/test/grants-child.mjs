@@ -1,4 +1,8 @@
 import {
+  localEntryPlan,
+  revokeLocalEntry,
+} from "./local-authorization-fixture.mjs";
+import {
   createCore,
   MemorySecretStore,
   RecordingEgressSink,
@@ -12,10 +16,10 @@ const core = createCore({
   onAudit: () => {},
 });
 try {
-  if (action === "restore") await core.revokeEngineTrust(packageId, "local");
+  if (action === "restore") await revokeLocalEntry(core, packageId, "local");
   if (action !== "grant" && action !== "restore") throw Error("Invalid action");
-  await core.grantEngineTrust(
-    await core.engineTrustSnapshot(packageId, "local"),
+  await core.commitLocalAuthorization(
+    await localEntryPlan(core, packageId, "local"),
   );
   process.stdout.write("completed");
 } finally {

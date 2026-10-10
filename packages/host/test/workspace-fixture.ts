@@ -1,7 +1,11 @@
 import { mkdtemp } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
-import { createArchive, MemorySecretStore, type ManifestV2 } from "@plumsjs/core";
+import {
+  createArchive,
+  MemorySecretStore,
+  type ManifestV2,
+} from "@plumsjs/core";
 import { DesktopHost } from "../src/host.js";
 export async function workspaceFixture(
   runtime: "isolate" | "controlled-node" = "isolate",
@@ -13,7 +17,7 @@ export async function workspaceFixture(
   const events: { packageId: string; topic: string }[] = [];
   const options = {
     dataDir: dir,
-    nodePath: path.resolve(".artifacts/node-v26.5.1-darwin-arm64/bin/node"),
+    nodePath: path.resolve(".build-cache/node-v26.5.1-darwin-arm64/bin/node"),
     secretStore: () => new MemorySecretStore(),
     confirm: { ask: async () => true },
     event: (_instanceId: string, packageId: string, topic: string) => {

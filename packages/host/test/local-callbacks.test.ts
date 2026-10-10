@@ -1,3 +1,4 @@
+import { revokeLocalEntry } from "../../core/test/local-authorization-fixture.mjs";
 import { afterEach, expect, it, vi } from "vitest";
 import { rm } from "node:fs/promises";
 import path from "node:path";
@@ -422,7 +423,7 @@ it("rechecks the actual local authorization after a resource allow audit, withou
         e.phase === "allow" &&
         e.operation === "write"
       ) {
-        await other.revokeEngineTrust("engine-demo", "local");
+        await revokeLocalEntry(other, "engine-demo", "local");
         revoked = true;
       }
     });

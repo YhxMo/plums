@@ -1,3 +1,4 @@
+import { MACHINE_AUTHORIZATION_COPY } from "../../host/src/authorization-copy.js";
 import { it, expect } from "vitest";
 import { _electron as electron, expect as uiExpect } from "@playwright/test";
 import { createRequire } from "node:module";
@@ -64,7 +65,7 @@ it.runIf(process.platform === "darwin" && process.arch === "arm64")(
         ...process.env,
         PLUMS_NODE: path.join(
           root,
-          ".artifacts/node-v26.5.1-darwin-arm64/bin/node",
+          ".build-cache/node-v26.5.1-darwin-arm64/bin/node",
         ),
         PLUMS_DATA_DIR: f.dir,
       },
@@ -88,10 +89,7 @@ it.runIf(process.platform === "darwin" && process.arch === "arm64")(
       await uiExpect(
         panel
           .getByRole("region", { name: "待确认汇总" })
-          .getByText(
-            "停止或撤销该入口后，它启动且已脱离其进程组的子进程可能继续运行。",
-            { exact: false },
-          ),
+          .getByText(MACHINE_AUTHORIZATION_COPY, { exact: false }),
       ).toBeVisible();
       await panel
         .getByRole("button", { name: "在可信窗口确认", exact: true })
@@ -119,10 +117,7 @@ it.runIf(process.platform === "darwin" && process.arch === "arm64")(
         }),
       ).toBeVisible();
       await uiExpect(
-        confirmation.getByText(
-          "停止或撤销该入口后，它启动且已脱离其进程组的子进程可能继续运行。",
-          { exact: false },
-        ),
+        confirmation.getByText(MACHINE_AUTHORIZATION_COPY, { exact: false }),
       ).toBeVisible();
       await confirmation
         .getByRole("button", { name: "允许", exact: true })
@@ -154,7 +149,7 @@ it.runIf(process.platform === "darwin" && process.arch === "arm64")(
       );
       const outputs = path.join(
         root,
-        ".artifacts/requirements-v1/remaining-step5",
+        ".build-cache/scenarios/local-permissions",
       );
       await mkdir(outputs, { recursive: true });
       for (const width of [1120, 800, 360]) {
@@ -179,7 +174,7 @@ it.runIf(process.platform === "darwin" && process.arch === "arm64")(
         await writeFile(
           path.join(
             root,
-            ".artifacts/requirements-v1/remaining-step5/ui-failure.txt",
+            ".build-cache/scenarios/local-permissions/ui-failure.txt",
           ),
           await page.locator("body").innerText(),
         );
@@ -273,7 +268,7 @@ it.runIf(process.platform === "darwin" && process.arch === "arm64")(
         ...process.env,
         PLUMS_NODE: path.join(
           root,
-          ".artifacts/node-v26.5.1-darwin-arm64/bin/node",
+          ".build-cache/node-v26.5.1-darwin-arm64/bin/node",
         ),
         PLUMS_DATA_DIR: f.dir,
       },
@@ -287,10 +282,7 @@ it.runIf(process.platform === "darwin" && process.arch === "arm64")(
         .getByRole("button", { name: "查看汇总", exact: true })
         .click();
       await uiExpect(
-        panel.getByText(
-          "停止或撤销该入口后，它启动且已脱离其进程组的子进程可能继续运行。",
-          { exact: false },
-        ),
+        panel.getByText(MACHINE_AUTHORIZATION_COPY, { exact: false }),
       ).toHaveCount(0);
       await uiExpect(
         panel.getByLabel("凭据（npm）", { exact: true }),
@@ -376,7 +368,7 @@ it.runIf(process.platform === "darwin" && process.arch === "arm64")(
           .getByRole("button", { name: "启动进程", exact: true }),
       ).toBeDisabled();
       expect(await panel.innerText()).not.toContain("内核已阻止硬链接");
-      const outputs = path.join(root, ".artifacts/macos-continuation/ui");
+      const outputs = path.join(root, ".build-cache/native-diagnostics/ui");
       await mkdir(outputs, { recursive: true });
       for (const width of [1120, 800, 360]) {
         await app.evaluate(({ BrowserWindow }, width) => {
@@ -456,7 +448,7 @@ it("the revoke/stop control of a machine entry shows the detached-children limit
       ...process.env,
       PLUMS_NODE: path.join(
         root,
-        ".artifacts/node-v26.5.1-darwin-arm64/bin/node",
+        ".build-cache/node-v26.5.1-darwin-arm64/bin/node",
       ),
       PLUMS_DATA_DIR: f.dir,
     },
@@ -476,16 +468,18 @@ it("the revoke/stop control of a machine entry shows the detached-children limit
           exact: true,
         }),
       ).toBeVisible();
-      const limitation = entry.getByText(
-        "停止或撤销该入口后，它启动且已脱离其进程组的子进程可能继续运行。",
-        { exact: true },
-      );
+      const limitation = entry.getByText(MACHINE_AUTHORIZATION_COPY, {
+        exact: true,
+      });
       if (manifest.id === "engine-demo")
         await uiExpect(limitation).toBeVisible();
       else await uiExpect(limitation).toHaveCount(0);
     }
     await panel.getByTestId("local-entry-engine-demo-local").screenshot({
-      path: path.join(root, ".artifacts/gate12/stop-disclosure.png"),
+      path: path.join(
+        root,
+        ".build-cache/local-permissions/stop-disclosure.png",
+      ),
     });
   } finally {
     await app.close();

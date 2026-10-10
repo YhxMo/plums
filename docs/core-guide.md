@@ -46,7 +46,7 @@
 
 - 1.x 宿主在每次 write 前调用 `core.runAction`，通过后才写；target 的实际范围由宿主解释并约束。2.x 写入通过 `runCapability` 和注入 FsSink 执行，内核检查逻辑根与真实路径边界，真实 Sink 还须在 I/O 时维护边界以防路径竞争。
 - 2.x exec 的程序由宿主登记，参数数组独立传递，不接受任意程序路径、shell、env 或 stdin；真实 ExecSink 的隔离由宿主负责。
-- `confirm` 可省略，缺少时拒绝需要确认的动作。独立 core 的兼容默认不询问 read/list；宿主可在构造时指定 `capabilityApproval: "task-or-confirm"`，所有未被有效任务覆盖的能力默认均需单次确认，DesktopHost 固定使用此策略并在每次内部重建后保留；可信窗口选定并批准的第三方策略可在原声明/同意/最大范围内返回 allow/deny/confirm，见[策略接入](sdk-v2.md#第三方策略接入阶段-4)。默认新能力的写入、外发、命令每次询问，默认 120 秒超时；可信宿主可签发最长一小时的 fs/HTTPS 任务范围，在所选操作内连续执行，停止、撤权、升级和配置变更后失效（见能力文档）；`confirmTimeoutMs` 仅作用于新入口。只有布尔 true 放行，等待前复制请求，确认后和放行审计后重新检查状态及路径。
+- `confirm` 可省略，缺少时拒绝需要确认的动作。独立 core 的兼容默认不询问 read/list；宿主可在构造时指定 `capabilityApproval: "task-or-confirm"`，所有未被有效任务覆盖的能力默认均需单次确认，DesktopHost 固定使用此策略并在每次内部重建后保留；可信窗口选定并批准的第三方策略可在原声明/同意/最大范围内返回 allow/deny/confirm，见[策略接入](sdk-v2.md#第三方策略接入)。默认新能力的写入、外发、命令每次询问，默认 120 秒超时；可信宿主可签发最长一小时的 fs/HTTPS 任务范围，在所选操作内连续执行，停止、撤权、升级和配置变更后失效（见能力文档）；`confirmTimeoutMs` 仅作用于新入口。只有布尔 true 放行，等待前复制请求，确认后和放行审计后重新检查状态及路径。
 - 新入口必须有可靠的 `onAudit`；事件不含内容、参数或输出并经过密钥脱敏。执行前审计失败不调用 Sink，执行后审计失败报告已完成；执行状态 unknown/completed 不得自动重试。
 - 宿主实现的 `confirm.ask` 按 [docs/confirm-copy.md](confirm-copy.md) 展示确认框。
 - 宿主必须把每个 MCP 工具的 `inputSchema` 传给内核。为什么：内核不连接服务器，无法自己核对参数定义；没传到的和 `null` 是同一个指纹。参数定义变了必须重新同意。

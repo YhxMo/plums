@@ -1,3 +1,7 @@
+import {
+  localEntryPlan,
+  revokeLocalEntry,
+} from "./local-authorization-fixture.mjs";
 import Database from "better-sqlite3";
 import path from "node:path";
 import { rmSync } from "node:fs";
@@ -97,9 +101,7 @@ it("upgrades an authentic schema-seven database without extending its confirmed 
   expect(state.tier.projects).toEqual([]);
   expect(state.tier.readOnly).toEqual([]);
   expect(state.tier.components).toEqual([]);
-  expect((await core.engineTrustSnapshot("second", "local")).trusted).toBe(
-    false,
-  );
+  expect((await localEntryPlan(core, "second", "local")).trusted).toBe(false);
   const unconfirmed = reopen({ ...options, instanceId: "new-agent" });
   expect((await unconfirmed.localAuthorizationState()).tier.ceiling).toBe(
     "sandbox",
@@ -244,8 +246,8 @@ async function schema6() {
   }
   await secrets.set(secretRef("first", "apiKey"), "synthetic-secret-value");
   await w.core.setSettings("first", { apiKey: secretRef("first", "apiKey") });
-  const snapshot = await w.core.engineTrustSnapshot("first", "local");
-  await w.core.grantEngineTrust(snapshot);
+  const snapshot = await localEntryPlan(w.core, "first", "local");
+  await w.core.commitLocalAuthorization(snapshot);
   await w.core.grantBackgroundConsent({
     extensionId: "first",
     permissionId: "https",
@@ -360,9 +362,7 @@ it("defaults new cores to sandbox and cannot infer grants from the ceiling or pa
     tier: { ceiling: "sandbox", projects: [], readOnly: [], components: [] },
     grants: [],
   });
-  expect((await w.core.engineTrustSnapshot("first", "local")).trusted).toBe(
-    false,
-  );
+  expect((await localEntryPlan(w.core, "first", "local")).trusted).toBe(false);
   const db = new Database(path.join(w.dataDir, "plums.db"));
   db.prepare("INSERT INTO agent_tier VALUES (?,?)").run(
     "agent-a",
@@ -375,9 +375,7 @@ it("defaults new cores to sandbox and cannot infer grants from the ceiling or pa
     }),
   );
   db.close();
-  expect((await w.core.engineTrustSnapshot("first", "local")).trusted).toBe(
-    false,
-  );
+  expect((await localEntryPlan(w.core, "first", "local")).trusted).toBe(false);
 });
 
 it("never interprets an unknown engine kind in a 1.x permission as local execution authority", async () => {
@@ -390,13 +388,12 @@ it("never interprets an unknown engine kind in a 1.x permission as local executi
       permissions: [permission],
     }),
   );
-  await expect(
-    w.core.engineTrustSnapshot("first", "local"),
-  ).rejects.toMatchObject({
-    code: "PERMISSION_DENIED",
-    path: "/formatVersion",
-    details: { reason: "FORMAT_API_MISMATCH" },
-  });
+  expect(
+    await w.core.commitLocalAuthorization(
+      await localEntryPlan(w.core, "first", "local"),
+    ),
+  ).toBe(false);
+  expect((await w.core.localAuthorizationState()).grants).toEqual([]);
   const installed = (await w.core.getPackage("first")).installed;
   w.core.close();
   const db = new Database(path.join(w.dataDir, "plums.db"));
@@ -460,12 +457,10 @@ it("migrates 6 to 7 without extending trust, preserves every old record and keep
     skipped: 3,
     audited: true,
   });
-  expect((await core.engineTrustSnapshot("first", "local")).trusted).toBe(true);
+  expect((await localEntryPlan(core, "first", "local")).trusted).toBe(true);
   for (const id of ["second", "changed", "reinstalled", "project"])
-    expect((await core.engineTrustSnapshot(id, "local")).trusted).toBe(false);
-  await expect(
-    core.engineTrustSnapshot("memory", "local"),
-  ).rejects.toMatchObject({ code: "PERMISSION_DENIED" });
+    expect((await localEntryPlan(core, id, "local")).trusted).toBe(false);
+  expect(state.grants.some((g) => g.packageId === "memory")).toBe(false);
   expect(await core.getConsent("first")).toEqual(f.consent);
   expect(await core.getSecretReferences("first")).toEqual(f.refs);
   expect(
@@ -495,7 +490,7 @@ it("migrates 6 to 7 without extending trust, preserves every old record and keep
   expect(JSON.stringify(f.events)).not.toContain("synthetic-secret-value");
   core.close();
   expect(
-    (await reopen(f.options).engineTrustSnapshot("first", "local")).trusted,
+    (await localEntryPlan(reopen(f.options), "first", "local")).trusted,
   ).toBe(true);
   expect(f.events).toHaveLength(1);
 });
@@ -518,12 +513,12 @@ it("keeps migration authority inactive on audit failure or missing audit and ret
   store.close();
   core.close();
   const missing = reopen({ ...f.options, onAudit: undefined });
-  await expect(
-    missing.engineTrustSnapshot("first", "local"),
-  ).rejects.toMatchObject({ code: "CAPABILITY_FAILED" });
+  await expect(localEntryPlan(missing, "first", "local")).rejects.toMatchObject(
+    { code: "CAPABILITY_FAILED" },
+  );
   missing.close();
   expect(
-    (await reopen(f.options).engineTrustSnapshot("first", "local")).trusted,
+    (await localEntryPlan(reopen(f.options), "first", "local")).trusted,
   ).toBe(true);
 });
 
@@ -543,21 +538,17 @@ it("does not resurrect a grant revoked during asynchronous migration audit, or o
       await gate;
     },
   });
-  const check = core.engineTrustSnapshot("first", "local");
+  const check = localEntryPlan(core, "first", "local");
   await started;
   await child(f.dataDir, "revoke");
   release();
   expect((await check).trusted).toBe(false);
   core.close();
   const again = reopen(f.options);
-  expect((await again.engineTrustSnapshot("first", "local")).trusted).toBe(
-    false,
-  );
+  expect((await localEntryPlan(again, "first", "local")).trusted).toBe(false);
   await again.uninstall("first");
   await again.importPackage(await manifestZip(manifest));
-  expect((await again.engineTrustSnapshot("first", "local")).trusted).toBe(
-    false,
-  );
+  expect((await localEntryPlan(again, "first", "local")).trusted).toBe(false);
   const db = new Database(path.join(f.dataDir, "plums.db"));
   expect(
     db.prepare("SELECT * FROM engine_trust ORDER BY package_id").all(),
@@ -565,11 +556,11 @@ it("does not resurrect a grant revoked during asynchronous migration audit, or o
   db.close();
 });
 
-it("isolates authorization by Agent and cannot approve a project through the deprecated engine API", async () => {
+it("isolates authorization by Agent and exposes no deprecated engine approval API", async () => {
   const w = world();
   await w.core.importPackage(await manifestZip(manifest));
-  await w.core.grantEngineTrust(
-    await w.core.engineTrustSnapshot("first", "local"),
+  await w.core.commitLocalAuthorization(
+    await localEntryPlan(w.core, "first", "local"),
   );
   const other = reopen({
     dataDir: w.dataDir,
@@ -578,22 +569,14 @@ it("isolates authorization by Agent and cannot approve a project through the dep
     egress: new RecordingEgressSink(),
   });
   expect((await other.localAuthorizationState()).tier.ceiling).toBe("sandbox");
-  expect((await other.engineTrustSnapshot("first", "local")).trusted).toBe(
-    false,
+  expect((await localEntryPlan(other, "first", "local")).trusted).toBe(false);
+  await other.commitLocalAuthorization(
+    await localEntryPlan(other, "first", "local"),
   );
-  await other.grantEngineTrust(
-    await other.engineTrustSnapshot("first", "local"),
-  );
-  expect((await w.core.engineTrustSnapshot("first", "local")).trusted).toBe(
-    true,
-  );
-  expect((await other.engineTrustSnapshot("first", "local")).trusted).toBe(
-    true,
-  );
-  await w.core.revokeEngineTrust("first", "local");
-  expect((await other.engineTrustSnapshot("first", "local")).trusted).toBe(
-    true,
-  );
+  expect((await localEntryPlan(w.core, "first", "local")).trusted).toBe(true);
+  expect((await localEntryPlan(other, "first", "local")).trusted).toBe(true);
+  await revokeLocalEntry(w.core, "first", "local");
+  expect((await localEntryPlan(other, "first", "local")).trusted).toBe(true);
   await w.core.importPackage(
     await manifestZip({
       ...manifest,
@@ -601,11 +584,12 @@ it("isolates authorization by Agent and cannot approve a project through the dep
       permissions: [{ ...engine, tier: "project" }],
     }),
   );
-  expect(
-    await w.core.grantEngineTrust(
-      await w.core.engineTrustSnapshot("project", "local"),
-    ),
-  ).toBe(false);
+  for (const name of [
+    "engineTrustSnapshot",
+    "grantEngineTrust",
+    "revokeEngineTrust",
+  ])
+    expect(name in w.core).toBe(false);
   expect((await w.core.localAuthorizationState()).grants).toEqual([]);
 });
 
@@ -617,9 +601,7 @@ it("cannot activate migration when acknowledging the durable audit fails", async
   db.exec(
     "CREATE TRIGGER fail_ack BEFORE UPDATE ON local_authorization_migrations BEGIN SELECT RAISE(ABORT, 'synthetic-private-error'); END",
   );
-  await expect(
-    core.engineTrustSnapshot("first", "local"),
-  ).rejects.toMatchObject({
+  await expect(localEntryPlan(core, "first", "local")).rejects.toMatchObject({
     code: "CAPABILITY_FAILED",
     details: { phase: "migration_audit", executionState: "not_started" },
   });
@@ -628,7 +610,7 @@ it("cannot activate migration when acknowledging the durable audit fails", async
   store.close();
   db.exec("DROP TRIGGER fail_ack");
   db.close();
-  expect((await core.engineTrustSnapshot("first", "local")).trusted).toBe(true);
+  expect((await localEntryPlan(core, "first", "local")).trusted).toBe(true);
   expect(f.events).toHaveLength(2);
   expect(f.events[0]!.callId).toBe(f.events[1]!.callId);
 });

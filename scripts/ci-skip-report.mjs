@@ -1,3 +1,4 @@
+import { requiredTests } from "./ci-test-plan.mjs";
 import { readFile, appendFile } from "node:fs/promises";
 import path from "node:path";
 import { macosMajor } from "./macos-version.mjs";
@@ -227,12 +228,7 @@ if (
         await readFile(path.join(repository, "ci/expected-skips.json"), "utf8"),
       ),
     );
-    const required = compareRequiredTests(
-      report,
-      JSON.parse(
-        await readFile(path.join(repository, "ci/required-tests.json"), "utf8"),
-      ),
-    );
+    const required = compareRequiredTests(report, requiredTests);
     const summary = skipSummary(result) + "\n" + requiredSummary(required);
     console.log(summary);
     if (process.env.GITHUB_STEP_SUMMARY)

@@ -41,7 +41,7 @@ it.runIf(process.platform === "darwin")(
           ...process.env,
           PLUMS_NODE: path.join(
             root,
-            ".artifacts/node-v26.5.1-darwin-arm64/bin/node",
+            ".build-cache/node-v26.5.1-darwin-arm64/bin/node",
           ),
           PLUMS_DATA_DIR: f.dir,
         },
@@ -102,7 +102,7 @@ it.runIf(process.platform === "darwin")(
       );
       expect(denied).toBe(true);
       await frontend("plums.openManager()");
-      const outputs = path.join(root, ".artifacts/common-contract/stage-4");
+      const outputs = path.join(root, ".build-cache/common-contract/policy");
       await mkdir(outputs, { recursive: true });
       for (const width of [1120, 820, 560, 320]) {
         await app.evaluate(({ BrowserWindow }, width) => {

@@ -1,3 +1,4 @@
+import { revokeLocalEntry } from "./local-authorization-fixture.mjs";
 import assert from "node:assert/strict";
 import { mkdtemp, readFile, rm, lstat } from "node:fs/promises";
 import path from "node:path";
@@ -241,7 +242,7 @@ it("migrates schema-7 credential records without changing consent, enabled state
     original,
   );
   check.close();
-  await f.core.revokeEngineTrust(f.id, "coding");
+  await revokeLocalEntry(f.core, f.id, "coding");
   f.reopen();
   expect(new Set(await f.core.getSecretReferences(f.id))).toEqual(
     new Set(parts.entries.map(([ref]) => ref)),
@@ -466,7 +467,7 @@ it("rolls reference retention back with the complete authorization transaction",
 
 it("retains revoked references across reopen until uninstall deletes their values", async () => {
   const f = await fixture();
-  await f.core.revokeEngineTrust(f.id, "coding");
+  await revokeLocalEntry(f.core, f.id, "coding");
   expect((await f.core.localAuthorizationState()).grants).toEqual([]);
   f.reopen();
   expect(await f.core.getSecretReferences(f.id)).toEqual(

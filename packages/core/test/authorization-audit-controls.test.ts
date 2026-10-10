@@ -1,3 +1,4 @@
+import { localEntryPlan } from "./local-authorization-fixture.mjs";
 import assert from "node:assert/strict";
 import { lstat, mkdtemp, rm } from "node:fs/promises";
 import os from "node:os";
@@ -132,7 +133,7 @@ async function fixture(value: string, surface: Surface) {
     binding: "account",
     sources: ["inbox"],
   });
-  await core.grantEngineTrust(await core.engineTrustSnapshot(id, "local"));
+  await core.commitLocalAuthorization(await localEntryPlan(core, id, "local"));
   await secrets.set(ref, value);
   await core.setSettings(id, { token: ref });
   events.length = 0;

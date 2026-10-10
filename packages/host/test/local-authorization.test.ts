@@ -1,3 +1,4 @@
+import { revokeLocalEntry } from "../../core/test/local-authorization-fixture.mjs";
 import { afterEach, expect, it, vi } from "vitest";
 import {
   mkdtemp,
@@ -456,7 +457,7 @@ it("rechecks cross-connection revocation during grant audit", async () => {
       onAudit: () => {},
     });
     try {
-      await core.revokeEngineTrust("first", "local");
+      await revokeLocalEntry(core, "first", "local");
     } finally {
       core.close();
     }

@@ -1,3 +1,5 @@
+import { MACHINE_AUTHORIZATION_COPY as hostCopy } from "../../host/src/authorization-copy.js";
+import { MACHINE_AUTHORIZATION_COPY as uiCopy } from "../src/components/LocalPermissions.js";
 import { it, expect } from "vitest";
 import { permissionCopy } from "../src/shared/permission-copy.js";
 import { newerVersion } from "../src/shared/version.js";
@@ -51,4 +53,8 @@ it("names the configured model target without a provider whitelist", () => {
   expect(
     permissionCopy(permission, "2.0", ["opencode.ai（custom-model）"]),
   ).toBe("连接当前 Agent 配置的 HTTPS 服务：opencode.ai（custom-model）");
+});
+
+it("shares the exact machine authorization copy with the host", () => {
+  expect(uiCopy).toBe(hostCopy);
 });

@@ -107,7 +107,7 @@ if (status.state === "available") {
 
 Agent ZIP 的 `agent.json.protocolBindings` 仅携带非敏感选择意图：`consumerId/consumerDigest/requirementId/providerId/providerDigest/provideId/protocolVersion/contribution`。导出根据实际导出组件字节重算摘要，只包含仍匹配的连接；失效连接省略，导入后重新选择。无本地安装身份、Agent 实例、Grant、任务范围、信任或运行句柄。导入核对摘要、需求、版本、功能和入口，再生成新的本地安装绑定；所有组件仍须在新 Agent 中配置、同意与启用。包中的声明和未知字段继续保留。
 
-阶段 2 验证使用自造组件与 Recording Sink，通过真实 isolate 和 Node 引擎回调验证发现、重启、固定选择、导出/导入与拒绝边界。阶段 4 已执行 SDK v2 已声明的 inputSchema/outputSchema 校验，并提供真实记忆/白板与公开符合性工具。声明兼容本身不证明实现行为。
+验证使用自造组件与 Recording Sink，通过真实 isolate 和 Node 引擎回调验证发现、重启、固定选择、导出/导入与拒绝边界。已执行 SDK v2 已声明的 inputSchema/outputSchema 校验，并提供真实记忆/白板与公开符合性工具。声明兼容本身不证明实现行为。
 
 ## 隔离面板与限定消息
 
@@ -174,7 +174,7 @@ await window.plums.panels.post({
 
 `panels.close(handle)` 注销端点并取消关联等待；主界面关闭取消普通运行和任务范围，已获批运行的引擎保留，等待批准的引擎启动则取消。返回管理只是隐藏视图；主界面 `cancel()` 使子面板和旧会话失效，但主视图可取得新上下文后继续操作。子面板崩溃可重开，主界面崩溃返回管理。设置、密钥、目录、组合、更新、启停和更换绑定均撤下相关旧运行；重开不恢复旧句柄。句柄、会话、消息凭证及布局均不持久化或导出。宿主通过旧前端 `onEvent` 发出 `panels.closed`（子句柄）及 `panels.session`（取消后的新会话）生命周期通知；普通 `sdk.emit` 不可使用 `panels.*` 主题。
 
-当前实现只提供前端端点和受控贡献响应，不自动向 isolate/engine 广播面板消息，也不提供嵌套面板、兄弟面板通信、布局持久化或业务消息确认/重放。阶段 4 已提供真实记忆/白板的数据、schema 执行校验、幂等和符合性工具；关闭子面板会停止其普通 isolate 并清除临时状态，独立引擎保留既有生命周期。
+当前实现只提供前端端点和受控贡献响应，不自动向 isolate/engine 广播面板消息，也不提供嵌套面板、兄弟面板通信、布局持久化或业务消息确认/重放。已提供真实记忆/白板的数据、schema 执行校验、幂等和符合性工具；关闭子面板会停止其普通 isolate 并清除临时状态，独立引擎保留既有生命周期。
 
 ## SDK v2 schema 执行边界
 

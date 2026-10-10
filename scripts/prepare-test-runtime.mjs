@@ -32,7 +32,7 @@ export async function prepareTestRuntime() {
     !/^[a-f0-9]{64}$/.test(pin.sha256)
   )
     throw new Error("Pinned Node.js runtime identity mismatch");
-  const cache = path.resolve(".artifacts"),
+  const cache = path.resolve(".build-cache"),
     downloaded = path.join(cache, archive);
   const directory = path.join(cache, archive.replace(".tar.gz", "")),
     executable = path.join(directory, "bin/node");

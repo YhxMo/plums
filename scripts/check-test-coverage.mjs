@@ -1,3 +1,4 @@
+import { groups } from "./ci-test-plan.mjs";
 import { readdir, readFile } from "node:fs/promises";
 import path from "node:path";
 import { pathToFileURL, fileURLToPath } from "node:url";
@@ -7,6 +8,7 @@ const repository = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
   "..",
 );
+// These are safety assertions about required isolation, independent of scheduling data.
 export const EXPERIMENT_FILES = Object.freeze([
   "packages/host/test/project-members.experiments.test.ts",
 ]);
@@ -110,6 +112,7 @@ export async function inspectCoverage(root = repository) {
       if (error.code !== "ENOENT") throw error;
     }
   }
+  files.push(...(await testFiles(path.join(root, "scripts/test"), root)));
   const vitest = await createVitest("test", {
     root,
     config: path.join(root, "vitest.config.ts"),
@@ -135,10 +138,13 @@ export async function inspectCoverage(root = repository) {
 }
 
 export async function checkRuntimeVersions(root = repository) {
-  const workflow = await readFile(
-    path.join(root, ".github/workflows/ci.yml"),
-    "utf8",
-  );
+  const workflow = (
+    await Promise.all(
+      [".github/workflows/ci.yml", ".github/actions/ci-setup/action.yml"].map(
+        (file) => readFile(path.join(root, file), "utf8"),
+      ),
+    )
+  ).join("\n");
   const pinned = workflow.match(/node-version: ['"]([^'"]+)['"]/g) ?? [];
   const versions = pinned.map((line) => line.match(/['"]([^'"]+)['"]/)?.[1]);
   if (!versions.length || new Set(versions).size !== 1)
@@ -163,12 +169,7 @@ if (
   try {
     const coverage = await inspectCoverage();
     assertCoverage(coverage, process.env.PLUMS_NATIVE_EXPERIMENTS === "1");
-    assertProjectGroups(
-      coverage.projects,
-      JSON.parse(
-        await readFile(path.join(repository, "ci/groups.json"), "utf8"),
-      ),
-    );
+    assertProjectGroups(coverage.projects, groups);
     await checkRuntimeVersions();
     console.log(
       JSON.stringify({

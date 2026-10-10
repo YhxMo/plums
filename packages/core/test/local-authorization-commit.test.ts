@@ -1,3 +1,7 @@
+import {
+  localEntryPlan,
+  revokeLocalEntry,
+} from "./local-authorization-fixture.mjs";
 import Database from "better-sqlite3";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
@@ -91,9 +95,7 @@ it("a ceiling alone grants no local entry and confirms no ordinary component", a
   p.grants = [];
   p.tier.components = [];
   expect(await f.core.commitLocalAuthorization(p)).toBe(true);
-  expect((await f.core.engineTrustSnapshot("first", "local")).trusted).toBe(
-    false,
-  );
+  expect((await localEntryPlan(f.core, "first", "local")).trusted).toBe(false);
 });
 it("binds the commit to its Agent and complete assembly identity", async () => {
   const f = await fixture();
@@ -134,18 +136,18 @@ it("cannot authorize absent engines, higher tiers, duplicate entries or undeclar
     expect(await f.core.commitLocalAuthorization(p)).toBe(false);
   }
 });
-it("rejects a stale plan after same-process, legacy or cross-process revocation", async () => {
+it("rejects a stale plan after same-process authorization changes or cross-process revocation", async () => {
   const f = await fixture();
   const old = await f.plan();
-  await f.core.revokeEngineTrust("first", "local");
+  await revokeLocalEntry(f.core, "first", "local");
   expect(await f.core.commitLocalAuthorization(old)).toBe(false);
-  const beforeLegacy = await f.plan();
+  const beforeConfirmation = await f.plan();
   expect(
-    await f.core.grantEngineTrust(
-      await f.core.engineTrustSnapshot("first", "local"),
+    await f.core.commitLocalAuthorization(
+      await localEntryPlan(f.core, "first", "local"),
     ),
   ).toBe(true);
-  expect(await f.core.commitLocalAuthorization(beforeLegacy)).toBe(false);
+  expect(await f.core.commitLocalAuthorization(beforeConfirmation)).toBe(false);
   const beforeChild = await f.plan();
   await promisify(execFile)(process.execPath, [
     fileURLToPath(new URL("./local-authorization-child.mjs", import.meta.url)),
@@ -183,10 +185,10 @@ it("persisted grants survive restart and unchanged upgrades but not reinstall", 
     onAudit: () => {},
   });
   opened.push(c);
-  expect((await c.engineTrustSnapshot("first", "local")).trusted).toBe(true);
+  expect((await localEntryPlan(c, "first", "local")).trusted).toBe(true);
   const beforeReinstall = await f.plan();
   await f.core.uninstall("first");
   await f.core.importPackage(await manifestZip(f.manifest));
   expect(await c.commitLocalAuthorization(beforeReinstall)).toBe(false);
-  expect((await c.engineTrustSnapshot("first", "local")).trusted).toBe(false);
+  expect((await localEntryPlan(c, "first", "local")).trusted).toBe(false);
 });

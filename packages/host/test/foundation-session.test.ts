@@ -31,7 +31,7 @@ import {
 } from "../src/index.js";
 import { ExtensionRuntime, type InvocationContext } from "../src/runtime.js";
 import { SecureFsSink } from "../src/io.js";
-const node = path.resolve(".artifacts/node-v26.5.1-darwin-arm64/bin/node");
+const node = path.resolve(".build-cache/node-v26.5.1-darwin-arm64/bin/node");
 const digest = (b: Uint8Array) => createHash("sha256").update(b).digest("hex");
 const sessions: { close(): Promise<void> }[] = [];
 const roots: string[] = [];

@@ -1,0 +1,154 @@
+{
+  "projects": [
+    {
+      "name": "unit",
+      "group": "unit",
+      "include": ["packages/*/test/**/*.test.ts", "scripts/test/**/*.test.ts"]
+    },
+    {
+      "name": "platform",
+      "group": "platform",
+      "include": [
+        "packages/host/test/common-runtime.test.ts",
+        "packages/host/test/controlled-execution.test.ts",
+        "packages/host/test/platform-conformance.test.ts",
+        "packages/host/test/policy-execution.test.ts",
+        "packages/host/test/policy.test.ts",
+        "packages/host/test/task-scope.test.ts",
+        "packages/host/test/local-authorization.test.ts",
+        "packages/host/test/project-container.test.ts",
+        "packages/host/test/project-members.test.ts",
+        "packages/host/test/project-members-variants.test.ts",
+        "packages/host/test/project-sandbox.test.ts",
+        "packages/host/test/project-creation.test.ts",
+        "packages/host/test/project-support-plan.test.ts",
+        "packages/host/test/project-config-files.test.ts",
+        "packages/host/test/sdk-capability-controls.test.ts",
+        "packages/host/test/scenarios/foundation.test.ts"
+      ],
+      "maxWorkers": 1
+    },
+    {
+      "name": "local-callbacks-serial",
+      "group": "unit",
+      "include": ["packages/host/test/local-callbacks.test.ts"],
+      "maxWorkers": 1,
+      "groupOrder": 200
+    },
+    {
+      "name": "confirm-once-serial",
+      "group": "unit",
+      "include": ["packages/host/test/confirm-once.test.ts"],
+      "maxWorkers": 1,
+      "groupOrder": 201
+    },
+    {
+      "name": "foundation-ui",
+      "group": "electron",
+      "include": ["packages/desktop/test/foundation-ui.test.ts"],
+      "setupFiles": ["packages/desktop/test/support/electron-ready.ts"],
+      "groupOrder": 101
+    },
+    {
+      "name": "common-runtime-ui",
+      "group": "electron",
+      "include": ["packages/desktop/test/common-runtime-ui.test.ts"],
+      "setupFiles": ["packages/desktop/test/support/electron-ready.ts"],
+      "groupOrder": 102
+    },
+    {
+      "name": "workspace-ui",
+      "group": "electron",
+      "include": ["packages/desktop/test/workspace-ui.test.ts"],
+      "setupFiles": ["packages/desktop/test/support/electron-ready.ts"],
+      "groupOrder": 103
+    },
+    {
+      "name": "platform-conformance-ui",
+      "group": "electron",
+      "include": ["packages/desktop/test/platform-conformance-ui.test.ts"],
+      "setupFiles": ["packages/desktop/test/support/electron-ready.ts"],
+      "groupOrder": 104
+    },
+    {
+      "name": "policy-ui",
+      "group": "electron",
+      "include": ["packages/desktop/test/policy-ui.test.ts"],
+      "setupFiles": ["packages/desktop/test/support/electron-ready.ts"],
+      "groupOrder": 105
+    },
+    {
+      "name": "local-permissions-ui",
+      "group": "electron",
+      "include": ["packages/desktop/test/local-permissions-ui.test.ts"],
+      "setupFiles": ["packages/desktop/test/support/electron-ready.ts"],
+      "groupOrder": 106
+    },
+    {
+      "name": "resources-ui",
+      "group": "electron",
+      "include": ["packages/desktop/test/resources-ui.test.ts"],
+      "setupFiles": ["packages/desktop/test/support/electron-ready.ts"],
+      "groupOrder": 107
+    },
+    {
+      "name": "onboarding-ui",
+      "group": "electron",
+      "include": ["packages/desktop/test/onboarding-ui.test.ts"],
+      "setupFiles": ["packages/desktop/test/support/electron-ready.ts"],
+      "groupOrder": 108
+    },
+    {
+      "name": "interaction-ui",
+      "group": "electron",
+      "include": ["packages/desktop/test/interaction-ui.test.ts"],
+      "setupFiles": ["packages/desktop/test/support/electron-ready.ts"],
+      "groupOrder": 109
+    },
+    {
+      "name": "confirm-window",
+      "group": "electron",
+      "include": ["packages/desktop/test/confirm-window.test.ts"],
+      "setupFiles": ["packages/desktop/test/support/electron-ready.ts"],
+      "groupOrder": 110
+    },
+    {
+      "name": "frontend-scope",
+      "group": "electron",
+      "include": ["packages/desktop/test/frontend-scope.test.ts"],
+      "setupFiles": ["packages/desktop/test/support/electron-ready.ts"],
+      "groupOrder": 111
+    },
+    {
+      "name": "panels",
+      "group": "electron",
+      "include": ["packages/desktop/test/panels.test.ts"],
+      "setupFiles": ["packages/desktop/test/support/electron-ready.ts"],
+      "groupOrder": 112
+    },
+    {
+      "name": "scenario-chat-ui",
+      "group": "electron",
+      "include": ["packages/desktop/test/scenario-chat-ui.test.ts"],
+      "setupFiles": ["packages/desktop/test/support/electron-ready.ts"],
+      "groupOrder": 113
+    },
+    {
+      "name": "experiments",
+      "include": ["packages/host/test/project-members.experiments.test.ts"],
+      "maxWorkers": 1
+    }
+  ],
+  "required": [
+    {
+      "file": "packages/core/test/authentic-migration-audit.test.ts",
+      "passed": 12
+    },
+    {
+      "file": "packages/core/test/local-authorization.test.ts",
+      "mustPass": [
+        "upgrades an authentic schema-seven database without extending its confirmed local authority"
+      ]
+    }
+  ]
+}

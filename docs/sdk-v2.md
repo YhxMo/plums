@@ -4,7 +4,7 @@
 
 SDK v2 保留 SDK v1 普通扩展的贡献、设置、角色、事件、能力和依赖调用接口。旧普通扩展无需修改；包格式仍为 2.x，未知字段原样保留。依赖旧内置 `service/model/complete` 的模型组件需要显式升级，宿主不提供协议适配兜底。
 
-可选 `plumsDesktop.protocols` 声明版本化协议提供项与需求，SDK 提供声明校验和元数据兼容判断。贡献可附带 `inputSchema/outputSchema` 元信息。可信管理窗口发现并选择当前 Agent 的提供者；`sdk.protocols.status(requirementId)` 查询连接状态，`sdk.protocols.invoke(requirementId, input)` 调用固定提供者。声明和连接不授予权限，具体依赖调用继续保持原检查。接口、限制与记忆/白板示范契约见 [扩展协议](extension-protocols.md)，后续范围见 组合计划（内部验证记录）。
+可选 `plumsDesktop.protocols` 声明版本化协议提供项与需求，SDK 提供声明校验和元数据兼容判断。贡献可附带 `inputSchema/outputSchema` 元信息。可信管理窗口发现并选择当前 Agent 的提供者；`sdk.protocols.status(requirementId)` 查询连接状态，`sdk.protocols.invoke(requirementId, input)` 调用固定提供者。声明和连接不授予权限，具体依赖调用继续保持原检查。接口、限制与记忆/白板示范契约见[扩展协议](extension-protocols.md)。
 
 ## 隔离面板与消息
 
@@ -121,7 +121,7 @@ SDK `engine.start/request/cancel/stop/status` 只能控制当前组件声明的�
 }
 ```
 
-当前支持 `resources-cas/events/task-attach/controlled-node/controlled-exec/policy-v1/ui-attach`；声明所需的未知功能会在作者代码启动前拒绝。独立 UI 桥已由阶段 5 接入。仅有 SDK 类型或 common 字段不能证明第三方行为兼容。
+当前支持 `resources-cas/events/task-attach/controlled-node/controlled-exec/policy-v1/ui-attach`；声明所需的未知功能会在作者代码启动前拒绝。独立 UI 桥已接入。仅有 SDK 类型或 common 字段不能证明第三方行为兼容。
 
 `protocols.requires/provides` 继续声明自定义业务协议和贡献槽，由用户在可信窗口选择具体提供者。共同桥不要求包名依赖，也不允许作者自行改选候选。提供者按既有贡献入口注册处理器，收到的输入固定为 `{operation,input}`；这两个字段属于业务请求，宿主不解释 operation。提供者自己的 inputSchema 必须接受该包装。
 
@@ -157,11 +157,11 @@ if (!result.outcome.ok)
 
 `common.resources` 与现有 `sdk.resources/window.plums.resources` 是同一 CAS 服务。受控 Node 的文件、HTTPS、资源和命令继续通过 capability/resources 请求宿主；作者不获得宿主密钥、管理 IPC 或任意进程权限。`runtime:"controlled-node"` 使用固定 Node 26.5.1、只读验证快照和临时 scratch；普通 isolate 继续使用 64 MiB/五秒同步预算。Node 的任务期限、RSS 256 MiB 与心跳监管独立生效，不把五秒同步预算用于长任务。
 
-命令仍用 `sdk.capability(permissionId,{kind:"exec",args,cwd:{root,path}})`。作者清单声明 exec target/cwdRoots 与精确 fs read/write 权限；用户在可信页为逻辑 target 选择固定程序、读根、写根。程序摘要、目录实体和整链权限在执行前重新核验。命令单独传参，无宿主 shell、环境或任意程序路径输入。默认安全模式的命令启动经单次可信确认；阶段 4 策略模式通过有效策略决定是否确认，目录操作不得越过有效任务最大范围。依赖只允许系统只读库；直接绑定脚本、外部 dylib 与需要 fork 的程序不作为已支持路径。
+命令仍用 `sdk.capability(permissionId,{kind:"exec",args,cwd:{root,path}})`。作者清单声明 exec target/cwdRoots 与精确 fs read/write 权限；用户在可信页为逻辑 target 选择固定程序、读根、写根。程序摘要、目录实体和整链权限在执行前重新核验。命令单独传参，无宿主 shell、环境或任意程序路径输入。默认安全模式的命令启动经单次可信确认；策略模式通过有效策略决定是否确认，目录操作不得越过有效任务最大范围。依赖只允许系统只读库；直接绑定脚本、外部 dylib 与需要 fork 的程序不作为已支持路径。
 
-首轮实际验证为 macOS 27.0.1 arm64；Seatbelt 或边界探测失败时拒绝启动，无普通权限回退。engines 按组件已确认的执行项与 Agent 上限运行，可与 common 运行/任务、资源范围和短期能力范围并存；旧信任只迁移为原入口自身的整机执行项，不授予项目或资源范围。完整语义、错误和未验收内容见[共同契约](common-contract.md)、阶段 3 记录（内部验证记录）。
+首轮实际验证为 macOS 27.0.1 arm64；Seatbelt 或边界探测失败时拒绝启动，无普通权限回退。engines 按组件已确认的执行项与 Agent 上限运行，可与 common 运行/任务、资源范围和短期能力范围并存；旧信任只迁移为原入口自身的整机执行项，不授予项目或资源范围。
 
-### 第三方策略接入（阶段 4）
+### 第三方策略接入
 
 策略是本 Agent 已安装、启用且同意的普通提供者。声明 `common.policy.provideId`，并将该槽映射到 `org.plums.policy` 1.0.0 的 tools 贡献；贡献入口名称由作者命名，操作固定为 `evaluate`。例如：
 
@@ -206,7 +206,7 @@ export function activate(sdk) {
 
 该固定决定仅演示协议，不是风险分类算法。业务消费者无需声明策略包依赖或修改源码：用户在可信管理页为整个 Agent 选择固定策略和模式名称，再逐项批准参与组件、类别、操作、逻辑目标及 15 分钟或 1 小时期限。模式名称只保存偏好，不能替代实际策略决定或扩大权限。无策略时保留安全确认；宿主经办能力选择健康策略但没有有效租约时返回 `POLICY_UNAVAILABLE`，重启不恢复租约；提供者失效时，仅需要单次确认的操作可回到可信窗口。本地启动与请求使用 `category:"local"/target:engineId/operation:"start"|method`，最大范围来自已有组件执行项，confirm 由该项满足，deny 仍拒绝；该路径无需短期租约，意图不含请求参数。
 
-`maximum.selection` 是完整逻辑最大范围；资源项还须匹配阶段 2 的唯一活动业务资源范围，完全访问例外只由该资源范围选择。文件/HTTPS 仍受现有短期能力范围约束；命令还需选择固定程序全部读写目录的对应操作，write 不包含 read。工具分发和 MCP 远程工具评估仍保留真实调用链、声明/同意及 MCP 指纹批准。最大范围各项按调用链逐组件取交集；未选项直接拒绝，confirm 不能补授权。
+`maximum.selection` 是完整逻辑最大范围；资源项还须匹配唯一活动业务资源范围，完全访问例外只由该资源范围选择。文件/HTTPS 仍受现有短期能力范围约束；命令还需选择固定程序全部读写目录的对应操作，write 不包含 read。工具分发和 MCP 远程工具评估仍保留真实调用链、声明/同意及 MCP 指纹批准。最大范围各项按调用链逐组件取交集；未选项直接拒绝，confirm 不能补授权。
 
 上下文包含宿主身份、真实链、callId/taskId、无凭据意图、可信逻辑目标 `target`、能力/资源的公开 `permissionId`、最大范围、当前期限 `deadline`、modeGeneration、唯一 assessmentId 和操作 SHA-256。键排序规范化的指纹绑定真实复制请求，作者回显原指纹，不自行计算或将自己的 actor 当作身份。普通单次能力的 taskId 使用该宿主调用的 callId；共同调用使用真实宿主任务 id。请求头只列名称，已知密钥和凭据字段不进入意图；正文不进入审计。策略运行使用独立隔离实例，计算期只有自身非密钥 settings/context，禁止能力、资源、调用、事件、引擎与管理请求，违规使评估失败，即使作者捕获错误也不能放行。
 
@@ -233,8 +233,8 @@ unsubscribe();
 
 状态订阅每 250ms 读取当前授权快照，可能略过短暂中间状态；业务事件仍用 `call.events/attach`。取消订阅抑制在途回复。任务列表和订阅限自身任务或可信批准的兼容接管，不提供跨 Agent 的任意任务发现。后台任务重开按 taskId 附着，不能自动重新执行；重启只有无正文状态，布局不保存 taskId 或接管批准，权限租约归零。
 
-可信组合页保存组件摘要、稳定 viewId、面板需求槽、矩形及可见性。恢复重新核验声明/连接并创建新句柄；失效选择在可信工作栏及管理页诊断，由用户重选或保存移除。业务界面可以安排现有面板布局，不能通过布局选择新组件、切换后端或批准接管。侧界面关闭只取消该容器任务；兼作后端的组件继续服务有效消费者。主界面 cancel 按原组件及相同文件快照续接，旧调用句柄仍失效。完整语义见[共同契约](common-contract.md#独立界面接入阶段-5)。
+可信组合页保存组件摘要、稳定 viewId、面板需求槽、矩形及可见性。恢复重新核验声明/连接并创建新句柄；失效选择在可信工作栏及管理页诊断，由用户重选或保存移除。业务界面可以安排现有面板布局，不能通过布局选择新组件、切换后端或批准接管。侧界面关闭只取消该容器任务；兼作后端的组件继续服务有效消费者。主界面 cancel 按原组件及相同文件快照续接，旧调用句柄仍失效。完整语义见[共同契约](common-contract.md#独立界面接入)。
 
 共同界面的 legacy `plums.onEvent` 只接收本组件事件；跨组件业务事件经已绑定共同调用及任务资格传递。未声明 common 的旧默认 startup 前端保留同 Agent legacy 总线兼容；可信宿主按声明与当前容器决定，备用及侧界面不继承该广播资格。`panels.closed/session` 等可信生命周期通知继续送达相关容器。
 
-桌面、宿主与 SDK 1.0.0 稳定线的版本关系、旧桥保留承诺、恢复及打包验收入口见[桌面兼容与恢复](desktop-recovery.md)。本轮为本地审阅，实际验证状态见阶段 7（内部验证记录）。
+桌面、宿主与 SDK 0.1.0 预览版的版本关系、旧桥保留承诺、恢复及打包验收入口见[桌面兼容与恢复](desktop-recovery.md)。

@@ -60,7 +60,7 @@ gh attestation verify Plums-0.1.0-arm64.dmg --repo YhxMo/plums
 
 预览包采用 ad-hoc 签名，未公证。浏览器下载的包可能被 Gatekeeper 拦截。
 如果系统提供对应选项，可尝试右键「打开」，或进入「系统设置 → 隐私与安全性 → 仍要打开」。
-**Gatekeeper 实际提示文字及上述操作步骤待用户实测。**
+Gatekeeper 提示随系统版本变化；源码验证不覆盖浏览器下载路径。
 
 `xattr -dr com.apple.quarantine Plums.app` 会移除隔离标记并绕过该项系统检查。
 只对已核对来源、校验和与构建来源证明的包使用该命令。
@@ -125,7 +125,7 @@ pnpm desktop:dev
 
 工作区使用 npm 组织作用域 `@plumsjs`：`@plumsjs/core`、`@plumsjs/cli`、
 `@plumsjs/sdk`、`@plumsjs/host` 和 `@plumsjs/desktop`。
-CLI 命令仍为 `plums`。npm 发布时间待定，目前按上文从源码构建。
+CLI 命令仍为 `plums`。按上文从源码构建。
 SDK、host、desktop 和工作区根目录保留已有的 `private: true` 设置。
 
 ## 开发

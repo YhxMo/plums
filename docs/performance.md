@@ -83,7 +83,7 @@ pnpm bench:performance --out /tmp/plums-performance.json
 
 九文件链使用一个自造密钥引用，记录 authorize 918 次、foundation 428 次（完整 6、非完整 402、检查上下文外 20）、installationMetadata 1656 次、元数据条目访问 5796 次；元数据遍历累计 2175.71ms，含重叠。新回归用同一类自造夹具，统计授权、底座及组件根 `lstat` 边界的遍历次数，阈值取本次计数的 `ceil(×1.2)`，不设墙钟门槛。既有七个复核用例及 library/secret 上限保持。
 
-此前无并发测量记录在 [handoff](handoff.md) 的“优化前/后”和“两项热点”行；这里保留其历史口径，不当成本次重测结果：
+以下为此前无并发测量的历史口径，不当成本次重测结果：
 
 | 链路       | library/matches 前→后 | authorize 前→后 | foundation 前→后 | invoke 秒前→后 |
 | ---------- | --------------------- | --------------- | ---------------- | -------------- |
@@ -93,6 +93,4 @@ pnpm bench:performance --out /tmp/plums-performance.json
 
 这三条历史链的 `SecretStore.get` 均为 0。旧四 worker 热点样本记录元数据条目遍历 2336/7545 次，累计 1088/14025ms（含重叠）；归档读取 129/148 次，摘要 4212/6132 次。单用户体验只能表述为本机 M4 空闲下这几条含多次回调的链约 3.3–4.9 秒，不能推断更慢机器的数字或称为单请求延迟。
 
-[CI 的 A/B 表](ci.md#2026-10-10-同负载测量)记录 local-callbacks 文件 85.86→98.88 秒、confirm-once 16.39→19.73 秒；B 为七文件竞争样本，未复现历史超时，也不等于全量竞争。local-callbacks/confirm-once 仍采用 groupOrder 200/201 的调度隔离；**这是调度隔离，不是性能修复，并发负载下的超时根因未归因**。
-
-本次证据：`.artifacts/concurrency/{chain-1,chain-load-1,restart-load-1}.{jsonl,json,log}`、`profile.patch`、`profile-summary.json`、`simulate.mjs`。模拟只用于决定是否实施，不替代真实性能验收。
+local-callbacks/confirm-once 仍采用 groupOrder 200/201 的调度隔离；**这是调度隔离，不是性能修复，并发负载下的超时根因未归因**。

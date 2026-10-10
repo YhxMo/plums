@@ -9,7 +9,7 @@ it("test-only chat UI handles empty history, pending replies, escaped content, e
   const directory = await mkdtemp(
     path.join(os.tmpdir(), "plums-scenario-chat-ui-"),
   );
-  await mkdir(path.resolve(".artifacts/requirements-v1"), { recursive: true });
+  await mkdir(path.resolve(".build-cache/scenarios"), { recursive: true });
   const file = path.resolve(
     "packages/host/test/fixtures/extensions/agent-loop/index.html",
   );
@@ -58,7 +58,7 @@ it("test-only chat UI handles empty history, pending replies, escaped content, e
       ).toBe(true);
       await page.screenshot({
         path: path.resolve(
-          `.artifacts/requirements-v1/scenario-chat-ui-${width}.png`,
+          `.build-cache/scenarios/scenario-chat-ui-${width}.png`,
         ),
       });
     }
@@ -94,7 +94,7 @@ it("test-only chat UI handles empty history, pending replies, escaped content, e
     await uiExpect(page.getByRole("listitem")).toHaveCount(4);
     await page.screenshot({
       path: path.resolve(
-        ".artifacts/requirements-v1/scenario-chat-ui-conversation.png",
+        ".build-cache/scenarios/scenario-chat-ui-conversation.png",
       ),
     });
     const windowHandle = await application.browserWindow(page);
@@ -106,7 +106,7 @@ it("test-only chat UI handles empty history, pending replies, escaped content, e
     ).toBe(true);
     await page.screenshot({
       path: path.resolve(
-        ".artifacts/requirements-v1/scenario-chat-ui-conversation-narrow.png",
+        ".build-cache/scenarios/scenario-chat-ui-conversation-narrow.png",
       ),
     });
   } finally {

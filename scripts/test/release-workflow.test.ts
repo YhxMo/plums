@@ -1,8 +1,8 @@
 import { readFileSync } from "node:fs";
 import { expect, it } from "vitest";
-import { assertReleaseWorkflow } from "../../../scripts/check-release-workflow.mjs";
+import { assertReleaseWorkflow } from "../check-release-workflow.mjs";
 const workflow = readFileSync(
-  new URL("../../../.github/workflows/release.yml", import.meta.url),
+  new URL("../../.github/workflows/release.yml", import.meta.url),
   "utf8",
 );
 

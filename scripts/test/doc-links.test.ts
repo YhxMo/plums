@@ -1,8 +1,5 @@
 import { expect, it } from "vitest";
-import {
-  checkDocLinks,
-  markdownAnchors,
-} from "../../../scripts/check-doc-links.mjs";
+import { checkDocLinks, markdownAnchors } from "../check-doc-links.mjs";
 
 const documents = (link: string) =>
   new Map([

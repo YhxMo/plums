@@ -916,53 +916,6 @@ export class InstallStore {
       "INSERT INTO engine_trust_revision (id,revision) VALUES (1,1) ON CONFLICT(id) DO UPDATE SET revision = revision + 1",
     ).run();
   }
-  saveEngineTrust(record: EngineTrust, revision: number): boolean {
-    return this.connection()
-      .transaction(() => {
-        if (this.engineTrustRevision() !== revision) return false;
-        const manifest = this.getManifest(record.packageId),
-          installed = this.get(record.packageId);
-        const permission =
-          manifest && isManifestV2(manifest)
-            ? manifest.permissions.find(
-                (p) => p.kind === "engine" && p.target === record.engineId,
-              )
-            : undefined;
-        if (
-          !permission ||
-          (permission.tier ?? "machine") !== "machine" ||
-          installed?.installedAt !== record.installedAt ||
-          enginePermissionKey(permission) !== record.permission
-        )
-          return false;
-        const tier = this.agentTier(record.instanceId);
-        tier.ceiling = "machine";
-        this.statement(
-          "INSERT OR REPLACE INTO agent_tier (instance_id,record) VALUES (?,?)",
-        ).run(record.instanceId, JSON.stringify(tier));
-        const grant: AgentLocalGrant = {
-          ...record,
-          authorizationId: randomUUID(),
-          tier: "machine",
-          hosts: [],
-          toolchains: [],
-          configuration: [],
-          credentials: [],
-          source: "confirmation",
-        };
-        this.statement(
-          "INSERT OR REPLACE INTO agent_local_grants (instance_id,package_id,engine_id,record) VALUES (?,?,?,?)",
-        ).run(
-          record.instanceId,
-          record.packageId,
-          record.engineId,
-          JSON.stringify(grant),
-        );
-        this.invalidatePendingEngineTrust();
-        return true;
-      })
-      .immediate();
-  }
   removeEngineTrust(
     packageId: string,
     engineId?: string,

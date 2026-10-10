@@ -1,4 +1,4 @@
-/** @deprecated Schema-6 archive shape and machine-only compatibility view. */
+/** Schema-6 archive shape, retained for migration and internal machine-grant reads. */
 export interface EngineTrust {
   instanceId: string;
   packageId: string;
@@ -7,18 +7,6 @@ export interface EngineTrust {
   permission: string;
   grantedAt: string;
 }
-/** @deprecated Use the Agent's local authorization state for new management flows. */
-export interface EngineTrustSnapshot {
-  instanceId: string;
-  packageId: string;
-  engineId: string;
-  installedAt: string;
-  version: string;
-  permission: string;
-  revision: number;
-  trusted: boolean;
-}
-
 /** Property order is not a permission change; unknown fields remain part of the declaration. */
 export function enginePermissionKey(permission: unknown): string {
   return JSON.stringify(permission, (_key, value: unknown) => {

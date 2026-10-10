@@ -367,7 +367,7 @@ it("shares a pending migration audit while each caller keeps only its own failur
     }
   });
   const first = f.core.localAuthorizationState(),
-    second = f.core.engineTrustSnapshot("first", "local");
+    second = f.core.localAuthorizationState();
   const collected = Promise.allSettled([first, second]);
   await waiting;
   release();

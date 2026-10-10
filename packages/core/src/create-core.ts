@@ -4,10 +4,6 @@ import {
   type ResourceAccessInput,
   type ResourceAccessCheckpoint,
 } from "./capabilities/resource-access.js";
-import {
-  enginePermissionKey,
-  type EngineTrustSnapshot,
-} from "./install/engine-trust.js";
 import type {
   LocalAuthorizationState,
   LocalAuthorizationCommit,
@@ -49,7 +45,7 @@ import type {
 import * as mcpV2 from "./mcp/tools-v2.js";
 import type { McpApprovalV2 } from "./install/store.js";
 import { requireInstalled, requireManifest } from "./install/lifecycle.js";
-import { isManifestV2, type Manifest } from "./package/types.js";
+import { type Manifest } from "./package/types.js";
 import { rm } from "node:fs/promises";
 import {
   CAPABILITY_FAILED,
@@ -196,15 +192,6 @@ export interface Core {
     installedAt: string,
     refs: readonly string[],
   ): Promise<void>;
-  /** @deprecated Compatibility for machine entries. Replace with Agent-level tier confirmation. */
-  engineTrustSnapshot(
-    packageId: string,
-    engineId: string,
-  ): Promise<EngineTrustSnapshot>;
-  /** @deprecated Machine-only compatibility; cannot approve project execution or fs/exec coverage. */
-  grantEngineTrust(snapshot: EngineTrustSnapshot): Promise<boolean>;
-  /** @deprecated Revokes matching local entries; the schema-6 archive remains read-only. */
-  revokeEngineTrust(packageId: string, engineId?: string): Promise<void>;
   /** Trusted host binding epoch. Includes saves where only a secret changed. */
   settingsRevision(id: string): Promise<number>;
   /** Trusted host only: preview and approve a finite task; not an SDK interface. */
@@ -705,50 +692,6 @@ export function createCore(options: CreateCoreOptions): Core {
       if (migrationAudit === pending) migrationAudit = undefined;
     }
   };
-  const engineSnapshot = (
-    packageId: string,
-    engineId: string,
-  ): EngineTrustSnapshot => {
-    const installed = requireInstalled(ctx, packageId),
-      manifest = requireManifest(ctx, packageId);
-    if (!isManifestV2(manifest))
-      throw new PlumsError({
-        code: "PERMISSION_DENIED",
-        message: "本地执行权限需要 2.x 清单。",
-        path: "/formatVersion",
-        details: { reason: "FORMAT_API_MISMATCH" },
-      });
-    const declaration = manifest.permissions.find(
-      (p) => "kind" in p && p.kind === "engine" && p.target === engineId,
-    );
-    if (!declaration)
-      throw new PlumsError({
-        code: "PERMISSION_DENIED",
-        message: "Engine permission is not declared.",
-      });
-    const permission = enginePermissionKey(declaration),
-      record = store
-        .listEngineTrust(packageId)
-        .find(
-          (r) =>
-            r.instanceId === capabilityCtx.instanceId &&
-            r.engineId === engineId,
-        );
-    return {
-      instanceId: capabilityCtx.instanceId,
-      packageId,
-      engineId,
-      installedAt: installed.installedAt,
-      version: installed.version,
-      permission,
-      revision: store.engineTrustRevision(),
-      trusted:
-        !!record &&
-        record.instanceId === capabilityCtx.instanceId &&
-        record.installedAt === installed.installedAt &&
-        record.permission === permission,
-    };
-  };
   return {
     version: VERSION,
     localAuthorizationState: guardAuthorization(async (call) => {
@@ -783,44 +726,6 @@ export function createCore(options: CreateCoreOptions): Core {
         store.releaseLocalCredentialReferences(id, installedAt, [...refs]);
       },
     ),
-    engineTrustSnapshot: guardAuthorization(async (call, id, engineId) => {
-      await ensureLocalMigration(call);
-      return engineSnapshot(id, engineId);
-    }),
-    grantEngineTrust: guardAuthorization(async (call, snapshot) => {
-      snapshot = structuredClone(snapshot);
-      await ensureLocalMigration(call);
-      const current = engineSnapshot(snapshot.packageId, snapshot.engineId);
-      if (
-        (
-          [
-            "instanceId",
-            "packageId",
-            "engineId",
-            "installedAt",
-            "version",
-            "permission",
-            "revision",
-          ] as const
-        ).some((key) => current[key] !== snapshot[key])
-      )
-        return false;
-      return store.saveEngineTrust(
-        {
-          instanceId: current.instanceId,
-          packageId: current.packageId,
-          engineId: current.engineId,
-          installedAt: current.installedAt,
-          permission: current.permission,
-          grantedAt: new Date().toISOString(),
-        },
-        current.revision,
-      );
-    }),
-    revokeEngineTrust: guard(async (id, engineId) => {
-      requireInstalled(ctx, id);
-      store.removeEngineTrust(id, engineId, capabilityCtx.instanceId);
-    }),
     dataDir: resolvedDataDir,
     limits,
     validatePackage: guard(async (input) => {

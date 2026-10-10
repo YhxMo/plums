@@ -17,7 +17,7 @@ import {
 const root = fileURLToPath(new URL("../", import.meta.url)),
   dist = path.join(root, "packages/host/dist"),
   target = path.join(dist, "foundation-resources"),
-  stage = path.join(root, ".artifacts/official-foundation-build");
+  stage = path.join(root, ".build-cache/official-foundation-build");
 await rm(stage, { recursive: true, force: true });
 await mkdir(stage, { recursive: true });
 await mkdir(target, { recursive: true });
@@ -25,7 +25,7 @@ await mkdir(target, { recursive: true });
 // supply their own key explicitly; no private key is copied into an artifact or application.
 const keyFile =
   process.env.PLUMS_OFFICIAL_SIGNING_KEY ??
-  path.join(root, ".artifacts/foundation-signing/private.pem");
+  path.join(root, ".build-cache/foundation-signing/private.pem");
 if (!process.env.PLUMS_OFFICIAL_SIGNING_KEY) {
   await mkdir(path.dirname(keyFile), { recursive: true, mode: 0o700 });
   try {

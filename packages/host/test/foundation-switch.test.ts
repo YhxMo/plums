@@ -33,7 +33,7 @@ async function setup() {
   const secrets = new Map<string, MemorySecretStore>();
   const options = {
     dataDir: dir,
-    nodePath: path.resolve(".artifacts/node-v26.5.1-darwin-arm64/bin/node"),
+    nodePath: path.resolve(".build-cache/node-v26.5.1-darwin-arm64/bin/node"),
     confirm: { ask: vi.fn(async () => true) },
     secretStore: (id: string) => {
       if (!secrets.has(id)) secrets.set(id, new MemorySecretStore());

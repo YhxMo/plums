@@ -95,7 +95,7 @@ export async function open({
         dataDir: path.join(dir, "data"),
         nodePath:
           nodePath ??
-          path.resolve(".artifacts/node-v26.5.1-darwin-arm64/bin/node"),
+          path.resolve(".build-cache/node-v26.5.1-darwin-arm64/bin/node"),
         secretStore: () => new MemorySecretStore(),
         confirm: {
           ask: async (request) => {

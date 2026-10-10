@@ -165,7 +165,13 @@ export async function buildHistoricalCore(version: 6 | 7 = 6) {
       /* @vite-ignore */ pathToFileURL(
         path.join(pkg, "implementation/index.js"),
       ).href
-    )) as typeof Current;
+    )) as Omit<typeof Current, "createCore"> & {
+      createCore(options: Current.CreateCoreOptions): Current.Core & {
+        engineTrustSnapshot(packageId: string, engineId: string): Promise<any>;
+        grantEngineTrust(snapshot: any): Promise<boolean>;
+        revokeEngineTrust(packageId: string, engineId?: string): Promise<void>;
+      };
+    };
     const store = (await import(
       /* @vite-ignore */ pathToFileURL(
         path.join(pkg, "implementation/install/store.js"),

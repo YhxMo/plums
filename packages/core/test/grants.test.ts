@@ -1,3 +1,7 @@
+import {
+  localEntryPlan,
+  revokeLocalEntry,
+} from "./local-authorization-fixture.mjs";
 import Database from "better-sqlite3";
 import path from "node:path";
 import { rmSync } from "node:fs";
@@ -109,8 +113,8 @@ async function fixture(
       sources: [],
     });
   }
-  await w.core.grantEngineTrust(
-    await w.core.engineTrustSnapshot("assistant", "local"),
+  await w.core.commitLocalAuthorization(
+    await localEntryPlan(w.core, "assistant", "local"),
   );
   const scope = {
     reads: ["conversation", "memory"],
@@ -232,11 +236,11 @@ it("keeps finite Grants effective when another component is confirmed or revoked
   const w = await fixture();
   await otherEngine(w);
   const g = await w.create();
-  await w.core.grantEngineTrust(
-    await w.core.engineTrustSnapshot("other", "local"),
+  await w.core.commitLocalAuthorization(
+    await localEntryPlan(w.core, "other", "local"),
   );
   expect(await w.core.checkGrant(g.id, "assistant", w.use)).toEqual(g);
-  await w.core.revokeEngineTrust("other", "local");
+  await revokeLocalEntry(w.core, "other", "local");
   await expect(w.run(g.id)).resolves.toHaveProperty("kind", "service");
   expect(w.confirm.asked).toHaveLength(0);
 });
@@ -272,11 +276,11 @@ it.each([6, 7] as const)(
     g.fingerprint = await legacyGrantFingerprint(w.core, w.dataDir, g);
     await freezeLegacy(w, g, schema);
     expect(await w.core.checkGrant(g.id, "assistant", w.use)).toEqual(g);
-    await w.core.grantEngineTrust(
-      await w.core.engineTrustSnapshot("other", "local"),
+    await w.core.commitLocalAuthorization(
+      await localEntryPlan(w.core, "other", "local"),
     );
     expect(await w.core.checkGrant(g.id, "assistant", w.use)).toEqual(g);
-    await w.core.revokeEngineTrust("other", "local");
+    await revokeLocalEntry(w.core, "other", "local");
     w.core.close();
     await expect(w.run(g.id)).resolves.toHaveProperty("kind", "service");
     expect((await w.core.listGrants())[0]).toEqual(g);
@@ -293,12 +297,12 @@ it.each([6, 7] as const)(
     const g = await w.create();
     g.fingerprint = await legacyGrantFingerprint(w.core, w.dataDir, g);
     // The old global fingerprint was already stale before this migration started.
-    await w.core.grantEngineTrust(
-      await w.core.engineTrustSnapshot("other", "local"),
+    await w.core.commitLocalAuthorization(
+      await localEntryPlan(w.core, "other", "local"),
     );
     await freezeLegacy(w, g, schema);
     expect(await w.core.checkGrant(g.id, "assistant", w.use)).toBeUndefined();
-    await w.core.revokeEngineTrust("other", "local");
+    await revokeLocalEntry(w.core, "other", "local");
     w.core.close();
     expect(await w.core.checkGrant(g.id, "assistant", w.use)).toBeUndefined();
     expect((await w.core.listGrants())[0]).toEqual(g);
@@ -312,11 +316,11 @@ it.each([6, 7] as const)(
 it("keeps another entry in the same component from invalidating the selected Grant", async () => {
   const w = await fixture({}, true),
     g = await w.create();
-  await w.core.grantEngineTrust(
-    await w.core.engineTrustSnapshot("assistant", "other"),
+  await w.core.commitLocalAuthorization(
+    await localEntryPlan(w.core, "assistant", "other"),
   );
   expect(await w.core.checkGrant(g.id, "assistant", w.use)).toEqual(g);
-  await w.core.revokeEngineTrust("assistant", "other");
+  await revokeLocalEntry(w.core, "assistant", "other");
   await expect(w.run(g.id)).resolves.toHaveProperty("kind", "service");
   expect(w.confirm.asked).toHaveLength(0);
 });
@@ -450,7 +454,7 @@ it.each([
   if (reason === "disabled") await w.core.disable("assistant");
   if (reason === "settings") await w.core.setSettings("model", {});
   if (reason === "engine-trust")
-    await w.core.revokeEngineTrust("assistant", "local");
+    await revokeLocalEntry(w.core, "assistant", "local");
   await expect(w.run(g.id)).rejects.toMatchObject({
     code: reason === "binding" ? "CONSENT_REQUIRED" : "PERMISSION_DENIED",
   });
@@ -557,7 +561,7 @@ it("does not activate a grant when its durable transaction fails", async () => {
 it("migrates version 5 without losing installs, consent or engine/service authority", async () => {
   const w = await fixture(),
     before = await w.core.listInstalled(),
-    trust = await w.core.engineTrustSnapshot("assistant", "local"),
+    trust = await localEntryPlan(w.core, "assistant", "local"),
     consents = await w.core.listBackgroundConsents("assistant");
   w.core.close();
   const db = new Database(path.join(w.dataDir, "plums.db"));
@@ -565,7 +569,7 @@ it("migrates version 5 without losing installs, consent or engine/service author
   db.pragma("user_version=5");
   db.close();
   expect(await w.core.listInstalled()).toEqual(before);
-  expect(await w.core.engineTrustSnapshot("assistant", "local")).toMatchObject({
+  expect(await localEntryPlan(w.core, "assistant", "local")).toMatchObject({
     trusted: true,
     installedAt: trust.installedAt,
   });
@@ -596,9 +600,9 @@ it.each([false, true])(
         await freezeLegacy(w, g, 6);
         expect(await w.core.checkGrant(g.id, "assistant", w.use)).toEqual(g);
       }
-      await w.core.revokeEngineTrust("assistant", "local");
-      await w.core.grantEngineTrust(
-        await w.core.engineTrustSnapshot("assistant", "local"),
+      await revokeLocalEntry(w.core, "assistant", "local");
+      await w.core.commitLocalAuthorization(
+        await localEntryPlan(w.core, "assistant", "local"),
       );
       expect(await w.core.checkGrant(g.id, "assistant", w.use)).toBeUndefined();
     } finally {

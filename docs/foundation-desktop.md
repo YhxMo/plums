@@ -68,8 +68,8 @@ ABI 1 的 `code/adapter.mjs` 导出 `createOfficialFoundationSession(options, no
 
 每次创建读取精确归档，等待后按原规则复核。停止与关闭等待实际进程退出，成功删除快照后才释放持久清理责任。归档和旧版本不会随当前默认替换；引用保护包括停用绑定。官方源码与 native 依赖均来自该选择的归档，宿主服务和固定 Node 属于公共宿主边界。
 
-当前应用的 canonical bundle 与编译输入另外校验。新版应用可运行受信任的旧官方归档；当前应用执行字节被修改时仍拒绝。阶段 4 的唯一已审阅内部 canonical ZIP 通过显式固定 SHA-256 迁移入口保留执行，旧字节不变，外部 native 依赖沿用这次迁移的宿主安装。其他未知 unsigned ZIP 不能进入 builtin 路径。
+当前应用的 canonical bundle 与编译输入另外校验。新版应用可运行受信任的旧官方归档；当前应用执行字节被修改时仍拒绝。唯一已审阅内部 canonical ZIP 通过显式固定 SHA-256 迁移入口保留执行，旧字节不变，外部 native 依赖沿用这次迁移的宿主安装。其他未知 unsigned ZIP 不能进入 builtin 路径。
 
-`build-official-foundation.mjs` 在本地开发时生成并复用 `.artifacts/foundation-signing/private.pem`，私钥不进入源码、ZIP、应用或证据快照。正式发布构建须用 `PLUMS_OFFICIAL_SIGNING_KEY` 指定稳定发布身份；更换发布信任根需用 `PLUMS_OFFICIAL_TRUST_KEYS` 指定含旧 PEM 公钥的 JSON 数组文件。当前本地制品只证明本次构建的签名连续性，不宣称上游发行认证。旧制品若不在应用信任根中，只保留记录并报告不可用，不降级为信任任意本机 ZIP。
+`build-official-foundation.mjs` 在本地开发时生成并复用 `.build-cache/foundation-signing/private.pem`，私钥不进入源码、ZIP、应用或证据快照。正式发布构建须用 `PLUMS_OFFICIAL_SIGNING_KEY` 指定稳定发布身份；更换发布信任根需用 `PLUMS_OFFICIAL_TRUST_KEYS` 指定含旧 PEM 公钥的 JSON 数组文件。当前本地制品只证明本次构建的签名连续性，不宣称上游发行认证。旧制品若不在应用信任根中，只保留记录并报告不可用，不降级为信任任意本机 ZIP。
 
 完整第三方 SDK 黑盒符合性和专门验证扩展/Agent 整合包仍延期到 6/7B。当前第三方执行证据仅为 SDK 2.0.0 register/settings/context/capability 与原生 fs/list。

@@ -114,7 +114,7 @@ export class ExtensionRuntime {
       try {
         // A pending host RPC retains its own authorization and execution outcome.
         // After failure delivery, defer idle checks for five cumulative seconds
-        // outside host RPC waits. This handoff allowance does not change the
+        // outside host RPC waits. This scheduling allowance does not change the
         // isolate execution budget; repeated failures cannot renew it.
         if (
           this.inflight === 0 &&

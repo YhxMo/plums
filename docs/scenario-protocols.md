@@ -2,7 +2,7 @@
 
 这些协议仅供 `packages/host/test/fixtures/extensions/` 中的测试组件使用。名称、操作和正文语义均不构成平台契约；宿主与 core 不解释模型消息、角色字段、工具名称或世界书。平台只校验贡献 schema、固定协议连接和授权。协议版本均为 `1.0.0`，包格式 `2.0`、桌面 SDK `2` 与业务版本彼此独立。
 
-当前已实现两种角色卡解析器、Fake 模型、循环、私有记忆、酒馆和远程 MCP 桥接夹具，覆盖 S-A、S-C、S-D 及两个消费者的解析器替换。两个整机探针已接入 S-F；编码、项目进程及其余组合场景仍待接入，不能据此宣称 S-A～S-H 全部通过。`org.plums.character-card` 是**草案，未冻结**；下一阶段可不兼容地调整。
+当前已实现两种角色卡解析器、Fake 模型、循环、私有记忆、酒馆和远程 MCP 桥接夹具，覆盖 聊天、酒馆、远程 MCP 及两个消费者的解析器替换。两个整机探针已接入 整机入口与迁移；编码、项目进程及其余组合场景仍待接入，不能据此宣称 全部业务场景 全部通过。`org.plums.character-card` 是**草案，未冻结**；下一阶段可不兼容地调整。
 
 ## 通用调用与错误
 
@@ -111,7 +111,7 @@ V1 验证六个基础字符串。V2 使用 `chara_card_v2/2.0` 封装；V3 使�
 
 `HttpMcpTransport.exchange(message, tool?, headers?)` 与 `fail(reply, fixedReason)` 是内部传输接口，本期只有 HTTP 实现。所有网络均经本组件的 connection 与 `service/https/request`。每次 `tools/call` 向 `sdk.capability` 传入当前工具描述，宿主复核调用链交集和独立 MCP 批准。用户通过可信 `host.approveMcp` 批准后才能调用；工具描述或 schema 改变、消失或返回后均须重新批准。批准身份保持连接器包 id 与 permissionId，指纹只包含名称、描述和 inputSchema，批准接口和记录不带 HTTP 字段。
 
-已完成的 HTTP 失败使用当前调用的 `failResponse` 收据：`HTTP_REJECTED` 或 `RESPONSE_INVALID`，保留真实 `executionState: completed`。不向宿主报告远端错误正文，不自动重试业务或平台拒绝。`scenarios/mcp.test.ts` 在两版本的 JSON/SSE 路径运行模型 → 循环 → MCP 桥接 S-D，全程使用 Fake Sink，不联网。
+已完成的 HTTP 失败使用当前调用的 `failResponse` 收据：`HTTP_REJECTED` 或 `RESPONSE_INVALID`，保留真实 `executionState: completed`。不向宿主报告远端错误正文，不自动重试业务或平台拒绝。`scenarios/mcp.test.ts` 在两版本的 JSON/SSE 路径运行模型 → 循环 → MCP 桥接 远程 MCP，全程使用 Fake Sink，不联网。
 
 本地 stdio 是下一阶段方向，将由声明本地执行的扩展在项目/整机进程中承载，届时需修改 AGENTS #10。本期不提供该传输。
 
@@ -121,11 +121,10 @@ V1 验证六个基础字符串。V2 使用 `chara_card_v2/2.0` 封装；V3 使�
 
 每次贡献先幂等启动自身已确认的 local 入口，再提交 JSONL 请求。临时文件写入、PID 和 initialize 上下文只由测试断言读取，审计不记录它们。`memory` 另有测试专用 localProbe 贡献，尝试 SDK start/request；它没有 engine 权限，在整机 Agent 中同样拒绝，也不能控制其他组件入口。该负向功能已列入底座 sdk.engine 需求。
 
-`scenarios/machine.test.ts` 使用真实固定 Node 与官方隔离底座，Fake 模型和自造临时文件验证 S-F。schema-6 数据夹具只给第一个入口旧信任，迁移后第二个入口仍待确认；不生成项目目录或 fs/exec 确认覆盖。整机进程没有系统沙箱，此测试不替代 R17 的项目逃逸验收。
+`scenarios/machine.test.ts` 使用真实固定 Node 与官方隔离底座，Fake 模型和自造临时文件验证 整机入口与迁移。schema-6 数据夹具只给第一个入口旧信任，迁移后第二个入口仍待确认；不生成项目目录或 fs/exec 确认覆盖。整机进程没有系统沙箱，此测试不替代 项目边界 的项目逃逸验收。
 
 ## 剩余项目夹具（未完成验收）
 
-`fixture.coding-tools` 提供 org.plums.agent-tools/1.0.0 的 list/call，声明项目入口、node/git 和测试主机候选；不自动授予网络。`fixture.crash-probe` 仅提供 ping/crash。`fixture.policy-fake` 经 org.plums.policy/1.0.0 返回固定决定，无审查算法或外发。它们仅在 vitest 中打包。S-B 的候选 list/call 功能声明与输入/输出 schema 已匹配，项目运行仍失败关闭；整机变体只验证生命周期。S-E 的导入摘要取便携 ZIP 中实际组件字节，授权与档位不导出。
-
+`fixture.coding-tools` 提供 org.plums.agent-tools/1.0.0 的 list/call，声明项目入口、node/git 和测试主机候选；不自动授予网络。`fixture.crash-probe` 仅提供 ping/crash。`fixture.policy-fake` 经 org.plums.policy/1.0.0 返回固定决定，无审查算法或外发。它们仅在 vitest 中打包。编码 的候选 list/call 功能声明与输入/输出 schema 已匹配，项目运行仍失败关闭；整机变体只验证生命周期。完整 Agent ZIP 的导入摘要取便携 ZIP 中实际组件字节，授权与档位不导出。
 
 coding-tools 的 run 测试协议使用 `{program:string,args:string[],cwd?:string}`，不接受 command 字符串；cwd 与文件路径必须落在 initialize 指定的项目目录内。结果为 `{exitCode,stdout,stderr,truncated?:true}`，每路输出最多 64 KiB，并按 UTF-8 边界截断；list/call 输出分别是工具定义数组和 `{ok,content}`。夹具的路径检查仅提供稳定错误，不能代替系统沙箱。独立 Node 协议测试不代表真实项目档位已可运行。

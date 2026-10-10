@@ -97,7 +97,7 @@ async function local(value: string, policy = false) {
     events: Readonly<AuditEvent>[] = [];
   const host = new DesktopHost({
     dataDir: dir,
-    nodePath: path.resolve(".artifacts/node-v26.5.1-darwin-arm64/bin/node"),
+    nodePath: path.resolve(".build-cache/node-v26.5.1-darwin-arm64/bin/node"),
     secretStore: () => secrets,
     egress,
     fs,
@@ -511,7 +511,7 @@ it.each(["callId", "phase", "completed"])(
       egress = new RecordingEgressSink({}, { status: 200, body: "{}" });
     const host = new DesktopHost({
       dataDir: dir,
-      nodePath: path.resolve(".artifacts/node-v26.5.1-darwin-arm64/bin/node"),
+      nodePath: path.resolve(".build-cache/node-v26.5.1-darwin-arm64/bin/node"),
       egress,
       secretStore: () => secrets,
       confirm: { ask: async () => true },

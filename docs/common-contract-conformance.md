@@ -8,9 +8,9 @@
 
 ```sh
 pnpm build
-node scripts/platform-conformance.mjs --runtime isolate --out .artifacts/conformance/isolate.json
-node scripts/platform-conformance.mjs --runtime controlled-node --node /absolute/node-26.5.1/bin/node --out .artifacts/conformance/node.json
-node scripts/platform-conformance.mjs --package /absolute/component.zip --out .artifacts/conformance/declaration.json
+node scripts/platform-conformance.mjs --runtime isolate --out .build-cache/conformance/isolate.json
+node scripts/platform-conformance.mjs --runtime controlled-node --node /absolute/node-26.5.1/bin/node --out .build-cache/conformance/node.json
+node scripts/platform-conformance.mjs --package /absolute/component.zip --out .build-cache/conformance/declaration.json
 ```
 
 `pnpm conformance:platform --runtime isolate` 也会先构建。直接执行 Node 命令适合连续验证，避免重复构建。`--package` 只读取 ZIP，执行公开的 `validatePackage` 与 `desktopContribution`，不安装、不启用、不执行。合法的旧组件或无桌面声明的角色包可得到结构通过，其 `commonVersion` 为 null；这不证明共同运行能力。无效包返回失败报告和退出码 1。
@@ -27,18 +27,18 @@ node scripts/platform-conformance.mjs --package /absolute/component.zip --out .a
 
 ## 可核验的结果
 
-requirements-v1 的场景 SDK 矩阵使用独立运行器，所有 I/O 均为自造夹具与 Fake/Recording Sink。它验证普通 SDK v2 接口和授权门控，不替代上面的实际受控程序/执行边界套件：
+scenarios 的场景 SDK 矩阵使用独立运行器，所有 I/O 均为自造夹具与 Fake/Recording Sink。它验证普通 SDK v2 接口和授权门控，不替代上面的实际受控程序/执行边界套件：
 
 ```sh
 pnpm build
-node scripts/scenario-sdk-conformance.mjs --foundation builtin --node /absolute/node-26.5.1/bin/node --out .artifacts/requirements-v1/scenario-foundation-builtin.json
-node scripts/scenario-sdk-conformance.mjs --foundation independent --node /absolute/node-26.5.1/bin/node --out .artifacts/requirements-v1/scenario-foundation-independent.json
+node scripts/scenario-sdk-conformance.mjs --foundation builtin --node /absolute/node-26.5.1/bin/node --out .build-cache/scenarios/scenario-foundation-builtin.json
+node scripts/scenario-sdk-conformance.mjs --foundation independent --node /absolute/node-26.5.1/bin/node --out .build-cache/scenarios/scenario-foundation-independent.json
 pnpm exec vitest run packages/host/test/scenarios/foundation.test.ts --maxWorkers=1
 ```
 
-同一套件有 19 项，含 R13 全部 SDK 面和 failResponse。官方底座全部执行；独立原型仅执行声明支持的 8 项，其余 11 项必须启动前拒绝。每项记录需求、组件摘要、执行或拒绝预期与结果；报告记录精确底座选择、套件版本/摘要、环境与范围。`--case <编号>` 可重复指定部分项，报告标记 partial。vitest 将各项分开执行，遵守单项 20 秒预算，并额外检查不支持项没有启动会话或转用官方底座。CLI 在参数、断言或清理失败时退出 1，不复制异常正文或物理路径。
+同一套件有 19 项，含 场景 SDK 矩阵 全部 SDK 面和 failResponse。官方底座全部执行；独立原型仅执行声明支持的 8 项，其余 11 项必须启动前拒绝。每项记录需求、组件摘要、执行或拒绝预期与结果；报告记录精确底座选择、套件版本/摘要、环境与范围。`--case <编号>` 可重复指定部分项，报告标记 partial。vitest 将各项分开执行，遵守单项 20 秒预算，并额外检查不支持项没有启动会话或转用官方底座。CLI 在参数、断言或清理失败时退出 1，不复制异常正文或物理路径。
 
-场景 cards/chat/tavern/mcp 测试默认显式固定当前官方底座。设置 `PLUMS_SCENARIO_FOUNDATION_ARCHIVE=/absolute/test-foundation.zip` 可在各自全新临时数据目录导入并固定另一制品，不静默回退。独立原型不支持完整业务场景，相关组装应拒绝。R13 的 S-A～S-H 最终组合仍需各场景实现后另验；矩阵的 complete 只表示 19 项 SDK 检查完整。
+场景 cards/chat/tavern/mcp 测试默认显式固定当前官方底座。设置 `PLUMS_SCENARIO_FOUNDATION_ARCHIVE=/absolute/test-foundation.zip` 可在各自全新临时数据目录导入并固定另一制品，不静默回退。独立原型不支持完整业务场景，相关组装应拒绝。场景 SDK 矩阵 的 全部业务场景 最终组合仍需各场景实现后另验；矩阵的 complete 只表示 19 项 SDK 检查完整。
 
 CLI 将 JSON 写到 stdout；可选 `--out` 同时保存文件。通过退出 0，任何必需检查、输入或清理失败退出 1。报告包含报告/套件版本、运行器 SHA-256、适配器文件 SHA-256、实际 OS/CPU/Node、逐项编号与层级、每场景的制品摘要、结果和限制。摘要固定到本次实际输入，不代表制品拥有权限。
 
@@ -109,13 +109,13 @@ node scripts/platform-conformance.mjs --adapter /absolute/author-adapter.mjs --r
 
 先检查自己的完整声明和 ZIP，再实现独立的测试适配器，跑完整宿主、目标 runtime 及实际 UI/执行边界检查。报告按失败编号定位公开规范和受测实现，修正后完整重跑。需要业务互操作时，作者另行提供其业务协议测试、数据格式版本、迁移/适配规则和两个实际作者制品记录。
 
-业务协议的符合性由独立组件作者验证，不由平台套件代替。SDK v1/v2 普通桥的共同 1.x 兼容承诺见阶段 1 D8/D9（内部验证记录）；移除需新 major、说明及至少一个稳定版本通知。宿主模型适配服务不恢复；普通本机引擎单独审批且不能参与受限模式。稳定安装版与升级验收属于阶段 7。
+业务协议的符合性由独立组件作者验证，不由平台套件代替。SDK v1/v2 普通桥在共同 1.x 保留；移除需新 major、迁移说明及至少一个稳定版本的提前通知。宿主模型适配服务不恢复；普通本机引擎单独审批且不能参与受限模式。安装包与升级测试须单独执行。
 
-桌面、宿主与 SDK 1.0.0 稳定线的版本关系、旧桥保留承诺、恢复及打包验收入口见[桌面兼容与恢复](desktop-recovery.md)。本轮为本地审阅，实际验证状态见阶段 7（内部验证记录）。
+桌面、宿主与 SDK 0.1.0 预览版的版本关系、旧桥保留承诺、恢复及打包验收入口见[桌面兼容与恢复](desktop-recovery.md)。
 
 ## 打包版复验
 
-阶段 7 的可信包内适配器直接 fork 指定应用内未修改的 broker，使用该应用附带的固定 Node、SecureFsSink、受控 worker/probe/supervisor。夹具 ZIP 仍在临时目录生成；适配器不实现业务回复或放行结果，也不导入开发树 Host 作为执行后端。跨进程 CAS 的两方为不同的包内 broker。生成夹具用的公开 core/SDK 类型和运输客户端属于测试驱动，完整依赖摘要仍须另存。
+可信包内适配器直接 fork 指定应用内未修改的 broker，使用该应用附带的固定 Node、SecureFsSink、受控 worker/probe/supervisor。夹具 ZIP 仍在临时目录生成；适配器不实现业务回复或放行结果，也不导入开发树 Host 作为执行后端。跨进程 CAS 的两方为不同的包内 broker。生成夹具用的公开 core/SDK 类型和运输客户端属于测试驱动，完整依赖摘要仍须另存。
 
 ```sh
 PLUMS_CONFORMANCE_APP=/absolute/Plums.app node scripts/platform-conformance.mjs --adapter scripts/packaged-conformance-host.mjs --runtime isolate --out /absolute/isolate-package.json

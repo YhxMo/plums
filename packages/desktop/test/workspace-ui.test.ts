@@ -62,7 +62,7 @@ it.runIf(process.platform === "darwin")(
             ?.executeJavaScript(code),
         { id, code },
       );
-    const files = path.resolve(".artifacts/common-contract/stage-5");
+    const files = path.resolve(".build-cache/common-contract/workspace");
     await mkdir(files, { recursive: true });
     try {
       let page = await app.firstWindow();

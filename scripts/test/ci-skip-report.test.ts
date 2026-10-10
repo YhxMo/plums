@@ -4,7 +4,7 @@ import {
   skipSummary,
   compareRequiredTests,
   readReports,
-} from "../../../scripts/ci-skip-report.mjs";
+} from "../ci-skip-report.mjs";
 const expected = [
   {
     file: "packages/host/test/a.test.ts",

@@ -3,7 +3,7 @@
 This is preview software for macOS 27.0.1 Apple Silicon (arm64).
 Read the [changelog](https://github.com/YhxMo/plums/blob/main/CHANGELOG.md)
 and [security model](https://github.com/YhxMo/plums/blob/main/docs/security-model.md).
-npm publication is pending; the workspace package scope is `@plumsjs`.
+The workspace package scope is `@plumsjs`.
 
 ## Verify before opening
 
@@ -15,8 +15,8 @@ gh attestation verify Plums-0.1.0-arm64.dmg --repo YhxMo/plums
 ```
 
 The package is ad-hoc signed and not notarized. It has no trusted Developer ID
-signature and no automatic updater. Gatekeeper prompts and steps are pending user
-validation on the target Mac. If available, try right-click Open or System Settings
+signature and no automatic updater. Gatekeeper prompts vary by macOS version. Source validation does not certify
+the browser-download path. If available, try right-click Open or System Settings
 → Privacy & Security → Open Anyway after verification.
 Removing quarantine with `xattr -dr com.apple.quarantine Plums.app` bypasses that
 system check; do it only for a package whose source, hash and provenance you verified.

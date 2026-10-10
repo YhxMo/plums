@@ -4,10 +4,10 @@ import {
   evaluatePublicReadiness,
   REQUIRED_PUBLIC_FILES,
   scanTrackedPrivacy,
-} from "../../../scripts/check-public-ready.mjs";
+} from "../check-public-ready.mjs";
 
 const read = (file: string) =>
-  readFileSync(new URL(`../../../${file}`, import.meta.url), "utf8");
+  readFileSync(new URL(`../../${file}`, import.meta.url), "utf8");
 function fixture() {
   const contents = new Map(
     REQUIRED_PUBLIC_FILES.map((file) => [file, "Reviewed content"]),

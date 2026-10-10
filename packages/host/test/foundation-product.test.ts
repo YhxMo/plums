@@ -31,7 +31,7 @@ async function fixture() {
   roots.push(dir);
   const options = {
     dataDir: dir,
-    nodePath: path.resolve(".artifacts/node-v26.5.1-darwin-arm64/bin/node"),
+    nodePath: path.resolve(".build-cache/node-v26.5.1-darwin-arm64/bin/node"),
     confirm: { ask: async () => true },
     secretStore: () => new MemorySecretStore(),
   };
@@ -90,7 +90,7 @@ async function historicalArtifact() {
     ),
     key = await readFile(
       process.env.PLUMS_OFFICIAL_SIGNING_KEY ??
-        ".artifacts/foundation-signing/private.pem",
+        ".build-cache/foundation-signing/private.pem",
     );
   files["signature.json"] = Buffer.from(
     JSON.stringify({

@@ -121,7 +121,30 @@ it("guides a ready Agent through configuration, keeps failed saves reviewable an
               ? "ready"
               : "needs-config";
           if (method === "audit") return [];
-          if (method === "tierPlan") return { fingerprint: "local-ui-fixture", selection: { ceiling: "sandbox", projects: [], readOnly: [], components: [] }, current: { revision: 0, tier: { instanceId: "fixture", ceiling: "sandbox", projects: [], readOnly: [], components: [] }, grants: [] }, entries: [], projects: [], readOnly: [] };
+          if (method === "tierPlan")
+            return {
+              fingerprint: "local-ui-fixture",
+              selection: {
+                ceiling: "sandbox",
+                projects: [],
+                readOnly: [],
+                components: [],
+              },
+              current: {
+                revision: 0,
+                tier: {
+                  instanceId: "fixture",
+                  ceiling: "sandbox",
+                  projects: [],
+                  readOnly: [],
+                  components: [],
+                },
+                grants: [],
+              },
+              entries: [],
+              projects: [],
+              readOnly: [],
+            };
           state.calls.push({ method, args });
           switch (method) {
             case "list":
@@ -397,7 +420,30 @@ it("keeps initial loading and failure distinct and rejects outdated Agent and li
           if (method === "agentState") return null;
           if (method === "agentStatus") return "ready";
           if (method === "audit") return [];
-          if (method === "tierPlan") return { fingerprint: "local-ui-fixture", selection: { ceiling: "sandbox", projects: [], readOnly: [], components: [] }, current: { revision: 0, tier: { instanceId: "fixture", ceiling: "sandbox", projects: [], readOnly: [], components: [] }, grants: [] }, entries: [], projects: [], readOnly: [] };
+          if (method === "tierPlan")
+            return {
+              fingerprint: "local-ui-fixture",
+              selection: {
+                ceiling: "sandbox",
+                projects: [],
+                readOnly: [],
+                components: [],
+              },
+              current: {
+                revision: 0,
+                tier: {
+                  instanceId: "fixture",
+                  ceiling: "sandbox",
+                  projects: [],
+                  readOnly: [],
+                  components: [],
+                },
+                grants: [],
+              },
+              entries: [],
+              projects: [],
+              readOnly: [],
+            };
           state.calls.push(method);
           if (method === "list") {
             if (!state.started) {
@@ -554,7 +600,7 @@ it("keeps initial loading and failure distinct and rejects outdated Agent and li
 
 it("renders the shell and dialogs in both themes at desktop and narrow widths with visible focus and readable colors", async () => {
   const { application, page, temporary } = await launchFixture();
-  const screenshots = path.resolve(".artifacts/visual-v3");
+  const screenshots = path.resolve(".build-cache/visual-v3");
   const errors: string[] = [];
   page.on("pageerror", (error) => errors.push(error.message));
   await (
@@ -635,7 +681,30 @@ it("renders the shell and dialogs in both themes at desktop and narrow widths wi
           if (method === "agentState") return null;
           if (method === "agentStatus") return "needs-config";
           if (method === "audit") return [];
-          if (method === "tierPlan") return { fingerprint: "local-ui-fixture", selection: { ceiling: "sandbox", projects: [], readOnly: [], components: [] }, current: { revision: 0, tier: { instanceId: "fixture", ceiling: "sandbox", projects: [], readOnly: [], components: [] }, grants: [] }, entries: [], projects: [], readOnly: [] };
+          if (method === "tierPlan")
+            return {
+              fingerprint: "local-ui-fixture",
+              selection: {
+                ceiling: "sandbox",
+                projects: [],
+                readOnly: [],
+                components: [],
+              },
+              current: {
+                revision: 0,
+                tier: {
+                  instanceId: "fixture",
+                  ceiling: "sandbox",
+                  projects: [],
+                  readOnly: [],
+                  components: [],
+                },
+                grants: [],
+              },
+              entries: [],
+              projects: [],
+              readOnly: [],
+            };
           switch (method) {
             case "list":
               return [record];

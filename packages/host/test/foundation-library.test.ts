@@ -36,7 +36,7 @@ afterEach(async () => {
     roots.splice(0).map((r) => rm(r, { recursive: true, force: true })),
   );
 });
-const node = path.resolve(".artifacts/node-v26.5.1-darwin-arm64/bin/node");
+const node = path.resolve(".build-cache/node-v26.5.1-darwin-arm64/bin/node");
 const requirement: FoundationRequirement = {
   requirementVersion: "1.0",
   protocolRange: "^1.0.0",

@@ -1,9 +1,4 @@
-import { macosMajor } from "../../../../scripts/macos-version.mjs";
-export { macosMajor };
-// macos-15 profile shows preview arm64e ABI rejection of the re-signed system copy.
-// 27 is the existing accepted target; intervening major versions are unverified.
-export const controlledSystemProgramSupported =
-  process.platform === "darwin" &&
-  process.arch === "arm64" &&
-  macosMajor()! >= 27;
+import { controlledSystemProgramSupported as supportsSystemProgram } from "../../src/os-gate.mjs";
+export { macosMajor } from "../../src/os-gate.mjs";
+export const controlledSystemProgramSupported = supportsSystemProgram();
 export const projectNativeAcceptance = controlledSystemProgramSupported;

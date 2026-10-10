@@ -1,3 +1,4 @@
+import { controlledRuntimeSupported } from "./os-gate.mjs";
 import { fork, spawnSync, type ChildProcess } from "node:child_process";
 import {
   mkdtemp,
@@ -153,11 +154,7 @@ export class ControlledExecution {
     return pending;
   }
   private async fixedRuntime() {
-    if (
-      process.platform !== "darwin" ||
-      process.arch !== "arm64" ||
-      !existsSync("/usr/bin/sandbox-exec")
-    )
+    if (!controlledRuntimeSupported || !existsSync("/usr/bin/sandbox-exec"))
       throw resourceFailure("RUNTIME_UNAVAILABLE");
     const node = await realpath(this.nodePath),
       deps = spawnSync("/usr/bin/otool", ["-L", node], { encoding: "utf8" });

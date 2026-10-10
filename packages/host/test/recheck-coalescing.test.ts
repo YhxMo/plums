@@ -1,3 +1,4 @@
+import { revokeLocalEntry } from "../../core/test/local-authorization-fixture.mjs";
 import { afterEach, expect, it, vi } from "vitest";
 import { readFile, writeFile, rm } from "node:fs/promises";
 import path from "node:path";
@@ -15,7 +16,6 @@ vi.mock("node:fs/promises", async (importOriginal) => {
   return { ...actual, lstat: vi.fn(actual.lstat) };
 });
 
-// 2026-10-10: .artifacts/concurrency/restart-load-1.jsonl, chain-baseline.
 // One write+read chain with a synthetic secret: authorize=918, foundation
 // full/non-full/outside-checkpoint=6/402/20, metadata walks=1656. Ceil(count*1.2).
 const RECHECK_COUNT_CEILINGS = {
@@ -116,7 +116,7 @@ it("external core disable/enable between two rechecks of one request is observed
     other.close();
   }
 });
-it("external revokeEngineTrust/local grant change between audit and Sink is observed", async () => {
+it("external local revocation/grant change between audit and Sink is observed", async () => {
   const f = await fixture(),
     other = createCore({
       dataDir: path.join(f.dir, "instances", f.id, "core"),
@@ -132,7 +132,7 @@ it("external revokeEngineTrust/local grant change between audit and Sink is obse
         e.phase === "allow" &&
         e.operation === "write"
       ) {
-        await other.revokeEngineTrust("engine-demo", "local");
+        await revokeLocalEntry(other, "engine-demo", "local");
         changed = true;
       }
     });

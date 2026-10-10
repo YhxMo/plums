@@ -16,7 +16,7 @@ afterEach(async () => {
   );
 });
 const standalone = path.resolve(
-  ".artifacts/node-v26.5.1-darwin-arm64/bin/node",
+  ".build-cache/node-v26.5.1-darwin-arm64/bin/node",
 );
 async function fixture(...args: Parameters<typeof commonFixture>) {
   const f = await commonFixture(...args);

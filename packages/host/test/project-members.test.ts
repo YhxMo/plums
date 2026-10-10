@@ -1,7 +1,7 @@
 import { expect, it, vi } from "vitest";
 import { ProjectSandbox } from "../src/project-sandbox.js";
 
-// This covers admission only. All 11 reap cases remain blocked in handoff:
+// This covers admission only. All 11 reap cases require separate native validation:
 // the environment gate is INCONCLUSIVE and the production container is absent.
 it("project container reap scenarios remain blocked and admission fails closed", async () => {
   const sandbox = new ProjectSandbox();

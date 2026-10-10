@@ -1,3 +1,7 @@
+import {
+  localEntryPlan,
+  revokeLocalEntry,
+} from "./local-authorization-fixture.mjs";
 import { it, expect, afterEach } from "vitest";
 import { mkdtemp, rm } from "node:fs/promises";
 import os from "node:os";
@@ -51,13 +55,13 @@ async function fixture() {
 }
 it("persists an Agent's user grant and only preserves it across unchanged engine permission upgrades", async () => {
   const { core, options } = await fixture();
-  const snapshot = await core.engineTrustSnapshot("trusted", "main");
+  const snapshot = await localEntryPlan(core, "trusted", "main");
   expect(snapshot.trusted).toBe(false);
-  expect(await core.grantEngineTrust(snapshot)).toBe(true);
+  expect(await core.commitLocalAuthorization(snapshot)).toBe(true);
   core.close();
   const reopened = createCore(options);
   cores.push(reopened);
-  expect((await reopened.engineTrustSnapshot("trusted", "main")).trusted).toBe(
+  expect((await localEntryPlan(reopened, "trusted", "main")).trusted).toBe(
     true,
   );
   await reopened.updatePackage(
@@ -76,7 +80,7 @@ it("persists an Agent's user grant and only preserves it across unchanged engine
       },
     }),
   );
-  expect((await reopened.engineTrustSnapshot("trusted", "main")).trusted).toBe(
+  expect((await localEntryPlan(reopened, "trusted", "main")).trusted).toBe(
     true,
   );
   await reopened.updatePackage(
@@ -94,38 +98,34 @@ it("persists an Agent's user grant and only preserves it across unchanged engine
     }),
     { consent: true },
   );
-  expect((await reopened.engineTrustSnapshot("trusted", "main")).trusted).toBe(
+  expect((await localEntryPlan(reopened, "trusted", "main")).trusted).toBe(
     false,
   );
 });
 it("revocation, uninstall and reinstallation cannot restore a pending or persisted grant", async () => {
   const { core } = await fixture();
-  const pending = await core.engineTrustSnapshot("trusted", "main");
-  await core.revokeEngineTrust("trusted", "main");
-  expect(await core.grantEngineTrust(pending)).toBe(false);
+  const pending = await localEntryPlan(core, "trusted", "main");
+  await revokeLocalEntry(core, "trusted", "main");
+  expect(await core.commitLocalAuthorization(pending)).toBe(false);
   expect(
-    await core.grantEngineTrust(
-      await core.engineTrustSnapshot("trusted", "main"),
+    await core.commitLocalAuthorization(
+      await localEntryPlan(core, "trusted", "main"),
     ),
   ).toBe(true);
-  const old = await core.engineTrustSnapshot("trusted", "main");
+  const old = await localEntryPlan(core, "trusted", "main");
   await core.uninstall("trusted");
   await core.importPackage(await core.exportPackage({ manifest }));
-  expect(await core.grantEngineTrust(old)).toBe(false);
-  expect((await core.engineTrustSnapshot("trusted", "main")).trusted).toBe(
-    false,
-  );
+  expect(await core.commitLocalAuthorization(old)).toBe(false);
+  expect((await localEntryPlan(core, "trusted", "main")).trusted).toBe(false);
 });
 it("another Agent identity and a newly declared engine require their own grant", async () => {
   const { core, options } = await fixture();
-  await core.grantEngineTrust(
-    await core.engineTrustSnapshot("trusted", "main"),
+  await core.commitLocalAuthorization(
+    await localEntryPlan(core, "trusted", "main"),
   );
   const other = createCore({ ...options, instanceId: "another-agent" });
   cores.push(other);
-  expect((await other.engineTrustSnapshot("trusted", "main")).trusted).toBe(
-    false,
-  );
+  expect((await localEntryPlan(other, "trusted", "main")).trusted).toBe(false);
   await core.updatePackage(
     await core.exportPackage({
       manifest: {
@@ -144,16 +144,15 @@ it("another Agent identity and a newly declared engine require their own grant",
     }),
     { consent: true },
   );
-  expect((await core.engineTrustSnapshot("trusted", "second")).trusted).toBe(
-    false,
-  );
-  expect((await core.engineTrustSnapshot("trusted", "main")).trusted).toBe(
-    true,
-  );
+  expect((await localEntryPlan(core, "trusted", "second")).trusted).toBe(false);
+  expect((await localEntryPlan(core, "trusted", "main")).trusted).toBe(true);
 });
-it("engine trust cannot be inferred from payload, settings or the package name", async () => {
+it("local authorization cannot be inferred from payload, settings or the package name", async () => {
   const { core } = await fixture();
-  await expect(
-    core.engineTrustSnapshot("trusted", "undeclared"),
-  ).rejects.toMatchObject({ code: "PERMISSION_DENIED" });
+  expect(
+    await core.commitLocalAuthorization(
+      await localEntryPlan(core, "trusted", "undeclared"),
+    ),
+  ).toBe(false);
+  expect((await core.localAuthorizationState()).grants).toEqual([]);
 });

@@ -71,7 +71,7 @@ async function fixture(
   const egress = new RecordingEgressSink({}, { status: 200, body });
   const host = new DesktopHost({
     dataDir: path.join(directory, "data"),
-    nodePath: path.resolve(".artifacts/node-v26.5.1-darwin-arm64/bin/node"),
+    nodePath: path.resolve(".build-cache/node-v26.5.1-darwin-arm64/bin/node"),
     secretStore: () => secrets,
     fs,
     egress,

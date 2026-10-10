@@ -11,7 +11,7 @@ import { DesktopHost } from "../src/host.js";
 import { SecureFsSink } from "../src/io.js";
 import { createCommonPlatformSdk } from "@plumsjs/sdk";
 const standalone = path.resolve(
-  ".artifacts/node-v26.5.1-darwin-arm64/bin/node",
+  ".build-cache/node-v26.5.1-darwin-arm64/bin/node",
 );
 export async function fixture(
   runtime: "isolate" | "controlled-node" = "isolate",

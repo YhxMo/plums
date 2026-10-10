@@ -91,7 +91,7 @@ it.runIf(process.platform === "darwin")(
             ...process.env,
             PLUMS_NODE: path.join(
               root,
-              ".artifacts/node-v26.5.1-darwin-arm64/bin/node",
+              ".build-cache/node-v26.5.1-darwin-arm64/bin/node",
             ),
             PLUMS_DATA_DIR: dir,
           },
@@ -144,7 +144,7 @@ it.runIf(process.platform === "darwin")(
         await page.screenshot({
           path: path.join(
             root,
-            ".artifacts/foundation-platform/stage-5/foundation-ui-" +
+            ".build-cache/foundation-platform/ui/foundation-ui-" +
               width +
               ".png",
           ),

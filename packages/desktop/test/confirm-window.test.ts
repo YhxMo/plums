@@ -135,7 +135,7 @@ it(
       await uiExpect(
         first.getByRole("button", { name: "允许", exact: true }),
       ).toBeEnabled();
-      const screenshots = path.resolve(".artifacts/visual-v3/confirmation");
+      const screenshots = path.resolve(".build-cache/visual-v3/confirmation");
       await mkdir(screenshots, { recursive: true });
       await first.emulateMedia({ colorScheme: null });
       for (const source of ["light", "dark"] as const) {

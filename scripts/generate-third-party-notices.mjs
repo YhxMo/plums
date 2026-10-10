@@ -126,7 +126,10 @@ export function formatProductionNotices(packages) {
 
 export async function generateThirdPartyNotices({
   root = repository,
-  nodeLicense = path.join(root, ".artifacts/node-v26.5.1-darwin-arm64/LICENSE"),
+  nodeLicense = path.join(
+    root,
+    ".build-cache/node-v26.5.1-darwin-arm64/LICENSE",
+  ),
   output = path.join(root, "THIRD_PARTY_NOTICES.txt"),
 } = {}) {
   const packages = await collectProductionPackages(root);

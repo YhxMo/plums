@@ -43,7 +43,7 @@ it.each(["rollback", "journal-delete"])(
     dirs.push(dir);
     const options = {
       dataDir: dir,
-      nodePath: path.resolve(".artifacts/node-v26.5.1-darwin-arm64/bin/node"),
+      nodePath: path.resolve(".build-cache/node-v26.5.1-darwin-arm64/bin/node"),
       confirm: { ask: async () => true },
       secretStore: () => new MemorySecretStore(),
     };

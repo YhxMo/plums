@@ -17,7 +17,7 @@ import { fork, spawnSync } from "node:child_process";
 import path from "node:path";
 import os from "node:os";
 import { createHash } from "node:crypto";
-const node = path.resolve(".artifacts/node-v26.5.1-darwin-arm64/bin/node");
+const node = path.resolve(".build-cache/node-v26.5.1-darwin-arm64/bin/node");
 it("production command sandbox enforces precise native file/network/process boundaries and waits three seconds for TERM resistant cleanup", async () => {
   const root = await realpath(
       await mkdtemp(path.join(os.tmpdir(), "plums-production-boundary-")),

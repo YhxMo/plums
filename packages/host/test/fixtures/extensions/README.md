@@ -12,7 +12,7 @@
 
 `model-fake` 经 HTTPS service 权限和本组件连接调用注入的 Fake Sink；凭据只由宿主绑定注入。`agent-loop` 提供 chat/history 与简易前端，循环和记忆均使用当前 Agent 的私有资源 CAS。`tavern` 只实现有限世界书匹配并报告未支持行为，业务代码均在真实 isolate 中运行。循环不声明 engine/fs/exec 权限；记忆不使用共享资源组或完全访问。
 
-`scenarios/chat.test.ts` 覆盖 S-A、工具结果回传、八轮限制、历史与记忆重启、错误不重试、凭据边界和真实 frontendInvoke 桥。`scenarios/tavern.test.ts` 覆盖 S-C 的 V2/V3、扫描深度、大小写、二级关键词、未支持行为及 R4/R6 两个消费者的解析器替换。`desktop/test/scenario-chat-ui.test.ts` 在独立 Electron 窗口中检查界面渲染和状态，用仅供测试的业务回复适配器；它与真实宿主桥的场景测试共同验证界面，不替代端到端安装验收。截图只写入 `.artifacts/`。
+`scenarios/chat.test.ts` 覆盖 S-A、工具结果回传、八轮限制、历史与记忆重启、错误不重试、凭据边界和真实 frontendInvoke 桥。`scenarios/tavern.test.ts` 覆盖 S-C 的 V2/V3、扫描深度、大小写、二级关键词、未支持行为及 R4/R6 两个消费者的解析器替换。`desktop/test/scenario-chat-ui.test.ts` 在独立 Electron 窗口中检查界面渲染和状态，用仅供测试的业务回复适配器；它与真实宿主桥的场景测试共同验证界面，不替代端到端安装验收。截图只写入 `.build-cache/`。
 
 `mcp-bridge` 通过 HTTPS service 实现 MCP 2026-07-28 的有限工具子集，以及 2025-11-25 的初始化和会话兼容；传输封装在 `HttpMcpTransport`，没有本地 stdio 或直接网络 API。每次工具调用先取得完整分页列表，再由宿主批准与复核指纹。`scenarios/mcp.test.ts` 在 JSON/SSE 两种回复及两个版本中覆盖 S-D、调用链交集、分页、元信息头、会话失效与完成失败不重放。实现仅参照官方 MCP 规范，未使用第三方业务项目源码。
 
@@ -21,6 +21,5 @@
 两个 `machine-probe` 夹具在临时目录中运行真实独立本地进程，不读真实主目录，不联网。第一个回调 Fake 模型，第二个用于证明旧信任不扩大。记忆的 localProbe 是缺少本地执行权限的负向检查。`scenarios/machine.test.ts` 还覆盖普通 common/资源/任务范围和策略租约同时活动；本地回调的 common/资源接入、选择性生命周期与项目沙箱继续实施。
 
 本轮新增 coding-tools、crash-probe、policy-fake。前两者默认声明项目档位；策略夹具只返回固定决定，不做风险审查。remaining.test.ts 的整机 crash 变体仅验证可用的生命周期，不作为 S-G 项目成功路径。S-E 在全新目录直接导入后上限为沙箱、无本地授权；导入制品固定到导出 ZIP 字节的摘要。S-B 的候选功能声明已修复，成功路径仍受原生项目入口阻塞；项目入口仍不可用，不将拒绝行为当成功场景。
-
 
 coding-tools 的 run 测试协议使用 `{program:string,args:string[],cwd?:string}`，不接受 command 字符串；cwd 与文件路径必须落在 initialize 指定的项目目录内。结果为 `{exitCode,stdout,stderr,truncated?:true}`，每路输出最多 64 KiB，并按 UTF-8 边界截断；list/call 输出分别是工具定义数组和 `{ok,content}`。夹具的路径检查仅提供稳定错误，不能代替系统沙箱。独立 Node 协议测试不代表真实项目档位已可运行。

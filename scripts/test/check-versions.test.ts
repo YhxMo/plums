@@ -6,7 +6,7 @@ import {
   checkVersions,
   PACKAGE_NAMES,
   PREVIEW_VERSION,
-} from "../../../scripts/check-versions.mjs";
+} from "../check-versions.mjs";
 
 async function fixture(run: (root: string) => Promise<void>) {
   const root = await mkdtemp(path.join(tmpdir(), "plums-versions-"));

@@ -8,7 +8,7 @@ import {
   parseMacosMajor,
   profileSummary,
   runCommand,
-} from "../../../scripts/ci-platform-profile.mjs";
+} from "../ci-platform-profile.mjs";
 
 const directories: string[] = [];
 afterEach(async () => {

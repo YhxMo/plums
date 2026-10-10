@@ -14,7 +14,7 @@ it.runIf(process.platform === "darwin")(
     const packagedApp = process.env.PLUMS_TEST_APP;
     const reportDirectory = path.resolve(
       process.env.PLUMS_CONFORMANCE_REPORT_DIR ??
-        ".artifacts/common-contract/stage-6",
+        ".build-cache/common-contract/platform-conformance",
     );
     await mkdir(reportDirectory, {
       recursive: true,

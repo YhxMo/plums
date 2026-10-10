@@ -221,7 +221,7 @@ export async function checkPublicReady({ root = repository, denylist }) {
       /* Missing licenses fail below. */
     }
   for (const [name, file] of [
-    ["node/LICENSE", ".artifacts/node-v26.5.1-darwin-arm64/LICENSE"],
+    ["node/LICENSE", ".build-cache/node-v26.5.1-darwin-arm64/LICENSE"],
     ["LICENSE.electron", "packages/desktop/node_modules/electron/dist/LICENSE"],
     [
       "LICENSES.chromium.html",

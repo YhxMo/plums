@@ -1,6 +1,6 @@
 # Plums 共同契约 1.0
 
-更新日期：2026-10-07。阶段 1 冻结的接口规范，面向桌面平台和独立扩展作者。SDK 已提供类型、结构解析、功能协商和回复顺序检查；阶段 2 已实现宿主资源存储、可信资源管理及 `plums.resources` 桥，阶段 3 已接入共同运行桥、任务及受控 Node/命令；阶段 4 已通过策略接入验收，阶段 5 已接入独立 UI、布局恢复与状态订阅，阶段 6 公开符合性工具与内部黑盒验收已通过。文中“必须”是后续实现与符合性测试的约束，不能据此宣称当前安装版已提供全部功能。最终支持以阶段 6–7 验收矩阵为准。
+共同契约 1.0 面向桌面平台和独立扩展作者。SDK 提供类型、结构解析、功能协商和回复顺序检查；宿主提供资源存储、共同运行桥、后台任务、受控 Node/命令、策略接入及独立界面。第三方行为与实际执行边界须分别验证，范围见[兼容矩阵](common-contract-compatibility.md)。项目档位仍不可用。
 
 ## 1. 作者接入与版本
 
@@ -8,11 +8,11 @@
 
 第三方负责记忆、模型协议、对话、工具、业务界面与策略算法。平台只检查共同结构、身份、版本、授权、生命周期及声明的输入输出 schema，不解释业务正文。业务协议采用作者控制的反向域名，例如 `org.example.records`，不要把某个包 id 当作协议名。
 
-四个版本彼此独立：包格式 `formatVersion`、桌面 SDK `sdkVersion`、共同运输信封 `commonVersion`、业务协议 SemVer。包版本也不是协议版本。共同契约 1.0 是 SDK v2 的增量；旧普通 SDK v1/v2 继续使用原桥。阶段 3 已将 `CommonPlatformSdk` 注入声明共同契约的受支持运行路径。
+四个版本彼此独立：包格式 `formatVersion`、桌面 SDK `sdkVersion`、共同运输信封 `commonVersion`、业务协议 SemVer。包版本也不是协议版本。共同契约 1.0 是 SDK v2 的增量；旧普通 SDK v1/v2 继续使用原桥。已将 `CommonPlatformSdk` 注入声明共同契约的受支持运行路径。
 
 已有 `payload.plumsDesktop.protocols` 中的 `provides`/`requires` 是共同发现的基础，继续使用 `ProtocolProvider`、`ProtocolRequirement`、`checkProtocolCompatibility`。提供者声明 `id/protocol/version/contribution/features`；消费者声明自己命名的需求槽 `id/protocol/range/features/optional`。提供者的精确稳定 SemVer 满足消费者范围，且包含全部必需功能，才形成候选。`optional` 只允许未绑定，不允许不兼容绑定。未知同 major 字段往返保留，不参与授权。相同声明只证明元数据兼容。
 
-新增共同平台声明 `CommonDeclaration` 包含 `commonVersion/features/runtime`，可包含资源需求、后台驻留声明 `background` 和策略提供槽。阶段 1 的 `parseCommonDeclaration` 独立校验它；阶段 2 已把它接入 `payload.plumsDesktop.common` 的桌面声明校验，并要求资源需求引用公开资源权限；共同运行类型、功能协商与完整桥已由阶段 3 接入。仅有 `common` 字段不证明运行已受控。`resources[].permissionId` 必须对应清单公开权限，桌面导入时已检查；共同声明只收窄需求，不能授予权限。资源权限的 core 联合类型和同意文案已由阶段 2 补齐。
+新增共同平台声明 `CommonDeclaration` 包含 `commonVersion/features/runtime`，可包含资源需求、后台驻留声明 `background` 和策略提供槽。 `parseCommonDeclaration` 独立校验它；已把它接入 `payload.plumsDesktop.common` 的桌面声明校验，并要求资源需求引用公开资源权限；共同运行类型、功能协商与完整桥已接入。仅有 `common` 字段不证明运行已受控。`resources[].permissionId` 必须对应清单公开权限，桌面导入时已检查；共同声明只收窄需求，不能授予权限。资源权限的 core 联合类型和同意文案已由补齐。
 
 共同信封接受 `1.N`（N 为非负十进制整数），未知字段保留，未知消息 kind 拒绝；必需新功能必须明确协商，不能靠 minor 猜测支持。1.x 只增加可选字段/功能，不改变已有字段含义、错误状态或安全规则；破坏性变更使用新 major。业务协议分别遵循 SemVer，新必需操作、行为或不兼容数据格式提高业务 major。数据格式兼容不由协议名字推导；适配/业务数据迁移由作者提供，平台不得默默改写正文。
 
@@ -80,7 +80,7 @@ deadline 使用宿主单调时钟预算，消费者 `timeoutMs` 只能缩短；�
 
 `read` 返回存在标志、revision 和存在时的正文；缺失初始 revision 为 `"0"`。write/delete 必须传 expectedRevision；宿主在一个 SQLite 事务中原子比较与提交，成功产生新的不透明 revision。删除保留带新 revision 的 tombstone，防止 ABA 和旧调用覆盖重建数据。竞争只有一个提交，其余返回 `RESOURCE_CONFLICT`，不附冲突正文；业务作者可读取后自行合并，不自动丢写或隐式重试。
 
-阶段 2 已使用宿主私有资源数据库、WAL、跨进程事务及提交记录；进程中断前未提交事务回滚，提交后重启可见。响应失联时 unknown，有读取资格者通过 revision 检查；只有 write 资格者需先由有读取资格者核实或取得读取批准，不能直接重试未知完成的写入。资源组有独立引用关系，被有效绑定的组不能直接移除；解绑一个 Agent 不删除另一消费者资源。提供者换版不自动迁移正文格式；需要不兼容格式时新资源或由用户选择作者迁移，旧数据保留至明确移除。资源绑定/资格变化使 generation 失效。
+已使用宿主私有资源数据库、WAL、跨进程事务及提交记录；进程中断前未提交事务回滚，提交后重启可见。响应失联时 unknown，有读取资格者通过 revision 检查；只有 write 资格者需先由有读取资格者核实或取得读取批准，不能直接重试未知完成的写入。资源组有独立引用关系，被有效绑定的组不能直接移除；解绑一个 Agent 不删除另一消费者资源。提供者换版不自动迁移正文格式；需要不兼容格式时新资源或由用户选择作者迁移，旧数据保留至明确移除。资源绑定/资格变化使 generation 失效。
 
 ## 6. 策略与权限模式
 
@@ -98,7 +98,7 @@ deadline 使用宿主单调时钟预算，消费者 `timeoutMs` 只能缩短；�
 
 ## 7. macOS 执行边界
 
-首轮验证范围为 macOS 27.0.1 arm64、Node 26.5.1；最低验收系统为 27.0.1，不声称更早 macOS、Intel、Windows/Linux 已通过。后续可增加逐平台验证。阶段 1 是实际原型可行性证据；完整桌面与打包版由阶段 3/6/7 验收。
+首轮验证范围为 macOS 27.0.1 arm64、Node 26.5.1；最低验收系统为 27.0.1，不声称更早 macOS、Intel、Windows/Linux 已通过。后续可增加逐平台验证。是实际原型可行性证据；完整桌面与打包版由验收。
 
 选定三种受限路径：无 Node 对象的 V8 isolate、受控 Node 后台、宿主受控命令。后两者在默认拒绝的 macOS Seatbelt 中运行，只有固定只读系统/运行时/制品内容、每实例临时 scratch 及明确授予的命令读/写目录；环境清空，不继承额外文件描述符。平台的数据库/密钥/设置/授权/真实 Agent 数据目录不能暴露给后台或命令。业务资源经统一桥读写。
 
@@ -134,11 +134,11 @@ Seatbelt 的 sandbox-exec 与 sandbox.h 是已弃用的平台设施，不能视�
 
 用户在管理页分别选择资格和槽绑定，再选择有限期普通或完全访问业务资源范围。作者按 `requirementId` 找自己的句柄，调用 read/write/delete；只有公开声明、真实整链与当前范围交集可执行。没有活动范围时，具备普通资格的单次访问仍需可信确认。活动最大范围内未选中的操作拒绝。可用资源描述中的 operations 同时反映当前调用链和最大范围。
 
-资源错误在既有 SDK 桥中使用 `CAPABILITY_FAILED`，details 为 `reason/callId/phase/executionState`，不附正文或底层异常。资源服务每个请求只执行一次；`RESOURCE_CONFLICT` 无正文，unknown/completed 禁止自动重试。共同 invoke 由阶段 3 返回独立终态信封。实现、恢复/并发证据及未验收路径见阶段 2 记录（内部验证记录）。
+资源错误在既有 SDK 桥中使用 `CAPABILITY_FAILED`，details 为 `reason/callId/phase/executionState`，不附正文或底层异常。资源服务每个请求只执行一次；`RESOURCE_CONFLICT` 无正文，unknown/completed 禁止自动重试。共同 invoke 返回独立终态信封。
 
-### 当前统一运行接入（阶段 3）
+### 当前统一运行接入
 
-`plums.common` 已注入 ordinary isolate、可信绑定沙箱前端和受控 Node，沿用用户选择的 protocols 连接；提供者贡献处理器接收 `{operation,input}`。可用功能为 resources-cas/events/task-attach/controlled-node/controlled-exec/policy-v1/ui-attach。阶段 5 以两个内部界面验证同后端及兼容后端替换；当前证据不代表真实第三方或稳定安装包符合性。
+`plums.common` 已注入 ordinary isolate、可信绑定沙箱前端和受控 Node，沿用用户选择的 protocols 连接；提供者贡献处理器接收 `{operation,input}`。可用功能为 resources-cas/events/task-attach/controlled-node/controlled-exec/policy-v1/ui-attach。以两个内部界面验证同后端及兼容后端替换；当前证据不代表真实第三方或稳定安装包符合性。
 
 任务状态与执行状态由宿主生成。每任务只有一个根调用，嵌套任务继承真实链及取消，不以作者输入重建身份。Agent 后台需声明和管理页开关，重开自己的前端可以附着；不同组件的接管由可信管理批准，并保守要求新消费者拥有原所有者全部权限结构、资源绑定操作资格与当前最大范围。未通过的组件不显示为候选。接管允许查询/附着/停止，不给予新的 I/O 或改变任务所有者；授权不持久，宿主重启后归零。
 
@@ -148,11 +148,11 @@ Seatbelt 的 sandbox-exec 与 sandbox.h 是已弃用的平台设施，不能视�
 
 停止等待真实子进程退出及快照清理，独立 supervisor 在 broker 断连后 TERM，三秒后 KILL。历史任务只保存无正文状态；中断且已分发的任务恢复 unknown，不重执行。允许审计失败为 not_started，执行完成后的审计/输出失败为 completed。撤权和绑定变化清除已有业务回放，保留管理状态。
 
-当前验证用内部平台夹具与真实 Electron main/preload/broker/host 路由，未验证真实第三方扩展或稳定安装包。作者示例和验证入口见[SDK v2](sdk-v2.md#共同契约-10)；最终记录见阶段 3（内部验证记录）。
+当前验证用内部平台夹具与真实 Electron main/preload/broker/host 路由，未验证真实第三方扩展或稳定安装包。
 
 固定程序可在同一 PID 中 self-exec 自己的不可变制品；仍继承原沙箱、目录、受管进程组、RSS 监管和任务期限。禁止 fork、执行其他程序或脱离监管，不能从 self-exec 获得新权限。初始环境为空，SDK 不接受 env；作者不能继承宿主凭据。绑定解释器也只有同一受控范围，不提供宿主拼接 shell 的入口。
 
-### 独立界面接入（阶段 5）
+### 独立界面接入
 
 组件可只声明自己的 frontend、common 和 protocols.requires，不必同时提供业务后端或面板贡献。用户在可信“工作界面组合”中选择主界面和并排界面；备用主界面可单独打开，其默认 startup 选择保持。界面直接用本组件的 `plums.common.binding/invoke`，不经过另一前端的全局变量或贡献入口。每界面使用不同 Electron session 与 handle；同一组合的 `PanelContext.sessionId` 相同，表示组合会话，不能作为身份或授权。
 
@@ -160,8 +160,8 @@ Seatbelt 的 sandbox-exec 与 sandbox.h 是已弃用的平台设施，不能视�
 
 可信工作栏显示“部分界面未恢复”；管理组合页列出缺失、停用、摘要变化、损坏布局或面板连接不兼容。用户重新选择或显式保存来移除失效选择。布局在 Agent/主组件名下单独原子保存，关闭侧界面保留不可见状态；Agent 导出不携带布局、会话或接管批准。关闭兼作后端的界面只取消该容器的任务，保留其他有效消费者；最终会话关闭且无已批准后台任务时清理普通运行实例。取消主界面按原组件及相同加载文件摘要续接，不能让旧界面代码获得另一组件或新版代码的身份。
 
-Electron 桥在消费者世界建立事件迭代器，preload 只代理固定身份的 RPC。直接网络、新窗口、外部导航及同包其他 HTML 导航均阻断。实际平台证据与范围见阶段 5 记录（内部验证记录）。
+Electron 桥在消费者世界建立事件迭代器，preload 只代理固定身份的 RPC。直接网络、新窗口、外部导航及同包其他 HTML 导航均阻断。
 
 共同界面的 legacy `plums.onEvent` 只接收本组件事件；跨组件业务事件经已绑定共同调用及任务资格传递。未声明 common 的旧默认 startup 前端保留同 Agent legacy 总线兼容；可信宿主按声明与当前容器决定，备用及侧界面不继承该广播资格。`panels.closed/session` 等可信生命周期通知继续送达相关容器。
 
-桌面、宿主与 SDK 1.0.0 稳定线的版本关系、旧桥保留承诺、恢复及打包验收入口见[桌面兼容与恢复](desktop-recovery.md)。本轮为本地审阅，实际验证状态见阶段 7（内部验证记录）。
+桌面、宿主与 SDK 0.1.0 预览版的版本关系、旧桥保留承诺、恢复及打包验收入口见[桌面兼容与恢复](desktop-recovery.md)。

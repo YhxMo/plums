@@ -48,7 +48,7 @@ uses the pinned desktop runtime. Use [the core guide](docs/core-guide.md) for th
 
 All workspace packages and the core/CLI version are `0.1.0` preview.
 Run `node scripts/check-versions.mjs` before packaging.
-The npm scope is `@plumsjs`; npm publication is pending.
+The npm scope is `@plumsjs`. Use the source build procedure above.
 
 ## Pull requests
 
@@ -92,5 +92,5 @@ commit the list or its matched values. The gate reports locations and counts onl
 It checks public files, unresolved metadata/Gatekeeper text, known private strings,
 licenses, documented target/runtime, package and installer versions, fresh bundled
 notices, the release guard, package inventory and npm scope. It is not part of
-default CI while metadata remains pending. External document links are listed
+default CI. Run it separately after packaging. External document links are listed
 without network requests. These checks do not replace full history or artifact audits.

@@ -1,6 +1,6 @@
 # 独立底座作者接入指南
 
-本指南供独立实现底座的作者与可信宿主集成者使用。阶段 3 已把公共库中的第三方提供者接入 `FoundationRegistry`、`createFoundationSession` 和 `DesktopHost` 的真实 SDK 能力桥。第三方实现自己加载组件、注册贡献并实现其声明的 SDK，不需要导入官方 Runtime、worker 或 SDK bootstrap。
+本指南供独立实现底座的作者与可信宿主集成者使用。已把公共库中的第三方提供者接入 `FoundationRegistry`、`createFoundationSession` 和 `DesktopHost` 的真实 SDK 能力桥。第三方实现自己加载组件、注册贡献并实现其声明的 SDK，不需要导入官方 Runtime、worker 或 SDK bootstrap。
 
 当前独立执行证据只覆盖官方 SDK 2.0.0 的 `register`、`settings`、`context` 和 `capability`（原生 fs/list）。完整 SDK、专门消费者验证扩展、可分发替代底座验收 ZIP、Agent 验证整合包和黑盒符合性工具仍延期。提供者声明的兼容结果始终是 `declared`，不能当作认证。
 

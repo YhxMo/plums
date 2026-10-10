@@ -59,7 +59,7 @@ await host.setFoundationEnabled(agentId, false);
 
 `dataFormat` 当前固定为 `org.plums.host-state/1`：数据由公共宿主管理，底座不获得直接读写业务目录的权限。提供者可声明 `dataFormats`；省略时使用当前格式。显式不支持当前格式返回 `FOUNDATION_DATA_ADAPTER_REQUIRED`，不隐式转换数据。
 
-官方 builtin 从原始 ZIP 加载独立适配、worker 与 native 运行依赖，签名和精确 ZIP 摘要同时验证。当前应用的 canonical bundle 与编译输入另外核验。应用升级保留已有对象，受信任旧归档执行自身字节。阶段 4 唯一已审阅 canonical 归档有显式摘要迁移入口，其他 unsigned ZIP 不进入 builtin 路径。官方格式、签名信任、构建与迁移限制见 [桌面底座管理](foundation-desktop.md)。
+官方 builtin 从原始 ZIP 加载独立适配、worker 与 native 运行依赖，签名和精确 ZIP 摘要同时验证。当前应用的 canonical bundle 与编译输入另外核验。应用升级保留已有对象，受信任旧归档执行自身字节。唯一已审阅 canonical 归档有显式摘要迁移入口，其他 unsigned ZIP 不进入 builtin 路径。官方格式、签名信任、构建与迁移限制见 [桌面底座管理](foundation-desktop.md)。
 
 固定 ZIP 缺失、损坏、签名不受信任或当前应用完整性不匹配，返回固定 FOUNDATION_UNAVAILABLE 并保留 Agent 记录。未知官方 artifact/ABI/node/platform 拒绝，不猜测迁移。管理入口可以导入原始制品，恢复应用自带的相同对象，或明确检查其他候选后切换。
 

@@ -4,7 +4,7 @@ import { createRequire } from "node:module";
 import path from "node:path";
 import electron from "../packages/desktop/node_modules/electron/index.js";
 // The bundled broker resolves its native dependencies beside the dev application.
-const stage = path.resolve(".artifacts/desktop-dev");
+const stage = path.resolve(".build-cache/desktop-dev");
 await mkdir(stage, { recursive: true });
 await cp("packages/desktop/dist", path.join(stage, "dist"), {
   recursive: true,

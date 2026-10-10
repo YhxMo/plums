@@ -207,7 +207,9 @@ it("chooses protocol providers, explains conflicts, retains failed saves and iso
     await select.selectOption({ label: "记忆乙 · 协议 1.2.0 · store" });
     await panel.getByText("已连接", { exact: true }).waitFor();
     expect(await select.inputValue()).toContain("alternative");
-    const artifact = path.resolve(".artifacts/extension-composition/phase2-ui");
+    const artifact = path.resolve(
+      ".build-cache/extension-composition/phase2-ui",
+    );
     await mkdir(artifact, { recursive: true });
     for (const colorScheme of ["light", "dark"] as const)
       for (const width of [1180, 760, 375, 320]) {
@@ -364,7 +366,7 @@ it("creates with a single protocol candidate and shows an automatic connection t
     await panel
       .getByText("已自动连接 工具甲 的 store → 记忆甲", { exact: true })
       .waitFor();
-    const artifact = path.resolve(".artifacts/requirements-v1/r10-ui");
+    const artifact = path.resolve(".build-cache/scenarios/interaction-ui");
     await mkdir(artifact, { recursive: true });
     await panel.screenshot({ path: path.join(artifact, "automatic-1180.png") });
     const select = panel.getByLabel("工具甲 的 store");
@@ -496,7 +498,7 @@ it("views complete component JSON, edits payloads, resolves external conflicts a
       .getByRole("button", { name: "采用外部文件", exact: true })
       .click();
     expect(JSON.parse(await payload.inputValue()).description).toBe("外部内容");
-    const artifactDir = path.resolve(".artifacts/component-content-ui");
+    const artifactDir = path.resolve(".build-cache/component-content-ui");
     await mkdir(artifactDir, { recursive: true });
     for (const colorScheme of ["light", "dark"] as const) {
       await page.emulateMedia({ colorScheme });
@@ -916,8 +918,32 @@ async function fixture(holdRuntime = false) {
                   requirements: [],
                 })),
             };
-          case "cacheStatus": return [];
-          case "tierPlan": return { fingerprint: "local-ui-fixture", selection: { ceiling: "sandbox", projects: [], readOnly: [], components: [] }, current: { revision: 0, tier: { instanceId: args.instanceId, ceiling: "sandbox", projects: [], readOnly: [], components: [] }, grants: [] }, entries: [], projects: [], readOnly: [] };
+          case "cacheStatus":
+            return [];
+          case "tierPlan":
+            return {
+              fingerprint: "local-ui-fixture",
+              selection: {
+                ceiling: "sandbox",
+                projects: [],
+                readOnly: [],
+                components: [],
+              },
+              current: {
+                revision: 0,
+                tier: {
+                  instanceId: args.instanceId,
+                  ceiling: "sandbox",
+                  projects: [],
+                  readOnly: [],
+                  components: [],
+                },
+                grants: [],
+              },
+              entries: [],
+              projects: [],
+              readOnly: [],
+            };
           case "policyPlan":
             return {
               fingerprint: "policy-fixture",

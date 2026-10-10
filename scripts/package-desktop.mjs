@@ -17,7 +17,7 @@ export async function runManifestGate(resourceDir) {
 async function prepareApplication() {
   const root = process.cwd(),
     output = path.resolve(process.argv[2] ?? "release"),
-    artifacts = path.join(root, ".artifacts"),
+    artifacts = path.join(root, ".build-cache"),
     stage = path.join(artifacts, "desktop-app");
   const desktopPackage = JSON.parse(
     await readFile(path.join(root, "packages/desktop/package.json"), "utf8"),

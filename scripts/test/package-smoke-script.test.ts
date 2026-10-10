@@ -1,6 +1,6 @@
 import { it, expect } from "vitest";
 import { spawnSync } from "node:child_process";
-import { smokeResult } from "../../../scripts/package-smoke.mjs";
+import { smokeResult } from "../package-smoke.mjs";
 it("a nonexistent packaged app fails with a clear JSON error without launching Electron", () => {
   const result = spawnSync(
     process.execPath,

@@ -7,46 +7,46 @@
   {
     "file": "packages/host/test/common-runtime.test.ts",
     "name": "real command route executes a fixed host program with explicit read/write roots and no shell",
-    "reason": "macos-15 re-signed system arm64e binary rejected by preview ABI; macOS 27 target acceptance required",
+    "reason": "macOS versions below 27 reject re-signed system arm64e executables; the controlled-command runtime requires macOS 27.",
     "when": {
       "macosMajor": {
         "lt": 27
       }
     },
-    "issue": "docs/ci.md#macos-15-原始诊断与4b决定"
+    "issue": "docs/ci.md#controlled-command-platform-gate"
   },
   {
     "file": "packages/host/test/policy-execution.test.ts",
     "name": "actual controlled command honors allow and deny and cannot inherit an unselected directory operation",
-    "reason": "macos-15 re-signed system arm64e binary rejected by preview ABI; macOS 27 target acceptance required",
+    "reason": "macOS versions below 27 reject re-signed system arm64e executables; the controlled-command runtime requires macOS 27.",
     "when": {
       "macosMajor": {
         "lt": 27
       }
     },
-    "issue": "docs/ci.md#macos-15-原始诊断与4b决定"
+    "issue": "docs/ci.md#controlled-command-platform-gate"
   },
   {
     "file": "packages/host/test/platform-conformance.test.ts",
     "name": "public platform E01-four-policies-real-controlled-command through the actual isolate host",
-    "reason": "macos-15 re-signed system arm64e binary rejected by preview ABI; macOS 27 target acceptance required",
+    "reason": "macOS versions below 27 reject re-signed system arm64e executables; the controlled-command runtime requires macOS 27.",
     "when": {
       "macosMajor": {
         "lt": 27
       }
     },
-    "issue": "docs/ci.md#macos-15-原始诊断与4b决定"
+    "issue": "docs/ci.md#controlled-command-platform-gate"
   },
   {
     "file": "packages/host/test/platform-conformance.test.ts",
     "name": "public platform E01-four-policies-real-controlled-command through the actual controlled-node host",
-    "reason": "macos-15 re-signed system arm64e binary rejected by preview ABI; macOS 27 target acceptance required",
+    "reason": "macOS versions below 27 reject re-signed system arm64e executables; the controlled-command runtime requires macOS 27.",
     "when": {
       "macosMajor": {
         "lt": 27
       }
     },
-    "issue": "docs/ci.md#macos-15-原始诊断与4b决定"
+    "issue": "docs/ci.md#controlled-command-platform-gate"
   },
   {
     "file": "packages/host/test/project-members.experiments.test.ts",

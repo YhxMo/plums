@@ -1,5 +1,6 @@
+import { groups } from "./ci-test-plan.mjs";
 import { spawn, execFileSync } from "node:child_process";
-import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { mkdir, writeFile } from "node:fs/promises";
 import { createWriteStream } from "node:fs";
 import path from "node:path";
 import os from "node:os";
@@ -8,9 +9,6 @@ import { fileURLToPath } from "node:url";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const group = process.argv[2];
-const groups = JSON.parse(
-  await readFile(path.join(root, "ci/groups.json"), "utf8"),
-);
 if (!Object.hasOwn(groups, group))
   throw Error("Usage: node scripts/ci-run-group.mjs <unit|platform|electron>");
 if (process.env.CI && process.env.PLUMS_CI_GROUP_FILTER)

@@ -9,7 +9,7 @@ import { spawnSync } from "node:child_process";
 import path from "node:path";
 import { runProjectConformance } from "../../../scripts/platform-conformance.mjs";
 
-const node = path.resolve(".artifacts/node-v26.5.1-darwin-arm64/bin/node");
+const node = path.resolve(".build-cache/node-v26.5.1-darwin-arm64/bin/node");
 const supported = process.platform === "darwin" && process.arch === "arm64";
 const options: ProjectProfileOptions = {
   node: "/fixture/node",

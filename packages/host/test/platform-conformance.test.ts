@@ -13,7 +13,7 @@ import {
 import { inspectPlatformPackage } from "../../../scripts/platform-conformance.mjs";
 const reportDirectory = path.resolve(
   process.env.PLUMS_CONFORMANCE_REPORT_DIR ??
-    ".artifacts/common-contract/stage-6",
+    ".build-cache/common-contract/platform-conformance",
 );
 beforeAll(() =>
   mkdir(reportDirectory, {

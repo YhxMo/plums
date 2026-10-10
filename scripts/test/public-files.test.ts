@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 
 const read = (file: string) =>
-  readFileSync(new URL(`../../../${file}`, import.meta.url), "utf8");
+  readFileSync(new URL(`../../${file}`, import.meta.url), "utf8");
 const required = [
   "SECURITY.md",
   "CONTRIBUTING.md",

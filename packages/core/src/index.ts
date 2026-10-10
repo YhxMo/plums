@@ -179,10 +179,7 @@ export type {
   TaskScopeSelection,
 } from "./capabilities/task-scope.js";
 
-export type {
-  EngineTrust,
-  EngineTrustSnapshot,
-} from "./install/engine-trust.js";
+export type { EngineTrust } from "./install/engine-trust.js";
 export { enginePermissionKey } from "./install/engine-trust.js";
 
 export type { ResourcePermission, ResourceOperation } from "./package/types.js";

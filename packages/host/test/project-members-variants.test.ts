@@ -93,9 +93,9 @@ it.runIf(native)(
       ]),
     };
     const save = async (report: unknown) => {
-      await mkdir(".artifacts/macos-continuation", { recursive: true });
+      await mkdir(".build-cache/native-diagnostics", { recursive: true });
       await writeFile(
-        ".artifacts/macos-continuation/members-variants.json",
+        ".build-cache/native-diagnostics/members-variants.json",
         JSON.stringify(report, null, 2) + "\n",
       );
     };

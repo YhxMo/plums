@@ -194,13 +194,13 @@ MCP v2 的连接器 permissionId 可对应 egress，或包含 request 操作的 
 
 范围内的每次能力调用仍经过声明、同意、真实路径边界、调用链权限交集、MCP 指纹及执行前后审计。只有调用链全部主体均获批对应操作时免除重复确认。有效任务内未选中的 read/list 也需要单次确认；未覆盖的 write/egress 继续单次确认，单次同意不会扩大任务。声明外路径/域名直接拒绝。任务在确认或审计等待中撤销、到期、变更时，尚未开始的范围内调用不能执行。独立 core 曾进入任务模式后，在该 core 的任务到期/撤销后仍要求读取确认。桌面确认策略跨内部 core 重建保留，而内存任务范围仅属于当前 core 内存，销毁后不会持久化或复活；已开始的 I/O 不能被追溯撤回，宿主停止信号用于取消尚在执行的工作。
 
-授权审计使用 `phase: task`；能力审计携带 `taskId` 关联本次任务，不包含物理路径、内容或凭据。任务范围不是 OS 沙箱。桌面阶段 3 已为可信选择的程序提供真实受控 exec；本地 stdio MCP 仍未提供。
+授权审计使用 `phase: task`；能力审计携带 `taskId` 关联本次任务，不包含物理路径、内容或凭据。任务范围不是 OS 沙箱。桌面已为可信选择的程序提供真实受控 exec；本地 stdio MCP 仍未提供。
 
 ## SDK v2 连接与本机引擎
 
 通用 `service / https / request` 的效果为 egress，沿用外发任务范围或单次确认。声明绑定的 origin、保存配置、密钥版本和调用链共同决定授权；外装组件构造业务正文、解析回复。`failResponse` 只能报告当前组件当前调用的真实完成请求，保持实际 callId、HTTP 状态和 completed 执行状态。接口见 [SDK v2](sdk-v2.md)。
 
-`kind: engine` 仅声明可由用户长期信任的本机引擎。它不能经 `runCapability` 或普通任务范围启动，不能借受控 ExecSink 启动普通权限引擎。阶段 4 的可信策略接入对新受限路径选择固定提供者、用户最大范围及有限期租约，本地启动和请求已接入 local 策略，使用已有组件执行项作为最大范围；deny 拒绝，confirm 由该项满足。宿主经办能力继续要求有效策略租约。长期记录仅由可信管理入口写入；独立引擎进程拥有普通本机用户权限。普通扩展的 fs/HTTPS/MCP 授权仍适用于引擎主动选择的受控贡献回调。完整边界与协议见 [engine.md](engine.md)。
+`kind: engine` 仅声明可由用户长期信任的本机引擎。它不能经 `runCapability` 或普通任务范围启动，不能借受控 ExecSink 启动普通权限引擎。可信策略接入对新受限路径选择固定提供者、用户最大范围及有限期租约，本地启动和请求已接入 local 策略，使用已有组件执行项作为最大范围；deny 拒绝，confirm 由该项满足。宿主经办能力继续要求有效策略租约。长期记录仅由可信管理入口写入；独立引擎进程拥有普通本机用户权限。普通扩展的 fs/HTTPS/MCP 授权仍适用于引擎主动选择的受控贡献回调。完整边界与协议见 [engine.md](engine.md)。
 
 ## 持久化引擎处理授权（Grant）
 
@@ -220,11 +220,11 @@ MCP v2 的连接器 permissionId 可对应 egress，或包含 request 操作的 
 
 可信管理为 exec target 绑定固定程序摘要与显式外部读/写目录，SDK 仅传 args/cwd。调用链每方必须同意该 exec 权限，且拥有全部所选目录的 fs read/write 声明；write 不隐含 read。活动短期任务范围必须覆盖这些目录操作，未选中即拒绝；exec 在未被已确认项目/组装覆盖时单次确认。执行前复核目录实体、程序摘要、整链状态与期限，再进入默认拒绝的系统沙箱；无直接网络、fork/执行其他程序、继承环境/额外 fd。
 
-平台私有数据及 agent-data 不能作为程序读写根。程序只允许固定只读系统依赖；设施、依赖或真实边界探测失败则 RUNTIME_UNAVAILABLE。取消等待 supervisor 清理，unknown/completed 不自动重试。按组件确认的整机入口可与该受控模式、common 任务及资源范围同时活动，各自授权仍单独复核。详情见[共同契约](common-contract.md#当前统一运行接入阶段-3)。
+平台私有数据及 agent-data 不能作为程序读写根。程序只允许固定只读系统依赖；设施、依赖或真实边界探测失败则 RUNTIME_UNAVAILABLE。取消等待 supervisor 清理，unknown/completed 不自动重试。按组件确认的整机入口可与该受控模式、common 任务及资源范围同时活动，各自授权仍单独复核。详情见[共同契约](common-contract.md#当前统一运行接入)。
 
 ### 桌面第三方策略 gate
 
-可信宿主可注入 `capabilityGate`；core 在完成原有声明、同意、整链和实际范围检查后调用它，并在确认、审计和 Sink 前后反复执行返回的 `assertCurrent`。只有可信宿主 gate 接受时替代本次安全模式确认；core 不加载或解释第三方策略。DesktopHost 的 gate 使用固定策略、严格决定 schema、10 秒超时与有效用户最大范围。未选择策略继续使用上述桌面安全确认；健康提供者缺租约时拒绝；core 向 gate 提供本次 requiresConfirmation，决定无效/超时或提供者失效时，仅本需要单次确认的操作回退可信窗口，其余返回 POLICY_UNAVAILABLE。回退不能恢复租约或越过 core 授权。SDK 没有 gate 配置权限。详见[SDK v2 策略接入](sdk-v2.md#第三方策略接入阶段-4)。
+可信宿主可注入 `capabilityGate`；core 在完成原有声明、同意、整链和实际范围检查后调用它，并在确认、审计和 Sink 前后反复执行返回的 `assertCurrent`。只有可信宿主 gate 接受时替代本次安全模式确认；core 不加载或解释第三方策略。DesktopHost 的 gate 使用固定策略、严格决定 schema、10 秒超时与有效用户最大范围。未选择策略继续使用上述桌面安全确认；健康提供者缺租约时拒绝；core 向 gate 提供本次 requiresConfirmation，决定无效/超时或提供者失效时，仅本需要单次确认的操作回退可信窗口，其余返回 POLICY_UNAVAILABLE。回退不能恢复租约或越过 core 授权。SDK 没有 gate 配置权限。详见[SDK v2 策略接入](sdk-v2.md#第三方策略接入)。
 
 ### 本地入口策略
 
@@ -239,7 +239,6 @@ SDK 的 `CommonOperationContext.category` 新增 `local`。本地启动使用 `o
 策略 deny 不可被授权覆盖，allow 仅在可信最大范围内替代所需单次确认。补充契约要求策略超时、崩溃、失效或无效决定：本需单次确认时回退可信窗口，无确认环节时 POLICY_UNAVAILABLE；自动放行审计包含提供者身份与请求指纹。该分情形回退已接入，审计 reason 区分 POLICY_ALLOW/POLICY_DENY/POLICY_CONFIRM/POLICY_FAILED，确认事件保留回退原因；审计失败不执行。宿主不内置审查模型或自动批准开关。
 
 连接内部配置使用已保存的原始非秘密设置及秘密就绪状态；describeSettings 只作脱敏呈现，不参与绑定解析或授权指纹。通用 HTTPS 请求头接受 HTTP token 头名（含合法标点），拒绝换行、NUL 及 Host、Content-Length、Connection、Transfer-Encoding、Proxy-Authorization、Proxy-Connection；声明凭据覆盖同名输入头。MCP v2 接受 service/https/request 权限的已同意连接器，仍复核工具指纹、完整操作同意及调用链。
-
 
 项目配套包括真实工具链根探测、配置允许字段过滤、Agent/组件缓存管理和独立 CONNECT 代理。允许字段为 Git user.name/user.email/init.defaultBranch/core.autocrlf/core.eol/pull.rebase，npm registry/@scope:registry，cargo registries.<名称>.index/source.<名称>.replace-with/registry，pip global.index-url/global.extra-index-url/global.trusted-host。含认证的 URL 和认证、include、alias、hooks 字段不复制。配置显式安全读取、独立原子生成模块和手动凭据批准/撤销已有原生验证；配置、凭据、工具链、代理与缓存运行时接线尚未接入，详见 [engine.md](engine.md)。始终排除规则补入 .yarnrc、.config/pip、.pip 和 .cargo/config.toml，额外只读目录不能覆盖这些拒绝项。
 

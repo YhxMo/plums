@@ -5,7 +5,7 @@ import { afterEach, expect, it } from "vitest";
 import {
   collectProductionPackages,
   formatProductionNotices,
-} from "../../../scripts/generate-third-party-notices.mjs";
+} from "../generate-third-party-notices.mjs";
 
 const roots: string[] = [];
 afterEach(async () => {

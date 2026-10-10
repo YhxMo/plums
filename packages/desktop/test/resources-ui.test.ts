@@ -133,7 +133,7 @@ it.runIf(process.platform === "darwin")(
           },
         ],
       });
-      const outputs = path.join(root, ".artifacts/common-contract/stage-2");
+      const outputs = path.join(root, ".build-cache/common-contract/resources");
       await mkdir(outputs, { recursive: true });
       for (const width of [1120, 820, 560]) {
         await app.evaluate(({ BrowserWindow }, width) => {

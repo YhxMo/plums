@@ -40,7 +40,7 @@
 
 `kind: engine` 可声明 `tier: "project" | "machine"`；省略时按整机声明处理，清单不会被补写。项目声明可带 `network: {hosts: [...]}`、`toolchains`（node、git、rust、python、go）和 `credentials: [{id, kind, host, reason?}]`。这些字段只用于项目档位；主机候选沿用外发主机规则且仅允许 HTTPS 443，凭据必须指定候选范围内的具体主机。凭据 kind 为 npm-token、cargo-token、pip-index-auth 或 git-https，id 不得重复。字段只是请求声明，不授予执行、网络或凭据；未知字段继续保留，完整 engine 声明变化须重新同意。
 
-当前阶段的每 Agent 执行服务管理该 Agent 的授权检查和独立入口进程。启动与每次请求都检查当前安装身份、完整入口声明、组件声明档位、上限和已确认执行项。上限不足返回 `TIER_REQUIRED`，缺少匹配执行项返回 `LOCAL_CONFIRM_REQUIRED`，不打开逐引擎首次信任窗口。项目入口在取得授权后执行独立的项目沙箱自检，仍返回 `TIER_UNAVAILABLE`；同组件的整机入口按自身档位检查，不将项目入口提升为整机。项目运行入口尚未接入。SDK 委托已接入完整请求调用链与取消；项目执行与管理界面按 [requirements-v1](requirements/requirements-v1.md) 继续实施。
+每 Agent 执行服务管理该 Agent 的授权检查和独立入口进程。启动与每次请求都检查当前安装身份、完整入口声明、组件声明档位、上限和已确认执行项。上限不足返回 `TIER_REQUIRED`，缺少匹配执行项返回 `LOCAL_CONFIRM_REQUIRED`，不打开逐引擎首次信任窗口。项目入口在取得授权后执行独立的项目沙箱自检，仍返回 `TIER_UNAVAILABLE`；同组件的整机入口按自身档位检查，不将项目入口提升为整机。项目运行入口尚未接入。SDK 委托已接入完整请求调用链与取消；项目执行、容器监管及配置注入仍未完整接入。
 
 ### 项目配置自检与当前边界
 
@@ -50,23 +50,23 @@
 
 项目授权计划、目录绑定复核及启动授权现已运行原生目录句柄扫描：不跟随符号链接，对普通文件的设备号、inode 与 nlink 计数，全部别名必须出现在同一项目根内；缺少别名、目录身份变化、遍历失败或超过预算均返回 `TIER_UNAVAILABLE`。Seatbelt 配置允许项目内 link/linkat，拒绝项目外源及项目根与其祖先目录的 unlink/rename。新增真实测试验证这些创建行为，不重复运行历史 46 项诊断。
 
-上述扫描不是内核级 inode 防线。配置生成后由非后代进程新增别名及校验与使用之间的竞争仍可能越界；历史诊断对裸配置的既有/运行期硬链接与脱组进程结论不因此撤销。全后代容器与项目运行入口尚未完成，`assertAvailable` 始终返回 `TIER_UNAVAILABLE`，没有整机或无沙箱回退。原 `controlledProfile` 与其禁止派生的自检保持独立，未通过的 R17 检查未改为跳过或放宽。
+上述扫描不是内核级 inode 防线。配置生成后由非后代进程新增别名及校验与使用之间的竞争仍可能越界；历史诊断对裸配置的既有/运行期硬链接与脱组进程结论不因此撤销。全后代容器与项目运行入口尚未完成，`assertAvailable` 始终返回 `TIER_UNAVAILABLE`，没有整机或无沙箱回退。原 `controlledProfile` 与其禁止派生的自检保持独立，未通过的 项目边界 检查未改为跳过或放宽。
 
 Darwin arm64 的自造实验确认，同沙箱广播能清理五种脱组后代并保留另一独立入口，但后代也能杀死单收割者并留下孤儿。另一个实验按收割者程序路径限定信号权限，普通子进程被拒绝；重执行该未防注入的程序时，DYLD 注入代码却能取得该权限。因此两个候选均未接入生产。程序路径条件本身不构成可信代码身份，进程表和信号 0 也未形成零残留证明。
 
-构建后可运行 `pnpm exec node scripts/platform-conformance.mjs --runtime project --node <固定 Node 路径> --out <报告路径>`。项目报告与 common/SDK 证据分开，当前返回失败与非零退出状态；其他平台报告 `skipped`，同样不能作为项目可用证据。测试验证的是正确拒绝与诊断结论，不是 R17 已验收。
+构建后可运行 `pnpm exec node scripts/platform-conformance.mjs --runtime project --node <固定 Node 路径> --out <报告路径>`。项目报告与 common/SDK 证据分开，当前返回失败与非零退出状态；其他平台报告 `skipped`，同样不能作为项目可用证据。测试验证的是正确拒绝与诊断结论，不是 项目边界 已验收。
 
 Agent 私有数据库版本为 8。`agent_tier` 保存档位上限与目录、组件确认范围，`agent_local_grants` 保存按安装身份、入口与完整声明固定的本地执行项。新数据库的读取默认上限为沙箱、无授权。上限本身不能使任何引擎获准执行；旧信任迁移只生成对应入口的执行项，不生成 fs/exec 确认覆盖。版本 8 增加本地凭据预留引用；旧版本 6/7 拒绝新库。可信手动凭据批准、撤销与引用回滚已接入；项目运行时注入、启动配置重建及按批/本机配置来源批准尚未接入。
 
 6→7 迁移只复制安装身份与当前完整声明一致的旧整机信任。存在匹配项时，上限为整机以容纳这些入口；没有匹配项时保持沙箱。不复制目录、主机、凭据或组件确认覆盖，不授予其他引擎。旧 `engine_trust` 记录作为只读历史保留；原有限 Grant 及其授权版本、安装、同意、启用、密钥引用和 MCP 记录均保留。
 
-迁移项在首次读取授权状态、引擎授权或有限 Grant 接口时等待元信息审计及其持久确认；缺少审计、审计失败或保存失败时不生效，重启可重试。审计只有 Agent 身份、迁移和未迁移计数；重试复用 callId，故写入后但确认标记保存失败时可能重复记录同一 callId。撤权、权限变化与卸载只修改新的执行项，不会从旧表恢复授权。core 的 `engineTrustSnapshot`、`grantEngineTrust`、`revokeEngineTrust` 签名保留并标为弃用，兼容视图仅读取有效整机执行项，不能批准项目档位。
+迁移项在首次读取授权状态、引擎授权或有限 Grant 接口时等待元信息审计及其持久确认；缺少审计、审计失败或保存失败时不生效，重启可重试。审计只有 Agent 身份、迁移和未迁移计数；重试复用 callId，故写入后但确认标记保存失败时可能重复记录同一 callId。撤权、权限变化与卸载只修改新的执行项，不会从旧表恢复授权。旧 core 的 `engineTrustSnapshot`、`grantEngineTrust`、`revokeEngineTrust` 弃用窗口截至首个公开预览 0.1.0 之前；它们已从当前 API 移除。可信宿主改用 `localAuthorizationState` 和 `commitLocalAuthorization`；固定历史实现保留旧接口用于迁移验收，schema-6 归档继续只读保留。
 
 ### 可信宿主汇总授权接口
 
 `DesktopHost.tierPlan(agentId, selection?)` 返回当前授权、各组件完整 permissions、本地声明档位、待确认状态和 fingerprint。`TierSelection` 指定上限、已绑定根中的项目目录与只读目录、此次审阅的组件及各入口获准的候选主机。每个入口分别采用自身 engine 权限的声明档位。项目目录保存真实路径和 dev/ino；授权记录不进入导出。
 
-`confirmTier(agentId, fingerprint, selection)` 在可信确认入口一次列出所选组件和范围。涉及整机时包含“该扩展可读取和修改本机所有文件（包括 Plums 自身数据和其他 Agent 的密钥）、运行任意程序、访问网络。停止或撤销该入口后，它启动且已脱离其进程组的子进程可能继续运行。”。只有布尔 true 才继续；拒绝、取消、超时和异常均不写授权。确认等待期间管理操作仍可执行；回答后和审计后复核 fingerprint、目录身份、授权版本及完整组装，迟到确认不能恢复被撤销的授权。数据库在写锁内原子提交上限与各执行项，失败不留下半份授权。拒绝和成功确认都记录元信息审计。
+`confirmTier(agentId, fingerprint, selection)` 在可信确认入口一次列出所选组件和范围。涉及整机时包含[`MACHINE_AUTHORIZATION_COPY`](../packages/host/src/authorization-copy.ts)。只有布尔 true 才继续；拒绝、取消、超时和异常均不写授权。确认等待期间管理操作仍可执行；回答后和审计后复核 fingerprint、目录身份、授权版本及完整组装，迟到确认不能恢复被撤销的授权。数据库在写锁内原子提交上限与各执行项，失败不留下半份授权。拒绝和成功确认都记录元信息审计。
 
 `lowerTier(agentId, ceiling)`、`removeTierDirectory(agentId, root, readOnly?)`、`revokeLocal(agentId, packageId?)` 不询问，按变更停止受影响组件的进程并等待清理后保存。清理失败仍保存撤权并返回安全错误；确认范围变更的清理失败不能新增授权。移除一个目录后保留剩余项目范围；根解绑、重绑或身份变化则撤销依赖该范围的项目执行项，整机执行项保持。`tierStatus` 与 `tierPlan` 读取时也检测目录身份变化。所有事件只含档位、逻辑根名、组件 id 和主机数，不含物理路径、正文或凭据值。这些管理方法没有绑定到 SDK、包前端或本地入口，`host.confirm` 和 `host.grant` 不能签发此授权。
 
@@ -74,7 +74,7 @@ Agent 私有数据库版本为 8。`agent_tier` 保存档位上限与目录、�
 
 组装变化使等待中的旧确认失效；自动连接新提供者时停止受影响消费者。组件停止同时关闭相关界面句柄和资源租约，保留无关本地入口；Agent 级任务撤销关闭全部界面，显式资源撤销在审计失败时也先使旧范围失效。
 
-有限 Grant 绑定所属整机入口的当前执行项，包括授权身份；其他组件或同组件其他入口的本地确认、撤权不会使它失效。所属入口撤权再批准、档位降到整机以下、安装身份、完整清单、同意、设置或服务绑定变化仍使 Grant 失效。正常升级可沿用本地执行项，有限 Grant 因完整清单变化仍需重新批准。加入组件且现有组件、连接未变化时保留已有进程和有限 Grant；新增自动连接仍按 R10 撤销 Agent 已存 Grant。更新、移除、绑定与撤权按受影响组件停止；项目范围扩展仍需重新确认，完整项目 S-H 受项目入口不可用阻塞。
+有限 Grant 绑定所属整机入口的当前执行项，包括授权身份；其他组件或同组件其他入口的本地确认、撤权不会使它失效。所属入口撤权再批准、档位降到整机以下、安装身份、完整清单、同意、设置或服务绑定变化仍使 Grant 失效。正常升级可沿用本地执行项，有限 Grant 因完整清单变化仍需重新批准。加入组件且现有组件、连接未变化时保留已有进程和有限 Grant；新增自动连接仍按 协议绑定变更规则 撤销 Agent 已存 Grant。更新、移除、绑定与撤权按受影响组件停止；项目范围扩展仍需重新确认，完整项目 完整项目 受项目入口不可用阻塞。
 
 数据库首次采用此规则时，`authority_grant_legacy` 为已有 Grant 保存原授权版本与对应执行项的兼容锚点。原 `authority_grants` 记录、指纹、有效期和撤销状态不改写，锚点不重新授予权限，也不恢复迁移前已失效的 Grant。6→7 迁移和已有 7 版数据库均支持；重启不重建锚点。旧 Grant 继续校验当前服务及完整清单，并要求所属执行项仍与锚点一致，撤权再批准不能恢复旧 Grant。
 
@@ -141,7 +141,7 @@ await window.plums.engine.cancel("local", "task-1");
 
 组件 worker 可能因停止、撤权、重新启用或租约到期被重启；组件不得依赖 activation 内存状态跨重启保留。调用方保存的 opaque 句柄在重启后仍须由宿主按当前绑定复核，失效时以 `STALE_BINDING` 拒绝，缺失或无效输入以 `INVALID_REQUEST` 拒绝，不自动恢复旧授权。
 
-2026-10-10 的九文件四 worker 定向剖面（239/239）在 `resources-metadata::never revives a saved cross-process handle or resource range after disable and re-enable` 捕获预期重启：另一宿主停用再启用组件后，调用方的 `AuthorizedFoundationSession.check` 检出身份失效并停止旧实例，worker 在启动 309ms 后被停止、正常 `exit:0`，78ms 后重建；loadavg 为 4.8623/3.7871/3.6001。这次重启未见五秒执行预算、异常退出或策略租约到期触发。未插桩的历史全量无法还原准确先后顺序，本次证据支持预期生命周期路径，不证明所有负载超时均已归因。原始事件与静态入口清单见 `.artifacts/concurrency/profile-summary.json`、`restart-load-1.jsonl`、`worker-entrypoints.json`；显式重启后仍保存调用方句柄的既有回归继续覆盖该行为。
+2026-10-10 的九文件四 worker 定向剖面（239/239）在 `resources-metadata::never revives a saved cross-process handle or resource range after disable and re-enable` 捕获预期重启：另一宿主停用再启用组件后，调用方的 `AuthorizedFoundationSession.check` 检出身份失效并停止旧实例，worker 在启动 309ms 后被停止、正常 `exit:0`，78ms 后重建；loadavg 为 4.8623/3.7871/3.6001。这次重启未见五秒执行预算、异常退出或策略租约到期触发。未插桩的历史全量无法还原准确先后顺序，本次证据支持预期生命周期路径，不证明所有负载超时均已归因。原始事件与静态入口清单见 `.build-cache/concurrency/profile-summary.json`、`restart-load-1.jsonl`、`worker-entrypoints.json`；显式重启后仍保存调用方句柄的既有回归继续覆盖该行为。
 
 `addLibraryComponent` 和 `importComponent` 加入组件时，若原有组件与连接保持不变，保留当前会话与本地进程。新组件只完成安装，仍需同意、启用和自身本地执行确认；既有执行项不转授新组件。新消费者的单候选自动连接可以在此路径发布，已有消费者新增自动连接则继续走完整重建。等待中的调用只复核自身调用边的组件和连接，同时保留原链、目录、默认卡、设置及授权检查。
 
@@ -213,9 +213,7 @@ ProjectProxy 已实现独立 IPv4 回环 CONNECT 服务，仅批准主机的 443
 
 ## macOS 容器实验与可信凭据管理
 
-2026-10-10 的旧独立标记实验在 Codex shell 内取得 GO：V1 已存在文件与 V2 mach global-name 对测试 profile 满足成员/控制校准。复审后的环境门测得 self=0、已知沙箱 self=1，但 no-network 探针被 SIGKILL，因此当前结论为 INCONCLUSIVE。第三方沙箱负控制、真实 projectProfile 与常量校对已补入测试，环境门阻止其执行；需普通终端复核，旧 GO 不能作为生产接线依据。
-
-旧不存在路径的随机标记候选未通过本机校准：`sandbox_check` 对不存在的 `/usr/lib/.plums-*` 成员路径、控制路径及未沙箱 helper 均返回 1；同一调用检查已存在的 `/usr/lib` 则均返回 0，系统导出的 `SANDBOX_CHECK_NO_REPORT` 为 `0x40000000`。不能把不存在路径的拒绝当作成员证明；旧不存在路径候选的 11 个回收用例已移到 `project-members.experiments.test.ts`，仅通过 `pnpm test:experiments` 显式运行；默认套件显式验证项目入口失败关闭，不把该断言算作回收验收；11 项回收阻塞记录在 handoff。新变体未取得可采信的 GO，未接入生产或 launcher，项目继续 `TIER_UNAVAILABLE`。用户已决定有界实验 GO 后才实现，NO_GO 则停止 A1/A2/C2，不尝试第三种机制；当前 INCONCLUSIVE 等待普通终端证据。
+旧不存在路径的随机标记候选未通过本机校准：`sandbox_check` 对不存在的 `/usr/lib/.plums-*` 成员路径、控制路径及未沙箱 helper 均返回 1；同一调用检查已存在的 `/usr/lib` 则均返回 0，系统导出的 `SANDBOX_CHECK_NO_REPORT` 为 `0x40000000`。不能把不存在路径的拒绝当作成员证明；旧不存在路径候选的 11 个回收用例已移到 `project-members.experiments.test.ts`，仅通过 `pnpm test:experiments` 显式运行；默认套件显式验证项目入口失败关闭，不把该断言算作回收验收；这 11 项用例尚未完成回收验证。新变体未取得可采信的 GO，未接入生产或 launcher，项目继续 `TIER_UNAVAILABLE`。容器接入必须先通过成员校准及全部后代回收验证。
 
 真实实验验证：同沙箱信号广播可终止 setsid、setpgid、double-fork、POSIX_SPAWN_SETPGROUP 与普通 posix_spawn 后代，另一独立沙箱及外部哨兵不受影响。先使用非破坏的 SIGCONT 确认信号范围，再测试终止。该结果仍不足以采用单收割者：同沙箱后代可以杀死收割者并留下孤儿；本机 kill(pid,0) 与 proc_pidinfo 不能作为可靠的沙箱成员判定。现有生产监管仍仅进程组，不采用有丢失孤儿窗口的树轮询，项目启动继续失败关闭。
 
@@ -225,9 +223,8 @@ DesktopHost.provideCredential(agentId, fingerprint, packageId, engineId, credent
 
 ProjectStatus 返回真实平台诊断。界面显示通过数与失败状态，项目入口保持禁用；清空缓存先停止相关组件。可信宿主规范化 macOS 数据根（如 /var 的真实路径）后计算缓存位置，缓存内部符号链接与特殊文件仍拒绝。
 
-
 ## 项目容器与原生验收
 
 PR #36 的macos-15诊断显示重签系统arm64e副本被preview ABI拒绝（原始程序成功，副本签名校验成功但直接SIGSEGV、Seatbelt SIGKILL）；受控系统命令的4个默认用例按OS主版本显式门控，并由ci/expected-skips.json双向核验，macOS27必须运行。其余公开平台case、一般失败关闭测试及macos-15已通过的项目沙箱/组清理/创建边界测试继续运行。最低系统仍为27.0.1。
 
-项目档位原生容器与校准实验为“仅 macOS 27 验收”。11项成员实验的原因固定 `macOS 27 acceptance only`，条件为major<27且显式开启experiments；27上不能凭OS跳过，环境与机制阻塞仍须真实记录。project-members-variants保持记录型，不加跳过，macos-15的verdict用于证据，不能宣称项目档位可用。当前生产仍没有可靠全后代容器/项目launcher，项目入口继续返回TIER_UNAVAILABLE；发版前人工清单见release-evidence.md。
+项目档位原生容器与校准实验为“仅 macOS 27 验收”。11项成员实验的原因固定 `macOS 27 acceptance only`，条件为major<27且显式开启experiments；27上不能凭OS跳过，环境与机制阻塞仍须真实记录。project-members-variants保持记录型，不加跳过，macos-15的verdict用于证据，不能宣称项目档位可用。当前生产仍没有可靠全后代容器/项目launcher，项目入口继续返回TIER_UNAVAILABLE。测试运行方式见 [CI 文档](ci.md)。

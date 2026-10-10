@@ -4,7 +4,7 @@ import {
   assertCoverage,
   assertProjectGroups,
   EXPERIMENT_FILES,
-} from "../../../scripts/check-test-coverage.mjs";
+} from "../check-test-coverage.mjs";
 
 const fixture = () => ({
   files: [

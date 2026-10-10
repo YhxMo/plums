@@ -27,7 +27,7 @@ import {
  * including non-enumerable properties.
  *
  * The same-id burst, A.txt/a.txt, MANIFEST.JSON, and the a-versus-a/b.txt export
- * clash already live in p2-import-export.test.ts. This file keeps the boundaries
+ * clash already live in import-export-boundaries.test.ts. This file keeps the boundaries
  * that file does not: in-flight overlap, importFromUrl, Dir/ versus dir/, the
  * Manifest.json/ directory alias, and Dir/x versus dir/x.
  */

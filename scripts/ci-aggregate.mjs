@@ -1,3 +1,4 @@
+import { groups, requiredTests } from "./ci-test-plan.mjs";
 import { readFile, writeFile, appendFile, mkdir } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -103,7 +104,7 @@ export async function aggregate(directory, groups, expected, required) {
       pending &&
       JSON.stringify(pending.projects) !== JSON.stringify(projects)
     )
-      result.failures.push("pending project list differs from ci/groups.json");
+      result.failures.push("pending project list differs from ci/tests.json");
     if (result.failures.length && result.state === "passed")
       result.state = "failed";
     results.push(result);
@@ -166,12 +167,11 @@ export function aggregateSummary(result) {
 
 if (process.argv[1] && path.resolve(process.argv[1]) === script) {
   try {
-    const groups = await json(path.join(root, "ci/groups.json"));
     const result = await aggregate(
       path.join(root, "reports"),
       groups,
       await json(path.join(root, "ci/expected-skips.json")),
-      await json(path.join(root, "ci/required-tests.json")),
+      requiredTests,
     );
     const coverage = await inspectCoverage();
     try {

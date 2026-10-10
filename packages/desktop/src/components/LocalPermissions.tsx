@@ -1,3 +1,5 @@
+import { MACHINE_AUTHORIZATION_COPY } from "@plumsjs/host/authorization-copy";
+export { MACHINE_AUTHORIZATION_COPY } from "@plumsjs/host/authorization-copy";
 import { useEffect, useState } from "react";
 import type { AgentTierCeiling, EnginePermission } from "@plumsjs/core";
 import type {
@@ -13,8 +15,6 @@ import { ProjectSupport, type CacheStatus } from "./ProjectSupport.js";
 
 const tiers = { sandbox: "沙箱", project: "项目", machine: "整机" };
 const levels = { sandbox: 0, project: 1, machine: 2 };
-const MACHINE_STOP_LIMITATION =
-  "停止或撤销该入口后，它启动且已脱离其进程组的子进程可能继续运行。";
 const states = {
   stopped: "已停止",
   starting: "启动中",
@@ -399,7 +399,7 @@ export function LocalPermissions({
                 <p className="error-text">
                   整机扩展可读取和修改本机所有文件，包括 Plums 自身数据和其他
                   Agent 的密钥，运行任意程序并访问网络。
-                  {MACHINE_STOP_LIMITATION}
+                  {MACHINE_AUTHORIZATION_COPY}
                 </p>
               )}
               <button
@@ -550,7 +550,7 @@ function LocalProcess({
           撤销本地执行
         </button>
       </div>
-      {machine && <p className="error-text">{MACHINE_STOP_LIMITATION}</p>}
+      {machine && <p className="error-text">{MACHINE_AUTHORIZATION_COPY}</p>}
       {action.error && <p role="alert">{action.error}</p>}
     </div>
   );

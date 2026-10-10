@@ -9,6 +9,10 @@
     ".": {
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
+    },
+    "./authorization-copy": {
+      "types": "./dist/authorization-copy.d.ts",
+      "import": "./dist/authorization-copy.js"
     }
   },
   "license": "Apache-2.0",

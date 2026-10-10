@@ -2,7 +2,7 @@
 
 底座是扩展代码的执行提供者。可信宿主保留 Agent/安装身份、权限、配置和密钥、审计与生命周期。替代底座自己加载扩展、实现所声明的 SDK；不能通过包装官方运行实例宣称独立实现。
 
-本文件包含公开协议、可信注册与官方适配、公共库第三方接入、Agent 固定与切换，以及阶段 5 的官方制品和桌面管理。`DesktopHost` 已通过同一公共会话工厂运行官方或库内第三方组件会话；每 Agent 精确固定、需求检查和事务恢复见 [选择与切换](foundation-agent-selection.md)。官方离线 ZIP、旧版本执行、可信桌面入口和便携流程见 [桌面底座管理](foundation-desktop.md)。完整符合性另待后续阶段。独立 JSONL 原型仍可由公开 `@plumsjs/host.startFoundationSession` 启动；其执行证据只覆盖最小 SDK 子集。可信库接入和作者接口见 [作者指南](foundation-author-guide.md)，官方工厂说明见 [阶段 2 决策](decisions/foundation-2.md)。
+本文件包含公开协议、可信注册与官方适配、公共库第三方接入、Agent 固定与切换，以及官方制品和桌面管理。`DesktopHost` 已通过同一公共会话工厂运行官方或库内第三方组件会话；每 Agent 精确固定、需求检查和事务恢复见 [选择与切换](foundation-agent-selection.md)。官方离线 ZIP、旧版本执行、可信桌面入口和便携流程见 [桌面底座管理](foundation-desktop.md)。完整符合性另待后续阶段。独立 JSONL 原型仍可由公开 `@plumsjs/host.startFoundationSession` 启动；其执行证据只覆盖最小 SDK 子集。可信库接入和作者接口见 [作者指南](foundation-author-guide.md)。
 
 ## 分开的版本与字段
 
@@ -53,7 +53,7 @@
 
 ## 需求、兼容报告与固定选择
 
-组件在 `payload.plumsDesktop.foundation` 声明 `FoundationRequirement`。Agent ZIP 的 `agent.json.foundation` 是 `FoundationAgent`，可包含 requirement 和/或 selection；空对象拒绝。完整选择机制要求组件和 Agent 的全部必需功能都满足；阶段 4 已在创建、导入、组合变更和运行前检查 Agent 及全部可运行组件。当前 ZIP 的显式需求与选择约束宿主选择，缺少显式选择时拒绝自动运行。直接 archive 原型将调用者需求与组件需求取并集，不允许弱化组件声明。
+组件在 `payload.plumsDesktop.foundation` 声明 `FoundationRequirement`。Agent ZIP 的 `agent.json.foundation` 是 `FoundationAgent`，可包含 requirement 和/或 selection；空对象拒绝。完整选择机制要求组件和 Agent 的全部必需功能都满足；已在创建、导入、组合变更和运行前检查 Agent 及全部可运行组件。当前 ZIP 的显式需求与选择约束宿主选择，缺少显式选择时拒绝自动运行。直接 archive 原型将调用者需求与组件需求取并集，不允许弱化组件声明。
 
 ```json
 {
@@ -74,7 +74,7 @@
 }
 ```
 
-可选 `providerId` 限定提供者身份。选择来源只接受 builtin/library，必须固定具体版本和 ZIP 摘要，不接受 latest、版本范围、远程 URL 或运行句柄。缺失、不兼容或已失效选择不得静默回退。被 Agent 引用的制品必须保留；阶段 4 已保存选择并保护被引用制品。
+可选 `providerId` 限定提供者身份。选择来源只接受 builtin/library，必须固定具体版本和 ZIP 摘要，不接受 latest、版本范围、远程 URL 或运行句柄。缺失、不兼容或已失效选择不得静默回退。被 Agent 引用的制品必须保留；已保存选择并保护被引用制品。
 
 `checkFoundationCompatibility` 返回 compatible、diagnostics、missingOptionalFeatures 和 `evidence: "declared"`。诊断分别记录 PROTOCOL / SDK / FEATURE / HOST_FEATURE / PLATFORM / PROVIDER。未知可选功能可以缺失；未知必需功能不能被忽略。自定义 SDK 的离线声明和诊断可用，当前执行原型只实现官方 SDK 2.0.0 的下述子集，自定义 SDK 执行暂未实现。
 
@@ -92,7 +92,7 @@ Draft-07 schema 在 [schemas](schemas/foundation-provider-1.json)：provider、r
 
 `startFoundationSession(options)` 接收固定 Node 路径、提供者 archive+selection、消费者 archive+可信 agentId/installationId、需求，以及两个可信函数：bridge 和 assertActive。制品字节、选择、需求和身份在首次 await 前复制。宿主验证 ZIP、提供者 id/version/digest、消费者 SDK 与需求后创建独立端点和随机 instanceId。
 
-`assertActive` 必须绑定真实安装、制品、选择与生命周期，每次等待前后检查其有效性。bridge 是可信宿主闭包，依照当前消费者、调用链和权限执行正常授权、确认、秘密注入和审计。提供者不能注册管理 IPC。阶段 1 测试直接连接真实 core 和原生 SecureFsSink；阶段 2 的官方适配和阶段 3 的第三方库适配均连接 DesktopHost 的同一桥。库适配使用公共工厂固定的 actor/instanceId，不重新签发另一套身份。
+`assertActive` 必须绑定真实安装、制品、选择与生命周期，每次等待前后检查其有效性。bridge 是可信宿主闭包，依照当前消费者、调用链和权限执行正常授权、确认、秘密注入和审计。提供者不能注册管理 IPC。测试直接连接真实 core 和原生 SecureFsSink；官方适配和第三方库适配均连接 DesktopHost 的同一桥。库适配使用公共工厂固定的 actor/instanceId，不重新签发另一套身份。
 
 bridge 收到 method、args、宿主固定的 InvocationContext 和只读 FoundationActor。actor 包含 agentId、componentId、installationId、componentVersion、componentDigest、instanceId；调用 context 的 invocationId/resourceInstanceId 由宿主生成。调用链和 frontend/grant 范围在排队前复制。业务 input 中的同名字段没有身份效力。顶层消息和 args 中冒用身份、调用链或 context 会被拒绝。
 
@@ -104,7 +104,7 @@ bridge 收到 method、args、宿主固定的 InvocationContext 和只读 Founda
 
 1. 宿主发送 prepare：固定 binding、provider selection、sdk、协商 features、extension 的 entry/files/contributes，以及 limits。
 2. 提供者只验证准备材料，返回 ready：相同 sdk 与 features。不得加载业务入口、执行贡献或发出任何业务回调。宿主未激活时 invoke 被拒绝。
-3. 宿主在可信事务已提交且当前身份有效时调用 activate，并发送 activate；提供者加载业务入口并运行 `activate(plums)` 注册贡献，返回 activated。第三方 JSONL 载体在加载和注册期间禁止所有宿主回调，不能进行业务 I/O。官方适配仅允许受控元信息读取，见 [Agent 切换准备边界](foundation-agent-selection.md#事务与恢复)。阶段 1 的显式 activate 是测试激活门；持久切换事务在阶段 4 实现。
+3. 宿主在可信事务已提交且当前身份有效时调用 activate，并发送 activate；提供者加载业务入口并运行 `activate(plums)` 注册贡献，返回 activated。第三方 JSONL 载体在加载和注册期间禁止所有宿主回调，不能进行业务 I/O。官方适配仅允许受控元信息读取，见 [Agent 切换准备边界](foundation-agent-selection.md#事务与恢复)。显式 activate 是测试激活门；持久切换事务在实现。
 4. 激活复核成功后宿主串行发送 invoke：随机 callId、kind/name/input。贡献必须已声明；输入/输出 schema 在宿主验证。
 5. 提供者发 callback：当前 callId、每次唯一 callbackId、method、args。宿主发 reply：对应两个 id、ok、value。reply 的错误只含通用 HOST_DENIED 和宿主 failureId，底层异常不进入提供者。
 6. 提供者发 result：当前 callId、ok、value。每次只能一个终态，不得在未完成回调时提前结果。传播宿主错误时 value 传回 failureId；宿主保留该真实错误。普通提供者失败使用通用 PROVIDER_FAILED。
@@ -116,7 +116,7 @@ ready/activated 重复、错版本/SDK/features、跨 session/call 的回调、�
 
 ## 回调功能和预算
 
-| SDK feature                                    | 回调                                        | 阶段 1 独立原型                       |
+| SDK feature                                    | 回调                                        | 独立原型                              |
 | ---------------------------------------------- | ------------------------------------------- | ------------------------------------- |
 | sdk.register                                   | 提供者本地贡献注册                          | 已验证                                |
 | sdk.settings / sdk.context                     | settings / context                          | 已验证，真实 core 设置与固定身份      |
@@ -134,13 +134,13 @@ ready/activated 重复、错版本/SDK/features、跨 session/call 的回调、�
 
 独立加载器在 `packages/host/test/fixtures/independent-foundation.mjs`，仅导入 Node 公开 API，实现自己的模块链接、SDK Promise/RPC、注册和调用，不导入 ExtensionRuntime、controlled-worker、sdk-bootstrap，也不包装官方实例。同一个 ZIP 的 main.js 由官方 ExtensionRuntime 和独立加载器执行，测试比较业务结果，同时保留各自新生成的调用身份。
 
-执行 `pnpm build` 后运行 `pnpm exec vitest run packages/sdk/test/foundation-contract.test.ts packages/host/test/foundation-session.test.ts packages/host/test/controlled-execution.test.ts`。阶段证据在 `.artifacts/foundation-platform/stage-1/`，包括正常、故意恶意提供者、真实直接文件读写/网络/进程拒绝及无沙箱正控制。全部使用自造临时数据和无真实凭据。该独立提供者仅此明确子集具备内部执行证据。阶段 2 官方适配已有既有 SDK 回归；阶段 3 已验证第三方公共库导入、注册、公共工厂、DesktopHost 的最小真实桥与生命周期。阶段 4 的持久选择/切换与恢复已有内部回归；作者黑盒符合性和实际外部作者证据尚未完成。
+执行 `pnpm build` 后运行 `pnpm exec vitest run packages/sdk/test/foundation-contract.test.ts packages/host/test/foundation-session.test.ts packages/host/test/controlled-execution.test.ts`。测试覆盖正常、故意恶意提供者、真实直接文件读写/网络/进程拒绝及无沙箱正控制。全部使用自造临时数据和无真实凭据。该独立提供者仅此明确子集具备内部执行证据。官方适配已有既有 SDK 回归；已验证第三方公共库导入、注册、公共工厂、DesktopHost 的最小真实桥与生命周期。持久选择/切换与恢复已有内部回归；作者黑盒符合性和实际外部作者证据尚未完成。
 
 ## 子集作者实现规格
 
-这一节给出阶段 1 最小子集的可实现细节。`foundationVersion` 的声明写 `1.n`，同 major 必须兼容 1.0 基线；用于 SemVer 范围比较时补 patch 0。当前宿主实际只协商 1.0，对应比较值 **1.0.0**。例如 `^1.0.0` 满足，`^1.1.0` 不满足，即使提供者声明 1.1 也不能把该消费者降到 1.0。兼容报告中的 foundationVersion 记录实际协商值。线上每一帧使用准确的 `"1.0"`。
+这一节给出最小子集的可实现细节。`foundationVersion` 的声明写 `1.n`，同 major 必须兼容 1.0 基线；用于 SemVer 范围比较时补 patch 0。当前宿主实际只协商 1.0，对应比较值 **1.0.0**。例如 `^1.0.0` 满足，`^1.1.0` 不满足，即使提供者声明 1.1 也不能把该消费者降到 1.0。兼容报告中的 foundationVersion 记录实际协商值。线上每一帧使用准确的 `"1.0"`。
 
-合并同一组件会话的多份需求时，SDK id/version 必须相同且与组件 sdkVersion 的官方 API 线一致；features 取必需并集。不同组件分别检查，可以使用不同 SDK 主线，不跨组件合并功能。每份 protocolRange、providerId 都分别检查，相互冲突就拒绝。可选功能只添加提供者实际支持的项；其他需求已经要求某项功能时，该项成为必需。单份声明的必需/可选列表不能重叠。Agent foundation 没有 selection 时允许离线解析和 ZIP 检查，表示“待选择”；新声明不能自动启动或回退，可信管理入口须形成精确选择。阶段 1 的工厂必须显式传入 selection，尚未负责持久保存或桌面选择。
+合并同一组件会话的多份需求时，SDK id/version 必须相同且与组件 sdkVersion 的官方 API 线一致；features 取必需并集。不同组件分别检查，可以使用不同 SDK 主线，不跨组件合并功能。每份 protocolRange、providerId 都分别检查，相互冲突就拒绝。可选功能只添加提供者实际支持的项；其他需求已经要求某项功能时，该项成为必需。单份声明的必需/可选列表不能重叠。Agent foundation 没有 selection 时允许离线解析和 ZIP 检查，表示“待选择”；新声明不能自动启动或回退，可信管理入口须形成精确选择。工厂必须显式传入 selection，尚未负责持久保存或桌面选择。
 
 ### 业务入口与 SDK 对象
 
@@ -242,11 +242,11 @@ settings/context 使用同样帧和 args={}，reply.value 分别是设置 object
 
 提供者自己的失败用 `result`、`ok:false`、`value:null`；宿主报告 PROVIDER_FAILED/completed。无法继续协议时可发 `{"foundationVersion":"1.0","sessionId":"I","type":"fatal"}`，宿主关闭并按本次是否已派发确定 not_started/unknown。控制 stop/cancel 是仅含版本、sessionId、type 的帧，不含 callId；当前宿主取消直接终止进程，不等作者答复。事件帧（本原型不支持）为 `{foundationVersion,sessionId,type:"event",callId,topic,event}`，以普通 result 完成，仍不得自行指定业务 sequence。
 
-当前接纳方法完整列表：settings、context、capability、connection、invoke、character、characters、emit、mcpCheck、failResponse、resource.list/read/write/delete、protocol.status/invoke、common.describe/bindings/invoke、common.tasks.create/status/list/cancel、common.policy.status。resource._ 映射 sdk.resources，protocol._ 映射 sdk.protocols，common.\* 映射 sdk.common，emit 映射 sdk.events；其余映射 `sdk.`+method。阶段 1 最小加载器只声明并实现 register/settings/context/capability，其余槽没有独立执行证据。每帧公共字段必需；上述各类型示例出现的其余字段均必需，mcpTool/前端/贡献 schema 和附加模块按声明可选。未知同 major 附加字段保留，但提供者消息的 reserved 身份/context/executionState 字段和 args 中的身份/context 冒用字段禁止，不能借附加字段创建权限。此限制不禁止可信宿主的 prepare.binding 或 context 的正常 reply.value。
+当前接纳方法完整列表：settings、context、capability、connection、invoke、character、characters、emit、mcpCheck、failResponse、resource.list/read/write/delete、protocol.status/invoke、common.describe/bindings/invoke、common.tasks.create/status/list/cancel、common.policy.status。resource._ 映射 sdk.resources，protocol._ 映射 sdk.protocols，common.\* 映射 sdk.common，emit 映射 sdk.events；其余映射 `sdk.`+method。最小加载器只声明并实现 register/settings/context/capability，其余槽没有独立执行证据。每帧公共字段必需；上述各类型示例出现的其余字段均必需，mcpTool/前端/贡献 schema 和附加模块按声明可选。未知同 major 附加字段保留，但提供者消息的 reserved 身份/context/executionState 字段和 args 中的身份/context 冒用字段禁止，不能借附加字段创建权限。此限制不禁止可信宿主的 prepare.binding 或 context 的正常 reply.value。
 
 ### 可信宿主启动与清理责任
 
-以下片段表示原型接入点，`providerZip`/`consumerZip` 是已准备的字节，`providerSelection` 含精确 ZIP 摘要；`verifyCurrentInstallation` 与 `dispatchAuthorizedSdk` 是可信宿主已有检查/桥闭包，不由包提供。阶段 3 的库适配已把此独立受控提供者接入 DesktopHost 的同一可信桥；直接 archive 原型接口继续保留。公共库作者接入示例见 [作者指南](foundation-author-guide.md)。
+以下片段表示原型接入点，`providerZip`/`consumerZip` 是已准备的字节，`providerSelection` 含精确 ZIP 摘要；`verifyCurrentInstallation` 与 `dispatchAuthorizedSdk` 是可信宿主已有检查/桥闭包，不由包提供。库适配已把此独立受控提供者接入 DesktopHost 的同一可信桥；直接 archive 原型接口继续保留。公共库作者接入示例见 [作者指南](foundation-author-guide.md)。
 
 ```ts
 import { startFoundationSession } from "@plumsjs/host";
@@ -287,4 +287,4 @@ try {
 
 FoundationSession 的 instanceId/alive 是只读属性；生命周期与调用成员是方法：ready()/activate()/cancel()/close() 返回 Promise<void>，invoke()/deliverEvent() 返回 Promise<unknown>，stop() 返回 void。启动工厂在返回对象前失败时自身负责清理；返回成功后会话资源归可信调用方，即使 ready/activate/invoke 拒绝也必须 finally await close。失败与超时会立即自动发起 stop；reject 表示调用失败，不表示清理已结束。close 等待 supervisor 的 TERM 三秒、必要的 KILL、真实退出和快照删除，不等待作者确认。宿主整体退出应中止 owner 信号并 await 所有已拥有会话的 close；broker 断连仍由独立 supervisor 清理。
 
-可信 bridge 的 signal 失效后不得新派发 I/O，并在异步授权/确认/审计后复核；迟到 Promise 完成不能回复已关闭会话。close 等待进程与快照，不等待一个忽略取消且永不返回的宿主 Promise；宿主桥负责自己所拥有的 I/O 清理。已经发生或状态未知的副作用保持原记录，不因取消重做。删除临时快照失败必须作为清理失败保留，不能把失败 close 标成阶段通过。选择事务和故障恢复见 [Agent 选择](foundation-agent-selection.md)；恢复不自动续跑业务，停止后的同一会话不能复活。
+可信 bridge 的 signal 失效后不得新派发 I/O，并在异步授权/确认/审计后复核；迟到 Promise 完成不能回复已关闭会话。close 等待进程与快照，不等待一个忽略取消且永不返回的宿主 Promise；宿主桥负责自己所拥有的 I/O 清理。已经发生或状态未知的副作用保持原记录，不因取消重做。删除临时快照失败必须作为清理失败保留，不能把失败 close 标成成功。选择事务和故障恢复见 [Agent 选择](foundation-agent-selection.md)；恢复不自动续跑业务，停止后的同一会话不能复活。

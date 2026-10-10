@@ -77,7 +77,7 @@ export async function prepareElectron() {
       electron_config_cache:
         process.env.ELECTRON_CACHE ??
         process.env.electron_config_cache ??
-        path.resolve(".artifacts/electron-cache"),
+        path.resolve(".build-cache/electron-cache"),
     },
   });
   if (process.platform === "darwin") {

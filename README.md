@@ -62,7 +62,8 @@ gh attestation verify Plums-0.1.0-arm64.dmg --repo YhxMo/plums
 The preview uses ad-hoc signing and is not notarized. A browser download may be
 blocked by Gatekeeper. Right-click **Open**, or use **System Settings → Privacy &
 Security → Open Anyway**, if your macOS version offers that option.
-**Gatekeeper prompts and these steps are pending user validation on the target Mac.**
+Gatekeeper prompts vary by macOS version. The source validation record does not
+certify the browser-download path.
 
 `xattr -dr com.apple.quarantine Plums.app` removes the quarantine marker and bypasses
 that system check. Use it only for a package whose source, checksum, and provenance
@@ -81,7 +82,7 @@ The minimum follows the packaged application's system requirement. CI uses macOS
 - **Project tier: currently unavailable.** Launch returns `TIER_UNAVAILABLE` and never falls back to machine execution or an unsandboxed process. Reliable descendant containment and escape acceptance remain incomplete; see [local execution](./docs/engine.md).
 - **Machine tier:** authorized extensions have **no Plums sandbox**. They can read and modify local files accessible to your account, including Plums data and other Agents' credentials, run arbitrary programs, and access the network. After you stop or revoke this entry, children it started that are detached from its process group may continue running. Install extensions only from sources you trust.
 - **Runtime hard links:** creation checks and startup validation do not form a kernel inode boundary. New aliases created at runtime by unrelated processes remain an unprotected risk for the future project tier, which is currently unavailable.
-- **Local installation packages:** ad-hoc signed and not notarized; the system may block them. Verify the source and hash in its verification record before choosing to run a local build. Automatic updates are unavailable.
+- **Local installation packages:** ad-hoc signed and not notarized; the system may block them. Verify the source and checksum before choosing to run a local build. Automatic updates are unavailable.
 
 See the [security model](./docs/security-model.md) for authorization, revocation,
 and audit boundaries. Report vulnerabilities through [SECURITY.md](./SECURITY.md).
@@ -129,8 +130,7 @@ The detailed guides are currently written in Simplified Chinese.
 
 The workspace uses the npm organization scope `@plumsjs`: `@plumsjs/core`,
 `@plumsjs/cli`, `@plumsjs/sdk`, `@plumsjs/host`, and `@plumsjs/desktop`.
-The CLI command remains `plums`. npm publication is pending; use the source
-build instructions above. The SDK, host, desktop, and workspace root retain
+The CLI command remains `plums`. Use the source build instructions above. The SDK, host, desktop, and workspace root retain
 their existing `private: true` setting.
 
 ## Development

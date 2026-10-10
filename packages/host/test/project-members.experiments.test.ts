@@ -13,7 +13,7 @@ import { afterEach, expect, it } from "vitest";
 
 const native = projectNativeAcceptance;
 // Unverified reap scenarios run only in the explicit experiments project.
-// The old nonexistent-path marker is unchanged; see members variants in handoff.
+// The old nonexistent-path marker is unchanged; see project-members-variants.test.ts for calibration.
 const experiments = native && process.env.PLUMS_NATIVE_EXPERIMENTS === "1";
 const run = promisify(execFile);
 const helper = path.resolve("packages/host/dist/project-members");

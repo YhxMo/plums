@@ -4,7 +4,7 @@ dist/
 coverage/
 .DS_Store
 release/
-.artifacts/
+.build-cache/
 reports/
 playwright-report/
 test-results/
