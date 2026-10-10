@@ -2,6 +2,9 @@
 
 ## 未发布
 
+- Unified the project name as Plums in docs and metadata.
+- Added security disclosure, contribution and community policies, with structured issue and pull request templates.
+
 - 当前最终提交的全量、打包清单、ad-hoc 签名、DMG 与临时目录启动验证见[本地发布验证证据](docs/release-evidence.md)；未公证，CI 尚未真实运行。
 
 - 整机入口的首次汇总确认与权限页披露脱组子进程可能继续运行；停止/撤权控件旁同步展示该限制。

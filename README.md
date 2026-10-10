@@ -16,7 +16,7 @@ Plums brings character cards, extensions, and service connectors into one deskto
 
 The desktop app manages components, configuration, permissions, and execution. Chat, model integrations, and other workflows are provided by separately maintained extensions and connectors.
 
-`plums` is the source repository for Plums.
+This repository contains the source of Plums.
 
 ## Highlights
 

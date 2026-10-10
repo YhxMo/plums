@@ -1,0 +1,59 @@
+name: Bug report
+description: Report a reproducible Plums defect using synthetic data.
+title: "[Bug]: "
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Security problems belong in the private reporting channel in SECURITY.md.
+        Do not include keys, real filesystem paths, personal data, or private Agent content.
+  - type: input
+    id: version
+    attributes:
+      label: Plums version or commit
+    validations:
+      required: true
+  - type: input
+    id: macos
+    attributes:
+      label: macOS version
+    validations:
+      required: true
+  - type: dropdown
+    id: chip
+    attributes:
+      label: Chip
+      options:
+        - Apple Silicon (arm64)
+        - Other (describe in reproduction)
+    validations:
+      required: true
+  - type: dropdown
+    id: tier
+    attributes:
+      label: Permission tier ceiling
+      options:
+        - Sandbox
+        - Project (currently unavailable)
+        - Machine
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Reproduction steps
+      description: Use a minimal synthetic fixture and replace real paths with placeholders.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior
+    validations:
+      required: true

@@ -9,6 +9,7 @@ const OLD_CLAIMS = [
 const CLAIMS = [
   {
     file: "README.md",
+    source: "This repository contains the source of Plums.",
     project: "Project tier: currently unavailable",
     machine: "no Plums sandbox",
     limitation:
@@ -16,6 +17,7 @@ const CLAIMS = [
   },
   {
     file: "README.zh-CN.md",
+    source: "本仓库包含 Plums 的源代码。",
     project: "项目档位：当前不可用",
     machine: "没有 Plums 沙箱",
     limitation:
@@ -30,6 +32,10 @@ const readmes = () =>
       "utf8",
     ),
   }));
+it("README files describe the current source repository exactly once", () => {
+  for (const { text, source } of readmes())
+    expect(text.split(source)).toHaveLength(2);
+});
 it("README files no longer describe the removed engine-trust approval", () => {
   for (const { text } of readmes())
     for (const phrase of OLD_CLAIMS) expect(text).not.toContain(phrase);

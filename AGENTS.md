@@ -1,6 +1,6 @@
 # AGENTS.md
 
-plums 是 Plums（Apache-2.0）的 TypeScript 工作区，包含 core、CLI、扩展 SDK、宿主与 Electron/React 桌面端。使用 pnpm 10；core/CLI 支持 Node.js 22+，全仓桌面构建使用 Node.js 26.5.1，macOS 原生文件适配器需要 Xcode Command Line Tools。
+Plums（Apache-2.0）是 TypeScript 工作区，包含 core、CLI、扩展 SDK、宿主与 Electron/React 桌面端。使用 pnpm 10；core/CLI 支持 Node.js 22+，全仓桌面构建使用 Node.js 26.5.1，macOS 原生文件适配器需要 Xcode Command Line Tools。
 
 ## 入口与范围
 

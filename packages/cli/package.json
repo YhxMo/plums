@@ -19,5 +19,13 @@
   },
   "dependencies": {
     "@plums/core": "workspace:*"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/YhxMo/plums.git"
+  },
+  "homepage": "https://github.com/YhxMo/plums#readme",
+  "bugs": {
+    "url": "https://github.com/YhxMo/plums/issues"
   }
 }

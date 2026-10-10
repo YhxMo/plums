@@ -24,5 +24,13 @@
     "vite": "^7.1.0",
     "@types/react": "^19.2.0",
     "@types/react-dom": "^19.2.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/YhxMo/plums.git"
+  },
+  "homepage": "https://github.com/YhxMo/plums#readme",
+  "bugs": {
+    "url": "https://github.com/YhxMo/plums/issues"
   }
 }
