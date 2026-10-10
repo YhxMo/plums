@@ -1,6 +1,7 @@
 import { readdir } from "node:fs/promises";
 import { createRequire } from "node:module";
 import path from "node:path";
+import { isNativeBuildMetadata } from "./native-build-metadata.mjs";
 
 const coreRequire = createRequire(
   new URL("../packages/core/package.json", import.meta.url),
@@ -34,6 +35,9 @@ const experimentalNames = new RegExp(
 export function assertPackageManifest(files) {
   for (const entry of files) {
     const name = entry.replaceAll("\\", "/").replace(/^\/+/, "").toLowerCase();
+    const nativeFile = name.match(/(?:^|\/)node_modules\/[^/]+\/(.+)$/);
+    if (nativeFile && isNativeBuildMetadata(nativeFile[1]))
+      throw Error("Native build metadata in desktop package: " + entry);
     if (
       /(^|\/)test\/fixtures(\/|$)/.test(name) ||
       experimentalNames.test(name) ||

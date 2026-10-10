@@ -18,11 +18,15 @@ From the repository root:
 ```sh
 pnpm install --frozen-lockfile
 node scripts/prepare-test-runtime.mjs
+node scripts/prepare-electron.mjs
 pnpm build
 pnpm test
 ```
 
-The test command prepares the runtime and builds again before running the suite.
+The test command prepares the Node and Electron runtimes and builds again before running the suite.
+Electron preparation verifies the pinned development ZIP, restores its runtime
+licenses, and applies a local ad-hoc signature before native UI tests.
+The desktop development and packaging commands also prepare Electron explicitly.
 For a targeted change, build first and select the affected test file:
 
 ```sh

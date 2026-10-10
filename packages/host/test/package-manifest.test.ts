@@ -1,4 +1,11 @@
-import { mkdtemp, mkdir, rm, writeFile } from "node:fs/promises";
+import {
+  mkdtemp,
+  mkdir,
+  rm,
+  writeFile,
+  readFile,
+  readdir,
+} from "node:fs/promises";
 import { createRequire } from "node:module";
 import path from "node:path";
 import os from "node:os";
@@ -13,6 +20,7 @@ import {
 } from "../../../scripts/package-manifest.mjs";
 
 import * as packaging from "../../../scripts/package-desktop.mjs";
+import { copyNativeRuntime } from "../../../scripts/native-build-metadata.mjs";
 import {
   NATIVE_HELPERS,
   SHIPPED_NATIVE_HELPERS,
@@ -28,6 +36,39 @@ async function licenses(root: string) {
 afterEach(async () => {
   for (const root of roots.splice(0))
     await rm(root, { recursive: true, force: true });
+});
+it("omits build setup paths while preserving native runtime and license bytes", async () => {
+  const root = await mkdtemp(path.join(os.tmpdir(), "plums-native-copy-"));
+  roots.push(root);
+  const source = path.join(root, "source"),
+    destination = path.join(root, "runtime");
+  await mkdir(path.join(source, "build/Release"), { recursive: true });
+  for (const name of ["Makefile", "config.gypi", "addon.target.mk"])
+    await writeFile(path.join(source, "build", name), "Synthetic build path");
+  await writeFile(
+    path.join(source, "build/Release/addon.node"),
+    "Synthetic native bytes",
+  );
+  await writeFile(path.join(source, "LICENSE"), "Synthetic license bytes");
+  await copyNativeRuntime(source, destination);
+  expect(await readdir(path.join(destination, "build"))).toEqual(["Release"]);
+  for (const name of ["build/Release/addon.node", "LICENSE"])
+    expect(await readFile(path.join(destination, name))).toEqual(
+      await readFile(path.join(source, name)),
+    );
+  for (const name of ["Makefile", "config.gypi", "addon.target.mk"])
+    expect(() =>
+      assertPackageManifest([
+        ...REQUIRED_LICENSE_FILES,
+        "app/node_modules/addon/build/" + name,
+      ]),
+    ).toThrow("Native build metadata");
+  expect(() =>
+    assertPackageManifest([
+      ...REQUIRED_LICENSE_FILES,
+      "app/node_modules/addon/build/Release/addon.node",
+    ]),
+  ).not.toThrow();
 });
 it("rejects an unpacked fixture while accepting production files", async () => {
   const root = await mkdtemp(path.join(os.tmpdir(), "plums-package-manifest-"));

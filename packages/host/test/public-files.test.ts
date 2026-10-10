@@ -41,6 +41,7 @@ describe("public contribution files", () => {
       "AGENTS.md",
       "pnpm install --frozen-lockfile",
       "node scripts/prepare-test-runtime.mjs",
+      "node scripts/prepare-electron.mjs",
       "pnpm build",
       "pnpm test",
       "Node.js 26.5.1",
@@ -58,6 +59,20 @@ describe("public contribution files", () => {
     expect(covenant).toContain("## Enforcement Guidelines");
     expect(covenant).toContain("## Attribution");
     expect(covenant).toContain("creativecommons.org/licenses/by/4.0/");
+  });
+
+  it("prepares Electron before cold-clone tests, desktop startup and packaging", () => {
+    const scripts = JSON.parse(read("package.json")).scripts;
+    for (const [name, consumer] of [
+      ["test", "vitest run"],
+      ["desktop:dev", "node scripts/run-desktop.mjs"],
+      ["desktop:package", "node scripts/package-desktop.mjs"],
+    ]) {
+      const command = scripts[name];
+      const preparation = command.indexOf("node scripts/prepare-electron.mjs");
+      expect(preparation).toBeGreaterThanOrEqual(0);
+      expect(command.indexOf(consumer)).toBeGreaterThan(preparation);
+    }
   });
 
   it("uses structured issue forms and preserves PR security checks", () => {

@@ -37,7 +37,7 @@ if(m.method==='initialize'){send({id:m.id,result:{protocol:'jsonrpc-jsonl-v1'}})
 if(m.method==='$/cancelRequest'){if(tasks.get(m.params.id)==='ignore')return;tasks.delete(m.params.id);send({id:m.params.id,result:{cancelled:true}});return;}
 if(callbacks.has(m.id)){const task=callbacks.get(m.id);callbacks.delete(m.id);last=m.error?m.error.data:m.result;if(task)send({id:task,result:m.error?{refused:m.error.data}:m.result});return;}
 if(m.method==='write'){await writeFile(m.params.path,m.params.text);send({id:m.id,result:'written'});return;}
-if(m.method==='wait'){previous=m.id;tasks.set(m.id,true);return;}
+if(m.method==='wait'){previous=m.id;tasks.set(m.id,true);send({method:'engine.event',params:{topic:'fixture.wait.started',data:null}});return;}
 if(m.method==='ignore'){tasks.set(m.id,'ignore');send({method:'engine.event',params:{topic:'fixture.ignore.started',data:null}});return;}
 if(m.method==='remember'){previous=m.id;send({id:m.id,result:true});return;}
 if(m.method==='seen'){send({id:m.id,result:last??null});return;}
@@ -55,9 +55,12 @@ async function fixture(
     events: { topic: string; data: unknown }[] = [];
   let auditHook: (e: Readonly<AuditEvent>) => Promise<void> = async () => {};
   const stores = new Map<string, MemorySecretStore>();
-  let ignored!: () => void;
+  let ignored!: () => void, waited!: () => void;
   const ignoreStarted = new Promise<void>((r) => {
     ignored = r;
+  });
+  const waitStarted = new Promise<void>((r) => {
+    waited = r;
   });
   const hostOptions: HostOptions = {
     event: (_id, _pkg, topic, data) => {
@@ -67,6 +70,11 @@ async function fixture(
         (data as { topic?: string }).topic === "fixture.ignore.started"
       )
         ignored();
+      if (
+        topic === "engine.event" &&
+        (data as { topic?: string }).topic === "fixture.wait.started"
+      )
+        waited();
     },
     dataDir: dir,
     confirm,
@@ -225,6 +233,7 @@ async function fixture(
     audit,
     events,
     ignoreStarted,
+    waitStarted,
     confirm,
     run,
     approve,
@@ -379,6 +388,7 @@ it("cancels an unanswered native task from its upstream signal and keeps a coope
   const task = f.run("wait", null, abort.signal, "waiting");
   const rejected = expect(task).rejects.toBeDefined();
   await ready;
+  await f.waitStarted;
   await new Promise((r) => setTimeout(r, 100));
   abort.abort();
   await rejected;

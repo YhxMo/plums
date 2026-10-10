@@ -8,6 +8,7 @@ import path from "node:path";
 import { checkPackageManifest } from "./package-manifest.mjs";
 import { pathToFileURL } from "node:url";
 import { generateThirdPartyNotices } from "./generate-third-party-notices.mjs";
+import { copyNativeRuntime } from "./native-build-metadata.mjs";
 
 export async function runManifestGate(resourceDir) {
   return checkPackageManifest(resourceDir);
@@ -109,10 +110,7 @@ async function prepareApplication() {
     ["better-sqlite3", coreRequire],
   ]) {
     const location = path.dirname(req.resolve(name + "/package.json"));
-    await cp(location, path.join(stage, "node_modules", name), {
-      recursive: true,
-      dereference: true,
-    });
+    await copyNativeRuntime(location, path.join(stage, "node_modules", name));
   }
   const applications = await packager({
     dir: stage,
