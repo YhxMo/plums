@@ -20,6 +20,14 @@ import type {
   PermissionLevel,
 } from "../package/types.js";
 import { secretKeys, secretRef } from "../secrets.js";
+import {
+  lifecycleFailure,
+  lifecycleOwnerAlive,
+  parseLifecycleRecord,
+  type InstallIdentity,
+  type LifecycleLease,
+  type LifecycleRecord,
+} from "./lifecycle-state.js";
 
 import type { Grant } from "../capabilities/grants.js";
 
@@ -215,13 +223,13 @@ interface ConsentRow {
   format_version: Manifest["formatVersion"];
 }
 
-// Schema 7 readers do not account for pending or multi-part local credentials.
-// They must refuse this database before reading or mutating its authorization state.
-export const SCHEMA_VERSION = 8;
+// Older readers must not mutate packages without lifecycle ownership and recovery.
+export const SCHEMA_VERSION = 9;
 
 const INSTALLED_SELECT = `
   SELECT p.id, p.kind, p.name, p.version, p.enabled, p.installed_at, p.enabled_at,
-         EXISTS (SELECT 1 FROM consents c WHERE c.package_id = p.id) AS consented
+         EXISTS (SELECT 1 FROM consents c WHERE c.package_id = p.id) AS consented,
+         (SELECT COALESCE(owner, 'pending') FROM lifecycle_operations WHERE id = p.id) AS lifecycle_owner
   FROM packages p`;
 
 /**
@@ -250,11 +258,110 @@ export class InstallStore {
     this.connection();
   }
 
-  get(id: string): InstalledPackage | undefined {
+  get(id: string, lifecycleOwner?: string): InstalledPackage | undefined {
     const row = this.statement(`${INSTALLED_SELECT} WHERE p.id = ?`).get(id) as
-      | InstalledRow
+      | (InstalledRow & { lifecycle_owner: string | null })
       | undefined;
+    if (row?.lifecycle_owner && row.lifecycle_owner !== lifecycleOwner)
+      throw lifecycleFailure(id, "LIFECYCLE_BUSY");
     return row === undefined ? undefined : toInstalled(row);
+  }
+
+  installationIdentity(id: string): InstallIdentity | null {
+    return (
+      (this.statement(
+        "SELECT installation_id AS installationId, version FROM packages WHERE id=?",
+      ).get(id) as InstallIdentity | undefined) ?? null
+    );
+  }
+
+  pendingLifecycles(): string[] {
+    return (
+      this.statement(
+        "SELECT id FROM lifecycle_operations ORDER BY id",
+      ).all() as { id: string }[]
+    ).map((row) => row.id);
+  }
+
+  lifecycleKind(id: string): LifecycleRecord["kind"] | undefined {
+    const row = this.statement(
+      "SELECT record FROM lifecycle_operations WHERE id=?",
+    ).get(id) as { record: string | null } | undefined;
+    return row ? parseLifecycleRecord(id, row.record)?.kind : undefined;
+  }
+
+  acquireLifecycle(id: string): LifecycleLease {
+    return this.connection()
+      .transaction(() => {
+        const row = this.statement(
+          "SELECT pid, record FROM lifecycle_operations WHERE id=?",
+        ).get(id) as { pid: number | null; record: string | null } | undefined;
+        if (row && lifecycleOwnerAlive(row.pid))
+          throw lifecycleFailure(id, "LIFECYCLE_BUSY");
+        const record = row ? parseLifecycleRecord(id, row.record) : null;
+        const owner = randomUUID();
+        this.statement(
+          "INSERT INTO lifecycle_operations(id,owner,pid,record) VALUES(?,?,?,NULL) ON CONFLICT(id) DO UPDATE SET owner=excluded.owner,pid=excluded.pid",
+        ).run(id, owner, process.pid);
+        return { id, owner, record };
+      })
+      .immediate();
+  }
+
+  assertLifecycle(
+    lease: LifecycleLease,
+    expected?: InstallIdentity | null,
+  ): void {
+    const row = this.statement(
+      "SELECT owner FROM lifecycle_operations WHERE id=?",
+    ).get(lease.id) as { owner: string | null } | undefined;
+    if (row?.owner !== lease.owner)
+      throw lifecycleFailure(lease.id, "INSTALLATION_CHANGED");
+    if (expected !== undefined) {
+      const current = this.installationIdentity(lease.id);
+      if (
+        current?.installationId !== expected?.installationId ||
+        current?.version !== expected?.version
+      )
+        throw lifecycleFailure(lease.id, "INSTALLATION_CHANGED");
+    }
+  }
+
+  saveLifecycle(lease: LifecycleLease, record: LifecycleRecord | null): void {
+    if (
+      this.statement(
+        "UPDATE lifecycle_operations SET record=? WHERE id=? AND owner=?",
+      ).run(
+        record === null ? null : JSON.stringify(record),
+        lease.id,
+        lease.owner,
+      ).changes !== 1
+    )
+      throw lifecycleFailure(lease.id, "INSTALLATION_CHANGED");
+    lease.record = record;
+  }
+
+  refreshLifecycle(lease: LifecycleLease): void {
+    const row = this.statement(
+      "SELECT owner,record FROM lifecycle_operations WHERE id=?",
+    ).get(lease.id) as
+      | { owner: string | null; record: string | null }
+      | undefined;
+    if (row?.owner !== lease.owner)
+      throw lifecycleFailure(lease.id, "INSTALLATION_CHANGED");
+    lease.record = parseLifecycleRecord(lease.id, row.record);
+  }
+
+  releaseLifecycle(lease: LifecycleLease): void {
+    // Pending work survives normal exceptions as well as process termination.
+    if (lease.record)
+      this.statement(
+        "UPDATE lifecycle_operations SET owner=NULL,pid=NULL WHERE id=? AND owner=?",
+      ).run(lease.id, lease.owner);
+    else
+      this.statement(
+        "DELETE FROM lifecycle_operations WHERE id=? AND owner=?",
+      ).run(lease.id, lease.owner);
   }
 
   list(): InstalledPackage[] {
@@ -262,6 +369,23 @@ export class InstallStore {
       `${INSTALLED_SELECT} ORDER BY p.id`,
     ).all() as InstalledRow[];
     return rows.map(toInstalled);
+  }
+
+  listWithRecovery(): { installed: InstalledPackage[]; pending: string[] } {
+    // Include orphaned uninstall journals in the same snapshot, without adding
+    // a second SELECT to every steady-state installation list.
+    const rows = this.statement(
+      `SELECT p.*, NULL AS pending_id FROM (${INSTALLED_SELECT}) p
+       UNION ALL
+       SELECT NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,id FROM lifecycle_operations
+       ORDER BY id`,
+    ).all() as (InstalledRow & { pending_id: string | null })[];
+    return {
+      installed: rows.filter((row) => row.pending_id === null).map(toInstalled),
+      pending: rows.flatMap((row) =>
+        row.pending_id === null ? [] : [row.pending_id],
+      ),
+    };
   }
 
   /** The manifest as it was when the package was imported. */
@@ -360,9 +484,13 @@ export class InstallStore {
       .immediate();
   }
 
-  activeLocalCredentialRefs(id: string, manifest: Manifest): string[] {
+  activeLocalCredentialRefs(
+    id: string,
+    manifest: Manifest,
+    owner?: string,
+  ): string[] {
     if (!isManifestV2(manifest)) return [];
-    const installed = this.get(id),
+    const installed = this.get(id, owner),
       engines = manifest.permissions.filter((p) => p.kind === "engine");
     return [
       ...new Set(
@@ -400,69 +528,92 @@ export class InstallStore {
    * Tool approvals are not touched. Why: uninstall already removed them, and import
    * refuses an id that is still installed, so no approval row can be waiting.
    */
-  recordInstall(manifest: Manifest): void {
-    this.statement(
-      `INSERT INTO packages (id, kind, name, version, manifest, enabled, installed_at, enabled_at, secret_refs)
-       VALUES (?, ?, ?, ?, ?, 0, ?, NULL, ?)`,
-    ).run(
-      manifest.id,
-      manifest.kind,
-      manifest.name,
-      manifest.version,
-      JSON.stringify(manifest),
-      new Date().toISOString(),
-      JSON.stringify(
-        secretKeys(manifest).map((key) => secretRef(manifest.id, key)),
-      ),
-    );
+  recordInstall(manifest: Manifest, lease?: LifecycleLease): void {
+    this.connection()
+      .transaction(() => {
+        if (lease) this.assertLifecycle(lease, null);
+        this.statement(
+          `INSERT INTO packages (id, kind, name, version, manifest, enabled, installed_at, enabled_at, secret_refs, installation_id)
+       VALUES (?, ?, ?, ?, ?, 0, ?, NULL, ?, ?)`,
+        ).run(
+          manifest.id,
+          manifest.kind,
+          manifest.name,
+          manifest.version,
+          JSON.stringify(manifest),
+          new Date().toISOString(),
+          JSON.stringify(
+            secretKeys(manifest).map((key) => secretRef(manifest.id, key)),
+          ),
+          lease?.record?.token ?? randomUUID(),
+        );
+        if (lease)
+          this.saveLifecycle(lease, { ...lease.record!, phase: "committed" });
+      })
+      .immediate();
   }
 
   /**
    * Swaps in the new manifest of an installed package in one transaction. The enabled
    * state and `installedAt` stay. A given consent record replaces the old one.
    */
-  recordUpdate(manifest: Manifest, consent?: ConsentRecord): void {
-    this.connection().transaction(() => {
-      // Why retain old refs in this transaction: once the manifest changes, it cannot tell
-      // redaction or uninstall which removed values still need to be read or deleted.
-      const refs = [
-        ...new Set([
-          ...this.getSecretRefs(manifest.id),
-          ...secretKeys(manifest).map((key) => secretRef(manifest.id, key)),
-        ]),
-      ];
-      this.statement(
-        "UPDATE packages SET kind = ?, name = ?, version = ?, manifest = ?, secret_refs = ? WHERE id = ?",
-      ).run(
-        manifest.kind,
-        manifest.name,
-        manifest.version,
-        JSON.stringify(manifest),
-        JSON.stringify(refs),
-        manifest.id,
-      );
-      this.statement("DELETE FROM mcp_tools_v2 WHERE server_id = ?").run(
-        manifest.id,
-      );
-      this.invalidatePendingEngineTrust();
-      for (const trust of this.listLocalGrants(manifest.id)) {
-        const permission = manifest.permissions.find(
-          (p) =>
-            "kind" in p && p.kind === "engine" && p.target === trust.engineId,
+  recordUpdate(
+    manifest: Manifest,
+    consent?: ConsentRecord,
+    lease?: LifecycleLease,
+  ): void {
+    this.connection()
+      .transaction(() => {
+        if (lease) this.assertLifecycle(lease, lease.record!.before);
+        // Why retain old refs in this transaction: once the manifest changes, it cannot tell
+        // redaction or uninstall which removed values still need to be read or deleted.
+        const refs = [
+          ...new Set([
+            ...this.getSecretRefs(manifest.id),
+            ...secretKeys(manifest).map((key) => secretRef(manifest.id, key)),
+          ]),
+        ];
+        const changed = this.statement(
+          "UPDATE packages SET kind = ?, name = ?, version = ?, manifest = ?, secret_refs = ? WHERE id = ? AND installation_id = ? AND version = ?",
+        ).run(
+          manifest.kind,
+          manifest.name,
+          manifest.version,
+          JSON.stringify(manifest),
+          JSON.stringify(refs),
+          manifest.id,
+          lease?.record?.before?.installationId ??
+            this.installationIdentity(manifest.id)?.installationId,
+          lease?.record?.before?.version ??
+            this.installationIdentity(manifest.id)?.version,
         );
-        if (
-          !permission ||
-          enginePermissionKey(permission) !== trust.permission ||
-          !("kind" in permission) ||
-          permission.kind !== "engine" ||
-          trust.tier !== (permission.tier ?? "machine")
-        )
-          this.removeEngineTrust(manifest.id, trust.engineId);
-      }
-      if (consent !== undefined) {
-        this.saveConsent(consent);
-      }
-    })();
+        if (changed.changes !== 1)
+          throw lifecycleFailure(manifest.id, "INSTALLATION_CHANGED");
+        this.statement("DELETE FROM mcp_tools_v2 WHERE server_id = ?").run(
+          manifest.id,
+        );
+        this.invalidatePendingEngineTrust();
+        for (const trust of this.listLocalGrants(manifest.id)) {
+          const permission = manifest.permissions.find(
+            (p) =>
+              "kind" in p && p.kind === "engine" && p.target === trust.engineId,
+          );
+          if (
+            !permission ||
+            enginePermissionKey(permission) !== trust.permission ||
+            !("kind" in permission) ||
+            permission.kind !== "engine" ||
+            trust.tier !== (permission.tier ?? "machine")
+          )
+            this.removeEngineTrust(manifest.id, trust.engineId);
+        }
+        if (consent !== undefined) {
+          this.saveConsent(consent);
+        }
+        if (lease)
+          this.saveLifecycle(lease, { ...lease.record!, phase: "committed" });
+      })
+      .immediate();
   }
 
   /** Saves the record, replacing an earlier one for the same package. */
@@ -507,9 +658,14 @@ export class InstallStore {
   }
 
   /** Removes the install state, the consent record and the MCP tool approvals of one package. */
-  remove(id: string): void {
+  remove(
+    id: string,
+    lease?: LifecycleLease,
+    expected = lease?.record?.before,
+  ): void {
     const db = this.connection();
     db.transaction(() => {
+      if (lease) this.assertLifecycle(lease, expected);
       this.statement("DELETE FROM mcp_tools WHERE server_id = ?").run(id);
       this.statement("DELETE FROM mcp_tools_v2 WHERE server_id = ?").run(id);
       this.revokeBackgroundConsents(id);
@@ -519,7 +675,12 @@ export class InstallStore {
       );
       this.statement("DELETE FROM consents WHERE package_id = ?").run(id);
       this.statement("DELETE FROM packages WHERE id = ?").run(id);
-    })();
+      if (lease)
+        this.saveLifecycle(lease, {
+          ...lease.record!,
+          phase: lease.record!.kind === "import" ? "aborting" : "committed",
+        });
+    }).immediate();
   }
 
   /** Approved MCP tools of one server (a connector id or `manual:<name>`), ordered by tool name. */
@@ -1161,6 +1322,24 @@ function migrate(db: Database.Database): void {
       "CREATE TABLE IF NOT EXISTS local_credential_reservations (ref TEXT PRIMARY KEY,package_id TEXT NOT NULL,installed_at TEXT NOT NULL)",
     );
     if (current < 7) migrateLocalAuthorization(db);
+    if (current < 9) {
+      // Some migration fixtures retain newer additive columns while lowering user_version.
+      const columns = db.pragma("table_info(packages)") as { name: string }[];
+      if (!columns.some((column) => column.name === "installation_id"))
+        db.exec(
+          "ALTER TABLE packages ADD COLUMN installation_id TEXT NOT NULL DEFAULT ''",
+        );
+      const assign = db.prepare(
+        "UPDATE packages SET installation_id=? WHERE id=?",
+      );
+      for (const row of db
+        .prepare("SELECT id FROM packages WHERE installation_id=''")
+        .all() as { id: string }[])
+        assign.run(randomUUID(), row.id);
+      db.exec(
+        "CREATE TABLE IF NOT EXISTS lifecycle_operations(id TEXT PRIMARY KEY,owner TEXT,pid INTEGER,record TEXT)",
+      );
+    }
     migrateLegacyGrants(db);
     if (current < SCHEMA_VERSION) db.pragma(`user_version = ${SCHEMA_VERSION}`);
   }).immediate();

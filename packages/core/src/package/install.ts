@@ -15,13 +15,17 @@ export const PACKAGES_DIR = "packages";
 export async function stagePackage(
   dataDir: string,
   pkg: ValidatedPackage,
+  token?: string,
 ): Promise<string> {
   const root = path.join(dataDir, PACKAGES_DIR);
   // Why before any file is written: A.txt and a.txt, or MANIFEST.JSON and manifest.json, overwrite each other on a case-insensitive disk.
   // Why before mkdir(root): a failed check must not leave any directory behind.
   assertNoPathConflict([MANIFEST_FILE, ...Object.keys(pkg.files)]);
   await mkdir(root, { recursive: true });
-  const staging = await mkdtemp(path.join(root, ".staging-"));
+  const staging = token
+    ? path.join(root, `.staging-${token}`)
+    : await mkdtemp(path.join(root, ".staging-"));
+  if (token) await mkdir(staging);
   try {
     await writeInside(staging, MANIFEST_FILE, pkg.manifestBytes);
     for (const [relative, data] of Object.entries(pkg.files)) {

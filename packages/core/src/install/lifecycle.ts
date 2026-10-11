@@ -1,5 +1,4 @@
-import { rename, rm } from "node:fs/promises";
-import path from "node:path";
+import { rename } from "node:fs/promises";
 import semver from "semver";
 import {
   CONSENT_REQUIRED,
@@ -7,14 +6,9 @@ import {
   IMPORT_INVALID,
   PERMISSION_DENIED,
   PlumsError,
-  SECRET_NOT_FOUND,
 } from "../errors.js";
-import { acceptResidualSettings, PACKAGE_DATA_DIR } from "./check-settings.js";
-import {
-  PACKAGES_DIR,
-  publishStaged,
-  stagePackage,
-} from "../package/install.js";
+import { acceptResidualSettings } from "./check-settings.js";
+import { publishStaged, stagePackage } from "../package/install.js";
 import {
   isManifestV1,
   type Dependency,
@@ -30,11 +24,19 @@ import { secretKeys, secretRef } from "../secrets.js";
 import { enginePermissionKey } from "./engine-trust.js";
 import type { SecretStore } from "../types.js";
 import type { ConsentRecord, InstallStore, InstalledPackage } from "./store.js";
+import {
+  finishUninstall,
+  recoverHeld,
+  transactionPaths,
+  withLifecycle,
+} from "./lifecycle-transaction.js";
+import type { LifecycleLease } from "./lifecycle-state.js";
 
 export interface InstallContext {
   dataDir: string;
   store: InstallStore;
   secrets: SecretStore;
+  lifecycleOwner?: string;
 }
 
 /** Throws PERMISSION_DENIED (details.reason `NOT_INSTALLED`) when the id is not installed. */
@@ -42,7 +44,7 @@ export function requireInstalled(
   ctx: InstallContext,
   id: string,
 ): InstalledPackage {
-  const installed = ctx.store.get(id);
+  const installed = ctx.store.get(id, ctx.lifecycleOwner);
   if (installed === undefined) {
     throw new PlumsError({
       code: PERMISSION_DENIED,
@@ -154,8 +156,8 @@ function growth(
  * against the old list (CONSENT_REQUIRED unless `consent` is true).
  * A leftover settings file is checked against the new manifest before any files move.
  * No settingsSchema leaves that file unread. A mismatch throws before the swap, so the
- * installed package stays. Files are swapped with a backup that is restored if the
- * database write fails.
+ * installed package stays. An owned journal restores the old files before the database
+ * commit and finishes cleanup after it, including after a process exit.
  * Enabled state stays. An existing consent record is replaced by one for the new list;
  * its `grantedAt` only moves when newly approved permissions were added.
  */
@@ -164,8 +166,20 @@ export async function updatePackage(
   pkg: ValidatedPackage,
   consent = false,
 ): Promise<{ installDir: string; previousVersion: string }> {
+  return withLifecycle(ctx, pkg.manifest.id, (owned, lease) =>
+    updateOwned(owned, lease, pkg, consent),
+  );
+}
+
+async function updateOwned(
+  ctx: InstallContext,
+  lease: LifecycleLease,
+  pkg: ValidatedPackage,
+  consent: boolean,
+): Promise<{ installDir: string; previousVersion: string }> {
   const { manifest } = pkg;
   const installed = requireInstalled(ctx, manifest.id);
+  const before = ctx.store.installationIdentity(installed.id);
   const mismatch = (
     field: "kind" | "version",
     from: string,
@@ -239,7 +253,7 @@ export async function updatePackage(
 
   const activeSecrets = new Set([
     ...secretKeys(manifest).map((key) => secretRef(installed.id, key)),
-    ...ctx.store.activeLocalCredentialRefs(installed.id, manifest),
+    ...ctx.store.activeLocalCredentialRefs(installed.id, manifest, lease.owner),
   ]);
   const droppedSecrets = ctx.store
     .getSecretRefs(installed.id)
@@ -257,25 +271,29 @@ export async function updatePackage(
         };
   // Why before the rename: a settings mismatch must not move the installed files.
   await acceptResidualSettings(ctx.dataDir, manifest);
-  const dir = path.join(ctx.dataDir, PACKAGES_DIR, installed.id);
-  const backup = path.join(
-    ctx.dataDir,
-    PACKAGES_DIR,
-    `.backup-${installed.id}`,
-  );
-  await rm(backup, { recursive: true, force: true });
-  await rename(dir, backup);
+  ctx.store.assertLifecycle(lease, before);
+  ctx.store.saveLifecycle(lease, {
+    format: 1,
+    token: lease.owner,
+    kind: "update",
+    phase: "prepared",
+    before,
+    version: manifest.version,
+    secretRefs: droppedSecrets,
+  });
+  const { dir, backup } = transactionPaths(ctx, lease);
   try {
-    const staging = await stagePackage(ctx.dataDir, pkg);
+    const staging = await stagePackage(ctx.dataDir, pkg, lease.record!.token);
+    ctx.store.assertLifecycle(lease, lease.record!.before);
+    await rename(dir, backup);
+    ctx.store.assertLifecycle(lease, lease.record!.before);
     await publishStaged(staging, dir);
-    ctx.store.recordUpdate(manifest, record);
+    ctx.store.recordUpdate(manifest, record, lease);
   } catch (err) {
-    await rm(dir, { recursive: true, force: true });
-    await rename(backup, dir);
+    await recoverHeld(ctx, lease);
     throw err;
   }
-  await rm(backup, { recursive: true, force: true });
-  await deleteSecrets(ctx, installed.id, manifest.version, droppedSecrets);
+  await recoverHeld(ctx, lease);
   return { installDir: dir, previousVersion: installed.version };
 }
 
@@ -313,54 +331,41 @@ export function disable(ctx: InstallContext, id: string): InstalledPackage {
 }
 
 /**
- * Removes the package's secret values, then its install state, consent and MCP tool
- * approvals, then its files and data folder. Secret references include fields removed
- * by earlier updates. The record goes before the files, so the package does not stay
- * listed once its files are gone.
- * A crash midway stops in one of two places: the secrets are already deleted but the
- * package still shows as installed, or the record is deleted and the files are still there.
- * A settings file left behind with no install record is handled by import: it is checked
- * against the new settingsSchema, and a package with no settingsSchema is refused until
- * `data/<id>/settings.json` is deleted. An update that drops settingsSchema ignores that
- * file: it is not read and not deleted, and the update succeeds.
+ * A durable intent precedes deletion, including secret fields removed by earlier
+ * updates. Recovery resumes secret cleanup, quarantines this installation's
+ * directories, commits removal of install state, consent and MCP approvals, then
+ * removes only its quarantine.
+ * A reported secret failure keeps the install and references for explicit retry.
  */
 export async function uninstall(
   ctx: InstallContext,
   id: string,
 ): Promise<void> {
-  const installed = requireInstalled(ctx, id);
-  await deleteSecrets(ctx, id, installed.version, ctx.store.getSecretRefs(id));
-  ctx.store.remove(id);
-  await rm(path.join(ctx.dataDir, PACKAGES_DIR, id), {
-    recursive: true,
-    force: true,
-  });
-  await rm(path.join(ctx.dataDir, PACKAGE_DATA_DIR, id), {
-    recursive: true,
-    force: true,
-  });
-}
-
-async function deleteSecrets(
-  ctx: InstallContext,
-  id: string,
-  version: string,
-  refs: readonly string[],
-): Promise<void> {
-  // Why wait for every deletion: a partial failure must not leave more deletions racing
-  // the error handler or a retry. References stay until uninstall removes the record.
-  const results = await Promise.allSettled(
-    refs.map(async (ref) => ctx.secrets.delete(ref)),
-  );
-  if (results.some((result) => result.status === "rejected")) {
-    // Why no underlying error: a store can delete a value and then throw it in an error,
-    // leaving nothing that knownSecrets could read back for redaction.
-    throw new PlumsError({
-      code: SECRET_NOT_FOUND,
-      message: `「${id}」当前安装版本为 ${version}。密钥未能全部清理，已保留引用，请在后续版本更新时清理，或重试卸载。`,
-      details: { id, version, reason: "SECRET_CLEANUP_FAILED" },
+  return withLifecycle(ctx, id, async (owned, lease, recovered) => {
+    if (recovered?.kind === "uninstall") return;
+    const installed = requireInstalled(owned, id);
+    ctx.store.saveLifecycle(lease, {
+      format: 1,
+      token: lease.owner,
+      kind: "uninstall",
+      phase: "prepared",
+      before: ctx.store.installationIdentity(id),
+      version: installed.version,
+      secretRefs: ctx.store.getSecretRefs(id),
     });
-  }
+    try {
+      await finishUninstall(owned, lease);
+    } catch (error) {
+      // A reported secret failure precedes any directory move. Keep normal explicit retry semantics.
+      if (
+        error instanceof PlumsError &&
+        (error.details as { reason?: string } | undefined)?.reason ===
+          "SECRET_CLEANUP_FAILED"
+      )
+        ctx.store.saveLifecycle(lease, null);
+      throw error;
+    }
+  });
 }
 
 export function requireManifest(ctx: InstallContext, id: string): Manifest {

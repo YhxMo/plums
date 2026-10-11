@@ -101,8 +101,8 @@ describe("concurrent import of one id from two processes", () => {
     });
 
     // Why two processes and Promise.all: each process has its own importQueue, so the
-    // in-process queue cannot serialize them. The child waits in recordInstall until
-    // both have arrived, so one cannot finish the insert before the other gets there.
+    // in-process queue cannot serialize them. A holds its lifecycle ownership at
+    // recordInstall until B starts the public import; B must not enter the writer.
     const [procA, procB] = await Promise.all([
       runChild({
         ...process.env,
@@ -210,8 +210,8 @@ describe("publish failure after the install row", () => {
     const original = InstallStore.prototype.recordInstall;
     // Why delete staging after the insert: the next step renames it onto packages/<id>,
     // so a missing staging directory fails that rename and must roll the row back.
-    InstallStore.prototype.recordInstall = function (manifest) {
-      original.call(this, manifest);
+    InstallStore.prototype.recordInstall = function (...args) {
+      original.apply(this, args);
       const root = path.join(dataDir, "packages");
       for (const name of readdirSync(root)) {
         if (name.startsWith(".staging-"))

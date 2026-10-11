@@ -36,7 +36,7 @@
 
 引擎与 engine 权限一一对应，不能保留指向未声明引擎的权限。当前仅支持包内 `.js`、`.mjs` 或 `.cjs` 入口，由宿主固定的 Node.js 程序及参数数组启动。组件前端无法指定可执行程序路径。支持平台必须包含当前 `platform-arch`。
 
-### 档位声明与版本 8 存储
+### 档位声明与版本 9 存储
 
 `kind: engine` 可声明 `tier: "project" | "machine"`；省略时按整机声明处理，清单不会被补写。项目声明可带 `network: {hosts: [...]}`、`toolchains`（node、git、rust、python、go）和 `credentials: [{id, kind, host, reason?}]`。这些字段只用于项目档位；主机候选沿用外发主机规则且仅允许 HTTPS 443，凭据必须指定候选范围内的具体主机。凭据 kind 为 npm-token、cargo-token、pip-index-auth 或 git-https，id 不得重复。字段只是请求声明，不授予执行、网络或凭据；未知字段继续保留，完整 engine 声明变化须重新同意。
 
@@ -56,7 +56,7 @@
 
 构建后可运行 `pnpm exec node scripts/platform-conformance.mjs --runtime project --node <固定 Node 路径> --out <报告路径>`。项目报告与 common/SDK 证据分开，当前返回失败与非零退出状态；其他平台报告 `skipped`，同样不能作为项目可用证据。测试验证的是正确拒绝与诊断结论，不证明项目边界可用。
 
-Agent 私有数据库版本为 8。`agent_tier` 保存档位上限与目录、组件确认范围，`agent_local_grants` 保存按安装身份、入口与完整声明固定的本地执行项。新数据库的读取默认上限为沙箱、无授权。上限本身不能使任何引擎获准执行；旧信任迁移只生成对应入口的执行项，不生成 fs/exec 确认覆盖。版本 8 增加本地凭据预留引用；旧版本 6/7 拒绝新库。可信手动凭据批准、撤销与引用回滚已接入；项目运行时注入、启动配置重建及按批/本机配置来源批准尚未接入。
+Agent 私有数据库版本为 9。`agent_tier` 保存档位上限与目录、组件确认范围，`agent_local_grants` 保存按安装身份、入口与完整声明固定的本地执行项。新数据库的读取默认上限为沙箱、无授权。上限本身不能使任何引擎获准执行；旧信任迁移只生成对应入口的执行项，不生成 fs/exec 确认覆盖。版本 8 增加本地凭据预留引用；旧版本 6/7 拒绝新库。可信手动凭据批准、撤销与引用回滚已接入；项目运行时注入、启动配置重建及按批/本机配置来源批准尚未接入。
 
 6→7 迁移只复制安装身份与当前完整声明一致的旧整机信任。存在匹配项时，上限为整机以容纳这些入口；没有匹配项时保持沙箱。不复制目录、主机、凭据或组件确认覆盖，不授予其他引擎。旧 `engine_trust` 记录作为只读历史保留；原有限 Grant 及其授权版本、安装、同意、启用、密钥引用和 MCP 记录均保留。
 
@@ -205,7 +205,7 @@ ProjectProxy 提供独立 IPv4 回环 CONNECT 服务，仅批准主机的 443 �
 
 宿主在已确认组装与项目目录内覆盖 fs/受控 exec 的单次确认：检查所有调用者的安装身份及完整权限，复核项目目录 dev/ino，exec 还检查固定程序及全部读写根。core 的 localCoverage 回调不授予声明外操作，确认、放行审计与 Sink 前重复复核；撤权、重确认、降级或目录变化阻止未开始调用。放行/结果审计包含 tier 与 localAuthorizationId，不含物理路径；HTTPS、资源、MCP 不覆盖，策略 deny 仍优先。
 
-schema 7 升级到 8 保留已有确认入口与档位上限，不向未确认入口授予权限，新 Agent 仍默认沙箱。回归用例见 [local-authorization.test.ts](../packages/core/test/local-authorization.test.ts)。测试使用仓库提供的 schema 7 实现归档；其源提交 `69c01b7` 与归档 SHA-256 记录在[历史夹具清单](../packages/core/test/fixtures/historical-core/sha256.json)。
+schema 7 升级至当前数据库格式保留已有确认入口与档位上限，不向未确认入口授予权限，新 Agent 仍默认沙箱。回归用例见 [local-authorization.test.ts](../packages/core/test/local-authorization.test.ts)。测试使用仓库提供的 schema 7 实现归档；其源提交 `69c01b7` 与归档 SHA-256 记录在[历史夹具清单](../packages/core/test/fixtures/historical-core/sha256.json)。
 
 ## 清理保证等级
 
