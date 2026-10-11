@@ -1,6 +1,6 @@
 # 原生安全研究与外部验收前置条件
 
-2026-10-11 在 macOS 27.0.1 arm64、Node 26.5.1、Electron 44.5.1 上复核。结果见[验收摘要](verification/native-research-2026-10-11.json)。项目档位继续返回 `TIER_UNAVAILABLE`。本次没有接入项目运行时，原生全屏焦点检查仍未通过，完整 `pnpm test` 没有通过结论。
+2026-10-11 在 macOS 27.0.1 arm64、Node 26.5.1、Electron 44.5.1 上研究原生边界。研究轮次见[验收摘要](verification/native-research-2026-10-11.json)，后续默认测试及独立复核见[组合验收](acceptance.md)。项目档位继续返回 `TIER_UNAVAILABLE`。研究轮次的原生全屏焦点检查失败，完整 `pnpm test` 没有通过结论；后续用例通过不能唯一解释这些历史失败。
 
 ## 项目容器：校准与回收分开判断
 
@@ -34,9 +34,11 @@
 
 Apple 的 [VZVirtualMachine.stop](<https://developer.apple.com/documentation/virtualization/vzvirtualmachine/stop(completionhandler:)>) 能强制停止运行或暂停的 VM，且不会给来宾正常退出机会。这提供另一种待研究的生命周期边界，也会带来未保存数据风险。它不是本仓已支持的执行档位。当前保留整机监管限制和项目失败关闭，不用项目自检或管理准备清单授予运行权。
 
-## 原生全屏焦点：尚未获得系统激活
+<a id="原生全屏焦点尚未获得系统激活"></a>
 
-原生主题用例在进入全屏前的 `BrowserWindow.isFocused()` 五秒关卡失败，采集值仍为 `visible:true / focused:false / fullscreen:false`。全屏进入事件没有实际验收。本次没有增加等待预算、模拟事件或删除守卫。
+## 原生全屏焦点：逐轮证据
+
+研究轮次的原生主题用例在进入全屏前的 `BrowserWindow.isFocused()` 五秒关卡失败，采集值为 `visible:true / focused:false / fullscreen:false`。这些轮次没有验收全屏进入事件，也没有增加等待预算、模拟事件或删除守卫。后续默认组合使用原守卫取得通过记录；逐轮结果见组合验收，历史根因仍未唯一归因。
 
 [焦点诊断脚本](../scripts/probe-desktop-focus.mjs)使用自造临时 profile 与真实管理页面，按五秒预算比较 JS 文件启动、目录启动、regular 激活策略、外部原生激活请求和实际安装副本的直接启动。五种方式均未获得焦点；窗口可聚焦，应用激活策略为 regular，但原生 `NSRunningApplication.active` 仍为 false。原生激活请求返回 true 也没有产生实际激活。
 
