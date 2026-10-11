@@ -65,6 +65,9 @@ DCO sign-off is not required. CODEOWNERS is not configured.
 
 ## Component and fixture policy
 
+Component authors can follow [the local author path](docs/component-author-guide.md)
+for declarations, a temporary Agent, trusted approvals, diagnostics, and explicit updates.
+
 This repository delivers the application, host, public SDK, and official foundation.
 It does not accept specific third-party character cards, business extensions, or
 copyrighted assets. Independently maintained components belong in separate projects.

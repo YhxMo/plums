@@ -73,6 +73,11 @@ import {
 } from "./capabilities/types.js";
 import * as lifecycle from "./install/lifecycle.js";
 import {
+  recoverHeld,
+  recoverLifecycles,
+  withLifecycle,
+} from "./install/lifecycle-transaction.js";
+import {
   acceptResidualSettings,
   refuseOrphanSettings,
 } from "./install/check-settings.js";
@@ -521,55 +526,105 @@ export function createCore(options: CreateCoreOptions): Core {
     input: Uint8Array | string,
   ): Promise<ImportedPackage> => {
     const validated = await validatePackage(input, limits);
-    // Why a per-id chain, and only inside this process: the map lives in memory
-    // and is keyed by data directory plus id, so it orders callers that share
-    // this process and this data directory. Another data directory must not wait.
-    // The later caller gets ALREADY_INSTALLED. Two processes both pass the check below.
+    // Keep same-process duplicate import ordering; every writer also acquires
+    // the shared database ownership used by updates, uninstalls and recovery.
     return enqueueById(resolvedDataDir, validated.manifest.id, async () => {
-      store.open();
-      // Why before mkdir of packages/ or a staging directory: an id that is already
-      // installed is refused, and that refusal must not create an install root.
-      if (store.get(validated.manifest.id) !== undefined) {
-        throw alreadyInstalled(validated.manifest);
-      }
-      // Why before any package file is written: a leftover settings file must not
-      // leave a package directory behind.
-      if (validated.manifest.settingsSchema === undefined) {
-        refuseOrphanSettings(resolvedDataDir, validated.manifest.id);
-      } else {
-        await acceptResidualSettings(resolvedDataDir, validated.manifest);
-      }
-      const staging = await stagePackage(resolvedDataDir, validated);
       try {
-        store.recordInstall(validated.manifest);
-      } catch (err) {
-        // Why only the staging directory: packages/<id> may already be the winner's
-        // installDir. Deleting that path left a row whose directory was gone.
-        await rm(staging, { recursive: true, force: true });
-        if (isInstallKeyConflict(err))
+        return await withLifecycle(
+          ctx,
+          validated.manifest.id,
+          async (_owned, lease) => {
+            store.open();
+            // Why before mkdir of packages/ or a staging directory: an id that is already
+            // installed is refused, and that refusal must not create an install root.
+            if (store.get(validated.manifest.id, lease.owner) !== undefined) {
+              throw alreadyInstalled(validated.manifest);
+            }
+            // Why before any package file is written: a leftover settings file must not
+            // leave a package directory behind.
+            if (validated.manifest.settingsSchema === undefined) {
+              refuseOrphanSettings(resolvedDataDir, validated.manifest.id);
+            } else {
+              await acceptResidualSettings(resolvedDataDir, validated.manifest);
+            }
+            store.saveLifecycle(lease, {
+              format: 1,
+              token: lease.owner,
+              kind: "import",
+              phase: "prepared",
+              before: null,
+              version: validated.manifest.version,
+              secretRefs: [],
+            });
+            let staging: string;
+            try {
+              staging = await stagePackage(
+                resolvedDataDir,
+                validated,
+                lease.record!.token,
+              );
+            } catch (error) {
+              await recoverHeld(ctx, lease);
+              throw error;
+            }
+            try {
+              store.recordInstall(validated.manifest, lease);
+            } catch (err) {
+              store.refreshLifecycle(lease);
+              if (lease.record?.phase === "committed") {
+                await recoverHeld(ctx, lease);
+                throw err;
+              }
+              // Why only the staging directory: packages/<id> may already be the winner's
+              // installDir. Deleting that path left a row whose directory was gone.
+              await rm(staging, { recursive: true, force: true });
+              store.saveLifecycle(lease, null);
+              if (isInstallKeyConflict(err))
+                throw alreadyInstalled(validated.manifest);
+              throw err;
+            }
+            const installDir = path.join(
+              resolvedDataDir,
+              PACKAGES_DIR,
+              validated.manifest.id,
+            );
+            try {
+              // Why after the insert: only the process that owns the row may replace
+              // packages/<id>. The loser never reaches this line.
+              store.assertLifecycle(lease, {
+                installationId: lease.record!.token,
+                version: validated.manifest.version,
+              });
+              await publishStaged(staging, installDir);
+            } catch (err) {
+              // Why drop the row: the insert was ours and the files did not land, so a
+              // later import is not stuck with a record and no directory.
+              store.saveLifecycle(lease, {
+                ...lease.record!,
+                phase: "aborting",
+              });
+              await recoverHeld(ctx, lease);
+              throw err;
+            }
+            store.saveLifecycle(lease, null);
+            return {
+              manifest: validated.manifest,
+              files: validated.files,
+              installDir,
+            };
+          },
+        );
+      } catch (error) {
+        if (
+          error instanceof PlumsError &&
+          (error.details as { reason?: string } | undefined)?.reason ===
+            "LIFECYCLE_BUSY" &&
+          (store.installationIdentity(validated.manifest.id) ||
+            store.lifecycleKind(validated.manifest.id) === "import")
+        )
           throw alreadyInstalled(validated.manifest);
-        throw err;
+        throw error;
       }
-      const installDir = path.join(
-        resolvedDataDir,
-        PACKAGES_DIR,
-        validated.manifest.id,
-      );
-      try {
-        // Why after the insert: only the process that owns the row may replace
-        // packages/<id>. The loser never reaches this line.
-        await publishStaged(staging, installDir);
-      } catch (err) {
-        // Why drop the row: the insert was ours and the files did not land, so a
-        // later import is not stuck with a record and no directory.
-        store.remove(validated.manifest.id);
-        throw err;
-      }
-      return {
-        manifest: validated.manifest,
-        files: validated.files,
-        installDir,
-      };
     });
   };
 
@@ -774,7 +829,12 @@ export function createCore(options: CreateCoreOptions): Core {
       }
       return lifecycle.uninstall(ctx, id);
     }),
-    listInstalled: guard(async () => store.list()),
+    listInstalled: guard(async () => {
+      const { installed, pending } = store.listWithRecovery();
+      if (!pending.length) return installed;
+      await recoverLifecycles(ctx, undefined, pending);
+      return store.list();
+    }),
     getSecretReferences: guard(async (id) => {
       requireInstalled(ctx, id);
       return store.getSecretRefs(id);
@@ -822,10 +882,25 @@ export function createCore(options: CreateCoreOptions): Core {
         ),
       };
     }),
-    getPackage: guard(async (id) => ({
-      installed: requireInstalled(ctx, id),
-      manifest: requireManifest(ctx, id),
-    })),
+    getPackage: guard(async (id) => {
+      const read = () => ({
+        installed: requireInstalled(ctx, id),
+        manifest: requireManifest(ctx, id),
+      });
+      try {
+        return read();
+      } catch (error) {
+        if (
+          !(error instanceof PlumsError) ||
+          !["LIFECYCLE_BUSY", "NOT_INSTALLED"].includes(
+            (error.details as { reason?: string } | undefined)?.reason ?? "",
+          )
+        )
+          throw error;
+        await recoverLifecycles(ctx, id);
+        return read();
+      }
+    }),
     describeSettings: guard((id) => describeSettings(ctx, id)),
     settingsSnapshot: guard((id) => describeSettings(ctx, id, false)),
     runDelegatedCapability: (raw, assertActive) => {

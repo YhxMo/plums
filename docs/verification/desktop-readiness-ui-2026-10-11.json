@@ -1,0 +1,367 @@
+{
+  "date": "2026-10-11",
+  "sourceBaseline": "ec76fdc1e7d8483c9fe90bfaffbc59f4bc9516b1",
+  "environment": {
+    "node": "26.5.1",
+    "electron": "44.5.1",
+    "os": "macOS 27.0.1 arm64",
+    "signing": "local ad-hoc test signature"
+  },
+  "build": {
+    "command": "pnpm build",
+    "status": "passed",
+    "sandboxAttempt": "pnpm produced no output in the restricted sandbox; interrupted before the authorized unsandboxed build"
+  },
+  "runs": [
+    {
+      "name": "initial-ui",
+      "success": false,
+      "passed": 30,
+      "failed": 5,
+      "skipped": 0,
+      "note": "Initial run: premature field focus lost the dialog return target; older fixtures lacked the read-only readiness method; task view failed after an optimistic background checkbox change; native window focus failed.",
+      "files": [
+        {
+          "file": "packages/desktop/test/common-runtime-ui.test.ts",
+          "status": "failed",
+          "passed": 0,
+          "failed": 1,
+          "skipped": 0,
+          "failedTests": [
+            "real trusted UI manages background tasks; sandbox frontend invokes, closes, reattaches and stops through the common bridge"
+          ]
+        },
+        {
+          "file": "packages/desktop/test/local-permissions-ui.test.ts",
+          "status": "passed",
+          "passed": 3,
+          "failed": 0,
+          "skipped": 0,
+          "failedTests": []
+        },
+        {
+          "file": "packages/desktop/test/onboarding-ui.test.ts",
+          "status": "failed",
+          "passed": 2,
+          "failed": 2,
+          "skipped": 0,
+          "failedTests": [
+            "renders the shell and dialogs in both themes at desktop and narrow widths with visible focus and readable colors",
+            "integrates native window chrome, fullscreen events and theme updates"
+          ]
+        },
+        {
+          "file": "packages/desktop/test/execution-records-ui.test.ts",
+          "status": "passed",
+          "passed": 1,
+          "failed": 0,
+          "skipped": 0,
+          "failedTests": []
+        },
+        {
+          "file": "packages/desktop/test/readiness-ui.test.ts",
+          "status": "passed",
+          "passed": 1,
+          "failed": 0,
+          "skipped": 0,
+          "failedTests": []
+        },
+        {
+          "file": "packages/desktop/test/interaction-ui.test.ts",
+          "status": "failed",
+          "passed": 15,
+          "failed": 2,
+          "skipped": 0,
+          "failedTests": [
+            "saves existing composition preferences immediately and retains failed name edits for retry",
+            "keeps stop-and-revoke visible, suppresses duplicate clicks and shows retryable failures"
+          ]
+        },
+        {
+          "file": "scripts/test/test-coverage.test.ts",
+          "status": "passed",
+          "passed": 4,
+          "failed": 0,
+          "skipped": 0,
+          "failedTests": []
+        },
+        {
+          "file": "packages/host/test/agent-readiness.test.ts",
+          "status": "passed",
+          "passed": 4,
+          "failed": 0,
+          "skipped": 0,
+          "failedTests": []
+        }
+      ]
+    },
+    {
+      "name": "revised-ui",
+      "success": false,
+      "passed": 21,
+      "failed": 1,
+      "skipped": 0,
+      "note": "Field focus ordering and read-only fixtures fixed; layout matrix, configuration and interaction tests passed. Native window focus still failed.",
+      "files": [
+        {
+          "file": "packages/desktop/test/onboarding-ui.test.ts",
+          "status": "failed",
+          "passed": 3,
+          "failed": 1,
+          "skipped": 0,
+          "failedTests": [
+            "integrates native window chrome, fullscreen events and theme updates"
+          ]
+        },
+        {
+          "file": "packages/desktop/test/readiness-ui.test.ts",
+          "status": "passed",
+          "passed": 1,
+          "failed": 0,
+          "skipped": 0,
+          "failedTests": []
+        },
+        {
+          "file": "packages/desktop/test/interaction-ui.test.ts",
+          "status": "passed",
+          "passed": 17,
+          "failed": 0,
+          "skipped": 0,
+          "failedTests": []
+        }
+      ]
+    },
+    {
+      "name": "task-ui-rerun",
+      "success": false,
+      "passed": 0,
+      "failed": 1,
+      "skipped": 0,
+      "note": "Task UI isolated rerun failed; diagnostics showed the manager window only, with no retained business view.",
+      "files": [
+        {
+          "file": "packages/desktop/test/common-runtime-ui.test.ts",
+          "status": "failed",
+          "passed": 0,
+          "failed": 1,
+          "skipped": 0,
+          "failedTests": [
+            "real trusted UI manages background tasks; sandbox frontend invokes, closes, reattaches and stops through the common bridge"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "task-ui-authoritative",
+      "success": true,
+      "passed": 1,
+      "failed": 0,
+      "skipped": 0,
+      "note": "Task UI passed after awaiting the enabled control and persisted background selection from the host. This does not explain other historical timeouts.",
+      "files": [
+        {
+          "file": "packages/desktop/test/common-runtime-ui.test.ts",
+          "status": "passed",
+          "passed": 1,
+          "failed": 0,
+          "skipped": 0,
+          "failedTests": []
+        }
+      ]
+    },
+    {
+      "name": "native-theme-rerun",
+      "success": false,
+      "passed": 0,
+      "failed": 1,
+      "skipped": 3,
+      "note": "Isolated native test still failed at its five-second focus gate. No timeout increase or guard bypass.",
+      "files": [
+        {
+          "file": "packages/desktop/test/onboarding-ui.test.ts",
+          "status": "failed",
+          "passed": 0,
+          "failed": 1,
+          "skipped": 0,
+          "failedTests": [
+            "integrates native window chrome, fullscreen events and theme updates"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "final-ui",
+      "success": true,
+      "passed": 36,
+      "failed": 0,
+      "skipped": 1,
+      "note": "Final combined run after building the final source tree. The separately failing native focus case was explicitly excluded; the default suite still includes it.",
+      "files": [
+        {
+          "file": "packages/desktop/test/foundation-ui.test.ts",
+          "status": "passed",
+          "passed": 1,
+          "failed": 0,
+          "skipped": 0,
+          "failedTests": []
+        },
+        {
+          "file": "packages/desktop/test/common-runtime-ui.test.ts",
+          "status": "passed",
+          "passed": 1,
+          "failed": 0,
+          "skipped": 0,
+          "failedTests": []
+        },
+        {
+          "file": "packages/desktop/test/workspace-ui.test.ts",
+          "status": "passed",
+          "passed": 1,
+          "failed": 0,
+          "skipped": 0,
+          "failedTests": []
+        },
+        {
+          "file": "packages/desktop/test/local-permissions-ui.test.ts",
+          "status": "passed",
+          "passed": 3,
+          "failed": 0,
+          "skipped": 0,
+          "failedTests": []
+        },
+        {
+          "file": "packages/desktop/test/onboarding-ui.test.ts",
+          "status": "passed",
+          "passed": 3,
+          "failed": 0,
+          "skipped": 0,
+          "failedTests": []
+        },
+        {
+          "file": "packages/desktop/test/execution-records-ui.test.ts",
+          "status": "passed",
+          "passed": 1,
+          "failed": 0,
+          "skipped": 0,
+          "failedTests": []
+        },
+        {
+          "file": "packages/desktop/test/readiness-ui.test.ts",
+          "status": "passed",
+          "passed": 1,
+          "failed": 0,
+          "skipped": 0,
+          "failedTests": []
+        },
+        {
+          "file": "packages/desktop/test/interaction-ui.test.ts",
+          "status": "passed",
+          "passed": 17,
+          "failed": 0,
+          "skipped": 0,
+          "failedTests": []
+        },
+        {
+          "file": "packages/host/test/agent-readiness.test.ts",
+          "status": "passed",
+          "passed": 4,
+          "failed": 0,
+          "skipped": 0,
+          "failedTests": []
+        },
+        {
+          "file": "scripts/test/test-coverage.test.ts",
+          "status": "passed",
+          "passed": 4,
+          "failed": 0,
+          "skipped": 0,
+          "failedTests": []
+        }
+      ]
+    }
+  ],
+  "reproduction": {
+    "prepare": "pnpm build",
+    "applicableFinal": "pnpm exec vitest run packages/desktop/test/foundation-ui.test.ts packages/desktop/test/common-runtime-ui.test.ts packages/desktop/test/workspace-ui.test.ts packages/desktop/test/local-permissions-ui.test.ts packages/desktop/test/onboarding-ui.test.ts packages/desktop/test/execution-records-ui.test.ts packages/desktop/test/readiness-ui.test.ts packages/desktop/test/interaction-ui.test.ts packages/host/test/agent-readiness.test.ts scripts/test/test-coverage.test.ts -t '^(?!integrates native window)'",
+    "nativeFocus": "pnpm exec vitest run packages/desktop/test/onboarding-ui.test.ts -t 'integrates native window'",
+    "unfiltered": "pnpm exec vitest run packages/desktop/test/foundation-ui.test.ts packages/desktop/test/common-runtime-ui.test.ts packages/desktop/test/workspace-ui.test.ts packages/desktop/test/local-permissions-ui.test.ts packages/desktop/test/onboarding-ui.test.ts packages/desktop/test/execution-records-ui.test.ts packages/desktop/test/readiness-ui.test.ts packages/desktop/test/interaction-ui.test.ts packages/host/test/agent-readiness.test.ts scripts/test/test-coverage.test.ts"
+  },
+  "coverage": {
+    "themes": ["light", "dark"],
+    "widths": [1180, 760, 375, 320],
+    "behaviors": [
+      "host readiness reasons and stable repair identifiers",
+      "outdated success and failure replies ignored",
+      "JSON Pointer field lookup including escaped slash and tilde",
+      "input retained on failed save; secret text absent from visible output",
+      "partial save preserved even without a resource refresh",
+      "keyboard section navigation and modal focus return",
+      "sticky revoke control inside viewport at every section",
+      "native trusted local authorization, process stop/revoke, task attach/stop/refresh",
+      "foundation switching and independent frontend restoration"
+    ]
+  },
+  "contrast": {
+    "light": {
+      "semantics": {
+        "peach": 5.144890186662606,
+        "mint": 5.479518386244465,
+        "sky": 5.691423072584824,
+        "attention": 4.775227959490167,
+        "berry": 6.17507582326824
+      },
+      "rendered": {
+        "focusShadow": "rgb(255, 255, 255) 0px 0px 0px 2px, rgb(31, 29, 26) 0px 0px 0px 4px",
+        "topBackground": "rgb(247, 246, 243)",
+        "focusMatches": true
+      },
+      "secondary": 7.644952366520549,
+      "tertiary": 5.291811512557203,
+      "primary": 11.796196761676525,
+      "selected": 15.072624685572302,
+      "tertiaryRaised": 5.291811512557203,
+      "tertiaryHover": 4.566825747078371,
+      "muted": 4.896526091555077,
+      "focus": 15.558480523576256,
+      "control": 15.558480523576256
+    },
+    "dark": {
+      "semantics": {
+        "peach": 8.12279073020318,
+        "mint": 8.518015418100159,
+        "sky": 7.943867899201099,
+        "attention": 10.943689078888454,
+        "berry": 7.761430885648216
+      },
+      "rendered": {
+        "focusShadow": "rgb(29, 28, 25) 0px 0px 0px 2px, rgb(244, 242, 238) 0px 0px 0px 4px",
+        "topBackground": "rgb(20, 19, 17)",
+        "focusMatches": true
+      },
+      "secondary": 8.626517750117156,
+      "tertiary": 5.228088632271429,
+      "primary": 11.796196761676525,
+      "selected": 10.943689078888454,
+      "tertiaryRaised": 4.752800939111864,
+      "tertiaryHover": 4.51367388444326,
+      "muted": 5.69678902118736,
+      "focus": 16.606796260915694,
+      "control": 1.1042768576849369
+    }
+  },
+  "nativeFocusObserved": [
+    {
+      "visible": true,
+      "focused": false,
+      "fullscreen": false,
+      "destroyed": false
+    }
+  ],
+  "limits": [
+    "Native fullscreen focus repeatedly failed: window visible but not focused; root cause unknown. Fullscreen and the remaining native theme steps are not certified.",
+    "The final applicable combined run passed 36 tests with one explicitly excluded; this is not a passing full pnpm test run.",
+    "No packaged app, signing/notarization, project container, or real external connector certification.",
+    "Project tier remains TIER_UNAVAILABLE. Readiness does not grant permissions or establish service/execution success.",
+    "Screenshots and raw outputs can be regenerated with the reproduction commands; this summary does not depend on unpublished local cache reports."
+  ]
+}

@@ -5,6 +5,7 @@ export function useAction(scope = "") {
   const { load } = useManagerStore();
   const [pending, setPending] = useState(false);
   const [error, setError] = useState("");
+  const [errorPath, setErrorPath] = useState("");
   const active = useRef(false);
   const mounted = useRef(true);
   const identity = useRef({ scope });
@@ -13,6 +14,7 @@ export function useAction(scope = "") {
     active.current = false;
     setPending(false);
     setError("");
+    setErrorPath("");
   }, [scope]);
   useEffect(() => {
     mounted.current = true;
@@ -20,7 +22,10 @@ export function useAction(scope = "") {
       mounted.current = false;
     };
   }, []);
-  const clear = useCallback(() => setError(""), []);
+  const clear = useCallback(() => {
+    setError("");
+    setErrorPath("");
+  }, []);
   const run = useCallback(
     async (fn: () => Promise<unknown>, refresh = true) => {
       if (active.current) return false;
@@ -29,6 +34,7 @@ export function useAction(scope = "") {
       active.current = true;
       setPending(true);
       setError("");
+      setErrorPath("");
       try {
         await fn();
         // A committed operation must not look failed merely because refreshing failed.
@@ -38,6 +44,8 @@ export function useAction(scope = "") {
         if (current()) {
           const message = (failure as { message?: unknown } | null)?.message;
           setError(typeof message === "string" ? message : "操作未完成。");
+          const path = (failure as { path?: unknown } | null)?.path;
+          setErrorPath(typeof path === "string" ? path : "");
         }
         return false;
       } finally {
@@ -49,5 +57,5 @@ export function useAction(scope = "") {
     },
     [load],
   );
-  return { run, pending, error, clear };
+  return { run, pending, error, errorPath, clear };
 }

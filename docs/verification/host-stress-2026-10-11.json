@@ -1,0 +1,90 @@
+{
+  "date": "2026-10-11",
+  "sourceBaseline": "1fe8815",
+  "command": "pnpm exec vitest run --config scripts/performance-regression.config.ts",
+  "maxWorkers": 4,
+  "defaultTestTimeoutMs": 20000,
+  "explicitTestTimeouts": "unchanged",
+  "success": true,
+  "passed": 146,
+  "failed": 0,
+  "files": [
+    {
+      "file": "packages/host/test/common-tasks.test.ts",
+      "status": "passed",
+      "passed": 10,
+      "failed": [],
+      "durationMs": 10135.36669921875,
+      "maxCaseMs": 5149.366666
+    },
+    {
+      "file": "packages/host/test/confirm-once.test.ts",
+      "status": "passed",
+      "passed": 16,
+      "failed": [],
+      "durationMs": 19664.1689453125,
+      "maxCaseMs": 6554.843791
+    },
+    {
+      "file": "packages/host/test/engine.test.ts",
+      "status": "passed",
+      "passed": 27,
+      "failed": [],
+      "durationMs": 63836.462890625,
+      "maxCaseMs": 30659.905542
+    },
+    {
+      "file": "packages/host/test/library.test.ts",
+      "status": "passed",
+      "passed": 23,
+      "failed": [],
+      "durationMs": 5363.393310546875,
+      "maxCaseMs": 2013.900833
+    },
+    {
+      "file": "packages/host/test/local-assembly.test.ts",
+      "status": "passed",
+      "passed": 10,
+      "failed": [],
+      "durationMs": 8026.48828125,
+      "maxCaseMs": 1539.515958
+    },
+    {
+      "file": "packages/host/test/local-callbacks.test.ts",
+      "status": "passed",
+      "passed": 26,
+      "failed": [],
+      "durationMs": 91404.11889648438,
+      "maxCaseMs": 7741.100292000003
+    },
+    {
+      "file": "packages/host/test/onboarding.test.ts",
+      "status": "passed",
+      "passed": 17,
+      "failed": [],
+      "durationMs": 2134.955078125,
+      "maxCaseMs": 885.6077910000001
+    },
+    {
+      "file": "packages/host/test/recheck-cache.test.ts",
+      "status": "passed",
+      "passed": 9,
+      "failed": [],
+      "durationMs": 4762.90576171875,
+      "maxCaseMs": 4300.058875
+    },
+    {
+      "file": "packages/host/test/recheck-coalescing.test.ts",
+      "status": "passed",
+      "passed": 8,
+      "failed": [],
+      "durationMs": 27031.659912109375,
+      "maxCaseMs": 4365.5596669999995
+    }
+  ],
+  "limitations": [
+    "one stress run; no historical timeout reproduced",
+    "normal scheduling isolation is preserved",
+    "does not certify project containers or install packages"
+  ]
+}

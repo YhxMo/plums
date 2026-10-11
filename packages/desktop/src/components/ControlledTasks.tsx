@@ -1,6 +1,8 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import type { DesktopHost, AgentRecord } from "@plumsjs/host";
 import type { Resource } from "../shared/types.js";
+import { executionGuidance } from "../shared/execution-state.js";
+import { usePollingRead } from "../hooks/usePollingRead.js";
 const desktopContribution = (manifest: Resource["manifest"]) =>
   (manifest.payload as { plumsDesktop?: { common?: { background?: boolean } } })
     ?.plumsDesktop;
@@ -12,11 +14,6 @@ const stateName: Record<string, string> = {
   stopped: "已停止",
   crashed: "已中断",
   completed: "已完成",
-};
-const resultName: Record<string, string> = {
-  not_started: "尚未执行",
-  unknown: "执行结果未知，请核实后再操作",
-  completed: "已执行，请勿自动重试",
 };
 export function ControlledTasks({
   record,
@@ -51,37 +48,44 @@ export function ControlledTasks({
       ),
     ),
   ];
+  const mounted = useRef(true);
   useEffect(() => {
-    if (
-      !resources.some((r) => desktopContribution(r.manifest)?.common) &&
-      !programs.length &&
-      !record.backgroundComponents?.length &&
-      !Object.keys(record.controlledPrograms ?? {}).length
-    ) {
-      setTasks([]);
-      return;
-    }
-    let active = true;
-    const refresh = () =>
-      window.manager
-        .call("commonTasks", { instanceId: record.instanceId })
-        .then((t) => {
-          if (active) {
-            setTasks(t as Tasks);
-            setError("");
-          }
-        })
-        .catch(() => {
-          if (active) setError("任务状态未能读取，请重试。");
-        });
-    void refresh();
-    const timer = setInterval(() => void refresh(), 1000);
+    mounted.current = true;
     return () => {
-      active = false;
-      clearInterval(timer);
+      mounted.current = false;
     };
-  }, [record.instanceId, resources]);
+  }, []);
+  const canRead =
+    resources.some((r) => desktopContribution(r.manifest)?.common) ||
+    !!programs.length ||
+    !!record.backgroundComponents?.length ||
+    !!Object.keys(record.controlledPrograms ?? {}).length;
+  useEffect(() => {
+    if (!canRead) {
+      setTasks([]);
+      setError("");
+    }
+  }, [canRead]);
+  const polling = usePollingRead<Tasks>({
+    method: "commonTasks",
+    instanceId: record.instanceId,
+    revision: resources,
+    enabled: canRead,
+    receive: (value) => {
+      setTasks(value);
+      setError("");
+    },
+    delay: (value) =>
+      value.some((t) =>
+        ["starting", "running", "cancelling"].includes(t.snapshot.status.state),
+      )
+        ? 1000
+        : 10_000,
+    onError: () => setError("任务状态未能读取，请重试。"),
+  });
   const run = async (method: string, extra: Record<string, unknown>) => {
+    const resume = polling.pause();
+    let failed = false;
     setBusy(true);
     setError("");
     try {
@@ -89,17 +93,17 @@ export function ControlledTasks({
         instanceId: record.instanceId,
         ...extra,
       });
-      setTasks(
-        (await window.manager.call("commonTasks", {
-          instanceId: record.instanceId,
-        })) as Tasks,
-      );
       return true;
     } catch {
-      setError("操作未完成。请刷新当前状态后重试。");
+      failed = true;
       return false;
     } finally {
-      setBusy(false);
+      await resume();
+      if (mounted.current) {
+        if (failed)
+          setError("操作未完成。请刷新任务状态并核实结果后再决定下一步。");
+        setBusy(false);
+      }
     }
   };
   if (!backgrounds.length && !programs.length && !tasks?.length && !error)
@@ -113,6 +117,18 @@ export function ControlledTasks({
       <p className="muted">
         后台开关决定界面关闭后是否继续运行。每次操作仍需有效权限，停止后不会自动重试。
       </p>
+      <button
+        className="sm"
+        disabled={busy}
+        onClick={() => {
+          setBusy(true);
+          void polling.refresh().finally(() => {
+            if (mounted.current) setBusy(false);
+          });
+        }}
+      >
+        刷新任务状态
+      </button>
       {error && <p role="alert">{error}</p>}
       {backgrounds.map((r) => (
         <label className="controlled-option" key={r.id}>
@@ -155,7 +171,19 @@ export function ControlledTasks({
                     ? "Agent 后台"
                     : "随界面运行"}
                 </span>
-                <small>{resultName[t.snapshot.status.executionState]}</small>
+                <small>
+                  {executionGuidance[t.snapshot.status.executionState].title}
+                </small>
+                <details>
+                  <summary>如何核实与恢复</summary>
+                  <p>
+                    {executionGuidance[t.snapshot.status.executionState].next}
+                  </p>
+                  <p>
+                    任务标识：<code>{t.description.taskId}</code>
+                    。核实结果后，可通过兼容组件接管现有任务。重启不恢复任务正文或自动重执行。
+                  </p>
+                </details>
                 <label>
                   接管界面组件
                   <select

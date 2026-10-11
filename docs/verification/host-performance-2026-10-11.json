@@ -1,0 +1,1070 @@
+{
+  "date": "2026-10-11",
+  "sourceBaseline": "1fe8815",
+  "osVersion": "27.0.1",
+  "method": "one list warm-up per host, five sampled rounds; each write+read chain contains two local requests",
+  "initialRun": [
+    {
+      "scenario": "idle",
+      "exitCode": 0,
+      "environment": {
+        "node": "v26.5.1",
+        "platform": "darwin",
+        "arch": "arm64",
+        "cpu": "Apple M4",
+        "release": "27.0.0"
+      },
+      "instrumented": false,
+      "samples": [
+        {
+          "round": 1,
+          "width": 1,
+          "durationsMs": [1724.9532089999998],
+          "failures": [],
+          "batchMs": 1725.0235829999997,
+          "eventLoopP95Ms": 12.787711,
+          "eventLoopMaxMs": 23.674879,
+          "memoryDelta": {
+            "rss": 2146304,
+            "heapUsed": -8132208
+          },
+          "cpuMicros": {
+            "user": 1445707,
+            "system": 599111
+          }
+        },
+        {
+          "round": 2,
+          "width": 1,
+          "durationsMs": [1776.457625],
+          "failures": [],
+          "batchMs": 1776.4921249999998,
+          "eventLoopP95Ms": 13.623295,
+          "eventLoopMaxMs": 29.147135,
+          "memoryDelta": {
+            "rss": 688128,
+            "heapUsed": 23377448
+          },
+          "cpuMicros": {
+            "user": 1502469,
+            "system": 610525
+          }
+        },
+        {
+          "round": 3,
+          "width": 1,
+          "durationsMs": [1699.5689160000002],
+          "failures": [],
+          "batchMs": 1699.601208000001,
+          "eventLoopP95Ms": 13.991935,
+          "eventLoopMaxMs": 25.673727,
+          "memoryDelta": {
+            "rss": 507904,
+            "heapUsed": -3917232
+          },
+          "cpuMicros": {
+            "user": 1348055,
+            "system": 599378
+          }
+        },
+        {
+          "round": 4,
+          "width": 1,
+          "durationsMs": [1702.6553330000006],
+          "failures": [],
+          "batchMs": 1702.6902919999993,
+          "eventLoopP95Ms": 13.893631,
+          "eventLoopMaxMs": 23.166975,
+          "memoryDelta": {
+            "rss": 950272,
+            "heapUsed": -13945352
+          },
+          "cpuMicros": {
+            "user": 1340222,
+            "system": 601149
+          }
+        },
+        {
+          "round": 5,
+          "width": 1,
+          "durationsMs": [1757.869541],
+          "failures": [],
+          "batchMs": 1757.901749999999,
+          "eventLoopP95Ms": 14.057471,
+          "eventLoopMaxMs": 26.492927,
+          "memoryDelta": {
+            "rss": 131072,
+            "heapUsed": -4295344
+          },
+          "cpuMicros": {
+            "user": 1410643,
+            "system": 615963
+          }
+        }
+      ],
+      "metrics": {},
+      "limitations": [
+        "in-process hosts; not the historical four-Vitest-worker workload",
+        "inclusive timings overlap; IPC, execution and queue are not separately measured",
+        "cancel durations start after the fixture entry emits its started event",
+        "parent-process CPU and memory only; no child-process peak sampling"
+      ]
+    },
+    {
+      "scenario": "concurrent",
+      "exitCode": 0,
+      "environment": {
+        "node": "v26.5.1",
+        "platform": "darwin",
+        "arch": "arm64",
+        "cpu": "Apple M4",
+        "release": "27.0.0"
+      },
+      "instrumented": false,
+      "samples": [
+        {
+          "round": 1,
+          "width": 4,
+          "durationsMs": [
+            7222.427749999999, 7227.346042000001, 7240.432250000002,
+            7244.485999999999
+          ],
+          "failures": [],
+          "batchMs": 7244.588500000002,
+          "eventLoopP95Ms": 16.826367,
+          "eventLoopMaxMs": 29.474815,
+          "memoryDelta": {
+            "rss": 17088512,
+            "heapUsed": -9241000
+          },
+          "cpuMicros": {
+            "user": 6208745,
+            "system": 3016023
+          }
+        },
+        {
+          "round": 2,
+          "width": 4,
+          "durationsMs": [
+            6893.4909579999985, 6898.451125, 6937.172209, 6945.793625000002
+          ],
+          "failures": [],
+          "batchMs": 6945.859375,
+          "eventLoopP95Ms": 17.072127,
+          "eventLoopMaxMs": 33.177599,
+          "memoryDelta": {
+            "rss": 5390336,
+            "heapUsed": -2311240
+          },
+          "cpuMicros": {
+            "user": 5705129,
+            "system": 2862226
+          }
+        },
+        {
+          "round": 3,
+          "width": 4,
+          "durationsMs": [
+            6760.863624999998, 6781.193583, 6824.090042, 6923.989249999999
+          ],
+          "failures": [],
+          "batchMs": 6924.0479589999995,
+          "eventLoopP95Ms": 17.170431,
+          "eventLoopMaxMs": 33.505279,
+          "memoryDelta": {
+            "rss": 11567104,
+            "heapUsed": 37808
+          },
+          "cpuMicros": {
+            "user": 5725846,
+            "system": 2866856
+          }
+        },
+        {
+          "round": 4,
+          "width": 4,
+          "durationsMs": [
+            6844.151792000001, 6887.920707999998, 6936.591874999998,
+            7095.253291000001
+          ],
+          "failures": [],
+          "batchMs": 7095.293332999998,
+          "eventLoopP95Ms": 16.269311,
+          "eventLoopMaxMs": 28.262399,
+          "memoryDelta": {
+            "rss": -5259264,
+            "heapUsed": 16879984
+          },
+          "cpuMicros": {
+            "user": 5870021,
+            "system": 2939108
+          }
+        },
+        {
+          "round": 5,
+          "width": 4,
+          "durationsMs": [
+            7102.3814589999965, 7125.795582999999, 7144.836916,
+            7147.552875000001
+          ],
+          "failures": [],
+          "batchMs": 7147.607708000003,
+          "eventLoopP95Ms": 16.146431,
+          "eventLoopMaxMs": 31.227903,
+          "memoryDelta": {
+            "rss": 2949120,
+            "heapUsed": -16266536
+          },
+          "cpuMicros": {
+            "user": 6030408,
+            "system": 2970958
+          }
+        }
+      ],
+      "metrics": {},
+      "limitations": [
+        "in-process hosts; not the historical four-Vitest-worker workload",
+        "inclusive timings overlap; IPC, execution and queue are not separately measured",
+        "cancel durations start after the fixture entry emits its started event",
+        "parent-process CPU and memory only; no child-process peak sampling"
+      ]
+    },
+    {
+      "scenario": "cancel",
+      "exitCode": 1,
+      "environment": {
+        "node": "v26.5.1",
+        "platform": "darwin",
+        "arch": "arm64",
+        "cpu": "Apple M4",
+        "release": "27.0.0"
+      },
+      "instrumented": false,
+      "samples": [
+        {
+          "round": 1,
+          "width": 1,
+          "durationsMs": [],
+          "failures": ["ASSERTION_OR_RUNTIME_FAILURE"],
+          "batchMs": 1524.5562080000004,
+          "eventLoopP95Ms": 14.589951,
+          "eventLoopMaxMs": 23.281663,
+          "memoryDelta": {
+            "rss": 2670592,
+            "heapUsed": 4282336
+          },
+          "cpuMicros": {
+            "user": 549234,
+            "system": 181624
+          }
+        },
+        {
+          "round": 2,
+          "width": 1,
+          "durationsMs": [],
+          "failures": ["ASSERTION_OR_RUNTIME_FAILURE"],
+          "batchMs": 3005.422125,
+          "eventLoopP95Ms": 13.623295,
+          "eventLoopMaxMs": 53.805055,
+          "memoryDelta": {
+            "rss": 13729792,
+            "heapUsed": 22545328
+          },
+          "cpuMicros": {
+            "user": 1137538,
+            "system": 327921
+          }
+        },
+        {
+          "round": 3,
+          "width": 1,
+          "durationsMs": [],
+          "failures": ["ASSERTION_OR_RUNTIME_FAILURE"],
+          "batchMs": 2974.5249999999996,
+          "eventLoopP95Ms": 12.804095,
+          "eventLoopMaxMs": 53.837823,
+          "memoryDelta": {
+            "rss": 23117824,
+            "heapUsed": 16424904
+          },
+          "cpuMicros": {
+            "user": 1124705,
+            "system": 318797
+          }
+        },
+        {
+          "round": 4,
+          "width": 1,
+          "durationsMs": [],
+          "failures": ["ASSERTION_OR_RUNTIME_FAILURE"],
+          "batchMs": 2948.5590839999986,
+          "eventLoopP95Ms": 13.271039,
+          "eventLoopMaxMs": 51.019775,
+          "memoryDelta": {
+            "rss": 48529408,
+            "heapUsed": 12688672
+          },
+          "cpuMicros": {
+            "user": 1119748,
+            "system": 326003
+          }
+        },
+        {
+          "round": 5,
+          "width": 1,
+          "durationsMs": [],
+          "failures": ["ASSERTION_OR_RUNTIME_FAILURE"],
+          "batchMs": 2978.9997920000005,
+          "eventLoopP95Ms": 13.557759,
+          "eventLoopMaxMs": 55.115775,
+          "memoryDelta": {
+            "rss": 17088512,
+            "heapUsed": 21953048
+          },
+          "cpuMicros": {
+            "user": 1123276,
+            "system": 334102
+          }
+        }
+      ],
+      "metrics": {},
+      "limitations": [
+        "in-process hosts; not the historical four-Vitest-worker workload",
+        "inclusive timings overlap; IPC, execution and queue are not separately measured",
+        "cancel durations start after the fixture entry emits its started event",
+        "parent-process CPU and memory only; no child-process peak sampling"
+      ]
+    },
+    {
+      "scenario": "diagnostic",
+      "exitCode": 0,
+      "environment": {
+        "node": "v26.5.1",
+        "platform": "darwin",
+        "arch": "arm64",
+        "cpu": "Apple M4",
+        "release": "27.0.0"
+      },
+      "instrumented": true,
+      "samples": [
+        {
+          "round": 1,
+          "width": 4,
+          "durationsMs": [
+            6979.167959, 6992.343625000001, 7112.015874999999, 7135.017417000001
+          ],
+          "failures": [],
+          "batchMs": 7135.119542000002,
+          "eventLoopP95Ms": 17.596415,
+          "eventLoopMaxMs": 30.834687,
+          "memoryDelta": {
+            "rss": 45219840,
+            "heapUsed": -15758576
+          },
+          "cpuMicros": {
+            "user": 5976063,
+            "system": 2948908
+          }
+        },
+        {
+          "round": 2,
+          "width": 4,
+          "durationsMs": [
+            6870.314249999999, 7159.298500000001, 7206.478542000001,
+            7215.726042000002
+          ],
+          "failures": [],
+          "batchMs": 7215.792250000002,
+          "eventLoopP95Ms": 17.465343,
+          "eventLoopMaxMs": 33.783807,
+          "memoryDelta": {
+            "rss": 1638400,
+            "heapUsed": 15521544
+          },
+          "cpuMicros": {
+            "user": 5968329,
+            "system": 2985283
+          }
+        },
+        {
+          "round": 3,
+          "width": 4,
+          "durationsMs": [
+            6667.670208, 6770.780875, 6994.4828750000015, 7080.460499999997
+          ],
+          "failures": [],
+          "batchMs": 7080.538458000003,
+          "eventLoopP95Ms": 16.793599,
+          "eventLoopMaxMs": 31.440895,
+          "memoryDelta": {
+            "rss": 10567680,
+            "heapUsed": -7108104
+          },
+          "cpuMicros": {
+            "user": 5897835,
+            "system": 2936201
+          }
+        },
+        {
+          "round": 4,
+          "width": 4,
+          "durationsMs": [
+            7046.604375000003, 7133.492458000004, 7145.551625, 7186.944582999997
+          ],
+          "failures": [],
+          "batchMs": 7187.009958000002,
+          "eventLoopP95Ms": 16.809983,
+          "eventLoopMaxMs": 27.918335,
+          "memoryDelta": {
+            "rss": -20889600,
+            "heapUsed": 29725968
+          },
+          "cpuMicros": {
+            "user": 6051090,
+            "system": 2988453
+          }
+        },
+        {
+          "round": 5,
+          "width": 4,
+          "durationsMs": [
+            6892.486833999996, 6938.317750000002, 6944.434582999995,
+            6944.543709000005
+          ],
+          "failures": [],
+          "batchMs": 6944.582582999996,
+          "eventLoopP95Ms": 17.055743,
+          "eventLoopMaxMs": 32.456703,
+          "memoryDelta": {
+            "rss": 11927552,
+            "heapUsed": -11979864
+          },
+          "cpuMicros": {
+            "user": 5698282,
+            "system": 2903726
+          }
+        }
+      ],
+      "metrics": {
+        "metadata.readdir": {
+          "count": 47000,
+          "inclusiveMs": 85215.52594399994
+        },
+        "foundation.outside": {
+          "count": 320,
+          "inclusiveMs": 36196.075832999915
+        },
+        "authorize": {
+          "count": 19520,
+          "inclusiveMs": 3912.2715230003323
+        },
+        "metadata.lstat": {
+          "count": 125440,
+          "inclusiveMs": 180317.43909899876
+        },
+        "foundation.full": {
+          "count": 120,
+          "inclusiveMs": 11111.25216099998
+        },
+        "foundation.nonFull": {
+          "count": 8720,
+          "inclusiveMs": 80155.8989400002
+        }
+      },
+      "limitations": [
+        "in-process hosts; not the historical four-Vitest-worker workload",
+        "inclusive timings overlap; IPC, execution and queue are not separately measured",
+        "cancel durations start after the fixture entry emits its started event",
+        "parent-process CPU and memory only; no child-process peak sampling"
+      ]
+    }
+  ],
+  "cancelRerun": {
+    "scenario": "cancel",
+    "exitCode": 0,
+    "environment": {
+      "node": "v26.5.1",
+      "platform": "darwin",
+      "arch": "arm64",
+      "cpu": "Apple M4",
+      "release": "27.0.0"
+    },
+    "instrumented": false,
+    "samples": [
+      {
+        "round": 1,
+        "width": 1,
+        "durationsMs": [63.15595800000028],
+        "failures": [],
+        "batchMs": 530.4761250000001,
+        "eventLoopP95Ms": 13.852671,
+        "eventLoopMaxMs": 26.181631,
+        "memoryDelta": {
+          "rss": 491520,
+          "heapUsed": -1355192
+        },
+        "cpuMicros": {
+          "user": 425195,
+          "system": 149339
+        }
+      },
+      {
+        "round": 2,
+        "width": 1,
+        "durationsMs": [62.896834000000126],
+        "failures": [],
+        "batchMs": 2018.1644160000005,
+        "eventLoopP95Ms": 12.992511,
+        "eventLoopMaxMs": 51.314687,
+        "memoryDelta": {
+          "rss": 20611072,
+          "heapUsed": 7241440
+        },
+        "cpuMicros": {
+          "user": 1007683,
+          "system": 299799
+        }
+      },
+      {
+        "round": 3,
+        "width": 1,
+        "durationsMs": [64.31600000000071],
+        "failures": [],
+        "batchMs": 2355.0912499999995,
+        "eventLoopP95Ms": 13.361151,
+        "eventLoopMaxMs": 52.428799,
+        "memoryDelta": {
+          "rss": 21807104,
+          "heapUsed": 12171872
+        },
+        "cpuMicros": {
+          "user": 970449,
+          "system": 284028
+        }
+      },
+      {
+        "round": 4,
+        "width": 1,
+        "durationsMs": [64.80854200000067],
+        "failures": [],
+        "batchMs": 1967.5641250000008,
+        "eventLoopP95Ms": 17.530879,
+        "eventLoopMaxMs": 53.149695,
+        "memoryDelta": {
+          "rss": 15892480,
+          "heapUsed": 14314952
+        },
+        "cpuMicros": {
+          "user": 969591,
+          "system": 286506
+        }
+      },
+      {
+        "round": 5,
+        "width": 1,
+        "durationsMs": [66.49775000000045],
+        "failures": [],
+        "batchMs": 1965.131625,
+        "eventLoopP95Ms": 15.646719,
+        "eventLoopMaxMs": 53.510143,
+        "memoryDelta": {
+          "rss": 22593536,
+          "heapUsed": 7930872
+        },
+        "cpuMicros": {
+          "user": 1013829,
+          "system": 293114
+        }
+      }
+    ],
+    "metrics": {},
+    "limitations": [
+      "in-process hosts; not the historical four-Vitest-worker workload",
+      "inclusive timings overlap; IPC, execution and queue are not separately measured",
+      "cancel durations start after the fixture entry emits its started event",
+      "parent-process CPU and memory only; no child-process peak sampling"
+    ]
+  },
+  "finalRun": [
+    {
+      "scenario": "idle",
+      "exitCode": 0,
+      "environment": {
+        "node": "v26.5.1",
+        "platform": "darwin",
+        "arch": "arm64",
+        "cpu": "Apple M4",
+        "release": "27.0.0"
+      },
+      "instrumented": false,
+      "samples": [
+        {
+          "round": 1,
+          "width": 1,
+          "durationsMs": [1560.246209],
+          "failures": [],
+          "batchMs": 1560.3180830000001,
+          "eventLoopP95Ms": 13.828095,
+          "eventLoopMaxMs": 20.185087,
+          "memoryDelta": {
+            "rss": 2686976,
+            "heapUsed": -680784
+          },
+          "cpuMicros": {
+            "user": 1330654,
+            "system": 543753
+          }
+        },
+        {
+          "round": 2,
+          "width": 1,
+          "durationsMs": [1656.5775410000006],
+          "failures": [],
+          "batchMs": 1656.607333,
+          "eventLoopP95Ms": 14.508031,
+          "eventLoopMaxMs": 29.196287,
+          "memoryDelta": {
+            "rss": 1081344,
+            "heapUsed": 405216
+          },
+          "cpuMicros": {
+            "user": 1411310,
+            "system": 573799
+          }
+        },
+        {
+          "round": 3,
+          "width": 1,
+          "durationsMs": [1598.329125000001],
+          "failures": [],
+          "batchMs": 1598.3575409999994,
+          "eventLoopP95Ms": 13.115391,
+          "eventLoopMaxMs": 22.970367,
+          "memoryDelta": {
+            "rss": 802816,
+            "heapUsed": 23509320
+          },
+          "cpuMicros": {
+            "user": 1301687,
+            "system": 549537
+          }
+        },
+        {
+          "round": 4,
+          "width": 1,
+          "durationsMs": [1591.8881249999995],
+          "failures": [],
+          "batchMs": 1591.9192910000002,
+          "eventLoopP95Ms": 12.656639,
+          "eventLoopMaxMs": 26.329087,
+          "memoryDelta": {
+            "rss": 688128,
+            "heapUsed": -23263904
+          },
+          "cpuMicros": {
+            "user": 1341856,
+            "system": 555677
+          }
+        },
+        {
+          "round": 5,
+          "width": 1,
+          "durationsMs": [1600.9719999999998],
+          "failures": [],
+          "batchMs": 1601.0012920000008,
+          "eventLoopP95Ms": 12.525567,
+          "eventLoopMaxMs": 27.557887,
+          "memoryDelta": {
+            "rss": 1064960,
+            "heapUsed": 12318400
+          },
+          "cpuMicros": {
+            "user": 1354402,
+            "system": 562236
+          }
+        }
+      ],
+      "metrics": {},
+      "limitations": [
+        "in-process hosts; not the historical four-Vitest-worker workload",
+        "inclusive timings overlap; IPC, execution and queue are not separately measured",
+        "cancel durations start after the fixture entry emits its started event",
+        "parent-process CPU and memory only; no child-process peak sampling"
+      ]
+    },
+    {
+      "scenario": "concurrent",
+      "exitCode": 0,
+      "environment": {
+        "node": "v26.5.1",
+        "platform": "darwin",
+        "arch": "arm64",
+        "cpu": "Apple M4",
+        "release": "27.0.0"
+      },
+      "instrumented": false,
+      "samples": [
+        {
+          "round": 1,
+          "width": 4,
+          "durationsMs": [
+            6488.533708999999, 6668.463583000001, 6692.866167, 6753.902625000002
+          ],
+          "failures": [],
+          "batchMs": 6754.020209000002,
+          "eventLoopP95Ms": 17.317887,
+          "eventLoopMaxMs": 30.097407,
+          "memoryDelta": {
+            "rss": 41451520,
+            "heapUsed": -21650600
+          },
+          "cpuMicros": {
+            "user": 5543959,
+            "system": 2800480
+          }
+        },
+        {
+          "round": 2,
+          "width": 4,
+          "durationsMs": [
+            6347.673708999999, 6456.540208000002, 6596.991791, 6597.280833000001
+          ],
+          "failures": [],
+          "batchMs": 6597.336458000002,
+          "eventLoopP95Ms": 16.826367,
+          "eventLoopMaxMs": 45.613055,
+          "memoryDelta": {
+            "rss": 6045696,
+            "heapUsed": 204352
+          },
+          "cpuMicros": {
+            "user": 5431729,
+            "system": 2741907
+          }
+        },
+        {
+          "round": 3,
+          "width": 4,
+          "durationsMs": [
+            6353.065208, 6361.890458000002, 6475.656708999999,
+            6605.1103330000005
+          ],
+          "failures": [],
+          "batchMs": 6605.166625000002,
+          "eventLoopP95Ms": 15.794175,
+          "eventLoopMaxMs": 27.131903,
+          "memoryDelta": {
+            "rss": 14811136,
+            "heapUsed": 6217656
+          },
+          "cpuMicros": {
+            "user": 5286141,
+            "system": 2748104
+          }
+        },
+        {
+          "round": 4,
+          "width": 4,
+          "durationsMs": [
+            6501.887333000002, 6502.0297919999975, 6694.981083000002,
+            6718.870209000001
+          ],
+          "failures": [],
+          "batchMs": 6718.932083,
+          "eventLoopP95Ms": 16.556031,
+          "eventLoopMaxMs": 31.244287,
+          "memoryDelta": {
+            "rss": -4784128,
+            "heapUsed": -5771192
+          },
+          "cpuMicros": {
+            "user": 5433255,
+            "system": 2781084
+          }
+        },
+        {
+          "round": 5,
+          "width": 4,
+          "durationsMs": [
+            6490.154416999998, 6507.061415999997, 6508.763916999997,
+            6533.127250000005
+          ],
+          "failures": [],
+          "batchMs": 6533.177875000001,
+          "eventLoopP95Ms": 17.432575,
+          "eventLoopMaxMs": 26.148863,
+          "memoryDelta": {
+            "rss": 4079616,
+            "heapUsed": 1531936
+          },
+          "cpuMicros": {
+            "user": 5323577,
+            "system": 2720374
+          }
+        }
+      ],
+      "metrics": {},
+      "limitations": [
+        "in-process hosts; not the historical four-Vitest-worker workload",
+        "inclusive timings overlap; IPC, execution and queue are not separately measured",
+        "cancel durations start after the fixture entry emits its started event",
+        "parent-process CPU and memory only; no child-process peak sampling"
+      ]
+    },
+    {
+      "scenario": "cancel",
+      "exitCode": 0,
+      "environment": {
+        "node": "v26.5.1",
+        "platform": "darwin",
+        "arch": "arm64",
+        "cpu": "Apple M4",
+        "release": "27.0.0"
+      },
+      "instrumented": false,
+      "samples": [
+        {
+          "round": 1,
+          "width": 1,
+          "durationsMs": [60.64241700000002],
+          "failures": [],
+          "batchMs": 516.8715000000002,
+          "eventLoopP95Ms": 14.606335,
+          "eventLoopMaxMs": 26.476543,
+          "memoryDelta": {
+            "rss": 458752,
+            "heapUsed": 9230968
+          },
+          "cpuMicros": {
+            "user": 436474,
+            "system": 146884
+          }
+        },
+        {
+          "round": 2,
+          "width": 1,
+          "durationsMs": [62.513834000000315],
+          "failures": [],
+          "batchMs": 1963.359583,
+          "eventLoopP95Ms": 12.738559,
+          "eventLoopMaxMs": 50.102271,
+          "memoryDelta": {
+            "rss": 16433152,
+            "heapUsed": -5717024
+          },
+          "cpuMicros": {
+            "user": 958255,
+            "system": 280263
+          }
+        },
+        {
+          "round": 3,
+          "width": 1,
+          "durationsMs": [62.42224999999962],
+          "failures": [],
+          "batchMs": 1963.1847500000003,
+          "eventLoopP95Ms": 16.130047,
+          "eventLoopMaxMs": 45.219839,
+          "memoryDelta": {
+            "rss": 14680064,
+            "heapUsed": 30852896
+          },
+          "cpuMicros": {
+            "user": 986719,
+            "system": 276352
+          }
+        },
+        {
+          "round": 4,
+          "width": 1,
+          "durationsMs": [63.694792000000234],
+          "failures": [],
+          "batchMs": 1953.0857500000002,
+          "eventLoopP95Ms": 14.065663,
+          "eventLoopMaxMs": 50.233343,
+          "memoryDelta": {
+            "rss": 18759680,
+            "heapUsed": 15889680
+          },
+          "cpuMicros": {
+            "user": 947203,
+            "system": 279405
+          }
+        },
+        {
+          "round": 5,
+          "width": 1,
+          "durationsMs": [64.1429590000007],
+          "failures": [],
+          "batchMs": 1937.7055840000012,
+          "eventLoopP95Ms": 13.647871,
+          "eventLoopMaxMs": 50.757631,
+          "memoryDelta": {
+            "rss": 22544384,
+            "heapUsed": 12182576
+          },
+          "cpuMicros": {
+            "user": 957462,
+            "system": 282704
+          }
+        }
+      ],
+      "metrics": {},
+      "limitations": [
+        "in-process hosts; not the historical four-Vitest-worker workload",
+        "inclusive timings overlap; IPC, execution and queue are not separately measured",
+        "cancel durations start after the fixture entry emits its started event",
+        "parent-process CPU and memory only; no child-process peak sampling"
+      ]
+    },
+    {
+      "scenario": "diagnostic",
+      "exitCode": 0,
+      "environment": {
+        "node": "v26.5.1",
+        "platform": "darwin",
+        "arch": "arm64",
+        "cpu": "Apple M4",
+        "release": "27.0.0"
+      },
+      "instrumented": true,
+      "samples": [
+        {
+          "round": 1,
+          "width": 4,
+          "durationsMs": [
+            6687.2538330000025, 6687.3476249999985, 6709.085416000002,
+            6731.848499999998
+          ],
+          "failures": [],
+          "batchMs": 6731.929041000001,
+          "eventLoopP95Ms": 16.826367,
+          "eventLoopMaxMs": 27.688959,
+          "memoryDelta": {
+            "rss": 65519616,
+            "heapUsed": -4510112
+          },
+          "cpuMicros": {
+            "user": 5554245,
+            "system": 2787225
+          }
+        },
+        {
+          "round": 2,
+          "width": 4,
+          "durationsMs": [
+            6694.638290999999, 6728.290999999997, 6733.883332999998,
+            6785.608083000003
+          ],
+          "failures": [],
+          "batchMs": 6785.665084,
+          "eventLoopP95Ms": 16.588799,
+          "eventLoopMaxMs": 25.001983,
+          "memoryDelta": {
+            "rss": 18759680,
+            "heapUsed": 11970608
+          },
+          "cpuMicros": {
+            "user": 5439711,
+            "system": 2826680
+          }
+        },
+        {
+          "round": 3,
+          "width": 4,
+          "durationsMs": [
+            6564.2723750000005, 6586.607708000003, 6628.577708000001,
+            6639.154584
+          ],
+          "failures": [],
+          "batchMs": 6639.215416999999,
+          "eventLoopP95Ms": 16.891903,
+          "eventLoopMaxMs": 30.408703,
+          "memoryDelta": {
+            "rss": 7487488,
+            "heapUsed": 1972760
+          },
+          "cpuMicros": {
+            "user": 5396331,
+            "system": 2761667
+          }
+        },
+        {
+          "round": 4,
+          "width": 4,
+          "durationsMs": [
+            6473.920624999999, 6484.712791999998, 6486.656958999996,
+            6509.001875000002
+          ],
+          "failures": [],
+          "batchMs": 6509.065000000002,
+          "eventLoopP95Ms": 18.055167,
+          "eventLoopMaxMs": 26.869759,
+          "memoryDelta": {
+            "rss": 20201472,
+            "heapUsed": 2448384
+          },
+          "cpuMicros": {
+            "user": 5069215,
+            "system": 2722177
+          }
+        },
+        {
+          "round": 5,
+          "width": 4,
+          "durationsMs": [
+            6457.473458, 6485.222167, 6536.365791999997, 6617.237291999998
+          ],
+          "failures": [],
+          "batchMs": 6617.306000000004,
+          "eventLoopP95Ms": 18.169855,
+          "eventLoopMaxMs": 32.882687,
+          "memoryDelta": {
+            "rss": -6537216,
+            "heapUsed": 26109856
+          },
+          "cpuMicros": {
+            "user": 5248334,
+            "system": 2742125
+          }
+        }
+      ],
+      "metrics": {
+        "metadata.readdir": {
+          "count": 46520,
+          "inclusiveMs": 87697.13829399979
+        },
+        "foundation.outside": {
+          "count": 320,
+          "inclusiveMs": 28938.14703899995
+        },
+        "authorize": {
+          "count": 19328,
+          "inclusiveMs": 3714.5638810002056
+        },
+        "metadata.lstat": {
+          "count": 124096,
+          "inclusiveMs": 179252.73520900033
+        },
+        "foundation.full": {
+          "count": 120,
+          "inclusiveMs": 8304.562332999983
+        },
+        "foundation.nonFull": {
+          "count": 8624,
+          "inclusiveMs": 81499.47688899975
+        }
+      },
+      "limitations": [
+        "in-process hosts; not the historical four-Vitest-worker workload",
+        "inclusive timings overlap; IPC, execution and queue are not separately measured",
+        "cancel durations start after the fixture entry emits its started event",
+        "parent-process CPU and memory only; no child-process peak sampling"
+      ]
+    }
+  ],
+  "finalSamplerChecks": {
+    "passed": 24,
+    "failed": 0
+  }
+}

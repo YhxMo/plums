@@ -144,6 +144,8 @@ pnpm desktop:package
 
 `pnpm test` includes a build. The default configuration runs multiple projects in parallel and ordered groups; see [CI and scheduling](./docs/ci.md). Desktop packaging targets macOS Apple Silicon and writes the application and DMG to `release/`.
 
+See the [combined acceptance record](./docs/acceptance.md) for the October 11, 2026 results, separate reruns, package evidence and remaining native or external validation limits.
+
 ## License
 
 Licensed under [Apache-2.0](./LICENSE).

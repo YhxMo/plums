@@ -1,0 +1,677 @@
+{
+  "date": "2026-10-11",
+  "sourceBaseline": "f06c3dfbc2bb5ef88c42bec5765946fc03e55ea1",
+  "environment": {
+    "os": "macOS 27.0.1",
+    "osBuild": "26A434",
+    "arch": "arm64",
+    "node": "26.5.1",
+    "electron": "44.5.1",
+    "electronEmbeddedNode": "24.21.0",
+    "signing": "local-ad-hoc"
+  },
+  "build": {
+    "command": "pnpm build",
+    "status": "passed",
+    "sandboxAttempt": "Restricted pnpm produced no output and was interrupted; completed through the explicit escalation flow.",
+    "productionInputsSha256": "064ff2c0a9de61da409e6614f4b3eb27b1b4d0b0370d46b03a94693cb44e3e7c",
+    "desktopBuildSha256": "6c13e4638b49d3c67aad0e9edfc6a01ad81db9791a48342010cc19d8bb68b32b"
+  },
+  "measurement": {
+    "method": "Actual React renderer with synthetic manager responses and Playwright clock. Counts only; no wall-time/CPU/memory speed claim.",
+    "before": {
+      "emptyTaskReads": 11,
+      "hiddenTaskReads": 10,
+      "overlappingTaskReads": 4,
+      "burstInitialLists": 20,
+      "burstTotalLists": 21
+    },
+    "after": {
+      "emptyTaskReads": 2,
+      "hiddenTaskReads": 0,
+      "overlappingTaskReads": 1,
+      "activeTaskReads": 3,
+      "burstInitialLists": 1,
+      "burstTotalLists": 2
+    }
+  },
+  "runs": [
+    {
+      "name": "baseline",
+      "note": "Synthetic-clock renderer measurements before production changes.",
+      "success": true,
+      "passed": 1,
+      "failed": 0,
+      "skipped": 0,
+      "files": [
+        {
+          "file": "packages/desktop/test/refresh-ui.test.ts",
+          "status": "passed",
+          "passed": 1,
+          "failed": 0,
+          "skipped": 0,
+          "failedTests": []
+        }
+      ]
+    },
+    {
+      "name": "initial",
+      "note": "Missing dataLocation fixture and consent preceding connection-setting changes caused two failures.",
+      "success": false,
+      "passed": 24,
+      "failed": 2,
+      "skipped": 0,
+      "files": [
+        {
+          "file": "packages/desktop/test/common-runtime-ui.test.ts",
+          "status": "passed",
+          "passed": 1,
+          "failed": 0,
+          "skipped": 0,
+          "failedTests": []
+        },
+        {
+          "file": "packages/desktop/test/policy-ui.test.ts",
+          "status": "passed",
+          "passed": 1,
+          "failed": 0,
+          "skipped": 0,
+          "failedTests": []
+        },
+        {
+          "file": "packages/desktop/test/interaction-ui.test.ts",
+          "status": "failed",
+          "passed": 16,
+          "failed": 1,
+          "skipped": 0,
+          "failedTests": [
+            "keeps theme choices after failures and stale refreshes, disables pending saves, and permits retry"
+          ]
+        },
+        {
+          "file": "packages/desktop/test/refresh-ui.test.ts",
+          "status": "passed",
+          "passed": 1,
+          "failed": 0,
+          "skipped": 0,
+          "failedTests": []
+        },
+        {
+          "file": "scripts/test/test-coverage.test.ts",
+          "status": "passed",
+          "passed": 4,
+          "failed": 0,
+          "skipped": 0,
+          "failedTests": []
+        },
+        {
+          "file": "packages/host/test/backup-restore.test.ts",
+          "status": "failed",
+          "passed": 0,
+          "failed": 1,
+          "skipped": 0,
+          "failedTests": [
+            "restores a stopped complete synthetic data directory with private secrets, pinned components and resources but no live scopes"
+          ]
+        },
+        {
+          "file": "packages/desktop/test/broker-shutdown.test.ts",
+          "status": "passed",
+          "passed": 1,
+          "failed": 0,
+          "skipped": 0,
+          "failedTests": []
+        }
+      ]
+    },
+    {
+      "name": "fixture-revision",
+      "note": "Interface fixtures passed; restoration test incorrectly expected rejection while its confirmation callback allowed access.",
+      "success": false,
+      "passed": 19,
+      "failed": 1,
+      "skipped": 0,
+      "files": [
+        {
+          "file": "packages/desktop/test/interaction-ui.test.ts",
+          "status": "passed",
+          "passed": 17,
+          "failed": 0,
+          "skipped": 0,
+          "failedTests": []
+        },
+        {
+          "file": "packages/desktop/test/refresh-ui.test.ts",
+          "status": "passed",
+          "passed": 1,
+          "failed": 0,
+          "skipped": 0,
+          "failedTests": []
+        },
+        {
+          "file": "packages/desktop/test/recovery-ui.test.ts",
+          "status": "passed",
+          "passed": 1,
+          "failed": 0,
+          "skipped": 0,
+          "failedTests": []
+        },
+        {
+          "file": "packages/host/test/backup-restore.test.ts",
+          "status": "failed",
+          "passed": 0,
+          "failed": 1,
+          "skipped": 0,
+          "failedTests": [
+            "restores a stopped complete synthetic data directory with private secrets, pinned components and resources but no live scopes"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "backup-rerun",
+      "note": "Restoration uses denied single confirmation, then explicitly grants a fresh resource range.",
+      "success": true,
+      "passed": 1,
+      "failed": 0,
+      "skipped": 0,
+      "files": [
+        {
+          "file": "packages/host/test/backup-restore.test.ts",
+          "status": "passed",
+          "passed": 1,
+          "failed": 0,
+          "skipped": 0,
+          "failedTests": []
+        }
+      ]
+    },
+    {
+      "name": "combined-before-refresh-correction",
+      "note": "Full refresh serialization blocked a new Agent and newer library snapshots behind a held old request. Existing public UI regression caught the issue.",
+      "success": false,
+      "passed": 76,
+      "failed": 1,
+      "skipped": 1,
+      "files": [
+        {
+          "file": "packages/desktop/test/foundation-ui.test.ts",
+          "status": "passed",
+          "passed": 1,
+          "failed": 0,
+          "skipped": 0,
+          "failedTests": []
+        },
+        {
+          "file": "packages/desktop/test/common-runtime-ui.test.ts",
+          "status": "passed",
+          "passed": 1,
+          "failed": 0,
+          "skipped": 0,
+          "failedTests": []
+        },
+        {
+          "file": "packages/desktop/test/workspace-ui.test.ts",
+          "status": "passed",
+          "passed": 1,
+          "failed": 0,
+          "skipped": 0,
+          "failedTests": []
+        },
+        {
+          "file": "packages/desktop/test/policy-ui.test.ts",
+          "status": "passed",
+          "passed": 1,
+          "failed": 0,
+          "skipped": 0,
+          "failedTests": []
+        },
+        {
+          "file": "packages/desktop/test/local-permissions-ui.test.ts",
+          "status": "passed",
+          "passed": 3,
+          "failed": 0,
+          "skipped": 0,
+          "failedTests": []
+        },
+        {
+          "file": "packages/desktop/test/onboarding-ui.test.ts",
+          "status": "failed",
+          "passed": 2,
+          "failed": 1,
+          "skipped": 1,
+          "failedTests": [
+            "keeps initial loading and failure distinct and rejects outdated Agent and library responses"
+          ]
+        },
+        {
+          "file": "packages/desktop/test/execution-records-ui.test.ts",
+          "status": "passed",
+          "passed": 1,
+          "failed": 0,
+          "skipped": 0,
+          "failedTests": []
+        },
+        {
+          "file": "packages/desktop/test/readiness-ui.test.ts",
+          "status": "passed",
+          "passed": 1,
+          "failed": 0,
+          "skipped": 0,
+          "failedTests": []
+        },
+        {
+          "file": "packages/desktop/test/interaction-ui.test.ts",
+          "status": "passed",
+          "passed": 17,
+          "failed": 0,
+          "skipped": 0,
+          "failedTests": []
+        },
+        {
+          "file": "packages/desktop/test/refresh-ui.test.ts",
+          "status": "passed",
+          "passed": 1,
+          "failed": 0,
+          "skipped": 0,
+          "failedTests": []
+        },
+        {
+          "file": "packages/desktop/test/recovery-ui.test.ts",
+          "status": "passed",
+          "passed": 1,
+          "failed": 0,
+          "skipped": 0,
+          "failedTests": []
+        },
+        {
+          "file": "scripts/test/doc-links.test.ts",
+          "status": "passed",
+          "passed": 7,
+          "failed": 0,
+          "skipped": 0,
+          "failedTests": []
+        },
+        {
+          "file": "scripts/test/package-smoke-script.test.ts",
+          "status": "passed",
+          "passed": 2,
+          "failed": 0,
+          "skipped": 0,
+          "failedTests": []
+        },
+        {
+          "file": "scripts/test/test-coverage.test.ts",
+          "status": "passed",
+          "passed": 4,
+          "failed": 0,
+          "skipped": 0,
+          "failedTests": []
+        },
+        {
+          "file": "packages/desktop/test/broker-shutdown.test.ts",
+          "status": "passed",
+          "passed": 1,
+          "failed": 0,
+          "skipped": 0,
+          "failedTests": []
+        },
+        {
+          "file": "packages/host/test/agent-readiness.test.ts",
+          "status": "passed",
+          "passed": 4,
+          "failed": 0,
+          "skipped": 0,
+          "failedTests": []
+        },
+        {
+          "file": "packages/host/test/backup-restore.test.ts",
+          "status": "passed",
+          "passed": 1,
+          "failed": 0,
+          "skipped": 0,
+          "failedTests": []
+        },
+        {
+          "file": "packages/host/test/local-secrets.test.ts",
+          "status": "passed",
+          "passed": 4,
+          "failed": 0,
+          "skipped": 0,
+          "failedTests": []
+        },
+        {
+          "file": "packages/host/test/package-manifest.test.ts",
+          "status": "passed",
+          "passed": 23,
+          "failed": 0,
+          "skipped": 0,
+          "failedTests": []
+        }
+      ]
+    },
+    {
+      "name": "refresh-isolation-rerun",
+      "note": "Manager batches only not-yet-started triggers; newer reads remain independent. Native media emulation was cleared before checking recovery themes.",
+      "success": true,
+      "passed": 3,
+      "failed": 0,
+      "skipped": 3,
+      "files": [
+        {
+          "file": "packages/desktop/test/onboarding-ui.test.ts",
+          "status": "passed",
+          "passed": 1,
+          "failed": 0,
+          "skipped": 3,
+          "failedTests": []
+        },
+        {
+          "file": "packages/desktop/test/refresh-ui.test.ts",
+          "status": "passed",
+          "passed": 1,
+          "failed": 0,
+          "skipped": 0,
+          "failedTests": []
+        },
+        {
+          "file": "packages/desktop/test/recovery-ui.test.ts",
+          "status": "passed",
+          "passed": 1,
+          "failed": 0,
+          "skipped": 0,
+          "failedTests": []
+        }
+      ]
+    },
+    {
+      "name": "final-combined",
+      "note": "Final production build; 19 files and 77 checks passed. One separately failing native focus case explicitly excluded; still in default suite.",
+      "success": true,
+      "passed": 77,
+      "failed": 0,
+      "skipped": 1,
+      "files": [
+        {
+          "file": "packages/desktop/test/foundation-ui.test.ts",
+          "status": "passed",
+          "passed": 1,
+          "failed": 0,
+          "skipped": 0,
+          "failedTests": []
+        },
+        {
+          "file": "packages/desktop/test/common-runtime-ui.test.ts",
+          "status": "passed",
+          "passed": 1,
+          "failed": 0,
+          "skipped": 0,
+          "failedTests": []
+        },
+        {
+          "file": "packages/desktop/test/workspace-ui.test.ts",
+          "status": "passed",
+          "passed": 1,
+          "failed": 0,
+          "skipped": 0,
+          "failedTests": []
+        },
+        {
+          "file": "packages/desktop/test/policy-ui.test.ts",
+          "status": "passed",
+          "passed": 1,
+          "failed": 0,
+          "skipped": 0,
+          "failedTests": []
+        },
+        {
+          "file": "packages/desktop/test/local-permissions-ui.test.ts",
+          "status": "passed",
+          "passed": 3,
+          "failed": 0,
+          "skipped": 0,
+          "failedTests": []
+        },
+        {
+          "file": "packages/desktop/test/onboarding-ui.test.ts",
+          "status": "passed",
+          "passed": 3,
+          "failed": 0,
+          "skipped": 1,
+          "failedTests": []
+        },
+        {
+          "file": "packages/desktop/test/execution-records-ui.test.ts",
+          "status": "passed",
+          "passed": 1,
+          "failed": 0,
+          "skipped": 0,
+          "failedTests": []
+        },
+        {
+          "file": "packages/desktop/test/readiness-ui.test.ts",
+          "status": "passed",
+          "passed": 1,
+          "failed": 0,
+          "skipped": 0,
+          "failedTests": []
+        },
+        {
+          "file": "packages/desktop/test/interaction-ui.test.ts",
+          "status": "passed",
+          "passed": 17,
+          "failed": 0,
+          "skipped": 0,
+          "failedTests": []
+        },
+        {
+          "file": "packages/desktop/test/refresh-ui.test.ts",
+          "status": "passed",
+          "passed": 1,
+          "failed": 0,
+          "skipped": 0,
+          "failedTests": []
+        },
+        {
+          "file": "packages/desktop/test/recovery-ui.test.ts",
+          "status": "passed",
+          "passed": 1,
+          "failed": 0,
+          "skipped": 0,
+          "failedTests": []
+        },
+        {
+          "file": "scripts/test/doc-links.test.ts",
+          "status": "passed",
+          "passed": 7,
+          "failed": 0,
+          "skipped": 0,
+          "failedTests": []
+        },
+        {
+          "file": "scripts/test/package-smoke-script.test.ts",
+          "status": "passed",
+          "passed": 2,
+          "failed": 0,
+          "skipped": 0,
+          "failedTests": []
+        },
+        {
+          "file": "scripts/test/test-coverage.test.ts",
+          "status": "passed",
+          "passed": 4,
+          "failed": 0,
+          "skipped": 0,
+          "failedTests": []
+        },
+        {
+          "file": "packages/desktop/test/broker-shutdown.test.ts",
+          "status": "passed",
+          "passed": 1,
+          "failed": 0,
+          "skipped": 0,
+          "failedTests": []
+        },
+        {
+          "file": "packages/host/test/agent-readiness.test.ts",
+          "status": "passed",
+          "passed": 4,
+          "failed": 0,
+          "skipped": 0,
+          "failedTests": []
+        },
+        {
+          "file": "packages/host/test/backup-restore.test.ts",
+          "status": "passed",
+          "passed": 1,
+          "failed": 0,
+          "skipped": 0,
+          "failedTests": []
+        },
+        {
+          "file": "packages/host/test/local-secrets.test.ts",
+          "status": "passed",
+          "passed": 4,
+          "failed": 0,
+          "skipped": 0,
+          "failedTests": []
+        },
+        {
+          "file": "packages/host/test/package-manifest.test.ts",
+          "status": "passed",
+          "passed": 23,
+          "failed": 0,
+          "skipped": 0,
+          "failedTests": []
+        }
+      ]
+    },
+    {
+      "name": "native-focus",
+      "note": "Unchanged five-second focus gate failed again; visible true, focused false, fullscreen false.",
+      "success": false,
+      "passed": 0,
+      "failed": 1,
+      "skipped": 3,
+      "files": [
+        {
+          "file": "packages/desktop/test/onboarding-ui.test.ts",
+          "status": "failed",
+          "passed": 0,
+          "failed": 1,
+          "skipped": 3,
+          "failedTests": [
+            "integrates native window chrome, fullscreen events and theme updates"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "installed-native",
+      "note": "Actual app copied from the final DMG; native bridge passed with packaged true and version 0.1.0.",
+      "success": true,
+      "passed": 1,
+      "failed": 0,
+      "skipped": 0,
+      "files": [
+        {
+          "file": "packages/desktop/test/platform-conformance-ui.test.ts",
+          "status": "passed",
+          "passed": 1,
+          "failed": 0,
+          "skipped": 0,
+          "failedTests": []
+        }
+      ]
+    }
+  ],
+  "coverage": {
+    "themes": ["light", "dark"],
+    "widths": [1180, 760, 375, 320],
+    "behaviors": [
+      "latest Agent and library snapshots do not wait for held obsolete reads",
+      "obsolete success/error replies isolated",
+      "empty and hidden polling reduced; active tasks remain one-second polling after replies",
+      "mutation invalidates pre-mutation reads and retains failure guidance",
+      "tasks instance key retained; removing last task component clears panel",
+      "actual data directory displayed; normal quit awaits broker close",
+      "complete stopped synthetic backup restores pins, settings, local secrets, consent, enabled state and resource content",
+      "active resource scope cleared on restore; denied single confirmation blocks access; fresh grant permits it",
+      "author guide links public contracts, trusted approval, diagnostics and explicit version updates"
+    ]
+  },
+  "delivery": {
+    "version": "0.1.0",
+    "imageSha256": "e94467efbd615bd85200ac79c189a6e0eea980ae36072b412617f5729bbb1731",
+    "appSha256": "e2433e16a68f93c4ca4744e6827525197a4b598bc4faba969e57bdc1cf5e4cc0",
+    "appDigestDefinition": "SHA-256 of JSON-serialized sorted file-content/mode/link inventory from verify-desktop-delivery.mjs.",
+    "entries": 698,
+    "checks": {
+      "installedCopyMatches": true,
+      "deliveredBuildMatches": true,
+      "packageManifest": true,
+      "node": "26.5.1",
+      "minimumMacOS": "27.0.1",
+      "signatureVerified": true,
+      "signature": "local-ad-hoc",
+      "gatekeeperAccepted": false,
+      "gatekeeperExitCode": 3,
+      "distributionVerified": false
+    },
+    "source": "App copied with ditto from the final DMG mounted read-only by diskutil; independent local acceptance directory, no production installation or user data modified.",
+    "mountAttempts": [
+      {
+        "tool": "hdiutil attach",
+        "status": "failed",
+        "note": "Earlier package: checksum validated but custom mount on repository volume denied by OS."
+      },
+      {
+        "tool": "diskutil image attach",
+        "status": "passed",
+        "note": "Final image mounted read-only at a task-owned private temporary mount point; copied app and ejected device after copying."
+      }
+    ],
+    "smoke": {
+      "ok": true,
+      "version": "0.1.0",
+      "ms": 1139,
+      "isolatedProfile": true,
+      "cleanExit": true
+    },
+    "conformance": {
+      "isolate": 17,
+      "controlledNode": 17,
+      "native": 4,
+      "status": "passed",
+      "thirdPartyAuthorVerified": false
+    },
+    "inventoryEvidence": "desktop-package-inventory-2026-10-11.json",
+    "conformanceEvidence": "desktop-packaged-conformance-2026-10-11.json"
+  },
+  "nativeFocusObserved": [
+    {
+      "visible": true,
+      "focused": false,
+      "fullscreen": false,
+      "destroyed": false
+    }
+  ],
+  "reproduction": {
+    "prepare": "pnpm build",
+    "finalCombined": "PLUMS_UI_REPORT_DIR=/absolute/reports/ui PLUMS_RECOVERY_SCREENSHOTS=/absolute/reports/recovery PLUMS_REFRESH_REPORT=/absolute/reports/refresh.json pnpm exec vitest run packages/desktop/test/foundation-ui.test.ts packages/desktop/test/common-runtime-ui.test.ts packages/desktop/test/workspace-ui.test.ts packages/desktop/test/policy-ui.test.ts packages/desktop/test/local-permissions-ui.test.ts packages/desktop/test/onboarding-ui.test.ts packages/desktop/test/execution-records-ui.test.ts packages/desktop/test/readiness-ui.test.ts packages/desktop/test/interaction-ui.test.ts packages/desktop/test/refresh-ui.test.ts packages/desktop/test/recovery-ui.test.ts scripts/test/doc-links.test.ts scripts/test/package-smoke-script.test.ts scripts/test/test-coverage.test.ts packages/desktop/test/broker-shutdown.test.ts packages/host/test/agent-readiness.test.ts packages/host/test/backup-restore.test.ts packages/host/test/local-secrets.test.ts packages/host/test/package-manifest.test.ts -t '^(?!integrates native window)'",
+    "nativeFocus": "PLUMS_UI_REPORT_DIR=/absolute/reports/native-focus pnpm exec vitest run packages/desktop/test/onboarding-ui.test.ts -t 'integrates native window'",
+    "package": "node scripts/prepare-electron.mjs && node scripts/package-desktop.mjs /absolute/package-output",
+    "delivery": "node scripts/verify-desktop-delivery.mjs /absolute/package-output/Plums-darwin-arm64/Plums.app /absolute/installed/Plums.app /absolute/package-output/Plums-0.1.0-arm64.dmg /absolute/reports/delivery.json",
+    "smoke": "node scripts/package-smoke.mjs /absolute/installed/Plums.app",
+    "isolate": "PLUMS_CONFORMANCE_APP=/absolute/installed/Plums.app node scripts/platform-conformance.mjs --adapter scripts/packaged-conformance-host.mjs --runtime isolate --out /absolute/reports/isolate.json",
+    "controlledNode": "PLUMS_CONFORMANCE_APP=/absolute/installed/Plums.app node scripts/platform-conformance.mjs --adapter scripts/packaged-conformance-host.mjs --runtime controlled-node --out /absolute/reports/node.json",
+    "native": "PLUMS_TEST_APP=/absolute/installed/Plums.app/Contents/MacOS/Plums PLUMS_CONFORMANCE_REPORT_DIR=/absolute/reports/native pnpm exec vitest run packages/desktop/test/platform-conformance-ui.test.ts"
+  },
+  "limits": [
+    "Full pnpm test not accepted; native fullscreen focus remains reproducibly failed and its root cause is unresolved.",
+    "No developer signing, notarization, browser-download Gatekeeper acceptance, automatic update, real external service, or independent third-party author certification.",
+    "Project tier remains TIER_UNAVAILABLE. Machine-tier detached descendants may survive normal quit; users must verify they stopped before backup.",
+    "Readiness prepared/evidence declared never grants authority or establishes service, scope, lease, or call success.",
+    "Local packaging and isolated copy/launch only; no publication, pushes, remote issues, PRs, or user data changes."
+  ]
+}

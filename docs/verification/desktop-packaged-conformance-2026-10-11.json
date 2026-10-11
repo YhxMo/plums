@@ -1,0 +1,758 @@
+{
+  "isolate": {
+    "reportVersion": "1.0",
+    "suiteVersion": "1.0.0",
+    "suiteDigest": "2761b7a182a76bbccf491246d430e99fbe076d8ad90faf858702973b23242b39",
+    "platform": {
+      "os": "darwin",
+      "arch": "arm64",
+      "node": "26.5.1"
+    },
+    "provenance": "adapter-supplied-unverified",
+    "thirdPartyAuthorVerified": false,
+    "coverage": "complete",
+    "cases": [
+      {
+        "id": "S01-structure-is-not-authority",
+        "layer": "structure",
+        "status": "passed"
+      },
+      {
+        "id": "H01-explicit-selection",
+        "layer": "host-behavior",
+        "status": "passed"
+      },
+      {
+        "id": "H02-two-agents-same-artifact",
+        "layer": "host-behavior",
+        "status": "passed"
+      },
+      {
+        "id": "H03-provider-replacement-and-runtime-consumer",
+        "layer": "host-behavior",
+        "status": "passed"
+      },
+      {
+        "id": "H04-independent-ui-and-owner-bound-handles",
+        "layer": "host-behavior",
+        "status": "passed"
+      },
+      {
+        "id": "H05-event-order-replay-no-reexecution",
+        "layer": "host-behavior",
+        "status": "passed"
+      },
+      {
+        "id": "H09-contribution-schema-and-execution-state",
+        "layer": "host-behavior",
+        "status": "passed"
+      },
+      {
+        "id": "H08-bounded-replay-terminal-and-restart-no-body",
+        "layer": "host-behavior",
+        "status": "passed"
+      },
+      {
+        "id": "H06-cancel-and-cross-agent-task-denial",
+        "layer": "host-behavior",
+        "status": "passed"
+      },
+      {
+        "id": "H07-background-close-reopen",
+        "layer": "host-behavior",
+        "status": "passed"
+      },
+      {
+        "id": "R01-shared-private-cas-tombstone-recovery",
+        "layer": "host-behavior",
+        "status": "passed"
+      },
+      {
+        "id": "R02-runtime-resources-and-revocation-isolation",
+        "layer": "host-behavior",
+        "status": "passed"
+      },
+      {
+        "id": "R03-cross-process-cas-and-durable-winner",
+        "layer": "host-behavior",
+        "status": "passed"
+      },
+      {
+        "id": "P01-four-policies-real-file-and-tool-path",
+        "layer": "host-behavior",
+        "status": "passed"
+      },
+      {
+        "id": "P02-selected-maximum-and-restart-zero-lease",
+        "layer": "host-behavior",
+        "status": "passed"
+      },
+      {
+        "id": "E01-four-policies-real-controlled-command",
+        "layer": "execution-boundary",
+        "status": "passed"
+      },
+      {
+        "id": "E02-direct-runtime-boundary",
+        "layer": "execution-boundary",
+        "status": "passed"
+      }
+    ],
+    "artifacts": [
+      {
+        "caseId": "H01-explicit-selection",
+        "runtime": "isolate",
+        "digests": [
+          "04b383d0314cf5ea04d0eff022cae8b4039b0f37a756813f90c9b96b3bb8f49f",
+          "0bbbe285d975e70722359307ef49e4a81d59b1968e245fb79118d7e512153a78",
+          "2aa6fee2a42bb2cf90ed393ba1eeef8fe20aa5ec6672b5f4207735e2247b58e2",
+          "4e46213301e911e909426ceeaa07c2070158be5f3ef63842994eea76aa59d9e2",
+          "57023227de76190d12fc409b7de199616698430ce6d275e581140445cd0e805f",
+          "5e4caa13c5235329ef3db506cc4cc6af7d4c02d2799744efdc9eda828842bcb4",
+          "894b4e6390e0a145c6a32e1c715b0fd3dbdc4a135d3c5b0537a71b72c4713ac3",
+          "ca430fc4da16aea41b1dc06c9a413087d7a71f59dfa26646adde3f1b728d7904",
+          "e0337deb9e9766863e00d8d6fee30b4c397376b8619a4ff3dc41b07a9aa0c802"
+        ]
+      },
+      {
+        "caseId": "H02-two-agents-same-artifact",
+        "runtime": "isolate",
+        "digests": [
+          "04b383d0314cf5ea04d0eff022cae8b4039b0f37a756813f90c9b96b3bb8f49f",
+          "0bbbe285d975e70722359307ef49e4a81d59b1968e245fb79118d7e512153a78",
+          "2aa6fee2a42bb2cf90ed393ba1eeef8fe20aa5ec6672b5f4207735e2247b58e2",
+          "4e46213301e911e909426ceeaa07c2070158be5f3ef63842994eea76aa59d9e2",
+          "57023227de76190d12fc409b7de199616698430ce6d275e581140445cd0e805f",
+          "5e4caa13c5235329ef3db506cc4cc6af7d4c02d2799744efdc9eda828842bcb4",
+          "894b4e6390e0a145c6a32e1c715b0fd3dbdc4a135d3c5b0537a71b72c4713ac3",
+          "ca430fc4da16aea41b1dc06c9a413087d7a71f59dfa26646adde3f1b728d7904",
+          "e0337deb9e9766863e00d8d6fee30b4c397376b8619a4ff3dc41b07a9aa0c802"
+        ]
+      },
+      {
+        "caseId": "H03-provider-replacement-and-runtime-consumer",
+        "runtime": "isolate",
+        "digests": [
+          "04b383d0314cf5ea04d0eff022cae8b4039b0f37a756813f90c9b96b3bb8f49f",
+          "0bbbe285d975e70722359307ef49e4a81d59b1968e245fb79118d7e512153a78",
+          "2aa6fee2a42bb2cf90ed393ba1eeef8fe20aa5ec6672b5f4207735e2247b58e2",
+          "4e46213301e911e909426ceeaa07c2070158be5f3ef63842994eea76aa59d9e2",
+          "57023227de76190d12fc409b7de199616698430ce6d275e581140445cd0e805f",
+          "5e4caa13c5235329ef3db506cc4cc6af7d4c02d2799744efdc9eda828842bcb4",
+          "894b4e6390e0a145c6a32e1c715b0fd3dbdc4a135d3c5b0537a71b72c4713ac3",
+          "ca430fc4da16aea41b1dc06c9a413087d7a71f59dfa26646adde3f1b728d7904",
+          "e0337deb9e9766863e00d8d6fee30b4c397376b8619a4ff3dc41b07a9aa0c802"
+        ]
+      },
+      {
+        "caseId": "H04-independent-ui-and-owner-bound-handles",
+        "runtime": "isolate",
+        "digests": [
+          "04b383d0314cf5ea04d0eff022cae8b4039b0f37a756813f90c9b96b3bb8f49f",
+          "0bbbe285d975e70722359307ef49e4a81d59b1968e245fb79118d7e512153a78",
+          "2aa6fee2a42bb2cf90ed393ba1eeef8fe20aa5ec6672b5f4207735e2247b58e2",
+          "4e46213301e911e909426ceeaa07c2070158be5f3ef63842994eea76aa59d9e2",
+          "57023227de76190d12fc409b7de199616698430ce6d275e581140445cd0e805f",
+          "5e4caa13c5235329ef3db506cc4cc6af7d4c02d2799744efdc9eda828842bcb4",
+          "894b4e6390e0a145c6a32e1c715b0fd3dbdc4a135d3c5b0537a71b72c4713ac3",
+          "ca430fc4da16aea41b1dc06c9a413087d7a71f59dfa26646adde3f1b728d7904",
+          "e0337deb9e9766863e00d8d6fee30b4c397376b8619a4ff3dc41b07a9aa0c802"
+        ]
+      },
+      {
+        "caseId": "H05-event-order-replay-no-reexecution",
+        "runtime": "isolate",
+        "digests": [
+          "04b383d0314cf5ea04d0eff022cae8b4039b0f37a756813f90c9b96b3bb8f49f",
+          "0bbbe285d975e70722359307ef49e4a81d59b1968e245fb79118d7e512153a78",
+          "2aa6fee2a42bb2cf90ed393ba1eeef8fe20aa5ec6672b5f4207735e2247b58e2",
+          "4e46213301e911e909426ceeaa07c2070158be5f3ef63842994eea76aa59d9e2",
+          "57023227de76190d12fc409b7de199616698430ce6d275e581140445cd0e805f",
+          "5e4caa13c5235329ef3db506cc4cc6af7d4c02d2799744efdc9eda828842bcb4",
+          "894b4e6390e0a145c6a32e1c715b0fd3dbdc4a135d3c5b0537a71b72c4713ac3",
+          "ca430fc4da16aea41b1dc06c9a413087d7a71f59dfa26646adde3f1b728d7904",
+          "e0337deb9e9766863e00d8d6fee30b4c397376b8619a4ff3dc41b07a9aa0c802"
+        ]
+      },
+      {
+        "caseId": "H09-contribution-schema-and-execution-state",
+        "runtime": "isolate",
+        "digests": [
+          "04b383d0314cf5ea04d0eff022cae8b4039b0f37a756813f90c9b96b3bb8f49f",
+          "0bbbe285d975e70722359307ef49e4a81d59b1968e245fb79118d7e512153a78",
+          "2aa6fee2a42bb2cf90ed393ba1eeef8fe20aa5ec6672b5f4207735e2247b58e2",
+          "4e46213301e911e909426ceeaa07c2070158be5f3ef63842994eea76aa59d9e2",
+          "57023227de76190d12fc409b7de199616698430ce6d275e581140445cd0e805f",
+          "5e4caa13c5235329ef3db506cc4cc6af7d4c02d2799744efdc9eda828842bcb4",
+          "894b4e6390e0a145c6a32e1c715b0fd3dbdc4a135d3c5b0537a71b72c4713ac3",
+          "ca430fc4da16aea41b1dc06c9a413087d7a71f59dfa26646adde3f1b728d7904",
+          "e0337deb9e9766863e00d8d6fee30b4c397376b8619a4ff3dc41b07a9aa0c802"
+        ]
+      },
+      {
+        "caseId": "H08-bounded-replay-terminal-and-restart-no-body",
+        "runtime": "isolate",
+        "digests": [
+          "04b383d0314cf5ea04d0eff022cae8b4039b0f37a756813f90c9b96b3bb8f49f",
+          "0bbbe285d975e70722359307ef49e4a81d59b1968e245fb79118d7e512153a78",
+          "2aa6fee2a42bb2cf90ed393ba1eeef8fe20aa5ec6672b5f4207735e2247b58e2",
+          "4e46213301e911e909426ceeaa07c2070158be5f3ef63842994eea76aa59d9e2",
+          "57023227de76190d12fc409b7de199616698430ce6d275e581140445cd0e805f",
+          "5e4caa13c5235329ef3db506cc4cc6af7d4c02d2799744efdc9eda828842bcb4",
+          "894b4e6390e0a145c6a32e1c715b0fd3dbdc4a135d3c5b0537a71b72c4713ac3",
+          "ca430fc4da16aea41b1dc06c9a413087d7a71f59dfa26646adde3f1b728d7904",
+          "e0337deb9e9766863e00d8d6fee30b4c397376b8619a4ff3dc41b07a9aa0c802"
+        ]
+      },
+      {
+        "caseId": "H06-cancel-and-cross-agent-task-denial",
+        "runtime": "isolate",
+        "digests": [
+          "04b383d0314cf5ea04d0eff022cae8b4039b0f37a756813f90c9b96b3bb8f49f",
+          "0bbbe285d975e70722359307ef49e4a81d59b1968e245fb79118d7e512153a78",
+          "2aa6fee2a42bb2cf90ed393ba1eeef8fe20aa5ec6672b5f4207735e2247b58e2",
+          "4e46213301e911e909426ceeaa07c2070158be5f3ef63842994eea76aa59d9e2",
+          "57023227de76190d12fc409b7de199616698430ce6d275e581140445cd0e805f",
+          "5e4caa13c5235329ef3db506cc4cc6af7d4c02d2799744efdc9eda828842bcb4",
+          "894b4e6390e0a145c6a32e1c715b0fd3dbdc4a135d3c5b0537a71b72c4713ac3",
+          "ca430fc4da16aea41b1dc06c9a413087d7a71f59dfa26646adde3f1b728d7904",
+          "e0337deb9e9766863e00d8d6fee30b4c397376b8619a4ff3dc41b07a9aa0c802"
+        ]
+      },
+      {
+        "caseId": "H07-background-close-reopen",
+        "runtime": "isolate",
+        "digests": [
+          "04b383d0314cf5ea04d0eff022cae8b4039b0f37a756813f90c9b96b3bb8f49f",
+          "0bbbe285d975e70722359307ef49e4a81d59b1968e245fb79118d7e512153a78",
+          "2aa6fee2a42bb2cf90ed393ba1eeef8fe20aa5ec6672b5f4207735e2247b58e2",
+          "4e46213301e911e909426ceeaa07c2070158be5f3ef63842994eea76aa59d9e2",
+          "57023227de76190d12fc409b7de199616698430ce6d275e581140445cd0e805f",
+          "5e4caa13c5235329ef3db506cc4cc6af7d4c02d2799744efdc9eda828842bcb4",
+          "894b4e6390e0a145c6a32e1c715b0fd3dbdc4a135d3c5b0537a71b72c4713ac3",
+          "ca430fc4da16aea41b1dc06c9a413087d7a71f59dfa26646adde3f1b728d7904",
+          "e0337deb9e9766863e00d8d6fee30b4c397376b8619a4ff3dc41b07a9aa0c802"
+        ]
+      },
+      {
+        "caseId": "R01-shared-private-cas-tombstone-recovery",
+        "runtime": "isolate",
+        "digests": [
+          "04b383d0314cf5ea04d0eff022cae8b4039b0f37a756813f90c9b96b3bb8f49f",
+          "0bbbe285d975e70722359307ef49e4a81d59b1968e245fb79118d7e512153a78",
+          "2aa6fee2a42bb2cf90ed393ba1eeef8fe20aa5ec6672b5f4207735e2247b58e2",
+          "4e46213301e911e909426ceeaa07c2070158be5f3ef63842994eea76aa59d9e2",
+          "57023227de76190d12fc409b7de199616698430ce6d275e581140445cd0e805f",
+          "5e4caa13c5235329ef3db506cc4cc6af7d4c02d2799744efdc9eda828842bcb4",
+          "894b4e6390e0a145c6a32e1c715b0fd3dbdc4a135d3c5b0537a71b72c4713ac3",
+          "ca430fc4da16aea41b1dc06c9a413087d7a71f59dfa26646adde3f1b728d7904",
+          "e0337deb9e9766863e00d8d6fee30b4c397376b8619a4ff3dc41b07a9aa0c802"
+        ]
+      },
+      {
+        "caseId": "R02-runtime-resources-and-revocation-isolation",
+        "runtime": "isolate",
+        "digests": [
+          "04b383d0314cf5ea04d0eff022cae8b4039b0f37a756813f90c9b96b3bb8f49f",
+          "0bbbe285d975e70722359307ef49e4a81d59b1968e245fb79118d7e512153a78",
+          "2aa6fee2a42bb2cf90ed393ba1eeef8fe20aa5ec6672b5f4207735e2247b58e2",
+          "4e46213301e911e909426ceeaa07c2070158be5f3ef63842994eea76aa59d9e2",
+          "57023227de76190d12fc409b7de199616698430ce6d275e581140445cd0e805f",
+          "5e4caa13c5235329ef3db506cc4cc6af7d4c02d2799744efdc9eda828842bcb4",
+          "894b4e6390e0a145c6a32e1c715b0fd3dbdc4a135d3c5b0537a71b72c4713ac3",
+          "ca430fc4da16aea41b1dc06c9a413087d7a71f59dfa26646adde3f1b728d7904",
+          "e0337deb9e9766863e00d8d6fee30b4c397376b8619a4ff3dc41b07a9aa0c802"
+        ]
+      },
+      {
+        "caseId": "R03-cross-process-cas-and-durable-winner",
+        "runtime": "isolate",
+        "digests": [
+          "04b383d0314cf5ea04d0eff022cae8b4039b0f37a756813f90c9b96b3bb8f49f",
+          "0bbbe285d975e70722359307ef49e4a81d59b1968e245fb79118d7e512153a78",
+          "2aa6fee2a42bb2cf90ed393ba1eeef8fe20aa5ec6672b5f4207735e2247b58e2",
+          "4e46213301e911e909426ceeaa07c2070158be5f3ef63842994eea76aa59d9e2",
+          "57023227de76190d12fc409b7de199616698430ce6d275e581140445cd0e805f",
+          "5e4caa13c5235329ef3db506cc4cc6af7d4c02d2799744efdc9eda828842bcb4",
+          "894b4e6390e0a145c6a32e1c715b0fd3dbdc4a135d3c5b0537a71b72c4713ac3",
+          "ca430fc4da16aea41b1dc06c9a413087d7a71f59dfa26646adde3f1b728d7904",
+          "e0337deb9e9766863e00d8d6fee30b4c397376b8619a4ff3dc41b07a9aa0c802"
+        ]
+      },
+      {
+        "caseId": "P01-four-policies-real-file-and-tool-path",
+        "runtime": "isolate",
+        "digests": [
+          "04b383d0314cf5ea04d0eff022cae8b4039b0f37a756813f90c9b96b3bb8f49f",
+          "0bbbe285d975e70722359307ef49e4a81d59b1968e245fb79118d7e512153a78",
+          "2aa6fee2a42bb2cf90ed393ba1eeef8fe20aa5ec6672b5f4207735e2247b58e2",
+          "4e46213301e911e909426ceeaa07c2070158be5f3ef63842994eea76aa59d9e2",
+          "57023227de76190d12fc409b7de199616698430ce6d275e581140445cd0e805f",
+          "5e4caa13c5235329ef3db506cc4cc6af7d4c02d2799744efdc9eda828842bcb4",
+          "894b4e6390e0a145c6a32e1c715b0fd3dbdc4a135d3c5b0537a71b72c4713ac3",
+          "ca430fc4da16aea41b1dc06c9a413087d7a71f59dfa26646adde3f1b728d7904",
+          "e0337deb9e9766863e00d8d6fee30b4c397376b8619a4ff3dc41b07a9aa0c802"
+        ]
+      },
+      {
+        "caseId": "P02-selected-maximum-and-restart-zero-lease",
+        "runtime": "isolate",
+        "digests": [
+          "04b383d0314cf5ea04d0eff022cae8b4039b0f37a756813f90c9b96b3bb8f49f",
+          "0bbbe285d975e70722359307ef49e4a81d59b1968e245fb79118d7e512153a78",
+          "2aa6fee2a42bb2cf90ed393ba1eeef8fe20aa5ec6672b5f4207735e2247b58e2",
+          "4e46213301e911e909426ceeaa07c2070158be5f3ef63842994eea76aa59d9e2",
+          "57023227de76190d12fc409b7de199616698430ce6d275e581140445cd0e805f",
+          "5e4caa13c5235329ef3db506cc4cc6af7d4c02d2799744efdc9eda828842bcb4",
+          "894b4e6390e0a145c6a32e1c715b0fd3dbdc4a135d3c5b0537a71b72c4713ac3",
+          "ca430fc4da16aea41b1dc06c9a413087d7a71f59dfa26646adde3f1b728d7904",
+          "e0337deb9e9766863e00d8d6fee30b4c397376b8619a4ff3dc41b07a9aa0c802"
+        ]
+      },
+      {
+        "caseId": "E01-four-policies-real-controlled-command",
+        "runtime": "isolate",
+        "digests": [
+          "04b383d0314cf5ea04d0eff022cae8b4039b0f37a756813f90c9b96b3bb8f49f",
+          "0bbbe285d975e70722359307ef49e4a81d59b1968e245fb79118d7e512153a78",
+          "2aa6fee2a42bb2cf90ed393ba1eeef8fe20aa5ec6672b5f4207735e2247b58e2",
+          "4e46213301e911e909426ceeaa07c2070158be5f3ef63842994eea76aa59d9e2",
+          "57023227de76190d12fc409b7de199616698430ce6d275e581140445cd0e805f",
+          "5e4caa13c5235329ef3db506cc4cc6af7d4c02d2799744efdc9eda828842bcb4",
+          "894b4e6390e0a145c6a32e1c715b0fd3dbdc4a135d3c5b0537a71b72c4713ac3",
+          "ca430fc4da16aea41b1dc06c9a413087d7a71f59dfa26646adde3f1b728d7904",
+          "e0337deb9e9766863e00d8d6fee30b4c397376b8619a4ff3dc41b07a9aa0c802"
+        ]
+      },
+      {
+        "caseId": "E02-direct-runtime-boundary",
+        "runtime": "isolate",
+        "digests": [
+          "04b383d0314cf5ea04d0eff022cae8b4039b0f37a756813f90c9b96b3bb8f49f",
+          "0bbbe285d975e70722359307ef49e4a81d59b1968e245fb79118d7e512153a78",
+          "2aa6fee2a42bb2cf90ed393ba1eeef8fe20aa5ec6672b5f4207735e2247b58e2",
+          "4e46213301e911e909426ceeaa07c2070158be5f3ef63842994eea76aa59d9e2",
+          "57023227de76190d12fc409b7de199616698430ce6d275e581140445cd0e805f",
+          "5e4caa13c5235329ef3db506cc4cc6af7d4c02d2799744efdc9eda828842bcb4",
+          "894b4e6390e0a145c6a32e1c715b0fd3dbdc4a135d3c5b0537a71b72c4713ac3",
+          "ca430fc4da16aea41b1dc06c9a413087d7a71f59dfa26646adde3f1b728d7904",
+          "e0337deb9e9766863e00d8d6fee30b4c397376b8619a4ff3dc41b07a9aa0c802"
+        ]
+      }
+    ],
+    "limitations": [
+      "Adapter assertions are test observations, not business protocol certification.",
+      "Host bridge profile does not launch an Electron renderer.",
+      "External adapter and its provenance require independent review.",
+      "No Windows, Linux, Intel or earlier macOS support claim."
+    ],
+    "status": "passed",
+    "adapterDigest": "79aafd0f86b7a8a0361e1a4e904508b98b6a4374f95452d0c4ca32d0d0e8fa2b"
+  },
+  "controlledNode": {
+    "reportVersion": "1.0",
+    "suiteVersion": "1.0.0",
+    "suiteDigest": "2761b7a182a76bbccf491246d430e99fbe076d8ad90faf858702973b23242b39",
+    "platform": {
+      "os": "darwin",
+      "arch": "arm64",
+      "node": "26.5.1"
+    },
+    "provenance": "adapter-supplied-unverified",
+    "thirdPartyAuthorVerified": false,
+    "coverage": "complete",
+    "cases": [
+      {
+        "id": "S01-structure-is-not-authority",
+        "layer": "structure",
+        "status": "passed"
+      },
+      {
+        "id": "H01-explicit-selection",
+        "layer": "host-behavior",
+        "status": "passed"
+      },
+      {
+        "id": "H02-two-agents-same-artifact",
+        "layer": "host-behavior",
+        "status": "passed"
+      },
+      {
+        "id": "H03-provider-replacement-and-runtime-consumer",
+        "layer": "host-behavior",
+        "status": "passed"
+      },
+      {
+        "id": "H04-independent-ui-and-owner-bound-handles",
+        "layer": "host-behavior",
+        "status": "passed"
+      },
+      {
+        "id": "H05-event-order-replay-no-reexecution",
+        "layer": "host-behavior",
+        "status": "passed"
+      },
+      {
+        "id": "H09-contribution-schema-and-execution-state",
+        "layer": "host-behavior",
+        "status": "passed"
+      },
+      {
+        "id": "H08-bounded-replay-terminal-and-restart-no-body",
+        "layer": "host-behavior",
+        "status": "passed"
+      },
+      {
+        "id": "H06-cancel-and-cross-agent-task-denial",
+        "layer": "host-behavior",
+        "status": "passed"
+      },
+      {
+        "id": "H07-background-close-reopen",
+        "layer": "host-behavior",
+        "status": "passed"
+      },
+      {
+        "id": "R01-shared-private-cas-tombstone-recovery",
+        "layer": "host-behavior",
+        "status": "passed"
+      },
+      {
+        "id": "R02-runtime-resources-and-revocation-isolation",
+        "layer": "host-behavior",
+        "status": "passed"
+      },
+      {
+        "id": "R03-cross-process-cas-and-durable-winner",
+        "layer": "host-behavior",
+        "status": "passed"
+      },
+      {
+        "id": "P01-four-policies-real-file-and-tool-path",
+        "layer": "host-behavior",
+        "status": "passed"
+      },
+      {
+        "id": "P02-selected-maximum-and-restart-zero-lease",
+        "layer": "host-behavior",
+        "status": "passed"
+      },
+      {
+        "id": "E01-four-policies-real-controlled-command",
+        "layer": "execution-boundary",
+        "status": "passed"
+      },
+      {
+        "id": "E02-direct-runtime-boundary",
+        "layer": "execution-boundary",
+        "status": "passed"
+      }
+    ],
+    "artifacts": [
+      {
+        "caseId": "H01-explicit-selection",
+        "runtime": "controlled-node",
+        "digests": [
+          "07a0499e0c9a735ca190ce59fbac8629097e52f7575552e1db770bf5a6cbeaf0",
+          "2aa6fee2a42bb2cf90ed393ba1eeef8fe20aa5ec6672b5f4207735e2247b58e2",
+          "4e46213301e911e909426ceeaa07c2070158be5f3ef63842994eea76aa59d9e2",
+          "5e4caa13c5235329ef3db506cc4cc6af7d4c02d2799744efdc9eda828842bcb4",
+          "894b4e6390e0a145c6a32e1c715b0fd3dbdc4a135d3c5b0537a71b72c4713ac3",
+          "a8f41e9c1141020ef44fa0102a1f4558aea7ae68c059ab0ed91ae030e43da2f6",
+          "b588b1bfcfdc0cfaac8f84978583bd2db7ebf3c72cb73a9a4c950b68ae7ecab1",
+          "b99cc41e10fc72ffcc12fddaa99685c13093fab4b6869925b95714622eb0dca1",
+          "d4986c92a39d0dd01d21982122bf10b098a8a4a489137d5ae83ce73b37fc98a2"
+        ]
+      },
+      {
+        "caseId": "H02-two-agents-same-artifact",
+        "runtime": "controlled-node",
+        "digests": [
+          "07a0499e0c9a735ca190ce59fbac8629097e52f7575552e1db770bf5a6cbeaf0",
+          "2aa6fee2a42bb2cf90ed393ba1eeef8fe20aa5ec6672b5f4207735e2247b58e2",
+          "4e46213301e911e909426ceeaa07c2070158be5f3ef63842994eea76aa59d9e2",
+          "5e4caa13c5235329ef3db506cc4cc6af7d4c02d2799744efdc9eda828842bcb4",
+          "894b4e6390e0a145c6a32e1c715b0fd3dbdc4a135d3c5b0537a71b72c4713ac3",
+          "a8f41e9c1141020ef44fa0102a1f4558aea7ae68c059ab0ed91ae030e43da2f6",
+          "b588b1bfcfdc0cfaac8f84978583bd2db7ebf3c72cb73a9a4c950b68ae7ecab1",
+          "b99cc41e10fc72ffcc12fddaa99685c13093fab4b6869925b95714622eb0dca1",
+          "d4986c92a39d0dd01d21982122bf10b098a8a4a489137d5ae83ce73b37fc98a2"
+        ]
+      },
+      {
+        "caseId": "H03-provider-replacement-and-runtime-consumer",
+        "runtime": "controlled-node",
+        "digests": [
+          "07a0499e0c9a735ca190ce59fbac8629097e52f7575552e1db770bf5a6cbeaf0",
+          "2aa6fee2a42bb2cf90ed393ba1eeef8fe20aa5ec6672b5f4207735e2247b58e2",
+          "4e46213301e911e909426ceeaa07c2070158be5f3ef63842994eea76aa59d9e2",
+          "5e4caa13c5235329ef3db506cc4cc6af7d4c02d2799744efdc9eda828842bcb4",
+          "894b4e6390e0a145c6a32e1c715b0fd3dbdc4a135d3c5b0537a71b72c4713ac3",
+          "a8f41e9c1141020ef44fa0102a1f4558aea7ae68c059ab0ed91ae030e43da2f6",
+          "b588b1bfcfdc0cfaac8f84978583bd2db7ebf3c72cb73a9a4c950b68ae7ecab1",
+          "b99cc41e10fc72ffcc12fddaa99685c13093fab4b6869925b95714622eb0dca1",
+          "d4986c92a39d0dd01d21982122bf10b098a8a4a489137d5ae83ce73b37fc98a2"
+        ]
+      },
+      {
+        "caseId": "H04-independent-ui-and-owner-bound-handles",
+        "runtime": "controlled-node",
+        "digests": [
+          "07a0499e0c9a735ca190ce59fbac8629097e52f7575552e1db770bf5a6cbeaf0",
+          "2aa6fee2a42bb2cf90ed393ba1eeef8fe20aa5ec6672b5f4207735e2247b58e2",
+          "4e46213301e911e909426ceeaa07c2070158be5f3ef63842994eea76aa59d9e2",
+          "5e4caa13c5235329ef3db506cc4cc6af7d4c02d2799744efdc9eda828842bcb4",
+          "894b4e6390e0a145c6a32e1c715b0fd3dbdc4a135d3c5b0537a71b72c4713ac3",
+          "a8f41e9c1141020ef44fa0102a1f4558aea7ae68c059ab0ed91ae030e43da2f6",
+          "b588b1bfcfdc0cfaac8f84978583bd2db7ebf3c72cb73a9a4c950b68ae7ecab1",
+          "b99cc41e10fc72ffcc12fddaa99685c13093fab4b6869925b95714622eb0dca1",
+          "d4986c92a39d0dd01d21982122bf10b098a8a4a489137d5ae83ce73b37fc98a2"
+        ]
+      },
+      {
+        "caseId": "H05-event-order-replay-no-reexecution",
+        "runtime": "controlled-node",
+        "digests": [
+          "07a0499e0c9a735ca190ce59fbac8629097e52f7575552e1db770bf5a6cbeaf0",
+          "2aa6fee2a42bb2cf90ed393ba1eeef8fe20aa5ec6672b5f4207735e2247b58e2",
+          "4e46213301e911e909426ceeaa07c2070158be5f3ef63842994eea76aa59d9e2",
+          "5e4caa13c5235329ef3db506cc4cc6af7d4c02d2799744efdc9eda828842bcb4",
+          "894b4e6390e0a145c6a32e1c715b0fd3dbdc4a135d3c5b0537a71b72c4713ac3",
+          "a8f41e9c1141020ef44fa0102a1f4558aea7ae68c059ab0ed91ae030e43da2f6",
+          "b588b1bfcfdc0cfaac8f84978583bd2db7ebf3c72cb73a9a4c950b68ae7ecab1",
+          "b99cc41e10fc72ffcc12fddaa99685c13093fab4b6869925b95714622eb0dca1",
+          "d4986c92a39d0dd01d21982122bf10b098a8a4a489137d5ae83ce73b37fc98a2"
+        ]
+      },
+      {
+        "caseId": "H09-contribution-schema-and-execution-state",
+        "runtime": "controlled-node",
+        "digests": [
+          "07a0499e0c9a735ca190ce59fbac8629097e52f7575552e1db770bf5a6cbeaf0",
+          "2aa6fee2a42bb2cf90ed393ba1eeef8fe20aa5ec6672b5f4207735e2247b58e2",
+          "4e46213301e911e909426ceeaa07c2070158be5f3ef63842994eea76aa59d9e2",
+          "5e4caa13c5235329ef3db506cc4cc6af7d4c02d2799744efdc9eda828842bcb4",
+          "894b4e6390e0a145c6a32e1c715b0fd3dbdc4a135d3c5b0537a71b72c4713ac3",
+          "a8f41e9c1141020ef44fa0102a1f4558aea7ae68c059ab0ed91ae030e43da2f6",
+          "b588b1bfcfdc0cfaac8f84978583bd2db7ebf3c72cb73a9a4c950b68ae7ecab1",
+          "b99cc41e10fc72ffcc12fddaa99685c13093fab4b6869925b95714622eb0dca1",
+          "d4986c92a39d0dd01d21982122bf10b098a8a4a489137d5ae83ce73b37fc98a2"
+        ]
+      },
+      {
+        "caseId": "H08-bounded-replay-terminal-and-restart-no-body",
+        "runtime": "controlled-node",
+        "digests": [
+          "07a0499e0c9a735ca190ce59fbac8629097e52f7575552e1db770bf5a6cbeaf0",
+          "2aa6fee2a42bb2cf90ed393ba1eeef8fe20aa5ec6672b5f4207735e2247b58e2",
+          "4e46213301e911e909426ceeaa07c2070158be5f3ef63842994eea76aa59d9e2",
+          "5e4caa13c5235329ef3db506cc4cc6af7d4c02d2799744efdc9eda828842bcb4",
+          "894b4e6390e0a145c6a32e1c715b0fd3dbdc4a135d3c5b0537a71b72c4713ac3",
+          "a8f41e9c1141020ef44fa0102a1f4558aea7ae68c059ab0ed91ae030e43da2f6",
+          "b588b1bfcfdc0cfaac8f84978583bd2db7ebf3c72cb73a9a4c950b68ae7ecab1",
+          "b99cc41e10fc72ffcc12fddaa99685c13093fab4b6869925b95714622eb0dca1",
+          "d4986c92a39d0dd01d21982122bf10b098a8a4a489137d5ae83ce73b37fc98a2"
+        ]
+      },
+      {
+        "caseId": "H06-cancel-and-cross-agent-task-denial",
+        "runtime": "controlled-node",
+        "digests": [
+          "07a0499e0c9a735ca190ce59fbac8629097e52f7575552e1db770bf5a6cbeaf0",
+          "2aa6fee2a42bb2cf90ed393ba1eeef8fe20aa5ec6672b5f4207735e2247b58e2",
+          "4e46213301e911e909426ceeaa07c2070158be5f3ef63842994eea76aa59d9e2",
+          "5e4caa13c5235329ef3db506cc4cc6af7d4c02d2799744efdc9eda828842bcb4",
+          "894b4e6390e0a145c6a32e1c715b0fd3dbdc4a135d3c5b0537a71b72c4713ac3",
+          "a8f41e9c1141020ef44fa0102a1f4558aea7ae68c059ab0ed91ae030e43da2f6",
+          "b588b1bfcfdc0cfaac8f84978583bd2db7ebf3c72cb73a9a4c950b68ae7ecab1",
+          "b99cc41e10fc72ffcc12fddaa99685c13093fab4b6869925b95714622eb0dca1",
+          "d4986c92a39d0dd01d21982122bf10b098a8a4a489137d5ae83ce73b37fc98a2"
+        ]
+      },
+      {
+        "caseId": "H07-background-close-reopen",
+        "runtime": "controlled-node",
+        "digests": [
+          "07a0499e0c9a735ca190ce59fbac8629097e52f7575552e1db770bf5a6cbeaf0",
+          "2aa6fee2a42bb2cf90ed393ba1eeef8fe20aa5ec6672b5f4207735e2247b58e2",
+          "4e46213301e911e909426ceeaa07c2070158be5f3ef63842994eea76aa59d9e2",
+          "5e4caa13c5235329ef3db506cc4cc6af7d4c02d2799744efdc9eda828842bcb4",
+          "894b4e6390e0a145c6a32e1c715b0fd3dbdc4a135d3c5b0537a71b72c4713ac3",
+          "a8f41e9c1141020ef44fa0102a1f4558aea7ae68c059ab0ed91ae030e43da2f6",
+          "b588b1bfcfdc0cfaac8f84978583bd2db7ebf3c72cb73a9a4c950b68ae7ecab1",
+          "b99cc41e10fc72ffcc12fddaa99685c13093fab4b6869925b95714622eb0dca1",
+          "d4986c92a39d0dd01d21982122bf10b098a8a4a489137d5ae83ce73b37fc98a2"
+        ]
+      },
+      {
+        "caseId": "R01-shared-private-cas-tombstone-recovery",
+        "runtime": "controlled-node",
+        "digests": [
+          "07a0499e0c9a735ca190ce59fbac8629097e52f7575552e1db770bf5a6cbeaf0",
+          "2aa6fee2a42bb2cf90ed393ba1eeef8fe20aa5ec6672b5f4207735e2247b58e2",
+          "4e46213301e911e909426ceeaa07c2070158be5f3ef63842994eea76aa59d9e2",
+          "5e4caa13c5235329ef3db506cc4cc6af7d4c02d2799744efdc9eda828842bcb4",
+          "894b4e6390e0a145c6a32e1c715b0fd3dbdc4a135d3c5b0537a71b72c4713ac3",
+          "a8f41e9c1141020ef44fa0102a1f4558aea7ae68c059ab0ed91ae030e43da2f6",
+          "b588b1bfcfdc0cfaac8f84978583bd2db7ebf3c72cb73a9a4c950b68ae7ecab1",
+          "b99cc41e10fc72ffcc12fddaa99685c13093fab4b6869925b95714622eb0dca1",
+          "d4986c92a39d0dd01d21982122bf10b098a8a4a489137d5ae83ce73b37fc98a2"
+        ]
+      },
+      {
+        "caseId": "R02-runtime-resources-and-revocation-isolation",
+        "runtime": "controlled-node",
+        "digests": [
+          "07a0499e0c9a735ca190ce59fbac8629097e52f7575552e1db770bf5a6cbeaf0",
+          "2aa6fee2a42bb2cf90ed393ba1eeef8fe20aa5ec6672b5f4207735e2247b58e2",
+          "4e46213301e911e909426ceeaa07c2070158be5f3ef63842994eea76aa59d9e2",
+          "5e4caa13c5235329ef3db506cc4cc6af7d4c02d2799744efdc9eda828842bcb4",
+          "894b4e6390e0a145c6a32e1c715b0fd3dbdc4a135d3c5b0537a71b72c4713ac3",
+          "a8f41e9c1141020ef44fa0102a1f4558aea7ae68c059ab0ed91ae030e43da2f6",
+          "b588b1bfcfdc0cfaac8f84978583bd2db7ebf3c72cb73a9a4c950b68ae7ecab1",
+          "b99cc41e10fc72ffcc12fddaa99685c13093fab4b6869925b95714622eb0dca1",
+          "d4986c92a39d0dd01d21982122bf10b098a8a4a489137d5ae83ce73b37fc98a2"
+        ]
+      },
+      {
+        "caseId": "R03-cross-process-cas-and-durable-winner",
+        "runtime": "controlled-node",
+        "digests": [
+          "07a0499e0c9a735ca190ce59fbac8629097e52f7575552e1db770bf5a6cbeaf0",
+          "2aa6fee2a42bb2cf90ed393ba1eeef8fe20aa5ec6672b5f4207735e2247b58e2",
+          "4e46213301e911e909426ceeaa07c2070158be5f3ef63842994eea76aa59d9e2",
+          "5e4caa13c5235329ef3db506cc4cc6af7d4c02d2799744efdc9eda828842bcb4",
+          "894b4e6390e0a145c6a32e1c715b0fd3dbdc4a135d3c5b0537a71b72c4713ac3",
+          "a8f41e9c1141020ef44fa0102a1f4558aea7ae68c059ab0ed91ae030e43da2f6",
+          "b588b1bfcfdc0cfaac8f84978583bd2db7ebf3c72cb73a9a4c950b68ae7ecab1",
+          "b99cc41e10fc72ffcc12fddaa99685c13093fab4b6869925b95714622eb0dca1",
+          "d4986c92a39d0dd01d21982122bf10b098a8a4a489137d5ae83ce73b37fc98a2"
+        ]
+      },
+      {
+        "caseId": "P01-four-policies-real-file-and-tool-path",
+        "runtime": "controlled-node",
+        "digests": [
+          "07a0499e0c9a735ca190ce59fbac8629097e52f7575552e1db770bf5a6cbeaf0",
+          "2aa6fee2a42bb2cf90ed393ba1eeef8fe20aa5ec6672b5f4207735e2247b58e2",
+          "4e46213301e911e909426ceeaa07c2070158be5f3ef63842994eea76aa59d9e2",
+          "5e4caa13c5235329ef3db506cc4cc6af7d4c02d2799744efdc9eda828842bcb4",
+          "894b4e6390e0a145c6a32e1c715b0fd3dbdc4a135d3c5b0537a71b72c4713ac3",
+          "a8f41e9c1141020ef44fa0102a1f4558aea7ae68c059ab0ed91ae030e43da2f6",
+          "b588b1bfcfdc0cfaac8f84978583bd2db7ebf3c72cb73a9a4c950b68ae7ecab1",
+          "b99cc41e10fc72ffcc12fddaa99685c13093fab4b6869925b95714622eb0dca1",
+          "d4986c92a39d0dd01d21982122bf10b098a8a4a489137d5ae83ce73b37fc98a2"
+        ]
+      },
+      {
+        "caseId": "P02-selected-maximum-and-restart-zero-lease",
+        "runtime": "controlled-node",
+        "digests": [
+          "07a0499e0c9a735ca190ce59fbac8629097e52f7575552e1db770bf5a6cbeaf0",
+          "2aa6fee2a42bb2cf90ed393ba1eeef8fe20aa5ec6672b5f4207735e2247b58e2",
+          "4e46213301e911e909426ceeaa07c2070158be5f3ef63842994eea76aa59d9e2",
+          "5e4caa13c5235329ef3db506cc4cc6af7d4c02d2799744efdc9eda828842bcb4",
+          "894b4e6390e0a145c6a32e1c715b0fd3dbdc4a135d3c5b0537a71b72c4713ac3",
+          "a8f41e9c1141020ef44fa0102a1f4558aea7ae68c059ab0ed91ae030e43da2f6",
+          "b588b1bfcfdc0cfaac8f84978583bd2db7ebf3c72cb73a9a4c950b68ae7ecab1",
+          "b99cc41e10fc72ffcc12fddaa99685c13093fab4b6869925b95714622eb0dca1",
+          "d4986c92a39d0dd01d21982122bf10b098a8a4a489137d5ae83ce73b37fc98a2"
+        ]
+      },
+      {
+        "caseId": "E01-four-policies-real-controlled-command",
+        "runtime": "controlled-node",
+        "digests": [
+          "07a0499e0c9a735ca190ce59fbac8629097e52f7575552e1db770bf5a6cbeaf0",
+          "2aa6fee2a42bb2cf90ed393ba1eeef8fe20aa5ec6672b5f4207735e2247b58e2",
+          "4e46213301e911e909426ceeaa07c2070158be5f3ef63842994eea76aa59d9e2",
+          "5e4caa13c5235329ef3db506cc4cc6af7d4c02d2799744efdc9eda828842bcb4",
+          "894b4e6390e0a145c6a32e1c715b0fd3dbdc4a135d3c5b0537a71b72c4713ac3",
+          "a8f41e9c1141020ef44fa0102a1f4558aea7ae68c059ab0ed91ae030e43da2f6",
+          "b588b1bfcfdc0cfaac8f84978583bd2db7ebf3c72cb73a9a4c950b68ae7ecab1",
+          "b99cc41e10fc72ffcc12fddaa99685c13093fab4b6869925b95714622eb0dca1",
+          "d4986c92a39d0dd01d21982122bf10b098a8a4a489137d5ae83ce73b37fc98a2"
+        ]
+      },
+      {
+        "caseId": "E02-direct-runtime-boundary",
+        "runtime": "controlled-node",
+        "digests": [
+          "07a0499e0c9a735ca190ce59fbac8629097e52f7575552e1db770bf5a6cbeaf0",
+          "2aa6fee2a42bb2cf90ed393ba1eeef8fe20aa5ec6672b5f4207735e2247b58e2",
+          "4e46213301e911e909426ceeaa07c2070158be5f3ef63842994eea76aa59d9e2",
+          "5e4caa13c5235329ef3db506cc4cc6af7d4c02d2799744efdc9eda828842bcb4",
+          "894b4e6390e0a145c6a32e1c715b0fd3dbdc4a135d3c5b0537a71b72c4713ac3",
+          "a8f41e9c1141020ef44fa0102a1f4558aea7ae68c059ab0ed91ae030e43da2f6",
+          "b588b1bfcfdc0cfaac8f84978583bd2db7ebf3c72cb73a9a4c950b68ae7ecab1",
+          "b99cc41e10fc72ffcc12fddaa99685c13093fab4b6869925b95714622eb0dca1",
+          "d4986c92a39d0dd01d21982122bf10b098a8a4a489137d5ae83ce73b37fc98a2"
+        ]
+      }
+    ],
+    "limitations": [
+      "Adapter assertions are test observations, not business protocol certification.",
+      "Host bridge profile does not launch an Electron renderer.",
+      "External adapter and its provenance require independent review.",
+      "No Windows, Linux, Intel or earlier macOS support claim."
+    ],
+    "status": "passed",
+    "adapterDigest": "79aafd0f86b7a8a0361e1a4e904508b98b6a4374f95452d0c4ca32d0d0e8fa2b"
+  },
+  "native": {
+    "reportVersion": "1.0",
+    "suiteVersion": "1.0.0",
+    "profile": "packaged-native-electron",
+    "status": "passed",
+    "platform": {
+      "os": "darwin",
+      "arch": "arm64",
+      "nodeDriver": "26.5.1"
+    },
+    "provenance": "internal-fixture",
+    "thirdPartyAuthorVerified": false,
+    "cases": [
+      {
+        "id": "N01-independent-renderers-same-backend",
+        "status": "passed"
+      },
+      {
+        "id": "N02-container-handles-and-management-boundary",
+        "status": "passed"
+      },
+      {
+        "id": "N03-real-navigation-and-network-denial",
+        "status": "passed"
+      },
+      {
+        "id": "N04-native-async-event-bridge",
+        "status": "passed"
+      }
+    ],
+    "sourceDigests": {
+      "scripts/platform-conformance.mjs": "2761b7a182a76bbccf491246d430e99fbe076d8ad90faf858702973b23242b39",
+      "scripts/platform-conformance-host.mjs": "e4076f9b92e0a8fc3e34d88119d807ab3c16df7c9b1cbab17a4ddb0a66dccaa3",
+      "packages/desktop/test/platform-conformance-ui.test.ts": "c0263a386cd398ae9a80462746971168cc8117834b4616d85f827bf9f0aa3693"
+    },
+    "artifacts": {
+      "screen-one": "d4986c92a39d0dd01d21982122bf10b098a8a4a489137d5ae83ce73b37fc98a2",
+      "screen-two": "07a0499e0c9a735ca190ce59fbac8629097e52f7575552e1db770bf5a6cbeaf0",
+      "provider-one": "b588b1bfcfdc0cfaac8f84978583bd2db7ebf3c72cb73a9a4c950b68ae7ecab1",
+      "provider-two": "b99cc41e10fc72ffcc12fddaa99685c13093fab4b6869925b95714622eb0dca1",
+      "provider-incompatible": "a8f41e9c1141020ef44fa0102a1f4558aea7ae68c059ab0ed91ae030e43da2f6",
+      "policy-allow": "5e4caa13c5235329ef3db506cc4cc6af7d4c02d2799744efdc9eda828842bcb4",
+      "policy-deny": "4e46213301e911e909426ceeaa07c2070158be5f3ef63842994eea76aa59d9e2",
+      "policy-confirm": "894b4e6390e0a145c6a32e1c715b0fd3dbdc4a135d3c5b0537a71b72c4713ac3",
+      "policy-custom": "2aa6fee2a42bb2cf90ed393ba1eeef8fe20aa5ec6672b5f4207735e2247b58e2"
+    },
+    "application": {
+      "version": "0.1.0",
+      "packaged": true
+    },
+    "nativeVersions": {
+      "electron": "44.5.1",
+      "node": "24.21.0",
+      "chrome": "152.0.7977.130"
+    }
+  }
+}

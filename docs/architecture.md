@@ -121,7 +121,7 @@ id 在 2.x 包中唯一。operations、cwdRoots 是非空、无重复数组；fs
 宿主在准备兼容报告、worker、前端和本地入口前读取完整密钥集合，再通过 `Core.matchesInstalledPackage` 比较当前安装与固定制品的完整清单和文件。此入口复制传入制品、校验包结构并在异步读取后复核安装身份，只返回布尔值，不返回源码、不授予运行权限；宿主使用摘要已验证的库快照执行或提供前端文件。公开 `getPackageContents` 和导出仍检查秘密包含，SDK 回复中的业务内容和扩展业务回复仍脱敏。
 
 只存在内核管的存储里;扩展和包里只出现 `secretRef`。日志、错误、导出统一经过脱敏函数;导出包在结构上不含密钥。
-安装记录保留包曾声明过的密钥引用,不保存值。更新提交 manifest 时在同一事务内保留旧引用;若随后删除失败,返回 SECRET_NOT_FOUND(details 为 `{id, version, reason: SECRET_CLEANUP_FAILED}`),version 已安装。后续更新与卸载可重试,脱敏与导出检查也仍覆盖这些值。删除过程中即使值已删除而调用抛错,底层错误也不外露。数据库格式为 8，按 2→3→4→5→6→7→8 自动迁移；安装、启用、MCP、已有引用及权限 JSON 保持。schema 5 增加独立 MCP v2 批准表，schema 4 在 consents 增加 format_version，旧记录按已存清单补齐，不改写包文件；旧内核拒绝升级后的目录。schema 2 不能恢复以前已丢失的历史引用。
+安装记录保留包曾声明过的密钥引用,不保存值。更新提交 manifest 时在同一事务内保留旧引用;若随后删除失败,返回 SECRET_NOT_FOUND(details 为 `{id, version, reason: SECRET_CLEANUP_FAILED}`),version 已安装。后续更新与卸载可重试,脱敏与导出检查也仍覆盖这些值。删除过程中即使值已删除而调用抛错,底层错误也不外露。数据库格式为 9，按 2→3→4→5→6→7→8→9 自动迁移；安装、启用、MCP、已有引用及权限 JSON 保持。schema 5 增加独立 MCP v2 批准表，schema 4 在 consents 增加 format_version，旧记录按已存清单补齐，不改写包文件；旧内核拒绝升级后的目录。schema 2 不能恢复以前已丢失的历史引用。
 
 ## 7. 可替换接口(便于测试)
 
@@ -153,7 +153,7 @@ createCore({ dataDir, model?, egress, secrets, confirm?, fs?, exec?, roots?, pro
 
 当前命令行不含 `share import`，使用 RecordingEgressSink 和 MemorySecretStore；真实外发与持久化密钥由宿主提供。
 
-1. 导入合法包成功;坏包返回对应错误码和字段路径;导出再导入内容一致。已安装的 id 再次导入一律被拒,返回 IMPORT_INVALID,`details` 为 `{id, reason: ALREADY_INSTALLED}`,不带 `path`。同 id 并发导入只会有一个成功,其余返回该错误,跨进程落败者也不删除或覆盖成功者的目录。内存排队只在同一进程内、同一数据目录生效:另一个数据目录里的同 id 不会被这次排队挡住。为什么:导入队列的键是数据目录加 id,而且队列只活在当前进程里;跨进程冲突由文件发布和数据库唯一键处理。
+1. 导入合法包成功;坏包返回对应错误码和字段路径;导出再导入内容一致。已安装的 id 再次导入一律被拒,返回 IMPORT_INVALID,`details` 为 `{id, reason: ALREADY_INSTALLED}`,不带 `path`。同 id 并发导入只会有一个成功,其余返回该错误,跨进程落败者也不删除或覆盖成功者的目录。内存排队只在同一进程内、同一数据目录生效:另一个数据目录里的同 id 不会被这次排队挡住。为什么:导入队列的键是数据目录加 id,而且队列只活在当前进程里;跨进程的导入、更新和卸载共用数据库中的操作所有权，安装唯一键继续保护重复 id。
 2. `inspect(包)` 不安装就返回 formatVersion 与完整权限清单；1.x 每条带 level 与 reason，2.x 带 kind、operations/cwdRoots 等原始声明。
 3. 没同意就启用返回 CONSENT_REQUIRED;同意后启用成功,同意记录可查。
 4. 越权动作返回 PERMISSION_DENIED;没有 confirm 或被拒绝时外发被拦,且 RecordingEgressSink 没有记录。
@@ -174,6 +174,8 @@ createCore({ dataDir, model?, egress, secrets, confirm?, fs?, exec?, roots?, pro
 1. 技术栈:TypeScript + Node LTS + pnpm + Ajv + Vitest。
 2. 当前内核不验证业务包作者签名,只在信封里留可选 `signature` 字段,不校验。
 3. 角色卡 V2/V3 适配器属于独立宿主，不属于内核。
+
+包生命周期采用 schema 9 的 `installation_id` 与 `lifecycle_operations`。导入、更新、卸载按包取得数据库内的进程所有权，文件目录以事务 token 命名，提交校验安装身份与前置版本。更新的数据库提交标记和新清单同事务写入；卸载的提交标记和记录删除同事务写入。首次安装状态读取和后续生命周期操作会恢复已退出进程的记录，宿主组装恢复在 core 恢复之后判断版本。详细行为及限制见 [包中断恢复](desktop-recovery.md#包更新与卸载中断)。
 
 ## 12. 包安全限制与动作授权
 
@@ -251,4 +253,4 @@ schema 6 保存有限 authority_grants 及撤销版本；schema 7 增加 agent_t
 
 可信 `capabilityGate` 位于原授权/范围检查之后，策略不能增加声明、同意、MCP 批准或用户最大范围。选定且活动的第三方策略返回 allow/deny/confirm，覆盖原单次确认分支；没有策略时仍执行安全默认。等待前后及 Sink 前保留复核。策略租约过期清理完成后才批准新租约，见[策略 SDK](sdk-v2.md#第三方策略接入)。
 
-真实旧库迁移回归从固定历史源码夹具构建 schema 6 内核，由该版本公开 API 创建安装、同意、启用、设置引用、MCP、旧信任与有限 Grant，再以当前内核升级至 8。测试使用固定历史源码夹具，不依赖 Git 历史或伪造旧表；旧读写器拒绝升级后的库且拒绝前后文件摘要保持。
+真实旧库迁移回归从固定历史源码夹具构建 schema 6 内核，由该版本公开 API 创建安装、同意、启用、设置引用、MCP、旧信任与有限 Grant，再以当前内核升级至 9。测试使用固定历史源码夹具，不依赖 Git 历史或伪造旧表；旧读写器拒绝升级后的库且拒绝前后文件摘要保持。

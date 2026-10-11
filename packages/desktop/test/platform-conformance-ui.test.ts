@@ -109,8 +109,11 @@ it.runIf(process.platform === "darwin")(
         packaged: app.isPackaged,
       }));
       if (packagedApp) {
+        const { version } = JSON.parse(
+          await readFile(path.resolve("packages/desktop/package.json"), "utf8"),
+        );
         expect(report.application).toEqual({
-          version: "1.0.0",
+          version,
           packaged: true,
         });
       }

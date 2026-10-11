@@ -99,6 +99,20 @@
       "groupOrder": 108
     },
     {
+      "name": "execution-records-ui",
+      "group": "electron",
+      "include": ["packages/desktop/test/execution-records-ui.test.ts"],
+      "setupFiles": ["packages/desktop/test/support/electron-ready.ts"],
+      "groupOrder": 114
+    },
+    {
+      "name": "readiness-ui",
+      "group": "electron",
+      "include": ["packages/desktop/test/readiness-ui.test.ts"],
+      "setupFiles": ["packages/desktop/test/support/electron-ready.ts"],
+      "groupOrder": 115
+    },
+    {
       "name": "interaction-ui",
       "group": "electron",
       "include": ["packages/desktop/test/interaction-ui.test.ts"],
@@ -132,6 +146,20 @@
       "include": ["packages/desktop/test/scenario-chat-ui.test.ts"],
       "setupFiles": ["packages/desktop/test/support/electron-ready.ts"],
       "groupOrder": 113
+    },
+    {
+      "name": "refresh-ui",
+      "group": "electron",
+      "include": ["packages/desktop/test/refresh-ui.test.ts"],
+      "setupFiles": ["packages/desktop/test/support/electron-ready.ts"],
+      "groupOrder": 116
+    },
+    {
+      "name": "recovery-ui",
+      "group": "electron",
+      "include": ["packages/desktop/test/recovery-ui.test.ts"],
+      "setupFiles": ["packages/desktop/test/support/electron-ready.ts"],
+      "groupOrder": 117
     },
     {
       "name": "experiments",

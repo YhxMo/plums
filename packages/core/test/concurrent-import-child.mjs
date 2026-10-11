@@ -75,11 +75,10 @@ const { InstallStore } = await import(storeHref);
 const originalRecordInstall = InstallStore.prototype.recordInstall;
 // Why this wrapper stays in the test process: both inserts must start together,
 // and the product code has no test-only pause.
-InstallStore.prototype.recordInstall = function (manifest) {
+InstallStore.prototype.recordInstall = function (...args) {
   signal(barrier, `insert-${slot}`);
-  waitFor(barrier, "insert-a");
-  waitFor(barrier, "insert-b");
-  return originalRecordInstall.call(this, manifest);
+  waitFor(barrier, "started-b");
+  return originalRecordInstall.apply(this, args);
 };
 
 const opened = makeCore(dataDir);
@@ -87,6 +86,7 @@ const zip = new Uint8Array(readFileSync(zipPath));
 // Why B waits: A is already inside recordInstall, so B's file replace cannot
 // throw ENOTEMPTY and skip the insert barrier.
 if (slot === "b") waitFor(barrier, "insert-a");
+if (slot === "b") signal(barrier, "started-b");
 
 try {
   await opened.importPackage(zip);

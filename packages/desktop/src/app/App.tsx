@@ -64,6 +64,7 @@ export function App() {
     [setup, setSetup] = useState<string>(),
     [assemblySeed, setAssemblySeed] = useState<AssemblyDraft>();
   const [contentSource, setContentSource] = useState<ComponentSource>();
+  const [configField, setConfigField] = useState<string>();
   const [developer, setDeveloper] = useDeveloperMode();
   const [search, setSearch] = useState("");
   const [toast, setToast] = useState("");
@@ -249,8 +250,9 @@ export function App() {
     instanceId: selected,
     ...(packageId ? { packageId } : {}),
   });
-  function openConfig(resource: Resource) {
+  function openConfig(resource: Resource, field?: string) {
     configAction.clear();
+    setConfigField(field);
     setEditing(resource);
   }
   function requestRemoval(
@@ -413,7 +415,7 @@ export function App() {
           {tab === "settings" && (
             <FoundationManager onImport={() => void importFile()} />
           )}
-          {tab === "status" && selected && (
+          {tab === "status" && selected && !record && (
             <FoundationManager
               key={selected}
               instanceId={selected}
@@ -459,6 +461,8 @@ export function App() {
                 })
               }
               onConfig={openConfig}
+              onSetup={() => setSetup(selected)}
+              onImport={() => void importFile()}
               onAction={componentAction}
               onInvoke={invoke}
               onAudit={() => void readAudit()}
@@ -573,6 +577,7 @@ export function App() {
             resources={resources}
             busy={setupAction.pending}
             error={setupAction.error}
+            errorPath={setupAction.errorPath}
             onClose={() => {
               setSetup(undefined);
               setupAction.clear();
@@ -768,8 +773,11 @@ export function App() {
         )}
         {editing && (
           <ComponentConfigDialog
+            key={`${selected}:${editing.id}`}
             resource={editing}
             error={configAction.error}
+            errorPath={configAction.errorPath}
+            focusField={configField}
             busy={configAction.pending}
             onClose={() => setEditing(undefined)}
             onSave={(values, secrets) => {

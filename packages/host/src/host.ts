@@ -79,6 +79,7 @@ import {
 } from "./component-drafts.js";
 import { EngineCoordinator } from "./engine-coordinator.js";
 import { enablePlan, enablePrepared } from "./agent-launch.js";
+import { readinessReasons, type ReadinessReason } from "./agent-readiness.js";
 import {
   httpsService,
   connectionAccess,
@@ -1232,12 +1233,11 @@ export class DesktopHost {
       await scope.epoch.foundation.inflight(token, key, complete);
     }
   }
-  async foundationPlan(id: string, selection?: FoundationSelection) {
-    const fixed = selection ? parseFoundationSelection(selection) : undefined,
-      s = await this.session(id);
-    await this.assertCoherent(id);
-    const contents = await this.foundationContents(s),
-      candidate = fixed ?? s.record.foundation!.selection;
+  private async foundationCompatibility(
+    s: Session,
+    candidate: FoundationSelection,
+  ) {
+    const contents = await this.foundationContents(s);
     let reports: unknown[] = [],
       failure: unknown;
     try {
@@ -1247,13 +1247,19 @@ export class DesktopHost {
         throw foundationFailure("FOUNDATION_INVALID");
       failure = error.details;
     }
+    return { compatible: !failure, reports, failure };
+  }
+  async foundationPlan(id: string, selection?: FoundationSelection) {
+    const fixed = selection ? parseFoundationSelection(selection) : undefined,
+      s = await this.session(id);
+    await this.assertCoherent(id);
+    const candidate = fixed ?? s.record.foundation!.selection;
+    const compatibility = await this.foundationCompatibility(s, candidate);
     const installed = await s.core.listInstalled();
     const result = {
       current: structuredClone(s.record.foundation!),
       candidate: structuredClone(candidate),
-      compatible: !failure,
-      reports,
-      failure,
+      ...compatibility,
       fingerprint: digest(Buffer.from(JSON.stringify([s.record, installed]))),
       evidence: "declared" as const,
     };
@@ -2832,6 +2838,57 @@ export class DesktopHost {
       await enablePlan(s.core, s.record),
       await this.secretValues(s),
     );
+  }
+  async agentReadinessPlan(id: string) {
+    uuid(id);
+    return this.serial(id, async () => {
+      let reasons: ReadinessReason[];
+      if (this.recoveryErrors.has(id)) {
+        reasons = [
+          {
+            code: "FOUNDATION_UNAVAILABLE",
+            blocking: true,
+            action: "foundation",
+          },
+        ];
+      } else {
+        try {
+          const s = await this.session(id);
+          await this.assertCoherent(id);
+          const enable = await enablePlan(s.core, s.record);
+          const tier = await this.localAuthorizations.plan(s);
+          await this.assertCoherent(id);
+          const foundation = await this.foundationCompatibility(
+            s,
+            s.record.foundation!.selection,
+          );
+          const startup = s.record.agent.startup;
+          const frontend = startup
+            ? desktopContribution((await s.core.getPackage(startup)).manifest)
+                ?.frontend
+            : undefined;
+          reasons = readinessReasons(
+            enable,
+            tier,
+            foundation.compatible && s.record.foundation!.enabled,
+            !!frontend,
+          );
+          reasons = redact(
+            reasons,
+            await this.secretValues(s),
+          ) as ReadinessReason[];
+        } catch {
+          reasons = [
+            { code: "STATE_UNAVAILABLE", blocking: true, action: "refresh" },
+          ];
+        }
+      }
+      return {
+        evidence: "declared" as const,
+        prepared: !reasons.some((r) => r.blocking),
+        reasons,
+      };
+    });
   }
   async enableAgent(id: string, fingerprint: string) {
     return this.serial(id, async () => {

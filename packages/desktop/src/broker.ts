@@ -398,6 +398,9 @@ process.on("message", async (raw: unknown) => {
       case "agentEnablePlan":
         value = await host.agentEnablePlan(id);
         break;
+      case "agentReadinessPlan":
+        value = await host.agentReadinessPlan(id);
+        break;
       case "enableAgent":
         await host.enableAgent(id, a.fingerprint as string);
         break;

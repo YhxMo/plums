@@ -270,8 +270,20 @@ it.each(collisions)(
     ]);
     expect(await f.core.listInstalled()).toEqual(f.installed);
     const migrated = rows(f.dir);
-    for (const [name, data] of Object.entries(f.original))
-      expect(migrated[name], name).toEqual(data);
+    for (const [name, data] of Object.entries(f.original)) {
+      if (name === "packages") {
+        const packages = migrated[name] as Record<string, unknown>[];
+        for (const row of packages)
+          expect(row.installation_id).toMatch(/^[a-f0-9-]{36}$/);
+        expect(
+          packages.map(({ installation_id: _identity, ...legacy }) => legacy),
+          name,
+        ).toEqual(data);
+        expect(new Set(packages.map((row) => row.installation_id)).size).toBe(
+          packages.length,
+        );
+      } else expect(migrated[name], name).toEqual(data);
+    }
     expect(migrated.local_credential_reservations).toEqual([]);
     expect(await f.core.getSecretReferences("first")).toContain(
       "secret:first/token",
@@ -308,11 +320,11 @@ it.each(collisions)(
     legacy.close();
     const oldStore = new historical.store.InstallStore(f.dir);
     expect(() => oldStore.open()).toThrow(
-      /database version 8, this build reads 6/,
+      new RegExp(`database version ${SCHEMA_VERSION}, this build reads 6`),
     );
     oldStore.close();
     expect(await hashes(f.dir)).toEqual(before);
-    expect(SCHEMA_VERSION).toBe(8);
+    expect(SCHEMA_VERSION).toBe(9);
     expect(f.egress.records).toHaveLength(0);
   },
 );

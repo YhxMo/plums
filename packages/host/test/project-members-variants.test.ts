@@ -51,7 +51,12 @@ it.runIf(native)(
         path.basename(file),
         args[0] ?? "execute",
       );
-      const result = spawnSync(file, args, { encoding: "utf8", env: {} });
+      const result = spawnSync(file, args, {
+        encoding: "utf8",
+        env: {},
+        timeout: 8000,
+        maxBuffer: 65536,
+      });
       console.log("members probe end", sequence, result.status, result.signal);
       return {
         status: result.status,
@@ -91,32 +96,38 @@ it.runIf(native)(
         "no-network",
         "/usr/bin/true",
       ]),
+      noNetworkSelf: run("/usr/bin/sandbox-exec", [
+        "-n",
+        "no-network",
+        helper,
+        "self",
+      ]),
+      inlineNoNetwork: run("/usr/bin/sandbox-exec", [
+        "-p",
+        "(version 1)(allow default)(deny network*)",
+        "/usr/bin/true",
+      ]),
     };
     const save = async (report: unknown) => {
-      await mkdir(".build-cache/native-diagnostics", { recursive: true });
+      const output =
+        process.env.PLUMS_NATIVE_REPORT_DIR ??
+        ".build-cache/native-diagnostics";
+      await mkdir(output, { recursive: true });
       await writeFile(
-        ".build-cache/native-diagnostics/members-variants.json",
+        path.join(output, "members-variants.json"),
         JSON.stringify(report, null, 2) + "\n",
       );
     };
     // NULL/0 is calibrated with a known sandbox before interpreting the host result.
-    // A killed no-network probe also invalidates the environment, even if self reports 0.
-    const outer =
-      environment.self.answer?.sandboxed === true ||
-      environment.noNetwork.signal === "SIGKILL";
+    const outer = environment.self.answer?.sandboxed === true;
     const calibrated =
       environment.self.answer?.ret === 0 &&
       environment.self.answer?.errno === 0 &&
       environment.knownSandbox.answer?.ret === 1 &&
       environment.knownSandbox.answer?.errno === 0;
-    if (
-      outer ||
-      !calibrated ||
-      environment.allowDefault.status !== 0 ||
-      environment.noNetwork.status !== 0
-    ) {
+    if (outer || !calibrated || environment.allowDefault.status !== 0) {
       const reason = outer
-        ? "outer sandbox or killed no-network probe"
+        ? "host reports an outer sandbox"
         : "host sandbox state could not be calibrated";
       await save({
         environment,
@@ -132,6 +143,9 @@ it.runIf(native)(
       });
       return;
     }
+    // A killed named profile invalidates admission, but does not identify an outer
+    // sandbox. Gather only read-only per-PID queries; never scan or reap candidates.
+    const environmentValid = environment.noNetwork.status === 0;
     root = await realpath(
       await mkdtemp("/private/tmp/plums-members-variants-"),
     );
@@ -481,15 +495,16 @@ it.runIf(native)(
         ),
     );
     const verdict =
-      errors || supplementalErrors
+      !environmentValid || errors || supplementalErrors
         ? "INCONCLUSIVE"
         : variants.V3.go &&
             variants.V2.go &&
             Object.values(controls).every(Boolean)
           ? "GO"
           : "NO_GO";
-    const reason =
-      errors || supplementalErrors
+    const reason = !environmentValid
+      ? "no-network probe failed; read-only marker evidence is insufficient for admission"
+      : errors || supplementalErrors
         ? "entry or private API error"
         : `V1=${variants.V1.go}; V2=${variants.V2.go}; V3=${variants.V3.go}; ${JSON.stringify(controls)}`;
     await save({
@@ -499,6 +514,7 @@ it.runIf(native)(
       actual,
       actualResults,
       controls,
+      environmentValid,
       verdict,
       reason,
     });

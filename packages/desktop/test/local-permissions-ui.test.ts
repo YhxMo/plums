@@ -83,13 +83,14 @@ it.runIf(process.platform === "darwin" && process.arch === "arm64")(
       await panel
         .getByRole("button", { name: "查看汇总", exact: true })
         .click();
+      const review = panel.getByRole("region", { name: "待确认汇总" });
       await uiExpect(
-        panel.getByText("Plums 自身数据和其他 Agent 的密钥", { exact: false }),
+        review.getByText("Plums 自身数据和其他 Agent 的密钥", {
+          exact: false,
+        }),
       ).toBeVisible();
       await uiExpect(
-        panel
-          .getByRole("region", { name: "待确认汇总" })
-          .getByText(MACHINE_AUTHORIZATION_COPY, { exact: false }),
+        review.getByText(MACHINE_AUTHORIZATION_COPY, { exact: false }),
       ).toBeVisible();
       await panel
         .getByRole("button", { name: "在可信窗口确认", exact: true })

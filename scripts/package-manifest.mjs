@@ -16,6 +16,8 @@ export const EXPERIMENTAL_HELPERS = Object.freeze([
   "dyld-hook",
   "project-members",
   "project-members-probe",
+  "signal-path-probe",
+  "focus-probe",
 ]);
 export const ALLOWED_ZIPS = Object.freeze([
   "app/dist/foundation-resources/official.zip",
