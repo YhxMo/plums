@@ -213,7 +213,7 @@ schema 7 升级至当前数据库格式保留已有确认入口与档位上限�
 
 ## macOS 容器实验与可信凭据管理
 
-`sandbox_check` 对不存在路径的拒绝不能证明进程属于某个沙箱：成员、控制路径和未沙箱进程可能得到相同结果。成员判定必须通过真实配置与负控制校准，探针见 [project-members-variants.test.ts](../packages/host/test/project-members-variants.test.ts)。[project-members.experiments.test.ts](../packages/host/test/project-members.experiments.test.ts) 中的 11 个回收用例仅通过 `pnpm test:experiments` 显式运行，尚未完成回收验证。默认套件验证项目入口失败关闭，这不能替代成员校准及全部后代回收验证。生产运行时没有可靠的全后代容器，项目继续返回 `TIER_UNAVAILABLE`。
+`sandbox_check` 对不存在路径的拒绝不能证明进程属于某个沙箱：成员、控制路径和未沙箱进程可能得到相同结果。成员判定必须通过真实配置与负控制校准，探针见 [project-members-variants.test.ts](../packages/host/test/project-members-variants.test.ts)。[project-members.experiments.test.ts](../packages/host/test/project-members.experiments.test.ts) 中的 11 个回收用例仅通过 `pnpm test:experiments` 显式运行；2026-10-11 的独立原生运行全部在校准处失败，没有进入回收，详见[原生研究](native-research.md)。真实文件/Mach 标记有局部只读区分证据，但环境与真实配置的全部控制尚未通过。默认套件验证项目入口失败关闭，这不能替代成员校准及全部后代回收验证。生产运行时没有可靠的全后代容器，项目继续返回 `TIER_UNAVAILABLE`。
 
 同沙箱信号广播实验覆盖 setsid、setpgid、double-fork、POSIX_SPAWN_SETPGROUP 与普通 posix_spawn 后代，并检查另一独立沙箱及外部哨兵不受影响。回归用例先使用非破坏的 SIGCONT 确认信号范围，再测试终止，见 [project-container.test.ts](../packages/host/test/project-container.test.ts)。同沙箱后代仍可杀死单收割者并留下孤儿；本机 `kill(pid,0)` 与 `proc_pidinfo` 不能可靠判定沙箱成员。因此这些实验不构成可靠容器的验证，现有生产监管仍仅使用进程组，项目启动继续失败关闭。
 

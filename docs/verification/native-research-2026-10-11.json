@@ -1,0 +1,1343 @@
+{
+  "reportVersion": "1.0",
+  "date": "2026-10-11",
+  "timezone": "Asia/Shanghai",
+  "baselineCommit": "650ed818a5a3ceb3ce9426178beeff1f66fd02fc",
+  "branch": "codex/plums-phased-improvements",
+  "environment": {
+    "macOS": "27.0.1",
+    "architecture": "arm64",
+    "node": "26.5.1",
+    "electron": "44.5.1",
+    "electronNode": "24.21.0",
+    "pnpm": "10.33.3"
+  },
+  "decision": {
+    "projectRuntime": "TIER_UNAVAILABLE",
+    "containerReapValidated": false,
+    "nativeFullscreenValidated": false,
+    "fullPnpmTestValidated": false,
+    "externalDistributionValidated": false,
+    "realServiceValidated": false,
+    "independentAuthorValidated": false
+  },
+  "build": {
+    "sandboxAttempt": "hung without output; interrupted",
+    "initial": "passed",
+    "final": "passed",
+    "overlapWithTests": false
+  },
+  "membersExperiments": {
+    "initial": {
+      "files": 1,
+      "passed": 0,
+      "failed": 11,
+      "skipped": 0,
+      "cases": [
+        {
+          "file": "packages/host/test/project-members.experiments.test.ts",
+          "title": "calibration: member denied, control allowed, host allowed",
+          "status": "failed"
+        },
+        {
+          "file": "packages/host/test/project-members.experiments.test.ts",
+          "title": "reap leaves no descendant for setsid",
+          "status": "failed"
+        },
+        {
+          "file": "packages/host/test/project-members.experiments.test.ts",
+          "title": "reap leaves no descendant for setpgid",
+          "status": "failed"
+        },
+        {
+          "file": "packages/host/test/project-members.experiments.test.ts",
+          "title": "reap leaves no descendant for double-fork",
+          "status": "failed"
+        },
+        {
+          "file": "packages/host/test/project-members.experiments.test.ts",
+          "title": "reap leaves no descendant for spawn-setpgroup",
+          "status": "failed"
+        },
+        {
+          "file": "packages/host/test/project-members.experiments.test.ts",
+          "title": "reap leaves no descendant for posix-spawn",
+          "status": "failed"
+        },
+        {
+          "file": "packages/host/test/project-members.experiments.test.ts",
+          "title": "a descendant that SIGKILLs the supervisor cannot (signal scope) and is still reaped",
+          "status": "failed"
+        },
+        {
+          "file": "packages/host/test/project-members.experiments.test.ts",
+          "title": "a DYLD-injected re-exec of a member cannot signal outside the sandbox and is still reaped",
+          "status": "failed"
+        },
+        {
+          "file": "packages/host/test/project-members.experiments.test.ts",
+          "title": "reaping entry A leaves an identical-profile entry B and an unsandboxed sentry alive (different nonce)",
+          "status": "failed"
+        },
+        {
+          "file": "packages/host/test/project-members.experiments.test.ts",
+          "title": "a fork-bomb-ish descendant (N=64 forks within the grace window) is reaped to zero within budget",
+          "status": "failed"
+        },
+        {
+          "file": "packages/host/test/project-members.experiments.test.ts",
+          "title": "sandbox_check error is reported as unknown, never as zero residual",
+          "status": "failed"
+        }
+      ]
+    },
+    "independentRerun": {
+      "files": 1,
+      "passed": 0,
+      "failed": 11,
+      "skipped": 0,
+      "cases": [
+        {
+          "file": "packages/host/test/project-members.experiments.test.ts",
+          "title": "calibration: member denied, control allowed, host allowed",
+          "status": "failed"
+        },
+        {
+          "file": "packages/host/test/project-members.experiments.test.ts",
+          "title": "reap leaves no descendant for setsid",
+          "status": "failed"
+        },
+        {
+          "file": "packages/host/test/project-members.experiments.test.ts",
+          "title": "reap leaves no descendant for setpgid",
+          "status": "failed"
+        },
+        {
+          "file": "packages/host/test/project-members.experiments.test.ts",
+          "title": "reap leaves no descendant for double-fork",
+          "status": "failed"
+        },
+        {
+          "file": "packages/host/test/project-members.experiments.test.ts",
+          "title": "reap leaves no descendant for spawn-setpgroup",
+          "status": "failed"
+        },
+        {
+          "file": "packages/host/test/project-members.experiments.test.ts",
+          "title": "reap leaves no descendant for posix-spawn",
+          "status": "failed"
+        },
+        {
+          "file": "packages/host/test/project-members.experiments.test.ts",
+          "title": "a descendant that SIGKILLs the supervisor cannot (signal scope) and is still reaped",
+          "status": "failed"
+        },
+        {
+          "file": "packages/host/test/project-members.experiments.test.ts",
+          "title": "a DYLD-injected re-exec of a member cannot signal outside the sandbox and is still reaped",
+          "status": "failed"
+        },
+        {
+          "file": "packages/host/test/project-members.experiments.test.ts",
+          "title": "reaping entry A leaves an identical-profile entry B and an unsandboxed sentry alive (different nonce)",
+          "status": "failed"
+        },
+        {
+          "file": "packages/host/test/project-members.experiments.test.ts",
+          "title": "a fork-bomb-ish descendant (N=64 forks within the grace window) is reaped to zero within budget",
+          "status": "failed"
+        },
+        {
+          "file": "packages/host/test/project-members.experiments.test.ts",
+          "title": "sandbox_check error is reported as unknown, never as zero residual",
+          "status": "failed"
+        }
+      ]
+    },
+    "calibration": {
+      "member": 1,
+      "control": 1,
+      "host": 1,
+      "errno": [0, 0, 0],
+      "hostKnown": 0,
+      "memberKnown": 0,
+      "ok": false
+    },
+    "blockedBefore": [
+      "global member scan",
+      "reap",
+      "DYLD reexec inside existing suite",
+      "zero residual assertion",
+      "API error assertion"
+    ],
+    "cleanup": "owned fixture PIDs killed by harness; not container zero-residual evidence"
+  },
+  "markers": {
+    "verdict": "INCONCLUSIVE",
+    "reason": "no-network probe failed; read-only marker evidence is insufficient for admission",
+    "environmentValid": false,
+    "environment": {
+      "self": {
+        "status": 0,
+        "signal": null,
+        "stdout": "{\"sandboxed\":false,\"ret\":0,\"errno\":0}\n",
+        "stderr": "",
+        "answer": {
+          "sandboxed": false,
+          "ret": 0,
+          "errno": 0
+        }
+      },
+      "knownSandbox": {
+        "status": 0,
+        "signal": null,
+        "stdout": "{\"sandboxed\":true,\"ret\":1,\"errno\":0}\n",
+        "stderr": "",
+        "answer": {
+          "sandboxed": true,
+          "ret": 1,
+          "errno": 0
+        }
+      },
+      "allowDefault": {
+        "status": 0,
+        "signal": null,
+        "stdout": "",
+        "stderr": ""
+      },
+      "noNetwork": {
+        "status": null,
+        "signal": "SIGKILL",
+        "stdout": "",
+        "stderr": ""
+      },
+      "noNetworkSelf": {
+        "status": null,
+        "signal": "SIGKILL",
+        "stdout": "",
+        "stderr": ""
+      },
+      "inlineNoNetwork": {
+        "status": 0,
+        "signal": null,
+        "stdout": "",
+        "stderr": ""
+      }
+    },
+    "variants": {
+      "V0": {
+        "go": false,
+        "ready": [true, true],
+        "results": {
+          "A/entry": [1, 0, 1, 0],
+          "A/fork": [1, 0, 1, 0],
+          "A/setsid": [1, 0, 1, 0],
+          "A/double-fork": [1, 0, 1, 0],
+          "A/true-exec": [1, 0, 1, 0],
+          "A/exec": [1, 0, 1, 0],
+          "A/spawn-setpgroup": [1, 0, 1, 0],
+          "B/entry": [1, 0, 1, 0],
+          "host": [1, 0, 1, 0],
+          "outside": [1, 0, 1, 0]
+        }
+      },
+      "V1": {
+        "go": true,
+        "ready": [true, true],
+        "results": {
+          "A/entry": [1, 0, 0, 0],
+          "A/fork": [1, 0, 0, 0],
+          "A/setsid": [1, 0, 0, 0],
+          "A/true-exec": [1, 0, 0, 0],
+          "A/double-fork": [1, 0, 0, 0],
+          "A/exec": [1, 0, 0, 0],
+          "A/spawn-setpgroup": [1, 0, 0, 0],
+          "B/entry": [0, 0, 0, 0],
+          "host": [0, 0, 0, 0],
+          "outside": [0, 0, 0, 0]
+        }
+      },
+      "V2": {
+        "go": true,
+        "ready": [true, true],
+        "results": {
+          "A/entry": [1, 0, 0, 0],
+          "A/fork": [1, 0, 0, 0],
+          "A/setsid": [1, 0, 0, 0],
+          "A/true-exec": [1, 0, 0, 0],
+          "A/double-fork": [1, 0, 0, 0],
+          "A/exec": [1, 0, 0, 0],
+          "A/spawn-setpgroup": [1, 0, 0, 0],
+          "B/entry": [0, 0, 0, 0],
+          "host": [0, 0, 0, 0],
+          "outside": [0, 0, 0, 0]
+        }
+      },
+      "V3": {
+        "go": true,
+        "ready": [true, true],
+        "results": {
+          "A/entry": [1, 0, 0, 0],
+          "A/fork": [1, 0, 0, 0],
+          "A/setsid": [1, 0, 0, 0],
+          "A/true-exec": [1, 0, 0, 0],
+          "A/double-fork": [1, 0, 0, 0],
+          "A/exec": [1, 0, 0, 0],
+          "A/spawn-setpgroup": [1, 0, 0, 0],
+          "B/entry": [0, 0, 0, 0],
+          "host": [0, 0, 0, 0],
+          "outside": [0, 0, 0, 0]
+        }
+      }
+    },
+    "controls": {
+      "negativeA": true,
+      "negativeB": true,
+      "actualProfile": false,
+      "constantAgreement": true,
+      "positiveAndOutside": true
+    },
+    "paired": {
+      "A/entry": {
+        "V1": [1, 0, 0, 0],
+        "V2": [1, 0, 0, 0]
+      },
+      "A/fork": {
+        "V1": [1, 0, 0, 0],
+        "V2": [1, 0, 0, 0]
+      },
+      "A/setsid": {
+        "V1": [1, 0, 0, 0],
+        "V2": [1, 0, 0, 0]
+      },
+      "A/true-exec": {
+        "V1": [1, 0, 0, 0],
+        "V2": [1, 0, 0, 0]
+      },
+      "A/double-fork": {
+        "V1": [1, 0, 0, 0],
+        "V2": [1, 0, 0, 0]
+      },
+      "A/exec": {
+        "V1": [1, 0, 0, 0],
+        "V2": [1, 0, 0, 0]
+      },
+      "A/spawn-setpgroup": {
+        "V1": [1, 0, 0, 0],
+        "V2": [1, 0, 0, 0]
+      },
+      "B/entry": {
+        "V1": [0, 0, 0, 0],
+        "V2": [0, 0, 0, 0]
+      },
+      "B/fork": {
+        "V1": [0, 0, 0, 0],
+        "V2": [0, 0, 0, 0]
+      },
+      "B/setsid": {
+        "V1": [0, 0, 0, 0],
+        "V2": [0, 0, 0, 0]
+      },
+      "B/true-exec": {
+        "V1": [0, 0, 0, 0],
+        "V2": [0, 0, 0, 0]
+      },
+      "B/double-fork": {
+        "V1": [0, 0, 0, 0],
+        "V2": [0, 0, 0, 0]
+      },
+      "B/exec": {
+        "V1": [0, 0, 0, 0],
+        "V2": [0, 0, 0, 0]
+      },
+      "B/spawn-setpgroup": {
+        "V1": [0, 0, 0, 0],
+        "V2": [0, 0, 0, 0]
+      },
+      "thirdParty/entry": {
+        "V1": [1, 0, 1, 0],
+        "V2": [1, 0, 1, 0]
+      },
+      "thirdParty/fork": {
+        "V1": [1, 0, 1, 0],
+        "V2": [1, 0, 1, 0]
+      },
+      "thirdParty/setsid": {
+        "V1": [1, 0, 1, 0],
+        "V2": [1, 0, 1, 0]
+      },
+      "thirdParty/true-exec": {
+        "V1": [1, 0, 1, 0],
+        "V2": [1, 0, 1, 0]
+      },
+      "thirdParty/double-fork": {
+        "V1": [1, 0, 1, 0],
+        "V2": [1, 0, 1, 0]
+      },
+      "thirdParty/exec": {
+        "V1": [1, 0, 1, 0],
+        "V2": [1, 0, 1, 0]
+      },
+      "thirdParty/spawn-setpgroup": {
+        "V1": [1, 0, 1, 0],
+        "V2": [1, 0, 1, 0]
+      },
+      "outside/entry": {
+        "V1": [0, 0, 0, 0],
+        "V2": [0, 0, 0, 0]
+      },
+      "outside/fork": {
+        "V1": [0, 0, 0, 0],
+        "V2": [0, 0, 0, 0]
+      },
+      "outside/setsid": {
+        "V1": [0, 0, 0, 0],
+        "V2": [0, 0, 0, 0]
+      },
+      "outside/double-fork": {
+        "V1": [0, 0, 0, 0],
+        "V2": [0, 0, 0, 0]
+      },
+      "outside/true-exec": {
+        "V1": [0, 0, 0, 0],
+        "V2": [0, 0, 0, 0]
+      },
+      "outside/exec": {
+        "V1": [0, 0, 0, 0],
+        "V2": [0, 0, 0, 0]
+      },
+      "outside/spawn-setpgroup": {
+        "V1": [0, 0, 0, 0],
+        "V2": [0, 0, 0, 0]
+      },
+      "outside/nested": {
+        "V1": [0, 0, 0, 0],
+        "V2": [0, 0, 0, 0]
+      },
+      "host": {
+        "V1": [0, 0, 0, 0],
+        "V2": [0, 0, 0, 0]
+      }
+    },
+    "actualProjectResults": {
+      "entry": [1, 0, 0, 0],
+      "fork": [1, 0, 0, 0],
+      "true-exec": [1, 0, 0, 0],
+      "exec": [1, 0, 0, 0],
+      "spawn-setpgroup": [1, 0, 0, 0]
+    },
+    "missingProjectDescendants": ["setsid", "double-fork"],
+    "mode": "read-only per owned PID; no global scan or reap",
+    "queryVectorFields": [
+      "nonce.ret",
+      "nonce.errno",
+      "control.ret",
+      "control.errno"
+    ],
+    "filterConstants": {
+      "path": 1,
+      "globalName": 2,
+      "globalNameOrigin": "guessed",
+      "noReport": 1073741824
+    }
+  },
+  "trustedPathProbe": {
+    "ready": false,
+    "signal": "SIGCONT",
+    "cases": [
+      {
+        "mode": "request",
+        "output": "direct -1 errno 1",
+        "permitted": false,
+        "sentryContinued": false
+      },
+      {
+        "mode": "reexec",
+        "output": "injected 0 errno 0",
+        "permitted": true,
+        "sentryContinued": true
+      }
+    ],
+    "cleanupCompleted": true,
+    "verdict": "PATH_IDENTITY_INSUFFICIENT"
+  },
+  "focus": {
+    "initial": {
+      "files": 1,
+      "passed": 0,
+      "failed": 1,
+      "skipped": 3,
+      "cases": [
+        {
+          "file": "packages/desktop/test/onboarding-ui.test.ts",
+          "title": "guides a ready Agent through configuration, keeps failed saves reviewable and opens configured Agents directly",
+          "status": "skipped"
+        },
+        {
+          "file": "packages/desktop/test/onboarding-ui.test.ts",
+          "title": "keeps initial loading and failure distinct and rejects outdated Agent and library responses",
+          "status": "skipped"
+        },
+        {
+          "file": "packages/desktop/test/onboarding-ui.test.ts",
+          "title": "renders the shell and dialogs in both themes at desktop and narrow widths with visible focus and readable colors",
+          "status": "skipped"
+        },
+        {
+          "file": "packages/desktop/test/onboarding-ui.test.ts",
+          "title": "integrates native window chrome, fullscreen events and theme updates",
+          "status": "failed"
+        }
+      ]
+    },
+    "independentRerun": {
+      "files": 1,
+      "passed": 0,
+      "failed": 1,
+      "skipped": 3,
+      "cases": [
+        {
+          "file": "packages/desktop/test/onboarding-ui.test.ts",
+          "title": "guides a ready Agent through configuration, keeps failed saves reviewable and opens configured Agents directly",
+          "status": "skipped"
+        },
+        {
+          "file": "packages/desktop/test/onboarding-ui.test.ts",
+          "title": "keeps initial loading and failure distinct and rejects outdated Agent and library responses",
+          "status": "skipped"
+        },
+        {
+          "file": "packages/desktop/test/onboarding-ui.test.ts",
+          "title": "renders the shell and dialogs in both themes at desktop and narrow widths with visible focus and readable colors",
+          "status": "skipped"
+        },
+        {
+          "file": "packages/desktop/test/onboarding-ui.test.ts",
+          "title": "integrates native window chrome, fullscreen events and theme updates",
+          "status": "failed"
+        }
+      ]
+    },
+    "budgetMs": 5000,
+    "matrix": {
+      "ready": false,
+      "focusBudgetMs": 5000,
+      "reports": [
+        {
+          "mode": "file",
+          "before": {
+            "window": {
+              "visible": true,
+              "focused": false,
+              "focusable": true,
+              "fullscreen": false,
+              "packaged": false
+            },
+            "native": {
+              "active": false,
+              "hidden": false,
+              "policy": 0,
+              "requested": false,
+              "result": false
+            }
+          },
+          "after": {
+            "window": {
+              "visible": true,
+              "focused": false,
+              "focusable": true,
+              "fullscreen": false,
+              "packaged": false
+            },
+            "native": {
+              "active": false,
+              "hidden": false,
+              "policy": 0,
+              "requested": false,
+              "result": false
+            },
+            "ms": 5061
+          },
+          "status": "FOCUS_NOT_GRANTED"
+        },
+        {
+          "mode": "directory",
+          "before": {
+            "window": {
+              "visible": true,
+              "focused": false,
+              "focusable": true,
+              "fullscreen": false,
+              "packaged": false
+            },
+            "native": {
+              "active": false,
+              "hidden": false,
+              "policy": 0,
+              "requested": false,
+              "result": false
+            }
+          },
+          "after": {
+            "window": {
+              "visible": true,
+              "focused": false,
+              "focusable": true,
+              "fullscreen": false,
+              "packaged": false
+            },
+            "native": {
+              "active": false,
+              "hidden": false,
+              "policy": 0,
+              "requested": false,
+              "result": false
+            },
+            "ms": 5047
+          },
+          "status": "FOCUS_NOT_GRANTED"
+        },
+        {
+          "mode": "regular",
+          "before": {
+            "window": {
+              "visible": true,
+              "focused": false,
+              "focusable": true,
+              "fullscreen": false,
+              "packaged": false
+            },
+            "native": {
+              "active": false,
+              "hidden": false,
+              "policy": 0,
+              "requested": false,
+              "result": false
+            }
+          },
+          "after": {
+            "window": {
+              "visible": true,
+              "focused": false,
+              "focusable": true,
+              "fullscreen": false,
+              "packaged": false
+            },
+            "native": {
+              "active": false,
+              "hidden": false,
+              "policy": 0,
+              "requested": false,
+              "result": false
+            },
+            "ms": 5023
+          },
+          "status": "FOCUS_NOT_GRANTED"
+        },
+        {
+          "mode": "native",
+          "before": {
+            "window": {
+              "visible": true,
+              "focused": false,
+              "focusable": true,
+              "fullscreen": false,
+              "packaged": false
+            },
+            "native": {
+              "active": false,
+              "hidden": false,
+              "policy": 0,
+              "requested": false,
+              "result": false
+            }
+          },
+          "activation": {
+            "active": false,
+            "hidden": false,
+            "policy": 0,
+            "requested": true,
+            "result": true
+          },
+          "after": {
+            "window": {
+              "visible": true,
+              "focused": false,
+              "focusable": true,
+              "fullscreen": false,
+              "packaged": false
+            },
+            "native": {
+              "active": false,
+              "hidden": false,
+              "policy": 0,
+              "requested": false,
+              "result": false
+            },
+            "ms": 5045
+          },
+          "status": "FOCUS_NOT_GRANTED"
+        },
+        {
+          "mode": "packaged",
+          "before": {
+            "window": {
+              "visible": true,
+              "focused": false,
+              "focusable": true,
+              "fullscreen": false,
+              "packaged": true
+            },
+            "native": {
+              "active": false,
+              "hidden": false,
+              "policy": 0,
+              "requested": false,
+              "result": false
+            }
+          },
+          "after": {
+            "window": {
+              "visible": true,
+              "focused": false,
+              "focusable": true,
+              "fullscreen": false,
+              "packaged": true
+            },
+            "native": {
+              "active": false,
+              "hidden": false,
+              "policy": 0,
+              "requested": false,
+              "result": false
+            },
+            "ms": 5036
+          },
+          "status": "FOCUS_NOT_GRANTED"
+        }
+      ]
+    },
+    "launchServices": {
+      "status": "LAUNCH_FAILED",
+      "osError": -10810,
+      "actualFocusComparisonAvailable": false
+    },
+    "attribution": "Application activation was not granted. Exact cause remains unproven; fullscreen phase not reached.",
+    "initialWindows": [
+      {
+        "visible": true,
+        "focused": false,
+        "fullscreen": false,
+        "destroyed": false
+      }
+    ],
+    "rerunWindows": [
+      {
+        "visible": true,
+        "focused": false,
+        "fullscreen": false,
+        "destroyed": false
+      }
+    ],
+    "diagnosticRunHistory": {
+      "firstSixModeAttempt": {
+        "exitCode": 1,
+        "completedModes": 5,
+        "failedMode": "launch-services",
+        "reason": "LaunchServices -10810; debugger transport failed before focus comparison"
+      },
+      "finalFiveModeRun": {
+        "exitCode": 0,
+        "completedModes": 5,
+        "focusGranted": 0
+      }
+    }
+  },
+  "externalPrerequisites": {
+    "ready": false,
+    "developerIdApplicationIdentities": 0,
+    "signature": {
+      "inspected": true,
+      "adHoc": true,
+      "hardenedRuntime": false
+    },
+    "gatekeeperAccepted": false,
+    "notarytoolAvailable": true,
+    "activeDeveloperTools": "command-line-tools",
+    "notarizationAuthentication": "not inspected; no scoped submission identity provided",
+    "realService": "no service or test account provided",
+    "independentComponent": "no independent author artifact provided"
+  },
+  "regressions": {
+    "files": 9,
+    "passed": 72,
+    "failed": 0,
+    "skipped": 1,
+    "cases": [
+      {
+        "file": "packages/host/test/project-container.test.ts",
+        "title": "group-only baseline leaves a spawn-setpgroup descendant",
+        "status": "passed"
+      },
+      {
+        "file": "packages/host/test/project-container.test.ts",
+        "title": "group-only baseline leaves a double-fork descendant",
+        "status": "passed"
+      },
+      {
+        "file": "packages/host/test/project-container.test.ts",
+        "title": "same-sandbox broadcast actually cleans setsid and leaves a separate identical-profile entry alive",
+        "status": "passed"
+      },
+      {
+        "file": "packages/host/test/project-container.test.ts",
+        "title": "same-sandbox broadcast actually cleans setpgid and leaves a separate identical-profile entry alive",
+        "status": "passed"
+      },
+      {
+        "file": "packages/host/test/project-container.test.ts",
+        "title": "same-sandbox broadcast actually cleans double-fork and leaves a separate identical-profile entry alive",
+        "status": "passed"
+      },
+      {
+        "file": "packages/host/test/project-container.test.ts",
+        "title": "same-sandbox broadcast actually cleans spawn-setpgroup and leaves a separate identical-profile entry alive",
+        "status": "passed"
+      },
+      {
+        "file": "packages/host/test/project-container.test.ts",
+        "title": "same-sandbox broadcast actually cleans posix-spawn and leaves a separate identical-profile entry alive",
+        "status": "passed"
+      },
+      {
+        "file": "packages/host/test/project-container.test.ts",
+        "title": "a same-sandbox descendant can kill the proposed reaper and leave an orphan; the candidate is insufficient",
+        "status": "passed"
+      },
+      {
+        "file": "packages/host/test/project-creation.test.ts",
+        "title": "allows project hardlinks but rejects external link sources and project ancestor rename",
+        "status": "passed"
+      },
+      {
+        "file": "packages/host/test/project-members-variants.test.ts",
+        "title": "records raw sandbox_check variants and their calibration verdict",
+        "status": "passed"
+      },
+      {
+        "file": "packages/host/test/project-members.test.ts",
+        "title": "project container reap scenarios remain blocked and admission fails closed",
+        "status": "passed"
+      },
+      {
+        "file": "packages/host/test/project-sandbox.test.ts",
+        "title": "keeps every always-excluded path denied after the read allow rules",
+        "status": "passed"
+      },
+      {
+        "file": "packages/host/test/project-sandbox.test.ts",
+        "title": "rejects invalid project roots without compiling a policy: /",
+        "status": "passed"
+      },
+      {
+        "file": "packages/host/test/project-sandbox.test.ts",
+        "title": "rejects invalid project roots without compiling a policy: relative",
+        "status": "passed"
+      },
+      {
+        "file": "packages/host/test/project-sandbox.test.ts",
+        "title": "rejects invalid project roots without compiling a policy: /fixture/../other",
+        "status": "passed"
+      },
+      {
+        "file": "packages/host/test/project-sandbox.test.ts",
+        "title": "rejects invalid project roots without compiling a policy: /fixture/line\nbreak",
+        "status": "passed"
+      },
+      {
+        "file": "packages/host/test/project-sandbox.test.ts",
+        "title": "rejects invalid project roots without compiling a policy: /fixture/null\u0000byte",
+        "status": "passed"
+      },
+      {
+        "file": "packages/host/test/project-sandbox.test.ts",
+        "title": "rejects a non-port proxy value 0",
+        "status": "passed"
+      },
+      {
+        "file": "packages/host/test/project-sandbox.test.ts",
+        "title": "rejects a non-port proxy value -1",
+        "status": "passed"
+      },
+      {
+        "file": "packages/host/test/project-sandbox.test.ts",
+        "title": "rejects a non-port proxy value 65536",
+        "status": "passed"
+      },
+      {
+        "file": "packages/host/test/project-sandbox.test.ts",
+        "title": "rejects a non-port proxy value 1.1",
+        "status": "passed"
+      },
+      {
+        "file": "packages/host/test/project-sandbox.test.ts",
+        "title": "rejects a non-port proxy value NaN",
+        "status": "passed"
+      },
+      {
+        "file": "packages/host/test/project-sandbox.test.ts",
+        "title": "does not widen a private writable root, snapshot or whole data directory",
+        "status": "passed"
+      },
+      {
+        "file": "packages/host/test/project-sandbox.test.ts",
+        "title": "actual Seatbelt diagnostics identify inode and process-group escapes while project admission remains closed",
+        "status": "passed"
+      },
+      {
+        "file": "packages/host/test/project-sandbox.test.ts",
+        "title": "missing fixed runtime returns a sanitized failed report and never starts an author program",
+        "status": "passed"
+      },
+      {
+        "file": "packages/host/test/project-sandbox.test.ts",
+        "title": "a diagnostic pass cannot enable a missing project launcher",
+        "status": "passed"
+      },
+      {
+        "file": "packages/host/test/project-sandbox.test.ts",
+        "title": "closing admission is final and cannot start another diagnostic",
+        "status": "passed"
+      },
+      {
+        "file": "packages/host/test/project-sandbox.test.ts",
+        "title": "project CLI reports actual failed boundaries with a nonzero status",
+        "status": "passed"
+      },
+      {
+        "file": "packages/host/test/project-sandbox.test.ts",
+        "title": "project conformance records a skip on other platforms",
+        "status": "skipped"
+      },
+      {
+        "file": "scripts/test/check-versions.test.ts",
+        "title": "all repository manifests and the core/CLI public version match the selected preview",
+        "status": "passed"
+      },
+      {
+        "file": "scripts/test/check-versions.test.ts",
+        "title": "rejects an inconsistent version in package.json",
+        "status": "passed"
+      },
+      {
+        "file": "scripts/test/check-versions.test.ts",
+        "title": "rejects an inconsistent version in packages/core/package.json",
+        "status": "passed"
+      },
+      {
+        "file": "scripts/test/check-versions.test.ts",
+        "title": "rejects an inconsistent version in packages/cli/package.json",
+        "status": "passed"
+      },
+      {
+        "file": "scripts/test/check-versions.test.ts",
+        "title": "rejects an inconsistent version in packages/sdk/package.json",
+        "status": "passed"
+      },
+      {
+        "file": "scripts/test/check-versions.test.ts",
+        "title": "rejects an inconsistent version in packages/host/package.json",
+        "status": "passed"
+      },
+      {
+        "file": "scripts/test/check-versions.test.ts",
+        "title": "rejects an inconsistent version in packages/desktop/package.json",
+        "status": "passed"
+      },
+      {
+        "file": "scripts/test/check-versions.test.ts",
+        "title": "rejects an old package identity, CLI executable change and drifting public API version",
+        "status": "passed"
+      },
+      {
+        "file": "scripts/test/doc-links.test.ts",
+        "title": "accepts tracked relative links, Chinese/duplicate/explicit anchors and collects external URLs",
+        "status": "passed"
+      },
+      {
+        "file": "scripts/test/doc-links.test.ts",
+        "title": "rejects broken link docs/missing.md",
+        "status": "passed"
+      },
+      {
+        "file": "scripts/test/doc-links.test.ts",
+        "title": "rejects broken link docs/guide.md#missing",
+        "status": "passed"
+      },
+      {
+        "file": "scripts/test/doc-links.test.ts",
+        "title": "rejects broken link ../outside.md",
+        "status": "passed"
+      },
+      {
+        "file": "scripts/test/doc-links.test.ts",
+        "title": "rejects an ignored target even when its contents exist on disk",
+        "status": "passed"
+      },
+      {
+        "file": "scripts/test/doc-links.test.ts",
+        "title": "reads reference links and HTML links while ignoring fenced/inline code",
+        "status": "passed"
+      },
+      {
+        "file": "scripts/test/doc-links.test.ts",
+        "title": "extracts headings in source order and ignores code headings",
+        "status": "passed"
+      },
+      {
+        "file": "scripts/test/test-coverage.test.ts",
+        "title": "requires every default project in exactly one CI group and excludes experiments",
+        "status": "passed"
+      },
+      {
+        "file": "scripts/test/test-coverage.test.ts",
+        "title": "every repository test belongs to exactly its intended project and CI uses the fixed runtime",
+        "status": "passed"
+      },
+      {
+        "file": "scripts/test/test-coverage.test.ts",
+        "title": "rejects an omitted test and a duplicate project assignment",
+        "status": "passed"
+      },
+      {
+        "file": "scripts/test/test-coverage.test.ts",
+        "title": "requires separate ordered serial projects and an explicit experiments assignment",
+        "status": "passed"
+      },
+      {
+        "file": "packages/host/test/package-manifest.test.ts",
+        "title": "omits build setup paths while preserving native runtime and license bytes",
+        "status": "passed"
+      },
+      {
+        "file": "packages/host/test/package-manifest.test.ts",
+        "title": "rejects an unpacked fixture while accepting production files",
+        "status": "passed"
+      },
+      {
+        "file": "packages/host/test/package-manifest.test.ts",
+        "title": "every native helper built into packages/host/dist is either shipped by build-host-adapter or listed as experimental",
+        "status": "passed"
+      },
+      {
+        "file": "packages/host/test/package-manifest.test.ts",
+        "title": "rejects each experimental helper and its extension: escape-probe",
+        "status": "passed"
+      },
+      {
+        "file": "packages/host/test/package-manifest.test.ts",
+        "title": "rejects each experimental helper and its extension: dyld-hook",
+        "status": "passed"
+      },
+      {
+        "file": "packages/host/test/package-manifest.test.ts",
+        "title": "rejects each experimental helper and its extension: project-members",
+        "status": "passed"
+      },
+      {
+        "file": "packages/host/test/package-manifest.test.ts",
+        "title": "rejects each experimental helper and its extension: project-members-probe",
+        "status": "passed"
+      },
+      {
+        "file": "packages/host/test/package-manifest.test.ts",
+        "title": "rejects each experimental helper and its extension: signal-path-probe",
+        "status": "passed"
+      },
+      {
+        "file": "packages/host/test/package-manifest.test.ts",
+        "title": "rejects each experimental helper and its extension: focus-probe",
+        "status": "passed"
+      },
+      {
+        "file": "packages/host/test/package-manifest.test.ts",
+        "title": "allows only the declared ZIP inventory paths",
+        "status": "passed"
+      },
+      {
+        "file": "packages/host/test/package-manifest.test.ts",
+        "title": "rejects a fixture in the package inventory: app/packages/host/test/fixtures/extensions/coding-tools/engine.mjs",
+        "status": "passed"
+      },
+      {
+        "file": "packages/host/test/package-manifest.test.ts",
+        "title": "rejects a fixture in the package inventory: extraResources/test/fixtures/custom.zip",
+        "status": "passed"
+      },
+      {
+        "file": "packages/host/test/package-manifest.test.ts",
+        "title": "rejects a fixture in the package inventory: app/dist/escape-probe",
+        "status": "passed"
+      },
+      {
+        "file": "packages/host/test/package-manifest.test.ts",
+        "title": "rejects a fixture in the package inventory: app/dist/dyld-hook.dylib",
+        "status": "passed"
+      },
+      {
+        "file": "packages/host/test/package-manifest.test.ts",
+        "title": "rejects a fixture in the package inventory: app/dist/project-members",
+        "status": "passed"
+      },
+      {
+        "file": "packages/host/test/package-manifest.test.ts",
+        "title": "rejects a fixture in the package inventory: extraResources/fixture.zip",
+        "status": "passed"
+      },
+      {
+        "file": "packages/host/test/package-manifest.test.ts",
+        "title": "checks an unpacked app, official ZIP contents and ASAR inventories",
+        "status": "passed"
+      },
+      {
+        "file": "packages/host/test/package-manifest.test.ts",
+        "title": "the callable manifest gate accepts clean Resources and rejects a fixture",
+        "status": "passed"
+      },
+      {
+        "file": "packages/host/test/package-manifest.test.ts",
+        "title": "the exported main entry always gates Resources before creating an image",
+        "status": "passed"
+      },
+      {
+        "file": "packages/host/test/package-manifest.test.ts",
+        "title": "rejects an app missing required license LICENSE",
+        "status": "passed"
+      },
+      {
+        "file": "packages/host/test/package-manifest.test.ts",
+        "title": "rejects an app missing required license NOTICE",
+        "status": "passed"
+      },
+      {
+        "file": "packages/host/test/package-manifest.test.ts",
+        "title": "rejects an app missing required license THIRD_PARTY_NOTICES.txt",
+        "status": "passed"
+      },
+      {
+        "file": "packages/host/test/package-manifest.test.ts",
+        "title": "rejects an app missing required license LICENSE.electron",
+        "status": "passed"
+      },
+      {
+        "file": "packages/host/test/package-manifest.test.ts",
+        "title": "rejects an app missing required license LICENSES.chromium.html",
+        "status": "passed"
+      },
+      {
+        "file": "packages/host/test/package-manifest.test.ts",
+        "title": "rejects an app missing required license node/LICENSE",
+        "status": "passed"
+      }
+    ]
+  },
+  "staticGaps": [
+    {
+      "source": "packages/host/native/project-members.c",
+      "finding": "Initial scan errors are not accumulated; loop overwrites previous errors with current scan errors. No fault-injection validation performed."
+    },
+    {
+      "source": "packages/host/test/project-members.experiments.test.ts",
+      "finding": "Last named error case does not inject a sandbox_check error and is blocked by calibration."
+    }
+  ],
+  "sources": [
+    {
+      "url": "https://developer.apple.com/documentation/appkit/passing-control-from-one-app-to-another-with-cooperative-activation",
+      "usedFor": "Activation is a context-dependent request, not a guarantee."
+    },
+    {
+      "url": "https://github.com/electron/electron/blob/main/docs/api/app.md",
+      "usedFor": "app.focus and regular activation policy API semantics."
+    },
+    {
+      "url": "https://developer.apple.com/documentation/security/notarizing-macos-software-before-distribution",
+      "usedFor": "Developer ID and Hardened Runtime notarization requirements."
+    },
+    {
+      "url": "https://developer.apple.com/developer-id/",
+      "usedFor": "Developer ID distribution, notarization ticket and Gatekeeper."
+    },
+    {
+      "url": "https://developer.apple.com/documentation/virtualization/vzvirtualmachine/stop(completionhandler:)",
+      "usedFor": "VM stop is a destructive lifecycle alternative; no repository implementation claimed."
+    }
+  ],
+  "reproduction": "docs/native-research.md#本地复现",
+  "sourceDigests": {
+    "packages/host/test/project-members.experiments.test.ts": "b4bb993e5c483c83666fa78ac11e008de69610f5b97a3695078d92245bd69dac",
+    "packages/host/test/project-members-variants.test.ts": "ecdfbfa381c28373e5c0677fdd94607eaf39a535ccd67cbde8125ea10a98d1be",
+    "packages/host/native/project-members.c": "6d21a7518e962c031d2950d2656eec0c110ef332fb0ea56eb664c588a7b3a6cf",
+    "packages/host/native/project-members-probe.c": "63cdb1012d4d61e32d73b4511829e3b2b6880c34ba7625777311fc8eaa2ec425",
+    "packages/desktop/test/onboarding-ui.test.ts": "908f5b1c59b75a325394f3172d75c19d9d1f2fba4ba8c15e29ed2ccb311ee299",
+    "scripts/probe-desktop-focus.mjs": "0d976527fbf6456b6094589ced0202d02b8855457de70c05172f7c086537255b",
+    "packages/desktop/test/fixtures/focus-probe.m": "63c3192d05e2ce9ad71a601b2d094867388ebf672071eaa36c9162be5aa69ed3",
+    "scripts/probe-project-trust.mjs": "5dbf2da97ab03ce765c069c696d706d8dbf66c85ffe9c27ea7635ba09426963e",
+    "packages/host/test/fixtures/signal-path-probe.c": "1910087477e976362f00105a99394ed8d3a934547767f9ad5b5544e85eeabb13",
+    "scripts/probe-desktop-prerequisites.mjs": "605d9a97d882f3cfd3b83900104fb08ee01df0422be53a29adf28c329e4d5ecf",
+    "scripts/package-manifest.mjs": "eda6902728fdeb885ae207c41edfd0fa92a15ac11bb7a0cadbf91f86c451311e"
+  },
+  "installedManifest": {
+    "passed": true,
+    "entryCount": 561,
+    "newPackageGenerated": false
+  },
+  "staticVerification": {
+    "testCoverage": {
+      "ok": true,
+      "totalFiles": 192,
+      "defaultFiles": 191,
+      "projects": [
+        {
+          "name": "unit",
+          "groupOrder": 0,
+          "maxWorkers": 4
+        },
+        {
+          "name": "platform",
+          "groupOrder": 0,
+          "maxWorkers": 1
+        },
+        {
+          "name": "local-callbacks-serial",
+          "groupOrder": 200,
+          "maxWorkers": 1
+        },
+        {
+          "name": "confirm-once-serial",
+          "groupOrder": 201,
+          "maxWorkers": 1
+        },
+        {
+          "name": "foundation-ui",
+          "groupOrder": 101
+        },
+        {
+          "name": "common-runtime-ui",
+          "groupOrder": 102
+        },
+        {
+          "name": "workspace-ui",
+          "groupOrder": 103
+        },
+        {
+          "name": "platform-conformance-ui",
+          "groupOrder": 104
+        },
+        {
+          "name": "policy-ui",
+          "groupOrder": 105
+        },
+        {
+          "name": "local-permissions-ui",
+          "groupOrder": 106
+        },
+        {
+          "name": "resources-ui",
+          "groupOrder": 107
+        },
+        {
+          "name": "onboarding-ui",
+          "groupOrder": 108
+        },
+        {
+          "name": "execution-records-ui",
+          "groupOrder": 114
+        },
+        {
+          "name": "readiness-ui",
+          "groupOrder": 115
+        },
+        {
+          "name": "interaction-ui",
+          "groupOrder": 109
+        },
+        {
+          "name": "confirm-window",
+          "groupOrder": 110
+        },
+        {
+          "name": "frontend-scope",
+          "groupOrder": 111
+        },
+        {
+          "name": "panels",
+          "groupOrder": 112
+        },
+        {
+          "name": "scenario-chat-ui",
+          "groupOrder": 113
+        },
+        {
+          "name": "refresh-ui",
+          "groupOrder": 116
+        },
+        {
+          "name": "recovery-ui",
+          "groupOrder": 117
+        }
+      ]
+    },
+    "diffCheck": "passed",
+    "sourceSyntax": "passed",
+    "documentLinks": {
+      "beforeStaging": {
+        "ok": false,
+        "reason": "new research/evidence targets were not yet tracked; check rerun after staging"
+      },
+      "afterStaging": {
+        "ok": true,
+        "failures": [],
+        "external": [
+          "https://creativecommons.org/licenses/by/4.0/",
+          "https://developer.apple.com/developer-id/",
+          "https://developer.apple.com/documentation/appkit/passing-control-from-one-app-to-another-with-cooperative-activation",
+          "https://developer.apple.com/documentation/security/notarizing-macos-software-before-distribution",
+          "https://developer.apple.com/documentation/security/protecting-user-data-with-app-sandbox",
+          "https://developer.apple.com/documentation/virtualization/vzvirtualmachine/stop(completionhandler:)",
+          "https://developer.apple.com/library/archive/documentation/Miscellaneous/Reference/EntitlementKeyReference/Chapters/EnablingAppSandbox.html",
+          "https://developers.cloudflare.com/1.1.1.1/encryption/dns-over-https/make-api-requests/dns-json/",
+          "https://github.com/YhxMo/plums/security/advisories/new",
+          "https://github.com/electron/electron/blob/main/docs/api/app.md",
+          "https://github.com/kwaroran/character-card-spec-v3/blob/main/SPEC_V3.md",
+          "https://github.com/malfoyslastname/character-card-spec-v2",
+          "https://github.com/malfoyslastname/character-card-spec-v2/blob/main/spec_v2.md",
+          "https://github.com/mozilla/diversity",
+          "https://img.shields.io/badge/Language-TypeScript-3776AB?style=flat-square",
+          "https://img.shields.io/badge/License-Apache--2.0-22C55E?style=flat-square",
+          "https://img.shields.io/badge/Node.js-26.5.1-3776AB?style=flat-square",
+          "https://img.shields.io/badge/macOS-arm64-4B5563?style=flat-square",
+          "https://img.shields.io/badge/pnpm-10-3776AB?style=flat-square",
+          "https://modelcontextprotocol.io/specification/2025-11-25/basic/lifecycle",
+          "https://modelcontextprotocol.io/specification/2025-11-25/basic/transports",
+          "https://modelcontextprotocol.io/specification/2026-07-28/basic/transports/streamable-http",
+          "https://modelcontextprotocol.io/specification/2026-07-28/basic/versioning",
+          "https://modelcontextprotocol.io/specification/2026-07-28/schema#result",
+          "https://opencode.ai/docs/go/#where-can-i-use-it",
+          "https://www.contributor-covenant.org",
+          "https://www.contributor-covenant.org/faq",
+          "https://www.contributor-covenant.org/translations",
+          "https://www.contributor-covenant.org/version/2/1/code_of_conduct.html",
+          "https://www.electronjs.org/docs/latest/tutorial/security",
+          "https://www.rfc-editor.org/rfc/rfc9110.html#section-5.6.2"
+        ]
+      }
+    },
+    "versions": {
+      "ok": true,
+      "version": "0.1.0",
+      "packages": 6
+    },
+    "format": "passed"
+  }
+}
