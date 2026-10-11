@@ -891,6 +891,11 @@ async function fixture(holdRuntime = false) {
               applied: state.content.source.kind === "agent",
             };
           }
+          case "dataLocation":
+            return {
+              profilePath: "/synthetic/private-profile",
+              dataPath: "/synthetic/private-profile/library",
+            };
           case "desktopSettings":
             return { dnsMode: state.dnsMode, theme: state.theme };
           case "setDesktopTheme":

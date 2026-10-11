@@ -14,7 +14,38 @@ pnpm desktop:package
 
 打包脚本从 Node 官方发行目录下载 26.5.1，核对 SHA-256，随应用附带独立 Node，避免 Electron 与隔离库的原生 ABI 混用。Electron 44.5.1、isolated-vm 7.0.1 固定版本。产物位于 `release/Plums-darwin-arm64/Plums.app`、`release/Plums-0.1.0-arm64.dmg`。 使用 `node scripts/package-smoke.mjs release/Plums-darwin-arm64/Plums.app` 在临时数据目录核对主窗口、版本与正常退出，输出一行 JSON。本地应用采用临时签名；开发者签名、公证、自动更新尚未接入。 生成 DMG 前扫描 Resources、ASAR 文件清单及独立 ZIP 内条目，拒绝测试夹具、逃逸/注入实验和未采用的容器 helper；仅允许官方底座的固定 ZIP 路径。该检查的自造清单回归已接入；打包后应运行上述临时目录启动检查。本包采用 ad-hoc 签名且未公证，spctl 实测拒绝；清单单测不能代替打包实测。实验 helper 守卫按名称拦截，不识别文件内容，因此不能识别改名别名。
 
+## 本地交付验收
+
+2026-10-11 在 macOS 27.0.1 arm64 上完成 0.1.0 本地预览包的构建、镜像复制与启动验收。`diskutil image attach` 只读挂载最终 DMG，`ditto` 将其中的 app 复制到独立验收目录；没有覆盖正式应用或用户数据。完整包清单、安装副本与最终 `dist` 对照、应用/镜像/生产输入摘要见[交付证据](verification/desktop-delivery-2026-10-11.json)。摘要中的应用 SHA-256 是文件内容、权限及符号链接清单的规范化摘要，不是目录文件本身的哈希。
+
+包内固定 Node 为 26.5.1，原生模块实际加载通过。安装版的原生桥检查显示 `application.packaged:true` 和 `version:"0.1.0"`。该结果不代表原生全屏焦点用例通过；该用例仍在五秒焦点关卡失败。完整 `pnpm test`、项目容器及真实第三方服务没有因此获得通过结论。签名仍为本地 ad-hoc，`spctl` 拒绝，开发者签名、公证和浏览器下载路径未验收。
+
+复现时先构建并准备固定 Electron，再生成本地预览包：
+
+```sh
+pnpm build
+node scripts/prepare-electron.mjs
+node scripts/package-desktop.mjs /absolute/package-output
+```
+
+建立本次专用的空挂载目录和独立安装目录。用 `diskutil image attach --readOnly --nobrowse --mountPoint /absolute/mount /absolute/package-output/Plums-0.1.0-arm64.dmg` 挂载，再用 `ditto /absolute/mount/Plums.app /absolute/installed/Plums.app` 复制。复制完成后，用 `diskutil eject` 加本次 attach 返回的设备名卸载；不要猜测设备号或操作其他卷。
+
+报告父目录须已存在。以下脚本会核对完整 app 清单、当前构建、最低系统版本、固定 Node、本地签名及 Gatekeeper 评估；任一必需检查失败则退出非零。Gatekeeper 拒绝本地 ad-hoc 包会如实记录，不会被改写为分发通过。
+
+```sh
+node scripts/verify-desktop-delivery.mjs \
+  /absolute/package-output/Plums-darwin-arm64/Plums.app \
+  /absolute/installed/Plums.app \
+  /absolute/package-output/Plums-0.1.0-arm64.dmg \
+  /absolute/reports/delivery.json
+node scripts/package-smoke.mjs /absolute/installed/Plums.app
+```
+
+两种 runtime 的打包 broker 检查与原生 Electron 命令见[安装包符合性](common-contract-conformance.md#打包版复验)。保持同一份已复制的 app，所有运行使用自造数据和独立 profile；不要用开发树的通过记录代替安装版。
+
 ## 管理界面
+
+设置页提供当前实际数据位置、Finder 定位和停机备份步骤。正常退出等待 broker 关闭宿主；完整恢复步骤与整机后代限制见[兼容与恢复](desktop-recovery.md#备份与回滚)。组件作者可按[本地接入路径](component-author-guide.md)创建临时 Agent、审阅声明并定位调用阶段。
 
 管理页顶部保留 Agent、角色卡、扩展和设置四个入口；当前 Agent 选择器和文件导入位于同一外壳。角色卡、扩展页管理公共库库存；服务接入以扩展标签呈现，当前 Agent 的配置、停用、移出集中到详情页。Agent 卡片进入详情页，统一查看组件、权限摘要、工作目录和最近执行记录。公共库显示组件的 Agent 使用名单，并提示已入库的新版本。
 

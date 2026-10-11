@@ -2062,3 +2062,7 @@ html[data-fullscreen] .running-bar {
     padding: 12px;
   }
 }
+.data-location {
+  overflow-wrap: anywhere;
+  user-select: text;
+}

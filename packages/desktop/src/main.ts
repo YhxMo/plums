@@ -119,6 +119,8 @@ function consent(
 }
 let viewEpoch = 0;
 let broker: ChildProcess;
+let shutdownStarted = false;
+let shutdownComplete = false;
 let next = 0;
 const requests = new Map<
   string,
@@ -650,6 +652,7 @@ app.whenReady().then(async () => {
     async (event, method: string, args: Record<string, unknown> = {}) => {
       managerSender(event);
       try {
+        if (shutdownStarted) throw Error("Application is closing");
         let value: unknown;
         if (
           active?.instanceId === args.instanceId &&
@@ -673,7 +676,20 @@ app.whenReady().then(async () => {
           await recover();
         if (["grantTaskScope", "taskScopePlan"].includes(method))
           throw Error("Internal authorization method");
-        if (method === "windowState")
+        if (method === "dataLocation")
+          value = {
+            profilePath: app.getPath("userData"),
+            dataPath: process.env.PLUMS_DATA_DIR
+              ? path.resolve(process.env.PLUMS_DATA_DIR)
+              : path.join(app.getPath("userData"), "library"),
+          };
+        else if (method === "revealDataDirectory") {
+          shell.showItemInFolder(app.getPath("userData"));
+          value = null;
+        } else if (method === "quitForBackup") {
+          setImmediate(() => app.quit());
+          value = null;
+        } else if (method === "windowState")
           value = { fullscreen: window.isFullScreen() };
         else if (method === "agentState") value = runtimeState();
         else if (method === "hideAgent") {
@@ -1261,9 +1277,11 @@ app.whenReady().then(async () => {
     ]),
   );
   window.on("resize", resize);
-  window.on("closed", () => {
-    broker?.kill();
-    app.quit();
+  window.on("close", (event) => {
+    if (!shutdownComplete) {
+      event.preventDefault();
+      app.quit();
+    }
   });
   await ready;
   const settings = (await rpc(
@@ -1274,7 +1292,26 @@ app.whenReady().then(async () => {
   await window.loadFile(path.join(base, "renderer/index.html"));
   window.show();
 });
-app.on("before-quit", () => broker?.kill());
+app.on("before-quit", (event) => {
+  if (shutdownComplete) return;
+  event.preventDefault();
+  if (shutdownStarted) return;
+  shutdownStarted = true;
+  prompter?.dispose();
+  for (const controller of approvals.values()) controller.abort();
+  const finish = () => {
+    shutdownComplete = true;
+    app.quit();
+  };
+  if (!broker || broker.exitCode !== null || broker.signalCode !== null)
+    finish();
+  else {
+    // IPC disconnect makes the broker await DesktopHost.close() before exiting.
+    broker.once("exit", finish);
+    if (broker.connected) broker.disconnect();
+    else broker.kill("SIGTERM");
+  }
+});
 app.on("window-all-closed", () => app.quit());
 app.on("second-instance", () => {
   window?.show();

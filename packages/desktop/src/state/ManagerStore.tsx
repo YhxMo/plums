@@ -13,6 +13,7 @@ import type { Resource, CatalogItem, AgentDetail } from "../shared/types.js";
 import type { AgentStatus } from "../components/StatusChip.js";
 import type { AgentRuntimeState } from "../shared/types.js";
 import type { Route, Tab } from "../app/route.js";
+import { LatestRead } from "../shared/latest-read.js";
 
 interface ManagerState {
   route: Route;
@@ -110,62 +111,76 @@ const ManagerContext = createContext<ManagerContextValue | null>(null);
 export function ManagerProvider({ children }: { children: ReactNode }) {
   const [state, dispatch] = useReducer(reducer, initialState);
   const selected = useRef<string | undefined>(undefined);
-  const epoch = useRef(0);
   const themeEpoch = useRef(0);
   const mounted = useRef(true);
-  const load = useCallback(async (id = selected.current) => {
-    const generation = ++epoch.current;
-    const themeGeneration = themeEpoch.current;
-    selected.current = id;
-    dispatch({ type: "loading", id });
-    try {
-      const [agents, library, settings] = await Promise.all([
-        window.manager.call("list") as Promise<AgentRecord[]>,
-        window.manager.call("library") as Promise<CatalogItem[]>,
-        window.manager.call("desktopSettings") as Promise<DesktopSettings>,
-      ]);
-      if (!mounted.current || generation !== epoch.current) return;
-      const current = agents.some((agent) => agent.instanceId === id)
-        ? id
-        : agents[0]?.instanceId;
-      const statuses = Object.fromEntries(
-        await Promise.all(
-          agents.map(async (agent) => [
-            agent.instanceId,
-            (await window.manager.call("agentStatus", {
-              instanceId: agent.instanceId,
-            })) as AgentStatus,
-          ]),
-        ),
-      );
-      if (!mounted.current || generation !== epoch.current) return;
-      const detail = current
-        ? ((await window.manager.call("resources", {
-            instanceId: current,
-          })) as AgentDetail)
-        : undefined;
-      if (!mounted.current || generation !== epoch.current) return;
-      selected.current = current;
-      dispatch({
-        type: "loaded",
-        statuses,
-        agents,
-        library,
-        dnsMode: settings.dnsMode,
-        theme:
-          themeGeneration === themeEpoch.current
-            ? (settings.theme ?? "system")
-            : undefined,
-        id: current,
-        detail,
-      });
-      return detail;
-    } catch (error) {
-      if (!mounted.current || generation !== epoch.current) return;
-      dispatch({ type: "failed", error: failureMessage(error) });
-      throw error;
-    }
-  }, []);
+  const reader = useMemo(
+    () =>
+      new LatestRead<string | undefined, AgentDetail>(
+        async (id, currentRead) => {
+          const themeGeneration = themeEpoch.current;
+          const currentReply = () => mounted.current && currentRead();
+          try {
+            const [agents, library, settings] = await Promise.all([
+              window.manager.call("list") as Promise<AgentRecord[]>,
+              window.manager.call("library") as Promise<CatalogItem[]>,
+              window.manager.call(
+                "desktopSettings",
+              ) as Promise<DesktopSettings>,
+            ]);
+            if (!currentReply()) return;
+            const current = agents.some((agent) => agent.instanceId === id)
+              ? id
+              : agents[0]?.instanceId;
+            const statuses = Object.fromEntries(
+              await Promise.all(
+                agents.map(async (agent) => [
+                  agent.instanceId,
+                  (await window.manager.call("agentStatus", {
+                    instanceId: agent.instanceId,
+                  })) as AgentStatus,
+                ]),
+              ),
+            );
+            if (!currentReply()) return;
+            const detail = current
+              ? ((await window.manager.call("resources", {
+                  instanceId: current,
+                })) as AgentDetail)
+              : undefined;
+            if (!currentReply()) return;
+            selected.current = current;
+            dispatch({
+              type: "loaded",
+              statuses,
+              agents,
+              library,
+              dnsMode: settings.dnsMode,
+              theme:
+                themeGeneration === themeEpoch.current
+                  ? (settings.theme ?? "system")
+                  : undefined,
+              id: current,
+              detail,
+            });
+            return detail;
+          } catch (error) {
+            if (!currentReply()) return;
+            dispatch({ type: "failed", error: failureMessage(error) });
+            throw error;
+          }
+        },
+        "batch",
+      ),
+    [],
+  );
+  const load = useCallback(
+    (id = selected.current) => {
+      selected.current = id;
+      dispatch({ type: "loading", id });
+      return reader.request(id);
+    },
+    [reader],
+  );
   useEffect(() => {
     mounted.current = true;
     const runtimeEpoch = { changed: false };
@@ -186,11 +201,11 @@ export function ManagerProvider({ children }: { children: ReactNode }) {
     );
     return () => {
       mounted.current = false;
-      epoch.current++;
+      reader.invalidate();
       unsubscribe();
       runtimeEvents();
     };
-  }, [load]);
+  }, [load, reader]);
   const setTab = useCallback((tab: Tab) => dispatch({ type: "tab", tab }), []);
   const setTheme = useCallback((theme: DesktopTheme) => {
     themeEpoch.current++;

@@ -1,5 +1,7 @@
 # SDK v2
 
+首次编写组件可按[组件作者路径](component-author-guide.md)完成声明、临时 Agent、可信确认、调用诊断与版本更新。
+
 共同平台作者可运行[符合性工具与黑盒用例](common-contract-conformance.md)，并按[兼容证据矩阵](common-contract-compatibility.md)选择已验证路径。声明匹配和内部夹具通过不证明真实第三方行为。
 
 SDK v2 保留 SDK v1 普通扩展的贡献、设置、角色、事件、能力和依赖调用接口。旧普通扩展无需修改；包格式仍为 2.x，未知字段原样保留。依赖旧内置 `service/model/complete` 的模型组件需要显式升级，宿主不提供协议适配兜底。

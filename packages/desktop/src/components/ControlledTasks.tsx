@@ -1,7 +1,8 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import type { DesktopHost, AgentRecord } from "@plumsjs/host";
 import type { Resource } from "../shared/types.js";
 import { executionGuidance } from "../shared/execution-state.js";
+import { usePollingRead } from "../hooks/usePollingRead.js";
 const desktopContribution = (manifest: Resource["manifest"]) =>
   (manifest.payload as { plumsDesktop?: { common?: { background?: boolean } } })
     ?.plumsDesktop;
@@ -47,37 +48,44 @@ export function ControlledTasks({
       ),
     ),
   ];
+  const mounted = useRef(true);
   useEffect(() => {
-    if (
-      !resources.some((r) => desktopContribution(r.manifest)?.common) &&
-      !programs.length &&
-      !record.backgroundComponents?.length &&
-      !Object.keys(record.controlledPrograms ?? {}).length
-    ) {
-      setTasks([]);
-      return;
-    }
-    let active = true;
-    const refresh = () =>
-      window.manager
-        .call("commonTasks", { instanceId: record.instanceId })
-        .then((t) => {
-          if (active) {
-            setTasks(t as Tasks);
-            setError("");
-          }
-        })
-        .catch(() => {
-          if (active) setError("任务状态未能读取，请重试。");
-        });
-    void refresh();
-    const timer = setInterval(() => void refresh(), 1000);
+    mounted.current = true;
     return () => {
-      active = false;
-      clearInterval(timer);
+      mounted.current = false;
     };
-  }, [record.instanceId, resources]);
+  }, []);
+  const canRead =
+    resources.some((r) => desktopContribution(r.manifest)?.common) ||
+    !!programs.length ||
+    !!record.backgroundComponents?.length ||
+    !!Object.keys(record.controlledPrograms ?? {}).length;
+  useEffect(() => {
+    if (!canRead) {
+      setTasks([]);
+      setError("");
+    }
+  }, [canRead]);
+  const polling = usePollingRead<Tasks>({
+    method: "commonTasks",
+    instanceId: record.instanceId,
+    revision: resources,
+    enabled: canRead,
+    receive: (value) => {
+      setTasks(value);
+      setError("");
+    },
+    delay: (value) =>
+      value.some((t) =>
+        ["starting", "running", "cancelling"].includes(t.snapshot.status.state),
+      )
+        ? 1000
+        : 10_000,
+    onError: () => setError("任务状态未能读取，请重试。"),
+  });
   const run = async (method: string, extra: Record<string, unknown>) => {
+    const resume = polling.pause();
+    let failed = false;
     setBusy(true);
     setError("");
     try {
@@ -85,17 +93,17 @@ export function ControlledTasks({
         instanceId: record.instanceId,
         ...extra,
       });
-      setTasks(
-        (await window.manager.call("commonTasks", {
-          instanceId: record.instanceId,
-        })) as Tasks,
-      );
       return true;
     } catch {
-      setError("操作未完成。请刷新任务状态并核实结果后再决定下一步。");
+      failed = true;
       return false;
     } finally {
-      setBusy(false);
+      await resume();
+      if (mounted.current) {
+        if (failed)
+          setError("操作未完成。请刷新任务状态并核实结果后再决定下一步。");
+        setBusy(false);
+      }
     }
   };
   if (!backgrounds.length && !programs.length && !tasks?.length && !error)
@@ -114,14 +122,9 @@ export function ControlledTasks({
         disabled={busy}
         onClick={() => {
           setBusy(true);
-          void window.manager
-            .call("commonTasks", { instanceId: record.instanceId })
-            .then((value) => {
-              setTasks(value as Tasks);
-              setError("");
-            })
-            .catch(() => setError("任务状态未能读取，请重试。"))
-            .finally(() => setBusy(false));
+          void polling.refresh().finally(() => {
+            if (mounted.current) setBusy(false);
+          });
         }}
       >
         刷新任务状态

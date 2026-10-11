@@ -600,7 +600,10 @@ it("keeps initial loading and failure distinct and rejects outdated Agent and li
 
 it("renders the shell and dialogs in both themes at desktop and narrow widths with visible focus and readable colors", async () => {
   const { application, page, temporary } = await launchFixture();
-  const screenshots = path.resolve(".build-cache/phase3/detail-ui");
+  const screenshots = path.resolve(
+    process.env.PLUMS_UI_REPORT_DIR ?? ".build-cache/phase3",
+    "detail-ui",
+  );
   const errors: string[] = [];
   page.on("pageerror", (error) => errors.push(error.message));
   await (
@@ -1512,7 +1515,10 @@ it("integrates native window chrome, fullscreen events and theme updates", async
       .toContain("深色");
   } catch (error) {
     try {
-      const output = path.resolve(".build-cache/phase3/native-theme-failure");
+      const output = path.resolve(
+        process.env.PLUMS_UI_REPORT_DIR ?? ".build-cache/phase3",
+        "native-theme-failure",
+      );
       await mkdir(output, { recursive: true });
       await writeFile(
         path.join(output, "windows.json"),

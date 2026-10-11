@@ -1,5 +1,6 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import type { DesktopHost, PolicyScopeSelection } from "@plumsjs/host";
+import { usePollingRead } from "../hooks/usePollingRead.js";
 const modeNames: Record<string, string> = {
   "full-access": "完全访问",
   automatic: "自动审查",
@@ -38,34 +39,36 @@ export function PolicyModes({
     [mode, setMode] = useState("custom"),
     [duration, setDuration] = useState(900_000),
     [selection, setSelection] = useState<PolicyScopeSelection[]>([]);
-  const refresh = async () => {
-    const next = (await window.manager.call("policyPlan", {
-      instanceId,
-    })) as Plan;
-    setPlan(next);
-  };
+  const identity = useRef({ instanceId });
+  if (identity.current.instanceId !== instanceId)
+    identity.current = { instanceId };
   useEffect(() => {
-    let current = true;
+    const owner = identity.current;
+    setBusy(false);
+    return () => {
+      if (identity.current === owner) identity.current = { instanceId: "" };
+    };
+  }, [instanceId]);
+  useEffect(() => {
     setPlan(undefined);
     setSelection([]);
     setError("");
-    const read = () =>
-      window.manager
-        .call("policyPlan", { instanceId })
-        .then((value) => {
-          if (current) setPlan(value as Plan);
-        })
-        .catch(() => {
-          if (current) setError("策略状态未能读取，请重试。");
-        });
-    void read();
-    const timer = setInterval(() => void read(), 1000);
-    return () => {
-      current = false;
-      clearInterval(timer);
-    };
   }, [instanceId, revision]);
+  const polling = usePollingRead<Plan>({
+    method: "policyPlan",
+    instanceId,
+    revision,
+    receive: (value) => {
+      setPlan(value);
+      setError("");
+    },
+    delay: (value) => (value.active ? 1000 : 10_000),
+    onError: () => setError("策略状态未能读取，请重试。"),
+  });
   const run = async (method: string, args: Record<string, unknown>) => {
+    const owner = identity.current;
+    const resume = polling.pause();
+    let failed = false;
     setBusy(true);
     setError("");
     try {
@@ -74,12 +77,16 @@ export function PolicyModes({
         fingerprint: plan?.fingerprint,
         ...args,
       });
-      setSelection([]);
-      await refresh();
+      if (identity.current === owner) setSelection([]);
     } catch {
-      setError("操作未完成。请检查当前组件、范围和策略，再重试。");
+      failed = true;
     } finally {
-      setBusy(false);
+      await resume();
+      if (identity.current === owner) {
+        if (failed)
+          setError("操作未完成。请检查当前组件、范围和策略，再重试。");
+        setBusy(false);
+      }
     }
   };
   if (!plan && !error) return null;

@@ -1,6 +1,7 @@
 import { Switch } from "../components/Switch.js";
 import { SelectMenu } from "../components/SelectMenu.js";
 import type { DesktopTheme } from "@plumsjs/host";
+import { useEffect, useState } from "react";
 export function SettingsView({
   dnsMode,
   theme,
@@ -22,6 +23,37 @@ export function SettingsView({
   onDns: (value: string) => void;
   onTheme: (value: DesktopTheme) => void;
 }) {
+  const [location, setLocation] = useState<{
+    profilePath: string;
+    dataPath: string;
+  }>();
+  const [dataError, setDataError] = useState("");
+  const [dataBusy, setDataBusy] = useState(false);
+  useEffect(() => {
+    let current = true;
+    void window.manager
+      .call("dataLocation")
+      .then((value) => {
+        if (current && value) setLocation(value as typeof location);
+      })
+      .catch(() => {
+        if (current) setDataError("数据位置未能读取，请重新打开设置页。");
+      });
+    return () => {
+      current = false;
+    };
+  }, []);
+  const dataAction = async (method: string) => {
+    setDataBusy(true);
+    setDataError("");
+    try {
+      await window.manager.call(method);
+    } catch {
+      setDataError("操作未完成，请重试。");
+    } finally {
+      setDataBusy(false);
+    }
+  };
   return (
     <div className="settings-view">
       <section className="page-header">
@@ -78,12 +110,65 @@ export function SettingsView({
           </select>
         </div>
       </div>
+      <h2 className="settings-group-title">本地数据与恢复</h2>
+      <div className="settings-panel" data-testid="data-recovery">
+        <div className="settings-row">
+          <div>
+            <strong>停机备份</strong>
+            <p>数据保存在本机。完整备份包含密钥，请保存在私有本地目录。</p>
+            {location && (
+              <>
+                <p>
+                  完整备份目录：
+                  <code className="data-location">{location.profilePath}</code>
+                </p>
+                <p>
+                  Agent 与公共库：
+                  <code className="data-location">{location.dataPath}</code>
+                </p>
+              </>
+            )}
+            <ol>
+              <li>先定位目录，再退出应用。等待窗口关闭与运行进程退出。</li>
+              <li>复制完整备份目录，保留公共库、Agent、密钥和数据库文件。</li>
+              <li>保留原件。用同版本应用，在独立目录检查恢复副本。</li>
+            </ol>
+            <p>
+              Agent ZIP
+              用于分享，不能备份密钥、授权和运行数据。恢复不会重执行任务，活动批准须重新确认。
+            </p>
+            <p>
+              整机入口可能遗留脱组后代。复制前须确认这些进程已停止；退出应用不能保证全部回收。
+            </p>
+            {dataError && <p role="alert">{dataError}</p>}
+          </div>
+        </div>
+        <div className="settings-row">
+          <button
+            disabled={dataBusy || !location}
+            onClick={() => void dataAction("revealDataDirectory")}
+          >
+            在 Finder 中定位
+          </button>
+          <button
+            disabled={dataBusy || !location}
+            onClick={() => void dataAction("quitForBackup")}
+          >
+            退出应用再备份
+          </button>
+        </div>
+      </div>
       <h2 className="settings-group-title">开发者</h2>
       <div className="settings-panel">
         <div className="settings-row">
           <div>
             <strong>开发者模式</strong>
             <p>显示完整组件内容、JSON 编辑与文件定位、开发者调用和原始审计。</p>
+            <p>
+              组件作者：独立维护组件项目；导入自己的
+              ZIP，检查声明与配置，经可信确认后启用，再从执行记录定位调用标识与阶段。新版本只在显式更新的
+              Agent 中应用。
+            </p>
           </div>
           <Switch
             label="开发者模式"

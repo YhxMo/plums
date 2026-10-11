@@ -148,6 +148,20 @@
       "groupOrder": 113
     },
     {
+      "name": "refresh-ui",
+      "group": "electron",
+      "include": ["packages/desktop/test/refresh-ui.test.ts"],
+      "setupFiles": ["packages/desktop/test/support/electron-ready.ts"],
+      "groupOrder": 116
+    },
+    {
+      "name": "recovery-ui",
+      "group": "electron",
+      "include": ["packages/desktop/test/recovery-ui.test.ts"],
+      "setupFiles": ["packages/desktop/test/support/electron-ready.ts"],
+      "groupOrder": 117
+    },
+    {
       "name": "experiments",
       "include": ["packages/host/test/project-members.experiments.test.ts"],
       "maxWorkers": 1
