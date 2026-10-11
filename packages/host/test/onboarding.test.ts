@@ -342,6 +342,20 @@ it("exposes host preparation reasons without granting authority and clears them 
     evidence: "declared",
     reasons: [],
   });
+  await host.setFoundationEnabled(agent.instanceId, false);
+  expect(await host.agentReadinessPlan(agent.instanceId)).toEqual({
+    prepared: false,
+    evidence: "declared",
+    reasons: [
+      { code: "FOUNDATION_UNAVAILABLE", blocking: true, action: "foundation" },
+    ],
+  });
+  await host.setFoundationEnabled(agent.instanceId, true);
+  expect(await host.agentReadinessPlan(agent.instanceId)).toEqual({
+    prepared: true,
+    evidence: "declared",
+    reasons: [],
+  });
   await host.disable(agent.instanceId, "workspace");
   expect(
     (await host.agentReadinessPlan(agent.instanceId)).reasons,

@@ -33,11 +33,11 @@ export interface ReadinessReason {
 export function readinessReasons(
   enable: Awaited<ReturnType<typeof enablePlan>>,
   tier: TierPlan,
-  foundationCompatible: boolean,
+  foundationAvailable: boolean,
   hasFrontend: boolean,
 ): ReadinessReason[] {
   const reasons: ReadinessReason[] = [];
-  if (!foundationCompatible)
+  if (!foundationAvailable)
     reasons.push({
       code: "FOUNDATION_UNAVAILABLE",
       blocking: true,

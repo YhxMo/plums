@@ -2870,7 +2870,7 @@ export class DesktopHost {
           reasons = readinessReasons(
             enable,
             tier,
-            foundation.compatible,
+            foundation.compatible && s.record.foundation!.enabled,
             !!frontend,
           );
           reasons = redact(
