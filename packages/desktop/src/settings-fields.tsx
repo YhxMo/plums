@@ -1,4 +1,24 @@
 import type { SettingsDescription } from "@plumsjs/core";
+import { useEffect, useId, useRef } from "react";
+
+export function settingsErrorField(path: string) {
+  const match = /^\/settings\/([^/]+)$/.exec(path);
+  return match?.[1]?.replace(/~1/g, "/").replace(/~0/g, "~");
+}
+
+export function settingsChanged(
+  settings: SettingsDescription,
+  values: Record<string, unknown>,
+  secrets: Record<string, string>,
+) {
+  const initial = initialSettings(settings);
+  return (
+    Object.keys(secrets).length > 0 ||
+    [...new Set([...Object.keys(initial), ...Object.keys(values)])].some(
+      (key) => initial[key] !== values[key],
+    )
+  );
+}
 
 export function initialSettings(settings: SettingsDescription) {
   const values = { ...settings.values };
@@ -18,6 +38,8 @@ export function SettingsFields({
   onValue,
   onSecret,
   requiredOnly,
+  errorField,
+  focusField,
 }: {
   settings: SettingsDescription;
   values: Record<string, unknown>;
@@ -25,9 +47,32 @@ export function SettingsFields({
   onValue: (key: string, value: unknown) => void;
   onSecret: (key: string, value: string) => void;
   requiredOnly?: boolean;
+  errorField?: string;
+  focusField?: string;
 }) {
+  const id = useId();
+  const fields = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const key = errorField ?? focusField;
+    if (!key) return;
+    let current = true;
+    // Let ManagedDialog capture the invoking control before selecting a field.
+    queueMicrotask(() => {
+      if (!current) return;
+      const field = Array.from(
+        fields.current?.querySelectorAll<HTMLElement>("[data-setting-key]") ??
+          [],
+      ).find((el) => el.dataset.settingKey === key);
+      const details = field?.closest("details");
+      if (details) details.open = true;
+      field?.querySelector<HTMLElement>("input, select")?.focus();
+    });
+    return () => {
+      current = false;
+    };
+  }, [errorField, focusField]);
   return (
-    <>
+    <div ref={fields}>
       {Object.entries(settings.schema?.properties ?? {})
         .filter(
           ([key]) =>
@@ -38,15 +83,28 @@ export function SettingsFields({
         .map(([key, spec]) => {
           const required = settings.schema?.required?.includes(key) ?? false;
           const title = spec.title || key;
+          const invalid = errorField === key;
+          const descriptionId = `${id}-${encodeURIComponent(key)}-description`;
+          const errorId = `${id}-${encodeURIComponent(key)}-error`;
+          const a11y = {
+            "aria-invalid": invalid || undefined,
+            "aria-describedby":
+              [spec.description ? descriptionId : "", invalid ? errorId : ""]
+                .filter(Boolean)
+                .join(" ") || undefined,
+          };
           return (
-            <label className="field" key={key}>
+            <label className="field" key={key} data-setting-key={key}>
               <strong>
                 {title}
                 {required && <span className="required-mark"> *</span>}
               </strong>
-              {spec.description && <small>{spec.description}</small>}
+              {spec.description && (
+                <small id={descriptionId}>{spec.description}</small>
+              )}
               {spec["x-secret"] ? (
                 <input
+                  {...a11y}
                   aria-label={title}
                   type="password"
                   autoComplete="new-password"
@@ -61,6 +119,7 @@ export function SettingsFields({
                 />
               ) : spec.type === "boolean" ? (
                 <input
+                  {...a11y}
                   aria-label={title}
                   type="checkbox"
                   checked={values[key] === true}
@@ -68,6 +127,7 @@ export function SettingsFields({
                 />
               ) : spec.enum ? (
                 <select
+                  {...a11y}
                   aria-label={title}
                   required={required}
                   value={String(values[key] ?? "")}
@@ -87,6 +147,7 @@ export function SettingsFields({
                 </select>
               ) : (
                 <input
+                  {...a11y}
                   aria-label={title}
                   type={spec.type === "string" ? "text" : "number"}
                   autoComplete="off"
@@ -117,9 +178,14 @@ export function SettingsFields({
                   }
                 />
               )}
+              {invalid && (
+                <small id={errorId} className="error-text">
+                  请检查此设置项后重新保存。
+                </small>
+              )}
             </label>
           );
         })}
-    </>
+    </div>
   );
 }

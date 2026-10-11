@@ -106,6 +106,13 @@
       "groupOrder": 114
     },
     {
+      "name": "readiness-ui",
+      "group": "electron",
+      "include": ["packages/desktop/test/readiness-ui.test.ts"],
+      "setupFiles": ["packages/desktop/test/support/electron-ready.ts"],
+      "groupOrder": 115
+    },
+    {
       "name": "interaction-ui",
       "group": "electron",
       "include": ["packages/desktop/test/interaction-ui.test.ts"],

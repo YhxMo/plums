@@ -42,6 +42,10 @@ it.runIf(process.platform === "darwin")(
         PLUMS_DATA_DIR: f.dir,
       },
     });
+    let stderr = "";
+    app.process().stderr?.on("data", (data) => {
+      stderr += String(data);
+    });
     try {
       const page = await app.firstWindow();
       await page.getByRole("article", { name: "查看 Fixture A" }).click();
@@ -77,6 +81,21 @@ it.runIf(process.platform === "darwin")(
       await expect
         .poll(() =>
           panel.getByLabel("consumer：允许声明的 Agent 后台任务").isChecked(),
+        )
+        .toBe(true);
+      await expect
+        .poll(() =>
+          panel.getByLabel("consumer：允许声明的 Agent 后台任务").isEnabled(),
+        )
+        .toBe(true);
+      await expect
+        .poll(() =>
+          page.evaluate(async (instanceId) => {
+            const detail = (await window.manager.call("resources", {
+              instanceId,
+            })) as any;
+            return detail.record.backgroundComponents?.includes("consumer");
+          }, f.a.instanceId),
         )
         .toBe(true);
       await expect.poll(() => panel.count()).toBe(1);
@@ -173,6 +192,30 @@ it.runIf(process.platform === "darwin")(
         .toBeGreaterThan(0);
       await panel.getByText("如何核实与恢复", { exact: true }).first().click();
       expect(await panel.innerText()).toContain("停止不会回滚副作用");
+    } catch (error) {
+      const output = path.join(root, ".build-cache/phase3/task-ui-failure");
+      try {
+        await mkdir(output, { recursive: true });
+        await writeFile(path.join(output, "stderr.txt"), stderr);
+        await writeFile(
+          path.join(output, "views.json"),
+          JSON.stringify(
+            await app.evaluate(({ webContents }) =>
+              webContents
+                .getAllWebContents()
+                .map((w) => ({ url: w.getURL(), destroyed: w.isDestroyed() })),
+            ),
+            null,
+            2,
+          ),
+        );
+        const page = await app.firstWindow();
+        await page.screenshot({
+          path: path.join(output, "manager.png"),
+          fullPage: true,
+        });
+      } catch {}
+      throw error;
     } finally {
       await app.close();
       await rm(f.dir, { recursive: true, force: true });

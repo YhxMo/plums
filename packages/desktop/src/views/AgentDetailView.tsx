@@ -1,4 +1,7 @@
 import { LocalPermissions } from "../components/LocalPermissions.js";
+import { useEffect, useRef } from "react";
+import { AgentReadiness } from "../components/AgentReadiness.js";
+import { FoundationManager } from "../components/FoundationManager.js";
 import { WorkspaceComposition } from "../components/WorkspaceComposition.js";
 import { PolicyModes } from "../components/PolicyModes.js";
 import { ControlledTasks } from "../components/ControlledTasks.js";
@@ -37,6 +40,8 @@ export function AgentDetailView({
   onEdit,
   onInspect,
   onConfig,
+  onSetup,
+  onImport,
   onAction,
   onInvoke,
   onAudit,
@@ -56,7 +61,9 @@ export function AgentDetailView({
   onStart: () => void;
   onEdit: () => void;
   onInspect: (p: Resource) => void;
-  onConfig: (p: Resource) => void;
+  onConfig: (p: Resource, field?: string) => void;
+  onSetup: () => void;
+  onImport: () => void;
   onAction: (
     method: string,
     p?: Resource,
@@ -73,7 +80,33 @@ export function AgentDetailView({
 }) {
   const exportAction = useAction(record?.instanceId);
   const revokeAction = useAction(record?.instanceId);
+  const detail = useRef<HTMLElement>(null);
+  useEffect(() => {
+    const header = document.querySelector(".top-shell");
+    const nav = detail.current?.querySelector(".detail-nav");
+    if (!header || !nav) return;
+    const measure = () => {
+      detail.current?.style.setProperty(
+        "--detail-header-height",
+        `${header.getBoundingClientRect().height}px`,
+      );
+      detail.current?.style.setProperty(
+        "--detail-scroll-offset",
+        `${header.getBoundingClientRect().height + nav.getBoundingClientRect().height + 16}px`,
+      );
+    };
+    const observer = new ResizeObserver(measure);
+    observer.observe(header);
+    observer.observe(nav);
+    measure();
+    return () => observer.disconnect();
+  }, [record?.instanceId]);
   if (!record) return <EmptyState description="选择一个 Agent 查看详情。" />;
+  const jump = (id: string) => {
+    const target = detail.current?.querySelector<HTMLElement>(`#${id}`);
+    target?.focus({ preventScroll: true });
+    target?.scrollIntoView({ block: "start" });
+  };
   const roots = Array.from(
     new Set(
       resources.flatMap((r) =>
@@ -90,7 +123,7 @@ export function AgentDetailView({
     ),
   ).filter((r) => r !== "agent-data");
   return (
-    <section data-testid="agent-detail">
+    <section ref={detail} className="agent-detail" data-testid="agent-detail">
       <div className="breadcrumb">
         <button
           type="button"
@@ -121,14 +154,6 @@ export function AgentDetailView({
           <button className="cta lg" disabled={busy} onClick={onStart}>
             {startLabel(status)}
           </button>
-          <button
-            disabled={busy || revokeAction.pending}
-            onClick={() =>
-              void revokeAction.run(() => onAction("revokeTaskScope"))
-            }
-          >
-            停止并撤权
-          </button>
           <button disabled={busy} onClick={onEdit}>
             编辑组合
           </button>
@@ -147,6 +172,29 @@ export function AgentDetailView({
           </Popover>
         </div>
       </div>
+      <nav className="detail-nav" aria-label="Agent 详情分区">
+        <div>
+          {[
+            ["detail-prepare", "准备使用"],
+            ["detail-runtime", "任务与资源"],
+            ["detail-permissions", "权限与恢复"],
+            ["detail-components", "组件与记录"],
+          ].map(([id, label]) => (
+            <button key={id} className="ghost sm" onClick={() => jump(id!)}>
+              {label}
+            </button>
+          ))}
+        </div>
+        <button
+          className="sm"
+          disabled={revokeAction.pending}
+          onClick={() =>
+            void revokeAction.run(() => onAction("revokeTaskScope"))
+          }
+        >
+          停止并撤权
+        </button>
+      </nav>
       {revokeAction.error && (
         <p role="alert" className="notice error">
           {revokeAction.error}
@@ -170,124 +218,198 @@ export function AgentDetailView({
             需要升级到外装连接器版本。请先升级聊天扩展，再升级模型连接器；配置、密钥与历史会保留。
           </p>
         ))}
-      <WorkspaceComposition record={record} resources={resources} />
-      <ControlledTasks
-        key={`tasks:${record.instanceId}`}
-        record={record}
-        resources={resources}
-      />
-      <BusinessResources instanceId={record.instanceId} revision={resources} />
-      <PolicyModes instanceId={record.instanceId} revision={resources} />
-      <LocalPermissions
-        key={`permissions:${record.instanceId}`}
-        record={record}
-        resources={resources}
-      />
-      {resources.some((p) => p.desktop?.protocols?.requires?.length) && (
-        <ProtocolBindings
-          key={record.instanceId}
+      <section className="detail-section" aria-labelledby="detail-prepare">
+        <h2 id="detail-prepare" tabIndex={-1} className="detail-section-title">
+          <span>01</span>准备使用
+        </h2>
+        <AgentReadiness
+          key={`readiness:${record.instanceId}`}
+          instanceId={record.instanceId}
+          resources={resources}
+          onFix={(reason) => {
+            const resource = resources.find((p) => p.id === reason.packageId);
+            if (reason.action === "settings" && resource)
+              onConfig(resource, reason.field);
+            else if (reason.action === "enable") onSetup();
+            else {
+              jump(
+                reason.action === "connections"
+                  ? "detail-connections"
+                  : reason.action === "foundation"
+                    ? "detail-foundation"
+                    : reason.action === "resources"
+                      ? "detail-runtime"
+                      : "detail-permissions",
+              );
+              if (reason.action === "connections") {
+                const slot = Array.from(
+                  detail.current?.querySelectorAll<HTMLElement>(
+                    "[data-requirement-id]",
+                  ) ?? [],
+                ).find(
+                  (el) =>
+                    el.dataset.consumerId === reason.packageId &&
+                    el.dataset.requirementId === reason.requirementId,
+                );
+                slot?.querySelector<HTMLElement>("select")?.focus();
+              }
+            }
+          }}
+        />
+        <WorkspaceComposition record={record} resources={resources} />
+        {resources.some((p) => p.desktop?.protocols?.requires?.length) && (
+          <div id="detail-connections" tabIndex={-1}>
+            <ProtocolBindings
+              key={`protocols:${record.instanceId}`}
+              instanceId={record.instanceId}
+              revision={resources}
+            />
+          </div>
+        )}
+      </section>
+      <section className="detail-section" aria-labelledby="detail-runtime">
+        <h2 id="detail-runtime" tabIndex={-1} className="detail-section-title">
+          <span>02</span>任务与资源
+        </h2>
+        <ControlledTasks
+          key={`tasks:${record.instanceId}`}
+          record={record}
+          resources={resources}
+        />
+        <BusinessResources
           instanceId={record.instanceId}
           revision={resources}
         />
-      )}
-      <div className="detail-layout">
-        <div>
-          <h2>组件管理</h2>
-          {resources.length ? (
-            (["character", "extension"] as ComponentKind[]).map((kind) => {
-              const entries = resources.filter(
-                (p) =>
-                  p.kind === kind ||
-                  (kind === "extension" && p.kind === "connector"),
-              );
-              return entries.length ? (
-                <section
-                  className="component-group"
-                  data-kind={kind}
-                  key={kind}
-                >
-                  <h3>
-                    <i className="kind-dot" />
-                    {kindLabel[kind]} · {entries.length}
-                  </h3>
-                  {entries.map((p) => (
-                    <ComponentRow
-                      key={`${record.instanceId}:${p.id}`}
-                      resource={p}
-                      update={latestUpdate(library, p.id, p.version)}
-                      developer={developer}
-                      onInspect={() => onInspect(p)}
-                      onConfig={() => onConfig(p)}
-                      onAction={(method, extra) => onAction(method, p, extra)}
-                      onInvoke={(type, item) => onInvoke(p, type, item)}
-                    />
-                  ))}
-                </section>
-              ) : null;
-            })
-          ) : (
-            <EmptyState
-              illustration="components"
-              description="这个 Agent 还没有组件，可以通过编辑组合添加。"
-            />
-          )}
+      </section>
+      <section className="detail-section" aria-labelledby="detail-permissions">
+        <h2
+          id="detail-permissions"
+          tabIndex={-1}
+          className="detail-section-title"
+        >
+          <span>03</span>权限与恢复
+        </h2>
+        <PolicyModes instanceId={record.instanceId} revision={resources} />
+        <LocalPermissions
+          key={`permissions:${record.instanceId}`}
+          record={record}
+          resources={resources}
+        />
+        <div id="detail-foundation" tabIndex={-1}>
+          <FoundationManager
+            key={record.instanceId}
+            instanceId={record.instanceId}
+            onImport={onImport}
+          />
         </div>
-        <aside className="detail-sidebar">
-          <section className="panel">
-            <h2>权限摘要</h2>
-            <p>开始使用时确认本次范围；有效期最长 1 小时，停止即撤销。</p>
-            <PermissionSummary
-              permissions={resources
-                .filter((p) => p.enabled)
-                .flatMap((p) =>
-                  p.manifest.permissions.map((permission) => ({
-                    permission,
-                    formatVersion: p.manifest.formatVersion,
-                    serviceTargets: p.serviceTargets?.[permission.id],
-                  })),
-                )}
-            />
-          </section>
-          <section className="panel">
-            <h2>工作目录</h2>
-            <p>
-              普通扩展按声明访问已绑定目录。本地执行还须符合组件档位与已确认范围，整机档位具有更广访问能力。
-            </p>
-            {roots.length ? (
-              roots.map((name) => (
-                <RootRow
-                  key={`${record.instanceId}:${name}`}
-                  name={name}
-                  path={record.roots?.[name]}
-                  onBind={onBind}
-                  onUnbind={onUnbind}
-                />
-              ))
+      </section>
+      <section className="detail-section" aria-labelledby="detail-components">
+        <h2
+          id="detail-components"
+          tabIndex={-1}
+          className="detail-section-title"
+        >
+          <span>04</span>组件与记录
+        </h2>
+        <div className="detail-layout">
+          <div>
+            <h2>组件管理</h2>
+            {resources.length ? (
+              (["character", "extension"] as ComponentKind[]).map((kind) => {
+                const entries = resources.filter(
+                  (p) =>
+                    p.kind === kind ||
+                    (kind === "extension" && p.kind === "connector"),
+                );
+                return entries.length ? (
+                  <section
+                    className="component-group"
+                    data-kind={kind}
+                    key={kind}
+                  >
+                    <h3>
+                      <i className="kind-dot" />
+                      {kindLabel[kind]} · {entries.length}
+                    </h3>
+                    {entries.map((p) => (
+                      <ComponentRow
+                        key={`${record.instanceId}:${p.id}`}
+                        resource={p}
+                        update={latestUpdate(library, p.id, p.version)}
+                        developer={developer}
+                        onInspect={() => onInspect(p)}
+                        onConfig={() => onConfig(p)}
+                        onAction={(method, extra) => onAction(method, p, extra)}
+                        onInvoke={(type, item) => onInvoke(p, type, item)}
+                      />
+                    ))}
+                  </section>
+                ) : null;
+              })
             ) : (
-              <p>组件尚未声明外部工作目录。</p>
+              <EmptyState
+                illustration="components"
+                description="这个 Agent 还没有组件，可以通过编辑组合添加。"
+              />
             )}
-          </section>
-          <section className="panel">
-            <h2>最近执行记录</h2>
-            {auditError ? (
-              <p role="alert">{auditError}</p>
-            ) : (
-              <ExecutionRecordList events={audit} resources={resources} />
-            )}
-            <button className="ghost sm" disabled={busy} onClick={onAudit}>
-              {auditError ? "重试" : "查看全部"}
-            </button>
-            {developer && audit && (
-              <details>
-                <summary>原始审计</summary>
-                <pre>
-                  {audit.map((event) => JSON.stringify(event)).join("\n")}
-                </pre>
-              </details>
-            )}
-          </section>
-        </aside>
-      </div>
+          </div>
+          <aside className="detail-sidebar">
+            <section className="panel">
+              <h2>权限摘要</h2>
+              <p>开始使用时确认本次范围；有效期最长 1 小时，停止即撤销。</p>
+              <PermissionSummary
+                permissions={resources
+                  .filter((p) => p.enabled)
+                  .flatMap((p) =>
+                    p.manifest.permissions.map((permission) => ({
+                      permission,
+                      formatVersion: p.manifest.formatVersion,
+                      serviceTargets: p.serviceTargets?.[permission.id],
+                    })),
+                  )}
+              />
+            </section>
+            <section className="panel">
+              <h2>工作目录</h2>
+              <p>
+                普通扩展按声明访问已绑定目录。本地执行还须符合组件档位与已确认范围，整机档位具有更广访问能力。
+              </p>
+              {roots.length ? (
+                roots.map((name) => (
+                  <RootRow
+                    key={`${record.instanceId}:${name}`}
+                    name={name}
+                    path={record.roots?.[name]}
+                    onBind={onBind}
+                    onUnbind={onUnbind}
+                  />
+                ))
+              ) : (
+                <p>组件尚未声明外部工作目录。</p>
+              )}
+            </section>
+            <section className="panel">
+              <h2>最近执行记录</h2>
+              {auditError ? (
+                <p role="alert">{auditError}</p>
+              ) : (
+                <ExecutionRecordList events={audit} resources={resources} />
+              )}
+              <button className="ghost sm" disabled={busy} onClick={onAudit}>
+                {auditError ? "重试" : "查看全部"}
+              </button>
+              {developer && audit && (
+                <details>
+                  <summary>原始审计</summary>
+                  <pre>
+                    {audit.map((event) => JSON.stringify(event)).join("\n")}
+                  </pre>
+                </details>
+              )}
+            </section>
+          </aside>
+        </div>
+      </section>
       {developer && output !== undefined && <RawJson value={output} />}
     </section>
   );

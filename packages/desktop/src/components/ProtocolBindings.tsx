@@ -55,6 +55,8 @@ export function ProtocolChoices({
           <div
             className="protocol-choice"
             key={`${state.consumerId}:${state.requirement.id}`}
+            data-consumer-id={state.consumerId}
+            data-requirement-id={state.requirement.id}
           >
             <label className="field">
               <strong>

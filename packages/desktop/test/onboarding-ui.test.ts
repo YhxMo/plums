@@ -600,7 +600,7 @@ it("keeps initial loading and failure distinct and rejects outdated Agent and li
 
 it("renders the shell and dialogs in both themes at desktop and narrow widths with visible focus and readable colors", async () => {
   const { application, page, temporary } = await launchFixture();
-  const screenshots = path.resolve(".build-cache/visual-v3");
+  const screenshots = path.resolve(".build-cache/phase3/detail-ui");
   const errors: string[] = [];
   page.on("pageerror", (error) => errors.push(error.message));
   await (
@@ -677,6 +677,66 @@ it("renders the shell and dialogs in both themes at desktop and narrow widths wi
       };
       (window as any).manager = {
         async call(method: string) {
+          if (method === "agentReadinessPlan")
+            return {
+              evidence: "declared",
+              prepared: false,
+              reasons: [
+                {
+                  code: "SETTINGS_REQUIRED",
+                  blocking: true,
+                  action: "settings",
+                  packageId: "connector",
+                  field: "model",
+                },
+                {
+                  code: "ENABLE_REQUIRED",
+                  blocking: true,
+                  action: "enable",
+                  packageId: "extension",
+                },
+                {
+                  code: "PROJECT_UNAVAILABLE",
+                  blocking: true,
+                  action: "permissions",
+                  packageId: "extension",
+                  engineId: "long-project-engine-identifier",
+                },
+                {
+                  code: "FOUNDATION_UNAVAILABLE",
+                  blocking: true,
+                  action: "foundation",
+                },
+                { code: "RESOURCE_PAGE", blocking: false, action: "resources" },
+              ],
+            };
+          if (method === "policyPlan")
+            return {
+              candidates: [],
+              available: [],
+              selected: null,
+              active: null,
+            };
+          if (method === "resourcePlan")
+            return {
+              spaces: [],
+              requirements: [],
+              qualifications: [],
+              bindings: [],
+              active: null,
+            };
+          if (method === "foundationManagement")
+            return {
+              catalog: [],
+              agents: [
+                {
+                  instanceId: record.instanceId,
+                  name,
+                  recoveryBlocked: true,
+                  reason: "FOUNDATION_RECOVERY_REQUIRED",
+                },
+              ],
+            };
           if (method === "cacheStatus") return [];
           if (method === "agentState") return null;
           if (method === "agentStatus") return "needs-config";
@@ -934,6 +994,80 @@ it("renders the shell and dialogs in both themes at desktop and narrow widths wi
         await page.keyboard.press("Escape");
         await page.getByTestId("nav-tab-home").click();
         await page.getByTestId("agent-card").click();
+        const readiness = page.getByRole("region", { name: "使用前检查" });
+        await readiness
+          .getByText("还有 4 项准备条件待处理", { exact: true })
+          .waitFor();
+        expect(await readiness.innerText()).toContain("TIER_UNAVAILABLE");
+        await checkLayout();
+        await readiness.getByRole("button", { name: "填写配置" }).click();
+        const modelField = page.getByLabel("模型名称", { exact: true });
+        await expect
+          .poll(() =>
+            modelField.evaluate((el) => el === document.activeElement),
+          )
+          .toBe(true);
+        await modelField.fill("unsaved-model-with-a-long-fixture-name");
+        expect(await page.getByTestId("config-dialog").innerText()).toContain(
+          "有未保存的修改",
+        );
+        await checkLayout();
+        await screenshot({
+          path: path.join(
+            screenshots,
+            `${colorScheme}-repair-config-${width}.png`,
+          ),
+        });
+        await page.keyboard.press("Escape");
+        await expect
+          .poll(() =>
+            readiness
+              .getByRole("button", { name: "填写配置" })
+              .evaluate((el) => el === document.activeElement),
+          )
+          .toBe(true);
+        const sectionNav = page.getByRole("navigation", {
+          name: "Agent 详情分区",
+        });
+        for (const [label, id] of [
+          ["准备使用", "detail-prepare"],
+          ["任务与资源", "detail-runtime"],
+          ["权限与恢复", "detail-permissions"],
+          ["组件与记录", "detail-components"],
+        ]) {
+          await sectionNav
+            .getByRole("button", { name: label, exact: true })
+            .focus();
+          await page.keyboard.press("Enter");
+          expect(
+            await page
+              .locator(`#${id}`)
+              .evaluate((el) => el === document.activeElement),
+          ).toBe(true);
+          const revoke = sectionNav.getByRole("button", { name: "停止并撤权" });
+          expect(
+            await revoke.evaluate((el) => {
+              const rect = el.getBoundingClientRect();
+              return (
+                rect.top >= 0 &&
+                rect.bottom <= innerHeight &&
+                rect.left >= 0 &&
+                rect.right <= innerWidth
+              );
+            }),
+          ).toBe(true);
+        }
+        await sectionNav.getByRole("button", { name: "停止并撤权" }).focus();
+        await page.keyboard.press("Tab");
+        await page.keyboard.press("Shift+Tab");
+        expect(
+          await sectionNav
+            .getByRole("button", { name: "停止并撤权" })
+            .evaluate((el) => getComputedStyle(el).boxShadow),
+        ).not.toBe("none");
+        await sectionNav
+          .getByRole("button", { name: "准备使用", exact: true })
+          .click();
         await screenshot({
           path: path.join(screenshots, `${colorScheme}-detail-${width}.png`),
         });
@@ -1376,6 +1510,30 @@ it("integrates native window chrome, fullscreen events and theme updates", async
           .textContent(),
       )
       .toContain("深色");
+  } catch (error) {
+    try {
+      const output = path.resolve(".build-cache/phase3/native-theme-failure");
+      await mkdir(output, { recursive: true });
+      await writeFile(
+        path.join(output, "windows.json"),
+        JSON.stringify(
+          await application.evaluate(({ BrowserWindow }) =>
+            BrowserWindow.getAllWindows().map((window) => ({
+              visible: window.isVisible(),
+              focused: window.isFocused(),
+              fullscreen: window.isFullScreen(),
+              destroyed: window.isDestroyed(),
+            })),
+          ),
+          null,
+          2,
+        ),
+      );
+      await (
+        await application.firstWindow()
+      ).screenshot({ path: path.join(output, "window.png") });
+    } catch {}
+    throw error;
   } finally {
     await application.close();
     await rm(temporary, { recursive: true, force: true });

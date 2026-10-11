@@ -3,14 +3,21 @@ import { LocalPermissions } from "../components/LocalPermissions.js";
 import { KindIcon } from "../components/KindIcon.js";
 import { useState } from "react";
 import { ManagedDialog } from "../managed-dialog.js";
-import { SettingsFields, initialSettings } from "../settings-fields.js";
+import {
+  SettingsFields,
+  initialSettings,
+  settingsChanged,
+  settingsErrorField,
+} from "../settings-fields.js";
 import type { AgentRecord } from "@plumsjs/host";
 import type { Resource } from "../shared/types.js";
+import type { SettingsDescription } from "@plumsjs/core";
 interface Props {
   record: AgentRecord;
   resources: Resource[];
   busy: boolean;
   error: string;
+  errorPath?: string;
   onClose: () => void;
   onStart: () => Promise<void>;
   onSave: (
@@ -25,6 +32,7 @@ export function AgentSetup({
   resources,
   busy,
   error,
+  errorPath = "",
   onClose,
   onStart,
   onSave,
@@ -44,13 +52,25 @@ export function AgentSetup({
       {},
     );
   const [submitting, setSubmitting] = useState(false);
+  const [failedPackage, setFailedPackage] = useState<string>();
+  const [saved, setSaved] = useState<Record<string, SettingsDescription>>({});
   const working = busy || submitting;
+  const changed = configurable.filter((p) =>
+    settingsChanged(
+      saved[p.id] ?? p.settings,
+      values[p.id] ?? {},
+      secrets[p.id] ?? {},
+    ),
+  );
   const fields = (p: Resource, requiredOnly?: boolean) => (
     <SettingsFields
-      settings={p.settings}
+      settings={saved[p.id] ?? p.settings}
       values={values[p.id] ?? {}}
       secrets={secrets[p.id] ?? {}}
       requiredOnly={requiredOnly}
+      errorField={
+        failedPackage === p.id ? settingsErrorField(errorPath) : undefined
+      }
       onValue={(key, value) =>
         setValues((old) => ({ ...old, [p.id]: { ...old[p.id], [key]: value } }))
       }
@@ -104,6 +124,18 @@ export function AgentSetup({
         </li>
       </ol>
       <p>完成配置，统一查看所需组件的权限，然后打开工作界面。</p>
+      <p role="status" className={changed.length ? "notice" : "muted"}>
+        {changed.length
+          ? `${changed.length} 个组件有未保存的修改；开始使用时逐个保存，成功后再查看权限。`
+          : "配置输入将先保存，再进入权限确认。"}
+      </p>
+      {failedPackage && error && (
+        <p className="error-text">
+          未保存：
+          {resources.find((p) => p.id === failedPackage)?.name ?? "当前组件"}
+          。请检查配置后重试。
+        </p>
+      )}
       {error && (
         <div role="alert" className="notice error">
           {error}
@@ -122,9 +154,35 @@ export function AgentSetup({
           e.preventDefault();
           if (working) return;
           setSubmitting(true);
+          setFailedPackage(undefined);
           try {
-            for (const p of configurable)
-              await onSave(p.id, values[p.id] ?? {}, secrets[p.id] ?? {});
+            for (const p of configurable) {
+              try {
+                await onSave(p.id, values[p.id] ?? {}, secrets[p.id] ?? {});
+                // Preserve committed configuration when refreshing the manager fails.
+                setSaved((old) => ({
+                  ...old,
+                  [p.id]: {
+                    ...p.settings,
+                    values: values[p.id] ?? {},
+                    secrets: {
+                      ...p.settings.secrets,
+                      ...old[p.id]?.secrets,
+                      ...Object.fromEntries(
+                        Object.keys(secrets[p.id] ?? {}).map((key) => [
+                          key,
+                          true,
+                        ]),
+                      ),
+                    },
+                  },
+                }));
+                setSecrets((old) => ({ ...old, [p.id]: {} }));
+              } catch (failure) {
+                setFailedPackage(p.id);
+                throw failure;
+              }
+            }
             await onStart();
           } catch {
             // The manager displays the sanitized host error and keeps this form open.

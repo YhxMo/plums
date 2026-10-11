@@ -920,6 +920,8 @@ async function fixture(holdRuntime = false) {
             };
           case "cacheStatus":
             return [];
+          case "agentReadinessPlan":
+            return { evidence: "declared", prepared: true, reasons: [] };
           case "tierPlan":
             return {
               fingerprint: "local-ui-fixture",
@@ -972,7 +974,12 @@ async function fixture(holdRuntime = false) {
             resources.find((p) => p.id === args.packageId)!.enabled = false;
             return null;
           case "settings":
-            if (state.failSettings) throw { message: "配置未保存，请重试" };
+            if (state.failSettings)
+              throw {
+                code: "SETTINGS_INVALID",
+                path: "/settings/note",
+                message: "配置未保存，请重试",
+              };
             resources.find((p) => p.id === args.packageId)!.settings.values =
               args.values;
             return null;
@@ -1309,7 +1316,13 @@ it("isolates pending component operations, rejects duplicate submissions and kee
       ),
     ).toBe(1);
     await beta.getByRole("button", { name: "配置", exact: true }).click();
+    expect(await page.getByTestId("config-dialog").innerText()).toContain(
+      "当前显示已保存的配置",
+    );
     await page.getByLabel("备注", { exact: true }).fill("保留输入");
+    expect(await page.getByTestId("config-dialog").innerText()).toContain(
+      "有未保存的修改",
+    );
     await page.evaluate(() => {
       (window as any).interaction.failSettings = true;
     });
