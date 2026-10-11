@@ -99,6 +99,13 @@
       "groupOrder": 108
     },
     {
+      "name": "execution-records-ui",
+      "group": "electron",
+      "include": ["packages/desktop/test/execution-records-ui.test.ts"],
+      "setupFiles": ["packages/desktop/test/support/electron-ready.ts"],
+      "groupOrder": 114
+    },
+    {
       "name": "interaction-ui",
       "group": "electron",
       "include": ["packages/desktop/test/interaction-ui.test.ts"],

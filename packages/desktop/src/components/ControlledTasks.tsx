@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import type { DesktopHost, AgentRecord } from "@plumsjs/host";
 import type { Resource } from "../shared/types.js";
+import { executionGuidance } from "../shared/execution-state.js";
 const desktopContribution = (manifest: Resource["manifest"]) =>
   (manifest.payload as { plumsDesktop?: { common?: { background?: boolean } } })
     ?.plumsDesktop;
@@ -12,11 +13,6 @@ const stateName: Record<string, string> = {
   stopped: "已停止",
   crashed: "已中断",
   completed: "已完成",
-};
-const resultName: Record<string, string> = {
-  not_started: "尚未执行",
-  unknown: "执行结果未知，请核实后再操作",
-  completed: "已执行，请勿自动重试",
 };
 export function ControlledTasks({
   record,
@@ -96,7 +92,7 @@ export function ControlledTasks({
       );
       return true;
     } catch {
-      setError("操作未完成。请刷新当前状态后重试。");
+      setError("操作未完成。请刷新任务状态并核实结果后再决定下一步。");
       return false;
     } finally {
       setBusy(false);
@@ -113,6 +109,23 @@ export function ControlledTasks({
       <p className="muted">
         后台开关决定界面关闭后是否继续运行。每次操作仍需有效权限，停止后不会自动重试。
       </p>
+      <button
+        className="sm"
+        disabled={busy}
+        onClick={() => {
+          setBusy(true);
+          void window.manager
+            .call("commonTasks", { instanceId: record.instanceId })
+            .then((value) => {
+              setTasks(value as Tasks);
+              setError("");
+            })
+            .catch(() => setError("任务状态未能读取，请重试。"))
+            .finally(() => setBusy(false));
+        }}
+      >
+        刷新任务状态
+      </button>
       {error && <p role="alert">{error}</p>}
       {backgrounds.map((r) => (
         <label className="controlled-option" key={r.id}>
@@ -155,7 +168,19 @@ export function ControlledTasks({
                     ? "Agent 后台"
                     : "随界面运行"}
                 </span>
-                <small>{resultName[t.snapshot.status.executionState]}</small>
+                <small>
+                  {executionGuidance[t.snapshot.status.executionState].title}
+                </small>
+                <details>
+                  <summary>如何核实与恢复</summary>
+                  <p>
+                    {executionGuidance[t.snapshot.status.executionState].next}
+                  </p>
+                  <p>
+                    任务标识：<code>{t.description.taskId}</code>
+                    。核实结果后，可通过兼容组件接管现有任务。重启不恢复任务正文或自动重执行。
+                  </p>
+                </details>
                 <label>
                   接管界面组件
                   <select

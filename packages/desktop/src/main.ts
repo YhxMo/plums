@@ -977,6 +977,7 @@ app.whenReady().then(async () => {
             "preview",
             "install",
             "resources",
+            "agentReadinessPlan",
             "engineStatus",
             "tierPlan",
             "cacheStatus",

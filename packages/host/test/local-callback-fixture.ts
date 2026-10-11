@@ -64,6 +64,7 @@ const id='callback-'+(++next);callbacks.set(id,m.id);send({id,method:'host.invok
 const storeSource = `export function activate(s){const run=async v=>{const i=v.input??v;
 if(i.op==='fs')return s.capability('data',{kind:'fs',operation:'write',path:'callback.txt',data:[1,2,3]});
 if(i.op==='hang')await new Promise(()=>{});
+if(i.op==='benchmark-hang'){await s.emit('benchmark.started',null);await new Promise(()=>{});}
 if(i.op==='list')return s.resources.list();
 const binding=i.binding??(await s.resources.list()).find(r=>r.requirementId==='records')?.binding;
 if(i.op==='handle')return binding;

@@ -171,7 +171,11 @@ export function AgentDetailView({
           </p>
         ))}
       <WorkspaceComposition record={record} resources={resources} />
-      <ControlledTasks record={record} resources={resources} />
+      <ControlledTasks
+        key={`tasks:${record.instanceId}`}
+        record={record}
+        resources={resources}
+      />
       <BusinessResources instanceId={record.instanceId} revision={resources} />
       <PolicyModes instanceId={record.instanceId} revision={resources} />
       <LocalPermissions

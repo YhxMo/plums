@@ -79,6 +79,7 @@ import {
 } from "./component-drafts.js";
 import { EngineCoordinator } from "./engine-coordinator.js";
 import { enablePlan, enablePrepared } from "./agent-launch.js";
+import { readinessReasons, type ReadinessReason } from "./agent-readiness.js";
 import {
   httpsService,
   connectionAccess,
@@ -2832,6 +2833,53 @@ export class DesktopHost {
       await enablePlan(s.core, s.record),
       await this.secretValues(s),
     );
+  }
+  async agentReadinessPlan(id: string) {
+    uuid(id);
+    return this.serial(id, async () => {
+      let reasons: ReadinessReason[];
+      if (this.recoveryErrors.has(id)) {
+        reasons = [
+          {
+            code: "FOUNDATION_UNAVAILABLE",
+            blocking: true,
+            action: "foundation",
+          },
+        ];
+      } else {
+        try {
+          const s = await this.session(id);
+          await this.assertCoherent(id);
+          const enable = await enablePlan(s.core, s.record);
+          const tier = await this.localAuthorizations.plan(s);
+          const foundation = await this.foundationPlan(id);
+          const startup = s.record.agent.startup;
+          const frontend = startup
+            ? desktopContribution((await s.core.getPackage(startup)).manifest)
+                ?.frontend
+            : undefined;
+          reasons = readinessReasons(
+            enable,
+            tier,
+            foundation.compatible,
+            !!frontend,
+          );
+          reasons = redact(
+            reasons,
+            await this.secretValues(s),
+          ) as ReadinessReason[];
+        } catch {
+          reasons = [
+            { code: "STATE_UNAVAILABLE", blocking: true, action: "refresh" },
+          ];
+        }
+      }
+      return {
+        evidence: "declared" as const,
+        prepared: !reasons.some((r) => r.blocking),
+        reasons,
+      };
+    });
   }
   async enableAgent(id: string, fingerprint: string) {
     return this.serial(id, async () => {

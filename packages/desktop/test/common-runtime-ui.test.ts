@@ -1,7 +1,7 @@
 import { it, expect } from "vitest";
 import { _electron as electron } from "@playwright/test";
 import { createRequire } from "node:module";
-import { cp, mkdir, symlink, rm } from "node:fs/promises";
+import { cp, mkdir, symlink, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { fixture } from "../../host/test/common-fixture.js";
 const require = createRequire(import.meta.url);
@@ -46,12 +46,40 @@ it.runIf(process.platform === "darwin")(
       const page = await app.firstWindow();
       await page.getByRole("article", { name: "查看 Fixture A" }).click();
       const panel = page.getByTestId("controlled-tasks");
-      await panel.getByLabel("consumer：允许声明的 Agent 后台任务").check();
+      try {
+        await panel.getByLabel("consumer：允许声明的 Agent 后台任务").check();
+      } catch (error) {
+        try {
+          const output = path.join(root, ".build-cache/phase2/task-ui-failure");
+          await mkdir(output, { recursive: true });
+          await page.screenshot({
+            path: path.join(output, "background.png"),
+            fullPage: true,
+          });
+          const state = await page.evaluate(async (instanceId) => {
+            const detail = (await window.manager.call("resources", {
+              instanceId,
+            })) as any;
+            return {
+              backgroundComponents: detail.record.backgroundComponents ?? [],
+              alerts: [...document.querySelectorAll('[role="alert"]')].map(
+                (el) => el.textContent,
+              ),
+            };
+          }, f.a.instanceId);
+          await writeFile(
+            path.join(output, "background.json"),
+            JSON.stringify(state, null, 2),
+          );
+        } catch {}
+        throw error;
+      }
       await expect
         .poll(() =>
           panel.getByLabel("consumer：允许声明的 Agent 后台任务").isChecked(),
         )
         .toBe(true);
+      await expect.poll(() => panel.count()).toBe(1);
       await page.evaluate(
         async (id) => window.manager.call("openAgent", { instanceId: id }),
         f.a.instanceId,
@@ -135,6 +163,16 @@ it.runIf(process.platform === "darwin")(
         status.find((t: any) => t.description.taskId === taskId).snapshot.status
           .executionState,
       ).toBe("unknown");
+      await panel.getByRole("button", { name: "刷新任务状态" }).click();
+      await expect
+        .poll(() =>
+          panel
+            .getByText("操作可能已经执行，结果未知", { exact: false })
+            .count(),
+        )
+        .toBeGreaterThan(0);
+      await panel.getByText("如何核实与恢复", { exact: true }).first().click();
+      expect(await panel.innerText()).toContain("停止不会回滚副作用");
     } finally {
       await app.close();
       await rm(f.dir, { recursive: true, force: true });

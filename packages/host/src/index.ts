@@ -4,6 +4,7 @@ export type {
   GrantConfirm,
 } from "./engine-grants.js";
 export { DesktopHost } from "./host.js";
+export type { ReadinessReason } from "./agent-readiness.js";
 export {
   cachePaths,
   cacheUsage,

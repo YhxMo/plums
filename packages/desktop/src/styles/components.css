@@ -713,7 +713,7 @@ main {
   margin: 0;
   padding: 0;
 }
-.execution-records li {
+.execution-records > li {
   display: flex;
   gap: 12px;
   padding: 10px 0;
@@ -727,6 +727,16 @@ main {
 .execution-records strong,
 .execution-records span {
   display: block;
+}
+.execution-records > li > div {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.execution-stages {
+  padding-left: 20px;
+}
+.execution-stages li {
+  margin: 4px 0;
 }
 .settings-view {
   max-width: 720px;

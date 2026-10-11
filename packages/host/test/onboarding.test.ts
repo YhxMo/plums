@@ -307,6 +307,89 @@ it("missing configuration prevents every consent and enable operation", async ()
     true,
   );
 });
+it("exposes host preparation reasons without granting authority and clears them only after explicit setup", async () => {
+  const { host, agent } = await prepared();
+  const initial = await host.agentReadinessPlan(agent.instanceId);
+  expect(initial).toMatchObject({ prepared: false, evidence: "declared" });
+  expect(initial.reasons).toContainEqual({
+    code: "SETTINGS_REQUIRED",
+    blocking: true,
+    action: "settings",
+    packageId: "model",
+    field: "apiKey",
+  });
+  const before = (await host.resources(agent.instanceId)) as {
+    packages: { enabled: boolean; consented: boolean }[];
+  };
+  expect(before.packages.every((p) => !p.enabled && !p.consented)).toBe(true);
+  await host.setSettings(
+    agent.instanceId,
+    "model",
+    { model: "demo" },
+    { apiKey: "fake-readiness-key" },
+  );
+  const configured = await host.agentReadinessPlan(agent.instanceId);
+  expect(configured.reasons.some((r) => r.code === "SETTINGS_REQUIRED")).toBe(
+    false,
+  );
+  expect(configured.prepared).toBe(false);
+  const plan = (await host.agentEnablePlan(agent.instanceId)) as {
+    fingerprint: string;
+  };
+  await host.enableAgent(agent.instanceId, plan.fingerprint);
+  expect(await host.agentReadinessPlan(agent.instanceId)).toEqual({
+    prepared: true,
+    evidence: "declared",
+    reasons: [],
+  });
+  await host.disable(agent.instanceId, "workspace");
+  expect(
+    (await host.agentReadinessPlan(agent.instanceId)).reasons,
+  ).toContainEqual({
+    code: "ENABLE_REQUIRED",
+    blocking: true,
+    action: "enable",
+    packageId: "workspace",
+  });
+  expect(JSON.stringify(initial)).not.toContain("fake-readiness-key");
+  await host.setStartup(agent.instanceId, undefined);
+  expect(
+    (await host.agentReadinessPlan(agent.instanceId)).reasons,
+  ).toContainEqual({
+    code: "RESOURCE_PAGE",
+    blocking: false,
+    action: "resources",
+  });
+  await host.setStartup(agent.instanceId, "workspace");
+});
+it("an empty Agent uses the resource page and unavailable state fails closed", async () => {
+  const { host } = await fixture();
+  const agent = await host.createAgent("Empty");
+  expect(await host.agentReadinessPlan(agent.instanceId)).toEqual({
+    prepared: true,
+    evidence: "declared",
+    reasons: [{ code: "RESOURCE_PAGE", blocking: false, action: "resources" }],
+  });
+  const details = (host as unknown as { recoveryErrors: Map<string, string> })
+    .recoveryErrors;
+  details.set(agent.instanceId, "synthetic-private-diagnostic");
+  expect(await host.agentReadinessPlan(agent.instanceId)).toEqual({
+    prepared: false,
+    evidence: "declared",
+    reasons: [
+      { code: "FOUNDATION_UNAVAILABLE", blocking: true, action: "foundation" },
+    ],
+  });
+  details.clear();
+  vi.spyOn(host, "foundationPlan").mockRejectedValueOnce(
+    Error("synthetic-private-failure"),
+  );
+  expect(await host.agentReadinessPlan(agent.instanceId)).toEqual({
+    prepared: false,
+    evidence: "declared",
+    reasons: [{ code: "STATE_UNAVAILABLE", blocking: true, action: "refresh" }],
+  });
+});
 it("permission/state changes during approval invalidate the plan before enabling further components", async () => {
   const { host, agent } = await prepared();
   await host.setSettings(

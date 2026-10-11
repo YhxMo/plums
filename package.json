@@ -12,6 +12,7 @@
     "test": "node scripts/prepare-test-runtime.mjs && node scripts/prepare-electron.mjs && pnpm run build && vitest run",
     "conformance:platform": "pnpm build && node scripts/platform-conformance.mjs",
     "bench:performance": "pnpm build && node --expose-gc scripts/bench-performance.mjs",
+    "bench:host": "pnpm build && node scripts/bench-host.mjs",
     "desktop:dev": "pnpm build && node scripts/prepare-electron.mjs && node scripts/run-desktop.mjs",
     "desktop:package": "pnpm build && node scripts/prepare-electron.mjs && node scripts/package-desktop.mjs",
     "test:experiments": "PLUMS_NATIVE_EXPERIMENTS=1 vitest run packages/host/test/project-members.experiments.test.ts --project experiments --maxWorkers=1"

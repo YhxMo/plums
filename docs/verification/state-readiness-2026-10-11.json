@@ -1,0 +1,124 @@
+{
+  "date": "2026-10-11",
+  "sourceBaseline": "1fe8815",
+  "environment": {
+    "node": "26.5.1",
+    "electron": "44.5.1",
+    "os": "macOS 27.0.1 arm64",
+    "signing": "local ad-hoc test signature"
+  },
+  "runs": [
+    {
+      "name": "state-ui-first",
+      "success": false,
+      "passed": 27,
+      "failed": 0,
+      "reason": "Electron readiness gate rejected startup; fixed Node and Electron were then prepared",
+      "files": [
+        {
+          "file": "packages/desktop/test/common-runtime-ui.test.ts",
+          "status": "failed",
+          "passed": 0,
+          "failed": 0
+        },
+        {
+          "file": "packages/desktop/test/execution-records-ui.test.ts",
+          "status": "failed",
+          "passed": 0,
+          "failed": 0
+        },
+        {
+          "file": "packages/desktop/test/execution-state.test.ts",
+          "status": "passed",
+          "passed": 1,
+          "failed": 0
+        },
+        {
+          "file": "packages/core/test/capability-control-metadata.test.ts",
+          "status": "passed",
+          "passed": 18,
+          "failed": 0
+        },
+        {
+          "file": "packages/core/test/sink-failure.test.ts",
+          "status": "passed",
+          "passed": 4,
+          "failed": 0
+        },
+        {
+          "file": "packages/host/test/agent-readiness.test.ts",
+          "status": "passed",
+          "passed": 4,
+          "failed": 0
+        }
+      ],
+      "startupRejectedFiles": 2
+    },
+    {
+      "name": "ui-rerun",
+      "success": false,
+      "passed": 0,
+      "failed": 2,
+      "reason": "React dependency resolution in the new test harness and duplicate sibling keys in the task panel",
+      "files": [
+        {
+          "file": "packages/desktop/test/common-runtime-ui.test.ts",
+          "status": "failed",
+          "passed": 0,
+          "failed": 1
+        },
+        {
+          "file": "packages/desktop/test/execution-records-ui.test.ts",
+          "status": "failed",
+          "passed": 0,
+          "failed": 1
+        }
+      ]
+    },
+    {
+      "name": "ui-diagnostic",
+      "success": false,
+      "passed": 1,
+      "failed": 1,
+      "reason": "Record UI passed after dependency resolution fix; task panel still had duplicate sibling keys",
+      "files": [
+        {
+          "file": "packages/desktop/test/common-runtime-ui.test.ts",
+          "status": "failed",
+          "passed": 0,
+          "failed": 1
+        },
+        {
+          "file": "packages/desktop/test/execution-records-ui.test.ts",
+          "status": "passed",
+          "passed": 1,
+          "failed": 0
+        }
+      ]
+    },
+    {
+      "name": "task-ui-fixed",
+      "success": true,
+      "passed": 1,
+      "failed": 0,
+      "reason": "Task panel used a distinct tasks: key; original checkbox assertion and new uniqueness assertion passed",
+      "files": [
+        {
+          "file": "packages/desktop/test/common-runtime-ui.test.ts",
+          "status": "passed",
+          "passed": 1,
+          "failed": 0
+        }
+      ]
+    }
+  ],
+  "finalCoverage": {
+    "stateAndReasonChecks": 27,
+    "executionRecordsUI": "passed; light/dark, keyboard details, 1180/760/375/320 widths, request data omitted",
+    "realCommonTasksUI": "passed; background selection, one panel after refresh, attachment, stop, unknown guidance, manual refresh"
+  },
+  "limits": [
+    "targeted checks; not the entire default test suite",
+    "not packaged app or native project container certification"
+  ]
+}

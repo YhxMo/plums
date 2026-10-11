@@ -156,6 +156,37 @@ async function fixture(
   };
 }
 const simple = `import{createInterface}from'node:readline';const send=(id,result)=>console.log(JSON.stringify({jsonrpc:'2.0',id,result}));createInterface({input:process.stdin}).on('line',l=>{const m=JSON.parse(l);if(m.method==='initialize')send(m.id,{protocol:'jsonrpc-jsonl-v1'});else if(m.method==='echo')send(m.id,m.params);});`;
+it("readiness reflects explicit local authorization and preserves project unavailability", async () => {
+  const f = await fixture(undefined, false, undefined, false);
+  expect((await f.host.agentReadinessPlan(f.id)).reasons).toContainEqual({
+    code: "LOCAL_TIER_REQUIRED",
+    blocking: true,
+    action: "permissions",
+    packageId: "engine-demo",
+    engineId: "local",
+  });
+  expect(
+    (await f.host.engineStatus(f.id, "engine-demo", "local")).trusted,
+  ).toBe(false);
+  await f.approve();
+  expect(
+    (await f.host.agentReadinessPlan(f.id)).reasons.some(
+      (r) =>
+        r.code === "LOCAL_TIER_REQUIRED" ||
+        r.code === "LOCAL_AUTHORIZATION_REQUIRED",
+    ),
+  ).toBe(false);
+  const project = await fixture(undefined, false, "project");
+  expect(
+    (await project.host.agentReadinessPlan(project.id)).reasons,
+  ).toContainEqual({
+    code: "PROJECT_UNAVAILABLE",
+    blocking: true,
+    action: "permissions",
+    packageId: "engine-demo",
+    engineId: "local",
+  });
+});
 it("accepts project declarations but cannot launch them through the unsandboxed compatibility path", async () => {
   const f = await fixture(simple, false, "project");
   await expect(
