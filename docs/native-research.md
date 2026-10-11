@@ -1,6 +1,6 @@
 # 原生安全研究与外部验收前置条件
 
-2026-10-11 在 macOS 27.0.1 arm64、Node 26.5.1、Electron 44.5.1 上研究原生边界。研究轮次见[验收摘要](verification/native-research-2026-10-11.json)，后续默认测试及独立复核见[组合验收](acceptance.md)。项目档位继续返回 `TIER_UNAVAILABLE`。研究轮次的原生全屏焦点检查失败，完整 `pnpm test` 没有通过结论；后续用例通过不能唯一解释这些历史失败。
+2026-10-11 在 macOS 27.0.1 arm64、Node 26.5.1、Electron 44.5.1 上研究原生边界。研究轮次见[验收摘要](verification/native-research-2026-10-11.json)，后续默认测试及独立复核见[组合验收](acceptance.md)。项目档位继续返回 `TIER_UNAVAILABLE`。研究轮次的原生全屏焦点检查失败；后续限定权限测试定位器后，完整默认套件通过。该通过不认证项目回收或唯一解释历史焦点失败。
 
 ## 项目容器：校准与回收分开判断
 

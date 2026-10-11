@@ -4,7 +4,7 @@
   "timezone": "Asia/Shanghai",
   "codeInputCommit": "9ace54fb7c0dc1dbfe360df580fdc090a3991fdb",
   "branch": "codex/plums-phased-improvements",
-  "finalChanges": "Documentation and acceptance evidence only; production code, tests, scheduling and native guards unchanged.",
+  "finalChanges": "Scoped the permissions disclosure assertions to the named pending summary region; preserved all confirmation, start/stop, revocation and lower-tier assertions. Production code, scheduling and native guards unchanged. Documentation records pre-fix and post-fix runs separately.",
   "environment": {
     "macOS": "27.0.1",
     "architecture": "arm64",
@@ -1813,6 +1813,1763 @@
           ]
         }
       ]
+    },
+    "permissionsAfterLocatorFix": {
+      "command": "/usr/bin/caffeinate -dims pnpm exec vitest run packages/desktop/test/local-permissions-ui.test.ts --reporter=default --reporter=json --outputFile=<report.json>",
+      "scope": "Post-fix targeted run, all three cases.",
+      "success": true,
+      "startedAtUtc": "2026-10-11T10:25:55.820Z",
+      "files": 1,
+      "passed": 3,
+      "failed": 0,
+      "skipped": 0,
+      "fileResults": [
+        {
+          "file": "packages/desktop/test/local-permissions-ui.test.ts",
+          "status": "passed",
+          "passed": 3,
+          "failed": 0,
+          "skipped": 0,
+          "failedCases": [],
+          "skippedCases": []
+        }
+      ]
+    },
+    "defaultAfterLocatorFix": {
+      "command": "/usr/bin/caffeinate -dims pnpm test --reporter=default --reporter=json --outputFile=<report.json>",
+      "scope": "Post-fix complete default suite; all 191 files, no name filter or test exclusion. Includes fresh fixed runtime preparation and build.",
+      "success": true,
+      "startedAtUtc": "2026-10-11T10:27:08.409Z",
+      "files": 191,
+      "passed": 2782,
+      "failed": 0,
+      "skipped": 1,
+      "fileResults": [
+        {
+          "file": "packages/host/test/local-callbacks.test.ts",
+          "status": "passed",
+          "passed": 26,
+          "failed": 0,
+          "skipped": 0,
+          "failedCases": [],
+          "skippedCases": []
+        },
+        {
+          "file": "packages/host/test/confirm-once.test.ts",
+          "status": "passed",
+          "passed": 16,
+          "failed": 0,
+          "skipped": 0,
+          "failedCases": [],
+          "skippedCases": []
+        },
+        {
+          "file": "packages/desktop/test/foundation-ui.test.ts",
+          "status": "passed",
+          "passed": 1,
+          "failed": 0,
+          "skipped": 0,
+          "failedCases": [],
+          "skippedCases": []
+        },
+        {
+          "file": "packages/desktop/test/common-runtime-ui.test.ts",
+          "status": "passed",
+          "passed": 1,
+          "failed": 0,
+          "skipped": 0,
+          "failedCases": [],
+          "skippedCases": []
+        },
+        {
+          "file": "packages/desktop/test/workspace-ui.test.ts",
+          "status": "passed",
+          "passed": 1,
+          "failed": 0,
+          "skipped": 0,
+          "failedCases": [],
+          "skippedCases": []
+        },
+        {
+          "file": "packages/desktop/test/platform-conformance-ui.test.ts",
+          "status": "passed",
+          "passed": 1,
+          "failed": 0,
+          "skipped": 0,
+          "failedCases": [],
+          "skippedCases": []
+        },
+        {
+          "file": "packages/desktop/test/policy-ui.test.ts",
+          "status": "passed",
+          "passed": 1,
+          "failed": 0,
+          "skipped": 0,
+          "failedCases": [],
+          "skippedCases": []
+        },
+        {
+          "file": "packages/desktop/test/local-permissions-ui.test.ts",
+          "status": "passed",
+          "passed": 3,
+          "failed": 0,
+          "skipped": 0,
+          "failedCases": [],
+          "skippedCases": []
+        },
+        {
+          "file": "packages/desktop/test/resources-ui.test.ts",
+          "status": "passed",
+          "passed": 1,
+          "failed": 0,
+          "skipped": 0,
+          "failedCases": [],
+          "skippedCases": []
+        },
+        {
+          "file": "packages/desktop/test/onboarding-ui.test.ts",
+          "status": "passed",
+          "passed": 4,
+          "failed": 0,
+          "skipped": 0,
+          "failedCases": [],
+          "skippedCases": []
+        },
+        {
+          "file": "packages/desktop/test/execution-records-ui.test.ts",
+          "status": "passed",
+          "passed": 1,
+          "failed": 0,
+          "skipped": 0,
+          "failedCases": [],
+          "skippedCases": []
+        },
+        {
+          "file": "packages/desktop/test/readiness-ui.test.ts",
+          "status": "passed",
+          "passed": 1,
+          "failed": 0,
+          "skipped": 0,
+          "failedCases": [],
+          "skippedCases": []
+        },
+        {
+          "file": "packages/desktop/test/interaction-ui.test.ts",
+          "status": "passed",
+          "passed": 17,
+          "failed": 0,
+          "skipped": 0,
+          "failedCases": [],
+          "skippedCases": []
+        },
+        {
+          "file": "packages/desktop/test/confirm-window.test.ts",
+          "status": "passed",
+          "passed": 1,
+          "failed": 0,
+          "skipped": 0,
+          "failedCases": [],
+          "skippedCases": []
+        },
+        {
+          "file": "packages/desktop/test/frontend-scope.test.ts",
+          "status": "passed",
+          "passed": 1,
+          "failed": 0,
+          "skipped": 0,
+          "failedCases": [],
+          "skippedCases": []
+        },
+        {
+          "file": "packages/desktop/test/panels.test.ts",
+          "status": "passed",
+          "passed": 1,
+          "failed": 0,
+          "skipped": 0,
+          "failedCases": [],
+          "skippedCases": []
+        },
+        {
+          "file": "packages/desktop/test/scenario-chat-ui.test.ts",
+          "status": "passed",
+          "passed": 1,
+          "failed": 0,
+          "skipped": 0,
+          "failedCases": [],
+          "skippedCases": []
+        },
+        {
+          "file": "packages/desktop/test/refresh-ui.test.ts",
+          "status": "passed",
+          "passed": 1,
+          "failed": 0,
+          "skipped": 0,
+          "failedCases": [],
+          "skippedCases": []
+        },
+        {
+          "file": "packages/desktop/test/recovery-ui.test.ts",
+          "status": "passed",
+          "passed": 1,
+          "failed": 0,
+          "skipped": 0,
+          "failedCases": [],
+          "skippedCases": []
+        },
+        {
+          "file": "packages/host/test/common-runtime.test.ts",
+          "status": "passed",
+          "passed": 20,
+          "failed": 0,
+          "skipped": 0,
+          "failedCases": [],
+          "skippedCases": []
+        },
+        {
+          "file": "packages/host/test/controlled-execution.test.ts",
+          "status": "passed",
+          "passed": 5,
+          "failed": 0,
+          "skipped": 0,
+          "failedCases": [],
+          "skippedCases": []
+        },
+        {
+          "file": "packages/host/test/local-authorization.test.ts",
+          "status": "passed",
+          "passed": 36,
+          "failed": 0,
+          "skipped": 0,
+          "failedCases": [],
+          "skippedCases": []
+        },
+        {
+          "file": "packages/host/test/platform-conformance.test.ts",
+          "status": "passed",
+          "passed": 7,
+          "failed": 0,
+          "skipped": 0,
+          "failedCases": [],
+          "skippedCases": []
+        },
+        {
+          "file": "packages/host/test/policy-execution.test.ts",
+          "status": "passed",
+          "passed": 3,
+          "failed": 0,
+          "skipped": 0,
+          "failedCases": [],
+          "skippedCases": []
+        },
+        {
+          "file": "packages/host/test/policy.test.ts",
+          "status": "passed",
+          "passed": 16,
+          "failed": 0,
+          "skipped": 0,
+          "failedCases": [],
+          "skippedCases": []
+        },
+        {
+          "file": "packages/host/test/project-config-files.test.ts",
+          "status": "passed",
+          "passed": 7,
+          "failed": 0,
+          "skipped": 0,
+          "failedCases": [],
+          "skippedCases": []
+        },
+        {
+          "file": "packages/host/test/project-container.test.ts",
+          "status": "passed",
+          "passed": 8,
+          "failed": 0,
+          "skipped": 0,
+          "failedCases": [],
+          "skippedCases": []
+        },
+        {
+          "file": "packages/host/test/project-creation.test.ts",
+          "status": "passed",
+          "passed": 1,
+          "failed": 0,
+          "skipped": 0,
+          "failedCases": [],
+          "skippedCases": []
+        },
+        {
+          "file": "packages/host/test/project-members-variants.test.ts",
+          "status": "passed",
+          "passed": 1,
+          "failed": 0,
+          "skipped": 0,
+          "failedCases": [],
+          "skippedCases": []
+        },
+        {
+          "file": "packages/host/test/project-members.test.ts",
+          "status": "passed",
+          "passed": 1,
+          "failed": 0,
+          "skipped": 0,
+          "failedCases": [],
+          "skippedCases": []
+        },
+        {
+          "file": "packages/host/test/project-sandbox.test.ts",
+          "status": "passed",
+          "passed": 17,
+          "failed": 0,
+          "skipped": 1,
+          "failedCases": [],
+          "skippedCases": [
+            {
+              "title": "project conformance records a skip on other platforms",
+              "reason": "platform-condition"
+            }
+          ]
+        },
+        {
+          "file": "packages/host/test/project-support-plan.test.ts",
+          "status": "passed",
+          "passed": 7,
+          "failed": 0,
+          "skipped": 0,
+          "failedCases": [],
+          "skippedCases": []
+        },
+        {
+          "file": "packages/host/test/sdk-capability-controls.test.ts",
+          "status": "passed",
+          "passed": 35,
+          "failed": 0,
+          "skipped": 0,
+          "failedCases": [],
+          "skippedCases": []
+        },
+        {
+          "file": "packages/host/test/task-scope.test.ts",
+          "status": "passed",
+          "passed": 10,
+          "failed": 0,
+          "skipped": 0,
+          "failedCases": [],
+          "skippedCases": []
+        },
+        {
+          "file": "packages/host/test/scenarios/foundation.test.ts",
+          "status": "passed",
+          "passed": 49,
+          "failed": 0,
+          "skipped": 0,
+          "failedCases": [],
+          "skippedCases": []
+        },
+        {
+          "file": "scripts/test/check-versions.test.ts",
+          "status": "passed",
+          "passed": 8,
+          "failed": 0,
+          "skipped": 0,
+          "failedCases": [],
+          "skippedCases": []
+        },
+        {
+          "file": "scripts/test/ci-platform-profile.test.ts",
+          "status": "passed",
+          "passed": 8,
+          "failed": 0,
+          "skipped": 0,
+          "failedCases": [],
+          "skippedCases": []
+        },
+        {
+          "file": "scripts/test/ci-skip-report.test.ts",
+          "status": "passed",
+          "passed": 7,
+          "failed": 0,
+          "skipped": 0,
+          "failedCases": [],
+          "skippedCases": []
+        },
+        {
+          "file": "scripts/test/doc-links.test.ts",
+          "status": "passed",
+          "passed": 7,
+          "failed": 0,
+          "skipped": 0,
+          "failedCases": [],
+          "skippedCases": []
+        },
+        {
+          "file": "scripts/test/package-smoke-script.test.ts",
+          "status": "passed",
+          "passed": 2,
+          "failed": 0,
+          "skipped": 0,
+          "failedCases": [],
+          "skippedCases": []
+        },
+        {
+          "file": "scripts/test/privacy-allowlist.test.ts",
+          "status": "passed",
+          "passed": 109,
+          "failed": 0,
+          "skipped": 0,
+          "failedCases": [],
+          "skippedCases": []
+        },
+        {
+          "file": "scripts/test/public-files.test.ts",
+          "status": "passed",
+          "passed": 13,
+          "failed": 0,
+          "skipped": 0,
+          "failedCases": [],
+          "skippedCases": []
+        },
+        {
+          "file": "scripts/test/public-ready.test.ts",
+          "status": "passed",
+          "passed": 29,
+          "failed": 0,
+          "skipped": 0,
+          "failedCases": [],
+          "skippedCases": []
+        },
+        {
+          "file": "scripts/test/release-workflow.test.ts",
+          "status": "passed",
+          "passed": 12,
+          "failed": 0,
+          "skipped": 0,
+          "failedCases": [],
+          "skippedCases": []
+        },
+        {
+          "file": "scripts/test/test-coverage.test.ts",
+          "status": "passed",
+          "passed": 4,
+          "failed": 0,
+          "skipped": 0,
+          "failedCases": [],
+          "skippedCases": []
+        },
+        {
+          "file": "scripts/test/third-party-notices.test.ts",
+          "status": "passed",
+          "passed": 8,
+          "failed": 0,
+          "skipped": 0,
+          "failedCases": [],
+          "skippedCases": []
+        },
+        {
+          "file": "packages/cli/test/cli-contract.test.ts",
+          "status": "passed",
+          "passed": 15,
+          "failed": 0,
+          "skipped": 0,
+          "failedCases": [],
+          "skippedCases": []
+        },
+        {
+          "file": "packages/cli/test/cli.test.ts",
+          "status": "passed",
+          "passed": 14,
+          "failed": 0,
+          "skipped": 0,
+          "failedCases": [],
+          "skippedCases": []
+        },
+        {
+          "file": "packages/desktop/test/broker-shutdown.test.ts",
+          "status": "passed",
+          "passed": 1,
+          "failed": 0,
+          "skipped": 0,
+          "failedCases": [],
+          "skippedCases": []
+        },
+        {
+          "file": "packages/desktop/test/execution-state.test.ts",
+          "status": "passed",
+          "passed": 1,
+          "failed": 0,
+          "skipped": 0,
+          "failedCases": [],
+          "skippedCases": []
+        },
+        {
+          "file": "packages/desktop/test/local-secrets.test.ts",
+          "status": "passed",
+          "passed": 1,
+          "failed": 0,
+          "skipped": 0,
+          "failedCases": [],
+          "skippedCases": []
+        },
+        {
+          "file": "packages/desktop/test/permission-copy.test.ts",
+          "status": "passed",
+          "passed": 4,
+          "failed": 0,
+          "skipped": 0,
+          "failedCases": [],
+          "skippedCases": []
+        },
+        {
+          "file": "packages/desktop/test/project-support.test.ts",
+          "status": "passed",
+          "passed": 1,
+          "failed": 0,
+          "skipped": 0,
+          "failedCases": [],
+          "skippedCases": []
+        },
+        {
+          "file": "packages/desktop/test/version.test.ts",
+          "status": "passed",
+          "passed": 2,
+          "failed": 0,
+          "skipped": 0,
+          "failedCases": [],
+          "skippedCases": []
+        },
+        {
+          "file": "packages/core/test/acceptance.test.ts",
+          "status": "passed",
+          "passed": 29,
+          "failed": 0,
+          "skipped": 0,
+          "failedCases": [],
+          "skippedCases": []
+        },
+        {
+          "file": "packages/core/test/authentic-migration-audit.test.ts",
+          "status": "passed",
+          "passed": 12,
+          "failed": 0,
+          "skipped": 0,
+          "failedCases": [],
+          "skippedCases": []
+        },
+        {
+          "file": "packages/core/test/authorization-audit-controls.test.ts",
+          "status": "passed",
+          "passed": 65,
+          "failed": 0,
+          "skipped": 0,
+          "failedCases": [],
+          "skippedCases": []
+        },
+        {
+          "file": "packages/core/test/authorization-control-metadata.test.ts",
+          "status": "passed",
+          "passed": 23,
+          "failed": 0,
+          "skipped": 0,
+          "failedCases": [],
+          "skippedCases": []
+        },
+        {
+          "file": "packages/core/test/capabilities.test.ts",
+          "status": "passed",
+          "passed": 114,
+          "failed": 0,
+          "skipped": 0,
+          "failedCases": [],
+          "skippedCases": []
+        },
+        {
+          "file": "packages/core/test/capability-control-metadata.test.ts",
+          "status": "passed",
+          "passed": 18,
+          "failed": 0,
+          "skipped": 0,
+          "failedCases": [],
+          "skippedCases": []
+        },
+        {
+          "file": "packages/core/test/capability-local-coverage.test.ts",
+          "status": "passed",
+          "passed": 11,
+          "failed": 0,
+          "skipped": 0,
+          "failedCases": [],
+          "skippedCases": []
+        },
+        {
+          "file": "packages/core/test/concurrent-import-loser.test.ts",
+          "status": "passed",
+          "passed": 2,
+          "failed": 0,
+          "skipped": 0,
+          "failedCases": [],
+          "skippedCases": []
+        },
+        {
+          "file": "packages/core/test/desktop-contract.test.ts",
+          "status": "passed",
+          "passed": 8,
+          "failed": 0,
+          "skipped": 0,
+          "failedCases": [],
+          "skippedCases": []
+        },
+        {
+          "file": "packages/core/test/engine-permission.test.ts",
+          "status": "passed",
+          "passed": 24,
+          "failed": 0,
+          "skipped": 0,
+          "failedCases": [],
+          "skippedCases": []
+        },
+        {
+          "file": "packages/core/test/errors.test.ts",
+          "status": "passed",
+          "passed": 5,
+          "failed": 0,
+          "skipped": 0,
+          "failedCases": [],
+          "skippedCases": []
+        },
+        {
+          "file": "packages/core/test/format-v2.test.ts",
+          "status": "passed",
+          "passed": 42,
+          "failed": 0,
+          "skipped": 0,
+          "failedCases": [],
+          "skippedCases": []
+        },
+        {
+          "file": "packages/core/test/grants.test.ts",
+          "status": "passed",
+          "passed": 35,
+          "failed": 0,
+          "skipped": 0,
+          "failedCases": [],
+          "skippedCases": []
+        },
+        {
+          "file": "packages/core/test/historical-core.test.ts",
+          "status": "passed",
+          "passed": 4,
+          "failed": 0,
+          "skipped": 0,
+          "failedCases": [],
+          "skippedCases": []
+        },
+        {
+          "file": "packages/core/test/import-export-boundaries.test.ts",
+          "status": "passed",
+          "passed": 12,
+          "failed": 0,
+          "skipped": 0,
+          "failedCases": [],
+          "skippedCases": []
+        },
+        {
+          "file": "packages/core/test/install-lifecycle.test.ts",
+          "status": "passed",
+          "passed": 34,
+          "failed": 0,
+          "skipped": 0,
+          "failedCases": [],
+          "skippedCases": []
+        },
+        {
+          "file": "packages/core/test/installed-snapshot.test.ts",
+          "status": "passed",
+          "passed": 7,
+          "failed": 0,
+          "skipped": 0,
+          "failedCases": [],
+          "skippedCases": []
+        },
+        {
+          "file": "packages/core/test/lifecycle-concurrency.test.ts",
+          "status": "passed",
+          "passed": 7,
+          "failed": 0,
+          "skipped": 0,
+          "failedCases": [],
+          "skippedCases": []
+        },
+        {
+          "file": "packages/core/test/lifecycle-migration.test.ts",
+          "status": "passed",
+          "passed": 1,
+          "failed": 0,
+          "skipped": 0,
+          "failedCases": [],
+          "skippedCases": []
+        },
+        {
+          "file": "packages/core/test/lifecycle-recovery.test.ts",
+          "status": "passed",
+          "passed": 14,
+          "failed": 0,
+          "skipped": 0,
+          "failedCases": [],
+          "skippedCases": []
+        },
+        {
+          "file": "packages/core/test/local-authorization-commit.test.ts",
+          "status": "passed",
+          "passed": 7,
+          "failed": 0,
+          "skipped": 0,
+          "failedCases": [],
+          "skippedCases": []
+        },
+        {
+          "file": "packages/core/test/local-authorization.test.ts",
+          "status": "passed",
+          "passed": 12,
+          "failed": 0,
+          "skipped": 0,
+          "failedCases": [],
+          "skippedCases": []
+        },
+        {
+          "file": "packages/core/test/local-credential-secret-lifecycle.test.ts",
+          "status": "passed",
+          "passed": 12,
+          "failed": 0,
+          "skipped": 0,
+          "failedCases": [],
+          "skippedCases": []
+        },
+        {
+          "file": "packages/core/test/local-entry-authorization.test.ts",
+          "status": "passed",
+          "passed": 4,
+          "failed": 0,
+          "skipped": 0,
+          "failedCases": [],
+          "skippedCases": []
+        },
+        {
+          "file": "packages/core/test/mcp-contract.test.ts",
+          "status": "passed",
+          "passed": 52,
+          "failed": 0,
+          "skipped": 0,
+          "failedCases": [],
+          "skippedCases": []
+        },
+        {
+          "file": "packages/core/test/mcp-fingerprint.test.ts",
+          "status": "passed",
+          "passed": 14,
+          "failed": 0,
+          "skipped": 0,
+          "failedCases": [],
+          "skippedCases": []
+        },
+        {
+          "file": "packages/core/test/mcp-service.test.ts",
+          "status": "passed",
+          "passed": 13,
+          "failed": 0,
+          "skipped": 0,
+          "failedCases": [],
+          "skippedCases": []
+        },
+        {
+          "file": "packages/core/test/mcp-tools.test.ts",
+          "status": "passed",
+          "passed": 26,
+          "failed": 0,
+          "skipped": 0,
+          "failedCases": [],
+          "skippedCases": []
+        },
+        {
+          "file": "packages/core/test/package-contents.test.ts",
+          "status": "passed",
+          "passed": 6,
+          "failed": 0,
+          "skipped": 0,
+          "failedCases": [],
+          "skippedCases": []
+        },
+        {
+          "file": "packages/core/test/package-import.test.ts",
+          "status": "passed",
+          "passed": 37,
+          "failed": 0,
+          "skipped": 0,
+          "failedCases": [],
+          "skippedCases": []
+        },
+        {
+          "file": "packages/core/test/package-inspect.test.ts",
+          "status": "passed",
+          "passed": 51,
+          "failed": 0,
+          "skipped": 0,
+          "failedCases": [],
+          "skippedCases": []
+        },
+        {
+          "file": "packages/core/test/package-manifest.test.ts",
+          "status": "passed",
+          "passed": 70,
+          "failed": 0,
+          "skipped": 0,
+          "failedCases": [],
+          "skippedCases": []
+        },
+        {
+          "file": "packages/core/test/package-security-regressions.test.ts",
+          "status": "passed",
+          "passed": 8,
+          "failed": 0,
+          "skipped": 0,
+          "failedCases": [],
+          "skippedCases": []
+        },
+        {
+          "file": "packages/core/test/performance-store.test.ts",
+          "status": "passed",
+          "passed": 10,
+          "failed": 0,
+          "skipped": 0,
+          "failedCases": [],
+          "skippedCases": []
+        },
+        {
+          "file": "packages/core/test/permission-recheck.test.ts",
+          "status": "passed",
+          "passed": 1,
+          "failed": 0,
+          "skipped": 0,
+          "failedCases": [],
+          "skippedCases": []
+        },
+        {
+          "file": "packages/core/test/redact.test.ts",
+          "status": "passed",
+          "passed": 8,
+          "failed": 0,
+          "skipped": 0,
+          "failedCases": [],
+          "skippedCases": []
+        },
+        {
+          "file": "packages/core/test/resource-permissions.test.ts",
+          "status": "passed",
+          "passed": 2,
+          "failed": 0,
+          "skipped": 0,
+          "failedCases": [],
+          "skippedCases": []
+        },
+        {
+          "file": "packages/core/test/run-action.test.ts",
+          "status": "passed",
+          "passed": 67,
+          "failed": 0,
+          "skipped": 0,
+          "failedCases": [],
+          "skippedCases": []
+        },
+        {
+          "file": "packages/core/test/secret-cleanup.test.ts",
+          "status": "passed",
+          "passed": 7,
+          "failed": 0,
+          "skipped": 0,
+          "failedCases": [],
+          "skippedCases": []
+        },
+        {
+          "file": "packages/core/test/secret-references.test.ts",
+          "status": "passed",
+          "passed": 3,
+          "failed": 0,
+          "skipped": 0,
+          "failedCases": [],
+          "skippedCases": []
+        },
+        {
+          "file": "packages/core/test/secrets.test.ts",
+          "status": "passed",
+          "passed": 32,
+          "failed": 0,
+          "skipped": 0,
+          "failedCases": [],
+          "skippedCases": []
+        },
+        {
+          "file": "packages/core/test/services.test.ts",
+          "status": "passed",
+          "passed": 15,
+          "failed": 0,
+          "skipped": 0,
+          "failedCases": [],
+          "skippedCases": []
+        },
+        {
+          "file": "packages/core/test/settings-residual-contract.test.ts",
+          "status": "passed",
+          "passed": 7,
+          "failed": 0,
+          "skipped": 0,
+          "failedCases": [],
+          "skippedCases": []
+        },
+        {
+          "file": "packages/core/test/settings-validation-contract.test.ts",
+          "status": "passed",
+          "passed": 6,
+          "failed": 0,
+          "skipped": 0,
+          "failedCases": [],
+          "skippedCases": []
+        },
+        {
+          "file": "packages/core/test/settings-validation.test.ts",
+          "status": "passed",
+          "passed": 10,
+          "failed": 0,
+          "skipped": 0,
+          "failedCases": [],
+          "skippedCases": []
+        },
+        {
+          "file": "packages/core/test/settings-validator-cache.test.ts",
+          "status": "passed",
+          "passed": 13,
+          "failed": 0,
+          "skipped": 0,
+          "failedCases": [],
+          "skippedCases": []
+        },
+        {
+          "file": "packages/core/test/share-contract.test.ts",
+          "status": "passed",
+          "passed": 66,
+          "failed": 0,
+          "skipped": 0,
+          "failedCases": [],
+          "skippedCases": []
+        },
+        {
+          "file": "packages/core/test/share.test.ts",
+          "status": "passed",
+          "passed": 33,
+          "failed": 0,
+          "skipped": 0,
+          "failedCases": [],
+          "skippedCases": []
+        },
+        {
+          "file": "packages/core/test/sink-failure.test.ts",
+          "status": "passed",
+          "passed": 4,
+          "failed": 0,
+          "skipped": 0,
+          "failedCases": [],
+          "skippedCases": []
+        },
+        {
+          "file": "packages/core/test/smoke.test.ts",
+          "status": "passed",
+          "passed": 3,
+          "failed": 0,
+          "skipped": 0,
+          "failedCases": [],
+          "skippedCases": []
+        },
+        {
+          "file": "packages/core/test/task-scope.test.ts",
+          "status": "passed",
+          "passed": 21,
+          "failed": 0,
+          "skipped": 0,
+          "failedCases": [],
+          "skippedCases": []
+        },
+        {
+          "file": "packages/core/test/tt2-package-contract.test.ts",
+          "status": "passed",
+          "passed": 64,
+          "failed": 0,
+          "skipped": 0,
+          "failedCases": [],
+          "skippedCases": []
+        },
+        {
+          "file": "packages/core/test/tt2-run-contract.test.ts",
+          "status": "passed",
+          "passed": 38,
+          "failed": 0,
+          "skipped": 0,
+          "failedCases": [],
+          "skippedCases": []
+        },
+        {
+          "file": "packages/core/test/tt2-secrets-contract.test.ts",
+          "status": "passed",
+          "passed": 41,
+          "failed": 0,
+          "skipped": 0,
+          "failedCases": [],
+          "skippedCases": []
+        },
+        {
+          "file": "packages/core/test/tt2-update-contract.test.ts",
+          "status": "passed",
+          "passed": 16,
+          "failed": 0,
+          "skipped": 0,
+          "failedCases": [],
+          "skippedCases": []
+        },
+        {
+          "file": "packages/core/test/tt3-main-flow.test.ts",
+          "status": "passed",
+          "passed": 4,
+          "failed": 0,
+          "skipped": 0,
+          "failedCases": [],
+          "skippedCases": []
+        },
+        {
+          "file": "packages/core/test/update-package.test.ts",
+          "status": "passed",
+          "passed": 19,
+          "failed": 0,
+          "skipped": 0,
+          "failedCases": [],
+          "skippedCases": []
+        },
+        {
+          "file": "packages/sdk/test/bundle.test.ts",
+          "status": "passed",
+          "passed": 6,
+          "failed": 0,
+          "skipped": 0,
+          "failedCases": [],
+          "skippedCases": []
+        },
+        {
+          "file": "packages/sdk/test/common-client.test.ts",
+          "status": "passed",
+          "passed": 1,
+          "failed": 0,
+          "skipped": 0,
+          "failedCases": [],
+          "skippedCases": []
+        },
+        {
+          "file": "packages/sdk/test/common-contract.test.ts",
+          "status": "passed",
+          "passed": 20,
+          "failed": 0,
+          "skipped": 0,
+          "failedCases": [],
+          "skippedCases": []
+        },
+        {
+          "file": "packages/sdk/test/contribution-schema.test.ts",
+          "status": "passed",
+          "passed": 2,
+          "failed": 0,
+          "skipped": 0,
+          "failedCases": [],
+          "skippedCases": []
+        },
+        {
+          "file": "packages/sdk/test/desktop-v2.test.ts",
+          "status": "passed",
+          "passed": 12,
+          "failed": 0,
+          "skipped": 0,
+          "failedCases": [],
+          "skippedCases": []
+        },
+        {
+          "file": "packages/sdk/test/foundation-contract.test.ts",
+          "status": "passed",
+          "passed": 20,
+          "failed": 0,
+          "skipped": 0,
+          "failedCases": [],
+          "skippedCases": []
+        },
+        {
+          "file": "packages/sdk/test/panels.test.ts",
+          "status": "passed",
+          "passed": 11,
+          "failed": 0,
+          "skipped": 0,
+          "failedCases": [],
+          "skippedCases": []
+        },
+        {
+          "file": "packages/sdk/test/protocol-intents.test.ts",
+          "status": "passed",
+          "passed": 9,
+          "failed": 0,
+          "skipped": 0,
+          "failedCases": [],
+          "skippedCases": []
+        },
+        {
+          "file": "packages/sdk/test/protocols.test.ts",
+          "status": "passed",
+          "passed": 53,
+          "failed": 0,
+          "skipped": 0,
+          "failedCases": [],
+          "skippedCases": []
+        },
+        {
+          "file": "packages/sdk/test/resource-declaration.test.ts",
+          "status": "passed",
+          "passed": 1,
+          "failed": 0,
+          "skipped": 0,
+          "failedCases": [],
+          "skippedCases": []
+        },
+        {
+          "file": "packages/sdk/test/settings.test.ts",
+          "status": "passed",
+          "passed": 2,
+          "failed": 0,
+          "skipped": 0,
+          "failedCases": [],
+          "skippedCases": []
+        },
+        {
+          "file": "packages/host/test/agent-readiness.test.ts",
+          "status": "passed",
+          "passed": 4,
+          "failed": 0,
+          "skipped": 0,
+          "failedCases": [],
+          "skippedCases": []
+        },
+        {
+          "file": "packages/host/test/atomic-fs.test.ts",
+          "status": "passed",
+          "passed": 1,
+          "failed": 0,
+          "skipped": 0,
+          "failedCases": [],
+          "skippedCases": []
+        },
+        {
+          "file": "packages/host/test/backup-restore.test.ts",
+          "status": "passed",
+          "passed": 1,
+          "failed": 0,
+          "skipped": 0,
+          "failedCases": [],
+          "skippedCases": []
+        },
+        {
+          "file": "packages/host/test/ci-aggregate.test.ts",
+          "status": "passed",
+          "passed": 4,
+          "failed": 0,
+          "skipped": 0,
+          "failedCases": [],
+          "skippedCases": []
+        },
+        {
+          "file": "packages/host/test/coding-tools-protocol.test.ts",
+          "status": "passed",
+          "passed": 8,
+          "failed": 0,
+          "skipped": 0,
+          "failedCases": [],
+          "skippedCases": []
+        },
+        {
+          "file": "packages/host/test/common-tasks.test.ts",
+          "status": "passed",
+          "passed": 10,
+          "failed": 0,
+          "skipped": 0,
+          "failedCases": [],
+          "skippedCases": []
+        },
+        {
+          "file": "packages/host/test/component-content.test.ts",
+          "status": "passed",
+          "passed": 11,
+          "failed": 0,
+          "skipped": 0,
+          "failedCases": [],
+          "skippedCases": []
+        },
+        {
+          "file": "packages/host/test/connections.test.ts",
+          "status": "passed",
+          "passed": 27,
+          "failed": 0,
+          "skipped": 0,
+          "failedCases": [],
+          "skippedCases": []
+        },
+        {
+          "file": "packages/host/test/contribution-boundary.test.ts",
+          "status": "passed",
+          "passed": 1,
+          "failed": 0,
+          "skipped": 0,
+          "failedCases": [],
+          "skippedCases": []
+        },
+        {
+          "file": "packages/host/test/credential-redaction.test.ts",
+          "status": "passed",
+          "passed": 9,
+          "failed": 0,
+          "skipped": 0,
+          "failedCases": [],
+          "skippedCases": []
+        },
+        {
+          "file": "packages/host/test/engine-grants.test.ts",
+          "status": "passed",
+          "passed": 10,
+          "failed": 0,
+          "skipped": 0,
+          "failedCases": [],
+          "skippedCases": []
+        },
+        {
+          "file": "packages/host/test/engine.test.ts",
+          "status": "passed",
+          "passed": 27,
+          "failed": 0,
+          "skipped": 0,
+          "failedCases": [],
+          "skippedCases": []
+        },
+        {
+          "file": "packages/host/test/foundation-artifact.test.ts",
+          "status": "passed",
+          "passed": 5,
+          "failed": 0,
+          "skipped": 0,
+          "failedCases": [],
+          "skippedCases": []
+        },
+        {
+          "file": "packages/host/test/foundation-cleanup.test.ts",
+          "status": "passed",
+          "passed": 3,
+          "failed": 0,
+          "skipped": 0,
+          "failedCases": [],
+          "skippedCases": []
+        },
+        {
+          "file": "packages/host/test/foundation-factory.test.ts",
+          "status": "passed",
+          "passed": 8,
+          "failed": 0,
+          "skipped": 0,
+          "failedCases": [],
+          "skippedCases": []
+        },
+        {
+          "file": "packages/host/test/foundation-host.test.ts",
+          "status": "passed",
+          "passed": 5,
+          "failed": 0,
+          "skipped": 0,
+          "failedCases": [],
+          "skippedCases": []
+        },
+        {
+          "file": "packages/host/test/foundation-library.test.ts",
+          "status": "passed",
+          "passed": 16,
+          "failed": 0,
+          "skipped": 0,
+          "failedCases": [],
+          "skippedCases": []
+        },
+        {
+          "file": "packages/host/test/foundation-metadata.test.ts",
+          "status": "passed",
+          "passed": 15,
+          "failed": 0,
+          "skipped": 0,
+          "failedCases": [],
+          "skippedCases": []
+        },
+        {
+          "file": "packages/host/test/foundation-ownership.test.ts",
+          "status": "passed",
+          "passed": 3,
+          "failed": 0,
+          "skipped": 0,
+          "failedCases": [],
+          "skippedCases": []
+        },
+        {
+          "file": "packages/host/test/foundation-persistence.test.ts",
+          "status": "passed",
+          "passed": 2,
+          "failed": 0,
+          "skipped": 0,
+          "failedCases": [],
+          "skippedCases": []
+        },
+        {
+          "file": "packages/host/test/foundation-preservation.test.ts",
+          "status": "passed",
+          "passed": 2,
+          "failed": 0,
+          "skipped": 0,
+          "failedCases": [],
+          "skippedCases": []
+        },
+        {
+          "file": "packages/host/test/foundation-product.test.ts",
+          "status": "passed",
+          "passed": 16,
+          "failed": 0,
+          "skipped": 0,
+          "failedCases": [],
+          "skippedCases": []
+        },
+        {
+          "file": "packages/host/test/foundation-session.test.ts",
+          "status": "passed",
+          "passed": 23,
+          "failed": 0,
+          "skipped": 0,
+          "failedCases": [],
+          "skippedCases": []
+        },
+        {
+          "file": "packages/host/test/foundation-switch.test.ts",
+          "status": "passed",
+          "passed": 31,
+          "failed": 0,
+          "skipped": 0,
+          "failedCases": [],
+          "skippedCases": []
+        },
+        {
+          "file": "packages/host/test/generated-audit-controls.test.ts",
+          "status": "passed",
+          "passed": 36,
+          "failed": 0,
+          "skipped": 0,
+          "failedCases": [],
+          "skippedCases": []
+        },
+        {
+          "file": "packages/host/test/host.test.ts",
+          "status": "passed",
+          "passed": 9,
+          "failed": 0,
+          "skipped": 0,
+          "failedCases": [],
+          "skippedCases": []
+        },
+        {
+          "file": "packages/host/test/installed-snapshot.test.ts",
+          "status": "passed",
+          "passed": 13,
+          "failed": 0,
+          "skipped": 0,
+          "failedCases": [],
+          "skippedCases": []
+        },
+        {
+          "file": "packages/host/test/io.test.ts",
+          "status": "passed",
+          "passed": 2,
+          "failed": 0,
+          "skipped": 0,
+          "failedCases": [],
+          "skippedCases": []
+        },
+        {
+          "file": "packages/host/test/library.test.ts",
+          "status": "passed",
+          "passed": 23,
+          "failed": 0,
+          "skipped": 0,
+          "failedCases": [],
+          "skippedCases": []
+        },
+        {
+          "file": "packages/host/test/license-consistency.test.ts",
+          "status": "passed",
+          "passed": 7,
+          "failed": 0,
+          "skipped": 0,
+          "failedCases": [],
+          "skippedCases": []
+        },
+        {
+          "file": "packages/host/test/lifecycle-recovery.test.ts",
+          "status": "passed",
+          "passed": 4,
+          "failed": 0,
+          "skipped": 0,
+          "failedCases": [],
+          "skippedCases": []
+        },
+        {
+          "file": "packages/host/test/local-assembly.test.ts",
+          "status": "passed",
+          "passed": 10,
+          "failed": 0,
+          "skipped": 0,
+          "failedCases": [],
+          "skippedCases": []
+        },
+        {
+          "file": "packages/host/test/local-invocation.test.ts",
+          "status": "passed",
+          "passed": 14,
+          "failed": 0,
+          "skipped": 0,
+          "failedCases": [],
+          "skippedCases": []
+        },
+        {
+          "file": "packages/host/test/local-management-metadata.test.ts",
+          "status": "passed",
+          "passed": 19,
+          "failed": 0,
+          "skipped": 0,
+          "failedCases": [],
+          "skippedCases": []
+        },
+        {
+          "file": "packages/host/test/local-policy.test.ts",
+          "status": "passed",
+          "passed": 17,
+          "failed": 0,
+          "skipped": 0,
+          "failedCases": [],
+          "skippedCases": []
+        },
+        {
+          "file": "packages/host/test/local-secrets.test.ts",
+          "status": "passed",
+          "passed": 4,
+          "failed": 0,
+          "skipped": 0,
+          "failedCases": [],
+          "skippedCases": []
+        },
+        {
+          "file": "packages/host/test/local-staging.test.ts",
+          "status": "passed",
+          "passed": 6,
+          "failed": 0,
+          "skipped": 0,
+          "failedCases": [],
+          "skippedCases": []
+        },
+        {
+          "file": "packages/host/test/management-control-metadata.test.ts",
+          "status": "passed",
+          "passed": 14,
+          "failed": 0,
+          "skipped": 0,
+          "failedCases": [],
+          "skippedCases": []
+        },
+        {
+          "file": "packages/host/test/network.test.ts",
+          "status": "passed",
+          "passed": 11,
+          "failed": 0,
+          "skipped": 0,
+          "failedCases": [],
+          "skippedCases": []
+        },
+        {
+          "file": "packages/host/test/onboarding.test.ts",
+          "status": "passed",
+          "passed": 17,
+          "failed": 0,
+          "skipped": 0,
+          "failedCases": [],
+          "skippedCases": []
+        },
+        {
+          "file": "packages/host/test/package-manifest.test.ts",
+          "status": "passed",
+          "passed": 25,
+          "failed": 0,
+          "skipped": 0,
+          "failedCases": [],
+          "skippedCases": []
+        },
+        {
+          "file": "packages/host/test/panels.test.ts",
+          "status": "passed",
+          "passed": 10,
+          "failed": 0,
+          "skipped": 0,
+          "failedCases": [],
+          "skippedCases": []
+        },
+        {
+          "file": "packages/host/test/policy-mcp.test.ts",
+          "status": "passed",
+          "passed": 1,
+          "failed": 0,
+          "skipped": 0,
+          "failedCases": [],
+          "skippedCases": []
+        },
+        {
+          "file": "packages/host/test/policy-resources.test.ts",
+          "status": "passed",
+          "passed": 3,
+          "failed": 0,
+          "skipped": 0,
+          "failedCases": [],
+          "skippedCases": []
+        },
+        {
+          "file": "packages/host/test/prepare-test-runtime.test.ts",
+          "status": "passed",
+          "passed": 2,
+          "failed": 0,
+          "skipped": 0,
+          "failedCases": [],
+          "skippedCases": []
+        },
+        {
+          "file": "packages/host/test/project-cache.test.ts",
+          "status": "passed",
+          "passed": 4,
+          "failed": 0,
+          "skipped": 0,
+          "failedCases": [],
+          "skippedCases": []
+        },
+        {
+          "file": "packages/host/test/project-config.test.ts",
+          "status": "passed",
+          "passed": 17,
+          "failed": 0,
+          "skipped": 0,
+          "failedCases": [],
+          "skippedCases": []
+        },
+        {
+          "file": "packages/host/test/project-credentials.test.ts",
+          "status": "passed",
+          "passed": 5,
+          "failed": 0,
+          "skipped": 0,
+          "failedCases": [],
+          "skippedCases": []
+        },
+        {
+          "file": "packages/host/test/project-proxy.test.ts",
+          "status": "passed",
+          "passed": 14,
+          "failed": 0,
+          "skipped": 0,
+          "failedCases": [],
+          "skippedCases": []
+        },
+        {
+          "file": "packages/host/test/project-toolchain.test.ts",
+          "status": "passed",
+          "passed": 14,
+          "failed": 0,
+          "skipped": 0,
+          "failedCases": [],
+          "skippedCases": []
+        },
+        {
+          "file": "packages/host/test/protocol-auto-binding.test.ts",
+          "status": "passed",
+          "passed": 12,
+          "failed": 0,
+          "skipped": 0,
+          "failedCases": [],
+          "skippedCases": []
+        },
+        {
+          "file": "packages/host/test/protocol-bindings.test.ts",
+          "status": "passed",
+          "passed": 3,
+          "failed": 0,
+          "skipped": 0,
+          "failedCases": [],
+          "skippedCases": []
+        },
+        {
+          "file": "packages/host/test/protocol-metadata.test.ts",
+          "status": "passed",
+          "passed": 1,
+          "failed": 0,
+          "skipped": 0,
+          "failedCases": [],
+          "skippedCases": []
+        },
+        {
+          "file": "packages/host/test/protocol-routing.test.ts",
+          "status": "passed",
+          "passed": 27,
+          "failed": 0,
+          "skipped": 0,
+          "failedCases": [],
+          "skippedCases": []
+        },
+        {
+          "file": "packages/host/test/readme-claims.test.ts",
+          "status": "passed",
+          "passed": 6,
+          "failed": 0,
+          "skipped": 0,
+          "failedCases": [],
+          "skippedCases": []
+        },
+        {
+          "file": "packages/host/test/recheck-cache.test.ts",
+          "status": "passed",
+          "passed": 9,
+          "failed": 0,
+          "skipped": 0,
+          "failedCases": [],
+          "skippedCases": []
+        },
+        {
+          "file": "packages/host/test/recheck-coalescing.test.ts",
+          "status": "passed",
+          "passed": 8,
+          "failed": 0,
+          "skipped": 0,
+          "failedCases": [],
+          "skippedCases": []
+        },
+        {
+          "file": "packages/host/test/resources-metadata.test.ts",
+          "status": "passed",
+          "passed": 4,
+          "failed": 0,
+          "skipped": 0,
+          "failedCases": [],
+          "skippedCases": []
+        },
+        {
+          "file": "packages/host/test/resources.test.ts",
+          "status": "passed",
+          "passed": 23,
+          "failed": 0,
+          "skipped": 0,
+          "failedCases": [],
+          "skippedCases": []
+        },
+        {
+          "file": "packages/host/test/runtime.test.ts",
+          "status": "passed",
+          "passed": 20,
+          "failed": 0,
+          "skipped": 0,
+          "failedCases": [],
+          "skippedCases": []
+        },
+        {
+          "file": "packages/host/test/sdk-cancellation.test.ts",
+          "status": "passed",
+          "passed": 8,
+          "failed": 0,
+          "skipped": 0,
+          "failedCases": [],
+          "skippedCases": []
+        },
+        {
+          "file": "packages/host/test/secure-fs-lifecycle.test.ts",
+          "status": "passed",
+          "passed": 5,
+          "failed": 0,
+          "skipped": 0,
+          "failedCases": [],
+          "skippedCases": []
+        },
+        {
+          "file": "packages/host/test/workspace.test.ts",
+          "status": "passed",
+          "passed": 6,
+          "failed": 0,
+          "skipped": 0,
+          "failedCases": [],
+          "skippedCases": []
+        },
+        {
+          "file": "packages/host/test/scenarios/cards.test.ts",
+          "status": "passed",
+          "passed": 14,
+          "failed": 0,
+          "skipped": 0,
+          "failedCases": [],
+          "skippedCases": []
+        },
+        {
+          "file": "packages/host/test/scenarios/chat.test.ts",
+          "status": "passed",
+          "passed": 14,
+          "failed": 0,
+          "skipped": 0,
+          "failedCases": [],
+          "skippedCases": []
+        },
+        {
+          "file": "packages/host/test/scenarios/machine.test.ts",
+          "status": "passed",
+          "passed": 5,
+          "failed": 0,
+          "skipped": 0,
+          "failedCases": [],
+          "skippedCases": []
+        },
+        {
+          "file": "packages/host/test/scenarios/mcp.test.ts",
+          "status": "passed",
+          "passed": 104,
+          "failed": 0,
+          "skipped": 0,
+          "failedCases": [],
+          "skippedCases": []
+        },
+        {
+          "file": "packages/host/test/scenarios/remaining.test.ts",
+          "status": "passed",
+          "passed": 5,
+          "failed": 0,
+          "skipped": 0,
+          "failedCases": [],
+          "skippedCases": []
+        },
+        {
+          "file": "packages/host/test/scenarios/tavern.test.ts",
+          "status": "passed",
+          "passed": 10,
+          "failed": 0,
+          "skipped": 0,
+          "failedCases": [],
+          "skippedCases": []
+        }
+      ]
     }
   },
   "initialFailure": {
@@ -1836,7 +3593,8 @@
     "simulatedEvents": false,
     "guardRemoved": false,
     "rootCauseResolved": false,
-    "packagedFullscreenValidated": false
+    "packagedFullscreenValidated": false,
+    "defaultAfterLocatorFix": "passed"
   },
   "nativeMembers": {
     "explicitExperimentsIncludedInDefault": false,
@@ -1887,14 +3645,47 @@
     "authorizationRechecksAndAudit": "unchanged"
   },
   "conclusion": {
-    "fullDefaultSuitePassed": false,
+    "fullDefaultSuitePassed": true,
     "independentRerunsDoNotRepairInitialFailure": true,
     "projectRuntime": "TIER_UNAVAILABLE",
     "machineDetachedChildrenGuaranteedReaped": false,
     "externalDistributionValidated": false,
     "realServiceValidated": false,
     "independentAuthorValidated": false,
-    "performanceTimeoutRootCauseResolved": false
+    "performanceTimeoutRootCauseResolved": false,
+    "latestDefaultRun": "defaultAfterLocatorFix",
+    "locatorAmbiguityResolved": true
   },
-  "evidencePolicy": "Relative file names, counts and case titles only. Original exception text, request data, secrets, physical paths and screenshots are not copied. Tracked summaries and reproduction commands stand independently of local caches."
+  "evidencePolicy": "Relative file names, counts and case titles only. Original exception text, request data, secrets, physical paths and screenshots are not copied. Tracked summaries and reproduction commands stand independently of local caches. The initial failing run and both pre-fix independent reruns are retained verbatim as historical run summaries; the scoped test fix and subsequent complete passing run are separate evidence.",
+  "locatorFix": {
+    "baselineCommit": "44c8340795a1c73854a4b6564d9f50c92b96f8ab",
+    "testFile": "packages/desktop/test/local-permissions-ui.test.ts",
+    "originalTestSha256": "048b0a565d002949cd8bf8b427a01de59d0f7274f95990f58b60345de1c24245",
+    "validatedTestSha256": "dfd083d415356197aea72975fab787463fd89e4040c4a2f68e3a45633b612cba",
+    "locatorRegion": "待确认汇总",
+    "priorLocatorScope": "Agent 权限",
+    "expectedDisclosureLocations": [
+      "pending assembly summary",
+      "machine component entry"
+    ],
+    "resolution": "Use the named pending summary region for both disclosure checks; do not select the first matching element or change warning content.",
+    "preservedAssertions": [
+      "trusted confirmation heading",
+      "default deny focus",
+      "machine data/secret warning",
+      "detached-child limitation",
+      "explicit confirmation approval",
+      "machine tier status",
+      "start and running state",
+      "stop and stopped state",
+      "component revocation and pending state",
+      "lower to sandbox and sandbox status",
+      "responsive permissions layout"
+    ],
+    "productionChanged": false,
+    "testSchedulingChanged": false,
+    "nativeFocusGuardMs": 5000,
+    "buildBeforeTargetedRun": "passed",
+    "completeDefaultCommandExitCode": 0
+  }
 }
