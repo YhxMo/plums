@@ -528,10 +528,10 @@ export class InstallStore {
    * Tool approvals are not touched. Why: uninstall already removed them, and import
    * refuses an id that is still installed, so no approval row can be waiting.
    */
-  recordInstall(manifest: Manifest, lease?: LifecycleLease): void {
+  recordInstall(manifest: Manifest, lease: LifecycleLease): void {
     this.connection()
       .transaction(() => {
-        if (lease) this.assertLifecycle(lease, null);
+        this.assertLifecycle(lease, null);
         this.statement(
           `INSERT INTO packages (id, kind, name, version, manifest, enabled, installed_at, enabled_at, secret_refs, installation_id)
        VALUES (?, ?, ?, ?, ?, 0, ?, NULL, ?, ?)`,
@@ -545,10 +545,9 @@ export class InstallStore {
           JSON.stringify(
             secretKeys(manifest).map((key) => secretRef(manifest.id, key)),
           ),
-          lease?.record?.token ?? randomUUID(),
+          lease.record!.token,
         );
-        if (lease)
-          this.saveLifecycle(lease, { ...lease.record!, phase: "committed" });
+        this.saveLifecycle(lease, { ...lease.record!, phase: "committed" });
       })
       .immediate();
   }
@@ -559,12 +558,12 @@ export class InstallStore {
    */
   recordUpdate(
     manifest: Manifest,
-    consent?: ConsentRecord,
-    lease?: LifecycleLease,
+    consent: ConsentRecord | undefined,
+    lease: LifecycleLease,
   ): void {
     this.connection()
       .transaction(() => {
-        if (lease) this.assertLifecycle(lease, lease.record!.before);
+        this.assertLifecycle(lease, lease.record!.before);
         // Why retain old refs in this transaction: once the manifest changes, it cannot tell
         // redaction or uninstall which removed values still need to be read or deleted.
         const refs = [
@@ -582,10 +581,8 @@ export class InstallStore {
           JSON.stringify(manifest),
           JSON.stringify(refs),
           manifest.id,
-          lease?.record?.before?.installationId ??
-            this.installationIdentity(manifest.id)?.installationId,
-          lease?.record?.before?.version ??
-            this.installationIdentity(manifest.id)?.version,
+          lease.record!.before!.installationId,
+          lease.record!.before!.version,
         );
         if (changed.changes !== 1)
           throw lifecycleFailure(manifest.id, "INSTALLATION_CHANGED");
@@ -610,8 +607,7 @@ export class InstallStore {
         if (consent !== undefined) {
           this.saveConsent(consent);
         }
-        if (lease)
-          this.saveLifecycle(lease, { ...lease.record!, phase: "committed" });
+        this.saveLifecycle(lease, { ...lease.record!, phase: "committed" });
       })
       .immediate();
   }

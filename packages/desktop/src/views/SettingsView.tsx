@@ -2,6 +2,7 @@ import { Switch } from "../components/Switch.js";
 import { SelectMenu } from "../components/SelectMenu.js";
 import type { DesktopTheme } from "@plumsjs/host";
 import { useEffect, useState } from "react";
+import { useAction } from "../hooks/useAction.js";
 export function SettingsView({
   dnsMode,
   theme,
@@ -28,7 +29,7 @@ export function SettingsView({
     dataPath: string;
   }>();
   const [dataError, setDataError] = useState("");
-  const [dataBusy, setDataBusy] = useState(false);
+  const dataAction = useAction();
   useEffect(() => {
     let current = true;
     void window.manager
@@ -43,17 +44,16 @@ export function SettingsView({
       current = false;
     };
   }, []);
-  const dataAction = async (method: string) => {
-    setDataBusy(true);
-    setDataError("");
-    try {
-      await window.manager.call(method);
-    } catch {
-      setDataError("操作未完成，请重试。");
-    } finally {
-      setDataBusy(false);
-    }
-  };
+  const runDataAction = (method: string) =>
+    dataAction.run(async () => {
+      setDataError("");
+      try {
+        await window.manager.call(method);
+      } catch {
+        throw Error("操作未完成，请重试。");
+      }
+    }, false);
+  const recoveryError = dataError || dataAction.error;
   return (
     <div className="settings-view">
       <section className="page-header">
@@ -140,19 +140,19 @@ export function SettingsView({
             <p>
               整机入口可能遗留脱组后代。复制前须确认这些进程已停止；退出应用不能保证全部回收。
             </p>
-            {dataError && <p role="alert">{dataError}</p>}
+            {recoveryError && <p role="alert">{recoveryError}</p>}
           </div>
         </div>
         <div className="settings-row">
           <button
-            disabled={dataBusy || !location}
-            onClick={() => void dataAction("revealDataDirectory")}
+            disabled={dataAction.pending || !location}
+            onClick={() => void runDataAction("revealDataDirectory")}
           >
             在 Finder 中定位
           </button>
           <button
-            disabled={dataBusy || !location}
-            onClick={() => void dataAction("quitForBackup")}
+            disabled={dataAction.pending || !location}
+            onClick={() => void runDataAction("quitForBackup")}
           >
             退出应用再备份
           </button>

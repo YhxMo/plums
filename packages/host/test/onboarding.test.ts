@@ -381,9 +381,10 @@ it("an empty Agent uses the resource page and unavailable state fails closed", a
     ],
   });
   details.clear();
-  vi.spyOn(host, "foundationPlan").mockRejectedValueOnce(
-    Error("synthetic-private-failure"),
-  );
+  vi.spyOn(
+    host as unknown as { checkAgentFoundation(): Promise<unknown[]> },
+    "checkAgentFoundation",
+  ).mockRejectedValueOnce(Error("synthetic-private-failure"));
   expect(await host.agentReadinessPlan(agent.instanceId)).toEqual({
     prepared: false,
     evidence: "declared",

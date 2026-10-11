@@ -1233,12 +1233,11 @@ export class DesktopHost {
       await scope.epoch.foundation.inflight(token, key, complete);
     }
   }
-  async foundationPlan(id: string, selection?: FoundationSelection) {
-    const fixed = selection ? parseFoundationSelection(selection) : undefined,
-      s = await this.session(id);
-    await this.assertCoherent(id);
-    const contents = await this.foundationContents(s),
-      candidate = fixed ?? s.record.foundation!.selection;
+  private async foundationCompatibility(
+    s: Session,
+    candidate: FoundationSelection,
+  ) {
+    const contents = await this.foundationContents(s);
     let reports: unknown[] = [],
       failure: unknown;
     try {
@@ -1248,13 +1247,19 @@ export class DesktopHost {
         throw foundationFailure("FOUNDATION_INVALID");
       failure = error.details;
     }
+    return { compatible: !failure, reports, failure };
+  }
+  async foundationPlan(id: string, selection?: FoundationSelection) {
+    const fixed = selection ? parseFoundationSelection(selection) : undefined,
+      s = await this.session(id);
+    await this.assertCoherent(id);
+    const candidate = fixed ?? s.record.foundation!.selection;
+    const compatibility = await this.foundationCompatibility(s, candidate);
     const installed = await s.core.listInstalled();
     const result = {
       current: structuredClone(s.record.foundation!),
       candidate: structuredClone(candidate),
-      compatible: !failure,
-      reports,
-      failure,
+      ...compatibility,
       fingerprint: digest(Buffer.from(JSON.stringify([s.record, installed]))),
       evidence: "declared" as const,
     };
@@ -2852,7 +2857,11 @@ export class DesktopHost {
           await this.assertCoherent(id);
           const enable = await enablePlan(s.core, s.record);
           const tier = await this.localAuthorizations.plan(s);
-          const foundation = await this.foundationPlan(id);
+          await this.assertCoherent(id);
+          const foundation = await this.foundationCompatibility(
+            s,
+            s.record.foundation!.selection,
+          );
           const startup = s.record.agent.startup;
           const frontend = startup
             ? desktopContribution((await s.core.getPackage(startup)).manifest)

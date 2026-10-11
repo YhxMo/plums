@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
+import { createReadStream } from "node:fs";
 import { execFileSync, spawnSync } from "node:child_process";
 import {
   lstat,
@@ -15,6 +16,11 @@ import { checkPackageManifest } from "./package-manifest.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const sha256 = (bytes) => createHash("sha256").update(bytes).digest("hex");
+async function fileSha256(file) {
+  const hash = createHash("sha256");
+  for await (const chunk of createReadStream(file)) hash.update(chunk);
+  return hash.digest("hex");
+}
 async function inventory(directory) {
   const entries = [];
   async function visit(relative) {
@@ -31,7 +37,7 @@ async function inventory(directory) {
         path: relative,
         type: "file",
         mode: info.mode & 0o777,
-        sha256: sha256(await readFile(file)),
+        sha256: await fileSha256(file),
       });
     else if (info.isDirectory())
       for (const name of (await readdir(file)).sort())
@@ -51,19 +57,19 @@ async function productionInputs() {
     for (const file of ["package.json", "tsconfig.json"])
       entries.push({
         path: `packages/${name}/${file}`,
-        sha256: sha256(await readFile(path.join(root, "packages", name, file))),
+        sha256: await fileSha256(path.join(root, "packages", name, file)),
       });
   }
   for (const file of ["package.json", "pnpm-lock.yaml", "tsconfig.base.json"])
     entries.push({
       path: file,
-      sha256: sha256(await readFile(path.join(root, file))),
+      sha256: await fileSha256(path.join(root, file)),
     });
   for (const file of (await readdir(path.join(root, "scripts"))).sort())
     if (file.endsWith(".mjs"))
       entries.push({
         path: `scripts/${file}`,
-        sha256: sha256(await readFile(path.join(root, "scripts", file))),
+        sha256: await fileSha256(path.join(root, "scripts", file)),
       });
   return { sha256: sha256(JSON.stringify(entries)), entries };
 }
@@ -162,7 +168,7 @@ async function main() {
     },
     productionInputs: await productionInputs(),
     desktopBuildSha256: sha256(JSON.stringify(dist)),
-    imageSha256: sha256(await readFile(path.resolve(imagePath))),
+    imageSha256: await fileSha256(path.resolve(imagePath)),
     appSha256: sha256(JSON.stringify(installedInventory)),
     inventory: installedInventory,
     resourceInventory: packageInventory,
