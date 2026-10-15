@@ -4,7 +4,7 @@
 
 ## 当前可用结果
 
-整体路线与阶段验收由 [整体实现计划](docs/spec/total.md) 维护，执行状态见 [当前阶段计划](docs/spec/milestone.md)。本次限定缺陷工作单已完成并归档，选型与限制结论为下一阶段；M1 整体仍开放，历史独立审查结论只限当时范围。交接不另存执行清单。
+整体路线与阶段验收由 [整体实现计划](docs/spec/total.md) 维护，执行状态见 [当前阶段计划](docs/spec/milestone.md)。限定缺陷工作单已完成并归档，运行源码提交为 `d44540b`；选型与限制的现有证据结论已整理，见 [M1 实验](docs/M1-EXPERIMENTS.md#基于现有证据的选型结论)。当前阶段因 iOS 门槛继续开放且不归档，M2 未开始。交接不另存执行清单。
 
 默认 UI 已转为 Agent 列表、会话和可折叠详情；手机采用列表/会话切页，详情为模态。空状态提供角色卡导入、扩展安装，“添加”创建角色；特别关注为多个头像快捷入口加星标。白底橙色梅子图标、浅灰/白与橙色浅色主题、暖炭灰深色主题保留；外观切换保存且保留草稿。
 
@@ -26,6 +26,8 @@ Android 正式入口继续复用既有 YHX 工具链。MainActivity 管理系统
 | Android ARM64 | `plums-m1-0.0.4-android-arm64-debug.apk` | Plums M1 / dev.plums.plums |
 
 均为 0.0.4 / M1 debug。说明与校验清单在该目录；公开 [产物记录](evidence/ui-android-artifacts.json)绑定上述源码提交。复制完整性、APK 签名/版本/ABI 与实际安装包匹配已核验。
+
+后续 [交付静态核对](evidence/CONCLUSIONS-2026-10-15.md#release-核对)确认两端 release 仍匹配旧清单；未替换。普通 Mac 候选只有本次构建证据、缺自身运行验收；当前 Android 生成目录输出实际为回归夹具 APK，不可作为普通交付。核对摘要见 [元数据](evidence/delivery-audit-2026-10-15.json)。
 
 新包验收和清单更新后，已确认的 0.0.3 旧交付及说明/清单移至 `.cache/replaced-release/0.0.3-20261015T170430Z/`，可恢复。更早恢复目录和历史实验原件保留。
 
