@@ -85,3 +85,5 @@ export type {
   CredentialResponse,
   CredentialFailureOutcome,
 } from "./credential";
+export { migrateState } from "./state-migration";
+export type { StateMigration, VersionedState } from "./state-migration";

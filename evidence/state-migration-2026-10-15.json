@@ -1,0 +1,199 @@
+{
+  "sourceBaseHead": "9865bf5241a4e12618b7260ae08c543018745608",
+  "sourceManifest": "evidence/source-manifest-61a11fd9ea78da8f84d0b69050d8aa4ddfd7aee5237e9a00d46ba0749fc7d152.json",
+  "sourceDigest": "61a11fd9ea78da8f84d0b69050d8aa4ddfd7aee5237e9a00d46ba0749fc7d152",
+  "sourceFileCount": 147,
+  "kind": "optional SDK single-hop state migration and isolated native storage recovery; ordinary entry unchanged",
+  "feature": "default Rust features; no transport experiment",
+  "mac": {
+    "bundleIdentifier": "dev.plums.m1.statemigrationprobe",
+    "artifact": ".cache/state-migration/artifacts/Plums State Migration Probe.app",
+    "files": {
+      "Contents/Info.plist": "f052a07e832799153655dbf0cb7905cc10db2c0c7c074c753186a9486e0de5e4",
+      "Contents/MacOS/plums-m1": "7206edd3ba102fdb1ef7c03979edea9360f420fcb0f5b8c2a743f396c9129701",
+      "Contents/Resources/icon.icns": "6a7e5b00689e5640726ecf5319fbdc2aad4b8c43dea54a379e60ddfdbf50a231"
+    },
+    "phases": {
+      "paused-before-write": {
+        "passed": true,
+        "phase": "paused-before-write",
+        "checks": [
+          "v1-uninstall-v2-install-migrates-once-with-original",
+          "unsupported-version-preserves-original",
+          "invalid-source-preserves-original",
+          "conversion-throws-preserves-original",
+          "invalid-target-preserves-original",
+          "backup-limit-preserves-original",
+          "cancel-before-write-preserves-original",
+          "revision-conflict-preserves-concurrent-writer",
+          "native-pending-path-refusal-preserves-original",
+          "other-owner-preserved",
+          "host-stop-during-conversion-preserves-original"
+        ],
+        "interruptedOriginal": {
+          "revision": 1,
+          "schema": 1,
+          "value": {
+            "data": {
+              "label": "plum"
+            },
+            "version": 1
+          }
+        }
+      },
+      "restarted": {
+        "passed": true,
+        "phase": "restarted",
+        "checks": [
+          "killed-during-conversion-original-retained-and-recovered",
+          "native-write-refusal-recovery-after-obstruction-removed",
+          "target-and-backup-survive-cold-restart-without-rewrite"
+        ],
+        "recovered": {
+          "revision": 2,
+          "schema": 1,
+          "value": {
+            "data": {
+              "labels": [
+                "plum"
+              ]
+            },
+            "previous": {
+              "revision": 1,
+              "schema": 1,
+              "value": {
+                "data": {
+                  "label": "plum"
+                },
+                "version": 1
+              }
+            },
+            "version": 2
+          }
+        }
+      }
+    }
+  },
+  "android": {
+    "artifact": ".cache/state-migration/artifacts/state-migration-android-arm64-debug.apk",
+    "sha256": "10d726cab640e1bbe747f01794ea6ba039503b5d3af93155a35132cbf5a39816",
+    "installedMatchesBuild": true,
+    "platform": "Android 16 / API 36 / arm64 / isolated software-rendered emulator",
+    "signatureScheme": "v2",
+    "phases": {
+      "paused-before-write": {
+        "passed": true,
+        "phase": "paused-before-write",
+        "checks": [
+          "v1-uninstall-v2-install-migrates-once-with-original",
+          "unsupported-version-preserves-original",
+          "invalid-source-preserves-original",
+          "conversion-throws-preserves-original",
+          "invalid-target-preserves-original",
+          "backup-limit-preserves-original",
+          "cancel-before-write-preserves-original",
+          "revision-conflict-preserves-concurrent-writer",
+          "native-pending-path-refusal-preserves-original",
+          "other-owner-preserved",
+          "host-stop-during-conversion-preserves-original"
+        ],
+        "interruptedOriginal": {
+          "revision": 1,
+          "schema": 1,
+          "value": {
+            "data": {
+              "label": "plum"
+            },
+            "version": 1
+          }
+        }
+      },
+      "restarted": {
+        "passed": true,
+        "phase": "restarted",
+        "checks": [
+          "killed-during-conversion-original-retained-and-recovered",
+          "native-write-refusal-recovery-after-obstruction-removed",
+          "target-and-backup-survive-cold-restart-without-rewrite"
+        ],
+        "recovered": {
+          "revision": 2,
+          "schema": 1,
+          "value": {
+            "data": {
+              "labels": [
+                "plum"
+              ]
+            },
+            "previous": {
+              "revision": 1,
+              "schema": 1,
+              "value": {
+                "data": {
+                  "label": "plum"
+                },
+                "version": 1
+              }
+            },
+            "version": 2
+          }
+        }
+      }
+    }
+  },
+  "rawEvidence": {
+    ".cache/state-migration/red.log": "da2bc53e06a4ccc402a158678448d926331a090c1fea6c2292c899ce12bc5944",
+    ".cache/state-migration/unit-final.log": "d95c9b371e8a62bea73a8e4c0f65079d3234a430614596019500ee495de610d2",
+    ".cache/state-migration/build-final3.log": "7146b0f81420539c3ad67342b676e29b78d7740b09155e54c00802f59b651e20",
+    ".cache/state-migration/probe-build-final3.log": "86a8511ba3c307af2d24778f111c447379486dc774e5edefe07b4cb802ec75b1",
+    ".cache/state-migration/format-final3.log": "96c3555c6d5268dfc96dcdfe4a6b1660ae3419505b800c82fc5230ac18885be1",
+    ".cache/state-migration/mac-build-final3.log": "9e1eac2fcb6cb233e260c6401be60f7749bd686046a40d2b7aa583a1a144fb2f",
+    ".cache/state-migration/android-build-final3.log": "7fbd2c9ba0789a0e95df552b094896fcdc1c135a98d88aa8f518f4a700014723",
+    ".cache/state-migration/mac-paused-ax.txt": "2c931e82cc7a88df91964049fff9c0a516f8b8495aaf63b0b34df9608cbe1913",
+    ".cache/state-migration/mac-restarted-ax.txt": "85f2ea117aff793522f0d5ad250631db6be0beecdd0a4253d81422814e0358c8",
+    ".cache/state-migration/interrupt.json": "19a3440ddf8b44de1e5ea7ccdf301a0131b457cf52fdcebfd385592ee3ac54b4",
+    ".cache/state-migration/file-verification.json": "fb4ae3e72d06fc17221305b322fbb369e35b140d4aee81374ea812b59bc92c31",
+    ".cache/state-migration/apk-signature.log": "c35397f4d04ec66f4479309134966bf92ba424af51f9c48ca951c950aaa2b459",
+    ".cache/state-migration/apk-badging.log": "1a91926493325a452cbae173bdb18f8357717120ba5aefc9284f944cb3db6448",
+    ".cache/state-migration/cleanup.json": "77addff579294d38abd469404011cebc3a0b7637c0dd809884ae58c451638d8e",
+    ".cache/state-migration/mac-result/paused-before-write-blocked.json": "daad40e3132bd672cc3c9c6da382212b7eb1d72f942e795f13955da15b0abcb7",
+    ".cache/state-migration/mac-result/paused-before-write-interrupt.json": "71424c5666590ba046bab4d6050a9b7934197a17034dd9f0d671681befeedd3f",
+    ".cache/state-migration/mac-result/paused-before-write-other.json": "9a2bd9978c24bee1c0b0a991030d1fcda744848cc7fb2ce1f2652833e0f827bb",
+    ".cache/state-migration/mac-result/paused-before-write-sample.json": "a20c8edefd3bab44f3be66e055adbaa3e8a0d04fef602b094593a3fd95ec6d9e",
+    ".cache/state-migration/mac-result/paused-before-write-stop.json": "71424c5666590ba046bab4d6050a9b7934197a17034dd9f0d671681befeedd3f",
+    ".cache/state-migration/mac-result/paused-before-write.json": "bbd60ebdc519aeb35ac92c113152ee8e21ad4037bc62f14815efce89eee0638c",
+    ".cache/state-migration/mac-result/restarted-blocked.json": "6ae3f5bb19613c2601f3b3189baf86f081139845649e9c3efad2c0bf7091fcec",
+    ".cache/state-migration/mac-result/restarted-interrupt.json": "6ae3f5bb19613c2601f3b3189baf86f081139845649e9c3efad2c0bf7091fcec",
+    ".cache/state-migration/mac-result/restarted-other.json": "9a2bd9978c24bee1c0b0a991030d1fcda744848cc7fb2ce1f2652833e0f827bb",
+    ".cache/state-migration/mac-result/restarted-sample.json": "a20c8edefd3bab44f3be66e055adbaa3e8a0d04fef602b094593a3fd95ec6d9e",
+    ".cache/state-migration/mac-result/restarted-stop.json": "71424c5666590ba046bab4d6050a9b7934197a17034dd9f0d671681befeedd3f",
+    ".cache/state-migration/mac-result/restarted.json": "86ddb93c941726154af761b80005585efcd2998a02b780cffb4906258c4fd4e5",
+    ".cache/state-migration/android-result/paused-before-write-blocked.json": "daad40e3132bd672cc3c9c6da382212b7eb1d72f942e795f13955da15b0abcb7",
+    ".cache/state-migration/android-result/paused-before-write-interrupt.json": "71424c5666590ba046bab4d6050a9b7934197a17034dd9f0d671681befeedd3f",
+    ".cache/state-migration/android-result/paused-before-write-other.json": "9a2bd9978c24bee1c0b0a991030d1fcda744848cc7fb2ce1f2652833e0f827bb",
+    ".cache/state-migration/android-result/paused-before-write-sample.json": "a20c8edefd3bab44f3be66e055adbaa3e8a0d04fef602b094593a3fd95ec6d9e",
+    ".cache/state-migration/android-result/paused-before-write-stop.json": "71424c5666590ba046bab4d6050a9b7934197a17034dd9f0d671681befeedd3f",
+    ".cache/state-migration/android-result/paused-before-write.json": "498a969b702ff240d451a72b4a3ff258b618b779c674b9cedb5be8919cfd5f2f",
+    ".cache/state-migration/android-result/restarted-blocked.json": "6ae3f5bb19613c2601f3b3189baf86f081139845649e9c3efad2c0bf7091fcec",
+    ".cache/state-migration/android-result/restarted-interrupt.json": "6ae3f5bb19613c2601f3b3189baf86f081139845649e9c3efad2c0bf7091fcec",
+    ".cache/state-migration/android-result/restarted-other.json": "9a2bd9978c24bee1c0b0a991030d1fcda744848cc7fb2ce1f2652833e0f827bb",
+    ".cache/state-migration/android-result/restarted-sample.json": "a20c8edefd3bab44f3be66e055adbaa3e8a0d04fef602b094593a3fd95ec6d9e",
+    ".cache/state-migration/android-result/restarted-stop.json": "71424c5666590ba046bab4d6050a9b7934197a17034dd9f0d671681befeedd3f",
+    ".cache/state-migration/android-result/restarted.json": "7f7cb0bb79f5bf4c729e332cde77e5ee299ec8c263f7ec063e39f7219e590f40",
+    ".cache/state-migration/project-check.log": "4254e25e60103209bfc3d76fe411d41c263425fd65385a87a0407ff8f64a9dbe",
+    ".cache/state-migration/initial-mac-failure-ax.txt": "d44e686aaf98210ff8909f25860efe1819f92f8e5231b1977287b3d5604d5fb8",
+    ".cache/state-migration/initial-source-manifest.json": "7a170f5e648a4f06acb719064e82b096622adb1bd85f029de891a677ab0087b7"
+  },
+  "release": {
+    "unchangedVerified": true,
+    "sourceDigest": "9bc1ccda9e100db52c7d445d574ac21569a2ad78f7cdc483a99ca27c2e4e9f6d",
+    "checksumSha256": "ca3b16d744c046b6f84398f74f3ea5d6445488cd55d1d0eb3c4e20d448298030"
+  },
+  "limitations": [
+    "Opt-in helper; no automatic user state migration or ordinary package update",
+    "Single-hop migration only; no automatic rollback, history pruning or package transaction",
+    "Process interruption before write tested; power loss/during-commit crash and multiprocess storage unverified",
+    "Unknown receipt and late cancellation receipt tested only in unit adapter",
+    "Android emulator not real device/touch; iOS Windows Linux unverified"
+  ]
+}
