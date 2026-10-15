@@ -2,15 +2,27 @@
 export default {
   manifest: {
     id: "sample.counter",
-    version: "1.0.0",
+    version: "1.1.0",
     apiVersion: 1,
+    configuration: {
+      version: 1,
+      fields: {
+        step: {
+          type: "number",
+          label: "每次增加量",
+          default: 1,
+          min: 1,
+          max: 100,
+        },
+      },
+    },
     provides: { "sample.counter": 1 },
   },
   activate(ctx) {
     let count = 0;
     ctx.provide("sample.counter", 1, {
       read: () => count,
-      increment: () => ++count,
+      increment: () => (count += Number(ctx.configuration.step)),
     });
   },
 };

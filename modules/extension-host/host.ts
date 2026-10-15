@@ -1,3 +1,8 @@
+import {
+  resolveConfiguration,
+  validateConfigurationDeclaration,
+  type Configuration,
+} from "../sdk/configuration";
 import type {
   ExtensionContext,
   ExtensionDefinition,
@@ -11,6 +16,8 @@ type Status =
 type RecordState = {
   definition: ExtensionDefinition;
   desired: boolean;
+  configuration: Configuration;
+  configurationError?: string;
   status: Status;
   error?: string;
   scope?: Scope;
@@ -93,6 +100,7 @@ export function validateDefinition(
   )
     throw new Error("Invalid extension module");
   const manifest = candidate.manifest;
+  validateConfigurationDeclaration(manifest.configuration);
   if (
     typeof manifest.id !== "string" ||
     !/^[a-z][a-z0-9.-]{0,63}$/.test(manifest.id) ||
@@ -174,13 +182,56 @@ export class Host {
     if (!record) throw new Error(`Unknown extension: ${id}`);
     return record;
   }
-  install(definition: ExtensionDefinition) {
+  install(definition: ExtensionDefinition, configuration?: unknown) {
     validateDefinition(definition);
     const id = definition.manifest.id;
     if (this.records.has(id))
       throw new Error(`Extension already installed: ${id}`);
-    this.records.set(id, { definition, desired: false, status: "disabled" });
+    let resolved = resolveConfiguration(
+      definition.manifest.configuration,
+      undefined,
+    );
+    let configurationError: string | undefined;
+    try {
+      resolved = resolveConfiguration(
+        definition.manifest.configuration,
+        configuration,
+      );
+    } catch (error) {
+      configurationError = message(error);
+    }
+    this.records.set(id, {
+      definition,
+      desired: false,
+      status: "disabled",
+      configuration: resolved,
+      configurationError,
+    });
     this.changed();
+  }
+  configuration(id: string) {
+    const record = this.record(id);
+    return {
+      value: {
+        version: record.configuration.version,
+        values: record.configuration.values,
+      },
+      error: record.configurationError,
+    };
+  }
+  configure(id: string, input: unknown) {
+    return this.serial(async () => {
+      const record = this.record(id);
+      if (record.desired || record.status !== "disabled")
+        throw Error("Stop extension before configuring");
+      const value = resolveConfiguration(
+        record.definition.manifest.configuration,
+        input,
+      );
+      record.configuration = value;
+      record.configurationError = undefined;
+      this.changed();
+    });
   }
   ids() {
     return [...this.records.keys()];
@@ -331,6 +382,8 @@ export class Host {
     return false;
   }
   private waitReason(id: string) {
+    if (this.record(id).configurationError)
+      return `Configuration invalid: ${this.record(id).configurationError}`;
     const manifest = this.manifest(id);
     for (const cap of manifest.capabilities ?? []) {
       if (!this.platform.available(cap))
@@ -458,6 +511,7 @@ export class Host {
     return {
       id,
       signal: scope.controller.signal,
+      configuration: this.record(id).configuration.values,
       use: <T>(name: string) => {
         scope.assertOpen();
         const service = this.services.get(name);

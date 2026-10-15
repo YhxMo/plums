@@ -2,8 +2,20 @@
 export default {
   manifest: {
     id: "sample.panel",
-    version: "1.0.0",
+    version: "1.1.0",
     apiVersion: 1,
+    configuration: {
+      version: 1,
+      fields: {
+        title: {
+          type: "string",
+          label: "面板标题",
+          default: "事件计数器",
+          maxLength: 60,
+        },
+        showCount: { type: "boolean", label: "显示计数", default: true },
+      },
+    },
     requires: { "sample.counter": 1 },
   },
   activate(ctx) {
@@ -15,9 +27,10 @@ export default {
       mount(root) {
         const section = document.createElement("section");
         const heading = document.createElement("h1");
-        heading.textContent = "事件计数器";
+        heading.textContent = String(ctx.configuration.title);
         const output = document.createElement("p");
         output.setAttribute("role", "status");
+        output.hidden = !ctx.configuration.showCount;
         const button = document.createElement("button");
         button.type = "button";
         button.textContent = "增加计数";

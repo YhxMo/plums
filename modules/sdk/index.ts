@@ -1,3 +1,13 @@
+import type {
+  ConfigurationDeclaration,
+  ConfigurationValue,
+} from "./configuration";
+export type {
+  Configuration,
+  ConfigurationDeclaration,
+  ConfigurationField,
+  ConfigurationValue,
+} from "./configuration";
 /** M1 experimental contract. Version 1 is an exact compatibility check, not a stable SDK promise. */
 export interface Manifest {
   id: string;
@@ -6,6 +16,7 @@ export interface Manifest {
   requires?: Record<string, number>;
   provides?: Record<string, number>;
   capabilities?: string[];
+  configuration?: ConfigurationDeclaration;
 }
 
 export interface Platform {
@@ -32,6 +43,7 @@ export interface View {
 export interface ExtensionContext {
   readonly id: string;
   readonly signal: AbortSignal;
+  readonly configuration: Readonly<Record<string, ConfigurationValue>>;
   use<T>(name: string): T;
   provide<T>(name: string, version: number, service: T): void;
   onDispose(dispose: () => void | Promise<void>): void;

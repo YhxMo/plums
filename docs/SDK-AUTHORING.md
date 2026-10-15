@@ -71,3 +71,7 @@ ctx.task 跟踪异步任务，使用传入 signal 合作式取消；ctx.onDispos
 ## 组合保存与恢复
 
 外壳支持显式保存启用集合与精确扩展版本，下次启动恢复；权限须重新确认。提供者选择由集合确定，版本不符或缺失扩展保留原配置并显示诊断。配置所有权、部分恢复边界与卸载同步见 [组合契约](COMPOSITION.md)。
+
+## 非敏感配置
+
+通过 manifest.configuration 声明带默认值的 string/number/boolean 字段，activate 读取只读 ctx.configuration；外壳提供配置编辑、验证和持久化。示例与保存/重启/失败边界见 [配置契约](EXTENSION-CONFIGURATION.md)。普通配置禁止存放密钥或令牌，不提供凭据授权。counter/panel 当前为 1.1.0，旧组合需核对精确版本。

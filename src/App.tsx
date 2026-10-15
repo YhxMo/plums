@@ -1,3 +1,5 @@
+import { saveConfiguration } from "../modules/shell/configuration";
+import type { ConfigurationValue } from "../modules/sdk/configuration";
 import {
   useEffect,
   useLayoutEffect,
@@ -35,6 +37,7 @@ type Runtime = {
   imports: { id: string; url: string; label: string }[];
   events: EventTarget;
   failedImports: Record<string, string>;
+  configurations: Record<string, unknown>;
   composition?: Composition;
   compositionErrors: string[];
   save: (
@@ -44,6 +47,7 @@ type Runtime = {
       agents?: Agent[];
       imports?: Runtime["imports"];
       composition?: Composition;
+      configurations?: Record<string, unknown>;
     },
     options?: SaveOptions,
   ) => Promise<void>;
@@ -100,6 +104,7 @@ async function boot(): Promise<Runtime> {
         agents?: unknown;
         imports?: unknown;
         composition?: unknown;
+        configurations?: unknown;
       }
     | undefined;
   if (
@@ -117,6 +122,17 @@ async function boot(): Promise<Runtime> {
     throw new CompositionRecovery(errorMessage(error), adapter, saved!);
   }
   const agents = restoreAgents(value?.agents);
+  if (
+    value?.configurations !== undefined &&
+    (!value.configurations ||
+      typeof value.configurations !== "object" ||
+      Array.isArray(value.configurations))
+  )
+    throw Error("Extension configuration map is invalid; original preserved");
+  const configurations: Record<string, unknown> = Object.assign(
+    Object.create(null),
+    value?.configurations ?? {},
+  );
   const imports: Runtime["imports"] = [];
   if (value?.imports !== undefined) {
     if (!Array.isArray(value.imports))
@@ -138,12 +154,14 @@ async function boot(): Promise<Runtime> {
   for (const entry of catalog)
     host.install(
       await loadExtension(new URL(entry.url, location.href).href, entry.id),
+      configurations[entry.id],
     );
   const failedImports: Runtime["failedImports"] = {};
   for (const entry of imports) {
     try {
       host.install(
         await loadExtension(new URL(entry.url, location.href).href, entry.id),
+        configurations[entry.id],
       );
       catalog.push(entry);
     } catch (error) {
@@ -162,6 +180,7 @@ async function boot(): Promise<Runtime> {
           : ("light" as const),
     agents,
     imports,
+    configurations,
   };
   let revision = saved?.revision ?? 0;
   let queue: Promise<unknown> = Promise.resolve();
@@ -200,8 +219,12 @@ async function boot(): Promise<Runtime> {
   const events = new EventTarget();
   host.install(
     agentExtension(agents, (agents, options) => save({ agents }, options)),
+    configurations["agents.local"],
   );
-  host.install(agentUI(() => events.dispatchEvent(new Event("extensions"))));
+  host.install(
+    agentUI(() => events.dispatchEvent(new Event("extensions"))),
+    configurations["ui.agents"],
+  );
   const compositionErrors = composition
     ? await restoreComposition(host, composition)
     : [];
@@ -224,6 +247,7 @@ async function boot(): Promise<Runtime> {
     failedImports,
     composition,
     compositionErrors,
+    configurations,
     events,
     save,
   };
@@ -377,6 +401,11 @@ function Workbench({ runtime }: { runtime: Runtime }) {
   const [removal, setRemoval] = useState<string | null>(null);
   const removalTrigger = useRef<HTMLElement | null>(null);
   const removed = useRef(false);
+  const [configuring, setConfiguring] = useState<string | null>(null);
+  const [configDraft, setConfigDraft] = useState<
+    Record<string, ConfigurationValue>
+  >({});
+  const configTrigger = useRef<HTMLElement | null>(null);
   const [moduleUrl, setModuleUrl] = useState("");
   const [moduleId, setModuleId] = useState("");
   useEffect(() => {
@@ -731,7 +760,10 @@ function Workbench({ runtime }: { runtime: Runtime }) {
                       const entry = runtime.imports.find((e) => e.id === id)!;
                       const target = new URL(entry.url, location.href);
                       target.searchParams.set("_retry", String(Date.now()));
-                      host.install(await loadExtension(target.href, id));
+                      host.install(
+                        await loadExtension(target.href, id),
+                        runtime.configurations[id],
+                      );
                       catalog.push(entry);
                       setFailedImports((previous) => {
                         const next = { ...previous };
@@ -791,6 +823,23 @@ function Workbench({ runtime }: { runtime: Runtime }) {
                       {state.resources} 项资源 · {state.tasks} 个在途任务
                     </p>
                     <div className={styles.extensionActions}>
+                      {manifest.configuration && (
+                        <button
+                          className="secondary"
+                          aria-label={`配置 ${id}`}
+                          disabled={busy}
+                          onClick={(event) => {
+                            configTrigger.current = event.currentTarget;
+                            setConfigDraft({
+                              ...host.configuration(id).value.values,
+                            });
+                            setError("");
+                            setConfiguring(id);
+                          }}
+                        >
+                          配置
+                        </button>
+                      )}
                       {runtime.imports.some((item) => item.id === id) && (
                         <button
                           className="secondary"
@@ -1088,6 +1137,116 @@ function Workbench({ runtime }: { runtime: Runtime }) {
           )}
         </Dialog>
       )}
+      {configuring && (
+        <Dialog
+          title="扩展配置"
+          returnFocusTo={configTrigger.current}
+          onClose={() => {
+            if (!busy) setConfiguring(null);
+          }}
+        >
+          <form
+            onSubmit={(event) => {
+              event.preventDefault();
+              void operate(async () => {
+                const id = configuring;
+                await saveConfiguration(
+                  host,
+                  id,
+                  {
+                    version: host.manifest(id).configuration!.version,
+                    values: configDraft,
+                  },
+                  async (value) => {
+                    const configurations = Object.assign(
+                      Object.create(null),
+                      runtime.configurations,
+                      { [id]: value },
+                    );
+                    await runtime.save({ configurations });
+                    runtime.configurations = configurations;
+                  },
+                );
+                setConfiguring(null);
+                setNotice("配置已保存并应用；未启用的扩展保持停用。");
+              });
+            }}
+          >
+            <div className="dialog-content">
+              <p>
+                {configuring} ·
+                仅填写普通配置，勿输入密钥或令牌。保存会先停用扩展；已启用的扩展随后重新启动。
+              </p>
+              {host.configuration(configuring).error && (
+                <p className="error">
+                  原配置无效：{host.configuration(configuring).error}
+                  。下方展示默认值，确认保存会替换原配置；取消保留原值。
+                </p>
+              )}
+              {Object.entries(
+                host.manifest(configuring).configuration!.fields,
+              ).map(([key, field]) => (
+                <label
+                  className={field.type === "boolean" ? "check-field" : "field"}
+                  key={key}
+                >
+                  {field.label}
+                  {field.type === "boolean" ? (
+                    <input
+                      type="checkbox"
+                      checked={configDraft[key] === true}
+                      onChange={(event) =>
+                        setConfigDraft({
+                          ...configDraft,
+                          [key]: event.target.checked,
+                        })
+                      }
+                    />
+                  ) : (
+                    <input
+                      type={field.type === "number" ? "number" : "text"}
+                      required={field.type === "number"}
+                      step={field.type === "number" ? "any" : undefined}
+                      min={field.type === "number" ? field.min : undefined}
+                      max={field.type === "number" ? field.max : undefined}
+                      maxLength={
+                        field.type === "string" ? field.maxLength : undefined
+                      }
+                      value={String(configDraft[key] ?? "")}
+                      onChange={(event) =>
+                        setConfigDraft({
+                          ...configDraft,
+                          [key]:
+                            field.type === "number" && event.target.value !== ""
+                              ? Number(event.target.value)
+                              : event.target.value,
+                        })
+                      }
+                    />
+                  )}
+                </label>
+              ))}
+              {error && (
+                <p className="error" role="alert">
+                  配置操作未完成：{error}
+                  。扩展可能已停用，配置可能已保存；重载确认或修复后重新启用。
+                </p>
+              )}
+            </div>
+            <footer className="dialog-actions">
+              <button
+                type="button"
+                className="secondary"
+                disabled={busy}
+                onClick={() => setConfiguring(null)}
+              >
+                取消
+              </button>
+              <button disabled={busy}>保存并应用</button>
+            </footer>
+          </form>
+        </Dialog>
+      )}
       {removal && (
         <Dialog
           title="卸载扩展"
@@ -1173,7 +1332,7 @@ function Workbench({ runtime }: { runtime: Runtime }) {
                 ];
                 await runtime.save({ imports });
                 runtime.imports = imports;
-                host.install(definition);
+                host.install(definition, runtime.configurations[moduleId]);
                 catalog.push(entry);
                 setFailedImports((previous) => {
                   const next = { ...previous };
