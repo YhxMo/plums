@@ -1,5 +1,7 @@
 mod appearance;
 mod storage;
+#[cfg(feature = "native-transport-experiment")]
+mod transport_probe;
 use serde::Serialize;
 use serde_json::Value;
 use storage::Broker;
@@ -50,6 +52,25 @@ pub fn run() {
             })
             .build(),
     );
+    #[cfg(feature = "native-transport-experiment")]
+    let builder = builder
+        .manage(transport_probe::Probe::default())
+        .invoke_handler(tauri::generate_handler![
+            platform_grant,
+            platform_call,
+            appearance::shell_set_theme,
+            transport_probe::probe_grant,
+            transport_probe::probe_prepare,
+            transport_probe::probe_cancel,
+            transport_probe::probe_execute,
+            transport_probe::probe_info
+        ]);
+    #[cfg(not(feature = "native-transport-experiment"))]
+    let builder = builder.invoke_handler(tauri::generate_handler![
+        platform_grant,
+        platform_call,
+        appearance::shell_set_theme
+    ]);
     builder
         .setup(|app| {
             let root = std::env::var_os("PLUMS_M1_DATA_DIR")
@@ -58,11 +79,6 @@ pub fn run() {
             app.manage(Broker::new(root));
             Ok(())
         })
-        .invoke_handler(tauri::generate_handler![
-            platform_grant,
-            platform_call,
-            appearance::shell_set_theme
-        ])
         .run(tauri::generate_context!())
         .expect("Plums M1 runtime failed");
 }

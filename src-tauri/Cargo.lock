@@ -2226,10 +2226,13 @@ dependencies = [
 name = "plums"
 version = "0.0.4"
 dependencies = [
+ "futures-util",
+ "reqwest",
  "serde",
  "serde_json",
  "tauri",
  "tauri-build",
+ "tokio",
 ]
 
 [[package]]
