@@ -467,7 +467,7 @@
   box-shadow: 0 3px 18px var(--shadow);
 }
 .composer:focus-within {
-  border-color: var(--control-border);
+  border-color: var(--accent);
 }
 .composer textarea {
   padding: 2px 4px 10px;
@@ -480,6 +480,9 @@
   outline: none;
   line-height: 1.6;
   font-size: 15px;
+}
+.composer textarea:focus-visible {
+  outline: none;
 }
 .composerBottom {
   display: flex;
