@@ -7,6 +7,12 @@ import {
 } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { Host, loadExtension } from "../modules/extension-host/host";
+import {
+  readComposition,
+  captureComposition,
+  restoreComposition,
+  type Composition,
+} from "../modules/shell/composition";
 import { uninstallImport } from "../modules/shell/uninstall";
 import type { StoredState } from "../modules/sdk";
 import { PlatformAdapter } from "./platform";
@@ -28,12 +34,15 @@ type Runtime = {
   imports: { id: string; url: string; label: string }[];
   events: EventTarget;
   failedImports: Record<string, string>;
+  composition?: Composition;
+  compositionErrors: string[];
   save: (
     patch: {
       layout?: string;
       theme?: "light" | "dark";
       agents?: Agent[];
       imports?: Runtime["imports"];
+      composition?: Composition;
     },
     options?: SaveOptions,
   ) => Promise<void>;
@@ -79,6 +88,7 @@ async function boot(): Promise<Runtime> {
         theme?: unknown;
         agents?: unknown;
         imports?: unknown;
+        composition?: unknown;
       }
     | undefined;
   if (
@@ -89,6 +99,7 @@ async function boot(): Promise<Runtime> {
       value.version !== 1)
   )
     throw Error("应用配置版本不支持，原数据已保留。");
+  const composition = readComposition(value?.composition);
   const agents = restoreAgents(value?.agents);
   const imports: Runtime["imports"] = [];
   if (value?.imports !== undefined) {
@@ -175,9 +186,14 @@ async function boot(): Promise<Runtime> {
     agentExtension(agents, (agents, options) => save({ agents }, options)),
   );
   host.install(agentUI(() => events.dispatchEvent(new Event("extensions"))));
-  await host.start("transform.upper");
-  await host.start("agents.local");
-  await host.start("ui.agents");
+  const compositionErrors = composition
+    ? await restoreComposition(host, composition)
+    : [];
+  if (!composition) {
+    await host.start("transform.upper");
+    await host.start("agents.local");
+    await host.start("ui.agents");
+  }
   return {
     host,
     adapter,
@@ -190,6 +206,8 @@ async function boot(): Promise<Runtime> {
     theme: preferences.theme,
     imports,
     failedImports,
+    composition,
+    compositionErrors,
     events,
     save,
   };
@@ -231,9 +249,11 @@ function Workbench({ runtime }: { runtime: Runtime }) {
   const [started, setStarted] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(
-    Object.keys(runtime.failedImports).length
-      ? "有扩展加载失败，请在扩展管理重试或移除失效路径。"
-      : "",
+    runtime.compositionErrors.length
+      ? `组合未完整恢复：${runtime.compositionErrors.join("；")}。原配置已保留。`
+      : Object.keys(runtime.failedImports).length
+        ? "有扩展加载失败，请在扩展管理重试或移除失效路径。"
+        : "",
   );
   const [failedImports, setFailedImports] = useState(runtime.failedImports);
   const [notice, setNotice] = useState("");
@@ -390,6 +410,14 @@ function Workbench({ runtime }: { runtime: Runtime }) {
       await runtime.save({ layout: contributed.id });
       setSelected(contributed.id);
     }
+  }
+  async function saveRemovedImport(id: string, imports: Runtime["imports"]) {
+    const composition = runtime.composition && {
+      ...runtime.composition,
+      enabled: runtime.composition.enabled.filter((entry) => entry.id !== id),
+    };
+    await runtime.save({ imports, ...(composition ? { composition } : {}) });
+    runtime.composition = composition;
   }
   async function savePreferences(layout: string, appearance: Runtime["theme"]) {
     await runtime.save({ layout, theme: appearance });
@@ -561,6 +589,25 @@ function Workbench({ runtime }: { runtime: Runtime }) {
           <p className={styles.managerHint}>
             检查模块与所需能力；停用后保留已保存的数据。
           </p>
+          <button
+            className="secondary"
+            disabled={busy}
+            onClick={() =>
+              void operate(async () => {
+                const composition = captureComposition(host);
+                await runtime.save({ composition, layout: selected, theme });
+                runtime.composition = composition;
+                setNotice(
+                  "当前组合已保存，下次启动自动恢复；所需权限须重新确认。",
+                );
+              })
+            }
+          >
+            保存当前组合
+          </button>
+          <p className={styles.managerHint}>
+            保存启用集合、扩展版本与当前外观。下次启动恢复同一服务提供者；权限和扩展业务数据分别管理。保存会替换上一组合。
+          </p>
           <div className={styles.extensions}>
             {Object.entries(failedImports).map(([id, reason]) => (
               <article key={id}>
@@ -596,7 +643,7 @@ function Workbench({ runtime }: { runtime: Runtime }) {
                       const imports = runtime.imports.filter(
                         (e) => e.id !== id,
                       );
-                      await runtime.save({ imports });
+                      await saveRemovedImport(id, imports);
                       runtime.imports = imports;
                       setFailedImports((previous) => {
                         const next = { ...previous };
@@ -970,7 +1017,7 @@ function Workbench({ runtime }: { runtime: Runtime }) {
                     host,
                     id,
                     runtime.imports,
-                    (imports) => runtime.save({ imports }),
+                    (imports) => saveRemovedImport(id, imports),
                   );
                   runtime.imports = imports;
                   const index = catalog.findIndex((entry) => entry.id === id);

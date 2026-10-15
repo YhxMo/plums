@@ -40,7 +40,7 @@ Android 复用既有 YHX 工具链。将 `PLUMS_ANDROID_TOOLS_ROOT` 设置为含
 
 图标源为 `src-tauri/icons/source.png`；执行 `npm run icons` 可重新生成 Mac、Android 和 Web 所需资源。默认界面与可替换布局共用语义颜色变量，所有权见 [UI](docs/UI.md)。
 
-本地查看包统一放在根 `release/`，当前为 `Plums M1 0.0.4.app` 和 `plums-m1-0.0.4-android-arm64-debug.apk`；使用范围与摘要见该目录的 `README.md`、`CHECKSUMS.json`。当前普通包包含 SDK 样板和完整外壳卸载流程，源码以 `80d77af` 基线加 114 文件集合摘要绑定，见 [卸载与交付证据](evidence/UNINSTALL-2026-10-15.md)。目录名不代表发布模式构建。
+本地查看包统一放在根 `release/`，当前为 `Plums M1 0.0.4.app` 和 `plums-m1-0.0.4-android-arm64-debug.apk`；使用范围与摘要见该目录的 `README.md`、`CHECKSUMS.json`。当前普通包包含 SDK 样板、外壳卸载与最小组合保存/恢复，源码以 `13807e5` 基线加 117 文件集合摘要绑定，见 [组合与交付证据](evidence/COMPOSITION-2026-10-15.md)。目录名不代表发布模式构建。
 
 ## 文档索引
 
