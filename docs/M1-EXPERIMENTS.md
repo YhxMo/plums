@@ -1,6 +1,6 @@
 # M1 实验与工程决策
 
-状态：Mac 最小原型实现、最小原生路径与相关变更的独立定向审查已完成；Android 隔离 ARM64 调试 APK 构建与包检查及限定范围独立复核通过，设备运行未验证；iOS 暂缓。Mac 源码、命令与运行结果见 [证据](../evidence/RESULTS.md)，新增构建范围见 [Android 记录](#android-隔离构建记录)。M1 仍开放，不等于稳定 SDK 或五端验收完成。
+状态：Mac 最小原型实现、最小原生路径与相关变更的独立定向审查已完成；Android 隔离 ARM64 调试构建及静态包检查已通过独立复核；后续 API 36 模拟器运行与原生边距修正已通过限定独立复核，真机未验证；iOS 暂缓。Mac 源码、命令与运行结果见 [证据](../evidence/RESULTS.md)，新增构建范围见 [Android 记录](#android-隔离构建记录)。M1 仍开放，不等于稳定 SDK 或五端验收完成。
 
 ## 实验范围
 
@@ -16,9 +16,9 @@
 
 | 主题与选项 | M1 采用方案及理由 | 风险、回退与验证范围 |
 | --- | --- | --- |
-| Tauri 或仅 Web 外壳 | Tauri 2 + Rust；直接验证原生平台能力边界 | macOS 编译、调试包构建和最小原生用户路径已验证；Android 仅完成隔离调试构建与包检查，其他三端未执行；原生适配保持独立 |
+| Tauri 或仅 Web 外壳 | Tauri 2 + Rust；直接验证原生平台能力边界 | macOS 编译、调试包构建和最小原生用户路径已验证；Android 已通过明确配置的模拟器运行与 Insets 修正限定复核，真机及其他三端未执行；原生适配保持独立 |
 | React 或无框架外壳 | React/TypeScript/Vite 仅用于管理外壳，CSS 变量与 CSS Modules | 扩展不绑定 React；可替换外壳，不改扩展服务契约；浏览器交互测试覆盖当前外壳 |
-| 同环境 ESM、Worker 或独立进程 | 本地可信 ESM，最少执行假设，无运行时 Node.js | 无恶意代码隔离；未来可更换宿主。移动执行、分发策略和任意下载代码均未验证 |
+| 同环境 ESM、Worker 或独立进程 | 本地可信 ESM，最少执行假设，无运行时 Node.js | 无恶意代码隔离；未来可更换宿主。随包 ESM 已在本次 Android 模拟器执行；iOS、分发策略和任意下载代码仍未验证 |
 | 框架组件或 DOM UI 契约 | DOM 挂载与释放；布局模块及样式独立分发 | 两套导航结构与未知外部视图经浏览器测试；CSS/DOM 仍共享环境，不保证安全显示隔离 |
 | JSON 或 SQLite | 系统与扩展分开命名，每所有者一个有版本和修订号的 JSON，64 KiB 实验上限；暂不引入数据库 | 单进程锁与同目录临时文件替换；不是完整迁移/崩溃恢复方案。遗留 pending 文件保留并报错；可在公共状态契约下更换存储 |
 | 应用能力检查或强沙箱 | SDK 检查声明/授权，Rust 检查所有者与授权；不接真实凭据 | 同环境代码可直接调用桥接，授权接口不是恶意代码安全边界；操作系统授权未实现，应用内能力路径按实际平台留证 |
@@ -32,7 +32,7 @@
 | --- | --- |
 | macOS | 27.0.1 / arm64；Node.js 26.5.1，Rust/cargo 1.98.1，Command Line Tools。既有 Rust 不在默认 PATH，项目命令补充搜索路径，不改全局配置 |
 | iOS | 暂缓。当前活动开发目录为 Command Line Tools；`xcodebuild -version` 失败，`simctl` 及 iphoneos/iphonesimulator SDK 不可定位，无 iOS Rust target，未生成 Apple 工程。非标准安装位置、模拟器 runtime、物理设备与签名条件未知 |
-| Android | 已在独立工具目录配置 JDK 21.0.12.1、SDK/NDK 与 aarch64-linux-android Rust target；隔离生成工程使用 Gradle wrapper 9.6.1 / AGP 9.3.1，ARM64 调试 APK 构建及包检查通过。本次未安装 Android Studio、Emulator 或系统镜像，未安装/启动应用；设备、WebView 和运行行为未验证 |
+| Android | 已在独立工具目录配置 JDK 21.0.12.1、SDK/NDK 与 aarch64-linux-android Rust target；隔离生成工程使用 Gradle wrapper 9.6.1 / AGP 9.3.1，ARM64 调试 APK 构建及包检查通过。后续已安装 Emulator 37.2.12 与单个 AOSP API 36 ARM64 镜像，WebView 133.0.6943.137；本配置运行与 Insets 修正已通过限定独立复核，真机未验证。未安装 Android Studio |
 | Windows、Linux | 无实际原生执行证据，未交叉编译。常见 VM 应用/CLI 未发现，不据此断言所有环境不存在。Docker 客户端存在，默认 daemon 的 socket 不存在而连接失败；其他 context、VM 或远程环境未核验 |
 
 工具与依赖增量按已确认范围执行；新增许可及设备安全授权单独核对，不更改系统安全设置。缺失环境或运行证据阻塞对应结论，其他实验可继续。
@@ -64,13 +64,38 @@
 | 编译与 APK | Rust ARM64 编译/链接、Gradle 构建、ZIP 完整性和调试签名检查通过；标识 dev.plums.plums.androidcheck，minSdk 24 / targetSdk 37，实际 ABI 仅 arm64-v8a。调试产物不代表发布包优化或最低支持范围已验收 |
 | 前端资源 | 13 项资源经编码解码与原生库嵌入核对；其中 7 个扩展 JS、1 个 CSS 与源码一致。APK 内原生库摘要与受检 Rust 产物一致，将资源检查绑定到该 APK；不证明 WebView 已成功加载或执行 |
 | APK SHA-256 | `ca1cb7d861db671e65be8956c6ad3558e0bc470434739dda4a12a04cb1cb48f2` |
-| 未执行 | 设备/模拟器安装与启动，ESM/CSP/MIME/Origin/Web API，原生桥接、状态保存及重启，依赖/布局替换与停用清理，前后台及进程重建 |
+| 截至该次构建复核未执行 | 设备/模拟器安装与启动，ESM/CSP/MIME/Origin/Web API，原生桥接、状态保存及重启，依赖/布局替换与停用清理，前后台及进程重建 |
 
-构建、配置、产物与资源证据保存在独立实验目录的 `RESULTS.md`、`evidence/BUILD-RESULT.json`、`evidence/VARIANT-SOURCE-MANIFEST.json`、`evidence/GENERATED-CONFIG-REVIEW.json`、`evidence/APK-VERIFICATION.json` 和 `evidence/NATIVE-RESOURCE-EMBEDDING.json`；这些是相对实验目录的本地记录，不属于仓库内 Mac 证据，也未随 Git 分发。独立复核报告 `INDEPENDENT-REVIEW.md` 及配套证据也保存在该实验目录；已独立核对 APK/资源、生成配置、入口正反例和两份公开文档，未发现范围内阻塞。未独立重跑完整 Android 构建、从零初始化或离线重建，不承诺重建字节相同；设备运行未验证，iOS 暂缓，M1 保持开放。
+构建、配置、产物与资源证据保存在独立实验目录的 `RESULTS.md`、`evidence/BUILD-RESULT.json`、`evidence/VARIANT-SOURCE-MANIFEST.json`、`evidence/GENERATED-CONFIG-REVIEW.json`、`evidence/APK-VERIFICATION.json` 和 `evidence/NATIVE-RESOURCE-EMBEDDING.json`；这些是相对实验目录的本地记录，不属于仓库内 Mac 证据，也未随 Git 分发。独立复核报告 `INDEPENDENT-REVIEW.md` 及配套证据也保存在该实验目录；已独立核对 APK/资源、生成配置、入口正反例和两份公开文档，未发现范围内阻塞。未独立重跑完整 Android 构建、从零初始化或离线重建，不承诺重建字节相同；截至该次构建复核尚未执行设备运行；后续结果见[模拟器运行记录](#android-模拟器运行记录)。iOS 暂缓，M1 保持开放。
+
+## Android 模拟器运行记录
+
+2026-10-15 UTC，复用同一隔离工程，在 Emulator 37.2.12 / AOSP Android 16 API 36 / arm64-v8a / WebView 133.0.6943.137 完成运行自验并通过限定独立复核。SDK、镜像、AVD、临时文件及缓存均使用外置实验目录；只安装一个无 Google Play 的官方 ARM64 镜像，未安装 Android Studio 或 iOS 工具，未接受新种类许可。
+
+原 APK 在真实 WebView 加载目录、ESM、相对导入和样式；实际 Origin 为 http://tauri.localhost，资源 MIME 与有效 CSP 已记录。通过正常界面授权、处理合成文本并核对应用数据目录中的 Rust JSON，未使用浏览器 localStorage 冒充原生状态。
+
+运行暴露系统栏覆盖内容，原生几何回归先失败，再仅在隔离生成工程的 MainActivity 对系统栏、缺口和键盘应用 Insets。WebView 从覆盖整屏变为避开系统栏，键盘显示时视口收缩；主项目 Host/SDK/扩展/Rust、锁文件及 49 文件实现集合未变，修正尚未并入主项目。重新生成原生工程须核对模板后重应用此适配；此次仅保存隔离配方，正式工程接入另行决策。
+
+修正版 APK SHA-256：`fd7f071ef85d7e5cbcc03ba6b9220545fc672584584f1683ed95fb9d0b082b79`。其原生库与原已独立核验的 Rust/13 项资源字节相同；修正版重新通过保存、拒绝/恢复、服务替换、依赖停用零资源/任务、故障布局回退、真实触控取消、短任务后台切换及新进程冷启动恢复。普通重启不等于写入中断恢复；一次模拟器后台短任务不构成长任务或真机保证。
+
+证据位于独立实验根目录的 `runtime-20261015T094547Z/`，包括 `RESULTS.md`、`evidence/RUNTIME-RESULT.json` 和 `INDEPENDENT-REVIEW.md`，未纳入 Git。复核独立重现冷启动、原生状态恢复、系统栏与键盘；其余路径按报告限定的自验或静态核对范围引用。早期 42/44 号截图存在样式/IME 采样时序差异，不能单独证明稳定绘制；原图保留，稳定补证见 `independent-review/02-restored-stable.png`、`03-keyboard-stable.png`、`04-keyboard-closed.png`。
+
+复核发现实验停止脚本将 ADB 的 KO 应答误报成功，已改为校验应答、精确进程身份及最终 PID/端口；超时保留活动记录，后备 SIGTERM 只用于已核实的本次 AVD。六项合成回归及实际停止验证通过，见运行目录 `metadata/STOP-TOOL-REGRESSION.json` 与 `metadata/STOP-TOOL-VALIDATION.json`。本次 QEMU 和专用 ADB 已退出，5041/5560/5561 关闭，AVD 数据保留；仅清理本次临时链接，既有 5037 ADB 与主机令牌保持原状。真机未验证，iOS 暂缓，M1 未关闭。
+
+### 隔离 Insets 修正的保存与复现
+
+保存位置为外置实验根 `plums-android-20261015T082500Z/` 的 `runtime-20261015T094547Z/`，以下路径相对此运行目录，不是仓库路径。修正前后文件为 `metadata/MainActivity-before.kt`、`metadata/MainActivity-after.kt`，差异范围及摘要见 `metadata/INSETS-FIX.json`；修正版产物保留于 `artifacts/plums-android-insets-debug.apk`。
+
+1. 复用已有工具链和隔离工程，不重复初始化或安装。当前生成文件在实验根的 `project/src-tauri/gen/android/app/src/main/java/dev/plums/plums/androidcheck/MainActivity.kt`；其内容须与保存的 after 文件一致。
+2. 若原生工程被重新生成，只在模板与 before 文件逐字节一致、包名仍为 `dev.plums.plums.androidcheck` 时应用 before→after 的差异。若模板或初始 padding 改变，先重新审查，不能盲目覆盖。after 文件 SHA-256 为 `614c75be358cbc1f8c5d038400adf87a812a0b69bcb5ad67601fe38794f14fb7`。
+3. 在运行目录 `source environment.sh` 后执行 `python3 tools/rebuild-candidate.py`；该配方先断言当前 MainActivity 与 after 一致，以锁文件构建并另存带时间戳的候选 APK，保留原基线产物，不承诺新包哈希相同。此次未重新构建应用。
+4. 新包须重新核对签名/资源、系统栏与 IME 几何及稳定截图，再验证受影响路径；旧 APK 的通过记录不能替代新产物。横屏、手势导航和其他模板/WebView 仍待验证。
+
+此次没有把生成文件、修补钩子或实验工具并入主项目；该配方是实验保存方式，正式移动工程维护方案留待单独工作。
 
 ## 最小 iOS 与 Android 实验
 
-Android 已完成构建前提及产物检查，以下安装与运行步骤尚未执行；iOS 暂缓，未执行这些步骤。两端各选一个明确的 OS/WebView 与 ABI；模拟器和真机分别记录，先做随包本地扩展，不引入远程下载代码、稳定 SDK 或新业务。实验副本使用独立标识（例如 dev.plums.plums.ioscheck / dev.plums.plums.androidcheck）及合成数据；源码变化、生成工程和最终有效配置均留摘要，不能与原 Mac 包混称。
+Android 已在下述明确模拟器配置执行这些早期运行步骤；以下判据继续用于新配置复验，不能推广为真机或全 Android 覆盖。iOS 暂缓，未执行这些步骤。两端各选一个明确的 OS/WebView 与 ABI；模拟器和真机分别记录，先做随包本地扩展，不引入远程下载代码、稳定 SDK 或新业务。实验副本使用独立标识（例如 dev.plums.plums.ioscheck / dev.plums.plums.androidcheck）及合成数据；源码变化、生成工程和最终有效配置均留摘要，不能与原 Mac 包混称。
 
 | 步骤 | 操作与可观察结果 | 失败或阻塞判据 |
 | --- | --- | --- |
@@ -101,13 +126,13 @@ node node_modules/@tauri-apps/cli/tauri.js android build --debug --target aarch6
 | 平台 | 首个实验所需增量 | 仍待确认及下载量 |
 | --- | --- | --- |
 | iOS | 完整 Xcode 与一个所选 iOS Simulator runtime；Apple Silicon 模拟器仅先补 aarch64-apple-ios-sim。用实验进程的 DEVELOPER_DIR 选择 Xcode，不切换全局开发目录。真机实验才另补 aarch64-apple-ios、设备与签名条件 | Xcode 与主机兼容版本、辅助生成/安装工具及签名需求在执行前核对；CLI 初始化可能涉及辅助依赖，不能仅凭帮助列出完整安装清单。下载量、安装后空间均未知，需按实际选定版本确认 |
-| Android | 已补齐命令行构建环境：JDK 21.0.12.1、NDK 28.2、SDK platforms 37/36、build-tools 36、platform-tools 与 ARM64 Rust target；生成 wrapper 9.6.1 / AGP 9.3.1。Tauri Android 库另需 platform 36，应用 compile/target 仍为 37 | 运行实验尚需所选且获授权的 ARM64 设备，或另行确认 Emulator 与 ARM64 system image。Android Studio 不是命令行构建必需项；设备条件、WebView、后续下载与空间增量仍待核定 |
+| Android | 已补齐命令行构建环境：JDK 21.0.12.1、NDK 28.2、SDK platforms 37/36、build-tools 36、platform-tools 与 ARM64 Rust target；生成 wrapper 9.6.1 / AGP 9.3.1。Tauri Android 库另需 platform 36，应用 compile/target 仍为 37 | 单个官方 AOSP API 36 ARM64 AVD 已创建并运行；新增组件引用的 Android SDK 许可正文与已接受文本一致。真机及其他系统/WebView 配置仍未验收；未安装 Android Studio |
 
-仅安装所选 ABI 所需组件，不预装全部 Rust targets 或多个系统镜像。接受平台许可、下载额外依赖、设备配对/调试、Developer Mode、安全权限或签名账户操作均须单独确认；实验不需要发布到应用商店。iOS 环境仍未补齐；Android 命令行构建环境已就绪，设备运行条件未就绪。
+仅安装所选 ABI 所需组件，不预装全部 Rust targets 或多个系统镜像。接受平台许可、下载额外依赖、设备配对/调试、Developer Mode、安全权限或签名账户操作均须单独确认；实验不需要发布到应用商店。iOS 环境仍未补齐；Android 构建与本次模拟器运行环境已就绪，真机条件未核验。
 
 ### 阶段边界与记录
 
-M1 剩余门槛是两端各自的早期原生风险实验及据此作出的选型/限制结论；Android 构建通过仅关闭编译与包检查项，运行风险仍开放；iOS 暂缓不等于免除门槛。按 [路线图](ROADMAP.md)，Windows/Linux 完整原生验收和 A11 五端能力矩阵属于后续阶段。全量迁移、写入中断后的崩溃恢复、多进程并发、实际原生丢失回执注入、文件/OS 授权与长期后台任务不作为追加的 M1 完整功能门槛；已有有限契约一旦被反例推翻，仍须修复或收紧保证。
+M1 剩余门槛是尚未完成的 iOS 早期原生风险实验及依据证据收敛的选型/限制结论；Android 本配置的早期运行与 Insets 修正已通过限定独立复核，不扩大为真机或全 Android 支持。iOS 暂缓不等于免除门槛，M1 保持开放，不开启 M2。按 [路线图](ROADMAP.md)，Windows/Linux 完整原生验收和 A11 五端能力矩阵属于后续阶段。全量迁移、写入中断后的崩溃恢复、多进程并发、实际原生丢失回执注入、文件/OS 授权与长期后台任务不作为追加的 M1 完整功能门槛；已有有限契约一旦被反例推翻，仍须修复或收紧保证。
 
 每端记录基线/差异与单一负责人、锁定依赖及新增下载、最终配置、OS/ABI/设备或模拟器/WebView、产物摘要、安装与操作步骤、实际原生结果、失败/阻塞和未覆盖项。完成编译或执行一次正常路径不自动关闭所有条目，不以旧 Mac 绿测或本节方案替代实际记录。
 
@@ -118,7 +143,7 @@ M1 剩余门槛是两端各自的早期原生风险实验及据此作出的选�
 - 凭据服务、真实文件选择器和操作系统授权弹窗未实现；当前权限是应用内实验能力。
 - 操作信号可取消合作式任务；原生状态写入派发后为不可取消提交段。成功回执必须显示已保存，回执丢失按结果未确认处理，不自动重试。详见 [失败语义](EXTENSION-CONTRACTS.md#m1-已实现的失败语义)。
 - 现有状态 schema 拒绝未知版本并保留数据，尚无完整升级迁移工具；不承诺崩溃后一切自动恢复。
-- macOS 仅完成证据所列的最小原生路径；移动生命周期、离线长任务与资源强制限额仍待验。角色卡与多 Agent 业务不在 M1 实现范围。
+- macOS 仅完成证据所列的最小原生路径；完整移动生命周期、离线长任务与资源强制限额仍待验。角色卡与多 Agent 业务不在 M1 实现范围。
 
 ## 依赖失效原生夹具
 
