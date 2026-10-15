@@ -1,10 +1,17 @@
-import { useCallback, useRef, useState, useSyncExternalStore } from "react";
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from "react";
 import type {
   Agent,
   AgentConfig,
   AgentProvider,
 } from "../../modules/sdk/agents";
 import { parseRoleCard } from "../../modules/agents/store";
+import { readRoleCardLink } from "../../modules/agents/role-card";
 import { AgentList } from "./AgentList";
 import { ChatView } from "./ChatView";
 import { DetailPanel } from "./DetailPanel";
@@ -50,6 +57,34 @@ export function AgentWorkspace({
   const modalTrigger = useRef<HTMLElement | null>(null);
   const detailTrigger = useRef<HTMLElement | null>(null);
   const [busy, setBusy] = useState(false);
+  const [reading, setReading] = useState(false);
+  const readController = useRef<AbortController | null>(null);
+  useEffect(() => () => readController.current?.abort(), []);
+  const closeModal = () => {
+    if (busy) return;
+    readController.current?.abort();
+    readController.current = null;
+    setReading(false);
+    setModal(null);
+  };
+  async function readLink() {
+    const controller = new AbortController();
+    readController.current = controller;
+    setReading(true);
+    setError("");
+    try {
+      const card = await readRoleCardLink(url, controller.signal);
+      if (readController.current === controller) setRaw(card);
+    } catch (e) {
+      if (readController.current === controller && !controller.signal.aborted)
+        setError(e instanceof Error ? e.message : String(e));
+    } finally {
+      if (readController.current === controller) {
+        readController.current = null;
+        setReading(false);
+      }
+    }
+  }
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [drafts, setDrafts] = useState<Record<string, string>>({});
@@ -219,9 +254,7 @@ export function AgentWorkspace({
                   deleteSession: "删除会话",
                 }[modal.action]
           }
-          onClose={() => {
-            if (!busy) setModal(null);
-          }}
+          onClose={closeModal}
         >
           {modal === "add" ? (
             <div className="dialog-content">
@@ -282,6 +315,7 @@ export function AgentWorkspace({
                     <label className="field">
                       角色卡文件
                       <input
+                        disabled={busy || reading}
                         type="file"
                         accept=".json,application/json"
                         onChange={(e) => {
@@ -299,6 +333,7 @@ export function AgentWorkspace({
                       <label className="field">
                         角色卡链接
                         <input
+                          disabled={busy || reading}
                           value={url}
                           onChange={(e) => setUrl(e.target.value)}
                           placeholder="/cards/example.json"
@@ -307,30 +342,16 @@ export function AgentWorkspace({
                       <button
                         type="button"
                         className="secondary"
-                        disabled={busy || !url.trim()}
-                        onClick={() =>
-                          void act(async () => {
-                            const target = new URL(url, location.href);
-                            if (target.origin !== location.origin)
-                              throw Error(
-                                "当前版本仅支持应用内链接；外部角色卡请下载后选择文件。",
-                              );
-                            const response = await fetch(target);
-                            if (!response.ok) throw Error("角色卡读取失败。");
-                            const card = await response.text();
-                            if (card.length > 32000)
-                              throw Error("角色卡不能超过 32 KB。");
-                            parseRoleCard(card);
-                            setRaw(card);
-                          })
-                        }
+                        disabled={busy || reading || !url.trim()}
+                        onClick={() => void readLink()}
                       >
-                        读取
+                        {reading ? "读取中…" : "读取"}
                       </button>
                     </div>
                     <label className="field">
                       角色卡内容
                       <textarea
+                        disabled={busy || reading}
                         value={raw}
                         onChange={(e) => setRaw(e.target.value)}
                         placeholder={
@@ -395,14 +416,16 @@ export function AgentWorkspace({
                   type="button"
                   className="secondary"
                   disabled={busy}
-                  onClick={() => setModal(null)}
+                  onClick={closeModal}
                 >
                   取消
                 </button>
                 <button
                   type="submit"
                   disabled={
-                    busy || (modal === "import" ? !raw.trim() : !name.trim())
+                    busy ||
+                    reading ||
+                    (modal === "import" ? !raw.trim() : !name.trim())
                   }
                 >
                   {busy ? "正在添加…" : "添加"}
@@ -460,7 +483,7 @@ export function AgentWorkspace({
                     type="button"
                     className="secondary"
                     disabled={busy}
-                    onClick={() => setModal(null)}
+                    onClick={closeModal}
                   >
                     取消
                   </button>

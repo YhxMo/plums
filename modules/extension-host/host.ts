@@ -96,6 +96,7 @@ export function validateDefinition(
   if (
     typeof manifest.id !== "string" ||
     !/^[a-z][a-z0-9.-]{0,63}$/.test(manifest.id) ||
+    manifest.id.includes("..") ||
     typeof manifest.version !== "string" ||
     !manifest.version ||
     manifest.apiVersion !== 1
