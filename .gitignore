@@ -1,6 +1,7 @@
 /goal.md
 /node_modules/
 /dist/
+/release/
 /.cache/
 /.dev-data/
 /src-tauri/target/
