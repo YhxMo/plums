@@ -1,17 +1,5 @@
+import { manage, legacyEntry, chooseLayout } from "./helpers";
 import { test, expect, type Page } from "@playwright/test";
-async function manage(page: Page, diagnostics = false) {
-  const button = page.getByRole("button", { name: "扩展管理", exact: true });
-  if ((await button.getAttribute("aria-expanded")) === "false")
-    await button.click();
-  if (
-    diagnostics &&
-    !(await page
-      .locator("details")
-      .filter({ has: page.locator("summary", { hasText: "诊断与实验" }) })
-      .evaluate((node) => node.hasAttribute("open")))
-  )
-    await page.getByText("诊断与实验", { exact: true }).click();
-}
 async function authorize(page: Page) {
   await page
     .getByRole("dialog")
@@ -20,7 +8,7 @@ async function authorize(page: Page) {
 }
 async function start(page: Page) {
   await page.goto("/");
-  await page.getByRole("button", { name: "授予实验能力并启动" }).click();
+  await (await legacyEntry(page)).click();
   await authorize(page);
   await expect(page.getByRole("heading", { name: "文本工作台" })).toBeVisible();
 }
@@ -35,12 +23,12 @@ test("replaces complete UI and restores persisted state after reload", async ({
 }) => {
   await start(page);
   await run(page, "plums", "PLUMS");
-  await page.getByLabel("界面布局").selectOption("board");
+  await chooseLayout(page, "board");
   await expect(
     page.getByRole("navigation", { name: "画布导航" }),
   ).toBeVisible();
   await page.reload();
-  await page.getByRole("button", { name: "授予实验能力并启动" }).click();
+  await (await legacyEntry(page)).click();
   await authorize(page);
   await expect(page.getByRole("heading", { name: "工作画布" })).toBeVisible();
   await expect(page.locator("[data-output]")).toHaveText("PLUMS");
@@ -67,7 +55,7 @@ test("cancel prevents a new result from being persisted", async ({ page }) => {
   await expect(page.locator("[data-phase]")).toContainText("已取消");
   await expect(page.locator("[data-output]")).toHaveText("SAVED");
   await page.reload();
-  await page.getByRole("button", { name: "授予实验能力并启动" }).click();
+  await (await legacyEntry(page)).click();
   await authorize(page);
   await expect(page.getByRole("textbox")).toHaveValue("saved");
 });
@@ -91,9 +79,9 @@ test("revoking capability suspends consumers, and regrant restores the UI", asyn
   await manage(page, true);
   await page.getByRole("button", { name: "撤销状态写入", exact: true }).click();
   await expect(
-    page.getByRole("heading", { name: "扩展正在等待条件。" }),
-  ).toBeVisible();
-  await page.getByRole("button", { name: "恢复权限与默认界面" }).click();
+    page.locator("article").filter({ hasText: "文本工作台" }),
+  ).toContainText("等待条件");
+  await (await legacyEntry(page)).click();
   await authorize(page);
   await expect(page.locator("[data-output]")).toHaveText("SAVED");
 });
@@ -108,7 +96,7 @@ test("broken layout recovers to the working default without losing management", 
   ).toBeVisible();
   await expect(page.getByRole("heading", { name: "文本工作台" })).toBeVisible();
   await expect(
-    page.getByRole("button", { name: "扩展管理", exact: true }),
+    page.getByRole("button", { name: "应用菜单", exact: true }),
   ).toBeEnabled();
 });
 test("ordinary UI fits a narrow viewport and works with keyboard input", async ({
@@ -122,7 +110,7 @@ test("ordinary UI fits a narrow viewport and works with keyboard input", async (
       () => document.documentElement.scrollWidth <= window.innerWidth,
     ),
   ).toBe(true);
-  await page.getByLabel("界面布局").selectOption("board");
+  await chooseLayout(page, "board");
   expect(
     await page.evaluate(
       () => document.documentElement.scrollWidth <= window.innerWidth,
@@ -161,7 +149,7 @@ test("loads and enables an unknown external view through the public catalog and 
   await page
     .getByRole("button", { name: "启用 external.view", exact: true })
     .click();
-  await page.getByLabel("界面布局").selectOption("external");
+  await chooseLayout(page, "external");
   await expect(
     page.getByRole("heading", { name: "独立模块的新交互" }),
   ).toBeVisible();
@@ -175,6 +163,9 @@ test("a broken layout with no remaining layout exposes a truthful host recovery 
 }) => {
   await start(page);
   await manage(page);
+  await page
+    .getByRole("button", { name: "停用 ui.agents", exact: true })
+    .click();
   await page
     .getByRole("button", { name: "停用 ui.default", exact: true })
     .click();
@@ -222,9 +213,9 @@ test("an async release failure stays visible in the React management path", asyn
   await page
     .getByRole("button", { name: "启用 cleanup.fixture", exact: true })
     .click();
-  await page.getByLabel("界面布局").selectOption("cleanup");
+  await chooseLayout(page, "cleanup");
   await expect(page.getByText("等待释放", { exact: true })).toBeVisible();
-  await page.getByLabel("界面布局").selectOption("default");
+  await chooseLayout(page, "default");
   await expect(page.getByRole("heading", { name: "文本工作台" })).toBeVisible();
   await expect(
     page.locator("article").filter({ hasText: "异步释放夹具" }),

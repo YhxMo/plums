@@ -151,3 +151,18 @@ test.each(["activity", "callback", "signing", "distribution"] as const)(
       expect(readFileSync(join(root, activity), "utf8")).toBe(original);
   },
 );
+
+test("preparation upgrades the known previous light system-bar color", () => {
+  const { root, activity } = fixture();
+  const plugin = join(
+    root,
+    activity.replace("MainActivity.kt", "AppearancePlugin.kt"),
+  );
+  const current = readFileSync(
+    join(root, "native/android/AppearancePlugin.kt"),
+    "utf8",
+  ).replace("{{PACKAGE}}", "dev.plums.plums");
+  writeFileSync(plugin, current.replace('"#fafafa"', '"#f7f4ef"'));
+  prepareAndroid(root, "/toolchain");
+  expect(readFileSync(plugin, "utf8")).toBe(current);
+});

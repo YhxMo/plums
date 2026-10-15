@@ -26,7 +26,7 @@ Rust 编译输出固定到本项目 `.cache/android/target/`。Tauri 的 Android
 [scripts/android-project.mjs](../scripts/android-project.mjs) 在写入前核对所有目标：
 
 - MainActivity 必须是锁定 CLI 的原模板或当前已适配版本。
-- 外观插件从受控源码生成；遇到未知既有插件代码时停止准备。
+- 外观插件从受控源码生成；接受当前源码及仅浅色背景不同的已知前版并升级，遇到其他未知既有插件代码时停止准备。
 - Gradle 回调转换为从 Rust 目录调用项目锁定的 Node CLI，覆盖直接 Node 和 npm 初始化两种已知模板。
 - 调试签名使用本地环境变量；未知既有签名配置停止准备。
 - 保留生成模板的兼容标志，增加无常驻 daemon、最多 4 workers 的本地资源设置。

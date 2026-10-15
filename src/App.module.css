@@ -8,8 +8,8 @@
 }
 .header {
   flex-shrink: 0;
-  min-height: 76px;
-  padding: 14px 28px;
+  min-height: 64px;
+  padding: 10px 24px;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -26,7 +26,7 @@
   align-items: center;
 }
 .brand strong {
-  font-size: 22px;
+  font-size: 20px;
   letter-spacing: -0.6px;
 }
 .logo {
@@ -41,15 +41,7 @@
   color: var(--muted);
   margin-left: 8px;
 }
-.stage b {
-  font-weight: 500;
-  border: 1px solid var(--border);
-  border-radius: 4px;
-  padding: 2px 5px;
-  margin-left: 6px;
-}
-.headerRight,
-.layoutSwitch {
+.headerRight {
   display: flex;
   align-items: center;
   gap: 12px;
@@ -89,33 +81,16 @@
   flex: 1;
   min-width: 0;
 }
-.toolbar {
-  min-height: 72px;
-  padding: 12px 32px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  flex-wrap: wrap;
-  gap: 10px 20px;
-  border-bottom: 1px solid var(--border);
-  background: var(--surface);
-}
-.layoutSwitch label {
-  font-weight: 600;
-}
-.layoutSwitch select {
-  min-width: 128px;
-}
-.runtimeStatus {
-  font-size: 12px;
-  color: var(--muted);
-}
 .viewSlot {
   min-width: 0;
+  height: 100%;
+}
+.viewSlot > div {
+  height: 100%;
 }
 .inspector {
   overflow: auto;
-  width: 350px;
+  width: 360px;
   flex-shrink: 0;
   border-left: 1px solid var(--border);
   background: var(--surface);
@@ -334,17 +309,6 @@
   border-color: var(--border);
   color: var(--error);
 }
-.footer {
-  flex-shrink: 0;
-  border-top: 1px solid var(--border);
-  display: flex;
-  justify-content: space-between;
-  flex-wrap: wrap;
-  gap: 8px;
-  padding: 12px 28px;
-  font-size: 12px;
-  color: var(--muted);
-}
 .loading {
   padding: 80px 24px;
   text-align: center;
@@ -414,14 +378,11 @@
     width: 320px;
     padding: 20px;
   }
-  .toolbar {
-    padding: 12px 24px;
-  }
 }
-@media (max-width: 760px) {
+@media (max-width: 767px) {
   .header {
-    min-height: 68px;
-    padding: 12px 16px;
+    min-height: 60px;
+    padding: 8px 16px;
     gap: 12px;
   }
   .brand {
@@ -447,13 +408,6 @@
   }
   .body[data-inspecting="true"] .stageArea {
     display: none;
-  }
-  .toolbar {
-    padding: 12px 20px;
-    gap: 6px;
-  }
-  .runtimeStatus {
-    width: 100%;
   }
   .inspector {
     width: 100%;
@@ -494,10 +448,6 @@
   .dialogActions button {
     flex: 1;
     padding: 10px;
-  }
-  .footer {
-    padding: 12px 20px;
-    font-size: 11px;
   }
   .feedback {
     padding: 10px 20px;

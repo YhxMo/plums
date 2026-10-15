@@ -1,0 +1,422 @@
+import { manage } from "./helpers";
+import { expect, test, type Page } from "@playwright/test";
+async function add(page: Page, name = "编程助手", multi = true) {
+  await page
+    .getByRole("button", { name: "从头添加 Agent", exact: true })
+    .click();
+  await page.getByRole("textbox", { name: "名称", exact: true }).fill(name);
+  await page
+    .getByRole("textbox", { name: "角色说明" })
+    .fill("帮助整理代码与文字；仅使用本地文本能力。");
+  if (multi) await page.getByLabel("允许多个会话").check();
+  await page
+    .getByRole("dialog")
+    .getByRole("button", { name: "添加", exact: true })
+    .click();
+}
+for (const width of [375, 1440]) {
+  test(`agent creation, pinned shortcuts, sessions and reload at ${width}`, async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width, height: 900 });
+    await page.goto("/");
+    await expect(
+      page.getByRole("heading", { name: "欢迎使用 Plums" }),
+    ).toBeVisible();
+    await expect(page.locator("select")).toHaveCount(0);
+    await expect(page.getByRole("tab")).toHaveCount(0);
+    await add(page);
+    await page
+      .getByRole("textbox", { name: "消息", exact: true })
+      .fill("hello agent");
+    await page.getByRole("button", { name: "发送", exact: true }).click();
+    await expect(page.getByRole("log")).toContainText("HELLO AGENT");
+    await page.getByRole("button", { name: "查看 Agent 详情" }).click();
+    await page
+      .getByRole("button", { name: "设为特别关注", exact: true })
+      .click();
+    await page.getByRole("button", { name: "新建会话", exact: true }).click();
+    await expect(
+      page.getByRole("button", { name: "未命名会话", exact: true }),
+    ).toBeVisible();
+    await page.getByRole("button", { name: "收起详情" }).click();
+    await expect(page.getByRole("log")).not.toContainText("HELLO AGENT");
+    await page.reload();
+    await page
+      .getByRole("button", { name: "打开 编程助手", exact: true })
+      .click();
+    await page.getByRole("button", { name: "查看 Agent 详情" }).click();
+    await page
+      .getByRole("button", { name: "hello agent", exact: true })
+      .click();
+    await page.getByRole("button", { name: "收起详情" }).click();
+    await expect(page.getByRole("log")).toContainText("HELLO AGENT");
+    if (width === 375)
+      await page.getByRole("button", { name: "返回 Agent 列表" }).click();
+    await page
+      .getByRole("button", { name: "编程助手 的操作", exact: true })
+      .click();
+    await page
+      .getByRole("menuitem", { name: "移除 Agent", exact: true })
+      .click();
+    await page.getByRole("button", { name: "确认删除" }).click();
+    await expect(
+      page.getByRole("heading", { name: "欢迎使用 Plums" }),
+    ).toBeVisible();
+  });
+}
+test("role card file import, validation and truthful local capabilities", async ({
+  page,
+}) => {
+  await page.goto("/");
+  await page.getByRole("button", { name: /导入角色卡/ }).click();
+  await page.getByLabel("角色卡文件").setInputFiles({
+    name: "role.json",
+    mimeType: "application/json",
+    buffer: Buffer.from(
+      JSON.stringify({
+        version: 1,
+        name: "写作助手",
+        description: "协助理解文稿边界",
+      }),
+    ),
+  });
+  await page
+    .getByRole("dialog")
+    .getByRole("button", { name: "添加", exact: true })
+    .click();
+  await expect(
+    page.getByRole("heading", { name: "写作助手", exact: true }),
+  ).toBeVisible();
+  await expect(
+    page
+      .getByRole("log")
+      .getByText("本地示例，仅文本处理，尚未连接语言模型。", {
+        exact: false,
+      }),
+  ).toBeVisible();
+  await page.getByRole("button", { name: "查看 Agent 详情" }).click();
+  await expect(
+    page.getByRole("complementary", { name: "Agent 详情" }),
+  ).toContainText("角色卡说明不会授予额外访问权限");
+});
+test("custom app menu keyboard and theme draft retention", async ({ page }) => {
+  await page.goto("/");
+  await add(page, "本地助手", false);
+  await page.getByRole("textbox", { name: "消息", exact: true }).fill("draft");
+  await page.getByRole("button", { name: "切换到深色模式" }).click();
+  await expect(
+    page.getByRole("textbox", { name: "消息", exact: true }),
+  ).toHaveValue("draft");
+  await page.getByRole("button", { name: "应用菜单", exact: true }).click();
+  await expect(
+    page.getByRole("menuitem", { name: "扩展管理", exact: true }),
+  ).toBeFocused();
+  await page.keyboard.press("ArrowDown");
+  await expect(
+    page.getByRole("menuitem", { name: "角色卡设置" }),
+  ).toBeFocused();
+  await page.keyboard.press("Escape");
+  await expect(
+    page.getByRole("button", { name: "应用菜单", exact: true }),
+  ).toBeFocused();
+});
+
+test("agent save failure retains draft and can recover without duplicate messages", async ({
+  page,
+}) => {
+  await page.goto("/");
+  await add(page, "恢复助手", false);
+  await manage(page, true);
+  await page.getByLabel("注入存储写入失败").check();
+  await page.getByRole("button", { name: "返回工作区", exact: true }).click();
+  const input = page.getByRole("textbox", { name: "消息", exact: true });
+  await input.fill("retain this draft");
+  await page.getByRole("button", { name: "发送", exact: true }).click();
+  await expect(page.getByRole("alert")).toContainText("注入的写入故障");
+  await expect(input).toHaveValue("retain this draft");
+  await expect(page.getByRole("log")).not.toContainText("RETAIN THIS DRAFT");
+  await manage(page, true);
+  await page.getByLabel("注入存储写入失败").uncheck();
+  await page.getByRole("button", { name: "返回工作区", exact: true }).click();
+  await page.getByRole("button", { name: "发送", exact: true }).click();
+  await expect(
+    page.getByRole("log").getByText("RETAIN THIS DRAFT", { exact: true }),
+  ).toHaveCount(1);
+  await expect(input).toHaveValue("");
+});
+
+test("mobile details trap focus and allow rename and session deletion", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 375, height: 812 });
+  await page.goto("/");
+  await add(page);
+  await page.getByRole("button", { name: "查看 Agent 详情" }).click();
+  const detail = page.getByRole("dialog", { name: "Agent 详情", exact: true });
+  for (let i = 0; i < 12; i++) await page.keyboard.press("Tab");
+  expect(
+    await detail.evaluate((el) => el.contains(document.activeElement)),
+  ).toBe(true);
+  await page
+    .getByRole("button", { name: "删除会话 未命名会话", exact: true })
+    .click();
+  await page
+    .getByRole("dialog", { name: "删除会话", exact: true })
+    .getByRole("button", { name: "确认删除" })
+    .click();
+  await expect(detail).toBeVisible();
+  await expect(
+    detail.getByRole("button", { name: "未命名会话", exact: true }),
+  ).toHaveCount(1);
+  await page.keyboard.press("Escape");
+  await expect(
+    page.getByRole("button", { name: "查看 Agent 详情" }),
+  ).toBeFocused();
+  await page.getByRole("button", { name: "返回 Agent 列表" }).click();
+  await page
+    .getByRole("button", { name: "编程助手 的操作", exact: true })
+    .click();
+  await page.getByRole("menuitem", { name: "重命名", exact: true }).click();
+  await page
+    .getByRole("textbox", { name: "名称", exact: true })
+    .fill("重命名后");
+  await page.getByRole("button", { name: "保存", exact: true }).click();
+  await expect(
+    page.getByRole("button", { name: "与 重命名后 交互", exact: true }),
+  ).toBeVisible();
+});
+
+test("imports persist and an external agent provider drives the default UI", async ({
+  page,
+}) => {
+  await page.route("**/external-agents.js", (route) =>
+    route.fulfill({
+      contentType: "text/javascript",
+      body: `
+    export default {manifest:{id:'external.agents',apiVersion:1,version:'2.1.0',provides:{agents:1}},activate(ctx){
+      const session={id:'s',title:'外部会话',createdAt:1,lastMessageAt:1,messages:[]};
+      let agents=[{id:'external',name:'外部角色',description:'独立作者的角色说明',status:'online',pinned:false,extensionId:'external.agents',capabilities:['外部回声'],multiSession:false,currentSessionId:'s',sessions:[session]}];
+      const listeners=new Set();ctx.provide('agents',1,{agents,listeners,info:{label:'独立提供者',version:'2.1.0',description:'外部回声服务'},list(){return this.agents},subscribe(f){this.listeners.add(f);return()=>this.listeners.delete(f)},async send(id,text){this.agents=this.agents.map(a=>({...a,sessions:[{...session,messages:[{id:'m1',role:'user',text},{id:'m2',role:'agent',text:'外部：'+text}]}]}));this.listeners.forEach(f=>f())},cancel(){}});
+    }};`,
+    }),
+  );
+  await page.goto("/");
+  await manage(page);
+  await page.getByRole("button", { name: "安装扩展", exact: true }).click();
+  await page.getByLabel("扩展 ID", { exact: true }).fill("external.agents");
+  await page
+    .getByLabel("模块路径", { exact: true })
+    .fill("/external-agents.js");
+  await page.getByRole("button", { name: "加载模块", exact: true }).click();
+  await expect(page.getByRole("status")).toContainText("模块路径已保存");
+  await page.reload();
+  await manage(page);
+  await page
+    .getByRole("button", { name: "停用 agents.local", exact: true })
+    .click();
+  await page
+    .getByRole("button", { name: "启用 external.agents", exact: true })
+    .click();
+  await page.getByRole("button", { name: "返回工作区", exact: true }).click();
+  await page
+    .getByRole("button", { name: "与 外部角色 交互", exact: true })
+    .click();
+  await expect(page.getByRole("log")).toContainText("外部回声服务");
+  await expect(page.getByRole("log")).not.toContainText("本地文本");
+  await page
+    .getByRole("textbox", { name: "消息", exact: true })
+    .fill("contract");
+  await page.getByRole("button", { name: "发送", exact: true }).click();
+  await expect(page.getByRole("log")).toContainText("外部：contract");
+  await page.getByRole("button", { name: "查看 Agent 详情" }).click();
+  await expect(
+    page.getByRole("complementary", { name: "Agent 详情" }),
+  ).toContainText("external.agents · 2.1.0");
+});
+
+test("unavailable saved import retains startup and offers removal and retry", async ({
+  page,
+}) => {
+  await page.addInitScript(() =>
+    localStorage.setItem(
+      "plums:m1:host.shell",
+      JSON.stringify({
+        schema: 1,
+        revision: 1,
+        value: {
+          version: 1,
+          theme: "light",
+          layout: "agents",
+          imports: [
+            { id: "missing.extension", url: "/missing.js", label: "missing" },
+          ],
+        },
+      }),
+    ),
+  );
+  await page.route("**/missing.js", (route) =>
+    route.fulfill({ status: 404, body: "missing" }),
+  );
+  await page.goto("/");
+  await expect(
+    page.getByRole("heading", { name: "欢迎使用 Plums" }),
+  ).toBeVisible();
+  await manage(page);
+  await expect(
+    page.getByRole("button", {
+      name: "重试加载 missing.extension",
+      exact: true,
+    }),
+  ).toBeVisible();
+  await page
+    .getByRole("button", { name: "移除路径 missing.extension", exact: true })
+    .click();
+  await expect(
+    page.getByRole("button", {
+      name: "移除路径 missing.extension",
+      exact: true,
+    }),
+  ).toHaveCount(0);
+  expect(
+    await page.evaluate(
+      () =>
+        JSON.parse(localStorage.getItem("plums:m1:host.shell")!).value.imports,
+    ),
+  ).toEqual([]);
+});
+
+test("mobile list failures stay visible and rename cancel restores the operation trigger", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 375, height: 812 });
+  await page.goto("/");
+  await add(page);
+  await manage(page, true);
+  await page.getByLabel("注入存储写入失败").check();
+  await page.getByRole("button", { name: "返回工作区", exact: true }).click();
+  await page.getByRole("button", { name: "返回 Agent 列表" }).click();
+  const trigger = page.getByRole("button", {
+    name: "编程助手 的操作",
+    exact: true,
+  });
+  await trigger.click();
+  await page
+    .getByRole("menuitem", { name: "设为特别关注", exact: true })
+    .click();
+  await expect(page.getByRole("alert")).toContainText("注入的写入故障");
+  await expect(page.getByRole("alert")).toBeVisible();
+  await page.getByRole("button", { name: "关闭提示" }).click();
+  await trigger.click();
+  await page.getByRole("menuitem", { name: "重命名", exact: true }).click();
+  await page.keyboard.press("Escape");
+  await expect(trigger).toBeFocused();
+});
+
+for (const width of [375, 1440])
+  test(`role card settings edit and persist at ${width}`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 900 });
+    await page.goto("/");
+    await add(page, "角色设置", false);
+    await page.getByRole("button", { name: "应用菜单", exact: true }).click();
+    await page
+      .getByRole("menuitem", { name: "角色卡设置", exact: true })
+      .click();
+    const settings = page.getByRole("dialog", {
+      name: "角色卡设置",
+      exact: true,
+    });
+    await settings.getByLabel("角色名称", { exact: true }).fill("新的角色名称");
+    await settings
+      .getByRole("textbox", { name: "角色说明", exact: true })
+      .fill("新的角色边界与工作方式");
+    await settings.getByRole("button", { name: "保存角色卡" }).click();
+    await expect(settings.getByRole("status")).toHaveText("角色卡已保存。");
+    await page.keyboard.press("Escape");
+    await expect(
+      page.getByRole("heading", { name: "新的角色名称", exact: true }),
+    ).toBeVisible();
+    await page.reload();
+    await page
+      .getByRole("button", { name: "与 新的角色名称 交互", exact: true })
+      .click();
+    await expect(page.getByRole("log")).toContainText("新的角色边界与工作方式");
+  });
+
+test("reinstalling a failed import replaces its path and remains bootable", async ({
+  page,
+}) => {
+  await page.addInitScript(() => {
+    if (!localStorage.getItem("plums:m1:host.shell"))
+      localStorage.setItem(
+        "plums:m1:host.shell",
+        JSON.stringify({
+          schema: 1,
+          revision: 1,
+          value: {
+            version: 1,
+            imports: [
+              { id: "recover.extension", url: "/missing.js", label: "recover" },
+            ],
+          },
+        }),
+      );
+  });
+  await page.route("**/missing.js", (route) =>
+    route.fulfill({ status: 404, body: "missing" }),
+  );
+  await page.route("**/recovered.js", (route) =>
+    route.fulfill({
+      contentType: "text/javascript",
+      body: `export default {manifest:{id:"recover.extension",version:"1.0.0",apiVersion:1},activate(){}};`,
+    }),
+  );
+  await page.goto("/");
+  await manage(page);
+  await page.getByRole("button", { name: "安装扩展", exact: true }).click();
+  await page.getByLabel("扩展 ID", { exact: true }).fill("recover.extension");
+  await page.getByLabel("模块路径", { exact: true }).fill("/recovered.js");
+  await page.getByRole("button", { name: "加载模块" }).click();
+  await expect(page.getByRole("status")).toContainText("模块路径已保存");
+  expect(
+    await page.evaluate(
+      () =>
+        JSON.parse(localStorage.getItem("plums:m1:host.shell")!).value.imports,
+    ),
+  ).toEqual([
+    {
+      id: "recover.extension",
+      url: "/recovered.js",
+      label: "recover.extension",
+    },
+  ]);
+  await page.reload();
+  await expect(
+    page.getByRole("heading", { name: "欢迎使用 Plums" }),
+  ).toBeVisible();
+  await manage(page);
+  await expect(
+    page.getByRole("button", { name: "启用 recover.extension", exact: true }),
+  ).toBeVisible();
+});
+
+test("mobile detail pin failure appears inside the current modal", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 375, height: 812 });
+  await page.goto("/");
+  await add(page);
+  await manage(page, true);
+  await page.getByLabel("注入存储写入失败").check();
+  await page.getByRole("button", { name: "返回工作区", exact: true }).click();
+  await page.getByRole("button", { name: "查看 Agent 详情" }).click();
+  const detail = page.getByRole("dialog", { name: "Agent 详情", exact: true });
+  await detail
+    .getByRole("button", { name: "设为特别关注", exact: true })
+    .click();
+  await expect(detail.getByRole("alert")).toContainText("注入的写入故障");
+  await expect(detail.getByRole("alert")).toBeVisible();
+  await expect(
+    detail.getByRole("button", { name: "设为特别关注", exact: true }),
+  ).toBeVisible();
+});

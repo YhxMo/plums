@@ -10,6 +10,13 @@ import { Host, loadExtension } from "../modules/extension-host/host";
 import type { StoredState } from "../modules/sdk";
 import { PlatformAdapter } from "./platform";
 import styles from "./App.module.css";
+import { agentExtension } from "../modules/agents/provider";
+import { restoreAgents, type SaveOptions } from "../modules/agents/store";
+import type { Agent } from "../modules/sdk/agents";
+import { agentUI } from "./agent-ui";
+import { SettingsMenu } from "./components/SettingsMenu";
+import { ExtensionView } from "./components/ExtensionView";
+import { Dialog } from "./components/Dialog";
 
 type Runtime = {
   host: Host;
@@ -17,7 +24,18 @@ type Runtime = {
   catalog: { id: string; url: string; label: string }[];
   layout: string;
   theme: "light" | "dark";
-  revision: number;
+  imports: { id: string; url: string; label: string }[];
+  events: EventTarget;
+  failedImports: Record<string, string>;
+  save: (
+    patch: {
+      layout?: string;
+      theme?: "light" | "dark";
+      agents?: Agent[];
+      imports?: Runtime["imports"];
+    },
+    options?: SaveOptions,
+  ) => Promise<void>;
 };
 type Authorization = { ids: string[]; run: () => Promise<void> };
 const errorMessage = (error: unknown) =>
@@ -44,10 +62,6 @@ async function boot(): Promise<Runtime> {
   const response = await fetch("/catalog.json");
   if (!response.ok) throw new Error("扩展目录读取失败");
   const catalog: Runtime["catalog"] = await response.json();
-  for (const entry of catalog)
-    host.install(
-      await loadExtension(new URL(entry.url, location.href).href, entry.id),
-    );
   await adapter.grant("host.shell", [
     "state.read",
     "state.write",
@@ -58,19 +72,125 @@ async function boot(): Promise<Runtime> {
     "state.read",
   )) as StoredState | null;
   const value = saved?.value as
-    { layout?: unknown; theme?: unknown } | undefined;
-  return {
-    host,
-    adapter,
-    catalog,
-    layout: typeof value?.layout === "string" ? value.layout : "default",
+    | {
+        version?: unknown;
+        layout?: unknown;
+        theme?: unknown;
+        agents?: unknown;
+        imports?: unknown;
+      }
+    | undefined;
+  if (
+    saved &&
+    (!value ||
+      Array.isArray(value) ||
+      typeof value !== "object" ||
+      value.version !== 1)
+  )
+    throw Error("应用配置版本不支持，原数据已保留。");
+  const agents = restoreAgents(value?.agents);
+  const imports: Runtime["imports"] = [];
+  if (value?.imports !== undefined) {
+    if (!Array.isArray(value.imports))
+      throw Error("扩展路径配置损坏，原数据已保留。");
+    for (const entry of value.imports) {
+      if (
+        !entry ||
+        typeof entry.id !== "string" ||
+        typeof entry.url !== "string" ||
+        typeof entry.label !== "string" ||
+        new URL(entry.url, location.href).origin !== location.origin ||
+        ["agents.local", "ui.agents"].includes(entry.id) ||
+        [...catalog, ...imports].some((e) => e.id === entry.id)
+      )
+        throw Error("扩展路径配置无效，原数据已保留。");
+      imports.push(entry);
+    }
+  }
+  for (const entry of catalog)
+    host.install(
+      await loadExtension(new URL(entry.url, location.href).href, entry.id),
+    );
+  const failedImports: Runtime["failedImports"] = {};
+  for (const entry of imports) {
+    try {
+      host.install(
+        await loadExtension(new URL(entry.url, location.href).href, entry.id),
+      );
+      catalog.push(entry);
+    } catch (error) {
+      failedImports[entry.id] = errorMessage(error);
+    }
+  }
+  let preferences = {
+    ...value,
+    version: 1,
+    layout: typeof value?.layout === "string" ? value.layout : "agents",
     theme:
       value?.theme === "light" || value?.theme === "dark"
         ? value.theme
         : matchMedia("(prefers-color-scheme: dark)").matches
-          ? "dark"
-          : "light",
-    revision: saved?.revision ?? 0,
+          ? ("dark" as const)
+          : ("light" as const),
+    agents,
+    imports,
+  };
+  let revision = saved?.revision ?? 0;
+  let queue: Promise<unknown> = Promise.resolve();
+  let uncertain = false;
+  const save: Runtime["save"] = (patch, options) => {
+    const pending = queue.then(async () => {
+      options?.signal?.throwIfAborted();
+      if (uncertain)
+        throw Error("保存回执未确认，请重新加载应用后再修改配置。");
+      const next = { ...preferences, ...patch };
+      try {
+        options?.onCommit?.();
+        const receipt = (await adapter.call(
+          "host.shell",
+          "state.write",
+          {
+            revision,
+            value: next,
+          },
+          options?.signal,
+        )) as StoredState;
+        revision = receipt.revision;
+        preferences = next;
+      } catch (error) {
+        if (
+          !(error instanceof Error && error.name === "AbortError") &&
+          (error as { outcome?: string }).outcome !== "not-committed"
+        )
+          uncertain = true;
+        throw error;
+      }
+    });
+    queue = pending.catch(() => {});
+    return pending;
+  };
+  const events = new EventTarget();
+  host.install(
+    agentExtension(agents, (agents, options) => save({ agents }, options)),
+  );
+  host.install(agentUI(() => events.dispatchEvent(new Event("extensions"))));
+  await host.start("transform.upper");
+  await host.start("agents.local");
+  await host.start("ui.agents");
+  return {
+    host,
+    adapter,
+    catalog: [
+      ...catalog,
+      { id: "agents.local", url: "内置公开服务", label: "本地 Agent 提供者" },
+      { id: "ui.agents", url: "内置可替换界面", label: "默认 Agent 界面" },
+    ],
+    layout: preferences.layout,
+    theme: preferences.theme,
+    imports,
+    failedImports,
+    events,
+    save,
   };
 }
 
@@ -109,10 +229,27 @@ function Workbench({ runtime }: { runtime: Runtime }) {
   const [theme, setTheme] = useState(runtime.theme);
   const [started, setStarted] = useState(false);
   const [busy, setBusy] = useState(false);
-  const [error, setError] = useState("");
+  const [error, setError] = useState(
+    Object.keys(runtime.failedImports).length
+      ? "有扩展加载失败，请在扩展管理重试或移除失效路径。"
+      : "",
+  );
+  const [failedImports, setFailedImports] = useState(runtime.failedImports);
   const [notice, setNotice] = useState("");
   const [showExtensions, setShowExtensions] = useState(false);
   const [fault, setFault] = useState(false);
+  const [settings, setSettings] = useState<
+    "settings" | "roles" | "about" | null
+  >(null);
+  const [diagnostics, setDiagnostics] = useState(false);
+  const [install, setInstall] = useState(false);
+  const [moduleUrl, setModuleUrl] = useState("");
+  const [moduleId, setModuleId] = useState("");
+  useEffect(() => {
+    const open = () => setShowExtensions(true);
+    runtime.events.addEventListener("extensions", open);
+    return () => runtime.events.removeEventListener("extensions", open);
+  }, [runtime]);
   const [authorization, setAuthorization] = useState<Authorization | null>(
     null,
   );
@@ -125,17 +262,17 @@ function Workbench({ runtime }: { runtime: Runtime }) {
   const recovering = useRef<string | null>(null);
   const views = host
     .views()
-    .filter((view) => failedViews[view.id] !== view.generation);
+    .filter(
+      (view) =>
+        view.id !== "role-settings" && failedViews[view.id] !== view.generation,
+    );
+  const roleView = host.views().find((view) => view.id === "role-settings");
   const activeView =
     views.find((view) => view.id === selected)?.id ??
+    views.find((view) => view.id === "agents")?.id ??
     views.find((view) => view.id === "default")?.id ??
     views[0]?.id;
   const generation = views.find((view) => view.id === activeView)?.generation;
-  const states = host.ids().map((id) => host.inspect(id));
-  const activeCount = states.filter(
-    (state) => state.status === "active",
-  ).length;
-  const taskCount = states.reduce((total, state) => total + state.tasks, 0);
 
   useLayoutEffect(() => {
     document.documentElement.dataset.theme = theme;
@@ -230,17 +367,26 @@ function Workbench({ runtime }: { runtime: Runtime }) {
     if (host.inspect("transform.reverse").status !== "active")
       await host.start("transform.upper");
     setStarted(true);
+    setSelected(runtime.layout === "agents" ? "default" : runtime.layout);
+    setShowExtensions(false);
+  }
+  async function enableExtension(id: string) {
+    await host.start(id);
+    const contributed = host
+      .views()
+      .find((view) => view.owner === id && view.id !== "role-settings");
+    if (contributed) {
+      await runtime.save({ layout: contributed.id });
+      setSelected(contributed.id);
+    }
   }
   async function savePreferences(layout: string, appearance: Runtime["theme"]) {
-    const saved = (await adapter.call("host.shell", "state.write", {
-      revision: runtime.revision,
-      value: { version: 1, layout, theme: appearance },
-    })) as StoredState;
-    runtime.revision = saved.revision;
+    await runtime.save({ layout, theme: appearance });
   }
   async function selectLayout(layout: string) {
     await savePreferences(layout, theme);
     setSelected(layout);
+    setSettings(null);
   }
   async function toggleTheme() {
     const next = theme === "light" ? "dark" : "light";
@@ -255,9 +401,7 @@ function Workbench({ runtime }: { runtime: Runtime }) {
         <div className={styles.brand}>
           <img className={styles.logo} src="/brand/plums.png" alt="" />
           <strong>Plums</strong>
-          <span className={styles.stage}>
-            扩展实验室 <b>M1</b>
-          </span>
+          <span className={styles.stage}>M1</span>
         </div>
         <div className={styles.headerRight}>
           <span className={styles.platform}>
@@ -289,15 +433,14 @@ function Workbench({ runtime }: { runtime: Runtime }) {
               )}
             </svg>
           </button>
-          <button
-            ref={managerButton}
-            className={showExtensions ? "selected secondary" : "secondary"}
-            aria-expanded={showExtensions}
-            aria-controls="extension-manager"
-            onClick={() => toggleManager(!showExtensions)}
-          >
-            扩展管理
-          </button>
+          <SettingsMenu
+            onChoose={(action) => {
+              if (action === "extensions" || action === "diagnostics") {
+                setShowExtensions(true);
+                setDiagnostics(action === "diagnostics");
+              } else setSettings(action);
+            }}
+          />
         </div>
       </header>
       {(error || notice) && (
@@ -320,32 +463,6 @@ function Workbench({ runtime }: { runtime: Runtime }) {
       )}
       <div className={styles.body} data-inspecting={showExtensions}>
         <div className={styles.stageArea} data-workspace>
-          {(started || views.length > 0) && (
-            <section className={styles.toolbar} aria-label="工作区控制">
-              <div className={styles.layoutSwitch}>
-                <label htmlFor="layout">工作区</label>
-                <select
-                  id="layout"
-                  aria-label="界面布局"
-                  value={activeView ?? ""}
-                  disabled={busy || !views.length}
-                  onChange={(event) =>
-                    void operate(() => selectLayout(event.target.value))
-                  }
-                >
-                  {!views.length && <option value="">尚未启用</option>}
-                  {views.map((view) => (
-                    <option key={view.id} value={view.id}>
-                      {view.label}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <span className={styles.runtimeStatus} role="status">
-                {activeCount} 个扩展运行中 · {taskCount} 个任务
-              </span>
-            </section>
-          )}
           {!activeView && (
             <main className={styles.welcome}>
               <img
@@ -413,14 +530,69 @@ function Workbench({ runtime }: { runtime: Runtime }) {
                 扩展与状态
               </h2>
             </div>
-            <button className="secondary" onClick={() => toggleManager(false)}>
+            <button
+              ref={managerButton}
+              className="secondary"
+              onClick={() => toggleManager(false)}
+            >
               返回工作区
             </button>
           </div>
+          <button className="secondary" onClick={() => setInstall(true)}>
+            安装扩展
+          </button>
           <p className={styles.managerHint}>
             检查模块与所需能力；停用后保留已保存的数据。
           </p>
           <div className={styles.extensions}>
+            {Object.entries(failedImports).map(([id, reason]) => (
+              <article key={id}>
+                <strong>{id}</strong>
+                <p className="error">加载失败：{reason}</p>
+                <button
+                  className="secondary"
+                  disabled={busy}
+                  aria-label={`重试加载 ${id}`}
+                  onClick={() =>
+                    void operate(async () => {
+                      const entry = runtime.imports.find((e) => e.id === id)!;
+                      const target = new URL(entry.url, location.href);
+                      target.searchParams.set("_retry", String(Date.now()));
+                      host.install(await loadExtension(target.href, id));
+                      catalog.push(entry);
+                      setFailedImports((previous) => {
+                        const next = { ...previous };
+                        delete next[id];
+                        return next;
+                      });
+                    })
+                  }
+                >
+                  重试加载
+                </button>{" "}
+                <button
+                  className="secondary"
+                  disabled={busy}
+                  aria-label={`移除路径 ${id}`}
+                  onClick={() =>
+                    void operate(async () => {
+                      const imports = runtime.imports.filter(
+                        (e) => e.id !== id,
+                      );
+                      await runtime.save({ imports });
+                      runtime.imports = imports;
+                      setFailedImports((previous) => {
+                        const next = { ...previous };
+                        delete next[id];
+                        return next;
+                      });
+                    })
+                  }
+                >
+                  移除失效路径
+                </button>
+              </article>
+            ))}
             {catalog.map((entry) => {
               const { id } = entry;
               const state = host.inspect(id);
@@ -485,11 +657,14 @@ function Workbench({ runtime }: { runtime: Runtime }) {
                             [id],
                             async () => {
                               await host.grant(id, capabilities);
-                              await host.start(id);
+                              await enableExtension(id);
                             },
                             event.currentTarget,
                           );
-                        else void operate(() => host.start(id));
+                        else
+                          void operate(async () => {
+                            await enableExtension(id);
+                          });
                       }}
                     >
                       {state.status === "active"
@@ -506,8 +681,21 @@ function Workbench({ runtime }: { runtime: Runtime }) {
               );
             })}
           </div>
-          <details className={styles.diagnostics}>
+          <details
+            className={styles.diagnostics}
+            open={diagnostics}
+            onToggle={(e) => setDiagnostics(e.currentTarget.open)}
+          >
             <summary>诊断与实验</summary>
+            <button
+              className="secondary"
+              disabled={busy}
+              onClick={(event) =>
+                requestAuthorization(["workbench"], start, event.currentTarget)
+              }
+            >
+              授予实验能力并启动
+            </button>
             <div className={styles.diagnosticActions}>
               <button
                 className="secondary"
@@ -596,14 +784,209 @@ function Workbench({ runtime }: { runtime: Runtime }) {
           </details>
         </aside>
       </div>
-      <footer className={styles.footer}>
-        <span>本地 ESM · 实验契约 v1</span>
-        <span>
-          {adapter.kind === "browser"
-            ? "浏览器预览 · 非原生验收"
-            : "M1 调试原型"}
-        </span>
-      </footer>
+      {settings && (
+        <Dialog
+          title={
+            settings === "about"
+              ? "关于 Plums"
+              : settings === "roles"
+                ? "角色卡设置"
+                : "应用设置"
+          }
+          onClose={() => setSettings(null)}
+        >
+          {settings === "roles" ? (
+            roleView ? (
+              <ExtensionView
+                host={host}
+                id={roleView.id}
+                generation={roleView.generation}
+              />
+            ) : (
+              <div className="dialog-content">
+                <p>
+                  角色卡设置暂不可用，请在扩展管理中启用 Agent 提供者与默认
+                  Agent 界面。
+                </p>
+                <button
+                  className="secondary"
+                  onClick={() => {
+                    setSettings(null);
+                    setShowExtensions(true);
+                  }}
+                >
+                  查看扩展
+                </button>
+              </div>
+            )
+          ) : (
+            <div className="dialog-content">
+              {settings === "about" ? (
+                <>
+                  <img src="/brand/plums.png" width="56" height="56" alt="" />
+                  <h3>Plums M1 · 0.0.4</h3>
+                  <p>通过扩展组合角色、能力和界面。</p>
+                  <p className="muted">
+                    本地调试原型。当前 Agent 使用本地文本服务，模型与 MCP
+                    连接器尚未内置。
+                  </p>
+                </>
+              ) : (
+                <>
+                  <h3>界面与外观</h3>
+                  <p className="muted">
+                    扩展界面优先于默认界面，可在此切换已启用的界面。
+                  </p>
+                  <div
+                    role="group"
+                    aria-label="界面布局"
+                    className="layout-options"
+                  >
+                    {views.map((view) => (
+                      <button
+                        className="secondary"
+                        key={view.id}
+                        aria-pressed={view.id === activeView}
+                        onClick={() =>
+                          void operate(() => selectLayout(view.id))
+                        }
+                      >
+                        使用 {view.label}
+                      </button>
+                    ))}
+                  </div>
+                  <button
+                    className="secondary"
+                    onClick={() => void operate(toggleTheme)}
+                  >
+                    {theme === "light" ? "切换到深色模式" : "切换到浅色模式"}
+                  </button>
+                  <h3>扩展与连接</h3>
+                  <p className="muted">
+                    模型连接器、MCP 服务和其他能力统一在扩展中配置、启用或停用。
+                  </p>
+                  <button
+                    className="secondary"
+                    onClick={() => {
+                      setSettings(null);
+                      setShowExtensions(true);
+                    }}
+                  >
+                    管理扩展
+                  </button>
+                  <h3>数据与诊断</h3>
+                  <p className="muted">
+                    配置与会话保存在本地隔离数据中。实验工具可检查任务、权限与恢复状态。
+                  </p>
+                  <button
+                    className="secondary"
+                    onClick={() => {
+                      setSettings(null);
+                      setShowExtensions(true);
+                      setDiagnostics(true);
+                    }}
+                  >
+                    打开诊断工具
+                  </button>
+                </>
+              )}
+              {error && (
+                <p role="alert" className="error">
+                  {error}
+                </p>
+              )}
+            </div>
+          )}
+        </Dialog>
+      )}
+      {install && (
+        <Dialog
+          title="安装扩展"
+          onClose={() => {
+            if (!busy) setInstall(false);
+          }}
+        >
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              void operate(async () => {
+                const target = new URL(moduleUrl, location.href);
+                if (target.origin !== location.origin)
+                  throw Error(
+                    "当前 M1 仅加载本地可信 ESM 模块。请将扩展放入应用目录后填写模块路径。",
+                  );
+                const definition = await loadExtension(target.href, moduleId);
+                if (host.ids().includes(moduleId))
+                  throw Error("此扩展 ID 已存在。");
+                const entry = {
+                  id: moduleId,
+                  url: target.pathname + target.search,
+                  label: moduleId,
+                };
+                const imports = [
+                  ...runtime.imports.filter((saved) => saved.id !== moduleId),
+                  entry,
+                ];
+                await runtime.save({ imports });
+                runtime.imports = imports;
+                host.install(definition);
+                catalog.push(entry);
+                setFailedImports((previous) => {
+                  const next = { ...previous };
+                  delete next[moduleId];
+                  return next;
+                });
+                setInstall(false);
+                setNotice(
+                  "模块路径已保存。请检查来源与能力，再启用扩展；下次启动会重新加载模块。",
+                );
+              });
+            }}
+          >
+            <div className="dialog-content">
+              <p>加载本地可信 ESM 扩展，再查看能力并确认启用。</p>
+              <label className="field">
+                扩展 ID
+                <input
+                  value={moduleId}
+                  onChange={(e) => setModuleId(e.target.value)}
+                  required
+                  placeholder="example.extension"
+                />
+              </label>
+              <label className="field">
+                模块路径
+                <input
+                  value={moduleUrl}
+                  onChange={(e) => setModuleUrl(e.target.value)}
+                  required
+                  placeholder="/extensions/example.js"
+                />
+              </label>
+              <p className="muted">
+                模型连接器和 MCP
+                服务也通过扩展接入。模块路径保存在本地；扩展与宿主共享环境，加载的代码会执行。
+              </p>
+              {error && (
+                <p className="error" role="alert">
+                  {error}
+                </p>
+              )}
+            </div>
+            <footer className="dialog-actions">
+              <button
+                type="button"
+                className="secondary"
+                disabled={busy}
+                onClick={() => setInstall(false)}
+              >
+                取消
+              </button>
+              <button disabled={busy}>加载模块</button>
+            </footer>
+          </form>
+        </Dialog>
+      )}
       <dialog
         ref={dialog}
         className={styles.authorization}

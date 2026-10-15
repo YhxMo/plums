@@ -1,0 +1,295 @@
+import type { Agent, AgentConfig, AgentProvider, Session } from "../sdk/agents";
+
+const id = () => crypto.randomUUID();
+const newSession = (): Session => ({
+  id: id(),
+  title: "未命名会话",
+  createdAt: Date.now(),
+  lastMessageAt: Date.now(),
+  messages: [],
+});
+const object = (value: unknown): value is Record<string, unknown> =>
+  typeof value === "object" && value !== null && !Array.isArray(value);
+const text = (value: unknown, max = 4000): value is string =>
+  typeof value === "string" && value.length <= max;
+export function parseRoleCard(raw: string): AgentConfig {
+  const value: unknown = JSON.parse(raw);
+  if (
+    !object(value) ||
+    !text(value.name, 60) ||
+    !value.name.trim() ||
+    (value.version !== undefined && value.version !== 1) ||
+    (value.description !== undefined && !text(value.description)) ||
+    (value.multiSession !== undefined &&
+      typeof value.multiSession !== "boolean")
+  )
+    throw new Error(
+      "角色卡格式不支持：需要 name，可选 description、multiSession 和 version: 1。",
+    );
+  return {
+    name: value.name.trim(),
+    description: value.description as string | undefined,
+    multiSession: value.multiSession as boolean | undefined,
+  };
+}
+export function restoreAgents(value: unknown): Agent[] {
+  if (value === undefined) return [];
+  if (!Array.isArray(value)) throw new Error("Agent 配置损坏，原数据已保留。");
+  const ids = new Set<string>();
+  for (const a of value) {
+    if (
+      !object(a) ||
+      !text(a.id) ||
+      ids.has(a.id) ||
+      !text(a.name, 60) ||
+      !a.name.trim() ||
+      !text(a.description) ||
+      typeof a.pinned !== "boolean" ||
+      typeof a.multiSession !== "boolean" ||
+      !text(a.extensionId) ||
+      !Array.isArray(a.capabilities) ||
+      !a.capabilities.every((c) => text(c)) ||
+      !Array.isArray(a.sessions) ||
+      a.sessions.length === 0 ||
+      !text(a.currentSessionId)
+    )
+      throw new Error("Agent 配置损坏，原数据已保留。");
+    ids.add(a.id);
+    const sessions = new Set<string>();
+    for (const s of a.sessions) {
+      if (
+        !object(s) ||
+        !text(s.id) ||
+        sessions.has(s.id) ||
+        !text(s.title) ||
+        !Number.isFinite(s.createdAt) ||
+        !Number.isFinite(s.lastMessageAt) ||
+        !Array.isArray(s.messages) ||
+        !s.messages.every(
+          (m) =>
+            object(m) &&
+            text(m.id) &&
+            ["user", "agent"].includes(String(m.role)) &&
+            text(m.text, 32000),
+        )
+      )
+        throw new Error("会话配置损坏，原数据已保留。");
+      sessions.add(s.id);
+    }
+    if (!sessions.has(a.currentSessionId))
+      throw new Error("当前会话不存在，原数据已保留。");
+  }
+  return structuredClone(value).map(({ canCancel, ...a }) => ({
+    ...a,
+    status: "idle",
+  }));
+}
+
+/** Extension-owned model; writes publish only after a successful receipt. */
+export type SaveOptions = { signal?: AbortSignal; onCommit?: () => void };
+export class AgentStore implements AgentProvider {
+  readonly info = {
+    label: "内置本地 Agent 提供者",
+    version: "0.0.4",
+    description: "本地示例，仅文本处理，尚未连接语言模型。",
+  };
+  private agents: Agent[];
+  private listeners = new Set<() => void>();
+  private running = new Map<string, AbortController>();
+  private structural = new Set<string>();
+  private committing = new Set<string>();
+  private queue: Promise<unknown> = Promise.resolve();
+  private closed = false;
+  constructor(
+    initial: Agent[],
+    private persist: (agents: Agent[], options?: SaveOptions) => Promise<void>,
+    private reply: (text: string, signal: AbortSignal) => Promise<string>,
+  ) {
+    this.agents = initial;
+  }
+  list = () => this.agents;
+  subscribe = (listener: () => void) => {
+    this.listeners.add(listener);
+    return () => {
+      this.listeners.delete(listener);
+    };
+  };
+  private emit() {
+    this.agents = this.agents.map((a) => ({
+      ...a,
+      status:
+        this.running.has(a.id) || this.structural.has(a.id) ? "busy" : "idle",
+      canCancel: this.running.has(a.id) && !this.committing.has(a.id),
+    }));
+    this.listeners.forEach((l) => l());
+  }
+  private change<T>(
+    mutate: (agents: Agent[]) => T,
+    options?: SaveOptions,
+  ): Promise<T> {
+    const next = this.queue.then(async () => {
+      if (this.closed) throw new Error("Agent 扩展已停用，请重新启用。");
+      options?.signal?.throwIfAborted();
+      const draft = structuredClone(this.agents).map(({ canCancel, ...a }) => ({
+        ...a,
+        status: "idle" as const,
+      }));
+      const result = mutate(draft);
+      await this.persist(draft, options);
+      this.agents = draft;
+      this.emit();
+      return result;
+    });
+    this.queue = next.catch(() => {});
+    return next;
+  }
+  private find(agents: Agent[], agentId: string) {
+    const a = agents.find((a) => a.id === agentId);
+    if (!a) throw new Error("Agent 不存在。");
+    return a;
+  }
+  async create(config: AgentConfig) {
+    const clean = parseRoleCard(JSON.stringify(config));
+    const session = newSession();
+    const agent: Agent = {
+      id: id(),
+      name: clean.name,
+      description:
+        clean.description ?? "本地文本助手，使用已启用的文本转换服务。",
+      status: "idle",
+      pinned: false,
+      extensionId: "agents.local",
+      capabilities: ["本地文本处理", "保存会话"],
+      multiSession: clean.multiSession ?? false,
+      sessions: [session],
+      currentSessionId: session.id,
+    };
+    await this.change((agents) => {
+      agents.push(agent);
+    });
+    return agent;
+  }
+  update(
+    agentId: string,
+    patch: Partial<Pick<Agent, "name" | "description" | "pinned">>,
+  ) {
+    return this.change((agents) => {
+      const a = this.find(agents, agentId);
+      if (patch.name !== undefined) {
+        if (!patch.name.trim() || patch.name.length > 60)
+          throw new Error("名称需要 1–60 个字符。");
+        a.name = patch.name.trim();
+      }
+      if (patch.description !== undefined) {
+        if (!text(patch.description))
+          throw Error("角色说明不能超过 4000 个字符。");
+        a.description = patch.description;
+      }
+      if (patch.pinned !== undefined) a.pinned = patch.pinned;
+    });
+  }
+  async remove(agentId: string) {
+    if (this.running.has(agentId) || this.structural.has(agentId))
+      throw new Error("请等待保存或先停止当前任务，再移除 Agent。");
+    this.structural.add(agentId);
+    this.emit();
+    try {
+      await this.change((agents) => {
+        const index = agents.findIndex((a) => a.id === agentId);
+        if (index < 0) throw new Error("Agent 不存在。");
+        agents.splice(index, 1);
+      });
+    } finally {
+      this.structural.delete(agentId);
+      this.emit();
+    }
+  }
+  session(
+    agentId: string,
+    action: "create" | "select" | "delete",
+    sessionId?: string,
+  ) {
+    if (this.running.has(agentId) || this.structural.has(agentId))
+      return Promise.reject(
+        new Error("请等待保存或先停止当前任务，再切换会话。"),
+      );
+    this.structural.add(agentId);
+    this.emit();
+    return this.change((agents) => {
+      const a = this.find(agents, agentId);
+      if (!a.multiSession) throw new Error("此 Agent 仅支持一个会话。");
+      if (action === "create") {
+        const s = newSession();
+        a.sessions.push(s);
+        a.currentSessionId = s.id;
+      } else {
+        if (!a.sessions.some((s) => s.id === sessionId))
+          throw new Error("会话不存在。");
+        if (action === "select") a.currentSessionId = sessionId!;
+        else {
+          a.sessions = a.sessions.filter((s) => s.id !== sessionId);
+          if (!a.sessions.length) a.sessions.push(newSession());
+          if (a.currentSessionId === sessionId)
+            a.currentSessionId = a.sessions[0].id;
+        }
+      }
+    }).finally(() => {
+      this.structural.delete(agentId);
+      this.emit();
+    });
+  }
+  async send(agentId: string, input: string) {
+    if (!input.trim() || input.length > 8000)
+      throw new Error("请输入 1–8000 个字符。");
+    if (
+      this.closed ||
+      this.running.has(agentId) ||
+      this.structural.has(agentId)
+    )
+      throw new Error("Agent 暂不可运行。");
+    const a = this.find(this.agents, agentId);
+    const sessionId = a.currentSessionId;
+    const controller = new AbortController();
+    this.running.set(agentId, controller);
+    this.emit();
+    try {
+      const output = await this.reply(input, controller.signal);
+      controller.signal.throwIfAborted();
+      await this.change(
+        (agents) => {
+          controller.signal.throwIfAborted();
+          const s = this.find(agents, agentId).sessions.find(
+            (s) => s.id === sessionId,
+          );
+          if (!s) throw new Error("会话已被移除。");
+          s.messages.push(
+            { id: id(), role: "user", text: input },
+            { id: id(), role: "agent", text: output },
+          );
+          s.lastMessageAt = Date.now();
+          if (s.messages.length === 2) s.title = input.slice(0, 24);
+        },
+        {
+          signal: controller.signal,
+          onCommit: () => {
+            this.committing.add(agentId);
+            this.emit();
+          },
+        },
+      );
+    } finally {
+      this.committing.delete(agentId);
+      this.running.delete(agentId);
+      this.emit();
+    }
+  }
+  cancel(agentId: string) {
+    if (!this.committing.has(agentId)) this.running.get(agentId)?.abort();
+  }
+  async close() {
+    this.closed = true;
+    this.running.forEach((c) => c.abort());
+    await this.queue;
+    this.listeners.clear();
+  }
+}

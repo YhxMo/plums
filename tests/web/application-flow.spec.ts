@@ -1,10 +1,11 @@
+import { manage, legacyEntry, chooseLayout } from "./helpers";
 import { test, expect } from "@playwright/test";
 
 test("cancel returns to the initiating control even when activation does not focus it", async ({
   page,
 }) => {
   await page.goto("/");
-  const launch = page.getByRole("button", { name: "授予实验能力并启动" });
+  const launch = await legacyEntry(page);
   // macOS WebKit pointer activation does not necessarily focus a button.
   await launch.evaluate((button: HTMLButtonElement) => button.click());
   await page
@@ -18,7 +19,7 @@ test("authorization can be cancelled and restores keyboard focus", async ({
   page,
 }) => {
   await page.goto("/");
-  const launch = page.getByRole("button", { name: "授予实验能力并启动" });
+  const launch = await legacyEntry(page);
   await launch.click();
   const dialog = page.getByRole("dialog", { name: "授权并启动扩展" });
   await expect(dialog).toBeVisible();
@@ -34,7 +35,7 @@ test("authorization can be cancelled and restores keyboard focus", async ({
   await page.keyboard.press("Escape");
   await expect(dialog).not.toBeVisible();
   await expect(launch).toBeFocused();
-  await page.getByRole("button", { name: "扩展管理", exact: true }).click();
+  await manage(page);
   const workbench = page.locator("article").filter({ hasText: "文本工作台" });
   await expect(workbench).toContainText("已停用");
   await workbench.getByText("扩展详情", { exact: true }).click();
@@ -53,12 +54,12 @@ for (const width of [375, 1280]) {
   }) => {
     await page.setViewportSize({ width, height: 900 });
     await page.goto("/");
-    await page.getByRole("button", { name: "扩展管理", exact: true }).click();
+    await manage(page);
     await expect(
       page.getByRole("heading", { name: "扩展与状态" }),
     ).toBeVisible();
     await page.getByRole("button", { name: "返回工作区" }).click();
-    await page.getByRole("button", { name: "授予实验能力并启动" }).click();
+    await (await legacyEntry(page)).click();
     await page
       .getByRole("dialog")
       .getByRole("button", { name: "授权并启动", exact: true })
@@ -69,10 +70,10 @@ for (const width of [375, 1280]) {
     await page.getByRole("button", { name: "运行并保存" }).click();
     await expect(page.locator("[data-phase]")).toHaveText("已保存");
     await page.getByRole("textbox").fill("unsaved draft");
-    await page.getByRole("button", { name: "扩展管理", exact: true }).click();
+    await manage(page);
     await page.getByRole("button", { name: "返回工作区" }).click();
     await expect(page.getByRole("textbox")).toHaveValue("unsaved draft");
-    await page.getByRole("button", { name: "扩展管理", exact: true }).click();
+    await manage(page);
     const workbench = page.locator("article").filter({ hasText: "文本工作台" });
     await expect(workbench).toContainText("运行中");
     await workbench
@@ -98,7 +99,7 @@ test("management and authorization fit narrow and intermediate screens", async (
   for (const width of [320, 768, 1440]) {
     await page.setViewportSize({ width, height: 900 });
     await page.goto("/");
-    await page.getByRole("button", { name: "扩展管理", exact: true }).click();
+    await manage(page);
     await expect(
       page.getByRole("heading", { name: "扩展与状态" }),
     ).toBeInViewport();
@@ -111,7 +112,7 @@ test("management and authorization fit narrow and intermediate screens", async (
       ),
     ).toBe(true);
     await page.getByRole("button", { name: "返回工作区" }).click();
-    await page.getByRole("button", { name: "授予实验能力并启动" }).click();
+    await (await legacyEntry(page)).click();
     const dialog = page.getByRole("dialog");
     await expect(dialog).toBeInViewport();
     await dialog

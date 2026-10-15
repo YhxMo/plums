@@ -75,7 +75,10 @@ export function prepareAndroid(root, toolsRoot) {
   ).replace("{{PACKAGE}}", packageName);
   if (
     existsSync(appearance) &&
-    readFileSync(appearance, "utf8") !== appearanceSource
+    ![
+      appearanceSource,
+      appearanceSource.replace('"#fafafa"', '"#f7f4ef"'),
+    ].includes(readFileSync(appearance, "utf8"))
   )
     throw new Error("Appearance plugin changed; review before adapting");
   edits.set(appearance, appearanceSource);

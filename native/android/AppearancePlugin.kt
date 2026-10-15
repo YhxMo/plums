@@ -23,7 +23,7 @@ class AppearancePlugin(private val activity: Activity) : Plugin(activity) {
     val args = invoke.parseArgs(AppearanceArgs::class.java)
     activity.runOnUiThread {
       val content = activity.findViewById<View>(android.R.id.content)
-      val color = Color.parseColor(if (args.dark) "#1c1917" else "#f7f4ef")
+      val color = Color.parseColor(if (args.dark) "#1c1917" else "#fafafa")
       content.setBackgroundColor(color)
       activity.window.decorView.setBackgroundColor(color)
       WindowCompat.getInsetsController(activity.window, content).apply {
