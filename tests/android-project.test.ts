@@ -35,6 +35,10 @@ class MainActivity : TauriActivity() {
   const files = {
     "src-tauri/tauri.conf.json": '{"identifier":"dev.plums.plums"}',
     "native/android/MainActivity.kt": adapted,
+    "native/android/AppearancePlugin.kt": readFileSync(
+      new URL("../native/android/AppearancePlugin.kt", import.meta.url),
+      "utf8",
+    ),
     [activity]: original,
     "src-tauri/gen/android/buildSrc/src/main/java/dev/plums/plums/kotlin/BuildTask.kt":
       'val executable = """node""";\nval args = listOf("tauri", "android", "android-studio-script");\n',
@@ -43,6 +47,9 @@ class MainActivity : TauriActivity() {
     "src-tauri/gen/android/gradle.properties": "android.builtInKotlin=false\n",
     "src-tauri/gen/android/gradle/wrapper/gradle-wrapper.properties":
       "distributionUrl=https\\://services.gradle.org/distributions/gradle-9.6.1-bin.zip\n",
+    "src-tauri/icons/android/mipmap-mdpi/ic_launcher.png": "current icon",
+    "src-tauri/gen/android/app/src/main/res/mipmap-mdpi/ic_launcher.png":
+      "old icon",
   };
   for (const [name, text] of Object.entries(files)) {
     mkdirSync(dirname(join(root, name)), { recursive: true });
@@ -84,6 +91,39 @@ test("npm-launched initialization still calls the local CLI from the Rust direct
   expect(readFileSync(task, "utf8")).toContain(
     'listOf("../node_modules/@tauri-apps/cli/tauri.js", "android", "android-studio-script")',
   );
+});
+
+test("preparation refreshes launcher assets in an already generated project", () => {
+  const { root } = fixture();
+  prepareAndroid(root, "/toolchain");
+  expect(
+    readFileSync(
+      join(
+        root,
+        "src-tauri/gen/android/app/src/main/res/mipmap-mdpi/ic_launcher.png",
+      ),
+      "utf8",
+    ),
+  ).toBe("current icon");
+});
+
+test("missing icon sources fail before generated templates are changed", () => {
+  const { root, activity, original } = fixture();
+  rmSync(join(root, "src-tauri/icons/android"), { recursive: true });
+  expect(() => prepareAndroid(root, "/toolchain")).toThrow();
+  expect(readFileSync(join(root, activity), "utf8")).toBe(original);
+});
+
+test("unknown appearance plugin code is preserved before any template writes", () => {
+  const { root, activity, original } = fixture();
+  writeFileSync(
+    join(root, activity.replace("MainActivity.kt", "AppearancePlugin.kt")),
+    "custom appearance\n",
+  );
+  expect(() => prepareAndroid(root, "/toolchain")).toThrow(
+    /Appearance plugin changed/,
+  );
+  expect(readFileSync(join(root, activity), "utf8")).toBe(original);
 });
 
 test.each(["activity", "callback", "signing", "distribution"] as const)(

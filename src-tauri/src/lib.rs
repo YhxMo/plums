@@ -1,3 +1,4 @@
+mod appearance;
 mod storage;
 use serde::Serialize;
 use serde_json::Value;
@@ -36,7 +37,20 @@ fn platform_call(
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    tauri::Builder::default()
+    let builder = tauri::Builder::default();
+    #[cfg(target_os = "android")]
+    let builder = builder.plugin(
+        tauri::plugin::Builder::<tauri::Wry, ()>::new("appearance")
+            .setup(|app, api| {
+                app.manage(appearance::Appearance(api.register_android_plugin(
+                    &app.config().identifier,
+                    "AppearancePlugin",
+                )?));
+                Ok(())
+            })
+            .build(),
+    );
+    builder
         .setup(|app| {
             let root = std::env::var_os("PLUMS_M1_DATA_DIR")
                 .map(std::path::PathBuf::from)
@@ -44,7 +58,11 @@ pub fn run() {
             app.manage(Broker::new(root));
             Ok(())
         })
-        .invoke_handler(tauri::generate_handler![platform_grant, platform_call])
+        .invoke_handler(tauri::generate_handler![
+            platform_grant,
+            platform_call,
+            appearance::shell_set_theme
+        ])
         .run(tauri::generate_context!())
         .expect("Plums M1 runtime failed");
 }

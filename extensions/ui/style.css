@@ -50,7 +50,7 @@
 }
 .editor-panel,
 .result-panel {
-  background: var(--surface);
+  background: var(--card);
   border: 1px solid var(--border);
   padding: 24px;
   border-radius: 12px;
@@ -115,7 +115,7 @@
 }
 .board {
   container-type: inline-size;
-  background: #eeebf1;
+  background: var(--background);
   padding: 32px;
   min-height: 100%;
 }
@@ -131,7 +131,7 @@
   flex-shrink: 0;
 }
 .board-top a {
-  background: var(--surface);
+  background: var(--card);
   border-radius: 8px;
 }
 .board-columns {
@@ -140,7 +140,7 @@
   gap: 20px;
 }
 .board-cell {
-  background: var(--surface);
+  background: var(--card);
   padding: 24px;
   border: 1px solid var(--border);
   border-radius: 12px;
@@ -162,15 +162,13 @@
   color: var(--muted);
 }
 .board-output {
-  background: #4d3a54;
-  color: white;
-  border-color: #4d3a54;
+  background: var(--overlay);
 }
 .board-output .step-label {
-  color: #e3d8e7;
+  color: var(--muted);
 }
 .board-output .error {
-  color: #ffcdc5;
+  color: var(--error);
 }
 .board-cell dl {
   display: grid;

@@ -34,12 +34,7 @@
   height: 36px;
   display: inline-grid;
   place-items: center;
-  background: var(--accent);
-  border-radius: 11px 11px 11px 3px;
-  color: white;
-  font:
-    26px Georgia,
-    serif;
+  object-fit: contain;
 }
 .stage {
   font-size: 12px;
@@ -59,6 +54,17 @@
   align-items: center;
   gap: 12px;
 }
+.themeSwitch {
+  width: 44px;
+  padding: 0;
+  display: inline-grid;
+  place-items: center;
+  flex-shrink: 0;
+}
+.themeSwitch svg {
+  width: 19px;
+  height: 19px;
+}
 .platform {
   font-size: 12px;
   color: var(--muted);
@@ -70,7 +76,7 @@
   height: 6px;
   margin-right: 7px;
   border-radius: 50%;
-  background: var(--accent);
+  background: var(--muted);
 }
 .body {
   min-height: 0;
@@ -92,6 +98,7 @@
   flex-wrap: wrap;
   gap: 10px 20px;
   border-bottom: 1px solid var(--border);
+  background: var(--surface);
 }
 .layoutSwitch label {
   font-weight: 600;
@@ -134,8 +141,11 @@
   margin: 14px 0 24px;
 }
 .extensions article {
-  padding: 20px 0;
-  border-top: 1px solid var(--border);
+  padding: 16px;
+  margin-bottom: 12px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
 }
 .extensionTitle {
   display: flex;
@@ -151,13 +161,17 @@
   font-size: 12px;
   color: var(--muted);
   white-space: nowrap;
+  padding: 2px 7px;
+  background: var(--surface);
+  border-radius: 5px;
 }
 .active {
-  color: #376044;
+  color: var(--text);
 }
 .active::before {
   content: "● ";
   font-size: 8px;
+  color: var(--running);
 }
 .extensions code {
   display: block;
@@ -181,6 +195,8 @@
   right: 0;
   padding: 8px 14px;
   font-size: 13px;
+  background: var(--surface);
+  border-color: var(--control-border);
 }
 .extensionActions details {
   font-size: 13px;
@@ -188,7 +204,7 @@
 .extensionActions dl {
   margin: 0 -80px 0 0;
   padding: 12px;
-  background: var(--background);
+  background: var(--surface);
   border-radius: 8px;
   overflow-wrap: anywhere;
 }
@@ -241,24 +257,8 @@
   display: block;
   width: 58px;
   height: 58px;
-  color: var(--accent);
-  background: var(--accent-soft);
-  border-radius: 18px;
-  font:
-    36px/58px Georgia,
-    serif;
-  text-align: center;
+  object-fit: contain;
   margin-bottom: 28px;
-}
-.welcomeMark span {
-  position: absolute;
-  font: 16px/24px sans-serif;
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: 50%;
-  bottom: -4px;
-  right: -4px;
-  width: 24px;
 }
 .welcome h1 {
   font-size: clamp(25px, 2.7vw, 34px);
@@ -325,13 +325,13 @@
   font-size: 22px;
 }
 .notice {
-  background: #eef5ef;
-  border-color: #b4caba;
-  color: #31573d;
+  background: var(--card);
+  border-color: var(--border);
+  color: inherit;
 }
 .error {
-  background: #fff0ee;
-  border-color: #d9aaa5;
+  background: var(--card);
+  border-color: var(--border);
   color: var(--error);
 }
 .footer {
@@ -360,24 +360,27 @@
   max-width: calc(100% - 32px);
   max-height: calc(100dvh - 32px);
   border: 1px solid var(--border);
-  border-radius: 16px;
+  border-radius: 12px;
   padding: 28px;
   color: inherit;
-  background: var(--surface);
-  box-shadow: 0 24px 80px #29262c33;
+  background: var(--overlay);
+  box-shadow: 0 24px 80px var(--shadow);
+  overflow-y: auto;
 }
 .authorization::backdrop {
-  background: #29262c66;
+  background: #00000099;
+  backdrop-filter: blur(4px);
 }
 .authorization h2 {
-  font-size: 23px;
+  font-size: 22px;
   margin: 8px 0 12px;
 }
 .authorization > p {
   color: var(--muted);
 }
 .permissionList {
-  background: var(--background);
+  background: var(--surface);
+  border: 1px solid var(--border);
   padding: 16px 20px;
   border-radius: var(--radius);
   margin: 20px 0;
@@ -398,7 +401,10 @@
   display: flex;
   justify-content: flex-end;
   gap: 12px;
-  margin-top: 24px;
+  margin: 24px -28px -28px;
+  padding: 20px 28px;
+  background: var(--card);
+  border-top: 1px solid var(--border);
 }
 @media (max-width: 1020px) {
   .stage {
@@ -428,10 +434,13 @@
     display: none;
   }
   .headerRight {
-    gap: 0;
+    gap: 8px;
   }
   .headerRight button {
     padding: 8px 12px;
+  }
+  .headerRight .themeSwitch {
+    padding: 0;
   }
   .body {
     display: flex;
@@ -479,6 +488,8 @@
   }
   .dialogActions {
     gap: 8px;
+    margin: 24px -20px -24px;
+    padding: 20px;
   }
   .dialogActions button {
     flex: 1;

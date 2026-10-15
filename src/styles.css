@@ -1,23 +1,51 @@
 :root {
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-  color: #29262c;
-  background: #f7f6f8;
+  color-scheme: light;
+  color: var(--text);
+  background: var(--background);
   font-synthesis: none;
   font-size: 14px;
   line-height: 1.6;
-  --surface: #ffffff;
-  --background: #f7f6f8;
-  --border: #e4e0e7;
-  --control-border: #8a818e;
-  --muted: #6b626f;
-  --accent: #68476e;
-  --accent-soft: #f0eaf2;
-  --error: #9c342e;
+  --text: #302a26;
+  --surface: #fcfaf7;
+  --background: #f7f4ef;
+  --card: #ffffff;
+  --overlay: #ffffff;
+  --subtle: #f0ece6;
+  --border: #e4ded7;
+  --control-border: #9a8d81;
+  --muted: #776b60;
+  --accent: #b94a16;
+  --accent-hover: #a23b0b;
+  --accent-ink: #fffdfa;
+  --accent-soft: #fcecdf;
+  --error: #b3372d;
+  --running: #568064;
+  --shadow: #382c2026;
   --radius: 10px;
   --space-1: 8px;
   --space-2: 16px;
   --space-3: 24px;
   --space-4: 32px;
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --text: #f0e9e2;
+  --surface: #23201d;
+  --background: #1c1917;
+  --card: #2b2723;
+  --overlay: #332e29;
+  --subtle: #37312c;
+  --border: #443c35;
+  --control-border: #8f7e6d;
+  --muted: #b5a89b;
+  --accent: #ffa16d;
+  --accent-hover: #ffb58d;
+  --accent-ink: #29180e;
+  --accent-soft: #473126;
+  --error: #ffb4a6;
+  --running: #a4bf9d;
+  --shadow: #00000066;
 }
 * {
   box-sizing: border-box;
@@ -39,37 +67,40 @@ select {
 }
 button {
   background: var(--accent);
-  color: white;
+  color: var(--accent-ink);
   border: 1px solid var(--accent);
   padding: 9px 16px;
-  font-weight: 550;
+  font-weight: 600;
   line-height: 1.4;
 }
 button:hover:not(:disabled) {
-  background: #54395a;
-  border-color: #54395a;
-  color: white;
+  background: var(--accent-hover);
+  border-color: var(--accent-hover);
 }
 button:disabled {
   cursor: not-allowed;
   opacity: 0.48;
 }
 .secondary {
-  background: var(--surface);
-  color: #443a49;
+  background: var(--subtle);
+  color: var(--text);
+  border-color: var(--border);
+}
+.secondary:hover:not(:disabled) {
+  background: var(--border);
   border-color: var(--control-border);
 }
 .selected {
   background: var(--accent-soft);
   color: var(--accent);
-  border-color: var(--accent);
+  border-color: var(--control-border);
 }
 select {
   appearance: none;
   padding: 8px 32px 8px 12px;
   border: 1px solid var(--control-border);
-  background: var(--surface);
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 16 16'%3E%3Cpath d='m4 6 4 4 4-4' fill='none' stroke='%236b626f' stroke-width='1.5'/%3E%3C/svg%3E");
+  background: var(--card);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 16 16'%3E%3Cpath d='m4 6 4 4 4-4' fill='none' stroke='%238f7e6d' stroke-width='1.5'/%3E%3C/svg%3E");
   background-repeat: no-repeat;
   background-position: right 10px center;
   color: inherit;
@@ -99,6 +130,10 @@ summary:focus-visible {
 a {
   color: var(--accent);
   text-underline-offset: 4px;
+}
+::selection {
+  background: var(--accent-soft);
+  color: var(--text);
 }
 .eyebrow {
   font-size: 12px;

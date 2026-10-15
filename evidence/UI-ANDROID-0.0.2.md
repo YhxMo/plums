@@ -1,12 +1,12 @@
 # 0.0.2 整体 UI 与 Android 工程验证
 
-[证据索引](RESULTS.md) · [界面](../docs/UI.md) · [Android 工程](../docs/ANDROID.md) · [产物元数据](ui-android-artifacts.json)
+[证据索引](RESULTS.md) · [界面](../docs/UI.md) · [Android 工程](../docs/ANDROID.md) · [产物元数据](ui-android-artifacts-0.0.2.json)
 
 执行日期：2026-10-15 UTC。实现、集成与原生验证负责人：Codex 主执行者。独立源码审查者：Kierkegaard（独立执行者，未参与实现）。范围为 A3、A5–A8、A10、A12 的 M1 子集；完整矩阵保持未完成。
 
 ## 受验版本与失败条件
 
-基线提交 `ea0bdb7a6e0cceb39ec63bbe5567326095223727`；在该基线上修改应用外壳与两种布局的结构/样式、授权交互、Android 主机脚本/原生模板、版本和对应测试。Host、SDK、平台适配器、Rust 运行实现未改。完整实现/测试/配置集合为 [source-manifest.json](source-manifest.json) 的 54 文件，摘要：
+基线提交 `ea0bdb7a6e0cceb39ec63bbe5567326095223727`；在该基线上修改应用外壳与两种布局的结构/样式、授权交互、Android 主机脚本/原生模板、版本和对应测试。Host、SDK、平台适配器、Rust 运行实现未改。完整实现/测试/配置集合为 [source-manifest-0.0.2.json](source-manifest-0.0.2.json) 的 54 文件，摘要：
 
 `bee72fd6058978056caca4305379183a3f4ce1f1f677e8eb0bd2756ca86f2b77`
 
@@ -79,6 +79,6 @@ APK 的 ZIP CRC、v2 调试签名、包名/版本/ABI 检查通过；设备安�
 
 ## 交付与剩余范围
 
-当前本地交付为 `release/Plums M1 0.0.2.app` 和 `release/plums-m1-0.0.2-android-arm64-debug.apk`，约 28.88 MiB 与 253.28 MiB，均为 debug。版本、身份、签名证书和复制完整性见[产物元数据](ui-android-artifacts.json)及本地 `release/CHECKSUMS.json`。新包验证并更新清单后，已确认的旧副本及其清单/说明移至 `.cache/replaced-release/0.0.1-20261015T124113Z/`，可恢复；实验原件保留。
+该版本的本地交付为 `release/Plums M1 0.0.2.app` 和 `release/plums-m1-0.0.2-android-arm64-debug.apk`，约 28.88 MiB 与 253.28 MiB，均为 debug。版本、身份、签名证书和复制完整性见[历史产物元数据](ui-android-artifacts-0.0.2.json)；后续替代后的存放状态见当前交接。0.0.2 验证并更新清单后，已确认的 0.0.1 旧副本及其清单/说明移至 `.cache/replaced-release/0.0.1-20261015T124113Z/`，可恢复；实验原件保留。
 
 iOS 继续暂缓；Android 真机/其他配置、Windows/Linux、完整迁移、写入中断/崩溃恢复、实际原生丢失回执、文件/OS 授权和长期后台未验证。提供者选择及整套组合配置仍不持久化；可信 ESM 仍共享环境。M1 保持开放，M2 未开始。后续由工程维护者按原[阶段门槛](../docs/ROADMAP.md)补足真实条件后推进。

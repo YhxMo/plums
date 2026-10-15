@@ -1,4 +1,11 @@
-import { useEffect, useRef, useState, useSyncExternalStore } from "react";
+import {
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from "react";
+import { invoke } from "@tauri-apps/api/core";
 import { Host, loadExtension } from "../modules/extension-host/host";
 import type { StoredState } from "../modules/sdk";
 import { PlatformAdapter } from "./platform";
@@ -9,6 +16,7 @@ type Runtime = {
   adapter: PlatformAdapter;
   catalog: { id: string; url: string; label: string }[];
   layout: string;
+  theme: "light" | "dark";
   revision: number;
 };
 type Authorization = { ids: string[]; run: () => Promise<void> };
@@ -49,12 +57,19 @@ async function boot(): Promise<Runtime> {
     "host.shell",
     "state.read",
   )) as StoredState | null;
-  const value = saved?.value as { layout?: unknown } | undefined;
+  const value = saved?.value as
+    { layout?: unknown; theme?: unknown } | undefined;
   return {
     host,
     adapter,
     catalog,
     layout: typeof value?.layout === "string" ? value.layout : "default",
+    theme:
+      value?.theme === "light" || value?.theme === "dark"
+        ? value.theme
+        : matchMedia("(prefers-color-scheme: dark)").matches
+          ? "dark"
+          : "light",
     revision: saved?.revision ?? 0,
   };
 }
@@ -78,7 +93,7 @@ export function App() {
   if (!runtime)
     return (
       <main className={styles.loading}>
-        <span className={styles.logo}>P</span>
+        <img className={styles.logo} src="/brand/plums.png" alt="" />
         <h1>Plums</h1>
         <p role={error ? "alert" : "status"}>{error || "正在读取本地扩展…"}</p>
         {error && <button onClick={() => location.reload()}>重新加载</button>}
@@ -91,6 +106,7 @@ function Workbench({ runtime }: { runtime: Runtime }) {
   const { host, adapter, catalog } = runtime;
   useSyncExternalStore(host.subscribe, host.snapshot);
   const [selected, setSelected] = useState(runtime.layout);
+  const [theme, setTheme] = useState(runtime.theme);
   const [started, setStarted] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -120,6 +136,17 @@ function Workbench({ runtime }: { runtime: Runtime }) {
     (state) => state.status === "active",
   ).length;
   const taskCount = states.reduce((total, state) => total + state.tasks, 0);
+
+  useLayoutEffect(() => {
+    document.documentElement.dataset.theme = theme;
+  }, [theme]);
+
+  useEffect(() => {
+    if (adapter.kind === "native")
+      void invoke("shell_set_theme", { theme }).catch((reason) =>
+        setError(`窗口外观更新失败：${errorMessage(reason)}`),
+      );
+  }, [adapter, theme]);
 
   useEffect(() => {
     if (showExtensions) managerHeading.current?.focus();
@@ -204,13 +231,21 @@ function Workbench({ runtime }: { runtime: Runtime }) {
       await host.start("transform.upper");
     setStarted(true);
   }
-  async function selectLayout(layout: string) {
-    setSelected(layout);
+  async function savePreferences(layout: string, appearance: Runtime["theme"]) {
     const saved = (await adapter.call("host.shell", "state.write", {
       revision: runtime.revision,
-      value: { version: 1, layout },
+      value: { version: 1, layout, theme: appearance },
     })) as StoredState;
     runtime.revision = saved.revision;
+  }
+  async function selectLayout(layout: string) {
+    await savePreferences(layout, theme);
+    setSelected(layout);
+  }
+  async function toggleTheme() {
+    const next = theme === "light" ? "dark" : "light";
+    await savePreferences(selected, next);
+    setTheme(next);
   }
   const writeDenied = host.inspect("workbench").status === "waiting" && started;
 
@@ -218,7 +253,7 @@ function Workbench({ runtime }: { runtime: Runtime }) {
     <div className={styles.app}>
       <header className={styles.header}>
         <div className={styles.brand}>
-          <span className={styles.logo}>P</span>
+          <img className={styles.logo} src="/brand/plums.png" alt="" />
           <strong>Plums</strong>
           <span className={styles.stage}>
             扩展实验室 <b>M1</b>
@@ -228,6 +263,32 @@ function Workbench({ runtime }: { runtime: Runtime }) {
           <span className={styles.platform}>
             {adapter.kind === "native" ? "Rust 原生" : "浏览器预览"}
           </span>
+          <button
+            className={`secondary ${styles.themeSwitch}`}
+            aria-label={theme === "light" ? "切换到深色模式" : "切换到浅色模式"}
+            title={theme === "light" ? "切换到深色模式" : "切换到浅色模式"}
+            disabled={busy}
+            onClick={() => void operate(toggleTheme)}
+          >
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.6"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              aria-hidden="true"
+            >
+              {theme === "light" ? (
+                <path d="M20.6 13.1A8.6 8.6 0 0 1 10.9 3.4a8.7 8.7 0 1 0 9.7 9.7Z" />
+              ) : (
+                <>
+                  <circle cx="12" cy="12" r="4" />
+                  <path d="M12 2v2m0 16v2M2 12h2m16 0h2M4.9 4.9l1.4 1.4m11.4 11.4 1.4 1.4M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4" />
+                </>
+              )}
+            </svg>
+          </button>
           <button
             ref={managerButton}
             className={showExtensions ? "selected secondary" : "secondary"}
@@ -287,9 +348,11 @@ function Workbench({ runtime }: { runtime: Runtime }) {
           )}
           {!activeView && (
             <main className={styles.welcome}>
-              <span className={styles.welcomeMark} aria-hidden="true">
-                P<span>＋</span>
-              </span>
+              <img
+                className={styles.welcomeMark}
+                src="/brand/plums.png"
+                alt=""
+              />
               <span className="eyebrow">你的本地工作空间</span>
               <h1>
                 {started ? "扩展正在等待条件。" : "从一个可替换的界面开始。"}

@@ -1,5 +1,11 @@
-import { readFileSync, writeFileSync } from "node:fs";
-import { join } from "node:path";
+import {
+  existsSync,
+  mkdirSync,
+  readdirSync,
+  readFileSync,
+  writeFileSync,
+} from "node:fs";
+import { dirname, join } from "node:path";
 import { pathToFileURL } from "node:url";
 
 const originalActivity = `package {{PACKAGE}}
@@ -61,6 +67,18 @@ export function prepareAndroid(root, toolsRoot) {
   if (current !== expected && current !== adapted)
     throw new Error("MainActivity template changed; review before adapting");
   edits.set(activity, adapted);
+
+  const appearance = join(dirname(activity), "AppearancePlugin.kt");
+  const appearanceSource = readFileSync(
+    join(root, "native/android/AppearancePlugin.kt"),
+    "utf8",
+  ).replace("{{PACKAGE}}", packageName);
+  if (
+    existsSync(appearance) &&
+    readFileSync(appearance, "utf8") !== appearanceSource
+  )
+    throw new Error("Appearance plugin changed; review before adapting");
+  edits.set(appearance, appearanceSource);
 
   const task = join(
     generated,
@@ -134,7 +152,20 @@ export function prepareAndroid(root, toolsRoot) {
     preparedWrapper += `\ndistributionSha256Sum=${checksum}\n`;
   edits.set(wrapper, preparedWrapper);
 
-  for (const [path, value] of edits)
-    if (readFileSync(path, "utf8") !== value) writeFileSync(path, value);
+  const icons = join(root, "src-tauri/icons/android");
+  for (const density of readdirSync(icons))
+    for (const name of readdirSync(join(icons, density)))
+      edits.set(
+        join(generated, "app/src/main/res", density, name),
+        readFileSync(join(icons, density, name)),
+      );
+
+  for (const [path, value] of edits) {
+    const bytes = Buffer.from(value);
+    if (!existsSync(path) || !readFileSync(path).equals(bytes)) {
+      mkdirSync(dirname(path), { recursive: true });
+      writeFileSync(path, bytes);
+    }
+  }
   return [...edits.keys()];
 }

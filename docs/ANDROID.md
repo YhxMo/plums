@@ -21,20 +21,24 @@ Rust 编译输出固定到本项目 `.cache/android/target/`。Tauri 的 Android
 
 ## 维护适配源码，按需生成工程
 
-[MainActivity.kt](../native/android/MainActivity.kt) 是受版本控制的系统栏适配源码；`{{PACKAGE}}` 从 Tauri 的 `identifier` 生成。它在内容根节点合并 system bars、display cutout 和 IME 的 Insets，并请求初次应用，使 WebView 避开系统栏，键盘出现时缩小可用视口。
+[MainActivity.kt](../native/android/MainActivity.kt) 是受版本控制的系统栏适配源码；`{{PACKAGE}}` 从 Tauri 的 `identifier` 生成。它在内容根节点合并 system bars、display cutout 和 IME 的 Insets，并请求初次应用，使 WebView 避开系统栏，键盘出现时缩小可用视口。[AppearancePlugin.kt](../native/android/AppearancePlugin.kt) 通过 Tauri 原生插件同步深浅模式的根背景和系统栏图标亮度，关闭导航栏的额外对比遮罩；Insets 的计算仍由 MainActivity 负责。
 
 [scripts/android-project.mjs](../scripts/android-project.mjs) 在写入前核对所有目标：
 
 - MainActivity 必须是锁定 CLI 的原模板或当前已适配版本。
+- 外观插件从受控源码生成；遇到未知既有插件代码时停止准备。
 - Gradle 回调转换为从 Rust 目录调用项目锁定的 Node CLI，覆盖直接 Node 和 npm 初始化两种已知模板。
 - 调试签名使用本地环境变量；未知既有签名配置停止准备。
 - 保留生成模板的兼容标志，增加无常驻 daemon、最多 4 workers 的本地资源设置。
 - Gradle 9.6.1 wrapper 使用 YHX 已有归档，并固定已验证的归档校验值；未知版本或校验值停止准备。
+- 将 `src-tauri/icons/android/` 的启动器资源同步到已有生成工程，覆盖换图标后仍沿用旧资源的路径。
 
 模板变更会报出需要复核的具体对象；所有检查通过后才写入。准备操作可重复执行。生成工程仍按 `/src-tauri/gen/` 忽略，重新初始化后会重新准备，不提交生成物或机器路径。生成目录中的本地 Gradle URL 仅适用于对应工具链位置，不能把整个生成目录作为可移植工程分发；新工作副本从上述入口生成。
+
+替换 `src-tauri/icons/source.png` 后执行 `npm run icons`，再执行 `npm run android:build`。图标生成入口复用项目锁定 CLI；只将 Mac、Android 与 Web 所需资源接入源码，iOS 工作继续暂缓。
 
 ## 已验证条件与边界
 
 本流程固定 npm/Cargo 锁文件，构建参数为 `android build --debug --target aarch64 --apk -- --locked`。现有环境为 macOS arm64、JDK 21、NDK 28.2、Gradle 9.6.1、AGP 9.3.1、compile/target SDK 37；实际运行使用 API 36 ARM64 AOSP 模拟器。版本与当前产物的运行结果见证据。
 
-新增测试只覆盖准备操作的幂等性、两种构建回调，以及未知模板/签名/分发配置的拒绝；编译、签名、安装、真实 WebView、系统栏和键盘仍以原生运行分别验收。清单 minSdk 24 不是最低支持版本已验收的声明。真机、其他 ABI、手势导航、其他系统/WebView 以及长期后台仍未验证；iOS 继续暂缓，M1 保持开放。
+准备操作测试覆盖幂等性、两种构建回调、图标刷新、缺少图标源时不部分写入，以及未知模板/签名/分发/外观插件的拒绝；编译、签名、安装、真实 WebView、系统栏和键盘仍以原生运行分别验收。清单 minSdk 24 不是最低支持版本已验收的声明。真机、其他 ABI、手势导航、其他系统/WebView 以及长期后台仍未验证；iOS 继续暂缓，M1 保持开放。

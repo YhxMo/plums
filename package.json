@@ -1,6 +1,6 @@
 {
   "name": "plums",
-  "version": "0.0.2",
+  "version": "0.0.3",
   "private": true,
   "type": "module",
   "scripts": {
@@ -15,6 +15,7 @@
     "native:fmt": "node scripts/cargo.mjs fmt -- --check",
     "check:project": "node scripts/check-project.mjs",
     "snapshot": "node scripts/snapshot.mjs",
+    "icons": "node scripts/icons.mjs",
     "android:init": "node scripts/android.mjs init",
     "android:prepare": "node scripts/android.mjs prepare",
     "android:build": "node scripts/android.mjs build"

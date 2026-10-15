@@ -22,7 +22,7 @@ const anchors = new Map(
   ]),
 );
 for (const name of paths) {
-  if (name.endsWith(".png")) continue;
+  if (/\.(?:png|icns)$/.test(name)) continue;
   const text = readFileSync(name, "utf8");
   if (!text.endsWith("\n") || text.split("\n").some((line) => /\s$/.test(line)))
     problems.push(`${name}: whitespace`);

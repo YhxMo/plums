@@ -1,45 +1,45 @@
 {
   "schema": 1,
-  "preparedUtc": "2026-10-15T12:41:13.364279+00:00",
-  "version": "0.0.2",
+  "preparedUtc": "2026-10-15T14:44:31.363225+00:00",
+  "version": "0.0.3",
   "stage": "M1 prototype",
   "buildType": "debug",
-  "sourceBaseHead": "ea0bdb7",
-  "sourceWorkingTree": "UI, Android tooling/template, version and tests changed from base; runtime Host/SDK/platform/Rust implementations unchanged",
-  "artifactSourceBaselineSha256": "bee72fd6058978056caca4305379183a3f4ce1f1f677e8eb0bd2756ca86f2b77",
-  "sourceFileCount": 54,
+  "sourceBaseHead": "8915478b5eaef3697aab4f9170f6b9bdb7566952",
+  "sourceWorkingTree": "Semantic dual-theme UI, persisted appearance, shared orange icon pipeline, native appearance bridge, Android resource preparation, versions and tests changed from base; Host, SDK and business extensions unchanged",
+  "artifactSourceBaselineSha256": "370a2889ea089c6bc8b0940d72f84042f1d5b9c5ab76abbb85c8897b629228d2",
+  "sourceFileCount": 77,
   "artifacts": [
     {
-      "path": "Plums M1 0.0.2.app",
+      "path": "Plums M1 0.0.3.app",
       "displayName": "Plums M1",
       "bundleIdentifier": "dev.plums.m1",
       "platform": "macOS arm64",
-      "bytes": 30279423,
-      "bundleContentSha256": "91e9d62f056fb9eaef4951041dbb40ad8530a92e1ea5c5d98e6bb2cb85137946",
+      "bytes": 32356830,
+      "bundleContentSha256": "aa59ce0fec97c256ae5352af030031f85aba38f357ebd72245b5959f0e08f394",
       "files": {
-        "Contents/Info.plist": "206d1f68af9be7e6eff6a00f91f5a2ec7a30c17a45f863178b66135235a2083d",
-        "Contents/MacOS/plums-m1": "8c8625d272723821a4c587fe11aac8901fd11130ed14f7c9c1af24ad214a0d32",
-        "Contents/Resources/Plums M1.icns": "1d04b2f6283f18894211bf34d46951ea9c23d0fe2a50102a9b9ade49c5af11b3"
+        "Contents/Info.plist": "8355fb7e26d6989c1dd4ebf7175f8162ba9399e674426578a2b00f1357edc94e",
+        "Contents/MacOS/plums-m1": "0d918450004c90e1c48bae86dc3f406e1ba7d4ad7805f892ab01cd30af91c57a",
+        "Contents/Resources/icon.icns": "6a7e5b00689e5640726ecf5319fbdc2aad4b8c43dea54a379e60ddfdbf50a231"
       },
       "bundleDigestMethod": "SHA-256 of sorted compact JSON mapping relative file paths to SHA-256 (symlinks to link targets)",
-      "executableSha256": "8c8625d272723821a4c587fe11aac8901fd11130ed14f7c9c1af24ad214a0d32",
-      "validation": "Final packaged native app: authorization cancellation and focus return, save, stop with zero resources/tasks, resume, layout selection and cold-process state restore; source and delivery copies matched"
+      "executableSha256": "0d918450004c90e1c48bae86dc3f406e1ba7d4ad7805f892ab01cd30af91c57a",
+      "validation": "Final packaged app: light/dark appearance and native window, Rust save, stop with zero resources/tasks, reauthorization/resume, native layout selection and cold-process restoration of dark theme, board layout and saved output; build and delivered bundle contents matched"
     },
     {
-      "path": "plums-m1-0.0.2-android-arm64-debug.apk",
+      "path": "plums-m1-0.0.3-android-arm64-debug.apk",
       "displayName": "Plums M1",
       "packageName": "dev.plums.m1",
       "platform": "Android arm64-v8a",
-      "bytes": 265587828,
-      "sha256": "44ff2a7aa10f42f55c5424db765350fa8f3c2831f23065e204640052396de3df",
-      "versionCode": 2,
+      "bytes": 268004191,
+      "sha256": "d089124cdcc02de85298c1a00c6d2da22c4b3005cd61bd0b943bba335a99cfb0",
+      "versionCode": 3,
       "manifestMinSdk": 24,
       "manifestTargetSdk": 37,
       "zipCrcPassed": true,
       "signatureScheme": "v2",
       "signingCertificateSha256": "1786a9ba6c40d4e0b6d3593dccf1d326154864c4f5d660b54e85cad15197b467",
       "installedMatchesBuild": true,
-      "validation": "Final APK on Android 16 API36 ARM64 AOSP emulator with WebView 133.0.6943.137: inspect, authorization/cancel, native save, stop/resume, native layout selection, cold-process restore and system bar/IME geometry; real devices unverified"
+      "validation": "Final APK on Android 16 API36 ARM64 AOSP emulator, WebView 133.0.6943.137: inspect, authorization/cancel, native save, stop/resume, layout selection, cold-process restoration of theme/layout/output, light/dark system bars and IME geometry; real devices unverified"
     }
   ]
 }

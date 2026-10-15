@@ -4,11 +4,11 @@
 
 ## 当前状态
 
-当前为 0.0.2 / M1 调试原型：Tauri 2 + React/TypeScript/Vite、Rust 平台层、本地 ESM 扩展宿主，以及框架无关的可替换 DOM 布局。桌面与移动界面已统一工作区、扩展管理、授权和状态反馈，Android 构建与系统栏适配已纳入项目入口。当前不是稳定 SDK 或可分发产品。
+当前为 0.0.3 / M1 调试原型：Tauri 2 + React/TypeScript/Vite、Rust 平台层、本地 ESM 扩展宿主，以及框架无关的可替换 DOM 布局。默认界面采用白底橙色梅子图标和暖色深浅主题，桌面与移动端共享工作区、扩展管理、授权和状态反馈。Android 构建、图标同步、系统栏与键盘适配已纳入项目入口。当前不是稳定 SDK 或可分发产品。
 
 通用底座管理生命周期、依赖、资源与平台能力契约；业务循环、模型协议和角色卡解析留在扩展。默认 UI 也通过公开实验契约提供。后期重点是多 Agent 合作，角色卡优先帮助人类理解 Agent，同时作为联系协作媒介。
 
-已执行的测试、源码摘要、平台覆盖与限制见 [M1 证据](evidence/RESULTS.md)。0.0.2 的 macOS 包与单一 API 36 / ARM64 Android 模拟器已分别验证授权、保存、停用/恢复和新进程读取；源码通过独立审查。Android 真机、iOS、Windows、Linux 及完整 A11/A12 尚未验收，iOS 继续暂缓。
+已执行的测试、源码摘要、平台覆盖与限制见 [M1 证据](evidence/RESULTS.md)。0.0.3 的 macOS 包与单一 API 36 / ARM64 Android 模拟器已分别验证深浅模式、原生保存、停用/恢复，以及新进程恢复模式、布局和结果；源码通过独立审查。Android 真机、iOS、Windows、Linux 及完整 A11/A12 尚未验收，iOS 继续暂缓。
 
 ## 快速开始（Quick Start）
 
@@ -21,7 +21,7 @@ npm run build
 npm run dev
 ```
 
-浏览器打开回环地址 `http://127.0.0.1:1420`。先用“查看本地扩展”检查模块与能力，再点击“授予实验能力并启动”，确认授权。输入示例文本，运行并保存，随后在“扩展管理”查看资源和任务、停用并重新启用。布局选择可切换工作台和画布；服务替换、撤权及故障注入位于管理页的“诊断与实验”。浏览器明确标为预览，其 localStorage 不能证明 Rust 或原生能力。
+浏览器打开回环地址 `http://127.0.0.1:1420`。先用“查看本地扩展”检查模块与能力，再点击“授予实验能力并启动”，确认授权。输入示例文本，运行并保存，随后在“扩展管理”查看资源和任务、停用并重新启用。布局选择可切换工作台和画布，顶栏太阳/月亮按钮切换并记住深浅模式；服务替换、撤权及故障注入位于管理页的“诊断与实验”。浏览器明确标为预览，其 localStorage 不能证明 Rust 或原生能力。
 
 ```sh
 npm run native -- dev --no-watch
@@ -34,7 +34,9 @@ npm run native -- build --debug --bundles app
 
 Android 复用既有 YHX 工具链。将 `PLUMS_ANDROID_TOOLS_ROOT` 设置为含 `env.sh` 的工具链目录，首次执行 `npm run android:init`，随后执行 `npm run android:build`；已有生成工程使用 `npm run android:prepare`。系统栏和键盘适配从受控模板生成，具体环境与维护入口见 [Android 工程](docs/ANDROID.md)。
 
-本地查看包统一放在根 `release/`，当前为 `Plums M1 0.0.2.app` 和 `plums-m1-0.0.2-android-arm64-debug.apk`；使用范围与摘要见该目录的 `README.md`、`CHECKSUMS.json`。目录名不代表发布模式构建。
+图标源为 `src-tauri/icons/source.png`；执行 `npm run icons` 可重新生成 Mac、Android 和 Web 所需资源。默认界面与可替换布局共用语义颜色变量，所有权见 [UI](docs/UI.md)。
+
+本地查看包统一放在根 `release/`，当前为 `Plums M1 0.0.3.app` 和 `plums-m1-0.0.3-android-arm64-debug.apk`；使用范围与摘要见该目录的 `README.md`、`CHECKSUMS.json`。目录名不代表发布模式构建。
 
 ## 文档索引
 

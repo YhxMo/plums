@@ -1,12 +1,14 @@
 # M1 验证范围与审查状态
 
-当前版本为 0.0.2：整体 UI、授权/启停恢复流程，以及正式 Android 构建与 Insets 适配已通过定向验证和独立源码审查。Mac 原生包与 API 36 ARM64 Android 模拟器分别留证；M1 跨平台门槛未关闭。
+当前版本为 0.0.3：暖色深浅主题、白底橙色图标、模式持久化和原生外观同步已通过定向验证与独立源码审查。整体 UI、授权/启停恢复流程和正式 Android 构建继续回归；Mac 原生包与 API 36 ARM64 Android 模拟器分别留证。M1 跨平台门槛未关闭。
 
 | 当前入口 | 范围 |
 | --- | --- |
-| [0.0.2 UI 与 Android 验证](UI-ANDROID-0.0.2.md) | 45 项单元、17 项浏览器、6 项 Rust；两端构建和实际运行、独立审查、交付及未验证项 |
-| [当前源码集合](source-manifest.json) | 54 文件；由 `npm run snapshot` 生成，包含实现、测试、配置与锁文件，排除文档、证据自身、私人愿景与生成物 |
-| [0.0.2 产物元数据](ui-android-artifacts.json) | Mac 与 Android 最终交付包的版本、身份、摘要及运行范围 |
+| [0.0.3 UI 与 Android 验证](UI-ANDROID-0.0.3.md) | 48 项单元、22 项浏览器、6 项 Rust；双主题双宽度截图、两端原生外观/恢复、构建与审查 |
+| [当前源码集合](source-manifest.json) | 77 文件；由 `npm run snapshot` 生成，包含实现、测试、配置与锁文件，排除文档、证据自身、私人愿景与生成物 |
+| [0.0.3 产物元数据](ui-android-artifacts.json) | Mac 与 Android 最终交付包的版本、身份、摘要及运行范围 |
+
+0.0.2 的整体 UI 与 Android 工程验证保留在 [历史证据](UI-ANDROID-0.0.2.md)，绑定 [54 文件集合](source-manifest-0.0.2.json) 和[历史产物元数据](ui-android-artifacts-0.0.2.json)，不作为 0.0.3 的通过记录。
 
 以下各节保留 **0.0.1 历史证据**，只证明对应旧版本。其 49 文件集合保存于 [source-manifest-0.0.1.json](source-manifest-0.0.1.json)。历史环境缺口不代表当前工具链状态；Android 后续实验见 [M1 实验](../docs/M1-EXPERIMENTS.md#android-隔离构建记录)，正式入口见 [Android 工程](../docs/ANDROID.md)。
 
