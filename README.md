@@ -10,6 +10,8 @@
 
 已执行的测试、源码摘要、平台覆盖与限制见 [M1 证据](evidence/RESULTS.md)。当前受验版本、独立审查与两端运行范围按证据分别记录。Android 真机、iOS、Windows、Linux 及完整 A11/A12 尚未验收，iOS 继续暂缓。
 
+M1 已按 Mac＋Android 限定风险实验范围收敛；iOS 最小验证移至接口正式稳定前，五端目标保留。实验作者可从 [SDK 作者入口](docs/SDK-AUTHORING.md)运行服务、非聊天界面与无 UI 事件样板。当前管理卸载 API 仅供宿主集成，外壳完整卸载流程和原生验证待补。
+
 ## 快速开始（Quick Start）
 
 前端需要 Node.js 20.19+ 或 22.12+；已执行版本为 Node.js 26.5.1。原生需要 Rust 和对应平台工具链，环境范围见 [M1 实验](docs/M1-EXPERIMENTS.md)。

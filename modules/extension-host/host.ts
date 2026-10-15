@@ -185,6 +185,18 @@ export class Host {
   ids() {
     return [...this.records.keys()];
   }
+  /** Removes only a cleanly stopped registration. Stored data and module files remain. */
+  uninstall(id: string) {
+    return this.serial(async () => {
+      const record = this.record(id);
+      if (record.desired || record.status !== "disabled")
+        throw new Error("Stop extension successfully before uninstall");
+      await this.platform.grant(extensionOwner(id), []);
+      this.grants.delete(id);
+      this.records.delete(id);
+      this.changed();
+    });
+  }
   manifest(id: string) {
     return this.record(id).definition.manifest;
   }
