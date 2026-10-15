@@ -79,3 +79,5 @@ ctx.task 跟踪异步任务，使用传入 signal 合作式取消；ctx.onDispos
 ## 凭据代用请求实验
 
 [接口与参考模型](CREDENTIAL-REQUEST.md)仅用于隔离假数据接入，生产能力不可用。扩展引用所属绑定，由平台侧确定目标和凭据；不在普通配置中保存秘密，真实适配及授权仍待独立阶段。
+
+[公开生命周期隔离传输样例](HOST-TRANSPORT-EXPERIMENT.md)展示 ctx.task/ctx.platform 与停用、卸载和撤权的限定两端结果，仅测试包可用，不代表生产网络或凭据能力。

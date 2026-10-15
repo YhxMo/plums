@@ -1,0 +1,103 @@
+{
+  "sourceBaseHead": "94d7569de893a0c7fea2a4013027bcb147f88ed5",
+  "sourceManifest": "evidence/source-manifest-7e58460d0323f5244ce7cd50c4a0ed65d8ae8dda68c3fc03514efe0504de5b2e.json",
+  "sourceDigest": "7e58460d0323f5244ce7cd50c4a0ed65d8ae8dda68c3fc03514efe0504de5b2e",
+  "sourceFileCount": 140,
+  "kind": "public Host lifecycle integration with feature-gated synthetic native transport; not ordinary delivery",
+  "feature": "native-transport-experiment",
+  "mac": {
+    "runtime": {
+      "passed": true,
+      "platform": {
+        "arch": "aarch64",
+        "os": "macos",
+        "pending": 0
+      },
+      "checks": [
+        "ungranted-extension-waits",
+        "independent-extension-public-output",
+        "payload-owner-refused",
+        "active-uninstall-refused",
+        "public-abort-cancels-inflight",
+        "public-stop-cancels-inflight",
+        "public-uninstall-cancels-inflight",
+        "public-revoke-cancels-inflight",
+        "fresh-activation-restores-output",
+        "all-registrations-removed"
+      ]
+    },
+    "bundleIdentifier": "dev.plums.m1.hosttransportprobe",
+    "artifact": ".cache/host-transport/artifacts/Plums Host Transport Probe.app",
+    "files": {
+      "Contents/Info.plist": "e21914dd53e5717a56fa5320a8522d7890b420c75a019dbc9072d17ec99eeb08",
+      "Contents/MacOS/plums-m1": "a96f4dea7b1cd2554d01db55d368d649256767d99036fc952befd68aa7c7ce22",
+      "Contents/Resources/icon.icns": "6a7e5b00689e5640726ecf5319fbdc2aad4b8c43dea54a379e60ddfdbf50a231"
+    }
+  },
+  "android": {
+    "runtime": {
+      "passed": true,
+      "platform": {
+        "arch": "aarch64",
+        "os": "android",
+        "pending": 0
+      },
+      "checks": [
+        "ungranted-extension-waits",
+        "independent-extension-public-output",
+        "payload-owner-refused",
+        "active-uninstall-refused",
+        "public-abort-cancels-inflight",
+        "public-stop-cancels-inflight",
+        "public-uninstall-cancels-inflight",
+        "public-revoke-cancels-inflight",
+        "fresh-activation-restores-output",
+        "all-registrations-removed"
+      ]
+    },
+    "artifact": ".cache/host-transport/artifacts/host-transport-probe-android-arm64-debug.apk",
+    "sha256": "d7634093d8ca2bd7fd60b9405dcb38a0f28177312093481f8ed049336659ef37",
+    "installedMatchesBuild": true,
+    "packageName": "dev.plums.m1",
+    "platform": "Android 16 / API 36 / ARM64 / WebView 133.0.6943.137 / software renderer",
+    "signatureScheme": "v2",
+    "signingCertificateSha256": "1786a9ba6c40d4e0b6d3593dccf1d326154864c4f5d660b54e85cad15197b467"
+  },
+  "serverHits": {
+    "/echo": 4,
+    "/stats": 27,
+    "/delay": 8,
+    "/report": 2
+  },
+  "rawEvidence": {
+    ".cache/host-transport/red.log": "d43252bfba19815459873de95887c85b4aeb8ebdd6b82b3ff894928782443ecb",
+    ".cache/host-transport/grant-red.log": "822f95d147e394bb66e4892f7d872cc01969d7d957ec53abe0976c0006ff60d0",
+    ".cache/host-transport/targeted.log": "97522333e9f91e1f3edc6bcde4afa5c8791ac8a5df8fb1a871879ed6242777de",
+    ".cache/host-transport/unit.log": "418c77b5d17074d3aa9f4fa28a23a88f8a61c545adc0b9f8120b85687600c2a3",
+    ".cache/host-transport/build.log": "c7b55a769d52427b083b975f633751f9a9f4b9785c6a820615cab90937a0b0ad",
+    ".cache/host-transport/format.log": "96c3555c6d5268dfc96dcdfe4a6b1660ae3419505b800c82fc5230ac18885be1",
+    ".cache/host-transport/mac-build.log": "86bb0a501ea84e863409c3525caeb220ca8577774443061016869b372fa5548b",
+    ".cache/host-transport/android-build.log": "3be6dcbae964d7a6b378531bc8a552bdb113bd42cf75f5dfc3788644b5e274b6",
+    ".cache/host-transport/mac-ax.txt": "d9d0bf35c2ea81b79c9810a7ec7fc95d782ff4663167f37ed9607c855dff6d1d",
+    ".cache/host-transport/android-result/webview.json": "fa7b512fc9af6b5d335c8a173da2aba425807ccfd9b266df8904d7efbe2ed326",
+    ".cache/host-transport/server-results/macos.json": "df11be129659b29af6426cc37045c574ef3f4cf08f98a5551f45760c2c3c865d",
+    ".cache/host-transport/server-results/android.json": "22ff173a1ef7707a6110f99414037a11cc07d9fd0ce2889ae70bd8d5667e62cd",
+    ".cache/host-transport/server-results/hits.json": "48d163c722553210e19b0a94e15a93ed16ad2f6c23e08137ff6241dfe4d6a1f5",
+    ".cache/host-transport/mac-server-hits.json": "b84493fd42145b4add6fa521fa05be68cd5ff1ded186e9a3c8f1e8637c08591e",
+    ".cache/host-transport/apk-signature.log": "c35397f4d04ec66f4479309134966bf92ba424af51f9c48ca951c950aaa2b459",
+    ".cache/host-transport/apk-badging.log": "1a91926493325a452cbae173bdb18f8357717120ba5aefc9284f944cb3db6448",
+    ".cache/host-transport/cleanup.json": "908df2a6d68e0c33d553a68191d879dc99c1dbe9a29d29f432d86d345ceec037"
+  },
+  "release": {
+    "unchangedVerified": true,
+    "sourceDigest": "9bc1ccda9e100db52c7d445d574ac21569a2ad78f7cdc483a99ca27c2e4e9f6d",
+    "checksumSha256": "ca3b16d744c046b6f84398f74f3ea5d6445488cd55d1d0eb3c4e20d448298030"
+  },
+  "limitations": [
+    "Public path derives owner from Host; direct experimental IPC remains forgeable",
+    "Loopback HTTP only; no TLS, credentials, OAuth or production network capability",
+    "Android isolated emulator; not device/touch validation",
+    "Cancellation cannot undo remote effects",
+    "No new ordinary-package runtime validation or iOS/Windows/Linux evidence"
+  ]
+}
