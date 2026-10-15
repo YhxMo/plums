@@ -18,7 +18,7 @@ export function ChatView({
   draft: string;
   onDraft: (value: string) => void;
   onBack: () => void;
-  onDetail: () => void;
+  onDetail: (source: HTMLElement) => void;
   onSend: () => void;
   onCancel: () => void;
 }) {
@@ -52,7 +52,7 @@ export function ChatView({
         <button
           className={`icon-button ${s.detailButton}`}
           aria-label="查看 Agent 详情"
-          onClick={onDetail}
+          onClick={(e) => onDetail(e.currentTarget)}
         >
           <Icon name="info" />
         </button>

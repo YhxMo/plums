@@ -2,7 +2,7 @@
 
 [文档索引](../README.md) · [扩展契约](EXTENSION-CONTRACTS.md) · [验收计划](ACCEPTANCE.md)
 
-状态：0.0.3 的整体 UI、持久化深浅主题与 Android 工程入口已实现并通过独立源码审查，Mac 包与单配置 Android 模拟器已分别运行验证；M1 跨平台门槛尚未通过。下文区分目标职责与实验选型，实际覆盖见 [M1 证据](../evidence/RESULTS.md)。
+状态：当前为 0.0.4 / M1 实验。默认 Agent UI、持久化深浅主题与 Android 工程入口已实现；状态输出边界、普通停用/撤权及弹窗焦点修复的版本与覆盖见 [M1 证据](../evidence/RESULTS.md)。Mac 与单配置 Android 模拟器分别留证，M1 跨平台门槛尚未通过。下文区分目标职责与实验选型。
 
 ## 目标与边界
 

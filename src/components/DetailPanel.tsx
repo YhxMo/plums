@@ -15,7 +15,7 @@ export function DetailPanel({
   onClose: () => void;
   onPin: () => void;
   onSession: (action: "create" | "select", id?: string) => void;
-  onDeleteSession: (id: string) => void;
+  onDeleteSession: (id: string, source: HTMLElement) => void;
 }) {
   return (
     <aside className={s.details} aria-label="Agent 详情">
@@ -76,7 +76,7 @@ export function DetailPanel({
                   className="icon-button"
                   aria-label={`删除会话 ${session.title}`}
                   disabled={agent.status === "busy"}
-                  onClick={() => onDeleteSession(session.id)}
+                  onClick={(e) => onDeleteSession(session.id, e.currentTarget)}
                 >
                   <Icon name="trash" size={15} />
                 </button>

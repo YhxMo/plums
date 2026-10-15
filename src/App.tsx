@@ -243,6 +243,7 @@ function Workbench({ runtime }: { runtime: Runtime }) {
   >(null);
   const [diagnostics, setDiagnostics] = useState(false);
   const [install, setInstall] = useState(false);
+  const installTrigger = useRef<HTMLElement | null>(null);
   const [moduleUrl, setModuleUrl] = useState("");
   const [moduleId, setModuleId] = useState("");
   useEffect(() => {
@@ -538,7 +539,13 @@ function Workbench({ runtime }: { runtime: Runtime }) {
               返回工作区
             </button>
           </div>
-          <button className="secondary" onClick={() => setInstall(true)}>
+          <button
+            className="secondary"
+            onClick={(e) => {
+              installTrigger.current = e.currentTarget;
+              setInstall(true);
+            }}
+          >
             安装扩展
           </button>
           <p className={styles.managerHint}>
@@ -902,6 +909,7 @@ function Workbench({ runtime }: { runtime: Runtime }) {
       {install && (
         <Dialog
           title="安装扩展"
+          returnFocusTo={installTrigger.current}
           onClose={() => {
             if (!busy) setInstall(false);
           }}

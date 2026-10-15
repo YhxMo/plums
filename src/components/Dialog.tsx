@@ -4,16 +4,20 @@ export function Dialog({
   title,
   children,
   onClose,
+  returnFocusTo,
   bare = false,
 }: {
   title: string;
   children: ReactNode;
   onClose: () => void;
+  returnFocusTo?: HTMLElement | null;
   bare?: boolean;
 }) {
   const ref = useRef<HTMLDialogElement>(null);
+  const opener = useRef(returnFocusTo);
   useEffect(() => {
-    const active = document.activeElement as HTMLElement | null;
+    const active =
+      opener.current ?? (document.activeElement as HTMLElement | null);
     ref.current?.showModal();
     return () => {
       ref.current?.close();

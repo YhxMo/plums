@@ -166,3 +166,54 @@ it("reserves session changes until saved so sending cannot use the old session",
   await store.update(a.id, { description: "updated role" });
   expect(store.list()[0].description).toBe("updated role");
 });
+
+it("round trips a maximum length service reply below the snapshot capacity", async () => {
+  let saved: unknown;
+  const store = new AgentStore(
+    [],
+    async (agents) => {
+      saved = structuredClone(agents);
+    },
+    async () => "x".repeat(32000),
+  );
+  const a = await store.create({ name: "boundary" });
+  await store.send(a.id, "short");
+  expect(new TextEncoder().encode(JSON.stringify(saved)).length).toBeLessThan(
+    65536,
+  );
+  expect(restoreAgents(saved)[0].sessions[0].messages[1].text.length).toBe(
+    32000,
+  );
+});
+for (const [label, invalid] of [
+  ["oversized", "x".repeat(32001)],
+  ["non-string", 42],
+  ["missing", undefined],
+] as const) {
+  it(`rejects a ${label} service reply before persisting an unreadable snapshot`, async () => {
+    let saved: unknown;
+    let output: unknown = "safe";
+    let writes = 0;
+    const store = new AgentStore(
+      [],
+      async (agents) => {
+        saved = structuredClone(agents);
+        writes++;
+      },
+      async () => output as string,
+    );
+    const a = await store.create({ name: "recoverable" });
+    await store.send(a.id, "first");
+    const before = JSON.stringify(saved);
+    output = invalid;
+    const rejected = await store.send(a.id, "retain draft").then(
+      () => false,
+      () => true,
+    );
+    expect(rejected).toBe(true);
+    expect(writes).toBe(2);
+    expect(JSON.stringify(saved)).toBe(before);
+    expect(restoreAgents(saved)[0].sessions[0].messages).toHaveLength(2);
+    expect(store.list()[0].status).toBe("idle");
+  });
+}

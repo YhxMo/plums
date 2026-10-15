@@ -5,9 +5,9 @@ export function EmptyState({
   onExtensions,
   onAdd,
 }: {
-  onImport: () => void;
+  onImport: (source: HTMLElement) => void;
   onExtensions: () => void;
-  onAdd: () => void;
+  onAdd: (source: HTMLElement) => void;
 }) {
   return (
     <main className={s.empty}>
@@ -22,7 +22,10 @@ export function EmptyState({
         </p>
       </div>
       <div className={s.onboarding}>
-        <button className={s.onboardCard} onClick={onImport}>
+        <button
+          className={s.onboardCard}
+          onClick={(e) => onImport(e.currentTarget)}
+        >
           <span className={s.outlineIcon}>
             <Icon name="card" size={28} />
           </span>
@@ -45,7 +48,7 @@ export function EmptyState({
       </div>
       <p className={s.emptyFoot}>
         也可以{" "}
-        <button className="text-button" onClick={onAdd}>
+        <button className="text-button" onClick={(e) => onAdd(e.currentTarget)}>
           从头添加 Agent
         </button>
       </p>

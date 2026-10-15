@@ -255,6 +255,10 @@ export class AgentStore implements AgentProvider {
     try {
       const output = await this.reply(input, controller.signal);
       controller.signal.throwIfAborted();
+      if (!text(output, 32000))
+        throw new Error(
+          "文本服务必须返回不超过 32000 个字符的文本；本次结果未保存。",
+        );
       await this.change(
         (agents) => {
           controller.signal.throwIfAborted();

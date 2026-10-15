@@ -28,8 +28,12 @@ export function AgentList({
   agents: Agent[];
   selected: string | null;
   onSelect: (id: string) => void;
-  onAdd: () => void;
-  onAction: (agent: Agent, action: "pin" | "rename" | "remove") => void;
+  onAdd: (source: HTMLElement) => void;
+  onAction: (
+    agent: Agent,
+    action: "pin" | "rename" | "remove",
+    source: HTMLElement | null,
+  ) => void;
 }) {
   const [query, setQuery] = useState("");
   const [menu, setMenu] = useState<string | null>(null);
@@ -54,7 +58,11 @@ export function AgentList({
       <div className={s.listHeading}>
         <h2>我的 Agent</h2>
         <span>{agents.length}</span>
-        <button className="icon-button" aria-label="添加" onClick={onAdd}>
+        <button
+          className="icon-button"
+          aria-label="添加"
+          onClick={(e) => onAdd(e.currentTarget)}
+        >
           <Icon name="plus" />
         </button>
       </div>
@@ -174,13 +182,14 @@ export function AgentList({
                 <button
                   role="menuitem"
                   onClick={(e) => {
-                    e.currentTarget
-                      .closest("[role=menu]")
-                      ?.parentElement?.querySelector<HTMLButtonElement>(
-                        "[aria-expanded]",
-                      )
-                      ?.focus();
-                    onAction(a, "pin");
+                    const source =
+                      e.currentTarget
+                        .closest("[role=menu]")
+                        ?.parentElement?.querySelector<HTMLButtonElement>(
+                          "[aria-expanded]",
+                        ) ?? null;
+                    source?.focus();
+                    onAction(a, "pin", source);
                     setMenu(null);
                   }}
                 >
@@ -190,13 +199,14 @@ export function AgentList({
                 <button
                   role="menuitem"
                   onClick={(e) => {
-                    e.currentTarget
-                      .closest("[role=menu]")
-                      ?.parentElement?.querySelector<HTMLButtonElement>(
-                        "[aria-expanded]",
-                      )
-                      ?.focus();
-                    onAction(a, "rename");
+                    const source =
+                      e.currentTarget
+                        .closest("[role=menu]")
+                        ?.parentElement?.querySelector<HTMLButtonElement>(
+                          "[aria-expanded]",
+                        ) ?? null;
+                    source?.focus();
+                    onAction(a, "rename", source);
                     setMenu(null);
                   }}
                 >
@@ -205,13 +215,14 @@ export function AgentList({
                 <button
                   role="menuitem"
                   onClick={(e) => {
-                    e.currentTarget
-                      .closest("[role=menu]")
-                      ?.parentElement?.querySelector<HTMLButtonElement>(
-                        "[aria-expanded]",
-                      )
-                      ?.focus();
-                    onAction(a, "remove");
+                    const source =
+                      e.currentTarget
+                        .closest("[role=menu]")
+                        ?.parentElement?.querySelector<HTMLButtonElement>(
+                          "[aria-expanded]",
+                        ) ?? null;
+                    source?.focus();
+                    onAction(a, "remove", source);
                     setMenu(null);
                   }}
                 >
@@ -236,7 +247,7 @@ export function AgentList({
           </p>
         )}
       </div>
-      <button className={s.addButton} onClick={onAdd}>
+      <button className={s.addButton} onClick={(e) => onAdd(e.currentTarget)}>
         <Icon name="plus" size={18} /> 添加
       </button>
     </aside>

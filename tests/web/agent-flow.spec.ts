@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import { manage } from "./helpers";
 import { expect, test, type Page } from "@playwright/test";
 async function add(page: Page, name = "编程助手", multi = true) {
@@ -419,4 +420,141 @@ test("mobile detail pin failure appears inside the current modal", async ({
   await expect(
     detail.getByRole("button", { name: "设为特别关注", exact: true }),
   ).toBeVisible();
+});
+
+for (const close of ["Escape", "button"] as const) {
+  test(`non-focusing add activation returns focus after ${close}`, async ({
+    page,
+  }) => {
+    await page.goto("/");
+    const trigger = page.getByRole("button", {
+      name: "从头添加 Agent",
+      exact: true,
+    });
+    await trigger.evaluate((button) => (button as HTMLButtonElement).click());
+    const dialog = page.getByRole("dialog", {
+      name: "添加 Agent",
+      exact: true,
+    });
+    await expect(dialog).toBeVisible();
+    if (close === "Escape") await page.keyboard.press("Escape");
+    else
+      await dialog.getByRole("button", { name: "关闭", exact: true }).click();
+    await expect(dialog).not.toBeVisible();
+    await expect(trigger).toBeFocused();
+  });
+}
+
+test("non-focusing mobile detail and nested dialog return to their own triggers", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 375, height: 812 });
+  await page.goto("/");
+  await add(page);
+  const input = page.getByRole("textbox", { name: "消息", exact: true });
+  await input.focus();
+  const trigger = page.getByRole("button", { name: "查看 Agent 详情" });
+  await trigger.evaluate((button) => (button as HTMLButtonElement).click());
+  const detail = page.getByRole("dialog", { name: "Agent 详情", exact: true });
+  const remove = detail.getByRole("button", {
+    name: "删除会话 未命名会话",
+    exact: true,
+  });
+  await remove.evaluate((button) => (button as HTMLButtonElement).click());
+  await expect(
+    page.getByRole("dialog", { name: "删除会话", exact: true }),
+  ).toBeVisible();
+  await page.keyboard.press("Escape");
+  await expect(remove).toBeFocused();
+  await page.keyboard.press("Escape");
+  await expect(trigger).toBeFocused();
+});
+
+test("settings reports rejected layout and theme writes inside the modal and retries", async ({
+  page,
+}) => {
+  await page.goto("/");
+  await manage(page, true);
+  await page.getByLabel("注入存储写入失败").check();
+  const openSettings = async () => {
+    await page.getByRole("button", { name: "应用菜单", exact: true }).click();
+    await page.getByRole("menuitem", { name: "应用设置", exact: true }).click();
+  };
+  await openSettings();
+  const dialog = page.getByRole("dialog", { name: "应用设置", exact: true });
+  const before = await page.locator("html").getAttribute("data-theme");
+  await dialog
+    .getByRole("button", { name: "使用 Agent 界面", exact: true })
+    .click();
+  await expect(dialog.getByRole("alert")).toContainText("注入的写入故障");
+  await dialog.getByRole("button", { name: /切换到.*模式/ }).click();
+  await expect(dialog.getByRole("alert")).toContainText("注入的写入故障");
+  await expect(page.locator("html")).toHaveAttribute("data-theme", before!);
+  await page.keyboard.press("Escape");
+  await page.getByLabel("注入存储写入失败").uncheck();
+  await openSettings();
+  await dialog.getByRole("button", { name: /切换到.*模式/ }).click();
+  await expect(page.locator("html")).not.toHaveAttribute("data-theme", before!);
+  await dialog
+    .getByRole("button", { name: "使用 Agent 界面", exact: true })
+    .click();
+  await expect(dialog).not.toBeVisible();
+});
+
+test("service reply boundary rejects without losing draft and valid output survives reload", async ({
+  page,
+}) => {
+  await page.route("**/boundary-transform.js", (route) =>
+    route.fulfill({
+      contentType: "text/javascript",
+      body: readFileSync("tests/fixtures/boundary-transform.js", "utf8"),
+    }),
+  );
+  await page.goto("/");
+  await add(page, "Boundary", false);
+  await manage(page);
+  await page.getByRole("button", { name: "安装扩展", exact: true }).click();
+  await page.getByLabel("扩展 ID", { exact: true }).fill("transform.boundary");
+  await page
+    .getByLabel("模块路径", { exact: true })
+    .fill("/boundary-transform.js");
+  await page.getByRole("button", { name: "加载模块", exact: true }).click();
+  await page
+    .getByRole("button", { name: "停用 transform.upper", exact: true })
+    .click();
+  await page
+    .getByRole("button", { name: "启用 transform.boundary", exact: true })
+    .click();
+  await page.getByRole("button", { name: "返回工作区", exact: true }).click();
+  await page
+    .getByRole("button", { name: "与 Boundary 交互", exact: true })
+    .click();
+  const input = page.getByRole("textbox", { name: "消息", exact: true });
+  await input.fill("oversized");
+  await page.getByRole("button", { name: "发送", exact: true }).click();
+  await expect(page.getByRole("alert")).toContainText("本次结果未保存");
+  await expect(input).toHaveValue("oversized");
+  expect(
+    await page.evaluate(
+      () =>
+        JSON.parse(localStorage.getItem("plums:m1:host.shell")!).value.agents[0]
+          .sessions[0].messages.length,
+    ),
+  ).toBe(0);
+  await input.fill("boundary");
+  await page.getByRole("button", { name: "发送", exact: true }).click();
+  await expect(input).toHaveValue("");
+  await page.reload();
+  await page
+    .getByRole("button", { name: "与 Boundary 交互", exact: true })
+    .click();
+  expect(
+    await page
+      .getByRole("log")
+      .evaluate((el) =>
+        [...el.querySelectorAll("p")].some(
+          (p) => p.textContent === "x".repeat(32000),
+        ),
+      ),
+  ).toBe(true);
 });

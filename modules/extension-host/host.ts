@@ -277,6 +277,7 @@ export class Host {
   stop(id: string) {
     return this.serial(async () => {
       this.record(id).desired = false;
+      this.invalidate(id);
       await this.deactivate(id, new Set());
       await this.reconcile();
     });
@@ -292,8 +293,10 @@ export class Host {
         throw new Error("Capability not declared");
       await this.platform.grant(extensionOwner(id), capabilities);
       this.grants.set(id, new Set(capabilities));
-      if (record.status === "active" && this.waitReason(id))
+      if (record.status === "active" && this.waitReason(id)) {
+        this.invalidate(id);
         await this.deactivate(id, new Set());
+      }
       await this.reconcile();
     });
   }

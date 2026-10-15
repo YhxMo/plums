@@ -1,4 +1,4 @@
-import { useCallback, useState, useSyncExternalStore } from "react";
+import { useCallback, useRef, useState, useSyncExternalStore } from "react";
 import type {
   Agent,
   AgentConfig,
@@ -47,6 +47,8 @@ export function AgentWorkspace({
   const [selected, setSelected] = useState<string | null>(null);
   const [detail, setDetail] = useState(false);
   const [modal, setModal] = useState<Modal>(null);
+  const modalTrigger = useRef<HTMLElement | null>(null);
+  const detailTrigger = useRef<HTMLElement | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
@@ -58,7 +60,8 @@ export function AgentWorkspace({
   const [url, setUrl] = useState("");
   const agent = agents.find((a) => a.id === selected);
   const key = agent ? `${agent.id}:${agent.currentSessionId}` : "";
-  const open = (next: Modal) => {
+  const open = (next: Modal, source?: HTMLElement | null) => {
+    if (!modal) modalTrigger.current = source ?? null;
     setModal(next);
     setError("");
     setName(typeof next === "object" && next ? next.agent.name : "");
@@ -86,10 +89,14 @@ export function AgentWorkspace({
     setMulti(false);
     setRaw("");
   }
-  function agentAction(a: Agent, action: "pin" | "rename" | "remove") {
+  function agentAction(
+    a: Agent,
+    action: "pin" | "rename" | "remove",
+    source?: HTMLElement | null,
+  ) {
     if (action === "pin")
       void act(() => api.update(a.id, { pinned: !a.pinned }));
-    else open({ action, agent: a });
+    else open({ action, agent: a }, source);
   }
   const feedback = (className: string) =>
     (error || notice) && !modal ? (
@@ -116,8 +123,8 @@ export function AgentWorkspace({
       onSession={(action, id) =>
         void act(() => api.session(agent.id, action, id))
       }
-      onDeleteSession={(id) =>
-        open({ action: "deleteSession", agent, session: id })
+      onDeleteSession={(id, source) =>
+        open({ action: "deleteSession", agent, session: id }, source)
       }
     />
   );
@@ -135,15 +142,15 @@ export function AgentWorkspace({
           setSelected(id);
           setDetail(false);
         }}
-        onAdd={() => open("add")}
+        onAdd={(source) => open("add", source)}
         onAction={agentAction}
       />
       <div className={s.mainColumn}>
         {!agent ? (
           agents.length === 0 ? (
             <EmptyState
-              onImport={() => open("import")}
-              onAdd={() => open("create")}
+              onImport={(source) => open("import", source)}
+              onAdd={(source) => open("create", source)}
               onExtensions={onExtensions}
             />
           ) : (
@@ -151,7 +158,9 @@ export function AgentWorkspace({
               <Icon name="card" size={48} />
               <h1>选择一个 Agent</h1>
               <p>从左侧开始，或添加新的角色与能力。</p>
-              <button onClick={() => open("add")}>添加 Agent</button>
+              <button onClick={(e) => open("add", e.currentTarget)}>
+                添加 Agent
+              </button>
             </div>
           )
         ) : (
@@ -164,7 +173,10 @@ export function AgentWorkspace({
               setSelected(null);
               setDetail(false);
             }}
-            onDetail={() => setDetail((d) => !d)}
+            onDetail={(source) => {
+              detailTrigger.current = source;
+              setDetail((d) => !d);
+            }}
             onCancel={() => api.cancel(agent.id)}
             onSend={() => {
               const input = drafts[key] ?? "";
@@ -179,7 +191,12 @@ export function AgentWorkspace({
       {detail &&
         agent &&
         (mobile ? (
-          <Dialog title="Agent 详情" bare onClose={() => setDetail(false)}>
+          <Dialog
+            title="Agent 详情"
+            bare
+            returnFocusTo={detailTrigger.current}
+            onClose={() => setDetail(false)}
+          >
             <div className={s.mobileDetail}>
               {feedback(s.detailFeedback)}
               {detailContent}
@@ -190,6 +207,7 @@ export function AgentWorkspace({
         ))}
       {modal && (
         <Dialog
+          returnFocusTo={modalTrigger.current}
           title={
             typeof modal === "string"
               ? { add: "添加", create: "添加 Agent", import: "导入角色卡" }[
