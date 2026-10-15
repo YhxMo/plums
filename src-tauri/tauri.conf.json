@@ -1,0 +1,19 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "Plums M1",
+  "version": "0.0.1",
+  "identifier": "dev.plums.plums",
+  "build": {
+    "beforeDevCommand": "npm run dev",
+    "devUrl": "http://127.0.0.1:1420",
+    "beforeBuildCommand": "npm run build",
+    "frontendDist": "../dist"
+  },
+  "app": {
+    "windows": [{ "label": "main", "title": "Plums · 扩展实验室", "width": 1180, "height": 820, "minWidth": 360, "minHeight": 600 }],
+    "security": {
+      "csp": "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src ipc: http://ipc.localhost 'self'; object-src 'none'; base-uri 'self'"
+    }
+  },
+  "bundle": { "active": true, "targets": ["app"], "icon": ["icons/icon.png"] }
+}

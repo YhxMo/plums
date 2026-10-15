@@ -1,0 +1,32 @@
+/** @type {import('../../modules/sdk').ExtensionDefinition} */
+export default {
+  manifest: {
+    id: "transform.upper",
+    version: "1.0.0",
+    apiVersion: 1,
+    provides: { "text.transform": 1 },
+  },
+  activate(ctx) {
+    /** @type {import('../contracts').Transformer} */
+    const service = {
+      name: "Uppercase",
+      async transform(input, signal) {
+        signal.throwIfAborted();
+        await new Promise((resolve, reject) => {
+          const abort = () => {
+            clearTimeout(timer);
+            reject(new DOMException("Cancelled", "AbortError"));
+          };
+          const timer = setTimeout(() => {
+            signal.removeEventListener("abort", abort);
+            resolve(undefined);
+          }, 650);
+          signal.addEventListener("abort", abort, { once: true });
+        });
+        signal.throwIfAborted();
+        return input.toLocaleUpperCase();
+      },
+    };
+    ctx.provide("text.transform", 1, service);
+  },
+};

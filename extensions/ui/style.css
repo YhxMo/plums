@@ -1,0 +1,223 @@
+.workspace {
+  display: grid;
+  grid-template-columns: 155px minmax(0, 1fr);
+  min-height: 610px;
+  height: 100%;
+}
+.workspace-nav {
+  padding: 36px 22px;
+  border-right: 1px solid var(--border);
+}
+.workspace-nav h2 {
+  font-size: 16px;
+  margin: 15px 0 24px;
+}
+.workspace-nav nav {
+  display: grid;
+  gap: 6px;
+}
+.workspace-nav a {
+  font-size: 12px;
+  text-decoration: none;
+  color: #3e4936;
+  padding: 12px 8px;
+  border-bottom: 1px solid var(--border);
+}
+.workspace-nav p {
+  margin-top: 70px;
+  font-size: 10px;
+  line-height: 1.9;
+  color: var(--muted);
+}
+.workspace-main {
+  padding: 38px clamp(22px, 4vw, 54px);
+  max-width: 850px;
+  width: 100%;
+  margin: 0 auto;
+}
+.workspace-main header h1 {
+  font-size: clamp(25px, 3vw, 34px);
+  letter-spacing: -1px;
+  font-weight: 550;
+  margin: 18px 0 12px;
+}
+.workspace-main header > p {
+  font-size: 12px;
+  line-height: 1.8;
+  color: var(--muted);
+  margin-bottom: 30px;
+}
+.editor-panel,
+.result-panel {
+  padding: 22px 0;
+  border-top: 1px solid var(--border);
+}
+.panel-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+.panel-heading h2 {
+  font-size: 14px;
+  margin: 0;
+}
+.panel-heading span {
+  color: var(--muted);
+  font-size: 10px;
+}
+.workspace label,
+.board label {
+  display: block;
+  margin-bottom: 8px;
+  font-size: 11px;
+  color: var(--muted);
+}
+.actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 15px;
+}
+.actions [data-phase] {
+  width: 100%;
+  margin-top: 4px;
+  color: var(--muted);
+  font-size: 11px;
+}
+.output {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  line-height: 1.9;
+  font-size: 14px;
+}
+.board {
+  min-height: 610px;
+  background: #e8ece8;
+  padding: 30px;
+}
+.board-top {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  padding-bottom: 25px;
+}
+.board-top h1 {
+  font:
+    36px Georgia,
+    "Songti SC",
+    serif;
+  letter-spacing: -1px;
+  margin: 18px 0 0;
+}
+.board-top nav {
+  display: flex;
+  gap: 8px;
+}
+.board-top a {
+  padding: 10px 20px;
+  background: #fffefa;
+  color: #344637;
+  text-decoration: none;
+  font-size: 12px;
+  border-radius: 30px;
+}
+.board-columns {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+}
+.board-cell {
+  background: #fffefa;
+  padding: 22px;
+  border-radius: 10px;
+  min-width: 0;
+}
+.board-cell:last-child {
+  grid-column: 1/-1;
+}
+.board-cell h2 {
+  font-size: 19px;
+  font-weight: 500;
+  margin: 16px 0 24px;
+}
+.step-label {
+  font:
+    10px ui-monospace,
+    monospace;
+  color: var(--muted);
+}
+.board-output {
+  background: #3f5146;
+  color: #fffefa;
+}
+.board-output .step-label {
+  color: #d1dbd1;
+}
+.board-output .error {
+  color: #ffd7c6;
+}
+.board-cell dl {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 10px 30px;
+  font-size: 12px;
+}
+.board-cell dt {
+  color: var(--muted);
+}
+.board-cell dd {
+  margin: 0;
+}
+.board-cell > p:not(.output) {
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.8;
+}
+@media (max-width: 620px) {
+  .workspace {
+    display: block;
+  }
+  .workspace-nav {
+    padding: 20px 24px;
+    border-right: 0;
+    border-bottom: 1px solid var(--border);
+  }
+  .workspace-nav h2 {
+    display: inline;
+    font-size: 13px;
+    margin-left: 16px;
+  }
+  .workspace-nav nav {
+    display: flex;
+    gap: 16px;
+    margin-top: 10px;
+  }
+  .workspace-nav a {
+    padding: 10px 0;
+    border: 0;
+  }
+  .workspace-nav p {
+    display: none;
+  }
+  .workspace-main {
+    padding: 28px 24px;
+  }
+  .board {
+    padding: 24px 16px;
+  }
+  .board-columns {
+    grid-template-columns: 1fr;
+  }
+  .board-cell:last-child {
+    grid-column: auto;
+  }
+  .board-top h1 {
+    font-size: 30px;
+  }
+  .actions button {
+    min-height: 44px;
+  }
+}

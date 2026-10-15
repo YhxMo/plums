@@ -1,0 +1,565 @@
+import type {
+  ExtensionContext,
+  ExtensionDefinition,
+  Platform,
+  View,
+} from "../sdk";
+import { extensionOwner, platformRejection } from "../sdk";
+
+type Status =
+  "disabled" | "waiting" | "active" | "stopping" | "failed" | "cleanup-failed";
+type RecordState = {
+  definition: ExtensionDefinition;
+  desired: boolean;
+  status: Status;
+  error?: string;
+  scope?: Scope;
+};
+type Service = { owner: string; version: number; value: unknown };
+type RegisteredView = View & {
+  owner: string;
+  generation: number;
+  mounts: Set<() => void | Promise<void>>;
+};
+const message = (error: unknown) =>
+  error instanceof Error ? error.message : String(error);
+
+async function within<T>(promise: Promise<T>, timeout: number): Promise<T> {
+  let timer: ReturnType<typeof setTimeout>;
+  try {
+    return await Promise.race([
+      promise,
+      new Promise<never>((_, reject) => {
+        timer = setTimeout(
+          () => reject(new Error("cleanup timeout; restart required")),
+          timeout,
+        );
+      }),
+    ]);
+  } finally {
+    clearTimeout(timer!);
+  }
+}
+
+class Scope {
+  readonly controller = new AbortController();
+  readonly tasks = new Set<Promise<unknown>>();
+  readonly disposers: (() => void | Promise<void>)[] = [];
+  readonly errors = new Set<string>();
+  readonly failedMounts = new Set<() => void | Promise<void>>();
+  private accepting = true;
+  private disposed = false;
+  get open() {
+    return this.accepting && !this.controller.signal.aborted;
+  }
+  invalidate() {
+    this.accepting = false;
+  }
+  assertOpen() {
+    if (!this.open) throw new Error("Extension stopped");
+  }
+  async dispose(timeout: number) {
+    if (this.disposed) {
+      if (this.errors.size) throw new Error([...this.errors].join("; "));
+      return;
+    }
+    this.invalidate();
+    this.controller.abort();
+    for (const dispose of this.disposers.splice(0).reverse()) {
+      try {
+        await within(Promise.resolve().then(dispose), timeout);
+      } catch (error) {
+        this.errors.add(message(error));
+      }
+    }
+    try {
+      await within(Promise.allSettled([...this.tasks]), timeout);
+    } catch (error) {
+      this.errors.add(message(error));
+    }
+    this.disposed = true;
+    if (this.errors.size) throw new Error([...this.errors].join("; "));
+  }
+}
+
+export function validateDefinition(
+  value: unknown,
+): asserts value is ExtensionDefinition {
+  const candidate = value as Partial<ExtensionDefinition> | null;
+  if (
+    !candidate ||
+    !candidate.manifest ||
+    typeof candidate.activate !== "function"
+  )
+    throw new Error("Invalid extension module");
+  const manifest = candidate.manifest;
+  if (
+    typeof manifest.id !== "string" ||
+    !/^[a-z][a-z0-9.-]{0,63}$/.test(manifest.id) ||
+    typeof manifest.version !== "string" ||
+    !manifest.version ||
+    manifest.apiVersion !== 1
+  )
+    throw new Error("Unsupported extension identity or SDK version");
+  for (const declarations of [manifest.requires, manifest.provides]) {
+    if (
+      declarations !== undefined &&
+      (typeof declarations !== "object" ||
+        declarations === null ||
+        Array.isArray(declarations))
+    )
+      throw new Error("Invalid service declarations");
+    if (
+      declarations &&
+      Object.entries(declarations).some(
+        ([key, version]) => !key || !Number.isInteger(version) || version < 1,
+      )
+    )
+      throw new Error("Invalid service contract version");
+  }
+  if (
+    manifest.capabilities &&
+    (!Array.isArray(manifest.capabilities) ||
+      manifest.capabilities.some((cap) => typeof cap !== "string"))
+  )
+    throw new Error("Invalid capability declaration");
+}
+
+/** Modules execute as trusted code in the same JS environment. Import is not sandboxed. */
+export async function loadExtension(
+  url: string,
+  expectedId: string,
+): Promise<ExtensionDefinition> {
+  const module = await import(/* @vite-ignore */ url);
+  validateDefinition(module.default);
+  if (module.default.manifest.id !== expectedId)
+    throw new Error("Module identity does not match catalog");
+  return module.default;
+}
+
+export class Host {
+  private readonly records = new Map<string, RecordState>();
+  private readonly services = new Map<string, Service>();
+  private readonly registeredViews = new Map<string, RegisteredView>();
+  private readonly events = new Map<string, Set<(data: unknown) => void>>();
+  private readonly grants = new Map<string, Set<string>>();
+  private readonly subscribers = new Set<() => void>();
+  private sequence = 0;
+  private viewSequence = 0;
+  private queue: Promise<unknown> = Promise.resolve();
+
+  constructor(
+    readonly platform: Platform,
+    private readonly cleanupTimeout = 800,
+  ) {}
+  readonly subscribe = (listener: () => void) => {
+    this.subscribers.add(listener);
+    return () => {
+      this.subscribers.delete(listener);
+    };
+  };
+  readonly snapshot = () => this.sequence;
+  private changed() {
+    this.sequence++;
+    for (const listener of this.subscribers) listener();
+  }
+  private serial<T>(operation: () => Promise<T>): Promise<T> {
+    const result = this.queue.then(operation, operation);
+    this.queue = result.catch(() => {});
+    return result;
+  }
+  private record(id: string) {
+    const record = this.records.get(id);
+    if (!record) throw new Error(`Unknown extension: ${id}`);
+    return record;
+  }
+  install(definition: ExtensionDefinition) {
+    validateDefinition(definition);
+    const id = definition.manifest.id;
+    if (this.records.has(id))
+      throw new Error(`Extension already installed: ${id}`);
+    this.records.set(id, { definition, desired: false, status: "disabled" });
+    this.changed();
+  }
+  ids() {
+    return [...this.records.keys()];
+  }
+  manifest(id: string) {
+    return this.record(id).definition.manifest;
+  }
+  inspect(id: string) {
+    const record = this.record(id);
+    return {
+      status: record.status,
+      error: record.error,
+      desired: record.desired,
+      resources:
+        (record.scope?.disposers.length ?? 0) +
+        (record.scope?.failedMounts.size ?? 0),
+      tasks: record.scope?.tasks.size ?? 0,
+    };
+  }
+  serviceNames() {
+    return [...this.services.keys()];
+  }
+  views() {
+    return [...this.registeredViews.values()]
+      .filter((view) => this.record(view.owner).status === "active")
+      .map(({ id, label, owner, generation }) => ({
+        id,
+        label,
+        owner,
+        generation,
+      }));
+  }
+  mountView(id: string, root: HTMLElement): () => void | Promise<void> {
+    const view = this.registeredViews.get(id);
+    if (!view || this.record(view.owner).status !== "active")
+      throw new Error(`View unavailable: ${id}`);
+    const record = this.record(view.owner);
+    const scope = record.scope!;
+    scope.assertOpen();
+    const unmount = view.mount(root);
+    let closed = false;
+    let failure: Error | undefined;
+    let pending: Promise<void> | undefined;
+    const released = () => {
+      closed = true;
+      view.mounts.delete(close);
+    };
+    const failed = (error: unknown): never => {
+      failure = new Error(message(error));
+      scope.errors.add(failure.message);
+      scope.failedMounts.add(close);
+      record.status = "cleanup-failed";
+      record.error = failure.message;
+      this.invalidate(view.owner);
+      this.changed();
+      void this.serial(async () => {
+        // Individual records retain cleanup errors; continue invalidating other dependents.
+        await this.deactivate(view.owner, new Set()).catch(() => {});
+        await this.reconcile();
+      });
+      throw failure;
+    };
+    const close = () => {
+      if (failure) throw failure;
+      if (pending) return pending;
+      if (!closed) {
+        try {
+          const result = unmount();
+          if (result) {
+            pending = Promise.resolve(result).then(released, failed);
+            return pending;
+          }
+          released();
+        } catch (error) {
+          return failed(error);
+        }
+      }
+    };
+    view.mounts.add(close);
+    return close;
+  }
+  start(id: string) {
+    return this.serial(async () => {
+      const record = this.record(id);
+      if (record.status === "cleanup-failed")
+        throw new Error("Cleanup incomplete; restart required");
+      if (record.status === "failed") {
+        record.status = "disabled";
+        record.scope = undefined;
+      }
+      record.desired = true;
+      await this.reconcile();
+    });
+  }
+  stop(id: string) {
+    return this.serial(async () => {
+      this.record(id).desired = false;
+      await this.deactivate(id, new Set());
+      await this.reconcile();
+    });
+  }
+  grant(id: string, capabilities: string[]) {
+    return this.serial(async () => {
+      const record = this.record(id);
+      if (
+        capabilities.some(
+          (cap) => !record.definition.manifest.capabilities?.includes(cap),
+        )
+      )
+        throw new Error("Capability not declared");
+      await this.platform.grant(extensionOwner(id), capabilities);
+      this.grants.set(id, new Set(capabilities));
+      if (record.status === "active" && this.waitReason(id))
+        await this.deactivate(id, new Set());
+      await this.reconcile();
+    });
+  }
+  private cycle(id: string, path = new Set<string>()): boolean {
+    if (path.has(id)) return true;
+    const next = new Set(path).add(id);
+    const manifest = this.manifest(id);
+    for (const name of Object.keys(manifest.requires ?? {})) {
+      const providers = [...this.records].filter(
+        ([, entry]) =>
+          entry.desired && entry.definition.manifest.provides?.[name],
+      );
+      if (
+        !this.services.has(name) &&
+        providers.some(([provider]) => this.cycle(provider, next))
+      )
+        return true;
+    }
+    return false;
+  }
+  private waitReason(id: string) {
+    const manifest = this.manifest(id);
+    for (const cap of manifest.capabilities ?? []) {
+      if (!this.platform.available(cap))
+        return `Capability unavailable: ${cap}`;
+      if (!this.grants.get(id)?.has(cap)) return `Permission required: ${cap}`;
+    }
+    for (const [name, version] of Object.entries(manifest.requires ?? {})) {
+      if (
+        this.services.get(name)?.version !== version ||
+        this.record(this.services.get(name)!.owner).status !== "active"
+      )
+        return this.cycle(id)
+          ? "Dependency cycle"
+          : `Dependency unavailable: ${name}@${version}`;
+    }
+  }
+  private async reconcile() {
+    let progress: boolean;
+    do {
+      progress = false;
+      for (const [id, record] of this.records) {
+        if (
+          !record.desired ||
+          ["active", "stopping", "failed", "cleanup-failed"].includes(
+            record.status,
+          )
+        )
+          continue;
+        const reason = this.waitReason(id);
+        if (reason) {
+          record.status = "waiting";
+          record.error = reason;
+          continue;
+        }
+        const scope = new Scope();
+        record.scope = scope;
+        try {
+          await within(
+            Promise.resolve(
+              record.definition.activate(this.context(id, scope)),
+            ),
+            this.cleanupTimeout,
+          );
+          record.status = "active";
+          record.error = undefined;
+          progress = true;
+        } catch (error) {
+          record.status = "failed";
+          record.error = message(error);
+          try {
+            await scope.dispose(this.cleanupTimeout);
+          } catch (cleanup) {
+            record.status = "cleanup-failed";
+            record.error += `; ${message(cleanup)}`;
+          }
+          this.changed();
+          throw new Error(record.error);
+        }
+      }
+    } while (progress);
+    this.changed();
+  }
+  private dependents(id: string) {
+    return [...this.records]
+      .filter(
+        ([, entry]) =>
+          ["active", "stopping", "cleanup-failed"].includes(entry.status) &&
+          Object.keys(entry.definition.manifest.requires ?? {}).some(
+            (name) => this.services.get(name)?.owner === id,
+          ),
+      )
+      .map(([dependent]) => dependent);
+  }
+  private invalidate(id: string) {
+    const affected = new Set<string>();
+    const visit = (owner: string) => {
+      if (affected.has(owner)) return;
+      affected.add(owner);
+      for (const dependent of this.dependents(owner)) visit(dependent);
+    };
+    visit(id);
+    for (const owner of affected) {
+      const record = this.record(owner);
+      if (record.status === "active") record.status = "stopping";
+      record.scope?.invalidate();
+    }
+    for (const owner of affected) this.record(owner).scope?.controller.abort();
+  }
+  private async deactivate(id: string, visited: Set<string>) {
+    if (visited.has(id)) return;
+    visited.add(id);
+    const record = this.record(id);
+    const errors: string[] = [];
+    for (const dependent of this.dependents(id)) {
+      try {
+        await this.deactivate(dependent, visited);
+      } catch (error) {
+        errors.push(message(error));
+      }
+    }
+    if (
+      record.scope &&
+      ["active", "stopping", "cleanup-failed"].includes(record.status)
+    ) {
+      try {
+        await record.scope.dispose(this.cleanupTimeout);
+        record.status = record.desired ? "waiting" : "disabled";
+        record.error = undefined;
+      } catch (error) {
+        record.status = "cleanup-failed";
+        record.error = message(error);
+        errors.push(record.error);
+      }
+    } else if (!record.desired && record.status !== "cleanup-failed")
+      record.status = "disabled";
+    this.changed();
+    if (errors.length) throw new Error(errors.join("; "));
+  }
+  private context(id: string, scope: Scope): ExtensionContext {
+    const manifest = this.manifest(id);
+    const own = (dispose: () => void | Promise<void>) => {
+      scope.assertOpen();
+      scope.disposers.push(dispose);
+    };
+    return {
+      id,
+      signal: scope.controller.signal,
+      use: <T>(name: string) => {
+        scope.assertOpen();
+        const service = this.services.get(name);
+        if (
+          !manifest.requires?.[name] ||
+          service?.version !== manifest.requires[name] ||
+          this.record(service.owner).status !== "active"
+        )
+          throw new Error(`Service not declared or unavailable: ${name}`);
+        return service.value as T;
+      },
+      provide: (name, version, value) => {
+        scope.assertOpen();
+        if (manifest.provides?.[name] !== version)
+          throw new Error(`Service not declared: ${name}`);
+        if (this.services.has(name))
+          throw new Error(`Service already provided: ${name}`);
+        this.services.set(name, { owner: id, version, value });
+        own(() => {
+          this.services.delete(name);
+        });
+      },
+      onDispose: own,
+      on: (topic, handler) => {
+        scope.assertOpen();
+        let listeners = this.events.get(topic);
+        if (!listeners) {
+          listeners = new Set();
+          this.events.set(topic, listeners);
+        }
+        const listener = (data: unknown) => {
+          if (scope.open) handler(data);
+        };
+        listeners.add(listener);
+        own(() => {
+          listeners.delete(listener);
+          if (!listeners.size) this.events.delete(topic);
+        });
+      },
+      emit: (topic, data) => {
+        for (const listener of [...(this.events.get(topic) ?? [])]) {
+          if (!scope.open) break;
+          listener(data);
+        }
+      },
+      view: (view) => {
+        scope.assertOpen();
+        if (this.registeredViews.has(view.id))
+          throw new Error(`View conflict: ${view.id}`);
+        const registered = {
+          ...view,
+          owner: id,
+          generation: ++this.viewSequence,
+          mounts: new Set<() => void | Promise<void>>(),
+        };
+        this.registeredViews.set(view.id, registered);
+        own(async () => {
+          const errors: unknown[] = [];
+          for (const close of [...registered.mounts]) {
+            try {
+              await close();
+            } catch (error) {
+              errors.push(error);
+            }
+          }
+          this.registeredViews.delete(view.id);
+          if (errors.length) throw errors[0];
+        });
+      },
+      task: <T>(run: (signal: AbortSignal) => Promise<T>) => {
+        scope.assertOpen();
+        const task = Promise.resolve().then(() => {
+          scope.assertOpen();
+          return run(scope.controller.signal);
+        });
+        scope.tasks.add(task);
+        this.changed();
+        void task
+          .finally(() => {
+            scope.tasks.delete(task);
+            this.changed();
+          })
+          .catch(() => {});
+        return task;
+      },
+      platform: async (capability, payload, operationSignal) => {
+        if (!scope.open) throw platformRejection("Extension stopped");
+        if (!manifest.capabilities?.includes(capability))
+          throw platformRejection(`Capability not declared: ${capability}`);
+        if (
+          !this.grants.get(id)?.has(capability) ||
+          !this.platform.available(capability)
+        )
+          throw platformRejection(
+            `Permission denied or unavailable: ${capability}`,
+          );
+        const controller = new AbortController();
+        const signals = operationSignal
+          ? [scope.controller.signal, operationSignal]
+          : [scope.controller.signal];
+        const abort = () => controller.abort();
+        for (const signal of signals) {
+          if (signal.aborted) controller.abort();
+          signal.addEventListener("abort", abort, { once: true });
+        }
+        try {
+          controller.signal.throwIfAborted();
+          return await this.platform.call(
+            extensionOwner(id),
+            capability,
+            payload,
+            controller.signal,
+          );
+        } finally {
+          for (const signal of signals)
+            signal.removeEventListener("abort", abort);
+        }
+      },
+    };
+  }
+}

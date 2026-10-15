@@ -1,0 +1,7 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "main-window",
+  "description": "Local experiment window; no filesystem, shell, network or credential plugins exposed.",
+  "windows": ["main"],
+  "permissions": ["core:default"]
+}

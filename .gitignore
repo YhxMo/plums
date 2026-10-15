@@ -1,0 +1,14 @@
+/goal.md
+/node_modules/
+/dist/
+/.cache/
+/.dev-data/
+/src-tauri/target/
+/src-tauri/gen/
+/test-results/
+/playwright-report/
+/evidence/raw/
+.env
+.env.*
+!.env.example
+.DS_Store

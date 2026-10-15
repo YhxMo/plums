@@ -1,0 +1,9 @@
+{
+  "sourceSha256": "39e17c8d4d81973ccaf65af54c3454351a3e786f3d395fd6c8e0e17b8b127764",
+  "bundleIdentifier": "dev.plums.m1",
+  "artifact": ".cache/artifacts/Plums M1.app",
+  "kind": "macOS arm64 debug application; native normal task, dependency stop/restart and persisted process restart observed",
+  "executableSha256": "4b1c86bc2d545f8a7cdd428d6ccbc6ee987a12a14b568c9ba815dd8dc7132ef5",
+  "bundleContentSha256": "192b839cf9bfe29df57cfe06112e37fd128c495f888c1a1614a34b9dc54fef8a",
+  "bundleDigestMethod": "SHA-256 of sorted compact JSON mapping relative file paths to SHA-256 (symlinks to link targets)"
+}
