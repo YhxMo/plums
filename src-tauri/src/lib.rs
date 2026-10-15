@@ -63,6 +63,7 @@ pub fn run() {
             transport_probe::probe_prepare,
             transport_probe::probe_cancel,
             transport_probe::probe_execute,
+            transport_probe::probe_faults,
             transport_probe::probe_info
         ]);
     #[cfg(not(feature = "native-transport-experiment"))]

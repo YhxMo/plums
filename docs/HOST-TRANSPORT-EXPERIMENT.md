@@ -25,3 +25,5 @@ Host 自动注入 owner 仅保障公开调用路径；共享 WebView 可直接�
 独立作者的 `author-echo-probe.mjs` 提供 probe.alpha.echo 服务，消费者通过 ctx.use 获取。生命周期控制全部使用 Host 管理方法；测试观察者另用 probe.beta 读取计数/提交报告，不参与业务请求。载荷 owner 拒绝用例直接调用 Platform 入口以检测边界，业务成功和在途生命周期均经独立扩展公开接口。
 
 复用 [原生实验构建流程](NATIVE-TRANSPORT-EXPERIMENT.md)，测试前端 root 改为 tests/host-transport、输出为 `.cache/host-transport/dist`；Mac 测试标识 dev.plums.plums.hosttransportprobe，名称 Plums Host Transport Probe。最终两端顺序运行，避免服务计数相互干扰。实验产物在 `.cache/host-transport/artifacts/`；普通 release 未变，生成工程输出仍可能是实验包，不能作为普通更新。
+
+后续 [原生异常回执实验](TRANSPORT-FAULT-EXPERIMENT.md)已覆盖上述未知回执与取消失败，并加入未执行预约租期。此前阶段结论保留其原版本范围；新的回收保证仅为后续原生命令触发，不是后台准时释放。
