@@ -69,7 +69,7 @@ export function restoreAgents(value: unknown): Agent[] {
           (m) =>
             object(m) &&
             text(m.id) &&
-            ["user", "agent"].includes(String(m.role)) &&
+            (m.role === "user" || m.role === "agent") &&
             text(m.text, 32000),
         )
       )

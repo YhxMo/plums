@@ -19,8 +19,8 @@ const document = {
   files,
 };
 mkdirSync("evidence", { recursive: true });
-writeFileSync(
-  "evidence/source-manifest.json",
-  JSON.stringify(document, null, 2) + "\n",
+const path = `evidence/source-manifest-${sha256}.json`;
+writeFileSync(path, JSON.stringify(document, null, 2) + "\n", { flag: "wx" });
+console.log(
+  JSON.stringify({ path, sha256, fileCount: Object.keys(files).length }),
 );
-console.log(JSON.stringify({ sha256, fileCount: Object.keys(files).length }));

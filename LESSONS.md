@@ -17,3 +17,5 @@
 | 依赖失效须覆盖组合与同步重入 | [传播回归](tests/dependency-invalidation.test.ts) 和 [重入回归](tests/abort-reentrancy.test.ts) 覆盖链式/菱形依赖、相互取消通知、排队及清理失败；abort 监听器同步执行，尚未取消的信号不足以表示可继续工作 | 在外部回调前关闭整个受影响图的工作入口，再通知取消和清理；所有 SDK 入口使用一致边界，保留激活正例与失败诊断，不依赖取消遍历顺序 |
 | 弹窗返回焦点须绑定发起控件 | macOS WebKit 的指针点击不保证按钮成为 `activeElement`，仅读取活动元素导致取消后焦点丢失；[应用流程回归](tests/web/application-flow.spec.ts) 用非聚焦激活复现 | 从事件显式传入 `currentTarget`，取消和 Escape 关闭后返回该控件；分别核对键盘与原生指针路径 |
 | 代码生成输出归属当前工作副本 | Android 构建共用旧工程的 Rust target 时，Tauri Kotlin 生成路径仍引用旧目录，导致缺少 `TauriActivity`；使用本项目 target 后构建通过 | 共享工具链与下载缓存，将带包名/路径的 target 输出留在本工作副本，见 [Android 工程](docs/ANDROID.md) |
+| 持久化枚举按原始类型校验 | 数组角色经 String 转换通过后与 UI 严格比较不一致；[恢复回归](tests/restore-role.test.ts) 覆盖拒绝与合法归属 | 不将类型转换当作输入验证，坏值拒绝且保留原件 |
+| 历史证据使用不可覆盖的输出 | 固定快照文件名会改变历史报告绑定；[快照回归](tests/snapshot.test.ts) 在临时目录验证 | 内容摘要命名并排他创建，保留历史引用，重复执行明确拒绝 |
