@@ -10,7 +10,7 @@
 
 已执行的测试、源码摘要、平台覆盖与限制见 [M1 证据](evidence/RESULTS.md)。当前受验版本、独立审查与两端运行范围按证据分别记录。Android 真机、iOS、Windows、Linux 及完整 A11/A12 尚未验收，iOS 继续暂缓。
 
-M1 已按 Mac＋Android 限定风险实验范围收敛；iOS 最小验证移至接口正式稳定前，五端目标保留。实验作者可从 [SDK 作者入口](docs/SDK-AUTHORING.md)运行服务、非聊天界面与无 UI 事件样板。当前管理卸载 API 仅供宿主集成，外壳完整卸载流程和原生验证待补。
+M1 已按 Mac＋Android 限定风险实验范围收敛；iOS 最小验证移至接口正式稳定前，五端目标保留。实验作者可从 [SDK 作者入口](docs/SDK-AUTHORING.md)运行服务、非聊天界面与无 UI 事件样板。扩展管理支持手动安装项的“卸载（保留数据）”，两端限定原生结果见 [卸载验收](evidence/UNINSTALL-2026-10-15.md)。
 
 ## 快速开始（Quick Start）
 
@@ -40,7 +40,7 @@ Android 复用既有 YHX 工具链。将 `PLUMS_ANDROID_TOOLS_ROOT` 设置为含
 
 图标源为 `src-tauri/icons/source.png`；执行 `npm run icons` 可重新生成 Mac、Android 和 Web 所需资源。默认界面与可替换布局共用语义颜色变量，所有权见 [UI](docs/UI.md)。
 
-本地查看包统一放在根 `release/`，当前为 `Plums M1 0.0.4.app` 和 `plums-m1-0.0.4-android-arm64-debug.apk`；使用范围与摘要见该目录的 `README.md`、`CHECKSUMS.json`。当前普通包包含严格消息角色恢复校验及此前修复，源码以 `e6221ee` 基线加 102 文件集合摘要绑定，见 [最新修复与交付证据](evidence/RESTORE-EVIDENCE-2026-10-15.md)。目录名不代表发布模式构建。
+本地查看包统一放在根 `release/`，当前为 `Plums M1 0.0.4.app` 和 `plums-m1-0.0.4-android-arm64-debug.apk`；使用范围与摘要见该目录的 `README.md`、`CHECKSUMS.json`。当前普通包包含 SDK 样板和完整外壳卸载流程，源码以 `80d77af` 基线加 114 文件集合摘要绑定，见 [卸载与交付证据](evidence/UNINSTALL-2026-10-15.md)。目录名不代表发布模式构建。
 
 ## 文档索引
 

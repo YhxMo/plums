@@ -7,6 +7,7 @@ import {
 } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { Host, loadExtension } from "../modules/extension-host/host";
+import { uninstallImport } from "../modules/shell/uninstall";
 import type { StoredState } from "../modules/sdk";
 import { PlatformAdapter } from "./platform";
 import styles from "./App.module.css";
@@ -244,6 +245,9 @@ function Workbench({ runtime }: { runtime: Runtime }) {
   const [diagnostics, setDiagnostics] = useState(false);
   const [install, setInstall] = useState(false);
   const installTrigger = useRef<HTMLElement | null>(null);
+  const [removal, setRemoval] = useState<string | null>(null);
+  const removalTrigger = useRef<HTMLElement | null>(null);
+  const removed = useRef(false);
   const [moduleUrl, setModuleUrl] = useState("");
   const [moduleId, setModuleId] = useState("");
   useEffect(() => {
@@ -259,6 +263,12 @@ function Workbench({ runtime }: { runtime: Runtime }) {
   const managerButton = useRef<HTMLButtonElement>(null);
   const managerHeading = useRef<HTMLHeadingElement>(null);
   const slot = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!removal && removed.current) {
+      removed.current = false;
+      managerHeading.current?.focus();
+    }
+  }, [removal]);
   const [failedViews, setFailedViews] = useState<Record<string, number>>({});
   const recovering = useRef<string | null>(null);
   const views = host
@@ -600,93 +610,109 @@ function Workbench({ runtime }: { runtime: Runtime }) {
                 </button>
               </article>
             ))}
-            {catalog.map((entry) => {
-              const { id } = entry;
-              const state = host.inspect(id);
-              const manifest = host.manifest(id);
-              const capabilities = manifest.capabilities ?? [];
-              return (
-                <article key={id}>
-                  <div className={styles.extensionTitle}>
-                    <strong>{entry.label}</strong>
-                    <span
-                      className={`${styles.status} ${state.status === "active" ? styles.active : ""}`}
-                    >
-                      {translateStatus(state.status)}
-                    </span>
-                  </div>
-                  <code>
-                    {id} · {manifest.version}
-                  </code>
-                  {state.error && <p className="error">{state.error}</p>}
-                  <p className={styles.resourceCount}>
-                    {state.resources} 项资源 · {state.tasks} 个在途任务
-                  </p>
-                  <div className={styles.extensionActions}>
-                    <details>
-                      <summary>扩展详情</summary>
-                      <dl>
-                        <dt>模块位置</dt>
-                        <dd>{entry.url}</dd>
-                        <dt>能力</dt>
-                        <dd>
-                          {capabilities.length
-                            ? capabilities.map(capabilityLabel).join("、")
-                            : "无需原生能力"}
-                        </dd>
-                        <dt>依赖服务</dt>
-                        <dd>
-                          {Object.entries(manifest.requires ?? {})
-                            .map(([name, version]) => `${name}@${version}`)
-                            .join("、") || "无"}
-                        </dd>
-                        <dt>提供服务</dt>
-                        <dd>
-                          {Object.entries(manifest.provides ?? {})
-                            .map(([name, version]) => `${name}@${version}`)
-                            .join("、") || "无"}
-                        </dd>
-                      </dl>
-                    </details>
-                    <button
-                      className="secondary"
-                      aria-label={`${state.status === "active" ? "停用" : "启用"} ${id}`}
-                      disabled={
-                        busy ||
-                        state.status === "cleanup-failed" ||
-                        state.status === "stopping"
-                      }
-                      onClick={(event) => {
-                        if (state.status === "active")
-                          void operate(() => host.stop(id));
-                        else if (capabilities.length)
-                          requestAuthorization(
-                            [id],
-                            async () => {
-                              await host.grant(id, capabilities);
+            {catalog
+              .filter((entry) => host.ids().includes(entry.id))
+              .map((entry) => {
+                const { id } = entry;
+                const state = host.inspect(id);
+                const manifest = host.manifest(id);
+                const capabilities = manifest.capabilities ?? [];
+                return (
+                  <article key={id}>
+                    <div className={styles.extensionTitle}>
+                      <strong>{entry.label}</strong>
+                      <span
+                        className={`${styles.status} ${state.status === "active" ? styles.active : ""}`}
+                      >
+                        {translateStatus(state.status)}
+                      </span>
+                    </div>
+                    <code>
+                      {id} · {manifest.version}
+                    </code>
+                    {state.error && <p className="error">{state.error}</p>}
+                    <p className={styles.resourceCount}>
+                      {state.resources} 项资源 · {state.tasks} 个在途任务
+                    </p>
+                    <div className={styles.extensionActions}>
+                      {runtime.imports.some((item) => item.id === id) && (
+                        <button
+                          className="secondary"
+                          disabled={busy}
+                          aria-label={`卸载 ${id}`}
+                          onClick={(event) => {
+                            removalTrigger.current = event.currentTarget;
+                            setError("");
+                            setRemoval(id);
+                          }}
+                        >
+                          卸载（保留数据）
+                        </button>
+                      )}
+                      <details>
+                        <summary>扩展详情</summary>
+                        <dl>
+                          <dt>模块位置</dt>
+                          <dd>{entry.url}</dd>
+                          <dt>能力</dt>
+                          <dd>
+                            {capabilities.length
+                              ? capabilities.map(capabilityLabel).join("、")
+                              : "无需原生能力"}
+                          </dd>
+                          <dt>依赖服务</dt>
+                          <dd>
+                            {Object.entries(manifest.requires ?? {})
+                              .map(([name, version]) => `${name}@${version}`)
+                              .join("、") || "无"}
+                          </dd>
+                          <dt>提供服务</dt>
+                          <dd>
+                            {Object.entries(manifest.provides ?? {})
+                              .map(([name, version]) => `${name}@${version}`)
+                              .join("、") || "无"}
+                          </dd>
+                        </dl>
+                      </details>
+                      <button
+                        className="secondary"
+                        aria-label={`${state.status === "active" ? "停用" : "启用"} ${id}`}
+                        disabled={
+                          busy ||
+                          state.status === "cleanup-failed" ||
+                          state.status === "stopping"
+                        }
+                        onClick={(event) => {
+                          if (state.status === "active")
+                            void operate(() => host.stop(id));
+                          else if (capabilities.length)
+                            requestAuthorization(
+                              [id],
+                              async () => {
+                                await host.grant(id, capabilities);
+                                await enableExtension(id);
+                              },
+                              event.currentTarget,
+                            );
+                          else
+                            void operate(async () => {
                               await enableExtension(id);
-                            },
-                            event.currentTarget,
-                          );
-                        else
-                          void operate(async () => {
-                            await enableExtension(id);
-                          });
-                      }}
-                    >
-                      {state.status === "active"
-                        ? "停用"
-                        : state.status === "waiting"
-                          ? "恢复"
-                          : "启用"}
-                    </button>
-                  </div>
-                  {state.status === "cleanup-failed" && (
-                    <p className="error">请重新启动应用以恢复此扩展。</p>
-                  )}
-                </article>
-              );
-            })}
+                            });
+                        }}
+                      >
+                        {state.status === "active"
+                          ? "停用"
+                          : state.status === "waiting"
+                            ? "恢复"
+                            : "启用"}
+                      </button>
+                    </div>
+                    {state.status === "cleanup-failed" && (
+                      <p className="error">请重新启动应用以恢复此扩展。</p>
+                    )}
+                  </article>
+                );
+              })}
           </div>
           <details
             className={styles.diagnostics}
@@ -904,6 +930,60 @@ function Workbench({ runtime }: { runtime: Runtime }) {
               )}
             </div>
           )}
+        </Dialog>
+      )}
+      {removal && (
+        <Dialog
+          title="卸载扩展"
+          returnFocusTo={removalTrigger.current}
+          onClose={() => {
+            if (!busy) setRemoval(null);
+          }}
+        >
+          <div className="dialog-content">
+            <p>卸载 {removal}？扩展会先停用，依赖它的扩展将等待服务恢复。</p>
+            <p>
+              保留已保存的数据和模块文件，仅移除安装路径与授权；下次启动不会自动加载。同
+              ID 重装后需重新授权。
+            </p>
+            {error && (
+              <p className="error" role="alert">
+                卸载未完成：{error}
+                。扩展可能已停用；可重试，保存回执不明时请重新加载确认。
+              </p>
+            )}
+          </div>
+          <footer className="dialog-actions">
+            <button
+              className="secondary"
+              disabled={busy}
+              onClick={() => setRemoval(null)}
+            >
+              取消
+            </button>
+            <button
+              disabled={busy}
+              onClick={() =>
+                void operate(async () => {
+                  const id = removal;
+                  const imports = await uninstallImport(
+                    host,
+                    id,
+                    runtime.imports,
+                    (imports) => runtime.save({ imports }),
+                  );
+                  runtime.imports = imports;
+                  const index = catalog.findIndex((entry) => entry.id === id);
+                  if (index !== -1) catalog.splice(index, 1);
+                  removed.current = true;
+                  setRemoval(null);
+                  setNotice("扩展已卸载，已保存的数据和模块文件已保留。");
+                })
+              }
+            >
+              保留数据并卸载
+            </button>
+          </footer>
         </Dialog>
       )}
       {install && (
