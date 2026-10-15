@@ -7,19 +7,35 @@ import styles from "./App.module.css";
 type Runtime = {
   host: Host;
   adapter: PlatformAdapter;
-  labels: Record<string, string>;
+  catalog: { id: string; url: string; label: string }[];
   layout: string;
   revision: number;
 };
+type Authorization = { ids: string[]; run: () => Promise<void> };
 const errorMessage = (error: unknown) =>
   error instanceof Error ? error.message : String(error);
+const capabilityLabel = (capability: string) =>
+  ({
+    "state.read": "读取隔离状态",
+    "state.write": "写入隔离状态",
+    "platform.info": "查看平台信息",
+  })[capability] ?? capability;
+const translateStatus = (status: string) =>
+  ({
+    disabled: "已停用",
+    active: "运行中",
+    stopping: "停用中",
+    waiting: "等待条件",
+    failed: "激活失败",
+    "cleanup-failed": "清理未完成",
+  })[status] ?? status;
+
 async function boot(): Promise<Runtime> {
   const adapter = new PlatformAdapter();
   const host = new Host(adapter);
   const response = await fetch("/catalog.json");
   if (!response.ok) throw new Error("扩展目录读取失败");
-  const catalog: { id: string; url: string; label: string }[] =
-    await response.json();
+  const catalog: Runtime["catalog"] = await response.json();
   for (const entry of catalog)
     host.install(
       await loadExtension(new URL(entry.url, location.href).href, entry.id),
@@ -37,7 +53,7 @@ async function boot(): Promise<Runtime> {
   return {
     host,
     adapter,
-    labels: Object.fromEntries(catalog.map((entry) => [entry.id, entry.label])),
+    catalog,
     layout: typeof value?.layout === "string" ? value.layout : "default",
     revision: saved?.revision ?? 0,
   };
@@ -63,7 +79,7 @@ export function App() {
     return (
       <main className={styles.loading}>
         <span className={styles.logo}>P</span>
-        <h1>Plums 扩展实验室</h1>
+        <h1>Plums</h1>
         <p role={error ? "alert" : "status"}>{error || "正在读取本地扩展…"}</p>
         {error && <button onClick={() => location.reload()}>重新加载</button>}
       </main>
@@ -72,15 +88,22 @@ export function App() {
 }
 
 function Workbench({ runtime }: { runtime: Runtime }) {
-  const { host, adapter } = runtime;
+  const { host, adapter, catalog } = runtime;
   useSyncExternalStore(host.subscribe, host.snapshot);
   const [selected, setSelected] = useState(runtime.layout);
   const [started, setStarted] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
-  const [showExtensions, setShowExtensions] = useState(true);
+  const [showExtensions, setShowExtensions] = useState(false);
   const [fault, setFault] = useState(false);
+  const [authorization, setAuthorization] = useState<Authorization | null>(
+    null,
+  );
+  const dialog = useRef<HTMLDialogElement>(null);
+  const trigger = useRef<HTMLElement | null>(null);
+  const managerButton = useRef<HTMLButtonElement>(null);
+  const managerHeading = useRef<HTMLHeadingElement>(null);
   const slot = useRef<HTMLDivElement>(null);
   const [failedViews, setFailedViews] = useState<Record<string, number>>({});
   const recovering = useRef<string | null>(null);
@@ -92,6 +115,19 @@ function Workbench({ runtime }: { runtime: Runtime }) {
     views.find((view) => view.id === "default")?.id ??
     views[0]?.id;
   const generation = views.find((view) => view.id === activeView)?.generation;
+  const states = host.ids().map((id) => host.inspect(id));
+  const activeCount = states.filter(
+    (state) => state.status === "active",
+  ).length;
+  const taskCount = states.reduce((total, state) => total + state.tasks, 0);
+
+  useEffect(() => {
+    if (showExtensions) managerHeading.current?.focus();
+  }, [showExtensions]);
+
+  useEffect(() => {
+    if (authorization) dialog.current?.showModal();
+  }, [authorization]);
 
   useEffect(() => {
     const root = slot.current;
@@ -127,7 +163,7 @@ function Workbench({ runtime }: { runtime: Runtime }) {
       }));
       setSelected("default");
     }
-  }, [host, activeView, generation, started]);
+  }, [host, activeView, generation]);
 
   async function operate(action: () => Promise<void>) {
     setBusy(true);
@@ -141,6 +177,21 @@ function Workbench({ runtime }: { runtime: Runtime }) {
       setBusy(false);
     }
   }
+  function requestAuthorization(
+    ids: string[],
+    run: () => Promise<void>,
+    source: HTMLElement,
+  ) {
+    trigger.current = source;
+    setAuthorization({ ids, run });
+  }
+  function closeAuthorization() {
+    dialog.current?.close();
+  }
+  function toggleManager(open: boolean) {
+    setShowExtensions(open);
+    if (!open) managerButton.current?.focus();
+  }
   async function start() {
     await host.grant("workbench", ["state.read", "state.write"]);
     await host.start("workbench");
@@ -152,7 +203,6 @@ function Workbench({ runtime }: { runtime: Runtime }) {
     if (host.inspect("transform.reverse").status !== "active")
       await host.start("transform.upper");
     setStarted(true);
-    setNotice("实验组合已启用；权限仅用于本应用隔离实验状态。");
   }
   async function selectLayout(layout: string) {
     setSelected(layout);
@@ -163,171 +213,199 @@ function Workbench({ runtime }: { runtime: Runtime }) {
     runtime.revision = saved.revision;
   }
   const writeDenied = host.inspect("workbench").status === "waiting" && started;
-  const translateStatus = (status: string) =>
-    ({
-      disabled: "已停用",
-      active: "运行中",
-      stopping: "停用中",
-      waiting: "等待条件",
-      failed: "激活失败",
-      "cleanup-failed": "清理未完成",
-    })[status] ?? status;
 
   return (
     <div className={styles.app}>
       <header className={styles.header}>
-        <a className={styles.brand} href="#">
+        <div className={styles.brand}>
           <span className={styles.logo}>P</span>
           <strong>Plums</strong>
-          <span className={styles.stage}>M1 / 扩展实验室</span>
-        </a>
+          <span className={styles.stage}>
+            扩展实验室 <b>M1</b>
+          </span>
+        </div>
         <div className={styles.headerRight}>
           <span className={styles.platform}>
-            {adapter.kind === "native"
-              ? "● Rust 原生已连接"
-              : "○ 浏览器预览 · 非原生验收"}
+            {adapter.kind === "native" ? "Rust 原生" : "浏览器预览"}
           </span>
           <button
-            className="secondary"
+            ref={managerButton}
+            className={showExtensions ? "selected secondary" : "secondary"}
             aria-expanded={showExtensions}
-            onClick={() => setShowExtensions(!showExtensions)}
+            aria-controls="extension-manager"
+            onClick={() => toggleManager(!showExtensions)}
           >
             扩展管理
           </button>
         </div>
       </header>
-      <section className={styles.toolbar} aria-label="实验控制">
-        <div className={styles.layoutSwitch}>
-          <label htmlFor="layout">界面布局</label>
-          <select
-            id="layout"
-            value={activeView ?? ""}
-            disabled={!started || busy || !views.length}
-            onChange={(event) =>
-              void operate(() => selectLayout(event.target.value))
-            }
-          >
-            {!views.length && <option value="">尚未启用</option>}
-            {views.map((view) => (
-              <option key={view.id} value={view.id}>
-                {view.label}
-              </option>
-            ))}
-          </select>
-        </div>
-        <div className={styles.controls}>
-          <button
-            className="secondary"
-            disabled={!started || busy}
-            onClick={() =>
-              void operate(async () => {
-                const upper =
-                  host.inspect("transform.upper").status === "active";
-                await host.stop(
-                  upper ? "transform.upper" : "transform.reverse",
-                );
-                await host.start(
-                  upper ? "transform.reverse" : "transform.upper",
-                );
-                setNotice("已通过相同服务契约替换提供者。");
-              })
-            }
-          >
-            替换服务
-          </button>
-          <button
-            className="secondary"
-            disabled={!activeView || busy}
-            onClick={() =>
-              void operate(async () => {
-                const owner = host
-                  .views()
-                  .find((view) => view.id === activeView)!.owner;
-                await host.stop(owner);
-                setSelected("default");
-                setNotice("当前布局已停用；使用可用布局回退。");
-              })
-            }
-          >
-            停用当前布局
-          </button>
-          <button
-            className="secondary"
-            disabled={!started || busy}
-            onClick={() =>
-              void operate(async () => {
-                await host.start("ui.broken");
-                setSelected("broken");
-              })
-            }
-          >
-            测试故障布局
-          </button>
-        </div>
-      </section>
       {(error || notice) && (
         <div
-          className={error ? styles.error : styles.notice}
+          className={`${styles.feedback} ${error ? styles.error : styles.notice}`}
           role={error ? "alert" : "status"}
         >
-          {error || notice}
+          <span>{error || notice}</span>
+          <button
+            className="secondary"
+            aria-label="关闭提示"
+            onClick={() => {
+              setError("");
+              setNotice("");
+            }}
+          >
+            ×
+          </button>
         </div>
       )}
-      <div className={styles.body}>
-        <div className={styles.stageArea}>
+      <div className={styles.body} data-inspecting={showExtensions}>
+        <div className={styles.stageArea} data-workspace>
+          {(started || views.length > 0) && (
+            <section className={styles.toolbar} aria-label="工作区控制">
+              <div className={styles.layoutSwitch}>
+                <label htmlFor="layout">工作区</label>
+                <select
+                  id="layout"
+                  aria-label="界面布局"
+                  value={activeView ?? ""}
+                  disabled={busy || !views.length}
+                  onChange={(event) =>
+                    void operate(() => selectLayout(event.target.value))
+                  }
+                >
+                  {!views.length && <option value="">尚未启用</option>}
+                  {views.map((view) => (
+                    <option key={view.id} value={view.id}>
+                      {view.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <span className={styles.runtimeStatus} role="status">
+                {activeCount} 个扩展运行中 · {taskCount} 个任务
+              </span>
+            </section>
+          )}
           {!activeView && (
             <main className={styles.welcome}>
-              <span className="eyebrow">COMPOSE YOUR POSSIBILITIES</span>
+              <span className={styles.welcomeMark} aria-hidden="true">
+                P<span>＋</span>
+              </span>
+              <span className="eyebrow">你的本地工作空间</span>
               <h1>
                 {started ? "扩展正在等待条件。" : "从一个可替换的界面开始。"}
               </h1>
               <p>
-                服务、业务与布局分别由独立模块提供。这个实验只处理本地示例文本，不连接模型或外部账户。
+                {started
+                  ? "查看扩展状态以恢复依赖，或重新启用默认组合。已保存的数据会在恢复时读取。"
+                  : "服务处理输入，布局呈现结果。先查看扩展，再授权启动你的第一个组合。"}
               </p>
-              <div className={styles.permission}>
-                <strong>本次需要的能力</strong>
-                <p>
-                  文本工作台：读取、写入本应用的隔离实验状态。可信扩展共享运行环境，不具备恶意代码安全隔离。
-                </p>
+              <ol className={styles.steps}>
+                <li>
+                  <b>1</b>查看扩展
+                </li>
+                <li>
+                  <b>2</b>确认授权
+                </li>
+                <li>
+                  <b>3</b>运行与保存
+                </li>
+              </ol>
+              <div className={styles.welcomeActions}>
+                <button
+                  disabled={busy}
+                  onClick={(event) =>
+                    requestAuthorization(
+                      ["workbench"],
+                      start,
+                      event.currentTarget,
+                    )
+                  }
+                >
+                  {started ? "恢复权限与默认界面" : "授予实验能力并启动"}
+                </button>
+                <button
+                  className="secondary"
+                  onClick={() => toggleManager(true)}
+                >
+                  查看本地扩展
+                </button>
               </div>
-              <button disabled={busy} onClick={() => void operate(start)}>
-                {started ? "恢复权限与默认界面" : "授予实验能力并启动"}
-              </button>
+              <p className={styles.welcomeHint}>
+                默认组合：文本工作台、大写服务、工作台与画布布局。只处理本地示例文本。
+              </p>
             </main>
           )}
-          <div ref={slot} hidden={!activeView} />
+          <div ref={slot} hidden={!activeView} className={styles.viewSlot} />
         </div>
-        {showExtensions && (
-          <aside className={styles.inspector} aria-label="扩展管理">
-            <div className={styles.inspectorHeading}>
-              <span className="eyebrow">EXTENSIONS</span>
-              <h2>组合与状态</h2>
+        <aside
+          id="extension-manager"
+          hidden={!showExtensions}
+          className={styles.inspector}
+          aria-label="扩展管理"
+        >
+          <div className={styles.inspectorHeading}>
+            <div>
+              <span className="eyebrow">本地扩展 · {catalog.length}</span>
+              <h2 ref={managerHeading} tabIndex={-1}>
+                扩展与状态
+              </h2>
             </div>
-            <div className={styles.extensions}>
-              {host.ids().map((id) => {
-                const state = host.inspect(id);
-                return (
-                  <article key={id}>
-                    <div>
-                      <strong>{runtime.labels[id]}</strong>
-                      <span
-                        className={`${styles.status} ${state.status === "active" ? styles.active : ""}`}
-                      >
-                        {translateStatus(state.status)}
-                      </span>
-                    </div>
-                    <code>
-                      {id} · {host.manifest(id).version}
-                    </code>
-                    {state.error && <p>{state.error}</p>}
-                    <small>
-                      {state.resources} 项资源 · {state.tasks} 个在途任务
-                    </small>
-                    <small>
-                      能力：
-                      {host.manifest(id).capabilities?.join(", ") ||
-                        "无原生能力"}
-                    </small>
+            <button className="secondary" onClick={() => toggleManager(false)}>
+              返回工作区
+            </button>
+          </div>
+          <p className={styles.managerHint}>
+            检查模块与所需能力；停用后保留已保存的数据。
+          </p>
+          <div className={styles.extensions}>
+            {catalog.map((entry) => {
+              const { id } = entry;
+              const state = host.inspect(id);
+              const manifest = host.manifest(id);
+              const capabilities = manifest.capabilities ?? [];
+              return (
+                <article key={id}>
+                  <div className={styles.extensionTitle}>
+                    <strong>{entry.label}</strong>
+                    <span
+                      className={`${styles.status} ${state.status === "active" ? styles.active : ""}`}
+                    >
+                      {translateStatus(state.status)}
+                    </span>
+                  </div>
+                  <code>
+                    {id} · {manifest.version}
+                  </code>
+                  {state.error && <p className="error">{state.error}</p>}
+                  <p className={styles.resourceCount}>
+                    {state.resources} 项资源 · {state.tasks} 个在途任务
+                  </p>
+                  <div className={styles.extensionActions}>
+                    <details>
+                      <summary>扩展详情</summary>
+                      <dl>
+                        <dt>模块位置</dt>
+                        <dd>{entry.url}</dd>
+                        <dt>能力</dt>
+                        <dd>
+                          {capabilities.length
+                            ? capabilities.map(capabilityLabel).join("、")
+                            : "无需原生能力"}
+                        </dd>
+                        <dt>依赖服务</dt>
+                        <dd>
+                          {Object.entries(manifest.requires ?? {})
+                            .map(([name, version]) => `${name}@${version}`)
+                            .join("、") || "无"}
+                        </dd>
+                        <dt>提供服务</dt>
+                        <dd>
+                          {Object.entries(manifest.provides ?? {})
+                            .map(([name, version]) => `${name}@${version}`)
+                            .join("、") || "无"}
+                        </dd>
+                      </dl>
+                    </details>
                     <button
                       className="secondary"
                       aria-label={`${state.status === "active" ? "停用" : "启用"} ${id}`}
@@ -336,45 +414,106 @@ function Workbench({ runtime }: { runtime: Runtime }) {
                         state.status === "cleanup-failed" ||
                         state.status === "stopping"
                       }
-                      onClick={() =>
-                        void operate(async () => {
-                          if (state.status === "active") await host.stop(id);
-                          else {
-                            await host.grant(
-                              id,
-                              host.manifest(id).capabilities ?? [],
-                            );
-                            await host.start(id);
-                          }
-                        })
-                      }
+                      onClick={(event) => {
+                        if (state.status === "active")
+                          void operate(() => host.stop(id));
+                        else if (capabilities.length)
+                          requestAuthorization(
+                            [id],
+                            async () => {
+                              await host.grant(id, capabilities);
+                              await host.start(id);
+                            },
+                            event.currentTarget,
+                          );
+                        else void operate(() => host.start(id));
+                      }}
                     >
-                      {state.status === "active" ? "停用" : "启用"}
+                      {state.status === "active"
+                        ? "停用"
+                        : state.status === "waiting"
+                          ? "恢复"
+                          : "启用"}
                     </button>
-                  </article>
-                );
-              })}
-            </div>
-            <div className={styles.faultControls}>
-              <h3>失败路径实验</h3>
+                  </div>
+                  {state.status === "cleanup-failed" && (
+                    <p className="error">请重新启动应用以恢复此扩展。</p>
+                  )}
+                </article>
+              );
+            })}
+          </div>
+          <details className={styles.diagnostics}>
+            <summary>诊断与实验</summary>
+            <div className={styles.diagnosticActions}>
               <button
                 className="secondary"
                 disabled={!started || busy}
                 onClick={() =>
                   void operate(async () => {
-                    await host.grant(
-                      "workbench",
-                      writeDenied
-                        ? ["state.read", "state.write"]
-                        : ["state.read"],
+                    const upper =
+                      host.inspect("transform.upper").status === "active";
+                    await host.stop(
+                      upper ? "transform.upper" : "transform.reverse",
                     );
-                    setNotice(
-                      writeDenied
-                        ? "已恢复状态写入能力。"
-                        : "已撤销写入能力，依赖方进入等待。",
+                    await host.start(
+                      upper ? "transform.reverse" : "transform.upper",
                     );
+                    setNotice("服务已替换，工作台已重新连接。");
                   })
                 }
+              >
+                替换服务
+              </button>
+              <button
+                className="secondary"
+                disabled={!activeView || busy}
+                onClick={() =>
+                  void operate(async () => {
+                    const owner = host
+                      .views()
+                      .find((view) => view.id === activeView)!.owner;
+                    await host.stop(owner);
+                    setSelected("default");
+                    setNotice("布局已停用，已选择可用界面。");
+                  })
+                }
+              >
+                停用当前布局
+              </button>
+              <button
+                className="secondary"
+                disabled={!started || busy}
+                onClick={() =>
+                  void operate(async () => {
+                    await host.start("ui.broken");
+                    setSelected("broken");
+                  })
+                }
+              >
+                测试故障布局
+              </button>
+              <button
+                className="secondary"
+                disabled={!started || busy}
+                onClick={(event) => {
+                  if (writeDenied)
+                    requestAuthorization(
+                      ["workbench"],
+                      async () => {
+                        await host.grant("workbench", [
+                          "state.read",
+                          "state.write",
+                        ]);
+                      },
+                      event.currentTarget,
+                    );
+                  else
+                    void operate(async () => {
+                      await host.grant("workbench", ["state.read"]);
+                      setNotice("写入能力已撤销，工作台等待重新授权。");
+                    });
+                }}
               >
                 {writeDenied ? "恢复状态写入" : "撤销状态写入"}
               </button>
@@ -389,17 +528,87 @@ function Workbench({ runtime }: { runtime: Runtime }) {
                 />
                 注入存储写入失败
               </label>
-              <p>
-                故障注入用于检查错误反馈与数据保留，不代表已验证操作系统权限。
-              </p>
+              <p>故障注入只用于本应用实验，不代表操作系统授权。</p>
             </div>
-          </aside>
-        )}
+          </details>
+        </aside>
       </div>
       <footer className={styles.footer}>
-        <span>本地 ESM 扩展 · 实验契约 v1</span>
-        <span>移动端与其他桌面平台尚未验证</span>
+        <span>本地 ESM · 实验契约 v1</span>
+        <span>
+          {adapter.kind === "browser"
+            ? "浏览器预览 · 非原生验收"
+            : "M1 调试原型"}
+        </span>
       </footer>
+      <dialog
+        ref={dialog}
+        className={styles.authorization}
+        aria-labelledby="authorization-title"
+        onKeyDown={(event) => {
+          if (event.key !== "Tab") return;
+          const buttons = event.currentTarget.querySelectorAll("button");
+          const first = buttons[0];
+          const last = buttons[buttons.length - 1];
+          if (event.shiftKey && document.activeElement === first) {
+            event.preventDefault();
+            last?.focus();
+          } else if (!event.shiftKey && document.activeElement === last) {
+            event.preventDefault();
+            first?.focus();
+          }
+        }}
+        onClose={() => {
+          setAuthorization(null);
+          trigger.current?.focus();
+        }}
+      >
+        {authorization && (
+          <>
+            <span className="eyebrow">应用内能力授权</span>
+            <h2 id="authorization-title">授权并启动扩展</h2>
+            <p>以下扩展请求使用列出的应用能力。</p>
+            <div className={styles.permissionList}>
+              {authorization.ids.map((id) => (
+                <section key={id}>
+                  <strong>
+                    {catalog.find((entry) => entry.id === id)?.label ?? id}
+                  </strong>
+                  <code>
+                    {id} · {host.manifest(id).version}
+                  </code>
+                  <ul>
+                    {host.manifest(id).capabilities?.map((capability) => (
+                      <li key={capability}>{capabilityLabel(capability)}</li>
+                    ))}
+                  </ul>
+                </section>
+              ))}
+            </div>
+            <p className={styles.trustNote}>
+              可信扩展共享运行环境。授权约束公开契约调用，不构成恶意代码安全沙箱。
+            </p>
+            <div className={styles.dialogActions}>
+              <button
+                className="secondary"
+                autoFocus
+                onClick={closeAuthorization}
+              >
+                暂不授权
+              </button>
+              <button
+                onClick={() => {
+                  const action = authorization.run;
+                  closeAuthorization();
+                  void operate(action);
+                }}
+              >
+                授权并启动
+              </button>
+            </div>
+          </>
+        )}
+      </dialog>
     </div>
   );
 }

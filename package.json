@@ -1,6 +1,6 @@
 {
   "name": "plums",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "private": true,
   "type": "module",
   "scripts": {
@@ -14,7 +14,10 @@
     "format:check": "prettier --check src modules extensions scripts tests *.json *.ts index.html",
     "native:fmt": "node scripts/cargo.mjs fmt -- --check",
     "check:project": "node scripts/check-project.mjs",
-    "snapshot": "node scripts/snapshot.mjs"
+    "snapshot": "node scripts/snapshot.mjs",
+    "android:init": "node scripts/android.mjs init",
+    "android:prepare": "node scripts/android.mjs prepare",
+    "android:build": "node scripts/android.mjs build"
   },
   "dependencies": {
     "@tauri-apps/api": "2.12.4",

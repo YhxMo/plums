@@ -1,0 +1,113 @@
+import {
+  mkdtempSync,
+  mkdirSync,
+  readFileSync,
+  writeFileSync,
+  rmSync,
+} from "node:fs";
+import { tmpdir } from "node:os";
+import { join, dirname } from "node:path";
+import { afterEach, expect, test } from "vitest";
+import { prepareAndroid } from "../scripts/android-project.mjs";
+
+const roots: string[] = [];
+function fixture() {
+  const root = mkdtempSync(join(tmpdir(), "plums-android-"));
+  roots.push(root);
+  const activity =
+    "src-tauri/gen/android/app/src/main/java/dev/plums/plums/MainActivity.kt";
+  const adapted = readFileSync(
+    new URL("../native/android/MainActivity.kt", import.meta.url),
+    "utf8",
+  );
+  const original = `package dev.plums.plums
+
+import android.os.Bundle
+import androidx.activity.enableEdgeToEdge
+
+class MainActivity : TauriActivity() {
+  override fun onCreate(savedInstanceState: Bundle?) {
+    enableEdgeToEdge()
+    super.onCreate(savedInstanceState)
+  }
+}
+`;
+  const files = {
+    "src-tauri/tauri.conf.json": '{"identifier":"dev.plums.plums"}',
+    "native/android/MainActivity.kt": adapted,
+    [activity]: original,
+    "src-tauri/gen/android/buildSrc/src/main/java/dev/plums/plums/kotlin/BuildTask.kt":
+      'val executable = """node""";\nval args = listOf("tauri", "android", "android-studio-script");\n',
+    "src-tauri/gen/android/app/build.gradle.kts":
+      "android {\n    buildTypes {\n    }\n}\n",
+    "src-tauri/gen/android/gradle.properties": "android.builtInKotlin=false\n",
+    "src-tauri/gen/android/gradle/wrapper/gradle-wrapper.properties":
+      "distributionUrl=https\\://services.gradle.org/distributions/gradle-9.6.1-bin.zip\n",
+  };
+  for (const [name, text] of Object.entries(files)) {
+    mkdirSync(dirname(join(root, name)), { recursive: true });
+    writeFileSync(join(root, name), text);
+  }
+  return { root, activity, original };
+}
+afterEach(() => {
+  for (const root of roots.splice(0)) rmSync(root, { recursive: true });
+});
+
+test("preparation is repeatable and preserves the verified Insets behavior and CLI callback", () => {
+  const { root, activity } = fixture();
+  const paths = prepareAndroid(root, "/toolchain with spaces");
+  const first = paths.map((path) => readFileSync(path, "utf8"));
+  prepareAndroid(root, "/toolchain with spaces");
+  expect(paths.map((path) => readFileSync(path, "utf8"))).toEqual(first);
+  expect(readFileSync(join(root, activity), "utf8")).toContain(
+    "WindowInsetsCompat.Type.ime()",
+  );
+  expect(first.join("\n")).toContain(
+    "../node_modules/@tauri-apps/cli/tauri.js",
+  );
+  expect(first.join("\n")).toContain("file\\:///toolchain%20with%20spaces/");
+});
+
+test("npm-launched initialization still calls the local CLI from the Rust directory", () => {
+  const { root } = fixture();
+  const task = join(
+    root,
+    "src-tauri/gen/android/buildSrc/src/main/java/dev/plums/plums/kotlin/BuildTask.kt",
+  );
+  writeFileSync(
+    task,
+    'val executable = """npm""";\nval args = listOf("run", "--", "tauri", "android", "android-studio-script");\n',
+  );
+  prepareAndroid(root, "/toolchain");
+  expect(readFileSync(task, "utf8")).toContain('val executable = """node""";');
+  expect(readFileSync(task, "utf8")).toContain(
+    'listOf("../node_modules/@tauri-apps/cli/tauri.js", "android", "android-studio-script")',
+  );
+});
+
+test.each(["activity", "callback", "signing", "distribution"] as const)(
+  "unknown %s changes are rejected before any file is overwritten",
+  (changed) => {
+    const { root, activity, original } = fixture();
+    const target = {
+      activity,
+      callback:
+        "src-tauri/gen/android/buildSrc/src/main/java/dev/plums/plums/kotlin/BuildTask.kt",
+      signing: "src-tauri/gen/android/app/build.gradle.kts",
+      distribution:
+        "src-tauri/gen/android/gradle/wrapper/gradle-wrapper.properties",
+    }[changed];
+    writeFileSync(
+      join(root, target),
+      changed === "signing"
+        ? "signingConfigs {}\n    buildTypes {\n"
+        : "unknown template\n",
+    );
+    expect(() => prepareAndroid(root, "/toolchain")).toThrow(
+      /changed|reviewed/,
+    );
+    if (changed !== "activity")
+      expect(readFileSync(join(root, activity), "utf8")).toBe(original);
+  },
+);

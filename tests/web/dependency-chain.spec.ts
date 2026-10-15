@@ -23,6 +23,11 @@ for (const failCleanup of [false, true]) {
     }
     await page.goto("/");
     await page.getByRole("button", { name: "授予实验能力并启动" }).click();
+    await page
+      .getByRole("dialog")
+      .getByRole("button", { name: "授权并启动", exact: true })
+      .click();
+    await page.getByRole("button", { name: "扩展管理", exact: true }).click();
     for (const id of [
       "combo.leaf",
       "combo.middle",

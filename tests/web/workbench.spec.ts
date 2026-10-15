@@ -1,10 +1,28 @@
 import { test, expect, type Page } from "@playwright/test";
+async function manage(page: Page, diagnostics = false) {
+  const button = page.getByRole("button", { name: "扩展管理", exact: true });
+  if ((await button.getAttribute("aria-expanded")) === "false")
+    await button.click();
+  if (
+    diagnostics &&
+    !(await page
+      .locator("details")
+      .filter({ has: page.locator("summary", { hasText: "诊断与实验" }) })
+      .evaluate((node) => node.hasAttribute("open")))
+  )
+    await page.getByText("诊断与实验", { exact: true }).click();
+}
+async function authorize(page: Page) {
+  await page
+    .getByRole("dialog")
+    .getByRole("button", { name: "授权并启动", exact: true })
+    .click();
+}
 async function start(page: Page) {
   await page.goto("/");
   await page.getByRole("button", { name: "授予实验能力并启动" }).click();
-  await expect(
-    page.getByRole("heading", { name: "让扩展开始工作。" }),
-  ).toBeVisible();
+  await authorize(page);
+  await expect(page.getByRole("heading", { name: "文本工作台" })).toBeVisible();
 }
 async function run(page: Page, input: string, output: string) {
   await page.getByRole("textbox", { name: "待处理文本" }).fill(input);
@@ -23,20 +41,19 @@ test("replaces complete UI and restores persisted state after reload", async ({
   ).toBeVisible();
   await page.reload();
   await page.getByRole("button", { name: "授予实验能力并启动" }).click();
-  await expect(
-    page.getByRole("heading", { name: "把工作铺开。" }),
-  ).toBeVisible();
+  await authorize(page);
+  await expect(page.getByRole("heading", { name: "工作画布" })).toBeVisible();
   await expect(page.locator("[data-output]")).toHaveText("PLUMS");
+  await manage(page, true);
   await page.getByRole("button", { name: "停用当前布局" }).click();
-  await expect(
-    page.getByRole("heading", { name: "让扩展开始工作。" }),
-  ).toBeVisible();
+  await expect(page.getByRole("heading", { name: "文本工作台" })).toBeVisible();
 });
 test("rebinds consumer and remounts a view when the provider changes", async ({
   page,
 }) => {
   await start(page);
   await run(page, "abc", "ABC");
+  await manage(page, true);
   await page.getByRole("button", { name: "替换服务" }).click();
   await expect(page.locator("[data-provider]")).toHaveText("Reverse");
   await run(page, "abc", "cba");
@@ -51,11 +68,13 @@ test("cancel prevents a new result from being persisted", async ({ page }) => {
   await expect(page.locator("[data-output]")).toHaveText("SAVED");
   await page.reload();
   await page.getByRole("button", { name: "授予实验能力并启动" }).click();
+  await authorize(page);
   await expect(page.getByRole("textbox")).toHaveValue("saved");
 });
 test("failed storage preserves prior state and can retry", async ({ page }) => {
   await start(page);
   await run(page, "saved", "SAVED");
+  await manage(page, true);
   await page.getByLabel("注入存储写入失败").check();
   await page.getByRole("textbox").fill("failed");
   await page.getByRole("button", { name: "运行并保存" }).click();
@@ -69,24 +88,25 @@ test("revoking capability suspends consumers, and regrant restores the UI", asyn
 }) => {
   await start(page);
   await run(page, "saved", "SAVED");
+  await manage(page, true);
   await page.getByRole("button", { name: "撤销状态写入", exact: true }).click();
   await expect(
     page.getByRole("heading", { name: "扩展正在等待条件。" }),
   ).toBeVisible();
   await page.getByRole("button", { name: "恢复权限与默认界面" }).click();
+  await authorize(page);
   await expect(page.locator("[data-output]")).toHaveText("SAVED");
 });
 test("broken layout recovers to the working default without losing management", async ({
   page,
 }) => {
   await start(page);
+  await manage(page, true);
   await page.getByRole("button", { name: "测试故障布局" }).click();
   await expect(
     page.getByRole("alert").filter({ hasText: "布局不可用" }),
   ).toBeVisible();
-  await expect(
-    page.getByRole("heading", { name: "让扩展开始工作。" }),
-  ).toBeVisible();
+  await expect(page.getByRole("heading", { name: "文本工作台" })).toBeVisible();
   await expect(
     page.getByRole("button", { name: "扩展管理", exact: true }),
   ).toBeEnabled();
@@ -137,6 +157,7 @@ test("loads and enables an unknown external view through the public catalog and 
     }),
   );
   await start(page);
+  await manage(page);
   await page
     .getByRole("button", { name: "启用 external.view", exact: true })
     .click();
@@ -144,22 +165,20 @@ test("loads and enables an unknown external view through the public catalog and 
   await expect(
     page.getByRole("heading", { name: "独立模块的新交互" }),
   ).toBeVisible();
+  await manage(page, true);
   await page.getByRole("button", { name: "停用当前布局" }).click();
-  await expect(
-    page.getByRole("heading", { name: "让扩展开始工作。" }),
-  ).toBeVisible();
+  await expect(page.getByRole("heading", { name: "文本工作台" })).toBeVisible();
 });
 
 test("a broken layout with no remaining layout exposes a truthful host recovery path", async ({
   page,
 }) => {
   await start(page);
+  await manage(page);
   await page
     .getByRole("button", { name: "停用 ui.default", exact: true })
     .click();
-  await expect(
-    page.getByRole("heading", { name: "把工作铺开。" }),
-  ).toBeVisible();
+  await expect(page.getByRole("heading", { name: "工作画布" })).toBeVisible();
   await page
     .getByRole("button", { name: "停用 ui.board", exact: true })
     .click();
@@ -171,9 +190,8 @@ test("a broken layout with no remaining layout exposes a truthful host recovery 
   ).toBeVisible();
   await expect(page.getByRole("alert")).not.toContainText("已恢复默认界面");
   await page.getByRole("button", { name: "恢复权限与默认界面" }).click();
-  await expect(
-    page.getByRole("heading", { name: "让扩展开始工作。" }),
-  ).toBeVisible();
+  await authorize(page);
+  await expect(page.getByRole("heading", { name: "文本工作台" })).toBeVisible();
 });
 
 test("an async release failure stays visible in the React management path", async ({
@@ -200,15 +218,14 @@ test("an async release failure stays visible in the React management path", asyn
     }),
   );
   await start(page);
+  await manage(page);
   await page
     .getByRole("button", { name: "启用 cleanup.fixture", exact: true })
     .click();
   await page.getByLabel("界面布局").selectOption("cleanup");
   await expect(page.getByText("等待释放", { exact: true })).toBeVisible();
   await page.getByLabel("界面布局").selectOption("default");
-  await expect(
-    page.getByRole("heading", { name: "让扩展开始工作。" }),
-  ).toBeVisible();
+  await expect(page.getByRole("heading", { name: "文本工作台" })).toBeVisible();
   await expect(
     page.locator("article").filter({ hasText: "异步释放夹具" }),
   ).toContainText("清理未完成");

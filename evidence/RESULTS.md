@@ -1,8 +1,16 @@
 # M1 验证范围与审查状态
 
-状态：Mac 最小原型实现与独立定向审查完成；M1 跨平台门槛未关闭。受验源码集合见 [source-manifest.json](source-manifest.json)，由 `npm run snapshot` 生成，包含实现、测试、配置与锁文件，排除文档、证据自身、私人愿景与生成物。
+当前版本为 0.0.2：整体 UI、授权/启停恢复流程，以及正式 Android 构建与 Insets 适配已通过定向验证和独立源码审查。Mac 原生包与 API 36 ARM64 Android 模拟器分别留证；M1 跨平台门槛未关闭。
 
-## 当前受检版本与命令
+| 当前入口 | 范围 |
+| --- | --- |
+| [0.0.2 UI 与 Android 验证](UI-ANDROID-0.0.2.md) | 45 项单元、17 项浏览器、6 项 Rust；两端构建和实际运行、独立审查、交付及未验证项 |
+| [当前源码集合](source-manifest.json) | 54 文件；由 `npm run snapshot` 生成，包含实现、测试、配置与锁文件，排除文档、证据自身、私人愿景与生成物 |
+| [0.0.2 产物元数据](ui-android-artifacts.json) | Mac 与 Android 最终交付包的版本、身份、摘要及运行范围 |
+
+以下各节保留 **0.0.1 历史证据**，只证明对应旧版本。其 49 文件集合保存于 [source-manifest-0.0.1.json](source-manifest-0.0.1.json)。历史环境缺口不代表当前工具链状态；Android 后续实验见 [M1 实验](../docs/M1-EXPERIMENTS.md#android-隔离构建记录)，正式入口见 [Android 工程](../docs/ANDROID.md)。
+
+## 0.0.1 受检版本与命令
 
 源码摘要：`39e17c8d4d81973ccaf65af54c3454351a3e786f3d395fd6c8e0e17b8b127764`，共 49 文件。执行日期：2026-10-14 UTC。全部测试使用合成数据及隔离测试上下文。
 
