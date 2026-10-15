@@ -1,0 +1,125 @@
+{
+  "sourceManifest": "evidence/source-manifest-a71b6fed5760c212272117665785bfda8cc4e90bd512f87369e55ab1232be667.json",
+  "sourceDigest": "a71b6fed5760c212272117665785bfda8cc4e90bd512f87369e55ab1232be667",
+  "sourceBaseHead": "f9e91d6248e174d10439044a67d2883a54a00a7e",
+  "mac": {
+    "pid": 65102,
+    "checks": [
+      "cancel-no-write-and-trigger-focus",
+      "native-backup-write-failure-preserves-source",
+      "failed-recovery-locks-until-reload",
+      "success-and-failure-reload-focus",
+      "verified-backup-retains-original-value",
+      "reset-only-composition-preserves-agents-messages-imports-theme",
+      "extension-state-bytes-preserved",
+      "cold-process-restores-default-view-and-retained-role"
+    ],
+    "passed": true,
+    "beforePid": 64823
+  },
+  "android": {
+    "checks": [
+      "cancel-no-write-and-trigger-focus",
+      "native-backup-write-failure-preserves-source",
+      "failed-recovery-locks-until-reload",
+      "success-and-failure-reload-focus",
+      "verified-backup-retains-original-value",
+      "reset-only-composition-preserves-agents-messages-imports-theme",
+      "extension-state-bytes-preserved",
+      "cold-process-restores-default-view-and-retained-role"
+    ],
+    "passed": true,
+    "processes": {
+      "before": "2403",
+      "after": "2554"
+    },
+    "platform": {
+      "android": "16",
+      "sdk": "36",
+      "abi": "arm64-v8a",
+      "webview": "Current WebView package (name, version): (com.android.webview, 133.0.6943.137)"
+    },
+    "renderer": "software"
+  },
+  "release": {
+    "schema": 1,
+    "buildType": "debug",
+    "sourceBaseHead": "f9e91d6248e174d10439044a67d2883a54a00a7e",
+    "sourceDigest": "a71b6fed5760c212272117665785bfda8cc4e90bd512f87369e55ab1232be667",
+    "sourceManifest": "evidence/source-manifest-a71b6fed5760c212272117665785bfda8cc4e90bd512f87369e55ab1232be667.json",
+    "sourceWorkingTree": "base plus damaged-composition backup and explicit reset; exact files in manifest",
+    "validationEvidence": "evidence/COMPOSITION-RECOVERY-2026-10-15.md",
+    "bundleDigestMethod": "SHA-256 of sorted compact JSON mapping relative paths to file SHA-256",
+    "replacedReleaseArchive": ".cache/replaced-release/0.0.4-before-composition-recovery-20261015T221739Z",
+    "artifacts": [
+      {
+        "path": "Plums M1 0.0.4.app",
+        "platform": "macOS arm64 / WKWebView",
+        "bundleIdentifier": "dev.plums.m1",
+        "version": "0.0.4",
+        "files": {
+          "Contents/Info.plist": "349b58698f33c0a364d2a59ca3c43e7a01ce48f35e63bce1a30a5af61405c206",
+          "Contents/MacOS/plums-m1": "9ec7724ca4d6984f1b280415bf0efa28537e338f8ecb189a090c35f5213b07d8",
+          "Contents/Resources/icon.icns": "6a7e5b00689e5640726ecf5319fbdc2aad4b8c43dea54a379e60ddfdbf50a231"
+        },
+        "bundleContentSha256": "29f4d3dfa17ed52a6446f2fd2bf1045a313db7a04525415e167b5c2ed1122d5e",
+        "validation": [
+          "cancel-no-write-and-trigger-focus",
+          "native-backup-write-failure-preserves-source",
+          "failed-recovery-locks-until-reload",
+          "success-and-failure-reload-focus",
+          "verified-backup-retains-original-value",
+          "reset-only-composition-preserves-agents-messages-imports-theme",
+          "extension-state-bytes-preserved",
+          "cold-process-restores-default-view-and-retained-role"
+        ]
+      },
+      {
+        "path": "plums-m1-0.0.4-android-arm64-debug.apk",
+        "platform": {
+          "android": "16",
+          "sdk": "36",
+          "abi": "arm64-v8a",
+          "webview": "Current WebView package (name, version): (com.android.webview, 133.0.6943.137)"
+        },
+        "packageName": "dev.plums.m1",
+        "version": "0.0.4",
+        "versionCode": 4,
+        "minSdk": 24,
+        "targetSdk": 37,
+        "sha256": "f9dc6965436d68e03693faf4a574fc511709003ca436bec26cd86b303984aaf2",
+        "signatureScheme": "v2",
+        "signingCertificateSha256": "1786a9ba6c40d4e0b6d3593dccf1d326154864c4f5d660b54e85cad15197b467",
+        "installedMatchesBuild": true,
+        "validation": [
+          "cancel-no-write-and-trigger-focus",
+          "native-backup-write-failure-preserves-source",
+          "failed-recovery-locks-until-reload",
+          "success-and-failure-reload-focus",
+          "verified-backup-retains-original-value",
+          "reset-only-composition-preserves-agents-messages-imports-theme",
+          "extension-state-bytes-preserved",
+          "cold-process-restores-default-view-and-retained-role"
+        ]
+      }
+    ]
+  },
+  "copyVerified": true,
+  "rawEvidence": {
+    ".cache/composition-recovery/mac-build.log": "19dfc2736d16b9167c2fe9bad05650f7e03cf2cc0b4a2858455434d0ae5c85c8",
+    ".cache/composition-recovery/android-build.log": "b9022ab143cd56639d7e15129f31b15b01323668b7ca285396d722bef6195d4c",
+    ".cache/composition-recovery/browser.log": "ad556802fd2370ad3d55967e9ee662f3ef5d02804af0d90d2d677d5bec85087b",
+    ".cache/composition-recovery/mac-runtime.json": "08bba2013c5cdcbd1fbaa6f0671eee14d4453309c1a8fe30b72d7f21e310e535",
+    ".cache/composition-recovery/android-result/android-runtime-result.json": "2d69c6bcb78b1d5e43ad2ad640eac5b4657e59580638f9a1707c4a2f5348352f",
+    ".cache/composition-recovery/apk-signature.log": "c35397f4d04ec66f4479309134966bf92ba424af51f9c48ca951c950aaa2b459",
+    ".cache/composition-recovery/apk-badging.log": "1a91926493325a452cbae173bdb18f8357717120ba5aefc9284f944cb3db6448",
+    ".cache/composition-recovery/cleanup.json": "7de8598eec013220ac6cbfd525e74ab3cbdc08072e8034a2b14a23be79238518"
+  },
+  "limitations": [
+    "Mac AX automated native window, not human physical input",
+    "Android emulator ADB/WebView, not physical device/touch",
+    "unknown native write receipt injection not performed",
+    "partial activation may leave some extensions running; not transactional recovery",
+    "Android software renderer; isolated emulator only"
+  ]
+}
