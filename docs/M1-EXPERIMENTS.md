@@ -1,6 +1,6 @@
 # M1 实验与工程决策
 
-状态：Mac 最小原型实现、最小原生路径与相关变更的独立定向审查已完成；移动依赖静态核查及实验方案已建立，iOS/Android 原生风险仍未形成结论。源码、命令与运行结果见 [证据](../evidence/RESULTS.md)。M1 不等于稳定 SDK 或五端验收完成。
+状态：Mac 最小原型实现、最小原生路径与相关变更的独立定向审查已完成；Android 隔离 ARM64 调试 APK 构建与包检查及限定范围独立复核通过，设备运行未验证；iOS 暂缓。Mac 源码、命令与运行结果见 [证据](../evidence/RESULTS.md)，新增构建范围见 [Android 记录](#android-隔离构建记录)。M1 仍开放，不等于稳定 SDK 或五端验收完成。
 
 ## 实验范围
 
@@ -16,7 +16,7 @@
 
 | 主题与选项 | M1 采用方案及理由 | 风险、回退与验证范围 |
 | --- | --- | --- |
-| Tauri 或仅 Web 外壳 | Tauri 2 + Rust；直接验证原生平台能力边界 | macOS 编译、调试包构建和最小原生用户路径已验证；其他四端未执行；原生适配保持独立 |
+| Tauri 或仅 Web 外壳 | Tauri 2 + Rust；直接验证原生平台能力边界 | macOS 编译、调试包构建和最小原生用户路径已验证；Android 仅完成隔离调试构建与包检查，其他三端未执行；原生适配保持独立 |
 | React 或无框架外壳 | React/TypeScript/Vite 仅用于管理外壳，CSS 变量与 CSS Modules | 扩展不绑定 React；可替换外壳，不改扩展服务契约；浏览器交互测试覆盖当前外壳 |
 | 同环境 ESM、Worker 或独立进程 | 本地可信 ESM，最少执行假设，无运行时 Node.js | 无恶意代码隔离；未来可更换宿主。移动执行、分发策略和任意下载代码均未验证 |
 | 框架组件或 DOM UI 契约 | DOM 挂载与释放；布局模块及样式独立分发 | 两套导航结构与未知外部视图经浏览器测试；CSS/DOM 仍共享环境，不保证安全显示隔离 |
@@ -31,15 +31,15 @@
 | 平台 | 已知条件与当前限制 |
 | --- | --- |
 | macOS | 27.0.1 / arm64；Node.js 26.5.1，Rust/cargo 1.98.1，Command Line Tools。既有 Rust 不在默认 PATH，项目命令补充搜索路径，不改全局配置 |
-| iOS | 当前活动开发目录为 Command Line Tools；`xcodebuild -version` 失败，`simctl` 及 iphoneos/iphonesimulator SDK 不可定位；常见位置无 Xcode.app，仅安装 macOS Rust target，未生成 Apple 工程。非标准安装位置、模拟器 runtime、物理设备与签名条件未知 |
-| Android | 常见路径无 Studio/SDK/NDK；`adb`、`emulator`、`sdkmanager`、`avdmanager` 不在 PATH，`java_home -V` 找不到 Runtime；常见 Android/JAVA_HOME 环境变量未设置，无 Android Rust target 或生成工程。非标准安装位置、物理设备、SDK/JDK 版本和许可状态未知 |
-| Windows、Linux | 无实际原生执行证据，未交叉编译；当前 Rust 仅有 macOS target。常见 VM 应用/CLI 未发现，不据此断言所有环境不存在。Docker 客户端存在，默认 daemon 的 socket 不存在而连接失败；其他 context、VM 或远程环境未核验 |
+| iOS | 暂缓。当前活动开发目录为 Command Line Tools；`xcodebuild -version` 失败，`simctl` 及 iphoneos/iphonesimulator SDK 不可定位，无 iOS Rust target，未生成 Apple 工程。非标准安装位置、模拟器 runtime、物理设备与签名条件未知 |
+| Android | 已在独立工具目录配置 JDK 21.0.12.1、SDK/NDK 与 aarch64-linux-android Rust target；隔离生成工程使用 Gradle wrapper 9.6.1 / AGP 9.3.1，ARM64 调试 APK 构建及包检查通过。本次未安装 Android Studio、Emulator 或系统镜像，未安装/启动应用；设备、WebView 和运行行为未验证 |
+| Windows、Linux | 无实际原生执行证据，未交叉编译。常见 VM 应用/CLI 未发现，不据此断言所有环境不存在。Docker 客户端存在，默认 daemon 的 socket 不存在而连接失败；其他 context、VM 或远程环境未核验 |
 
-不自动安装大型系统工具链、不接受法定许可或更改系统安全设置。缺失环境阻塞对应结论，其他实验可继续。
+工具与依赖增量按已确认范围执行；新增许可及设备安全授权单独核对，不更改系统安全设置。缺失环境或运行证据阻塞对应结论，其他实验可继续。
 
 ## 移动依赖静态核查
 
-核查日期：2026-10-15 UTC。基线提交 `197463aefd05454c6bd7e2ac8c325230ef4ae3fd`，49 文件源码摘要仍为 `39e17c8d4d81973ccaf65af54c3454351a3e786f3d395fd6c8e0e17b8b127764`。仅阅读项目、锁文件、已安装包及既有实验构建副本的 Cargo registry 缓存，并执行已安装 CLI 的 `--help`；未联网补齐依赖、初始化移动工程、编译或运行移动应用。主项目默认的 `.cache/cargo/registry` 尚不存在，不能与受检副本缓存混称。以下是源码/元数据发现，不是目标平台通过结论。
+构建前核查日期：2026-10-15 UTC。基线提交 `197463aefd05454c6bd7e2ac8c325230ef4ae3fd`，49 文件源码摘要为 `39e17c8d4d81973ccaf65af54c3454351a3e786f3d395fd6c8e0e17b8b127764`。该次仅阅读项目、锁文件、安装包及既有实验副本的 Cargo registry 缓存，并执行 CLI `--help`，未补齐依赖或执行移动构建。以下保留当时的静态发现与缓存快照；后续 Android 构建已补齐实际所需依赖，见下节，不能以旧快照描述当前缓存。静态发现不构成目标平台运行通过结论。
 
 | 检查对象与本地依据 | 静态发现 | 尚需证伪的风险 |
 | --- | --- | --- |
@@ -53,9 +53,24 @@
 
 来源核对范围为锁文件的 npm registry URL、crates.io registry 标识和完整性字段，以及已缓存核心包的仓库/许可证元数据，不是供应链安全认证。复核入口是上述固定版本的清单、包源码及 CLI 帮助，缓存路径本身不属于分发物。许可证字段与文件存在性检查不等于已确认全部分发义务；不据缺失正文补写许可结论。本地 CLI schema 的默认最低值为 iOS 15.0、Android API 24，不是 Plums 已验证的最低支持范围。
 
+## Android 隔离构建记录
+
+2026-10-15 UTC，基于主项目提交 `cd6fb7c76cfd26bec0c956f55b056c0d5e064ec5` 的隔离副本完成调试构建。49 文件基线摘要仍为上节所列值；副本在该 49 文件范围内仅更改 tauri.conf.json 的应用标识、产品名与窗口标题，变体摘要为 `f8317b1f84cde4a31c90b3dcc766d70c03bcd806196bfb663f508322c49015f7`。Host、SDK、扩展、Rust 实现及 npm/Cargo 锁文件未改。
+
+生成工程的 BuildTask.kt 从 src-tauri 工作目录运行 Node，原首参数 `tauri` 指向不存在的脚本；修正为 `../node_modules/@tauri-apps/cli/tauri.js`。隔离回归在修正前复现失败，修正后及真实 CLI 帮助通过；这是生成构建工具入口修正，未修改内核。另仅在生成工程配置独立调试签名、受限 Gradle 资源和相同版本 wrapper 的已校验本地归档；保留模板兼容标志。重新 init 后须重新审阅生成配置并应用这些调整。
+
+| 已检查项 | 结果与边界 |
+| --- | --- |
+| 编译与 APK | Rust ARM64 编译/链接、Gradle 构建、ZIP 完整性和调试签名检查通过；标识 dev.plums.plums.androidcheck，minSdk 24 / targetSdk 37，实际 ABI 仅 arm64-v8a。调试产物不代表发布包优化或最低支持范围已验收 |
+| 前端资源 | 13 项资源经编码解码与原生库嵌入核对；其中 7 个扩展 JS、1 个 CSS 与源码一致。APK 内原生库摘要与受检 Rust 产物一致，将资源检查绑定到该 APK；不证明 WebView 已成功加载或执行 |
+| APK SHA-256 | `ca1cb7d861db671e65be8956c6ad3558e0bc470434739dda4a12a04cb1cb48f2` |
+| 未执行 | 设备/模拟器安装与启动，ESM/CSP/MIME/Origin/Web API，原生桥接、状态保存及重启，依赖/布局替换与停用清理，前后台及进程重建 |
+
+构建、配置、产物与资源证据保存在独立实验目录的 `RESULTS.md`、`evidence/BUILD-RESULT.json`、`evidence/VARIANT-SOURCE-MANIFEST.json`、`evidence/GENERATED-CONFIG-REVIEW.json`、`evidence/APK-VERIFICATION.json` 和 `evidence/NATIVE-RESOURCE-EMBEDDING.json`；这些是相对实验目录的本地记录，不属于仓库内 Mac 证据，也未随 Git 分发。独立复核报告 `INDEPENDENT-REVIEW.md` 及配套证据也保存在该实验目录；已独立核对 APK/资源、生成配置、入口正反例和两份公开文档，未发现范围内阻塞。未独立重跑完整 Android 构建、从零初始化或离线重建，不承诺重建字节相同；设备运行未验证，iOS 暂缓，M1 保持开放。
+
 ## 最小 iOS 与 Android 实验
 
-以下步骤尚未执行。两端各选一个明确的 OS/WebView 与 ABI；模拟器和真机分别记录，先做随包本地扩展，不引入远程下载代码、稳定 SDK 或新业务。实验副本使用独立标识（例如 dev.plums.plums.ioscheck / dev.plums.plums.androidcheck）及合成数据；源码变化、生成工程和最终有效配置均留摘要，不能与原 Mac 包混称。
+Android 已完成构建前提及产物检查，以下安装与运行步骤尚未执行；iOS 暂缓，未执行这些步骤。两端各选一个明确的 OS/WebView 与 ABI；模拟器和真机分别记录，先做随包本地扩展，不引入远程下载代码、稳定 SDK 或新业务。实验副本使用独立标识（例如 dev.plums.plums.ioscheck / dev.plums.plums.androidcheck）及合成数据；源码变化、生成工程和最终有效配置均留摘要，不能与原 Mac 包混称。
 
 | 步骤 | 操作与可观察结果 | 失败或阻塞判据 |
 | --- | --- | --- |
@@ -68,31 +83,31 @@
 
 模拟器可形成该模拟器内的原生加载/桥接证据；实际设备的前后台、系统回收、触控和授权结论不能由它替代。普通任务终止/重启也不是写入中断或完整崩溃恢复测试。所选系统的 API 缺失可导致提高候选最低条件或增加兼容适配，必须记录决策并重验，不能静默改成通过。
 
-### 构建命令候选
+### 构建命令
 
-下列选项仅经已安装 @tauri-apps/cli 2.12.3 的四个 init/build `--help` 核对，未执行命令主体。环境、依赖下载及初始化的变更范围批准后，才在隔离副本运行。移动实验直接调用 CLI；先在该进程提供可用 Rust PATH 和受控 Cargo 缓存，确保未向设备注入桌面的 PLUMS_M1_DATA_DIR，不改全局设置。
+@tauri-apps/cli 2.12.3 的 Android init/build 已在隔离副本执行；iOS 命令仍仅核对 `--help`，暂不执行。以下从实验项目根目录调用锁定 CLI；先配置该进程的 Rust、JDK、SDK/NDK 与独立缓存，取消桌面 PLUMS_M1_DATA_DIR 覆盖，不改全局设置。生成工程需先审阅，Android 的已知入口修正见构建记录。
 
 ```sh
 node node_modules/@tauri-apps/cli/tauri.js ios init --skip-targets-install
 node node_modules/@tauri-apps/cli/tauri.js ios build --debug --target aarch64-sim --no-sign --archive-only
 node node_modules/@tauri-apps/cli/tauri.js android init --skip-targets-install
-node node_modules/@tauri-apps/cli/tauri.js android build --debug --target aarch64 --apk
+node node_modules/@tauri-apps/cli/tauri.js android build --debug --target aarch64 --apk -- --locked
 ```
 
-iOS 命令候选针对 Apple Silicon 模拟器，使用构建输出的实际 .app 路径安装到所选模拟器；Android aarch64 对应所选 ARM64 模拟器或已确认设备，使用实际 APK 路径安装。签名、安装、运行与退出结果分别留证，不能把无签名归档当作已安装运行。`--skip-targets-install` 只跳过 Rust target 安装，不保证初始化不下载或安装其他辅助依赖；不使用 `--ci` 自动越过交互，也不使用 `--ignore-version-mismatches`。任何额外下载、许可或设备安全授权先单独核对。
+`-- --locked` 将锁文件约束传给 Cargo；尾部参数不是 Gradle 参数，Gradle 资源设置放在生成工程的 gradle.properties。iOS 命令候选针对 Apple Silicon 模拟器，使用构建输出的实际 .app 路径安装到所选模拟器；Android aarch64 对应所选 ARM64 模拟器或已确认设备，使用实际 APK 路径安装。签名、安装、运行与退出结果分别留证，不能把无签名归档当作已安装运行。`--skip-targets-install` 只跳过 Rust target 安装，不保证初始化不下载或安装其他辅助依赖；不使用 `--ci` 自动越过交互，也不使用 `--ignore-version-mismatches`。任何额外下载、许可或设备安全授权先单独核对。
 
 ### 环境补齐的最小方案
 
 | 平台 | 首个实验所需增量 | 仍待确认及下载量 |
 | --- | --- | --- |
 | iOS | 完整 Xcode 与一个所选 iOS Simulator runtime；Apple Silicon 模拟器仅先补 aarch64-apple-ios-sim。用实验进程的 DEVELOPER_DIR 选择 Xcode，不切换全局开发目录。真机实验才另补 aarch64-apple-ios、设备与签名条件 | Xcode 与主机兼容版本、辅助生成/安装工具及签名需求在执行前核对；CLI 初始化可能涉及辅助依赖，不能仅凭帮助列出完整安装清单。下载量、安装后空间均未知，需按实际选定版本确认 |
-| Android | 与所生成 Gradle/AGP 匹配的 JDK；SDK command-line tools、platform-tools、选定 SDK platform/build-tools 与 NDK；首个 ARM64 实验仅先补 aarch64-linux-android。已有获授权的 ARM64 设备可省模拟器，否则另需 Emulator 和一个 ARM64 system image；Android Studio 不是此命令行方案的必装项 | 尚无生成工程，JDK/SDK/NDK/Gradle 精确版本未核定；先核对锁定 CLI 的模板要求，受控初始化后再核对实际生成配置，不为取得配置预装全部组件，仅设置实验进程所需环境。Gradle/Maven/Cargo 缺项可能另下载。下载量、安装后空间均未知 |
+| Android | 已补齐命令行构建环境：JDK 21.0.12.1、NDK 28.2、SDK platforms 37/36、build-tools 36、platform-tools 与 ARM64 Rust target；生成 wrapper 9.6.1 / AGP 9.3.1。Tauri Android 库另需 platform 36，应用 compile/target 仍为 37 | 运行实验尚需所选且获授权的 ARM64 设备，或另行确认 Emulator 与 ARM64 system image。Android Studio 不是命令行构建必需项；设备条件、WebView、后续下载与空间增量仍待核定 |
 
-仅安装所选 ABI 所需组件，不预装全部 Rust targets 或多个系统镜像。接受平台许可、下载额外依赖、设备配对/调试、Developer Mode、安全权限或签名账户操作均须单独确认；实验不需要发布到应用商店。完整 Xcode 与一个 Android 调试环境是推进方向，不是已完成安装或兼容承诺。
+仅安装所选 ABI 所需组件，不预装全部 Rust targets 或多个系统镜像。接受平台许可、下载额外依赖、设备配对/调试、Developer Mode、安全权限或签名账户操作均须单独确认；实验不需要发布到应用商店。iOS 环境仍未补齐；Android 命令行构建环境已就绪，设备运行条件未就绪。
 
 ### 阶段边界与记录
 
-M1 剩余门槛是两端各自的早期原生风险实验及据此作出的选型/限制结论；当前静态记录只能缩小风险。按 [路线图](ROADMAP.md)，Windows/Linux 完整原生验收和 A11 五端能力矩阵属于后续阶段。全量迁移、写入中断后的崩溃恢复、多进程并发、实际原生丢失回执注入、文件/OS 授权与长期后台任务不作为追加的 M1 完整功能门槛；已有有限契约一旦被反例推翻，仍须修复或收紧保证。
+M1 剩余门槛是两端各自的早期原生风险实验及据此作出的选型/限制结论；Android 构建通过仅关闭编译与包检查项，运行风险仍开放；iOS 暂缓不等于免除门槛。按 [路线图](ROADMAP.md)，Windows/Linux 完整原生验收和 A11 五端能力矩阵属于后续阶段。全量迁移、写入中断后的崩溃恢复、多进程并发、实际原生丢失回执注入、文件/OS 授权与长期后台任务不作为追加的 M1 完整功能门槛；已有有限契约一旦被反例推翻，仍须修复或收紧保证。
 
 每端记录基线/差异与单一负责人、锁定依赖及新增下载、最终配置、OS/ABI/设备或模拟器/WebView、产物摘要、安装与操作步骤、实际原生结果、失败/阻塞和未覆盖项。完成编译或执行一次正常路径不自动关闭所有条目，不以旧 Mac 绿测或本节方案替代实际记录。
 
