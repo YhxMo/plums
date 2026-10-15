@@ -75,3 +75,7 @@ ctx.task 跟踪异步任务，使用传入 signal 合作式取消；ctx.onDispos
 ## 非敏感配置
 
 通过 manifest.configuration 声明带默认值的 string/number/boolean 字段，activate 读取只读 ctx.configuration；外壳提供配置编辑、验证和持久化。示例与保存/重启/失败边界见 [配置契约](EXTENSION-CONFIGURATION.md)。普通配置禁止存放密钥或令牌，不提供凭据授权。counter/panel 当前为 1.1.0，旧组合需核对精确版本。
+
+## 凭据代用请求实验
+
+[接口与参考模型](CREDENTIAL-REQUEST.md)仅用于隔离假数据接入，生产能力不可用。扩展引用所属绑定，由平台侧确定目标和凭据；不在普通配置中保存秘密，真实适配及授权仍待独立阶段。

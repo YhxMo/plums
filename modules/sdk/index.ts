@@ -79,3 +79,9 @@ export function platformRejection(message: string) {
 export function extensionOwner(id: string) {
   return `extension.${id}`;
 }
+
+export type {
+  CredentialRequest,
+  CredentialResponse,
+  CredentialFailureOutcome,
+} from "./credential";
