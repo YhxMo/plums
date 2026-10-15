@@ -1,6 +1,6 @@
 # 0.0.3 双主题与原生外观验证
 
-[证据索引](RESULTS.md) · [默认界面](../docs/UI.md) · [Android 工程](../docs/ANDROID.md) · [产物元数据](ui-android-artifacts.json)
+[证据索引](RESULTS.md) · [默认界面](../docs/UI.md) · [Android 工程](../docs/ANDROID.md) · [产物元数据](ui-android-artifacts-0.0.3.json)
 
 执行日期：2026-10-15 UTC。实现、集成与原生验收负责人：Codex 主执行者。独立源码审查者：Kierkegaard，未参与实现。范围为 A3、A5–A8、A10、A12 的 M1 子集。
 
@@ -81,6 +81,6 @@ APK 的 CRC、v2 调试签名、包名 `dev.plums.m1`、版本 0.0.3 / versionCo
 
 精简沿外观偏好 → 状态写入 → DOM/原生外观、图标源 → 各端资源、准备 → 构建的实际路径进行。布局与模式共用一次偏好写入；删除额外桌面平台探测、无用运行态字段及前端窗口 API 依赖，原生返回直接使用 `()`。保留首次启动/停用恢复需要的 `started` 及既有视图生命周期，没有新增主题框架或业务私有 API。无需要确认行为取舍的精简项；Host/SDK 与业务扩展未作扩展审计。
 
-交付为 `release/Plums M1 0.0.3.app` 和 `release/plums-m1-0.0.3-android-arm64-debug.apk`，均为 debug。版本、身份、签名和复制完整性见[产物元数据](ui-android-artifacts.json)与本地 `release/CHECKSUMS.json`。校验新包、更新说明与清单后，0.0.2 副本和旧清单/说明移至 `.cache/replaced-release/0.0.2-20261015T144431Z/`，可恢复。
+交付为 `release/Plums M1 0.0.3.app` 和 `release/plums-m1-0.0.3-android-arm64-debug.apk`，均为 debug。版本、身份、签名和复制完整性见[产物元数据](ui-android-artifacts-0.0.3.json)与本地 `release/CHECKSUMS.json`。校验新包、更新说明与清单后，0.0.2 副本和旧清单/说明移至 `.cache/replaced-release/0.0.2-20261015T144431Z/`，可恢复。
 
 Android 真机、其他系统/WebView/ABI、横屏/手势导航、Windows/Linux 未验证；iOS 继续暂缓。完整 A11/A12、状态迁移、崩溃/写入中断恢复、原生丢失回执、文件/OS 授权和长期后台仍未完成。M1 保持开放，M2 未开始。
