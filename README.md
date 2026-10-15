@@ -48,7 +48,9 @@ Android 复用既有 YHX 工具链。将 `PLUMS_ANDROID_TOOLS_ROOT` 设置为含
 | 查看公开实验契约与生命周期语义 | [EXTENSION-CONTRACTS](docs/EXTENSION-CONTRACTS.md) |
 | 按验收、测试、实现和独立审查开展工作 | [DEVELOPMENT](docs/DEVELOPMENT.md) |
 | 查看可扩展本体的目标验收矩阵 | [ACCEPTANCE](docs/ACCEPTANCE.md) |
-| 查看阶段范围与门槛 | [ROADMAP](docs/ROADMAP.md) |
+| 查看完整能力路线、依赖与阶段验收 | [整体实现计划](docs/spec/total.md) |
+| 查看正在执行及紧接准备执行的阶段 | [当前阶段计划](docs/spec/milestone.md) |
+| 按阶段查找计划与验收入口 | [ROADMAP](docs/ROADMAP.md) |
 | 查看 M1 决策、风险与回退方案 | [M1-EXPERIMENTS](docs/M1-EXPERIMENTS.md) |
 | 了解桌面/移动界面、状态路径与 UI 所有权 | [UI](docs/UI.md) |
 | 使用既有工具链构建 Android、维护 Insets 适配 | [ANDROID](docs/ANDROID.md) |
