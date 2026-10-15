@@ -1,6 +1,6 @@
 # Plums 工程状态
 
-核对日期：2026-10-15 UTC。当前源码已完成状态、停用与焦点修复，基线 `9a070af` 后的源码集合与工作区差异见 [专项证据](evidence/RELIABILITY-2026-10-15.md)。根 release 中的既有 0.0.4 普通包仍绑定 `de686c70fb5a8f08615b8377e8b847fcbf025d95`，未替换为此次修复版本。未推送或部署。
+核对日期：2026-10-15 UTC。当前源码已完成状态、停用与焦点修复，基线 `9a070af` 后的源码集合与工作区差异见 [专项证据](evidence/RELIABILITY-2026-10-15.md)。根 release 的 0.0.4 普通包已更新为 `86e031d` 构建（运行源码 `d44540b`），两端普通包补验与摘要见 [交付证据](evidence/DELIVERY-2026-10-15.md)。未推送或部署。
 
 ## 当前可用结果
 
@@ -25,9 +25,11 @@ Android 正式入口继续复用既有 YHX 工具链。MainActivity 管理系统
 | Apple Silicon Mac | `Plums M1 0.0.4.app` | Plums M1 / dev.plums.plums |
 | Android ARM64 | `plums-m1-0.0.4-android-arm64-debug.apk` | Plums M1 / dev.plums.plums |
 
-均为 0.0.4 / M1 debug。说明与校验清单在该目录；公开 [产物记录](evidence/ui-android-artifacts.json)绑定上述源码提交。复制完整性、APK 签名/版本/ABI 与实际安装包匹配已核验。
+均为 0.0.4 / M1 debug。说明与校验清单在该目录；公开 [产物记录](evidence/delivery-2026-10-15.json)绑定当前普通包源码与摘要。复制完整性、APK 签名/版本/ABI 与实际安装包匹配已核验。
 
-后续 [交付静态核对](evidence/CONCLUSIONS-2026-10-15.md#release-核对)确认两端 release 仍匹配旧清单；未替换。普通 Mac 候选只有本次构建证据、缺自身运行验收；当前 Android 生成目录输出实际为回归夹具 APK，不可作为普通交付。核对摘要见 [元数据](evidence/delivery-audit-2026-10-15.json)。
+此前 [静态核对](evidence/CONCLUSIONS-2026-10-15.md#release-核对)保留其历史时点。当前普通包已分别运行验收：Mac 原生窗口主要路径和新进程恢复；Android API 36 ARM64 模拟器以 ADB/WebView 分段自动化验证主要路径、授权和新进程恢复，键盘视口 754 → 470 → 754 CSS px。角色说明输入/保存及短时取消使用 WebView 自动化，不是实际触控验收。当前生成目录为普通包，专项夹具另存于 `.cache/reliability/artifacts/`。
+
+旧 `de686c7` 版 0.0.4 包及清单可恢复归档于 `.cache/replaced-release/0.0.4-de686c7-20261015T203255Z/`。本次专用 Mac 进程及 Android 模拟器/ADB 已关闭，5046/5570/5571/9236 无监听；原应用 PID 1951 和开发服务 PID 59947 保留。原应用仍运行旧映像，重新打开当前 release 包才会使用修复版本。隔离原始记录位于 `.cache/delivery-20261015/`。
 
 新包验收和清单更新后，已确认的 0.0.3 旧交付及说明/清单移至 `.cache/replaced-release/0.0.3-20261015T170430Z/`，可恢复。更早恢复目录和历史实验原件保留。
 
@@ -37,7 +39,7 @@ Android 正式入口继续复用既有 YHX 工具链。MainActivity 管理系统
 
 ## 验证与证据
 
-当前修复：64 项单元、40 项浏览器、构建与格式通过；Mac/Android 隔离夹具验证边界保存、拒绝保持、普通停用/撤权及新进程恢复，Mac 另验证原生弹窗返回焦点。独立产品与最终夹具审查无阻塞。两端普通包构建不等于普通包完整运行复验；源码摘要、配方及未覆盖项见专项证据。Rust 源码未改，此次未重跑 Rust 单元/Clippy/rustfmt。
+当前修复：64 项单元、40 项浏览器、构建与格式通过；Mac/Android 隔离夹具验证边界保存、拒绝保持、普通停用/撤权及新进程恢复，Mac 另验证原生弹窗返回焦点。独立产品与最终夹具审查无阻塞。普通包另完成限定运行补验，见交付证据；源码摘要、夹具配方及未覆盖项见专项证据。Rust 源码未改，此次未重跑 Rust 单元/Clippy/rustfmt。
 
 [既有交付包证据](evidence/UI-ANDROID-0.0.4.md)记录 56 项单元、35 项浏览器、6 项 Rust、两端构建、格式、Clippy、rustfmt 与工程检查通过。最后仅会话输入焦点 CSS 改动，18 项相关浏览器测试、截图及两端重建/运行复验通过；其余结果经影响评估保留。独立源码与定向样式复核无剩余阻塞，精简已完成。历史版本在 [M1 索引](evidence/RESULTS.md)分开留证。
 
@@ -52,3 +54,5 @@ Playwright 覆盖 1440/375 双主题与主要页面，320/768/1024 无横向溢�
 Android 真机、其他系统/WebView/ABI、横屏/手势导航尚无运行证据；对应设备就绪后由平台维护者按 [验收矩阵](docs/ACCEPTANCE.md)验证。iOS 环境未就绪且继续暂缓；Windows/Linux 无原生运行证据。
 
 模型/MCP 扩展、完整角色卡标准、跨提供者集合和多 Agent 协作未实现；当前实验角色卡格式见 UI 文档。状态快照仍受 64 KiB 限制，完整迁移、写入中断/崩溃恢复、多进程并发、凭据服务、OS 文件授权及长期后台仍未完成。M1 剩余门槛和限制见 [阶段边界](docs/M1-EXPERIMENTS.md#阶段边界与记录)，不能以此次 UI 交付关闭完整 A11/A12。
+
+角色卡链接读取取消/超时及扩展 ID 与 owner 对连续句点的校验差异为待复现静态线索，见交付证据；未混入普通包源码修改。
