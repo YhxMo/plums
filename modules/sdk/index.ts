@@ -93,3 +93,5 @@ export type {
 } from "./state-migration";
 export { mountViewTree } from "./view-tree";
 export type { ViewNode, ViewTreeScope, ViewTree } from "./view-tree";
+export { resolveNavigation } from "./navigation";
+export type { NavigationEntry } from "./navigation";

@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>工作台 · 导航组合验证</title>
+  </head>
+  <body>
+    <header>
+      <strong>Plums / 工作台</strong><span>隔离实验 · 合成数据</span
+      ><button id="management-entry">扩展管理</button>
+    </header>
+    <main>
+      <div class="intro">
+        <p class="eyebrow">NAVIGATION LAB</p>
+        <h1>一个工作台，多种贡献</h1>
+        <p>在工作台与笔记间切换，验证贡献优先级和停止后的回退。</p>
+      </div>
+      <nav id="routes" aria-label="工作区导航"></nav>
+      <p id="status" role="status" aria-live="polite">正在加载贡献…</p>
+      <section id="content" aria-label="当前工作内容"></section>
+      <section id="management" aria-labelledby="management-title">
+        <h2 id="management-title" tabindex="-1">扩展管理</h2>
+        <p>独立管理入口始终保留。清理失败后需重载页面，不能继续替换视图。</p>
+        <div class="actions">
+          <button id="stop-priority">停用优先贡献</button
+          ><button id="restore">恢复贡献</button
+          ><button id="run">运行验收</button>
+        </div>
+      </section>
+      <pre id="result" aria-live="polite">尚未运行自动验收</pre>
+    </main>
+    <footer>仅验证公开导航与视图生命周期，不读取真实状态。</footer>
+    <script type="module" src="./probe.ts"></script>
+  </body>
+</html>

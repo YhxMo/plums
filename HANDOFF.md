@@ -1,6 +1,6 @@
 # Plums 工程状态
 
-核对日期：2026-10-16 UTC。显式旧快照恢复限定完成：可选 restorePreviousState 按确认 revision/from/to 恢复旧数据并一次提交保留完整当前目标；默认业务未调用。基线 `241ed52` 加 163 文件摘要，205 单元、浏览器与 Mac/Android 各 8 项通过，实际文件链核验见 [专项证据](evidence/STATE-RESTORE-2026-10-16.md)。普通 release 未变，生成目录为专项包，留存在 `.cache/state-restore/artifacts/`。隔离测试进程与端口已清理，原应用 PID 1951 保留；原开发服务此前退出原因未知，未重启。未推送。M2 未退出，SDK 未稳定；有限后续候选见 [退出清单](docs/spec/M2-EXIT-CHECKLIST.md)，当前准备范围见 [阶段计划](docs/spec/milestone.md)。
+核对日期：2026-10-16 UTC。导航冲突与停用回退限定完成：可选纯选择器和隔离外壳验证确定性选择、焦点、旧监听释放及清理失败锁存。基线 e076ad3，168源码，209单元、三个浏览器宽度与两端各8项通过，见 [证据](evidence/NAVIGATION-2026-10-16.md)。普通包未变；生成目录为专项包，产物在 `.cache/navigation/artifacts/`。测试进程/端口已清理，原应用1951保留，原开发服务此前退出未重启。下一阶段见 [计划](docs/spec/milestone.md)，SDK仍实验性，M2未退出。未推送。
 
 ## 当前可用结果
 
