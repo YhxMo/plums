@@ -85,7 +85,11 @@ export type {
   CredentialResponse,
   CredentialFailureOutcome,
 } from "./credential";
-export { migrateState } from "./state-migration";
-export type { StateMigration, VersionedState } from "./state-migration";
+export { migrateState, restorePreviousState } from "./state-migration";
+export type {
+  StateMigration,
+  StateRestore,
+  VersionedState,
+} from "./state-migration";
 export { mountViewTree } from "./view-tree";
 export type { ViewNode, ViewTreeScope, ViewTree } from "./view-tree";

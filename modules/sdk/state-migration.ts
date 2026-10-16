@@ -119,3 +119,62 @@ export function migrateState(
     )) as StoredState;
   });
 }
+
+export interface StateRestore {
+  /** Revision explicitly reviewed by the caller; stale confirmation never writes. */
+  revision: number;
+  from: number;
+  to: number;
+  validate(data: unknown): boolean;
+}
+
+/** Explicitly restore one retained snapshot, retaining the replaced current state.
+ * This is not a package rollback or an automatic retry after an unknown receipt. */
+export function restorePreviousState(
+  ctx: ExtensionContext,
+  plan: StateRestore,
+  signal?: AbortSignal,
+): Promise<StoredState> {
+  return ctx.task(async (lifetime) => {
+    const active = signal ? AbortSignal.any([lifetime, signal]) : lifetime;
+    active.throwIfAborted();
+    const { revision, from, to, validate } = plan;
+    if (
+      !Number.isSafeInteger(revision) ||
+      revision < 1 ||
+      !Number.isSafeInteger(from) ||
+      !Number.isSafeInteger(to) ||
+      to < 1 ||
+      from <= to
+    )
+      throw Error("Invalid restore confirmation");
+    const current = copy(
+      await ctx.platform("state.read", undefined, active),
+    ) as StoredState | null;
+    if (!current || current.revision !== revision)
+      throw Error("Restore confirmation is stale or state is missing");
+    const saved = envelope(current.value);
+    if (saved.version !== from)
+      throw Error("Unexpected current restore version");
+    const previous = saved.previous;
+    if (
+      !previous ||
+      !Number.isSafeInteger(previous.revision) ||
+      previous.revision < 1 ||
+      previous.revision >= revision
+    )
+      throw Error("Missing or invalid previous snapshot");
+    const target = envelope(previous.value);
+    if (target.version !== to || validate(copy(target.data)) !== true)
+      throw Error("Invalid restore target; current preserved");
+    active.throwIfAborted();
+    return (await ctx.platform(
+      "state.write",
+      {
+        revision,
+        value: { version: to, data: copy(target.data), previous: current },
+      },
+      active,
+    )) as StoredState;
+  });
+}
