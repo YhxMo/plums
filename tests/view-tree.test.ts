@@ -1,5 +1,5 @@
 import { expect, test } from "vitest";
-import { mountViewTree, type ViewNode } from "../modules/sdk/view-tree";
+import { mountViewTree } from "../modules/sdk/view-tree";
 function root(parent?: HTMLElement) {
   const children = new Set<HTMLElement>();
   const value = {

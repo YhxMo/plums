@@ -100,6 +100,6 @@ test("normal same-origin card imports and redirected card stays rejected", async
     .getByRole("button", { name: "添加", exact: true })
     .click();
   await expect(
-    page.getByRole("heading", { name: "链接角色", exact: true }),
+    page.getByRole("region", { name: "链接角色 的会话", exact: true }),
   ).toBeVisible();
 });

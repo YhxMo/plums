@@ -1,0 +1,590 @@
+{
+  "sourceBaseHead": "6648cfb2fd0ddce699079815654b03c8aee9fdf8",
+  "sourceManifest": "evidence/source-manifest-0552bf5702d379c72c8da7b84c86c37c6fac27586718dfa28d671172c3694749.json",
+  "sourceDigest": "0552bf5702d379c72c8da7b84c86c37c6fac27586718dfa28d671172c3694749",
+  "sourceFileCount": 195,
+  "scope": "M2 public semantic theme contributions, settings preference/fallback, two independent ESM samples; synthetic data only",
+  "rawEvidence": {
+    ".cache/themes/build-mac.log": "33c6b9ef9254482054d2df8e2dfa4a51f22a6c4f5782e49a1fdc7936e336ab3b",
+    ".cache/themes/build-android.log": "69e9d78fbb6e48df5edc4257aa8e8561ffa9c9e3af0f22aef516b12988785c30",
+    ".cache/themes/mac-first.json": "6c430a4775015647efe9414a35682df194282bb5f322a7370077b2a2a6898465",
+    ".cache/themes/mac-result.json": "a6570d9c94e3d6dbde4a47fd6fc865c12ba74e1444f1b6310ff50238e1df83c8",
+    ".cache/themes/mac-window.png": "37a15309e747c60e71d744e7cdd237ade59120b2227ea5952340dfa3bba14d5d",
+    ".cache/themes/android-first.json": "7401dbd2253e905bd914d06c57fb3ceb985b55a6eed82f81cc19172225ccffd1",
+    ".cache/themes/android-result.json": "5f9b4674978aec0a336111418e49e5009ebc3796de587cc26c6cbd8aa159c861",
+    ".cache/themes/android-window.png": "a73165956b22f469b0b5080954503e072473fb35e179707400b61f023ec5834c",
+    ".cache/themes/unit.log": "fdf8ca3470f59b0945f4e810f9e1b3fc18fcccc8a18c8237a99b4d78ff0bff98",
+    ".cache/themes/web-full.log": "f9e9060cdeb1baf32e50f65e5afc667a5ece459dbcf7ce973123e9e877286e98",
+    ".cache/themes/rust-test.log": "025c56285bad0a957fa4e00cf1b82eeab1688c2efb8a2708bb0fd652d1ba3982",
+    ".cache/themes/clippy.log": "c484c6febb8cc34db726a9cd89908467ff259dfae19d2ff57e356911946a313e",
+    ".cache/themes/format.log": "96c3555c6d5268dfc96dcdfe4a6b1660ae3419505b800c82fc5230ac18885be1",
+    ".cache/themes/browser.json": "5743ea27d43128a517c41b215bad698508d0516d63e43b13caa93231e1536a8e",
+    ".cache/themes/contrast.json": "8c2e3225878cb754043b15b55d93d9d7093fe2645d8d463105717dbb97a56292",
+    ".cache/themes/apk-signature.log": "c35397f4d04ec66f4479309134966bf92ba424af51f9c48ca951c950aaa2b459"
+  },
+  "release": {
+    "unchangedVerified": true,
+    "sourceDigest": "9bc1ccda9e100db52c7d445d574ac21569a2ad78f7cdc483a99ca27c2e4e9f6d",
+    "checksumSha256": "ca3b16d744c046b6f84398f74f3ea5d6445488cd55d1d0eb3c4e20d448298030"
+  },
+  "limitations": [
+    "Experimental SDK; M2 not exited; no stable compatibility claim",
+    "Ordinary App theme settings/persistence/failure flows tested in browser; native packages run dedicated Host+applyTheme+isolated state probe",
+    "Native probe management-survives only checks fixture control availability, not ordinary App full management; shell appearance is an invocation receipt and dark visual observation, not arbitrary native colors",
+    "Android API36 ARM64 software-rendered emulator; not real device, actual touch or full assistive technology",
+    "Cold restart applies saved theme in the dedicated probe; ordinary App reload+composition restoration separately browser-tested",
+    "Contrast calculations cover listed stable semantic pairs; not every existing component, animation frame or arbitrary extension palette",
+    "No private documents, accounts, credentials, persistent OS permissions, iOS, Windows or Linux verification; release unchanged"
+  ],
+  "mac": {
+    "bundleIdentifier": "dev.plums.m1.themeprobe",
+    "artifact": ".cache/themes/artifacts/Plums Theme Probe.app",
+    "files": {
+      "Contents/Info.plist": "3bf4db22761d5bb1fe3cfadecad0523930460038bbb3fb1e426e59c97d352795",
+      "Contents/MacOS/plums-m1": "628ab1a4ea35e9075614161ecf8431c6b3641f3655c1ff810e374e7ecaea33f2",
+      "Contents/Resources/icon.icns": "6a7e5b00689e5640726ecf5319fbdc2aad4b8c43dea54a379e60ddfdbf50a231"
+    },
+    "report": {
+      "checks": [
+        {
+          "name": "cold-start-selection",
+          "passed": true
+        },
+        {
+          "name": "two-public-authors",
+          "passed": true
+        },
+        {
+          "name": "light-colors-on-public-view",
+          "passed": true
+        },
+        {
+          "name": "dark-appearance-and-colors",
+          "passed": true
+        },
+        {
+          "name": "appearance-adapter-receipt",
+          "passed": true
+        },
+        {
+          "name": "query-cannot-mutate-theme",
+          "passed": true
+        },
+        {
+          "name": "duplicate-id-preserves-owner",
+          "passed": true
+        },
+        {
+          "name": "invalid-css-rejected",
+          "passed": true
+        },
+        {
+          "name": "partial-activation-withdrawn",
+          "passed": true
+        },
+        {
+          "name": "stop-restores-built-in",
+          "passed": true
+        },
+        {
+          "name": "old-context-rejected",
+          "passed": true
+        },
+        {
+          "name": "restart-restores-preference",
+          "passed": true
+        },
+        {
+          "name": "uninstall-falls-back",
+          "passed": true
+        },
+        {
+          "name": "native-preference-receipt",
+          "passed": true
+        },
+        {
+          "name": "management-survives",
+          "passed": true
+        }
+      ],
+      "coldRestartRestored": true,
+      "info": {
+        "arch": "aarch64",
+        "os": "macos",
+        "storage": "isolated-experiment"
+      },
+      "passed": true,
+      "platform": "native",
+      "selected": "sample.ink"
+    }
+  },
+  "android": {
+    "artifact": ".cache/themes/artifacts/themes-android-arm64-debug.apk",
+    "sha256": "eb05ba0a337088f9578046fee0976b2dca7a4629d7a20d17907584e1263a47e5",
+    "installedMatchesBuild": true,
+    "platform": "Android 16 / API 36 / arm64 / isolated software-rendered emulator",
+    "report": {
+      "passed": true,
+      "platform": "native",
+      "info": {
+        "arch": "aarch64",
+        "os": "android",
+        "storage": "isolated-experiment"
+      },
+      "coldRestartRestored": true,
+      "checks": [
+        {
+          "name": "cold-start-selection",
+          "passed": true
+        },
+        {
+          "name": "two-public-authors",
+          "passed": true
+        },
+        {
+          "name": "light-colors-on-public-view",
+          "passed": true
+        },
+        {
+          "name": "dark-appearance-and-colors",
+          "passed": true
+        },
+        {
+          "name": "appearance-adapter-receipt",
+          "passed": true
+        },
+        {
+          "name": "query-cannot-mutate-theme",
+          "passed": true
+        },
+        {
+          "name": "duplicate-id-preserves-owner",
+          "passed": true
+        },
+        {
+          "name": "invalid-css-rejected",
+          "passed": true
+        },
+        {
+          "name": "partial-activation-withdrawn",
+          "passed": true
+        },
+        {
+          "name": "stop-restores-built-in",
+          "passed": true
+        },
+        {
+          "name": "old-context-rejected",
+          "passed": true
+        },
+        {
+          "name": "restart-restores-preference",
+          "passed": true
+        },
+        {
+          "name": "uninstall-falls-back",
+          "passed": true
+        },
+        {
+          "name": "native-preference-receipt",
+          "passed": true
+        },
+        {
+          "name": "management-survives",
+          "passed": true
+        }
+      ],
+      "selected": "sample.ink"
+    }
+  },
+  "browser": [
+    {
+      "width": 320,
+      "report": {
+        "passed": true,
+        "platform": "browser",
+        "info": {
+          "os": "browser-preview",
+          "arch": "unverified",
+          "storage": "browser-localStorage"
+        },
+        "coldRestartRestored": false,
+        "checks": [
+          {
+            "name": "cold-start-selection",
+            "passed": true
+          },
+          {
+            "name": "two-public-authors",
+            "passed": true
+          },
+          {
+            "name": "light-colors-on-public-view",
+            "passed": true
+          },
+          {
+            "name": "dark-appearance-and-colors",
+            "passed": true
+          },
+          {
+            "name": "appearance-adapter-receipt",
+            "passed": true
+          },
+          {
+            "name": "query-cannot-mutate-theme",
+            "passed": true
+          },
+          {
+            "name": "duplicate-id-preserves-owner",
+            "passed": true
+          },
+          {
+            "name": "invalid-css-rejected",
+            "passed": true
+          },
+          {
+            "name": "partial-activation-withdrawn",
+            "passed": true
+          },
+          {
+            "name": "stop-restores-built-in",
+            "passed": true
+          },
+          {
+            "name": "old-context-rejected",
+            "passed": true
+          },
+          {
+            "name": "restart-restores-preference",
+            "passed": true
+          },
+          {
+            "name": "uninstall-falls-back",
+            "passed": true
+          },
+          {
+            "name": "native-preference-receipt",
+            "passed": true
+          },
+          {
+            "name": "management-survives",
+            "passed": true
+          }
+        ],
+        "selected": "sample.ink"
+      },
+      "variants": [
+        {
+          "id": "sample.ocean",
+          "overflow": false,
+          "theme": "light",
+          "accent": "#176B63"
+        },
+        {
+          "id": "sample.ink",
+          "overflow": false,
+          "theme": "dark",
+          "accent": "#b9b5ff"
+        },
+        {
+          "id": null,
+          "overflow": false,
+          "theme": "light",
+          "accent": "#f57d4a"
+        }
+      ],
+      "errors": []
+    },
+    {
+      "width": 375,
+      "report": {
+        "passed": true,
+        "platform": "browser",
+        "info": {
+          "os": "browser-preview",
+          "arch": "unverified",
+          "storage": "browser-localStorage"
+        },
+        "coldRestartRestored": false,
+        "checks": [
+          {
+            "name": "cold-start-selection",
+            "passed": true
+          },
+          {
+            "name": "two-public-authors",
+            "passed": true
+          },
+          {
+            "name": "light-colors-on-public-view",
+            "passed": true
+          },
+          {
+            "name": "dark-appearance-and-colors",
+            "passed": true
+          },
+          {
+            "name": "appearance-adapter-receipt",
+            "passed": true
+          },
+          {
+            "name": "query-cannot-mutate-theme",
+            "passed": true
+          },
+          {
+            "name": "duplicate-id-preserves-owner",
+            "passed": true
+          },
+          {
+            "name": "invalid-css-rejected",
+            "passed": true
+          },
+          {
+            "name": "partial-activation-withdrawn",
+            "passed": true
+          },
+          {
+            "name": "stop-restores-built-in",
+            "passed": true
+          },
+          {
+            "name": "old-context-rejected",
+            "passed": true
+          },
+          {
+            "name": "restart-restores-preference",
+            "passed": true
+          },
+          {
+            "name": "uninstall-falls-back",
+            "passed": true
+          },
+          {
+            "name": "native-preference-receipt",
+            "passed": true
+          },
+          {
+            "name": "management-survives",
+            "passed": true
+          }
+        ],
+        "selected": "sample.ink"
+      },
+      "variants": [
+        {
+          "id": "sample.ocean",
+          "overflow": false,
+          "theme": "light",
+          "accent": "#176B63"
+        },
+        {
+          "id": "sample.ink",
+          "overflow": false,
+          "theme": "dark",
+          "accent": "#b9b5ff"
+        },
+        {
+          "id": null,
+          "overflow": false,
+          "theme": "light",
+          "accent": "#f57d4a"
+        }
+      ],
+      "errors": []
+    },
+    {
+      "width": 768,
+      "report": {
+        "passed": true,
+        "platform": "browser",
+        "info": {
+          "os": "browser-preview",
+          "arch": "unverified",
+          "storage": "browser-localStorage"
+        },
+        "coldRestartRestored": false,
+        "checks": [
+          {
+            "name": "cold-start-selection",
+            "passed": true
+          },
+          {
+            "name": "two-public-authors",
+            "passed": true
+          },
+          {
+            "name": "light-colors-on-public-view",
+            "passed": true
+          },
+          {
+            "name": "dark-appearance-and-colors",
+            "passed": true
+          },
+          {
+            "name": "appearance-adapter-receipt",
+            "passed": true
+          },
+          {
+            "name": "query-cannot-mutate-theme",
+            "passed": true
+          },
+          {
+            "name": "duplicate-id-preserves-owner",
+            "passed": true
+          },
+          {
+            "name": "invalid-css-rejected",
+            "passed": true
+          },
+          {
+            "name": "partial-activation-withdrawn",
+            "passed": true
+          },
+          {
+            "name": "stop-restores-built-in",
+            "passed": true
+          },
+          {
+            "name": "old-context-rejected",
+            "passed": true
+          },
+          {
+            "name": "restart-restores-preference",
+            "passed": true
+          },
+          {
+            "name": "uninstall-falls-back",
+            "passed": true
+          },
+          {
+            "name": "native-preference-receipt",
+            "passed": true
+          },
+          {
+            "name": "management-survives",
+            "passed": true
+          }
+        ],
+        "selected": "sample.ink"
+      },
+      "variants": [
+        {
+          "id": "sample.ocean",
+          "overflow": false,
+          "theme": "light",
+          "accent": "#176B63"
+        },
+        {
+          "id": "sample.ink",
+          "overflow": false,
+          "theme": "dark",
+          "accent": "#b9b5ff"
+        },
+        {
+          "id": null,
+          "overflow": false,
+          "theme": "light",
+          "accent": "#f57d4a"
+        }
+      ],
+      "errors": []
+    },
+    {
+      "width": 1440,
+      "report": {
+        "passed": true,
+        "platform": "browser",
+        "info": {
+          "os": "browser-preview",
+          "arch": "unverified",
+          "storage": "browser-localStorage"
+        },
+        "coldRestartRestored": false,
+        "checks": [
+          {
+            "name": "cold-start-selection",
+            "passed": true
+          },
+          {
+            "name": "two-public-authors",
+            "passed": true
+          },
+          {
+            "name": "light-colors-on-public-view",
+            "passed": true
+          },
+          {
+            "name": "dark-appearance-and-colors",
+            "passed": true
+          },
+          {
+            "name": "appearance-adapter-receipt",
+            "passed": true
+          },
+          {
+            "name": "query-cannot-mutate-theme",
+            "passed": true
+          },
+          {
+            "name": "duplicate-id-preserves-owner",
+            "passed": true
+          },
+          {
+            "name": "invalid-css-rejected",
+            "passed": true
+          },
+          {
+            "name": "partial-activation-withdrawn",
+            "passed": true
+          },
+          {
+            "name": "stop-restores-built-in",
+            "passed": true
+          },
+          {
+            "name": "old-context-rejected",
+            "passed": true
+          },
+          {
+            "name": "restart-restores-preference",
+            "passed": true
+          },
+          {
+            "name": "uninstall-falls-back",
+            "passed": true
+          },
+          {
+            "name": "native-preference-receipt",
+            "passed": true
+          },
+          {
+            "name": "management-survives",
+            "passed": true
+          }
+        ],
+        "selected": "sample.ink"
+      },
+      "variants": [
+        {
+          "id": "sample.ocean",
+          "overflow": false,
+          "theme": "light",
+          "accent": "#176B63"
+        },
+        {
+          "id": "sample.ink",
+          "overflow": false,
+          "theme": "dark",
+          "accent": "#b9b5ff"
+        },
+        {
+          "id": null,
+          "overflow": false,
+          "theme": "light",
+          "accent": "#f57d4a"
+        }
+      ],
+      "errors": []
+    }
+  ]
+}

@@ -1,0 +1,110 @@
+{
+  "schema": 1,
+  "status": "in-progress; native window acceptance blocked by locked desktop",
+  "sourceBaseHead": "6648cfb2fd0ddce699079815654b03c8aee9fdf8",
+  "sourceDigest": "947beb4971def84b83fc39b22a349063d8da4a7171c21a6682c7baa8a1d00582",
+  "sourceManifest": "evidence/source-manifest-947beb4971def84b83fc39b22a349063d8da4a7171c21a6682c7baa8a1d00582.json",
+  "sourceWorkingTree": "inherited public theme integration plus React view lifecycle fix and four regression cases; exact implementation/config/test file contents in source manifest",
+  "buildType": "debug",
+  "version": "0.0.4",
+  "artifacts": [
+    {
+      "path": ".cache/m2-integration/candidate/Plums M1 0.0.4.app",
+      "platform": "macOS 27.0.1 arm64 / WKWebView",
+      "bundleIdentifier": "dev.plums.m1",
+      "version": "0.0.4",
+      "files": {
+        "Contents/Info.plist": "349b58698f33c0a364d2a59ca3c43e7a01ce48f35e63bce1a30a5af61405c206",
+        "Contents/MacOS/plums-m1": "c059b354bbff502a1c2adfc9452ef22ac52ac00e53a521cf773cc5fcb3a6a444",
+        "Contents/Resources/icon.icns": "6a7e5b00689e5640726ecf5319fbdc2aad4b8c43dea54a379e60ddfdbf50a231"
+      },
+      "bundleContentSha256": "77385df45c1a0762cddc76c173f6a4c356b7350ca8d9401baf28e8307ca597eb"
+    },
+    {
+      "path": ".cache/m2-integration/candidate/plums-m1-0.0.4-android-arm64-debug.apk",
+      "platform": "Android ARM64 debug / API36 emulator",
+      "packageName": "dev.plums.m1",
+      "version": "0.0.4",
+      "versionCode": 4,
+      "minSdk": 24,
+      "targetSdk": 37,
+      "sha256": "22c4679b01cae8168f8b6a5d276420f0cb68106e8245b4698927926b0084565e",
+      "signatureScheme": "v2",
+      "installedMatchesBuild": true,
+      "signingCertificateSha256": "1786a9ba6c40d4e0b6d3593dccf1d326154864c4f5d660b54e85cad15197b467"
+    }
+  ],
+  "dateUtc": "2026-10-16",
+  "validationEvidence": "evidence/M2-INTEGRATION-2026-10-16.md",
+  "releaseReplaced": false,
+  "checks": {
+    "frontendUnit": {
+      "passed": 240,
+      "files": 29,
+      "scope": "host/platform/business modules unchanged after this run; subsequent React UI correction covered by final build and browser suite"
+    },
+    "rustUnit": {
+      "passed": 15,
+      "scope": "Rust unchanged"
+    },
+    "browser": {
+      "passed": 77,
+      "newRegressionCases": 4
+    },
+    "typescriptViteBuild": "passed",
+    "format": "passed",
+    "clippy": "passed",
+    "rustfmt": "passed using existing nightly; stable lacks cargo-fmt",
+    "projectInventoryLinksAndSelectedPrivacyPatterns": "passed",
+    "whitespace": "passed"
+  },
+  "independentReview": {
+    "scope": "React mount/unmount, Host cleanup promise chain, ordinary build resources and platform entry points; source/tests and existing logs only",
+    "finding": "P1 workspace height chain regression",
+    "resolution": "height:100% only for workspace node; role settings natural height",
+    "reReview": "P1 closed; no remaining static blocker; no independent native replay"
+  },
+  "androidOrdinaryApp": {
+    "platform": "Android API36 ARM64 emulator / ordinary debug APK",
+    "checks": [
+      "agent-create-send-save-and-internal-scroll",
+      "role-dialog-repeat-save-close-natural-height",
+      "install-enable-both-public-theme-samples-and-select",
+      "failed-theme-write-preserves-applied-and-stored-ink",
+      "theme-stop-fallback-clears-palette-and-enable-restores",
+      "ordinary-document-sample-authorization-cancel-enable-and-native-available",
+      "ordinary-app-composition-theme-imports-and-agent-state-persisted",
+      "cold-restart-restores-themes-imports-composition-messages-and-requires-document-regrant"
+    ],
+    "passed": true,
+    "initialPid": "2288",
+    "layout": {
+      "height": 466,
+      "scroll": 7575,
+      "innerHeight": 754,
+      "overflow": false
+    },
+    "coldPid": "2486",
+    "platformInfo": {
+      "android": "16",
+      "sdk": "36",
+      "abi": "arm64-v8a",
+      "webview": "Current WebView package (name, version): (com.android.webview, 133.0.6943.137)"
+    }
+  },
+  "macOrdinaryApp": {
+    "status": "not verified on final corrected candidate"
+  },
+  "pending": [
+    "Mac final ordinary app install/settings/failure/fallback/agent/layout/cold-restart window flow",
+    "Both platforms native system picker cancel/single/multiple, actual read,64KiB boundary/oversize/invalid UTF8, revoke/lifecycle/cold-restart no grants",
+    "Android keyboard show/hide and input reachability",
+    "Replace ordinary release with recoverable previous package archive after native acceptance"
+  ],
+  "blocker": {
+    "condition": "Native UI tool reports Mac locked and automatic unlock unsuccessful",
+    "resumption": "Desktop operator unlocks manually; integration maintainer continues same candidates and isolated data"
+  },
+  "rawEvidenceDirectory": ".cache/m2-integration/",
+  "runtimeDataDirectory": ".m1-data/m2-integration-mac/"
+}

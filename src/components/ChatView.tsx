@@ -31,7 +31,7 @@ export function ChatView({
     <section className={s.chat} aria-label={`${agent.name} 的会话`}>
       <header className={s.chatHeader}>
         <button
-          className={`icon-button ${s.mobileOnly}`}
+          className="icon-button"
           onClick={onBack}
           aria-label="返回 Agent 列表"
         >
@@ -50,7 +50,7 @@ export function ChatView({
           </p>
         </div>
         <button
-          className={`icon-button ${s.detailButton}`}
+          className={`icon-button ${s.detailButton} ${s.mobileOnly}`}
           aria-label="查看 Agent 详情"
           onClick={(e) => onDetail(e.currentTarget)}
         >

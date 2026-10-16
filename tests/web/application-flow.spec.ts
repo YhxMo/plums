@@ -1,4 +1,4 @@
-import { manage, legacyEntry, chooseLayout } from "./helpers";
+import { manage, legacyEntry } from "./helpers";
 import { test, expect } from "@playwright/test";
 
 test("cancel returns to the initiating control even when activation does not focus it", async ({
@@ -128,4 +128,82 @@ test("management and authorization fit narrow and intermediate screens", async (
       ),
     ).toBe(true);
   }
+});
+
+test("dismissible fallback notice, independent extension manager page and topbar controls work end-to-end", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1180, height: 820 });
+  await page.goto("/");
+  await page.evaluate(() => {
+    localStorage.setItem(
+      "plums:m1:host.shell",
+      JSON.stringify({
+        schema: 1,
+        revision: 1,
+        value: {
+          version: 1,
+          theme: "light",
+          layout: "default",
+          agents: [],
+        },
+      }),
+    );
+  });
+  await page.reload();
+  const fallback = page.getByRole("status").filter({ hasText: "所选界面" });
+  await expect(fallback).toContainText("工作台 (default)");
+  await expect(fallback).toContainText("尚未启用");
+  await fallback.getByRole("button", { name: "查看原因", exact: true }).click();
+  await expect(page.getByRole("heading", { name: "扩展与状态" })).toBeVisible();
+  await expect(page.locator("[data-workspace]")).toBeHidden();
+  await expect(
+    page.getByRole("region", { name: "所选扩展与关联 Agent 详情" }),
+  ).toContainText("ui.default");
+  await page.getByRole("button", { name: "返回工作区", exact: true }).click();
+  await expect(page.locator("[data-workspace]")).toBeVisible();
+  await fallback
+    .getByRole("button", { name: "关闭所选界面提示", exact: true })
+    .click();
+  await expect(fallback).toHaveCount(0);
+  expect(
+    await page.evaluate(
+      () =>
+        JSON.parse(localStorage.getItem("plums:m1:host.shell")!).value.layout,
+    ),
+  ).toBe("default");
+
+  await page
+    .getByRole("button", { name: "从头添加 Agent", exact: true })
+    .click();
+  await page
+    .getByRole("textbox", { name: "名称", exact: true })
+    .fill("代码助手");
+  await page
+    .getByRole("dialog")
+    .getByRole("button", { name: "添加", exact: true })
+    .click();
+  const sidebarToggle = page.getByRole("button", {
+    name: "展开或收起右侧栏",
+    exact: true,
+  });
+  await sidebarToggle.click();
+  await expect(
+    page.getByRole("complementary", { name: "Agent 详情" }),
+  ).toBeVisible();
+  await sidebarToggle.click();
+  await expect(
+    page.getByRole("complementary", { name: "Agent 详情" }),
+  ).toHaveCount(0);
+
+  await manage(page);
+  await expect(
+    page.locator("#extension-manager").getByText("代码助手").first(),
+  ).toBeVisible();
+  await page
+    .locator("#extension-manager article")
+    .filter({ hasText: "本地 Agent 提供者" })
+    .click();
+  await page.getByRole("button", { name: "跳转到 Agent →" }).first().click();
+  await expect(page.locator("[data-workspace]")).toBeVisible();
 });

@@ -10,9 +10,15 @@
 
 已执行的测试、源码摘要、平台覆盖与限制见 [M1 证据](evidence/RESULTS.md)。当前受验版本、独立审查与两端运行范围按证据分别记录。Android 真机、iOS、Windows、Linux 及完整 A11/A12 尚未验收，iOS 继续暂缓。
 
-M1 已按 Mac＋Android 限定风险实验范围收敛；iOS 最小验证移至接口正式稳定前，五端目标保留。实验作者可从 [SDK 作者入口](docs/SDK-AUTHORING.md)运行服务、非聊天界面与无 UI 事件样板。扩展管理支持手动安装项的“卸载（保留数据）”，两端限定原生结果见 [卸载验收](evidence/UNINSTALL-2026-10-15.md)。
+M1 已按 Mac＋Android 限定风险实验范围收敛；iOS 最小验证移至接口正式稳定前，五端目标保留。实验作者可从 [SDK 作者入口](docs/SDK-AUTHORING.md)运行服务、非聊天界面与无 UI 事件样板，或安装 [公开主题样板](docs/THEMES.md)。扩展管理支持手动安装项的“卸载（保留数据）”，两端限定原生结果见 [卸载验收](evidence/UNINSTALL-2026-10-15.md)。
 
-最新源码包含 [会话内文档只读样板](docs/SELECTED-DOCUMENT.md)：宿主系统选择器、多个句柄与停用撤销，在 Mac 和 Android 模拟器限定验证。普通交付包仍按下述清单绑定原版本，新样板需从源码构建或使用专项产物。
+当前源码与普通交付包包含 [会话内文档只读样板](docs/SELECTED-DOCUMENT.md)：宿主系统选择器、多个会话内只读句柄与停用撤销，已在 Mac 和 Android API36 ARM64 模拟器完成普通包限定验收。
+
+同版普通 Mac app／Android APK 已完成 Agent、非聊天工作台、独立页面、主题与文档只读集成；React 卸载和长会话回归保留，手机结果详情遮挡宿主管理的反例已修复。实际系统选择器、系统键盘、冷进程和交付范围见 [普通包证据](evidence/M2-NATIVE-DELIVERY-2026-10-16.md)。应用 UI 的目标包含整体布局、导航与交互替换，颜色主题只是子能力。
+
+当前普通包也包含 [文本处理工作台与动态页面契约](docs/PAGES.md)：从扩展管理启用后，以表单执行和结果详情提供非聊天体验；页面与宿主入口按公开契约接入，两端限定路径已验收。
+
+冻结宿主和 SDK 后，内部独立作者已通过公开文档接入 [交稿检查页面](docs/LOCAL-PROOF.md)，提供跨扩展嵌套、动态页面和冲突回退；接入独立性见 [接入证据](evidence/INDEPENDENT-PAGES-2026-10-16.md)，两端普通包结果见普通包证据。
 
 ## 快速开始（Quick Start）
 
@@ -42,7 +48,7 @@ Android 复用既有 YHX 工具链。将 `PLUMS_ANDROID_TOOLS_ROOT` 设置为含
 
 图标源为 `src-tauri/icons/source.png`；执行 `npm run icons` 可重新生成 Mac、Android 和 Web 所需资源。默认界面与可替换布局共用语义颜色变量，所有权见 [UI](docs/UI.md)。
 
-本地查看包统一放在根 `release/`，当前为 `Plums M1 0.0.4.app` 和 `plums-m1-0.0.4-android-arm64-debug.apk`；使用范围与摘要见该目录的 `README.md`、`CHECKSUMS.json`。当前普通包包含 SDK 样板、外壳卸载、组合保存/安全恢复与非敏感扩展配置，源码以 `9015a7f` 基线加 126 文件集合摘要绑定，见 [配置与交付证据](evidence/CONFIGURATION-2026-10-15.md)。目录名不代表发布模式构建。
+本地查看包统一放在根 `release/`，当前为 `Plums M1 0.0.4.app` 和 `plums-m1-0.0.4-android-arm64-debug.apk`；使用范围与摘要见该目录的 `README.md`、`CHECKSUMS.json`。当前普通包绑定 214 文件源码摘要 `c0a3fd5`，包含完整交互小阶段的两端限定结果，见 [交付证据](evidence/M2-NATIVE-DELIVERY-2026-10-16.md)。旧交付目录可恢复，路径在清单中；目录名不代表发布模式构建。
 
 ## 文档索引
 

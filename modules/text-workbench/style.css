@@ -1,0 +1,361 @@
+.tw-workspace {
+  height: 100%;
+  min-height: 0;
+  display: flex;
+  color: var(--text);
+  background: var(--background);
+}
+.tw-sidebar {
+  width: 256px;
+  flex-shrink: 0;
+  padding: 20px 14px 14px;
+  background: var(--surface);
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-height: 0;
+}
+.tw-brand {
+  display: grid;
+  grid-template-columns: 32px 1fr;
+  gap: 0 8px;
+  align-items: center;
+  padding: 0 4px 6px;
+}
+.tw-mark {
+  grid-row: span 2;
+  color: var(--accent-text);
+  font-size: 28px;
+  line-height: 1;
+}
+.tw-brand strong {
+  font-size: 14px;
+  font-weight: 600;
+}
+.tw-brand small {
+  color: var(--muted);
+  font-size: 11px;
+}
+.tw-filters {
+  display: flex;
+  gap: 4px;
+}
+.tw-filters button {
+  flex: 1;
+  font-size: 12px;
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  padding: 4px;
+}
+.tw-filters button[aria-pressed="true"] {
+  background: var(--subtle);
+  color: var(--text);
+}
+.tw-items {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.tw-item {
+  display: flex;
+  flex-direction: column;
+  text-align: left;
+  gap: 4px;
+  background: transparent;
+  border: 1px solid transparent;
+  color: var(--text);
+  padding: 10px;
+  flex-shrink: 0;
+}
+.tw-item:hover,
+.tw-item[aria-pressed="true"] {
+  background: var(--subtle);
+  border-color: transparent;
+}
+.tw-item strong {
+  font-size: 13px;
+  font-weight: 500;
+  width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.tw-item span {
+  color: var(--muted);
+  font-size: 11px;
+}
+.tw-main {
+  min-width: 0;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+.tw-top {
+  display: flex;
+  align-items: center;
+  min-height: 52px;
+  padding: 8px 24px;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+  gap: 12px;
+}
+.tw-nav {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.tw-nav button {
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+}
+.tw-nav button[aria-current="page"] {
+  color: var(--text);
+  background: var(--subtle);
+}
+.tw-outlet {
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+.tw-page {
+  height: 100%;
+  overflow: auto;
+  padding: 32px max(24px, calc((100% - 780px) / 2));
+}
+.tw-page h1 {
+  font-size: 22px;
+  font-weight: 600;
+  letter-spacing: -0.5px;
+  margin: 0 0 24px;
+}
+.tw-page h2 {
+  font-size: 13px;
+  font-weight: 600;
+  margin: 24px 0 10px;
+}
+.tw-overview {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  padding-bottom: 100px;
+}
+.tw-overview h1 {
+  margin: 12px 0;
+  font-size: 28px;
+}
+.tw-lead {
+  color: var(--muted);
+  font-size: 14px;
+  line-height: 1.7;
+  margin: 0 0 24px;
+}
+.tw-overview > .muted {
+  margin-top: 18px;
+}
+.tw-page .field {
+  margin-bottom: 22px;
+}
+.tw-page .field textarea {
+  min-height: 220px;
+  max-height: 45vh;
+  resize: vertical;
+  font: inherit;
+  font-size: 14px;
+  line-height: 1.7;
+}
+.tw-service {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  padding: 12px 0 22px;
+  flex-wrap: wrap;
+}
+.tw-service strong {
+  font-weight: 500;
+}
+.tw-service button {
+  margin-left: auto;
+}
+.tw-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.tw-phase {
+  color: var(--muted);
+  margin: 16px 0 8px;
+}
+.tw-footnote {
+  color: var(--muted);
+  font-size: 11px;
+  margin-top: 24px;
+}
+.tw-results {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: 24px;
+}
+.tw-result {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  text-align: left;
+  gap: 10px;
+  padding: 18px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  color: var(--text);
+}
+.tw-result strong {
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 1.7;
+  overflow-wrap: anywhere;
+}
+.tw-result-link {
+  color: var(--accent-text);
+  font-size: 12px;
+}
+.tw-text {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  padding: 18px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  font: inherit;
+  font-size: 14px;
+  line-height: 1.7;
+}
+.tw-route-notice {
+  padding: 8px 24px;
+  margin: 0;
+  color: var(--muted);
+  background: var(--surface);
+  overflow-wrap: anywhere;
+}
+.tw-mobile-back {
+  display: none;
+}
+.tw-delete-confirm {
+  padding: 12px;
+  margin-top: 14px;
+  background: var(--subtle);
+  border-radius: 8px;
+}
+.tw-delete-confirm button {
+  margin-right: 8px;
+}
+.tw-detail {
+  display: grid;
+  grid-template-columns: minmax(160px, 1fr) minmax(260px, 1.4fr);
+  padding: 0;
+}
+.tw-detail-index {
+  padding: 24px;
+  border-right: 1px solid var(--border);
+}
+.tw-detail-index button {
+  display: block;
+  width: 100%;
+  text-align: left;
+  margin-top: 12px;
+  overflow-wrap: anywhere;
+  color: var(--text);
+}
+.tw-detail-index button[aria-pressed="true"] {
+  background: var(--subtle);
+  border-color: var(--control-border);
+}
+.tw-detail-panel {
+  padding: 24px;
+  min-width: 0;
+}
+@media (max-width: 767px) {
+  .tw-workspace {
+    position: relative;
+  }
+  .tw-sidebar {
+    width: 100%;
+    padding: 20px;
+  }
+  .tw-workspace[data-page="list"] {
+    flex-direction: column;
+  }
+  .tw-workspace[data-page="list"] .tw-sidebar {
+    flex: 1;
+  }
+  .tw-workspace[data-page="list"] .tw-main {
+    flex: 0 0 auto;
+    order: -1;
+  }
+  .tw-workspace[data-page="list"] .tw-outlet,
+  .tw-workspace[data-page="list"] .tw-mobile-back {
+    display: none;
+  }
+  .tw-workspace:not([data-page="list"]) .tw-sidebar {
+    display: none;
+  }
+  .tw-main {
+    width: 100%;
+  }
+  .tw-top {
+    padding: 8px 12px;
+    gap: 4px;
+  }
+  .tw-mobile-back {
+    display: block;
+    padding: 8px;
+    flex-shrink: 0;
+  }
+  .tw-nav {
+    flex: 1;
+    min-width: 0;
+    gap: 2px;
+    flex-wrap: nowrap;
+    overflow: auto;
+  }
+  .tw-nav button {
+    padding: 8px;
+    white-space: nowrap;
+  }
+  .tw-page {
+    padding: 24px 20px;
+  }
+  .tw-page h1 {
+    font-size: 21px;
+  }
+  .tw-page .field textarea {
+    min-height: 180px;
+  }
+  .tw-sidebar button,
+  .tw-page button,
+  .tw-top button {
+    min-height: 44px;
+  }
+  .tw-outlet[aria-modal="true"] {
+    position: absolute;
+    inset: 0;
+    z-index: 4;
+    background: var(--background);
+  }
+  .tw-detail {
+    display: block;
+    padding: 0;
+  }
+  .tw-detail-index {
+    display: none;
+  }
+  .tw-detail-panel {
+    padding: 24px 20px;
+  }
+}

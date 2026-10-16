@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Plums · 主题组合</title>
+  </head>
+  <body>
+    <header><strong>Plums · 主题组合</strong><span>隔离验收</span></header>
+    <main>
+      <p class="eyebrow">公开 SDK · 两位独立作者</p>
+      <h1>为工作空间选择外观</h1>
+      <p class="muted">
+        只使用自建样板与隔离偏好。主题停用后回到内置外观，管理入口始终保留。
+      </p>
+      <section aria-label="主题选择">
+        <h2>外观</h2>
+        <div id="choices" class="actions"></div>
+        <p id="status" role="status"></p>
+      </section>
+      <section id="content" aria-label="非聊天界面"></section>
+      <section>
+        <h2>扩展管理</h2>
+        <div class="actions">
+          <button id="manage" class="secondary">管理扩展</button
+          ><button id="stop" class="secondary">停用当前主题</button
+          ><button id="restore" class="secondary">恢复墨夜主题</button
+          ><button id="save">保存墨夜偏好</button>
+        </div>
+        <p id="management" class="muted">
+          专项测试自动执行；可手动切换外观观察。
+        </p>
+      </section>
+      <section>
+        <h2>本次实际回执</h2>
+        <pre id="result" aria-live="polite">正在执行…</pre>
+      </section>
+    </main>
+    <script type="module" src="./probe.ts"></script>
+  </body>
+</html>

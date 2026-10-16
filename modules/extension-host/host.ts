@@ -1,3 +1,4 @@
+import { copyTheme, type Theme } from "../sdk/theme";
 import {
   resolveConfiguration,
   validateConfigurationDeclaration,
@@ -8,6 +9,7 @@ import type {
   ExtensionDefinition,
   Platform,
   View,
+  ShellBridge,
 } from "../sdk";
 import { extensionOwner, platformRejection } from "../sdk";
 
@@ -147,14 +149,28 @@ export async function loadExtension(
 }
 
 export class Host {
+  private shellBridge?: ShellBridge;
+  /** Attach host-owned controls; an absent bridge explicitly rejects requests. */
+  connectShell(bridge: ShellBridge) {
+    if (this.shellBridge) throw Error("Shell bridge already connected");
+    this.shellBridge = bridge;
+    return () => {
+      if (this.shellBridge === bridge) this.shellBridge = undefined;
+    };
+  }
   private readonly records = new Map<string, RecordState>();
   private readonly services = new Map<string, Service>();
+  private readonly registeredThemes = new Map<
+    string,
+    Theme & { owner: string; generation: number }
+  >();
   private readonly registeredViews = new Map<string, RegisteredView>();
   private readonly events = new Map<string, Set<(data: unknown) => void>>();
   private readonly grants = new Map<string, Set<string>>();
   private readonly subscribers = new Set<() => void>();
   private sequence = 0;
   private viewSequence = 0;
+  private themeSequence = 0;
   private queue: Promise<unknown> = Promise.resolve();
 
   constructor(
@@ -266,15 +282,40 @@ export class Host {
   serviceNames() {
     return [...this.services.keys()];
   }
+  peekService<T>(name: string, version = 1): T | undefined {
+    const entry = this.services.get(name);
+    if (
+      !entry ||
+      entry.version !== version ||
+      this.record(entry.owner).status !== "active"
+    )
+      return undefined;
+    return entry.value as T;
+  }
+  themes() {
+    return [...this.registeredThemes.values()]
+      .filter(
+        (t) =>
+          this.record(t.owner).status === "active" &&
+          this.record(t.owner).scope?.open,
+      )
+      .sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0))
+      .map((t) => ({ ...t, colors: { ...t.colors } }));
+  }
   views() {
     return [...this.registeredViews.values()]
       .filter((view) => this.record(view.owner).status === "active")
-      .map(({ id, label, owner, generation }) => ({
+      .map(({ id, label, owner, generation, presentation, priority }) => ({
         id,
         label,
         owner,
         generation,
+        presentation: presentation ?? "workspace",
+        priority: priority ?? 0,
       }));
+  }
+  async leaveView(id: string) {
+    await this.registeredViews.get(id)?.beforeLeave?.();
   }
   mountView(id: string, root: HTMLElement): () => void | Promise<void> {
     const view = this.registeredViews.get(id);
@@ -486,6 +527,7 @@ export class Host {
       record.scope?.invalidate();
     }
     for (const owner of affected) this.record(owner).scope?.controller.abort();
+    this.changed();
   }
   private async deactivate(id: string, visited: Set<string>) {
     if (visited.has(id)) return;
@@ -527,6 +569,24 @@ export class Host {
       id,
       signal: scope.controller.signal,
       configuration: this.record(id).configuration.values,
+      shell: {
+        open: async (action) => {
+          scope.assertOpen();
+          if (!["extensions", "settings", "diagnostics"].includes(action))
+            throw Error("Unknown shell action");
+          if (!this.shellBridge) throw Error("Shell controls unavailable");
+          await this.shellBridge.open(action, id);
+        },
+        readPage: (viewId) => {
+          scope.assertOpen();
+          return this.shellBridge?.readPage(`${id}/${viewId}`);
+        },
+        savePage: async (viewId, route) => {
+          scope.assertOpen();
+          if (!this.shellBridge) throw Error("Shell controls unavailable");
+          await this.shellBridge.savePage(`${id}/${viewId}`, route);
+        },
+      },
       use: <T>(name: string) => {
         scope.assertOpen();
         const service = this.services.get(name);
@@ -571,6 +631,22 @@ export class Host {
           if (!scope.open) break;
           listener(data);
         }
+      },
+      theme: (input) => {
+        scope.assertOpen();
+        const theme = copyTheme(input);
+        scope.assertOpen();
+        if (this.registeredThemes.has(theme.id))
+          throw Error(`Theme conflict: ${theme.id}`);
+        this.registeredThemes.set(theme.id, {
+          ...theme,
+          owner: id,
+          generation: ++this.themeSequence,
+        });
+        own(() => {
+          this.registeredThemes.delete(theme.id);
+        });
+        this.changed();
       },
       view: (view) => {
         scope.assertOpen();

@@ -1,11 +1,15 @@
-import { useEffect, useRef, useState } from "react";
+import { Fragment, useEffect, useRef, useState } from "react";
 import { Icon } from "./Icon";
 export function SettingsMenu({
   onChoose,
+  views = [],
+  onView,
 }: {
   onChoose: (
-    action: "extensions" | "roles" | "settings" | "diagnostics" | "about",
+    action: "extensions" | "settings" | "diagnostics" | "about",
   ) => void;
+  views?: { id: string; label: string }[];
+  onView?: (view: { id: string; label: string }) => void;
 }) {
   const [open, setOpen] = useState(false);
   const root = useRef<HTMLDivElement>(null);
@@ -23,7 +27,7 @@ export function SettingsMenu({
     <div className="settings-menu" ref={root}>
       <button
         ref={trigger}
-        className="icon-button"
+        className="icon-button topbar-ghost"
         aria-label="应用菜单"
         aria-haspopup="menu"
         aria-expanded={open}
@@ -62,24 +66,39 @@ export function SettingsMenu({
           {(
             [
               ["extensions", "puzzle", "扩展管理"],
-              ["roles", "card", "角色卡设置"],
               ["settings", "settings", "应用设置"],
               ["diagnostics", "code", "诊断工具"],
               ["about", "info", "关于 Plums"],
             ] as const
           ).map(([action, icon, label]) => (
-            <button
-              key={action}
-              role="menuitem"
-              onClick={() => {
-                setOpen(false);
-                trigger.current?.focus();
-                onChoose(action);
-              }}
-            >
-              <Icon name={icon} size={18} />
-              {label}
-            </button>
+            <Fragment key={action}>
+              <button
+                role="menuitem"
+                onClick={() => {
+                  setOpen(false);
+                  trigger.current?.focus();
+                  onChoose(action);
+                }}
+              >
+                <Icon name={icon} size={18} />
+                {label}
+              </button>
+              {action === "extensions" &&
+                views.map((view) => (
+                  <button
+                    key={view.id}
+                    role="menuitem"
+                    onClick={() => {
+                      setOpen(false);
+                      trigger.current?.focus();
+                      onView?.(view);
+                    }}
+                  >
+                    <Icon name="card" size={18} />
+                    {view.label}
+                  </button>
+                ))}
+            </Fragment>
           ))}
         </div>
       )}

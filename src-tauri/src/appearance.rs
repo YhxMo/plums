@@ -1,4 +1,3 @@
-#[cfg(target_os = "android")]
 use tauri::Manager;
 
 #[derive(serde::Deserialize)]
@@ -15,10 +14,19 @@ pub struct Appearance(pub tauri::plugin::PluginHandle<tauri::Wry>);
 pub async fn shell_set_theme(app: tauri::AppHandle, theme: Theme) -> Result<(), String> {
     #[cfg(desktop)]
     {
-        app.set_theme(Some(match theme {
+        let target = match theme {
             Theme::Light => tauri::Theme::Light,
             Theme::Dark => tauri::Theme::Dark,
-        }));
+        };
+        let bg = match theme {
+            Theme::Light => tauri::window::Color(247, 247, 248, 255),
+            Theme::Dark => tauri::window::Color(30, 30, 30, 255),
+        };
+        app.set_theme(Some(target));
+        if let Some(window) = app.get_webview_window("main") {
+            let _ = window.set_theme(Some(target));
+            let _ = window.set_background_color(Some(bg));
+        }
         Ok(())
     }
     #[cfg(target_os = "android")]

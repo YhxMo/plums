@@ -1,6 +1,8 @@
 import { readFileSync } from "node:fs";
 import { manage } from "./helpers";
 import { expect, test, type Page } from "@playwright/test";
+const sidebarToggle = (page: Page) =>
+  page.getByRole("button", { name: "展开或收起右侧栏", exact: true });
 async function add(page: Page, name = "编程助手", multi = true) {
   await page
     .getByRole("button", { name: "从头添加 Agent", exact: true })
@@ -32,7 +34,9 @@ for (const width of [375, 1440]) {
       .fill("hello agent");
     await page.getByRole("button", { name: "发送", exact: true }).click();
     await expect(page.getByRole("log")).toContainText("HELLO AGENT");
-    await page.getByRole("button", { name: "查看 Agent 详情" }).click();
+    if (width === 375)
+      await page.getByRole("button", { name: "查看 Agent 详情" }).click();
+    else await sidebarToggle(page).click();
     await page
       .getByRole("button", { name: "设为特别关注", exact: true })
       .click();
@@ -46,7 +50,9 @@ for (const width of [375, 1440]) {
     await page
       .getByRole("button", { name: "打开 编程助手", exact: true })
       .click();
-    await page.getByRole("button", { name: "查看 Agent 详情" }).click();
+    if (width === 375)
+      await page.getByRole("button", { name: "查看 Agent 详情" }).click();
+    else await sidebarToggle(page).click();
     await page
       .getByRole("button", { name: "hello agent", exact: true })
       .click();
@@ -87,7 +93,7 @@ test("role card file import, validation and truthful local capabilities", async 
     .getByRole("button", { name: "添加", exact: true })
     .click();
   await expect(
-    page.getByRole("heading", { name: "写作助手", exact: true }),
+    page.getByRole("region", { name: "写作助手 的会话", exact: true }),
   ).toBeVisible();
   await expect(
     page
@@ -96,7 +102,7 @@ test("role card file import, validation and truthful local capabilities", async 
         exact: false,
       }),
   ).toBeVisible();
-  await page.getByRole("button", { name: "查看 Agent 详情" }).click();
+  await sidebarToggle(page).click();
   await expect(
     page.getByRole("complementary", { name: "Agent 详情" }),
   ).toContainText("角色卡说明不会授予额外访问权限");
@@ -230,7 +236,7 @@ test("imports persist and an external agent provider drives the default UI", asy
     .fill("contract");
   await page.getByRole("button", { name: "发送", exact: true }).click();
   await expect(page.getByRole("log")).toContainText("外部：contract");
-  await page.getByRole("button", { name: "查看 Agent 详情" }).click();
+  await sidebarToggle(page).click();
   await expect(
     page.getByRole("complementary", { name: "Agent 详情" }),
   ).toContainText("external.agents · 2.1.0");
@@ -335,8 +341,8 @@ for (const width of [375, 1440])
     await expect(settings.getByRole("status")).toHaveText("角色卡已保存。");
     await page.keyboard.press("Escape");
     await expect(
-      page.getByRole("heading", { name: "新的角色名称", exact: true }),
-    ).toBeVisible();
+    page.getByRole("region", { name: "新的角色名称 的会话", exact: true }),
+  ).toBeVisible();
     await page.reload();
     await page
       .getByRole("button", { name: "与 新的角色名称 交互", exact: true })

@@ -1,3 +1,10 @@
+import { createViewSlot } from "../modules/shell/view-slot";
+import { applyTheme } from "../modules/shell/theme";
+import {
+  diagnoseLayoutFallback,
+  mapExtensionAgents,
+  readActiveAgents,
+} from "../modules/shell/diagnostics";
 import { saveConfiguration } from "../modules/shell/configuration";
 import type { ConfigurationValue } from "../modules/sdk/configuration";
 import {
@@ -16,27 +23,32 @@ import {
   type Composition,
 } from "../modules/shell/composition";
 import { recoverComposition } from "../modules/shell/composition-recovery";
-import { uninstallImport } from "../modules/shell/uninstall";
-import type { StoredState } from "../modules/sdk";
+import {
+  uninstallImport,
+  type ImportedExtension,
+} from "../modules/shell/uninstall";
+import { extensionOwner, type StoredState } from "../modules/sdk";
 import { PlatformAdapter } from "./platform";
 import styles from "./App.module.css";
 import { agentExtension } from "../modules/agents/provider";
 import { restoreAgents, type SaveOptions } from "../modules/agents/store";
 import type { Agent } from "../modules/sdk/agents";
 import { agentUI } from "./agent-ui";
+import { textWorkbench } from "../modules/text-workbench/extension";
 import { SettingsMenu } from "./components/SettingsMenu";
 import { ExtensionView } from "./components/ExtensionView";
 import { SelectedDocuments } from "./components/SelectedDocuments";
-import { extensionOwner } from "../modules/sdk";
 import { Dialog } from "./components/Dialog";
+import { Icon } from "./components/Icon";
 
 type Runtime = {
   host: Host;
   adapter: PlatformAdapter;
-  catalog: { id: string; url: string; label: string }[];
+  catalog: ImportedExtension[];
   layout: string;
   theme: "light" | "dark";
-  imports: { id: string; url: string; label: string }[];
+  themeId: string | null;
+  imports: ImportedExtension[];
   events: EventTarget;
   failedImports: Record<string, string>;
   configurations: Record<string, unknown>;
@@ -46,10 +58,12 @@ type Runtime = {
     patch: {
       layout?: string;
       theme?: "light" | "dark";
+      themeId?: string | null;
       agents?: Agent[];
       imports?: Runtime["imports"];
       composition?: Composition;
       configurations?: Record<string, unknown>;
+      pages?: Record<string, string>;
     },
     options?: SaveOptions,
   ) => Promise<void>;
@@ -105,10 +119,12 @@ async function boot(): Promise<Runtime> {
         version?: unknown;
         layout?: unknown;
         theme?: unknown;
+        themeId?: unknown;
         agents?: unknown;
         imports?: unknown;
         composition?: unknown;
         configurations?: unknown;
+        pages?: unknown;
       }
     | undefined;
   if (
@@ -126,6 +142,18 @@ async function boot(): Promise<Runtime> {
     throw new CompositionRecovery(errorMessage(error), adapter, saved!);
   }
   const agents = restoreAgents(value?.agents);
+  if (
+    value?.pages !== undefined &&
+    (!value.pages ||
+      typeof value.pages !== "object" ||
+      Array.isArray(value.pages) ||
+      Object.values(value.pages).some((route) => typeof route !== "string"))
+  )
+    throw Error("页面偏好损坏，原数据已保留。");
+  let pages: Record<string, string> = Object.assign(
+    Object.create(null),
+    value?.pages ?? {},
+  );
   if (
     value?.configurations !== undefined &&
     (!value.configurations ||
@@ -182,6 +210,7 @@ async function boot(): Promise<Runtime> {
         : matchMedia("(prefers-color-scheme: dark)").matches
           ? ("dark" as const)
           : ("light" as const),
+    themeId: typeof value?.themeId === "string" ? value.themeId : null,
     agents,
     imports,
     configurations,
@@ -221,14 +250,30 @@ async function boot(): Promise<Runtime> {
     return pending;
   };
   const events = new EventTarget();
+  let pageQueue: Promise<void> = Promise.resolve();
+  host.connectShell({
+    open: async (action) => {
+      events.dispatchEvent(new CustomEvent("shell", { detail: action }));
+    },
+    readPage: (key) => pages[key],
+    savePage: (key, route) => {
+      const work = pageQueue.then(async () => {
+        const next = Object.assign(Object.create(null), pages, {
+          [key]: route,
+        });
+        await save({ pages: next });
+        pages = next;
+      });
+      pageQueue = work.catch(() => {});
+      return work;
+    },
+  });
+  host.install(textWorkbench, configurations["ui.workbench-board"]);
   host.install(
     agentExtension(agents, (agents, options) => save({ agents }, options)),
     configurations["agents.local"],
   );
-  host.install(
-    agentUI(() => events.dispatchEvent(new Event("extensions"))),
-    configurations["ui.agents"],
-  );
+  host.install(agentUI(), configurations["ui.agents"]);
   const compositionErrors = composition
     ? await restoreComposition(host, composition)
     : [];
@@ -244,9 +289,15 @@ async function boot(): Promise<Runtime> {
       ...catalog,
       { id: "agents.local", url: "内置公开服务", label: "本地 Agent 提供者" },
       { id: "ui.agents", url: "内置可替换界面", label: "默认 Agent 界面" },
+      {
+        id: "ui.workbench-board",
+        url: "内置公开契约样板",
+        label: "文本处理工作台",
+      },
     ],
     layout: preferences.layout,
     theme: preferences.theme,
+    themeId: preferences.themeId,
     imports,
     failedImports,
     composition,
@@ -383,6 +434,10 @@ function Workbench({ runtime }: { runtime: Runtime }) {
   useSyncExternalStore(host.subscribe, host.snapshot);
   const [selected, setSelected] = useState(runtime.layout);
   const [theme, setTheme] = useState(runtime.theme);
+  const [themeId, setThemeId] = useState(runtime.themeId);
+  const themes = host.themes();
+  const currentTheme = themes.find((entry) => entry.id === themeId);
+  const appearance = currentTheme?.appearance ?? theme;
   const [started, setStarted] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(
@@ -395,10 +450,23 @@ function Workbench({ runtime }: { runtime: Runtime }) {
   const [failedImports, setFailedImports] = useState(runtime.failedImports);
   const [notice, setNotice] = useState("");
   const [showExtensions, setShowExtensions] = useState(false);
+  const [selectedExtId, setSelectedExtId] = useState<string>(
+    () =>
+      catalog.find((entry) => host.ids().includes(entry.id))?.id ??
+      "agents.local",
+  );
+  const [dismissedFallback, setDismissedFallback] = useState("");
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [workspaceTitle, setWorkspaceTitle] = useState("");
+  const [agentDetailOpen, setAgentDetailOpen] = useState(false);
+  const isMacOverlay =
+    adapter.kind === "native" && !/android/i.test(navigator.userAgent);
   const [fault, setFault] = useState(false);
-  const [settings, setSettings] = useState<
-    "settings" | "roles" | "about" | null
-  >(null);
+  const [settings, setSettings] = useState<"settings" | "about" | null>(null);
+  const [dialogView, setDialogView] = useState<{
+    id: string;
+    label: string;
+  } | null>(null);
   const [diagnostics, setDiagnostics] = useState(false);
   const [install, setInstall] = useState(false);
   const installTrigger = useRef<HTMLElement | null>(null);
@@ -413,9 +481,29 @@ function Workbench({ runtime }: { runtime: Runtime }) {
   const [moduleUrl, setModuleUrl] = useState("");
   const [moduleId, setModuleId] = useState("");
   useEffect(() => {
-    const open = () => setShowExtensions(true);
-    runtime.events.addEventListener("extensions", open);
-    return () => runtime.events.removeEventListener("extensions", open);
+    const updateTitle = (event: Event) =>
+      setWorkspaceTitle((event as CustomEvent<string>).detail ?? "");
+    window.addEventListener("plums:workspace-title", updateTitle);
+    const updateDetail = (event: Event) =>
+      setAgentDetailOpen(!!(event as CustomEvent<boolean>).detail);
+    window.addEventListener("plums:agent-detail-state", updateDetail);
+    return () => {
+      window.removeEventListener("plums:workspace-title", updateTitle);
+      window.removeEventListener("plums:agent-detail-state", updateDetail);
+    };
+  }, []);
+
+  useEffect(() => {
+    const open = (event: Event) => {
+      const action = (event as CustomEvent<string>).detail;
+      if (action === "settings") setSettings("settings");
+      else {
+        setShowExtensions(true);
+        setDiagnostics(action === "diagnostics");
+      }
+    };
+    runtime.events.addEventListener("shell", open);
+    return () => runtime.events.removeEventListener("shell", open);
   }, [runtime]);
   const [authorization, setAuthorization] = useState<Authorization | null>(
     null,
@@ -425,6 +513,7 @@ function Workbench({ runtime }: { runtime: Runtime }) {
   const managerButton = useRef<HTMLButtonElement>(null);
   const managerHeading = useRef<HTMLHeadingElement>(null);
   const slot = useRef<HTMLDivElement>(null);
+  const [viewOutlet] = useState(() => createViewSlot(host));
   useEffect(() => {
     if (!removal && removed.current) {
       removed.current = false;
@@ -433,30 +522,57 @@ function Workbench({ runtime }: { runtime: Runtime }) {
   }, [removal]);
   const [failedViews, setFailedViews] = useState<Record<string, number>>({});
   const recovering = useRef<string | null>(null);
+  const lastWorkingView = useRef<string | undefined>(undefined);
   const views = host
     .views()
     .filter(
       (view) =>
-        view.id !== "role-settings" && failedViews[view.id] !== view.generation,
+        view.presentation === "workspace" &&
+        failedViews[view.id] !== view.generation,
     );
-  const roleView = host.views().find((view) => view.id === "role-settings");
+  const modalViews = host
+    .views()
+    .filter((view) => view.presentation === "dialog");
+  const sidebarViews = host
+    .views()
+    .filter((view) => view.presentation === "sidebar");
+  const customSidebarView = sidebarViews[0];
+  const modalView = modalViews.find((view) => view.id === dialogView?.id);
   const activeView =
     views.find((view) => view.id === selected)?.id ??
-    views.find((view) => view.id === "agents")?.id ??
-    views.find((view) => view.id === "default")?.id ??
-    views[0]?.id;
+    [...views].sort(
+      (a, b) => b.priority - a.priority || a.id.localeCompare(b.id),
+    )[0]?.id;
+  const activeViewLabel = views.find((view) => view.id === activeView)?.label;
   const generation = views.find((view) => view.id === activeView)?.generation;
+  const fallbackDiagnosis = diagnoseLayoutFallback(
+    host,
+    catalog,
+    selected,
+    activeView,
+    failedViews,
+    failedImports,
+  );
+  const activeAgents = readActiveAgents(host);
+  const extensionAgents = mapExtensionAgents(host, activeAgents);
+  const installedCatalog = catalog.filter((entry) =>
+    host.ids().includes(entry.id),
+  );
+  const activeSelectedExt =
+    installedCatalog.find((entry) => entry.id === selectedExtId) ??
+    installedCatalog[0];
 
   useLayoutEffect(() => {
-    document.documentElement.dataset.theme = theme;
-  }, [theme]);
+    applyTheme(document.documentElement, theme, currentTheme);
+    return () => applyTheme(document.documentElement, theme);
+  }, [theme, currentTheme]);
 
   useEffect(() => {
     if (adapter.kind === "native")
-      void invoke("shell_set_theme", { theme }).catch((reason) =>
+      void invoke("shell_set_theme", { theme: appearance }).catch((reason) =>
         setError(`窗口外观更新失败：${errorMessage(reason)}`),
       );
-  }, [adapter, theme]);
+  }, [adapter, appearance]);
 
   useEffect(() => {
     if (showExtensions) managerHeading.current?.focus();
@@ -469,38 +585,36 @@ function Workbench({ runtime }: { runtime: Runtime }) {
   useEffect(() => {
     const root = slot.current;
     if (!root || !activeView) return;
+    let active = true;
     const container = document.createElement("div");
     root.replaceChildren(container);
-    try {
-      const close = host.mountView(activeView, container);
-      if (recovering.current) {
-        setError(
-          `布局不可用，已恢复${activeView === "default" ? "默认界面" : "可用界面"}：${recovering.current}`,
-        );
-        recovering.current = null;
-      }
-      return () => {
-        try {
-          const pending = close();
-          if (pending)
-            void pending.catch((reason) => setError(errorMessage(reason)));
-        } catch (reason) {
-          setError(errorMessage(reason));
+    void viewOutlet
+      .show(activeView, container)
+      .then(() => {
+        if (active) lastWorkingView.current = activeView;
+        if (active && recovering.current) {
+          setError(`布局不可用，已恢复可用界面：${recovering.current}`);
+          recovering.current = null;
         }
-      };
-    } catch (reason) {
-      root.replaceChildren();
-      recovering.current = errorMessage(reason);
-      setError(
-        `布局不可用；将使用可用布局或宿主恢复入口：${errorMessage(reason)}`,
-      );
-      setFailedViews((previous) => ({
-        ...previous,
-        [activeView]: generation!,
-      }));
-      setSelected("default");
-    }
-  }, [host, activeView, generation]);
+      })
+      .catch((reason) => {
+        if (!active) return;
+        container.remove();
+        recovering.current = errorMessage(reason);
+        setError(
+          `布局不可用；将使用可用布局或宿主恢复入口：${errorMessage(reason)}`,
+        );
+        setFailedViews((previous) => ({
+          ...previous,
+          [activeView]: generation!,
+        }));
+        setSelected(lastWorkingView.current ?? "");
+      });
+    return () => {
+      active = false;
+      void viewOutlet.clear().catch((reason) => setError(errorMessage(reason)));
+    };
+  }, [host, activeView, generation, viewOutlet]);
 
   async function operate(action: () => Promise<void>) {
     setBusy(true);
@@ -529,6 +643,19 @@ function Workbench({ runtime }: { runtime: Runtime }) {
     setShowExtensions(open);
     if (!open) managerButton.current?.focus();
   }
+  function toggleRightSidebar(source: HTMLElement) {
+    if (customSidebarView) {
+      setSidebarOpen((prev) => !prev);
+      return;
+    }
+    if (activeView === "agents") {
+      window.dispatchEvent(
+        new CustomEvent("plums:toggle-agent-detail", { detail: source }),
+      );
+      return;
+    }
+    setSidebarOpen((prev) => !prev);
+  }
   async function start() {
     await host.grant("workbench", ["state.read", "state.write"]);
     await host.start("workbench");
@@ -547,7 +674,7 @@ function Workbench({ runtime }: { runtime: Runtime }) {
     await host.start(id);
     const contributed = host
       .views()
-      .find((view) => view.owner === id && view.id !== "role-settings");
+      .find((view) => view.owner === id && view.presentation === "workspace");
     if (contributed) {
       await runtime.save({ layout: contributed.id });
       setSelected(contributed.id);
@@ -561,37 +688,53 @@ function Workbench({ runtime }: { runtime: Runtime }) {
     await runtime.save({ imports, ...(composition ? { composition } : {}) });
     runtime.composition = composition;
   }
-  async function savePreferences(layout: string, appearance: Runtime["theme"]) {
-    await runtime.save({ layout, theme: appearance });
-  }
   async function selectLayout(layout: string) {
-    await savePreferences(layout, theme);
+    if (activeView) await host.leaveView(activeView);
+    await runtime.save({ layout, theme });
     setSelected(layout);
     setSettings(null);
   }
   async function toggleTheme() {
-    const next = theme === "light" ? "dark" : "light";
-    await savePreferences(selected, next);
+    const next = appearance === "light" ? "dark" : "light";
+    await runtime.save({ layout: selected, theme: next, themeId: null });
     setTheme(next);
+    setThemeId(null);
+  }
+  async function selectTheme(id: string | null) {
+    await runtime.save({ themeId: id });
+    setThemeId(id);
   }
   const writeDenied = host.inspect("workbench").status === "waiting" && started;
 
   return (
     <div className={styles.app}>
-      <header className={styles.header}>
-        <div className={styles.brand}>
-          <img className={styles.logo} src="/brand/plums.png" alt="" />
-          <strong>Plums</strong>
-          <span className={styles.stage}>M1</span>
+      <header
+        className={`${styles.header} ${isMacOverlay ? styles.macOverlayHeader : ""}`}
+        data-tauri-drag-region
+      >
+        <div className={styles.headerLeft} data-tauri-drag-region>
+          <div className={styles.brand} data-tauri-drag-region>
+            <img className={styles.logo} src="/brand/plums.png" alt="" />
+            <strong>Plums</strong>
+          </div>
+          {(showExtensions || workspaceTitle || activeView !== "agents") && (
+            <>
+              <span className={styles.topDivider} aria-hidden="true" />
+              <span className={styles.topTitle} data-tauri-drag-region>
+                {showExtensions
+                  ? "扩展管理"
+                  : workspaceTitle || activeViewLabel || "工作空间"}
+              </span>
+            </>
+          )}
         </div>
         <div className={styles.headerRight}>
-          <span className={styles.platform}>
-            {adapter.kind === "native" ? "Rust 原生" : "浏览器预览"}
-          </span>
           <button
-            className={`secondary ${styles.themeSwitch}`}
-            aria-label={theme === "light" ? "切换到深色模式" : "切换到浅色模式"}
-            title={theme === "light" ? "切换到深色模式" : "切换到浅色模式"}
+            className={`topbar-ghost ${styles.themeSwitch}`}
+            aria-label={
+              appearance === "light" ? "切换到深色模式" : "切换到浅色模式"
+            }
+            title={appearance === "light" ? "切换到深色模式" : "切换到浅色模式"}
             disabled={busy}
             onClick={() => void operate(toggleTheme)}
           >
@@ -604,7 +747,7 @@ function Workbench({ runtime }: { runtime: Runtime }) {
               strokeLinejoin="round"
               aria-hidden="true"
             >
-              {theme === "light" ? (
+              {appearance === "light" ? (
                 <path d="M20.6 13.1A8.6 8.6 0 0 1 10.9 3.4a8.7 8.7 0 1 0 9.7 9.7Z" />
               ) : (
                 <>
@@ -615,6 +758,8 @@ function Workbench({ runtime }: { runtime: Runtime }) {
             </svg>
           </button>
           <SettingsMenu
+            views={modalViews}
+            onView={setDialogView}
             onChoose={(action) => {
               if (action === "extensions" || action === "diagnostics") {
                 setShowExtensions(true);
@@ -622,8 +767,58 @@ function Workbench({ runtime }: { runtime: Runtime }) {
               } else setSettings(action);
             }}
           />
+          <button
+            className={`topbar-ghost ${styles.sidebarToggle}`}
+            aria-label="展开或收起右侧栏"
+            title={
+              customSidebarView
+                ? `切换 ${customSidebarView.label}`
+                : "展开或收起右侧栏"
+            }
+            aria-pressed={customSidebarView ? sidebarOpen : agentDetailOpen}
+            onClick={(event) => toggleRightSidebar(event.currentTarget)}
+          >
+            <Icon name="sidebarList" size={18} />
+          </button>
         </div>
       </header>
+      {fallbackDiagnosis &&
+        dismissedFallback !== fallbackDiagnosis.signature && (
+          <div
+            role="status"
+            className={`theme-fallback ${styles.fallbackBanner}`}
+          >
+            <span>{fallbackDiagnosis.message}</span>
+            <div className={styles.fallbackActions}>
+              <button
+                type="button"
+                className="text-button"
+                onClick={() => {
+                  if (fallbackDiagnosis.targetExtensionId)
+                    setSelectedExtId(fallbackDiagnosis.targetExtensionId);
+                  setShowExtensions(true);
+                }}
+              >
+                查看原因
+              </button>
+              <button
+                type="button"
+                className="topbar-ghost"
+                aria-label="关闭所选界面提示"
+                onClick={() =>
+                  setDismissedFallback(fallbackDiagnosis.signature)
+                }
+              >
+                <Icon name="close" size={15} />
+              </button>
+            </div>
+          </div>
+        )}
+      {themeId && !currentTheme && (
+        <p role="status" className="theme-fallback">
+          所选主题 {themeId} 暂不可用，已使用内置外观；再次启用该主题后恢复。
+        </p>
+      )}
       {(error || notice) && (
         <div
           className={`${styles.feedback} ${error ? styles.error : styles.notice}`}
@@ -643,7 +838,12 @@ function Workbench({ runtime }: { runtime: Runtime }) {
         </div>
       )}
       <div className={styles.body} data-inspecting={showExtensions}>
-        <div className={styles.stageArea} data-workspace>
+        <div
+          className={styles.stageArea}
+          data-workspace
+          hidden={showExtensions}
+          inert={showExtensions || undefined}
+        >
           {!activeView && (
             <main className={styles.welcome}>
               <img
@@ -698,364 +898,602 @@ function Workbench({ runtime }: { runtime: Runtime }) {
           )}
           <div ref={slot} hidden={!activeView} className={styles.viewSlot} />
         </div>
+        {!showExtensions && customSidebarView && sidebarOpen && (
+          <aside
+            className={styles.extensionSidebar}
+            aria-label={customSidebarView.label}
+          >
+            <header className={styles.extensionSidebarHeader}>
+              <h2>{customSidebarView.label}</h2>
+              <button
+                className="topbar-ghost"
+                aria-label="收起扩展侧栏"
+                onClick={() => setSidebarOpen(false)}
+              >
+                <Icon name="close" size={16} />
+              </button>
+            </header>
+            <div className={styles.extensionSidebarBody}>
+              <ExtensionView
+                host={host}
+                id={customSidebarView.id}
+                generation={customSidebarView.generation}
+              />
+            </div>
+          </aside>
+        )}
         <aside
           id="extension-manager"
           hidden={!showExtensions}
           className={styles.inspector}
           aria-label="扩展管理"
         >
-          <div className={styles.inspectorHeading}>
-            <div>
-              <span className="eyebrow">本地扩展 · {catalog.length}</span>
-              <h2 ref={managerHeading} tabIndex={-1}>
-                扩展与状态
-              </h2>
-            </div>
-            <button
-              ref={managerButton}
-              className="secondary"
-              onClick={() => toggleManager(false)}
-            >
-              返回工作区
-            </button>
-          </div>
-          <button
-            className="secondary"
-            onClick={(e) => {
-              installTrigger.current = e.currentTarget;
-              setInstall(true);
-            }}
-          >
-            安装扩展
-          </button>
-          <p className={styles.managerHint}>
-            检查模块与所需能力；停用后保留已保存的数据。
-          </p>
-          <button
-            className="secondary"
-            disabled={busy}
-            onClick={() =>
-              void operate(async () => {
-                const composition = captureComposition(host);
-                await runtime.save({ composition, layout: selected, theme });
-                runtime.composition = composition;
-                setNotice(
-                  "当前组合已保存，下次启动自动恢复；所需权限须重新确认。",
-                );
-              })
-            }
-          >
-            保存当前组合
-          </button>
-          <p className={styles.managerHint}>
-            保存启用集合、扩展版本与当前外观。下次启动恢复同一服务提供者；权限和扩展业务数据分别管理。保存会替换上一组合。
-          </p>
-          <div className={styles.extensions}>
-            {Object.entries(failedImports).map(([id, reason]) => (
-              <article key={id}>
-                <strong>{id}</strong>
-                <p className="error">加载失败：{reason}</p>
-                <button
-                  className="secondary"
-                  disabled={busy}
-                  aria-label={`重试加载 ${id}`}
-                  onClick={() =>
-                    void operate(async () => {
-                      const entry = runtime.imports.find((e) => e.id === id)!;
-                      const target = new URL(entry.url, location.href);
-                      target.searchParams.set("_retry", String(Date.now()));
-                      host.install(
-                        await loadExtension(target.href, id),
-                        runtime.configurations[id],
-                      );
-                      catalog.push(entry);
-                      setFailedImports((previous) => {
-                        const next = { ...previous };
-                        delete next[id];
-                        return next;
-                      });
-                    })
-                  }
-                >
-                  重试加载
-                </button>{" "}
-                <button
-                  className="secondary"
-                  disabled={busy}
-                  aria-label={`移除路径 ${id}`}
-                  onClick={() =>
-                    void operate(async () => {
-                      const imports = runtime.imports.filter(
-                        (e) => e.id !== id,
-                      );
-                      await saveRemovedImport(id, imports);
-                      runtime.imports = imports;
-                      setFailedImports((previous) => {
-                        const next = { ...previous };
-                        delete next[id];
-                        return next;
-                      });
-                    })
-                  }
-                >
-                  移除失效路径
-                </button>
-              </article>
-            ))}
-            {catalog
-              .filter((entry) => host.ids().includes(entry.id))
-              .map((entry) => {
-                const { id } = entry;
-                const state = host.inspect(id);
-                const manifest = host.manifest(id);
-                const capabilities = manifest.capabilities ?? [];
-                return (
+          <div className={styles.managerPage}>
+            <div className={styles.managerMaster}>
+              <div className={styles.inspectorHeading}>
+                <div className={styles.inspectorHeadingLeft}>
+                  <button
+                    ref={managerButton}
+                    className={`topbar-ghost ${styles.backArrow}`}
+                    aria-label="返回工作区"
+                    title="返回工作区"
+                    onClick={() => toggleManager(false)}
+                  >
+                    <Icon name="arrowLeft" size={18} />
+                  </button>
+                  <div>
+                    <span className="eyebrow">本地扩展 · {catalog.length}</span>
+                    <h2 ref={managerHeading} tabIndex={-1}>
+                      扩展与状态
+                    </h2>
+                  </div>
+                </div>
+                <div className={styles.managerGlobalActions}>
+                  <button
+                    className="secondary"
+                    onClick={(e) => {
+                      installTrigger.current = e.currentTarget;
+                      setInstall(true);
+                    }}
+                  >
+                    安装扩展
+                  </button>
+                  <button
+                    className="secondary"
+                    disabled={busy}
+                    onClick={() =>
+                      void operate(async () => {
+                        const composition = captureComposition(host);
+                        await runtime.save({
+                          composition,
+                          layout: selected,
+                          theme,
+                        });
+                        runtime.composition = composition;
+                        setNotice(
+                          "当前组合已保存，下次启动自动恢复；所需权限须重新确认。",
+                        );
+                      })
+                    }
+                  >
+                    保存当前组合
+                  </button>
+                </div>
+              </div>
+              <p className={styles.managerHint}>
+                检查模块与所需能力；停用后保留已保存的数据。保存当前组合会记录启用集合、扩展版本与当前外观，权限和扩展业务数据分别管理。
+              </p>
+              <div className={styles.extensions}>
+                {Object.entries(failedImports).map(([id, reason]) => (
                   <article key={id}>
-                    <div className={styles.extensionTitle}>
-                      <strong>{entry.label}</strong>
-                      <span
-                        className={`${styles.status} ${state.status === "active" ? styles.active : ""}`}
+                    <strong>{id}</strong>
+                    <p className="error">加载失败：{reason}</p>
+                    <button
+                      className="secondary"
+                      disabled={busy}
+                      aria-label={`重试加载 ${id}`}
+                      onClick={() =>
+                        void operate(async () => {
+                          const entry = runtime.imports.find(
+                            (e) => e.id === id,
+                          )!;
+                          const target = new URL(entry.url, location.href);
+                          target.searchParams.set("_retry", String(Date.now()));
+                          host.install(
+                            await loadExtension(target.href, id),
+                            runtime.configurations[id],
+                          );
+                          catalog.push(entry);
+                          setFailedImports((previous) => {
+                            const next = { ...previous };
+                            delete next[id];
+                            return next;
+                          });
+                        })
+                      }
+                    >
+                      重试加载
+                    </button>{" "}
+                    <button
+                      className="secondary"
+                      disabled={busy}
+                      aria-label={`移除路径 ${id}`}
+                      onClick={() =>
+                        void operate(async () => {
+                          const imports = runtime.imports.filter(
+                            (e) => e.id !== id,
+                          );
+                          await saveRemovedImport(id, imports);
+                          runtime.imports = imports;
+                          setFailedImports((previous) => {
+                            const next = { ...previous };
+                            delete next[id];
+                            return next;
+                          });
+                        })
+                      }
+                    >
+                      移除失效路径
+                    </button>
+                  </article>
+                ))}
+                {catalog
+                  .filter((entry) => host.ids().includes(entry.id))
+                  .map((entry) => {
+                    const { id } = entry;
+                    const state = host.inspect(id);
+                    const manifest = host.manifest(id);
+                    const capabilities = manifest.capabilities ?? [];
+                    const boundAgents = extensionAgents[id] ?? [];
+                    const isSelected = activeSelectedExt?.id === id;
+                    return (
+                      <article
+                        key={id}
+                        className={`${styles.extensionItem} ${isSelected ? styles.extensionItemSelected : ""}`}
+                        onClick={() => setSelectedExtId(id)}
                       >
-                        {translateStatus(state.status)}
-                      </span>
-                    </div>
-                    <code>
-                      {id} · {manifest.version}
-                    </code>
-                    {state.error && <p className="error">{state.error}</p>}
-                    <p className={styles.resourceCount}>
-                      {state.resources} 项资源 · {state.tasks} 个在途任务
-                    </p>
-                    <div className={styles.extensionActions}>
-                      {manifest.configuration && (
-                        <button
-                          className="secondary"
-                          aria-label={`配置 ${id}`}
-                          disabled={busy}
-                          onClick={(event) => {
-                            configTrigger.current = event.currentTarget;
-                            setConfigDraft({
-                              ...host.configuration(id).value.values,
-                            });
-                            setError("");
-                            setConfiguring(id);
-                          }}
-                        >
-                          配置
-                        </button>
-                      )}
-                      {runtime.imports.some((item) => item.id === id) && (
-                        <button
-                          className="secondary"
-                          disabled={busy}
-                          aria-label={`卸载 ${id}`}
-                          onClick={(event) => {
-                            removalTrigger.current = event.currentTarget;
-                            setError("");
-                            setRemoval(id);
-                          }}
-                        >
-                          卸载（保留数据）
-                        </button>
-                      )}
-                      <details>
-                        <summary>扩展详情</summary>
-                        <dl>
+                        <div className={styles.extensionTitle}>
+                          <strong>{entry.label}</strong>
+                          <span
+                            className={`${styles.status} ${state.status === "active" ? styles.active : ""}`}
+                          >
+                            {translateStatus(state.status)}
+                          </span>
+                        </div>
+                        <code>
+                          {id} · {manifest.version}
+                        </code>
+                        {boundAgents.length > 0 && (
+                          <div className={styles.boundAgentPills}>
+                            <span className="muted">关联 Agent：</span>
+                            {boundAgents.map((agent) => (
+                              <span key={agent.id} className={styles.agentPill}>
+                                {agent.name}
+                              </span>
+                            ))}
+                          </div>
+                        )}
+                        {state.error && <p className="error">{state.error}</p>}
+                        <p className={styles.resourceCount}>
+                          {state.resources} 项资源 · {state.tasks} 个在途任务
+                        </p>
+                        <div className={styles.extensionActions}>
+                          {manifest.configuration && (
+                            <button
+                              className="secondary"
+                              aria-label={`配置 ${id}`}
+                              disabled={busy}
+                              onClick={(event) => {
+                                configTrigger.current = event.currentTarget;
+                                setConfigDraft({
+                                  ...host.configuration(id).value.values,
+                                });
+                                setError("");
+                                setConfiguring(id);
+                              }}
+                            >
+                              配置
+                            </button>
+                          )}
+                          {runtime.imports.some((item) => item.id === id) && (
+                            <button
+                              className="secondary"
+                              disabled={busy}
+                              aria-label={`卸载 ${id}`}
+                              onClick={(event) => {
+                                removalTrigger.current = event.currentTarget;
+                                setError("");
+                                setRemoval(id);
+                              }}
+                            >
+                              卸载（保留数据）
+                            </button>
+                          )}
+                          <details>
+                            <summary>扩展详情</summary>
+                            <dl>
+                              <dt>模块位置</dt>
+                              <dd>{entry.url}</dd>
+                              <dt>能力</dt>
+                              <dd>
+                                {capabilities.length
+                                  ? capabilities.map(capabilityLabel).join("、")
+                                  : "无需原生能力"}
+                              </dd>
+                              <dt>依赖服务</dt>
+                              <dd>
+                                {Object.entries(manifest.requires ?? {})
+                                  .map(
+                                    ([name, version]) => `${name}@${version}`,
+                                  )
+                                  .join("、") || "无"}
+                              </dd>
+                              <dt>提供服务</dt>
+                              <dd>
+                                {Object.entries(manifest.provides ?? {})
+                                  .map(
+                                    ([name, version]) => `${name}@${version}`,
+                                  )
+                                  .join("、") || "无"}
+                              </dd>
+                            </dl>
+                          </details>
+                          <button
+                            className="secondary"
+                            aria-label={`${state.status === "active" ? "停用" : "启用"} ${id}`}
+                            disabled={
+                              busy ||
+                              state.status === "cleanup-failed" ||
+                              state.status === "stopping"
+                            }
+                            onClick={(event) => {
+                              if (state.status === "active")
+                                void operate(() => host.stop(id));
+                              else if (capabilities.length)
+                                requestAuthorization(
+                                  [id],
+                                  async () => {
+                                    await host.grant(id, capabilities);
+                                    await enableExtension(id);
+                                  },
+                                  event.currentTarget,
+                                );
+                              else
+                                void operate(async () => {
+                                  await enableExtension(id);
+                                });
+                            }}
+                          >
+                            {state.status === "active"
+                              ? "停用"
+                              : state.status === "waiting"
+                                ? "恢复"
+                                : "启用"}
+                          </button>
+                        </div>
+                        {capabilities.includes("document.read") && (
+                          <SelectedDocuments
+                            adapter={runtime.adapter}
+                            owner={extensionOwner(id)}
+                            enabled={state.status === "active"}
+                          />
+                        )}
+                        {state.status === "cleanup-failed" && (
+                          <p className="error">请重新启动应用以恢复此扩展。</p>
+                        )}
+                      </article>
+                    );
+                  })}
+              </div>
+            </div>
+            <section
+              className={styles.managerDetailPane}
+              aria-label="所选扩展与关联 Agent 详情"
+            >
+              {activeSelectedExt &&
+                (() => {
+                  const extId = activeSelectedExt.id;
+                  const extState = host.inspect(extId);
+                  const extManifest = host.manifest(extId);
+                  const extCaps = extManifest.capabilities ?? [];
+                  const extBoundAgents = extensionAgents[extId] ?? [];
+                  return (
+                    <div className={styles.detailCard}>
+                      <header className={styles.detailCardHeader}>
+                        <div>
+                          <div className={styles.extensionTitle}>
+                            <h3>{activeSelectedExt.label}</h3>
+                            <span
+                              className={`${styles.status} ${extState.status === "active" ? styles.active : ""}`}
+                            >
+                              {translateStatus(extState.status)}
+                            </span>
+                          </div>
+                          <code>
+                            {extId} · {extManifest.version}
+                          </code>
+                        </div>
+                      </header>
+                      <section className={styles.detailSection}>
+                        <h4>已绑定的启用中 Agent（{extBoundAgents.length}）</h4>
+                        {extBoundAgents.length ? (
+                          <div className={styles.boundAgentList}>
+                            {extBoundAgents.map((agent) => (
+                              <div
+                                key={agent.id}
+                                className={styles.boundAgentRow}
+                              >
+                                <div>
+                                  <strong>{agent.name}</strong>
+                                  <p className="muted">{agent.description}</p>
+                                </div>
+                                <button
+                                  type="button"
+                                  className="text-button"
+                                  onClick={() => {
+                                    toggleManager(false);
+                                    window.dispatchEvent(
+                                      new CustomEvent("plums:select-agent", {
+                                        detail: agent.id,
+                                      }),
+                                    );
+                                  }}
+                                >
+                                  跳转到 Agent →
+                                </button>
+                              </div>
+                            ))}
+                          </div>
+                        ) : (
+                          <p className="muted">
+                            当前没有启用中的 Agent 直接绑定此扩展。
+                          </p>
+                        )}
+                      </section>
+                      <section className={styles.detailSection}>
+                        <h4>服务与权限概览</h4>
+                        <dl className={styles.detailMetaGrid}>
                           <dt>模块位置</dt>
-                          <dd>{entry.url}</dd>
-                          <dt>能力</dt>
+                          <dd>{activeSelectedExt.url}</dd>
+                          <dt>所需服务</dt>
                           <dd>
-                            {capabilities.length
-                              ? capabilities.map(capabilityLabel).join("、")
-                              : "无需原生能力"}
-                          </dd>
-                          <dt>依赖服务</dt>
-                          <dd>
-                            {Object.entries(manifest.requires ?? {})
+                            {Object.entries(extManifest.requires ?? {})
                               .map(([name, version]) => `${name}@${version}`)
                               .join("、") || "无"}
                           </dd>
                           <dt>提供服务</dt>
                           <dd>
-                            {Object.entries(manifest.provides ?? {})
+                            {Object.entries(extManifest.provides ?? {})
                               .map(([name, version]) => `${name}@${version}`)
                               .join("、") || "无"}
                           </dd>
+                          <dt>系统权限</dt>
+                          <dd>
+                            {extCaps.length
+                              ? extCaps.map(capabilityLabel).join("、")
+                              : "无需原生能力"}
+                          </dd>
                         </dl>
-                      </details>
-                      <button
-                        className="secondary"
-                        aria-label={`${state.status === "active" ? "停用" : "启用"} ${id}`}
-                        disabled={
-                          busy ||
-                          state.status === "cleanup-failed" ||
-                          state.status === "stopping"
-                        }
-                        onClick={(event) => {
-                          if (state.status === "active")
-                            void operate(() => host.stop(id));
-                          else if (capabilities.length)
-                            requestAuthorization(
-                              [id],
-                              async () => {
-                                await host.grant(id, capabilities);
-                                await enableExtension(id);
-                              },
-                              event.currentTarget,
-                            );
-                          else
-                            void operate(async () => {
-                              await enableExtension(id);
-                            });
-                        }}
-                      >
-                        {state.status === "active"
-                          ? "停用"
-                          : state.status === "waiting"
-                            ? "恢复"
-                            : "启用"}
-                      </button>
+                      </section>
                     </div>
-                    {capabilities.includes("document.read") && (
-                      <SelectedDocuments
-                        adapter={runtime.adapter}
-                        owner={extensionOwner(id)}
-                        enabled={state.status === "active"}
-                      />
-                    )}
-                    {state.status === "cleanup-failed" && (
-                      <p className="error">请重新启动应用以恢复此扩展。</p>
-                    )}
-                  </article>
-                );
-              })}
-          </div>
-          <details
-            className={styles.diagnostics}
-            open={diagnostics}
-            onToggle={(e) => setDiagnostics(e.currentTarget.open)}
-          >
-            <summary>诊断与实验</summary>
-            <button
-              className="secondary"
-              disabled={busy}
-              onClick={(event) =>
-                requestAuthorization(["workbench"], start, event.currentTarget)
-              }
-            >
-              授予实验能力并启动
-            </button>
-            <div className={styles.diagnosticActions}>
-              <button
-                className="secondary"
-                disabled={!started || busy}
-                onClick={() =>
-                  void operate(async () => {
-                    const upper =
-                      host.inspect("transform.upper").status === "active";
-                    await host.stop(
-                      upper ? "transform.upper" : "transform.reverse",
-                    );
-                    await host.start(
-                      upper ? "transform.reverse" : "transform.upper",
-                    );
-                    setNotice("服务已替换，工作台已重新连接。");
-                  })
-                }
+                  );
+                })()}
+              <details
+                className={styles.diagnostics}
+                open={diagnostics}
+                onToggle={(e) => setDiagnostics(e.currentTarget.open)}
               >
-                替换服务
-              </button>
-              <button
-                className="secondary"
-                disabled={!activeView || busy}
-                onClick={() =>
-                  void operate(async () => {
-                    const owner = host
-                      .views()
-                      .find((view) => view.id === activeView)!.owner;
-                    await host.stop(owner);
-                    setSelected("default");
-                    setNotice("布局已停用，已选择可用界面。");
-                  })
-                }
-              >
-                停用当前布局
-              </button>
-              <button
-                className="secondary"
-                disabled={!started || busy}
-                onClick={() =>
-                  void operate(async () => {
-                    await host.start("ui.broken");
-                    setSelected("broken");
-                  })
-                }
-              >
-                测试故障布局
-              </button>
-              <button
-                className="secondary"
-                disabled={!started || busy}
-                onClick={(event) => {
-                  if (writeDenied)
+                <summary>诊断与实验</summary>
+                <button
+                  className="secondary"
+                  disabled={busy}
+                  onClick={(event) =>
                     requestAuthorization(
                       ["workbench"],
-                      async () => {
-                        await host.grant("workbench", [
-                          "state.read",
-                          "state.write",
-                        ]);
-                      },
+                      start,
                       event.currentTarget,
-                    );
-                  else
-                    void operate(async () => {
-                      await host.grant("workbench", ["state.read"]);
-                      setNotice("写入能力已撤销，工作台等待重新授权。");
-                    });
-                }}
-              >
-                {writeDenied ? "恢复状态写入" : "撤销状态写入"}
-              </button>
-              <label className={styles.checkbox}>
-                <input
-                  type="checkbox"
-                  checked={fault}
-                  onChange={(event) => {
-                    adapter.failWrites = event.target.checked;
-                    setFault(event.target.checked);
-                  }}
-                />
-                注入存储写入失败
-              </label>
-              <p>故障注入只用于本应用实验，不代表操作系统授权。</p>
-            </div>
-          </details>
+                    )
+                  }
+                >
+                  授予实验能力并启动
+                </button>
+                <div className={styles.diagnosticActions}>
+                  <button
+                    className="secondary"
+                    disabled={!started || busy}
+                    onClick={() =>
+                      void operate(async () => {
+                        const upper =
+                          host.inspect("transform.upper").status === "active";
+                        await host.stop(
+                          upper ? "transform.upper" : "transform.reverse",
+                        );
+                        await host.start(
+                          upper ? "transform.reverse" : "transform.upper",
+                        );
+                        setNotice("服务已替换，工作台已重新连接。");
+                      })
+                    }
+                  >
+                    替换服务
+                  </button>
+                  <button
+                    className="secondary"
+                    disabled={!activeView || busy}
+                    onClick={() =>
+                      void operate(async () => {
+                        const owner = host
+                          .views()
+                          .find((view) => view.id === activeView)!.owner;
+                        await host.stop(owner);
+                        setSelected("default");
+                        setNotice("布局已停用，已选择可用界面。");
+                      })
+                    }
+                  >
+                    停用当前布局
+                  </button>
+                  <button
+                    className="secondary"
+                    disabled={!started || busy}
+                    onClick={() =>
+                      void operate(async () => {
+                        await host.start("ui.broken");
+                        setSelected("broken");
+                      })
+                    }
+                  >
+                    测试故障布局
+                  </button>
+                  <button
+                    className="secondary"
+                    disabled={!started || busy}
+                    onClick={(event) => {
+                      if (writeDenied)
+                        requestAuthorization(
+                          ["workbench"],
+                          async () => {
+                            await host.grant("workbench", [
+                              "state.read",
+                              "state.write",
+                            ]);
+                          },
+                          event.currentTarget,
+                        );
+                      else
+                        void operate(async () => {
+                          await host.grant("workbench", ["state.read"]);
+                          setNotice("写入能力已撤销，工作台等待重新授权。");
+                        });
+                    }}
+                  >
+                    {writeDenied ? "恢复状态写入" : "撤销状态写入"}
+                  </button>
+                  <label className={styles.checkbox}>
+                    <input
+                      type="checkbox"
+                      checked={fault}
+                      onChange={(event) => {
+                        adapter.failWrites = event.target.checked;
+                        setFault(event.target.checked);
+                      }}
+                    />
+                    注入存储写入失败
+                  </label>
+                  <p>故障注入只用于本应用实验，不代表操作系统授权。</p>
+                </div>
+              </details>
+            </section>
+          </div>
         </aside>
       </div>
+      {dialogView && (
+        <Dialog title={dialogView.label} onClose={() => setDialogView(null)}>
+          {modalView ? (
+            <ExtensionView
+              host={host}
+              id={modalView.id}
+              generation={modalView.generation}
+            />
+          ) : (
+            <div className="dialog-content">
+              <p>界面提供者暂不可用，原数据已保留。</p>
+              <button
+                onClick={() => {
+                  setDialogView(null);
+                  setShowExtensions(true);
+                }}
+              >
+                查看扩展
+              </button>
+            </div>
+          )}
+        </Dialog>
+      )}
       {settings && (
         <Dialog
-          title={
-            settings === "about"
-              ? "关于 Plums"
-              : settings === "roles"
-                ? "角色卡设置"
-                : "应用设置"
-          }
+          title={settings === "about" ? "关于 Plums" : "应用设置"}
           onClose={() => setSettings(null)}
         >
-          {settings === "roles" ? (
-            roleView ? (
-              <ExtensionView
-                host={host}
-                id={roleView.id}
-                generation={roleView.generation}
-              />
+          <div className="dialog-content">
+            {settings === "about" ? (
+              <>
+                <img
+                  className={styles.aboutLogo}
+                  src="/brand/plums.png"
+                  width="56"
+                  height="56"
+                  alt=""
+                />
+                <h3>Plums M1 · 0.0.4</h3>
+                <p>通过扩展组合角色、能力和界面。</p>
+                <p className="muted">
+                  本地调试原型。当前 Agent 使用本地文本服务，模型与 MCP
+                  连接器尚未内置。
+                </p>
+              </>
             ) : (
-              <div className="dialog-content">
-                <p>
-                  角色卡设置暂不可用，请在扩展管理中启用 Agent 提供者与默认
-                  Agent 界面。
+              <>
+                <h3>界面与外观</h3>
+                <p className="muted">
+                  扩展界面优先于默认界面，可在此切换已启用的界面。
+                </p>
+                <div
+                  role="group"
+                  aria-label="界面布局"
+                  className="layout-options"
+                >
+                  {views.map((view) => (
+                    <button
+                      className="secondary"
+                      key={view.id}
+                      aria-pressed={view.id === activeView}
+                      onClick={() => void operate(() => selectLayout(view.id))}
+                    >
+                      使用 {view.label}
+                    </button>
+                  ))}
+                </div>
+                <button
+                  className="secondary"
+                  onClick={() => void operate(toggleTheme)}
+                >
+                  {appearance === "light" ? "切换到深色模式" : "切换到浅色模式"}
+                </button>
+                <div
+                  role="group"
+                  aria-label="扩展主题"
+                  className="layout-options"
+                >
+                  <button
+                    className="secondary"
+                    disabled={busy}
+                    aria-pressed={!themeId}
+                    onClick={() => void operate(() => selectTheme(null))}
+                  >
+                    使用内置外观
+                  </button>
+                  {themes.map((entry) => (
+                    <button
+                      className="secondary"
+                      disabled={busy}
+                      key={entry.id}
+                      aria-pressed={entry.id === themeId}
+                      onClick={() => void operate(() => selectTheme(entry.id))}
+                    >
+                      使用 {entry.label}
+                      <small className="muted theme-identity">
+                        {entry.id} · {entry.owner}
+                      </small>
+                    </button>
+                  ))}
+                </div>
+                <p className="muted">
+                  主题来自已启用的扩展；停用后使用内置外观。重启启用集合需在扩展管理中保存当前组合。
+                </p>
+                <h3>扩展与连接</h3>
+                <p className="muted">
+                  模型连接器、MCP 服务和其他能力统一在扩展中配置、启用或停用。
                 </p>
                 <button
                   className="secondary"
@@ -1064,88 +1502,30 @@ function Workbench({ runtime }: { runtime: Runtime }) {
                     setShowExtensions(true);
                   }}
                 >
-                  查看扩展
+                  管理扩展
                 </button>
-              </div>
-            )
-          ) : (
-            <div className="dialog-content">
-              {settings === "about" ? (
-                <>
-                  <img src="/brand/plums.png" width="56" height="56" alt="" />
-                  <h3>Plums M1 · 0.0.4</h3>
-                  <p>通过扩展组合角色、能力和界面。</p>
-                  <p className="muted">
-                    本地调试原型。当前 Agent 使用本地文本服务，模型与 MCP
-                    连接器尚未内置。
-                  </p>
-                </>
-              ) : (
-                <>
-                  <h3>界面与外观</h3>
-                  <p className="muted">
-                    扩展界面优先于默认界面，可在此切换已启用的界面。
-                  </p>
-                  <div
-                    role="group"
-                    aria-label="界面布局"
-                    className="layout-options"
-                  >
-                    {views.map((view) => (
-                      <button
-                        className="secondary"
-                        key={view.id}
-                        aria-pressed={view.id === activeView}
-                        onClick={() =>
-                          void operate(() => selectLayout(view.id))
-                        }
-                      >
-                        使用 {view.label}
-                      </button>
-                    ))}
-                  </div>
-                  <button
-                    className="secondary"
-                    onClick={() => void operate(toggleTheme)}
-                  >
-                    {theme === "light" ? "切换到深色模式" : "切换到浅色模式"}
-                  </button>
-                  <h3>扩展与连接</h3>
-                  <p className="muted">
-                    模型连接器、MCP 服务和其他能力统一在扩展中配置、启用或停用。
-                  </p>
-                  <button
-                    className="secondary"
-                    onClick={() => {
-                      setSettings(null);
-                      setShowExtensions(true);
-                    }}
-                  >
-                    管理扩展
-                  </button>
-                  <h3>数据与诊断</h3>
-                  <p className="muted">
-                    配置与会话保存在本地隔离数据中。实验工具可检查任务、权限与恢复状态。
-                  </p>
-                  <button
-                    className="secondary"
-                    onClick={() => {
-                      setSettings(null);
-                      setShowExtensions(true);
-                      setDiagnostics(true);
-                    }}
-                  >
-                    打开诊断工具
-                  </button>
-                </>
-              )}
-              {error && (
-                <p role="alert" className="error">
-                  {error}
+                <h3>数据与诊断</h3>
+                <p className="muted">
+                  配置与会话保存在本地隔离数据中。实验工具可检查任务、权限与恢复状态。
                 </p>
-              )}
-            </div>
-          )}
+                <button
+                  className="secondary"
+                  onClick={() => {
+                    setSettings(null);
+                    setShowExtensions(true);
+                    setDiagnostics(true);
+                  }}
+                >
+                  打开诊断工具
+                </button>
+              </>
+            )}
+            {error && (
+              <p role="alert" className="error">
+                {error}
+              </p>
+            )}
+          </div>
         </Dialog>
       )}
       {configuring && (

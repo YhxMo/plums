@@ -169,6 +169,9 @@ test("preparation upgrades the known previous light system-bar color", () => {
   writeFileSync(plugin, current.replace('"#fafafa"', '"#f7f4ef"'));
   prepareAndroid(root, "/toolchain");
   expect(readFileSync(plugin, "utf8")).toBe(current);
+  writeFileSync(plugin, current.replace('"#181818"', '"#1c1917"'));
+  prepareAndroid(root, "/toolchain");
+  expect(readFileSync(plugin, "utf8")).toBe(current);
 });
 
 test("unknown document plugin code is preserved before any template writes", () => {

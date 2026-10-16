@@ -1,3 +1,4 @@
+import type { Theme } from "./theme";
 import type {
   ConfigurationDeclaration,
   ConfigurationValue,
@@ -38,20 +39,39 @@ export interface Platform {
 export interface View {
   id: string;
   label: string;
+  /** Defaults to workspace for existing extensions. Dialogs appear in the app menu; sidebars mount in the right drawer. */
+  presentation?: "workspace" | "dialog" | "sidebar";
+  /** Deterministic fallback among workspace views; higher wins, then id. */
+  priority?: number;
+  beforeLeave?: () => Promise<void>;
   /** A rejected disposer remains cleanup-failed; the host does not blindly retry it. */
   mount(root: HTMLElement): () => void | Promise<void>;
 }
 
+export type ShellAction = "extensions" | "settings" | "diagnostics";
+export interface ShellBridge {
+  open(action: ShellAction, owner: string): Promise<void>;
+  readPage(key: string): string | undefined;
+  savePage(key: string, route: string): Promise<void>;
+}
+export interface ShellAccess {
+  open(action: ShellAction): Promise<void>;
+  readPage(viewId: string): string | undefined;
+  savePage(viewId: string, route: string): Promise<void>;
+}
 export interface ExtensionContext {
   readonly id: string;
   readonly signal: AbortSignal;
   readonly configuration: Readonly<Record<string, ConfigurationValue>>;
+  readonly shell: ShellAccess;
   use<T>(name: string): T;
   provide<T>(name: string, version: number, service: T): void;
   onDispose(dispose: () => void | Promise<void>): void;
   on(topic: string, handler: (data: unknown) => void): void;
   emit(topic: string, data: unknown): void;
   view(view: View): void;
+  /** Registers semantic colors for this extension lifetime; duplicate ids reject. */
+  theme(theme: Theme): void;
   task<T>(run: (signal: AbortSignal) => Promise<T>): Promise<T>;
   /** Combines operation cancellation with extension lifetime; adapter commit limits apply. */
   platform(
@@ -102,3 +122,12 @@ export type {
   SelectedDocumentRequest,
   SelectedDocumentResponse,
 } from "./selected-document";
+
+export type { Theme, ThemeColors, Appearance } from "./theme";
+export { createPageRouter } from "./pages";
+export type {
+  PageContribution,
+  PageSnapshot,
+  PageRouter,
+  PageRouterOptions,
+} from "./pages";

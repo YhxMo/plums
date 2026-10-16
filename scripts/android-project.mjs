@@ -78,6 +78,10 @@ export function prepareAndroid(root, toolsRoot) {
     ![
       appearanceSource,
       appearanceSource.replace('"#fafafa"', '"#f7f4ef"'),
+      appearanceSource.replace('"#181818"', '"#1c1917"'),
+      appearanceSource
+        .replace('"#181818"', '"#1c1917"')
+        .replace('"#fafafa"', '"#f7f4ef"'),
     ].includes(readFileSync(appearance, "utf8"))
   )
     throw new Error("Appearance plugin changed; review before adapting");

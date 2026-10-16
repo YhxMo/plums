@@ -4,17 +4,17 @@
   color: var(--text);
   background: var(--background);
   font-synthesis: none;
-  font-size: 14px;
-  line-height: 1.6;
+  font-size: 13px;
+  line-height: 1.5;
   --text: #1a1a1a;
-  --surface: #ffffff;
-  --background: #fafafa;
+  --surface: #f7f7f8;
+  --background: #ffffff;
   --card: #ffffff;
   --overlay: #ffffff;
-  --subtle: #f2f1ef;
-  --border: #ededed;
-  --control-border: #aaa29b;
-  --muted: #746c65;
+  --subtle: #ededf0;
+  --border: #e4e4e7;
+  --control-border: #c4c4c9;
+  --muted: #6e6e77;
   --accent: #f57d4a;
   --accent-hover: #ee6c37;
   --accent-ink: #251b16;
@@ -22,7 +22,12 @@
   --accent-text: #a34820;
   --error: #b3372d;
   --running: #568064;
-  --shadow: #382c2026;
+  --shadow: #00000014;
+  --sidebar-bg: #f6f6f7;
+  --sidebar-border: #e5e5e8;
+  --sidebar-divider: #ececef;
+  --sidebar-hover: #ebebee;
+  --sidebar-active: #e2e2e7;
   --radius: 10px;
   --space-1: 8px;
   --space-2: 16px;
@@ -31,23 +36,31 @@
 }
 :root[data-theme="dark"] {
   color-scheme: dark;
-  --text: #f0e9e2;
-  --surface: #23201d;
-  --background: #1c1917;
-  --card: #2b2723;
-  --overlay: #332e29;
-  --subtle: #37312c;
-  --border: #443c35;
-  --control-border: #8f7e6d;
-  --muted: #b5a89b;
-  --accent: #ffa16d;
-  --accent-hover: #ffb58d;
-  --accent-ink: #29180e;
-  --accent-soft: #473126;
-  --accent-text: #ffad80;
-  --error: #ffb4a6;
-  --running: #a4bf9d;
-  --shadow: #00000066;
+  --text: #e8e8e8;
+  --surface: #1f1f20;
+  --background: #171718;
+  --card: #252525;
+  --overlay: #2a2a2c;
+  --subtle: #2d2d2f;
+  --border: #333336;
+  --control-border: #48484b;
+  --muted: #9b9ba0;
+  --accent: #f57d4a;
+  --accent-hover: #ff8b59;
+  --accent-ink: #181818;
+  --accent-soft: #33221a;
+  --accent-text: #ff9868;
+  --error: #ff8f85;
+  --running: #7ec495;
+  --shadow: #00000080;
+  --sidebar-bg: #1e1e1f;
+  --sidebar-border: #2b2b2e;
+  --sidebar-divider: #2a2a2d;
+  --sidebar-hover: #2c2c2f;
+  --sidebar-active: #343438;
+}
+:root[data-theme="dark"] img[src="/brand/plums.png"] {
+  content: url("/brand/plums-dark.png");
 }
 * {
   box-sizing: border-box;
@@ -63,7 +76,7 @@ input {
 }
 button,
 select {
-  min-height: 44px;
+  min-height: 34px;
   border-radius: 8px;
   cursor: pointer;
 }
@@ -71,8 +84,9 @@ button {
   background: var(--accent);
   color: var(--accent-ink);
   border: 1px solid var(--accent);
-  padding: 9px 16px;
-  font-weight: 600;
+  padding: 6px 12px;
+  font-size: 13px;
+  font-weight: 500;
   line-height: 1.4;
 }
 button:where(:hover:not(:disabled)) {
@@ -94,15 +108,15 @@ button:disabled {
 }
 textarea {
   width: 100%;
-  min-height: 140px;
+  min-height: 112px;
   resize: vertical;
   border: 1px solid var(--control-border);
   border-radius: 8px;
-  padding: 16px;
+  padding: 12px;
   background: var(--surface);
-  line-height: 1.8;
+  line-height: 1.6;
   color: inherit;
-  font-size: 16px;
+  font-size: 14px;
 }
 button:focus-visible,
 select:focus-visible,
@@ -137,8 +151,8 @@ a {
 }
 summary {
   cursor: pointer;
-  min-height: 44px;
-  padding: 10px 0;
+  min-height: 34px;
+  padding: 6px 0;
   color: var(--muted);
 }
 code {
@@ -164,20 +178,53 @@ svg {
   flex-shrink: 0;
 }
 .icon-button {
-  width: 44px;
-  min-height: 44px;
+  width: 32px;
+  min-height: 32px;
   display: inline-grid;
   place-items: center;
   padding: 0;
   border: 1px solid transparent;
   background: transparent;
   color: var(--muted);
-  border-radius: 8px;
+  border-radius: 6px;
 }
 .icon-button:hover:not(:disabled) {
   background: var(--subtle);
   border-color: transparent;
   color: var(--text);
+}
+.icon-button:active:not(:disabled),
+.topbar-ghost:active:not(:disabled) {
+  background: var(--border);
+  color: var(--text);
+}
+.topbar-ghost {
+  width: 32px;
+  min-height: 32px;
+  padding: 0;
+  display: inline-grid;
+  place-items: center;
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--muted);
+  border-radius: 7px;
+  transition:
+    background 0.14s ease,
+    border-color 0.14s ease,
+    color 0.14s ease;
+}
+.topbar-ghost:hover:not(:disabled) {
+  background: var(--subtle);
+  border-color: var(--border);
+  color: var(--text);
+}
+.topbar-ghost:active:not(:disabled) {
+  background: var(--accent-soft);
+  border-color: var(--accent);
+  color: var(--accent-text);
+}
+.topbar-ghost[aria-pressed="true"] {
+  color: var(--accent-text);
 }
 .text-button {
   display: inline;
@@ -215,10 +262,10 @@ svg {
 .menu-popup {
   position: absolute;
   right: 0;
-  top: 50px;
-  min-width: 210px;
-  padding: 6px;
-  border-radius: 12px;
+  top: 38px;
+  min-width: 196px;
+  padding: 4px;
+  border-radius: 10px;
   background: var(--overlay);
   border: 1px solid var(--border);
   box-shadow: 0 12px 36px var(--shadow);
@@ -226,12 +273,15 @@ svg {
 }
 .menu-popup button {
   display: flex;
-  gap: 12px;
+  gap: 10px;
   align-items: center;
   width: 100%;
+  min-height: 32px;
+  padding: 6px 10px;
   background: none;
   color: var(--text);
   border: 0;
+  border-radius: 6px;
   text-align: left;
   font-size: 13px;
   font-weight: 500;
@@ -256,7 +306,7 @@ svg {
   backdrop-filter: blur(3px);
 }
 .dialog-heading {
-  padding: 16px 20px 16px 28px;
+  padding: 12px 16px 12px 20px;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -264,12 +314,12 @@ svg {
   border-bottom: 1px solid var(--border);
 }
 .dialog-heading h2 {
-  font-size: 18px;
-  font-weight: 650;
+  font-size: 15px;
+  font-weight: 600;
   margin: 0;
 }
 .dialog-content {
-  padding: 24px 28px;
+  padding: 18px 20px;
 }
 .dialog-content > p:first-child {
   margin-top: 0;
@@ -277,8 +327,8 @@ svg {
   font-size: 13px;
 }
 .dialog-content h3 {
-  font-size: 14px;
-  margin: 24px 0 12px;
+  font-size: 13px;
+  margin: 18px 0 10px;
 }
 .dialog-content h3:first-child {
   margin-top: 0;
@@ -286,34 +336,34 @@ svg {
 .dialog-actions {
   display: flex;
   justify-content: flex-end;
-  gap: 10px;
-  padding: 18px 28px;
+  gap: 8px;
+  padding: 12px 20px;
   background: var(--surface);
   border-top: 1px solid var(--border);
 }
 .field {
   display: flex;
   flex-direction: column;
-  gap: 8px;
-  font-size: 13px;
-  font-weight: 550;
-  margin-bottom: 18px;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 500;
+  margin-bottom: 14px;
 }
 .field input,
 .field textarea {
   width: 100%;
-  padding: 11px 12px;
+  padding: 7px 10px;
   border: 1px solid var(--control-border);
   background: var(--card);
   color: var(--text);
   border-radius: 8px;
-  min-height: 44px;
-  font-size: 14px;
-  line-height: 1.6;
+  min-height: 36px;
+  font-size: 13px;
+  line-height: 1.5;
   font-weight: 400;
 }
 .field textarea {
-  min-height: 100px;
+  min-height: 88px;
 }
 .field input[type="file"] {
   font-size: 12px;
@@ -321,19 +371,19 @@ svg {
 .check-field {
   display: flex;
   align-items: center;
-  gap: 10px;
-  min-height: 44px;
+  gap: 8px;
+  min-height: 34px;
   font-size: 13px;
 }
 .check-field input {
   accent-color: var(--accent);
-  width: 18px;
-  height: 18px;
+  width: 16px;
+  height: 16px;
 }
 .layout-options {
   display: grid;
-  gap: 8px;
-  margin: 16px 0;
+  gap: 6px;
+  margin: 12px 0;
 }
 .layout-options button {
   text-align: left;
@@ -343,6 +393,23 @@ svg {
   background: var(--accent-soft);
 }
 @media (max-width: 767px) {
+  button,
+  select {
+    min-height: 44px;
+    padding: 9px 14px;
+  }
+  summary {
+    min-height: 44px;
+    padding: 10px 0;
+  }
+  .icon-button {
+    width: 44px;
+    min-height: 44px;
+  }
+  .field input,
+  .check-field {
+    min-height: 44px;
+  }
   .dialog-content {
     padding: 20px;
   }
@@ -360,4 +427,18 @@ svg {
 .detail-dialog {
   width: 375px;
   height: calc(100dvh - 32px);
+}
+
+.theme-identity {
+  display: block;
+  overflow-wrap: anywhere;
+  font-weight: 400;
+}
+.theme-fallback {
+  margin: 0;
+  padding: 10px 24px;
+  background: var(--subtle);
+  color: var(--text);
+  overflow-wrap: anywhere;
+  font-size: 13px;
 }

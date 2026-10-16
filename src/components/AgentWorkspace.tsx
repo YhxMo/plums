@@ -56,6 +56,38 @@ export function AgentWorkspace({
   const [modal, setModal] = useState<Modal>(null);
   const modalTrigger = useRef<HTMLElement | null>(null);
   const detailTrigger = useRef<HTMLElement | null>(null);
+  const selectedRef = useRef<string | null>(null);
+  selectedRef.current = selected;
+  const agentsRef = useRef(agents);
+  agentsRef.current = agents;
+  useEffect(() => {
+    const onSelectAgent = (event: Event) => {
+      const id = (event as CustomEvent<string>).detail;
+      if (id) {
+        setSelected(id);
+        setDetail(false);
+      }
+    };
+    const onToggleDetail = (event: Event) => {
+      const source = (event as CustomEvent<HTMLElement | null>).detail;
+      if (source) detailTrigger.current = source;
+      setDetail((prev) => {
+        if (!prev && !selectedRef.current && agentsRef.current.length > 0) {
+          setSelected(agentsRef.current[0].id);
+        }
+        return !prev;
+      });
+    };
+    const onDetailClosed = () => setDetail(false);
+    window.addEventListener("plums:select-agent", onSelectAgent);
+    window.addEventListener("plums:toggle-agent-detail", onToggleDetail);
+    window.addEventListener("plums:agent-detail-closed", onDetailClosed);
+    return () => {
+      window.removeEventListener("plums:select-agent", onSelectAgent);
+      window.removeEventListener("plums:toggle-agent-detail", onToggleDetail);
+      window.removeEventListener("plums:agent-detail-closed", onDetailClosed);
+    };
+  }, []);
   const [busy, setBusy] = useState(false);
   const [reading, setReading] = useState(false);
   const readController = useRef<AbortController | null>(null);
@@ -95,6 +127,30 @@ export function AgentWorkspace({
   const [url, setUrl] = useState("");
   const agent = agents.find((a) => a.id === selected);
   const key = agent ? `${agent.id}:${agent.currentSessionId}` : "";
+  useEffect(() => {
+    window.dispatchEvent(
+      new CustomEvent("plums:agent-detail-state", { detail }),
+    );
+  }, [detail]);
+  useEffect(() => {
+    const session = agent?.sessions.find(
+      (item) => item.id === agent.currentSessionId,
+    );
+    const title =
+      agent && session
+        ? session.title && session.title !== agent.name
+          ? `${agent.name} · ${session.title}`
+          : agent.name
+        : "";
+    window.dispatchEvent(
+      new CustomEvent("plums:workspace-title", { detail: title }),
+    );
+    return () => {
+      window.dispatchEvent(
+        new CustomEvent("plums:workspace-title", { detail: "" }),
+      );
+    };
+  }, [agent]);
   const open = (next: Modal, source?: HTMLElement | null) => {
     if (!modal) modalTrigger.current = source ?? null;
     setModal(next);

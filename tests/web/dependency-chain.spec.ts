@@ -39,6 +39,7 @@ for (const failCleanup of [false, true]) {
         .getByRole("button", { name: `启用 ${id}`, exact: true })
         .click();
     }
+    await page.getByRole("button", { name: "返回工作区", exact: true }).click();
     await chooseLayout(page, "combo-controls");
     await page.getByRole("button", { name: "发送组合事件" }).click();
     await expect(
@@ -52,6 +53,7 @@ for (const failCleanup of [false, true]) {
       page.getByText("组合提供者视图：切换离开将注入释放失败", { exact: true }),
     ).toBeVisible();
     await chooseLayout(page, "default");
+    await manage(page);
     const owner = page.locator("article").filter({ hasText: "组合提供者" });
     const middle = page.locator("article").filter({ hasText: "组合中间层" });
     const leaf = page.locator("article").filter({ hasText: "组合叶节点" });
@@ -67,6 +69,7 @@ for (const failCleanup of [false, true]) {
         page.getByRole("button", { name: "启用 combo.middle", exact: true }),
       ).toBeDisabled();
     else await expect(middle).toContainText("0 项资源 · 0 个在途任务");
+    await page.getByRole("button", { name: "返回工作区", exact: true }).click();
     await chooseLayout(page, "combo-controls");
     await page.getByRole("button", { name: "发送组合事件" }).click();
     await expect(

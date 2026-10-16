@@ -2,6 +2,7 @@ export function Icon({ name, size = 20 }: { name: string; size?: number }) {
   const paths: Record<string, React.ReactNode> = {
     plus: <path d="M12 5v14M5 12h14" />,
     back: <path d="m14 6-6 6 6 6" />,
+    arrowLeft: <path d="M19 12H5m0 0 6-6m-6 6 6 6" />,
     arrow: <path d="m9 5 7 7-7 7" />,
     more: (
       <>
@@ -69,6 +70,14 @@ export function Icon({ name, size = 20 }: { name: string; size?: number }) {
     trash: (
       <>
         <path d="M3 6h18M9 6V3h6v3M6 6l1 15h10l1-15M10 10v7m4-7v7" />
+      </>
+    ),
+    sidebarList: (
+      <>
+        <circle cx="7" cy="8.5" r="2.1" />
+        <path d="M12 8.5h6.5" />
+        <circle cx="7" cy="15.5" r="2.1" />
+        <path d="M12 15.5h6.5" />
       </>
     ),
   };

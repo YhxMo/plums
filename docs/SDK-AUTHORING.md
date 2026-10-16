@@ -32,7 +32,7 @@
 | stop(id) | 取消任务并释放服务、监听、视图；依赖者等待；失败保留诊断且要求重启 |
 | uninstall(id) | 必须先成功 stop（新安装且未启动也可）；串行撤销平台授权后才移除宿主记录。撤权失败保留记录，可重试；不删除模块文件、安装路径配置或用户数据 |
 | 同 ID 重新安装 | 必须先卸载；重新授权才可访问同一状态作用域；不是热升级或自动迁移 |
-| inspect / ids / manifest / serviceNames / views | 用于管理诊断；停用清理成功应无正常注册或任务 |
+| inspect / ids / manifest / serviceNames / views / themes | 用于管理诊断；停用清理成功应无正常注册或任务 |
 
 最小管理装配签名如下（Platform 定义见 SDK）：
 
@@ -48,13 +48,20 @@ host.serviceNames(); // string[]
 host.manifest(id); // Manifest
 host.inspect(id); // {status, error?: string, desired: boolean, resources: number, tasks: number}
 // status: disabled | waiting | active | stopping | failed | cleanup-failed
-host.views(); // {id, label, owner, generation}[]
+host.views(); // {id, label, owner, generation, presentation, priority}[]
+host.themes(); // (Theme & {owner, generation})[]，仅开放的 active 贡献
 const close = host.mountView(viewId, root); // () => void | Promise<void>
 ```
 
 管理查询未知 ID 会抛错；公开服务通过另一个声明 requires 的扩展 ctx.use 获取，管理者不直接读取内部服务表。管理操作 start/stop/grant/uninstall 串行执行；install 是同步登记。Platform 为注入适配器，测试可以实现 SDK 中的接口，不能把模拟结果当原生证据。
 
 应用外壳仅为手动安装的扩展提供“卸载（保留数据）”：先停用、撤权，再保存安装路径移除结果，最后移除宿主记录。内置扩展只能停用；模块文件与扩展数据不删除。配置保存或撤权失败显示未完成，可重试；回执未知时须重载确认，不能把在途失败当作完整成功。升级需外部保留旧模块与数据、核对兼容再停用/卸载/重装。没有事务升级或自动回滚承诺，迁移工具与删除数据尚未实现。ESM 由环境缓存，同 URL 重新 import 不保证新代码；新版本使用新 URL 并记录来源。
+
+## 页面与公开宿主入口
+
+扩展可通过 `ctx.shell.open("extensions" | "settings" | "diagnostics")` 请求呈现宿主入口；这不授予权限或直接管理其他扩展。`View.presentation` 可选声明 workspace/dialog，外壳按声明装配主视图和菜单，旧视图默认 workspace。动态页面、导航保存、嵌套贡献、焦点与清理见 [页面契约和文本处理工作台](PAGES.md)。
+
+从扩展管理启用内置公开样板 `ui.workbench-board` 并确认状态权限，可体验“处理项→编辑执行→结果详情”的非聊天界面。作者可通过普通服务 `text-workbench.pages@1` 登记自己的页面，无需改内核；冻结后的内部独立作者已通过同源安装接入 [交稿检查页面](LOCAL-PROOF.md)，受验范围见专项证据。
 
 ## 状态、取消与演进
 
@@ -84,10 +91,16 @@ ctx.task 跟踪异步任务，使用传入 signal 合作式取消；ctx.onDispos
 
 [可选单跳状态迁移助手](STATE-MIGRATION.md)已提供公开 SDK 入口与独立样板：扩展定义业务转换，助手用一次修订号提交保留旧快照；当前不自动迁移默认业务，也不提供通用包升级事务或自动回退。
 
-可选 [固定视图树助手](VIEW-TREE.md) 已完成两作者内部样板与两端限定验收。仅测试外壳组合，默认应用未采用；不代表完整递归主题/导航框架或 Host 自动异步失败回退。
+可选 [固定视图树助手](VIEW-TREE.md) 已完成两作者内部样板与两端限定验收。普通文本处理工作台已通过页面路由使用固定树，独立页面可继续嵌套另一扩展的节点；固定树本身仍不支持挂载结束后追加子节点。Host 异步失败回退、最终原生普通包与更广输入矩阵按证据分别判断。
 
 无业务视图事件服务的启停、撤权与恢复限定结果见 [执行边界](EVENT-SERVICE.md)；暂停映射为 stop，新一代重新订阅，不提供后台常驻或持久事件队列。
 
 可选 [显式旧快照恢复](STATE-MIGRATION.md#按确认修订号显式恢复旧快照)要求已确认的 revision/from/to 与业务校验，一次恢复保留被替换目标；不自动回滚包或用户状态。
 
 [会话内文档只读访问](SELECTED-DOCUMENT.md)提供实验类型、宿主选择/撤销及扩展 document.read；仅支持探测成功的 Mac/Android，浏览器不可用。样板 `/samples/documents.js` 从扩展管理选择文档后，经公开契约列举/读取；停用即失效，不保存文件授权。实际支持范围以专项证据为准。
+
+## 公开主题样板
+
+[主题颜色契约](THEMES.md)提供 `ctx.theme(Theme)`、17个语义色与生命周期规则。两个独立作者样板 [海湾](../extensions/samples/theme-ocean.js)（`sample.theme-ocean` / `/samples/theme-ocean.js`）和 [墨夜](../extensions/samples/theme-ink.js)（`sample.theme-ink` / `/samples/theme-ink.js`）随源码构建，不自动加入目录或启用。按上述安装流程分别安装、启用，应用设置选择“使用 海湾”或“使用 墨夜”。无需平台权限。选择成功后可关闭设置；停用主题恢复内置外观，重新启用恢复已选主题。要在重启后同时恢复启用集合，另保存当前组合。旧普通release包不包含这些样板。
+
+主题注册的颜色被复制；`Host.themes()` 返回带owner/generation的副本用于管理，重新贡献前应取出主题本身的四个字段。完整主题系统、导航和快捷键仍未稳定。

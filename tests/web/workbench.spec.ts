@@ -34,6 +34,7 @@ test("replaces complete UI and restores persisted state after reload", async ({
   await expect(page.locator("[data-output]")).toHaveText("PLUMS");
   await manage(page, true);
   await page.getByRole("button", { name: "停用当前布局" }).click();
+  await page.getByRole("button", { name: "返回工作区", exact: true }).click();
   await expect(page.getByRole("heading", { name: "文本工作台" })).toBeVisible();
 });
 test("rebinds consumer and remounts a view when the provider changes", async ({
@@ -43,6 +44,7 @@ test("rebinds consumer and remounts a view when the provider changes", async ({
   await run(page, "abc", "ABC");
   await manage(page, true);
   await page.getByRole("button", { name: "替换服务" }).click();
+  await page.getByRole("button", { name: "返回工作区", exact: true }).click();
   await expect(page.locator("[data-provider]")).toHaveText("Reverse");
   await run(page, "abc", "cba");
 });
@@ -64,11 +66,14 @@ test("failed storage preserves prior state and can retry", async ({ page }) => {
   await run(page, "saved", "SAVED");
   await manage(page, true);
   await page.getByLabel("注入存储写入失败").check();
+  await page.getByRole("button", { name: "返回工作区", exact: true }).click();
   await page.getByRole("textbox").fill("failed");
   await page.getByRole("button", { name: "运行并保存" }).click();
   await expect(page.locator("[data-error]")).toContainText("注入的写入故障");
   await expect(page.locator("[data-output]")).toHaveText("SAVED");
+  await manage(page, true);
   await page.getByLabel("注入存储写入失败").uncheck();
+  await page.getByRole("button", { name: "返回工作区", exact: true }).click();
   await run(page, "retry", "RETRY");
 });
 test("revoking capability suspends consumers, and regrant restores the UI", async ({
@@ -94,6 +99,7 @@ test("broken layout recovers to the working default without losing management", 
   await expect(
     page.getByRole("alert").filter({ hasText: "布局不可用" }),
   ).toBeVisible();
+  await page.getByRole("button", { name: "返回工作区", exact: true }).click();
   await expect(page.getByRole("heading", { name: "文本工作台" })).toBeVisible();
   await expect(
     page.getByRole("button", { name: "应用菜单", exact: true }),
@@ -149,12 +155,14 @@ test("loads and enables an unknown external view through the public catalog and 
   await page
     .getByRole("button", { name: "启用 external.view", exact: true })
     .click();
+  await page.getByRole("button", { name: "返回工作区", exact: true }).click();
   await chooseLayout(page, "external");
   await expect(
     page.getByRole("heading", { name: "独立模块的新交互" }),
   ).toBeVisible();
   await manage(page, true);
   await page.getByRole("button", { name: "停用当前布局" }).click();
+  await page.getByRole("button", { name: "返回工作区", exact: true }).click();
   await expect(page.getByRole("heading", { name: "文本工作台" })).toBeVisible();
 });
 
@@ -169,13 +177,16 @@ test("a broken layout with no remaining layout exposes a truthful host recovery 
   await page
     .getByRole("button", { name: "停用 ui.default", exact: true })
     .click();
+  await page.getByRole("button", { name: "返回工作区", exact: true }).click();
   await expect(page.getByRole("heading", { name: "工作画布" })).toBeVisible();
+  await manage(page);
   await page
     .getByRole("button", { name: "停用 ui.board", exact: true })
     .click();
   await page
     .getByRole("button", { name: "启用 ui.broken", exact: true })
     .click();
+  await page.getByRole("button", { name: "返回工作区", exact: true }).click();
   await expect(
     page.getByRole("heading", { name: "扩展正在等待条件。" }),
   ).toBeVisible();
@@ -213,10 +224,12 @@ test("an async release failure stays visible in the React management path", asyn
   await page
     .getByRole("button", { name: "启用 cleanup.fixture", exact: true })
     .click();
+  await page.getByRole("button", { name: "返回工作区", exact: true }).click();
   await chooseLayout(page, "cleanup");
   await expect(page.getByText("等待释放", { exact: true })).toBeVisible();
   await chooseLayout(page, "default");
   await expect(page.getByRole("heading", { name: "文本工作台" })).toBeVisible();
+  await manage(page);
   await expect(
     page.locator("article").filter({ hasText: "异步释放夹具" }),
   ).toContainText("清理未完成");
