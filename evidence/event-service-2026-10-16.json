@@ -1,0 +1,180 @@
+{
+  "sourceBaseHead": "9229ea17d2f8f6ca75a79e147cd5d1ba9a15a1d3",
+  "sourceManifest": "evidence/source-manifest-72b8a6c0297217dfd7257ff34271d505ce829f9a62f2a324aedd5d8ab16a8c85.json",
+  "sourceDigest": "72b8a6c0297217dfd7257ff34271d505ce829f9a62f2a324aedd5d8ab16a8c85",
+  "sourceFileCount": 159,
+  "kind": "public SDK event worker without business view; only fixtures/tests added, existing source unchanged",
+  "authorMethod": "Internal independent agent read public SDK and author guide, authored isolated sample; not community feedback",
+  "mac": {
+    "bundleIdentifier": "dev.plums.m1.eventserviceprobe",
+    "artifact": ".cache/event-service/artifacts/Plums Event Service Probe.app",
+    "files": {
+      "Contents/Info.plist": "581a25c9b67ed0302a8f0e261ebd94bc8f05b411b3c28e1112d0daf752a5af63",
+      "Contents/MacOS/plums-m1": "4c665f172fbb6275d8e0e4d6ab78aaaecf0238efc5452065b290a047a680a70a",
+      "Contents/Resources/icon.icns": "6a7e5b00689e5640726ecf5319fbdc2aad4b8c43dea54a379e60ddfdbf50a231"
+    },
+    "report": {
+      "passed": true,
+      "checks": [
+        "no-view-and-ungranted-wait",
+        "event-task-platform-read-without-view",
+        "one-inflight-job-rejects-overflow",
+        "stop-cancels-and-old-reference-rejected",
+        "explicit-start-restores-one-fresh-subscription",
+        "revoke-cancels-and-regrant-recovers",
+        "uninstall-removes-event-service",
+        "cleanup-failure-latched-management-query-accessible"
+      ],
+      "receipts": [
+        {
+          "id": "normal",
+          "status": "done"
+        },
+        {
+          "id": "held",
+          "status": "started"
+        },
+        {
+          "id": "overflow",
+          "status": "busy"
+        },
+        {
+          "id": "resumed",
+          "status": "done"
+        },
+        {
+          "id": "revoke",
+          "status": "started"
+        },
+        {
+          "id": "regranted",
+          "status": "done"
+        }
+      ],
+      "platform": "native",
+      "limitations": "Foreground process only; no business views mounted; bounded capacity belongs to sample, not Host quota"
+    }
+  },
+  "android": {
+    "artifact": ".cache/event-service/artifacts/event-service-android-arm64-debug.apk",
+    "sha256": "63889d0ccbb891e3614ed62e722272c539681249ae3570d3e07c17328cd0e8e8",
+    "installedMatchesBuild": true,
+    "platform": "Android 16 / API 36 / arm64 / isolated software-rendered emulator",
+    "report": {
+      "passed": true,
+      "checks": [
+        "no-view-and-ungranted-wait",
+        "event-task-platform-read-without-view",
+        "one-inflight-job-rejects-overflow",
+        "stop-cancels-and-old-reference-rejected",
+        "explicit-start-restores-one-fresh-subscription",
+        "revoke-cancels-and-regrant-recovers",
+        "uninstall-removes-event-service",
+        "cleanup-failure-latched-management-query-accessible"
+      ],
+      "receipts": [
+        {
+          "id": "normal",
+          "status": "done"
+        },
+        {
+          "id": "held",
+          "status": "started"
+        },
+        {
+          "id": "overflow",
+          "status": "busy"
+        },
+        {
+          "id": "resumed",
+          "status": "done"
+        },
+        {
+          "id": "revoke",
+          "status": "started"
+        },
+        {
+          "id": "regranted",
+          "status": "done"
+        }
+      ],
+      "platform": "native",
+      "limitations": "Foreground process only; no business views mounted; bounded capacity belongs to sample, not Host quota"
+    }
+  },
+  "browser": {
+    "report": {
+      "passed": true,
+      "checks": [
+        "no-view-and-ungranted-wait",
+        "event-task-platform-read-without-view",
+        "one-inflight-job-rejects-overflow",
+        "stop-cancels-and-old-reference-rejected",
+        "explicit-start-restores-one-fresh-subscription",
+        "revoke-cancels-and-regrant-recovers",
+        "uninstall-removes-event-service",
+        "cleanup-failure-latched-management-query-accessible"
+      ],
+      "receipts": [
+        {
+          "id": "normal",
+          "status": "done"
+        },
+        {
+          "id": "held",
+          "status": "started"
+        },
+        {
+          "id": "overflow",
+          "status": "busy"
+        },
+        {
+          "id": "resumed",
+          "status": "done"
+        },
+        {
+          "id": "revoke",
+          "status": "started"
+        },
+        {
+          "id": "regranted",
+          "status": "done"
+        }
+      ],
+      "platform": "browser",
+      "limitations": "Foreground process only; no business views mounted; bounded capacity belongs to sample, not Host quota"
+    },
+    "errors": []
+  },
+  "rawEvidence": {
+    ".cache/event-service/red.log": "15677d5d891efd343d9370f5faae3c1993e51d6c2e6667a02a5b02e304252752",
+    ".cache/event-service/unit.log": "fadcc08ff4f986818ed802d851331e216d65ccdf84af6b6fa72f0b5fccbae399",
+    ".cache/event-service/build.log": "05acc635706c01184579e45b5ee20e77ce3fa5ba25f53540e050774eeb048137",
+    ".cache/event-service/probe-build.log": "732003dc9fe947a89bb4e3dc817418ffbb4c15297af6ba6ef900042b5fe05b6e",
+    ".cache/event-service/format.log": "96c3555c6d5268dfc96dcdfe4a6b1660ae3419505b800c82fc5230ac18885be1",
+    ".cache/event-service/mac-build.log": "4e865336e5125702b4aec56c3a92a2e046d80cfe536b64c46f6cf0bf8508bf2c",
+    ".cache/event-service/android-build.log": "b6bbec8d0f2ebbd999983d24ffd3bd0b0f41a022a33ab88a920e94800b1b3b8d",
+    ".cache/event-service/mac-initial-ax.txt": "2b6f830de0c31d18b378e64545b88fe4bb5e99c69d3ebbb0ebc111bb90acc817",
+    ".cache/event-service/mac-final-ax.txt": "8209f29f035d9b86bd698682da6e03a1a1da4a1d5aa1af95f96cf19fcad99c37",
+    ".cache/event-service/mac-result.json": "43bff2eb4f72c24ab2f9534371bc30e0500728e4bc3c2ee5e3f8d7052889f725",
+    ".cache/event-service/apk-signature.log": "66bb67b17936a044ecaaf4dbd1aa92bb3fc950553c16abdcc8d20d4cfe85b672",
+    ".cache/event-service/cleanup.json": "9ecdb28064f16027912e3a043ddd566fac86629588122663ae4fa4122e4ad72e",
+    ".cache/event-service/browser.json": "6054423a523efa347ee5e4e7e6577b745c1df2ee7d4db52a7b26f0b5fd66bc99",
+    ".cache/event-service/android-result/final-dom.json": "d0c69665d66dd5ef7a38e694957a605cd78cc6359e1621225fb9dc9f17559a93",
+    ".cache/event-service/android-result/initial.json": "a7500f8e1440d7993631e2ce84e376e29df1b9577c114f6a1197210efd944a6d",
+    ".cache/event-service/android-result/result.json": "43bff2eb4f72c24ab2f9534371bc30e0500728e4bc3c2ee5e3f8d7052889f725"
+  },
+  "release": {
+    "unchangedVerified": true,
+    "sourceDigest": "9bc1ccda9e100db52c7d445d574ac21569a2ad78f7cdc483a99ca27c2e4e9f6d",
+    "checksumSha256": "ca3b16d744c046b6f84398f74f3ea5d6445488cd55d1d0eb3c4e20d448298030"
+  },
+  "limitations": [
+    "Foreground live WebView only; no OS background or process-reclamation recovery",
+    "Task cancellation occurs after native read has returned; does not prove cancelling native read in flight",
+    "Capability unavailable and read failure injected only in unit adapters",
+    "Bound of one task is sample policy, not enforced Host quota",
+    "Management queries available; no new production management UI",
+    "No real credentials or real user data; iOS Windows Linux and Android real device unverified"
+  ]
+}
