@@ -73,3 +73,18 @@ it("reports a lost native receipt as unknown rather than cancelled or uncommitte
     adapter.call("sample", "state.write", { revision: 0, value: 1 }),
   ).rejects.toMatchObject({ outcome: "unknown" });
 });
+
+it("keeps the proposed document capability unavailable in production", async () => {
+  const adapter = new PlatformAdapter();
+  expect(adapter.available("document.read")).toBe(false);
+  await expect(adapter.grant("sample", ["document.read"])).rejects.toThrow(
+    "Unknown capability",
+  );
+  await expect(
+    adapter.call("sample", "document.read", {
+      handle: "synthetic",
+      maxBytes: 4,
+    }),
+  ).rejects.toThrow("Permission denied");
+  expect(bridge.invoke).not.toHaveBeenCalled();
+});
