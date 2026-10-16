@@ -1,3 +1,4 @@
+import { DocumentAccess } from "./documents";
 import { invoke, isTauri } from "@tauri-apps/api/core";
 import {
   platformRejection,
@@ -41,16 +42,42 @@ export class PlatformAdapter implements Platform {
   readonly kind = isTauri() ? "native" : "browser";
   failWrites = false;
   private readonly grants = new Map<string, Set<string>>();
+  private readonly documentAccess = new DocumentAccess(
+    (owner) => this.grants.get(owner)?.has("document.read") === true,
+  );
+  initializeDocuments() {
+    return this.documentAccess.initialize(this.kind === "native");
+  }
+  selectDocuments(owner: string, multiple = false, signal?: AbortSignal) {
+    validOwner(owner);
+    return this.documentAccess.select(owner, multiple, signal);
+  }
+  documents(owner: string) {
+    validOwner(owner);
+    return this.documentAccess.list(owner);
+  }
+  revokeDocument(owner: string, handle?: string) {
+    validOwner(owner);
+    return this.documentAccess.revoke(owner, handle);
+  }
+  release(owner: string) {
+    return this.grants.get(owner)?.has("document.read")
+      ? this.revokeDocument(owner)
+      : Promise.resolve();
+  }
   available(capability: string) {
+    if (capability === "document.read") return this.documentAccess.supported;
     return ["state.read", "state.write", "platform.info"].includes(capability);
   }
   async grant(owner: string, capabilities: string[]) {
     validOwner(owner);
     if (capabilities.some((cap) => !this.available(cap)))
       throw platformRejection("Unknown capability");
-    if (this.kind === "native")
-      await invoke("platform_grant", { owner, capabilities });
-    this.grants.set(owner, new Set(capabilities));
+    await this.documentAccess.authorize(owner, async () => {
+      if (this.kind === "native")
+        await invoke("platform_grant", { owner, capabilities });
+      this.grants.set(owner, new Set(capabilities));
+    });
   }
   async call(
     owner: string,
@@ -62,6 +89,11 @@ export class PlatformAdapter implements Platform {
     validOwner(owner);
     if (!this.grants.get(owner)?.has(capability) || !this.available(capability))
       throw platformRejection(`Permission denied: ${capability}`);
+    if (capability === "document.read") {
+      if ((payload as { action?: unknown } | null)?.action === "list")
+        return this.documentAccess.list(owner);
+      return this.documentAccess.read(owner, payload, signal);
+    }
     if (this.failWrites && capability === "state.write")
       throw platformRejection("注入的写入故障：原数据保持不变");
     if (this.kind === "native") {

@@ -2227,12 +2227,16 @@ name = "plums"
 version = "0.0.4"
 dependencies = [
  "futures-util",
+ "objc2",
+ "objc2-app-kit",
+ "objc2-foundation",
  "reqwest",
  "serde",
  "serde_json",
  "tauri",
  "tauri-build",
  "tokio",
+ "uuid",
 ]
 
 [[package]]

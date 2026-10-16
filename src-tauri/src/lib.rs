@@ -1,4 +1,5 @@
 mod appearance;
+mod documents;
 mod storage;
 #[cfg(feature = "native-transport-experiment")]
 mod transport_probe;
@@ -12,8 +13,16 @@ fn platform_grant(
     owner: String,
     capabilities: Vec<String>,
     state: tauri::State<'_, Broker>,
+    documents: tauri::State<'_, documents::Documents>,
 ) -> Result<(), String> {
-    state.grant(&owner, capabilities)
+    Broker::validate_grant(&owner, &capabilities)?;
+    documents
+        .grant_with(
+            &owner,
+            capabilities.iter().any(|cap| cap == "document.read"),
+            || state.grant(&owner, capabilities).map_err(|_| "unknown"),
+        )
+        .map_err(str::to_owned)
 }
 
 #[derive(Serialize)]
@@ -52,10 +61,28 @@ pub fn run() {
             })
             .build(),
     );
+    #[cfg(target_os = "android")]
+    let builder = builder.plugin(
+        tauri::plugin::Builder::<tauri::Wry, ()>::new("documents")
+            .setup(|app, api| {
+                app.manage(documents::AndroidDocuments(api.register_android_plugin(
+                    &app.config().identifier,
+                    "DocumentsPlugin",
+                )?));
+                Ok(())
+            })
+            .build(),
+    );
     #[cfg(feature = "native-transport-experiment")]
     let builder = builder
         .manage(transport_probe::Probe::default())
         .invoke_handler(tauri::generate_handler![
+            documents::document_supported,
+            documents::document_select,
+            documents::document_list,
+            documents::document_read,
+            documents::document_cancel,
+            documents::document_revoke,
             platform_grant,
             platform_call,
             appearance::shell_set_theme,
@@ -68,6 +95,12 @@ pub fn run() {
         ]);
     #[cfg(not(feature = "native-transport-experiment"))]
     let builder = builder.invoke_handler(tauri::generate_handler![
+        documents::document_supported,
+        documents::document_select,
+        documents::document_list,
+        documents::document_read,
+        documents::document_cancel,
+        documents::document_revoke,
         platform_grant,
         platform_call,
         appearance::shell_set_theme
@@ -78,6 +111,7 @@ pub fn run() {
                 .map(std::path::PathBuf::from)
                 .unwrap_or(app.path().app_data_dir()?.join("data"));
             app.manage(Broker::new(root));
+            app.manage(documents::Documents::default());
             Ok(())
         })
         .run(tauri::generate_context!())

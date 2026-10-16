@@ -83,6 +83,18 @@ export function prepareAndroid(root, toolsRoot) {
     throw new Error("Appearance plugin changed; review before adapting");
   edits.set(appearance, appearanceSource);
 
+  const documents = join(dirname(activity), "DocumentsPlugin.kt");
+  const documentsSource = readFileSync(
+    join(root, "native/android/DocumentsPlugin.kt"),
+    "utf8",
+  ).replace("{{PACKAGE}}", packageName);
+  if (
+    existsSync(documents) &&
+    readFileSync(documents, "utf8") !== documentsSource
+  )
+    throw new Error("Documents plugin changed; review before adapting");
+  edits.set(documents, documentsSource);
+
   const task = join(
     generated,
     "buildSrc/src/main/java",

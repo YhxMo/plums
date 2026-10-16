@@ -9,8 +9,29 @@
     "url": "/services/reverse.js",
     "label": "逆序转换服务"
   },
-  { "id": "workbench", "url": "/services/workbench.js", "label": "文本工作台" },
-  { "id": "ui.default", "url": "/ui/default.js", "label": "默认工作台布局" },
-  { "id": "ui.board", "url": "/ui/board.js", "label": "画布布局" },
-  { "id": "ui.broken", "url": "/ui/broken.js", "label": "故障布局实验" }
+  {
+    "id": "workbench",
+    "url": "/services/workbench.js",
+    "label": "文本工作台"
+  },
+  {
+    "id": "ui.default",
+    "url": "/ui/default.js",
+    "label": "默认工作台布局"
+  },
+  {
+    "id": "ui.board",
+    "url": "/ui/board.js",
+    "label": "画布布局"
+  },
+  {
+    "id": "ui.broken",
+    "url": "/ui/broken.js",
+    "label": "故障布局实验"
+  },
+  {
+    "id": "sample.documents",
+    "url": "/samples/documents.js",
+    "label": "文档只读样板"
+  }
 ]

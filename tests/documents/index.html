@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Plums · 已选择文档读取</title>
+  </head>
+  <body>
+    <header>
+      <strong>Plums · 文档权限实验</strong><span>原生专项探针</span>
+    </header>
+    <main>
+      <h1>选择文档，只读核查</h1>
+      <p>
+        仅选择自己创建的测试文件。每次读取最多 64
+        KiB，授权仅在本进程内有效。不会写入文件，也不会自动读取已有文件。
+      </p>
+      <section class="document-card" aria-label="宿主管理">
+        <h2>宿主授权与管理</h2>
+        <p>
+          申请者
+          sample.documents；用途：读取选定纯文本文档。取消在途选择后，系统选择器可能仍需手动关闭。撤销不能收回已交付的文本。
+        </p>
+        <div class="actions">
+          <button data-testid="select-one">选择单个文档</button
+          ><button data-testid="select-many">选择多个文档</button
+          ><button data-testid="cancel-selection">取消在途选择</button
+          ><button data-testid="cancel-read">取消在途读取</button
+          ><button data-testid="revoke-one">撤销当前文档</button
+          ><button data-testid="revoke-all">撤销全部文档</button
+          ><button data-testid="cross-owner">跨所有者读取反例</button
+          ><button data-testid="stop">停用扩展</button
+          ><button data-testid="restart">重新授权并启动</button
+          ><button data-testid="uninstall">卸载扩展</button>
+        </div>
+        <p id="management-status" role="status" aria-live="polite">
+          正在启动隔离扩展…
+        </p>
+      </section>
+      <div id="workspace"></div>
+      <section class="document-card">
+        <h2>验收结果</h2>
+        <p>
+          请先通过系统选择器多选五个自建测试文件：plums-alpha.txt、plums-beta.txt、plums-invalid.txt、plums-large.txt、plums-limit.txt。验收会撤销授权、停用并卸载测试扩展。
+        </p>
+        <button data-testid="verify-selected">验证已选测试文件</button>
+        <p>以下仅展示实际回执；浏览器结果不代表原生验收。</p>
+        <pre id="result" data-testid="document-result" aria-live="polite"></pre>
+      </section>
+    </main>
+    <script type="module" src="./probe.ts"></script>
+  </body>
+</html>

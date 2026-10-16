@@ -90,4 +90,4 @@ ctx.task 跟踪异步任务，使用传入 signal 合作式取消；ctx.onDispos
 
 可选 [显式旧快照恢复](STATE-MIGRATION.md#按确认修订号显式恢复旧快照)要求已确认的 revision/from/to 与业务校验，一次恢复保留被替换目标；不自动回滚包或用户状态。
 
-[已选择文档读取设计](SELECTED-DOCUMENT.md)仅从 SDK 导出请求/结果类型，参考模型留在测试夹具；生产 document.read 不可用，不提供真实文件选择或 Host 撤权集成。
+[会话内文档只读访问](SELECTED-DOCUMENT.md)提供实验类型、宿主选择/撤销及扩展 document.read；仅支持探测成功的 Mac/Android，浏览器不可用。样板 `/samples/documents.js` 从扩展管理选择文档后，经公开契约列举/读取；停用即失效，不保存文件授权。实际支持范围以专项证据为准。

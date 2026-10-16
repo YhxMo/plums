@@ -39,6 +39,10 @@ class MainActivity : TauriActivity() {
       new URL("../native/android/AppearancePlugin.kt", import.meta.url),
       "utf8",
     ),
+    "native/android/DocumentsPlugin.kt": readFileSync(
+      new URL("../native/android/DocumentsPlugin.kt", import.meta.url),
+      "utf8",
+    ),
     [activity]: original,
     "src-tauri/gen/android/buildSrc/src/main/java/dev/plums/plums/kotlin/BuildTask.kt":
       'val executable = """node""";\nval args = listOf("tauri", "android", "android-studio-script");\n',
@@ -165,4 +169,31 @@ test("preparation upgrades the known previous light system-bar color", () => {
   writeFileSync(plugin, current.replace('"#fafafa"', '"#f7f4ef"'));
   prepareAndroid(root, "/toolchain");
   expect(readFileSync(plugin, "utf8")).toBe(current);
+});
+
+test("unknown document plugin code is preserved before any template writes", () => {
+  const { root, activity, original } = fixture();
+  writeFileSync(
+    join(root, activity.replace("MainActivity.kt", "DocumentsPlugin.kt")),
+    "custom documents\n",
+  );
+  expect(() => prepareAndroid(root, "/toolchain")).toThrow(
+    /Documents plugin changed/,
+  );
+  expect(readFileSync(join(root, activity), "utf8")).toBe(original);
+});
+
+test("document picker requests only temporary read access and bounded worker reads", () => {
+  const { root, activity } = fixture();
+  prepareAndroid(root, "/toolchain");
+  const source = readFileSync(
+    join(root, activity.replace("MainActivity.kt", "DocumentsPlugin.kt")),
+    "utf8",
+  );
+  expect(source).toContain("Intent.ACTION_GET_CONTENT");
+  expect(source).toContain("Intent.FLAG_GRANT_READ_URI_PERMISSION");
+  expect(source).not.toContain("FLAG_GRANT_PERSISTABLE_URI_PERMISSION");
+  expect(source).not.toContain("takePersistableUriPermission");
+  expect(source).toContain("args.maxBytes + 1 - output.size()");
+  expect(source).toContain("CodingErrorAction.REPORT");
 });

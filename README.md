@@ -12,6 +12,8 @@
 
 M1 已按 Mac＋Android 限定风险实验范围收敛；iOS 最小验证移至接口正式稳定前，五端目标保留。实验作者可从 [SDK 作者入口](docs/SDK-AUTHORING.md)运行服务、非聊天界面与无 UI 事件样板。扩展管理支持手动安装项的“卸载（保留数据）”，两端限定原生结果见 [卸载验收](evidence/UNINSTALL-2026-10-15.md)。
 
+最新源码包含 [会话内文档只读样板](docs/SELECTED-DOCUMENT.md)：宿主系统选择器、多个句柄与停用撤销，在 Mac 和 Android 模拟器限定验证。普通交付包仍按下述清单绑定原版本，新样板需从源码构建或使用专项产物。
+
 ## 快速开始（Quick Start）
 
 前端需要 Node.js 20.19+ 或 22.12+；已执行版本为 Node.js 26.5.1。原生需要 Rust 和对应平台工具链，环境范围见 [M1 实验](docs/M1-EXPERIMENTS.md)。

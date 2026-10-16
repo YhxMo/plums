@@ -23,6 +23,8 @@ export interface Platform {
   readonly kind: "native" | "browser";
   available(capability: string): boolean;
   grant(owner: string, capabilities: string[]): Promise<void>;
+  /** Releases transient owner resources on extension shutdown; persisted state is retained. */
+  release?(owner: string): Promise<void>;
   /** A write receipt confirms commit. AbortError / not-committed guarantee no commit;
    * other write failures are unknown. Cancellation cannot revoke a confirmed write. */
   call(
@@ -96,6 +98,7 @@ export type { ViewNode, ViewTreeScope, ViewTree } from "./view-tree";
 export { resolveNavigation } from "./navigation";
 export type { NavigationEntry } from "./navigation";
 export type {
+  SelectedDocument,
   SelectedDocumentRequest,
   SelectedDocumentResponse,
 } from "./selected-document";

@@ -419,6 +419,21 @@ export class Host {
           continue;
         }
         const scope = new Scope();
+        if (this.platform.release) {
+          let released: Promise<void> | undefined;
+          const release = () =>
+            (released ??= Promise.resolve().then(() =>
+              this.platform.release!(extensionOwner(id)),
+            ));
+          scope.controller.signal.addEventListener(
+            "abort",
+            () => {
+              void release().catch(() => {});
+            },
+            { once: true },
+          );
+          scope.disposers.push(release);
+        }
         record.scope = scope;
         try {
           await within(

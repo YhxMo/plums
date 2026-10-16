@@ -1,25 +1,37 @@
-# 已选择文档读取：合成权限与降级契约
+# 已选择文档的会话内只读访问
 
-状态：实验设计与隔离参考模型，不是生产文件能力。操作名拟为 `document.read`；当前 PlatformAdapter 不提供此能力，生产请求必须保持不可用。没有真实文件选择器、路径读取、持久授权、OS令牌或凭据。本契约不宣称跨平台实现完成。
+状态：实验实现已在Mac和Android API36 ARM64模拟器限定验收；不是稳定 SDK。Mac 使用 NSOpenPanel，Android 使用 ACTION_GET_CONTENT 系统选择器。浏览器明确不可用，iOS/Windows/Linux 未实现此原生适配。此前合成设计的历史结果见 [合成契约证据](../evidence/DOCUMENT-CONTRACT-2026-10-16.md)。
 
-## 授权与所有权
+## 用户路径与所有权
 
-宿主可信选择入口先说明申请者、只读用途和范围，由人选择单个文档；取消不生成句柄。选择入口归宿主，不属于扩展公开 ctx；扩展只收到与 owner 绑定的不透明 handle，通过公开请求读取。handle 不含真实路径，不是全局文件能力；同值句柄给另一 owner 仍拒绝。每次选择生成新身份，句柄可重复读取至显式撤销；撤销后重新选择不会复活旧句柄。
+启用文档样板并确认 `document.read` 后，在扩展管理中选择单个或多个文档。宿主在系统选择之前显示申请者、只读用途、64 KiB 上限与会话期限。扩展的“文档只读样板”界面刷新列表后读取；管理入口可撤销单个或全部。默认业务不自动读取文件。
 
-参考模型的选择输入仅为合成字符串。每个 owner 最多保留两个绑定，超过明确 resource-limit，不偷偷替换已有授权；这是参考模型边界，不是已经实现的OS资源配额。撤销单个句柄或 owner 全部绑定后，在途尚未返回内容的读取再次核对绑定，拒绝交付。已交给扩展的文本不能收回，撤权不伪称删除其副本。共享可信WebView不是防恶意扩展沙箱。
+`PlatformAdapter.initializeDocuments()` 先探测原生支持，成功后 `available("document.read")` 才为真。宿主的 `selectDocuments(owner,multiple,signal?)`、`documents(owner)`、`revokeDocument(owner,handle?)` 管理句柄；选择入口不在扩展 ctx 上。扩展经 `ctx.platform("document.read",{action:"list"})` 列举自己的 `{handle,name}`，以 `{handle,maxBytes}` 读取。调用需声明和授予 document.read。没有真实路径、URI、文件写入或目录能力。
 
-## 请求与结果
+原生 Broker 绑定 owner、授权代际、句柄身份和操作 ID。跨 owner、旧句柄或已撤销绑定统一 denied。每次选择产生新句柄；同一文件再次选择可有多个独立句柄。多选先准备全部来源再原子绑定；容量不足或某项准备失败时不增加部分授权，不驱逐已有授权。
 
-`SelectedDocumentRequest = {handle,maxBytes}`。maxBytes为1至65536的安全整数，返回UTF-8字节长度不得超过调用上限；超限拒绝，不静默截断。只返回文本/字节数，不返回路径、账户或OS授权信息。本阶段假定已经取得纯文本，不设计二进制解码或字符集检测。
+Host 在 scope 失效时取消在途公开调用并释放 owner 临时资源，释放的同一 Promise 纳入清理结果；失败保持 cleanup-failed。激活失败、依赖失效、停用和卸载均经过此路径。释放不删除扩展已保存状态。重新启动扩展需重新选择文档；进程结束不保存这些授权。
 
-`SelectedDocumentResponse` 是判别联合：read带text/bytes；rejected带unavailable、denied、invalid-request或too-large；cancelled无文本；unknown无文本。资源选择的resource-limit属于管理入口拒绝。未知回执不自动重复读取，也不能假称文档为空；需要人决定是否重新请求。读取不写文件，但来源可变化，未来真实适配需明确一致性与版本语义。
+## 读取与结果
 
-模型顺序：检查能力 → 检查请求 → 检查owner/handle → 检查取消 → 模拟读取 → 再核对可用性/绑定/取消 → 校验大小 → 交付。跨owner、已撤权、旧handle统一denied，不泄漏该资源是否存在。取消和撤权作用于尚未交付的结果；返回成功以后它们不追溯撤回。异步读取异常映射unknown，不回传原始异常中的路径或敏感内容。
+`SelectedDocumentRequest = {handle,maxBytes}`，maxBytes 必须为1至65536的安全整数；最多读取上限加1字节以判断超限，超限拒绝且不静默截断。严格 UTF-8，非法编码拒绝。本阶段不做字符集识别、二进制转换或一致性版本管理。
 
-## 验收与降级
+`SelectedDocumentResponse`：read 带 text/bytes；rejected 带固定理由 unavailable、denied、invalid-request、too-large、io、encoding、resource-limit 或 busy；cancelled 和 unknown 不带文本。未知结果不泄漏原始异常或自动重试。列表/撤销管理调用失败时使用固定反馈；撤销未知会阻止继续访问，普通重授权及其他句柄撤销成功不会清除失败锁存，只有随后已确认的 owner 全撤销或重启才能恢复。
 
-失败测试：没有选择/跨owner/取消选择不得读；撤权、重新选择、显式撤销owner全部绑定后的旧handle拒绝；在途撤权/取消不得交付；缺能力明确unavailable；非法请求和UTF-8超限拒绝；选择容量拒绝保留已有绑定；unknown不含数据且不自动重试；成功后撤权不假称已撤回文本。所有测试只使用独立模型实例与合成文本。
+Mac 在选择后只读打开普通文件并保留 File，读取前回到起点；该描述符指向已打开文件，移动或删除路径不等于撤销描述符。Android 保留系统返回的临时 content URI，通过 ContentResolver 有界读取。两者均在工作线程执行 I/O，并在交付前复核操作取消、owner 代际和句柄身份。来源内容可改变，成功只表示此次读到的字节，不保证跨次快照一致。
 
-真实实现前需决定首个操作的必要性、选择器/权限说明、平台句柄存续与撤权机制、文本解码及来源版本、审计脱敏范围，并由明确授权限定真实资源。Mac/Android乃至iOS不能因同一类型存在而标记已实现。该设计完成后不自动开展真实适配。
+## 取消、撤销与边界
 
-未来 Host 停用集成应调用 owner 撤销；当前模型只证明显式 revokeOwner，不证明 Host 已接入。生产适配不可用、不得授权或派发读取的反例另由平台适配测试覆盖。限定结果见 [证据](../evidence/DOCUMENT-CONTRACT-2026-10-16.md)。
+取消或撤销使尚未交付的结果失效；已交给扩展的文本无法收回。逻辑取消不保证系统选择器立即关闭，也不强制中断阻塞的文件/文档提供者 I/O。旧 I/O 可在后台结束后丢弃；选择器 busy 和原生活动预算需等原操作结束才释放，不承诺超时回收。
+
+Android 不请求存储扫描权限、写权限或 persistable URI grant，不调用 takePersistableUriPermission。Broker 撤销立刻拒绝其正常调用路径；系统临时 URI 许可仍由系统/活动生命周期管理，不宣称撤销了所有 OS 层访问。共享可信 WebView 和可替换 UI 不是防恶意扩展沙箱，原生桥接仍有既有信任限制。
+
+资源边界：每 owner 8 个句柄、全局32；每 owner最多8个活动操作、全局32；全局一个选择器。取消先到也登记 operationId，防止迟到 IPC 重新开始；每 owner累计1024、全局4096个操作记录，最多32个文档owner，这些去重/owner记录保留至进程结束。超过返回 resource-limit；撤权不回收累计预算，重启恢复。状态专用owner不占文档预算。这些是实验上限，不是强隔离或完整平台资源政策。
+
+## 验证范围
+
+单元反例覆盖请求形状、UTF-8/字节上限、owner/代际/句柄、取消先到、在途取消/撤权、原子容量与操作预算；前端覆盖未知回执、停用释放、交叠撤销和重授权不绕过失败锁存。系统选择器、Mac File 和 Android ContentResolver 必须分别用实际专项包留证，不能由浏览器或合成模型替代。
+
+当前验收仅使用专门创建的无隐私测试文件。Android 模拟器足以通过本限定阶段，真机仍未验收；iOS继续暂缓至接口正式稳定前。无目录扫描、写入、跨重启持久授权或系统安全设置变更；真实私人文件不在本阶段范围。
+
+系统单选/多选、两端各13项实际文件场景与冷启动无授权结果见 [执行证据](../evidence/DOCUMENTS-2026-10-16.md)。原生在途取消/失败重检仍只由单元边界注入覆盖，不据此声称中断底层I/O。

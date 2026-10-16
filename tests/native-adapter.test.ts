@@ -74,7 +74,7 @@ it("reports a lost native receipt as unknown rather than cancelled or uncommitte
   ).rejects.toMatchObject({ outcome: "unknown" });
 });
 
-it("keeps the proposed document capability unavailable in production", async () => {
+it("keeps document access unavailable until native support has been probed", async () => {
   const adapter = new PlatformAdapter();
   expect(adapter.available("document.read")).toBe(false);
   await expect(adapter.grant("sample", ["document.read"])).rejects.toThrow(

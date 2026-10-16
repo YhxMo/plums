@@ -41,14 +41,23 @@ impl Broker {
         }
         Ok(())
     }
-    pub fn grant(&self, owner: &str, capabilities: Vec<String>) -> Result<(), String> {
+    pub fn validate_grant(owner: &str, capabilities: &[String]) -> Result<(), String> {
         Self::owner(owner)?;
-        if capabilities
-            .iter()
-            .any(|cap| !["state.read", "state.write", "platform.info"].contains(&cap.as_str()))
-        {
+        if capabilities.iter().any(|cap| {
+            ![
+                "state.read",
+                "state.write",
+                "platform.info",
+                "document.read",
+            ]
+            .contains(&cap.as_str())
+        }) {
             return Err("Unknown capability".into());
         }
+        Ok(())
+    }
+    pub fn grant(&self, owner: &str, capabilities: Vec<String>) -> Result<(), String> {
+        Self::validate_grant(owner, &capabilities)?;
         self.grants
             .lock()
             .map_err(|_| "Grant lock poisoned")?

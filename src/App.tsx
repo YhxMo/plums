@@ -26,6 +26,8 @@ import type { Agent } from "../modules/sdk/agents";
 import { agentUI } from "./agent-ui";
 import { SettingsMenu } from "./components/SettingsMenu";
 import { ExtensionView } from "./components/ExtensionView";
+import { SelectedDocuments } from "./components/SelectedDocuments";
+import { extensionOwner } from "../modules/sdk";
 import { Dialog } from "./components/Dialog";
 
 type Runtime = {
@@ -60,6 +62,7 @@ const capabilityLabel = (capability: string) =>
     "state.read": "读取隔离状态",
     "state.write": "写入隔离状态",
     "platform.info": "查看平台信息",
+    "document.read": "只读访问本次选择的文档（最多64 KiB）",
   })[capability] ?? capability;
 const translateStatus = (status: string) =>
   ({
@@ -83,6 +86,7 @@ class CompositionRecovery extends Error {
 
 async function boot(): Promise<Runtime> {
   const adapter = new PlatformAdapter();
+  await adapter.initializeDocuments();
   const host = new Host(adapter);
   const response = await fetch("/catalog.json");
   if (!response.ok) throw new Error("扩展目录读取失败");
@@ -912,6 +916,13 @@ function Workbench({ runtime }: { runtime: Runtime }) {
                             : "启用"}
                       </button>
                     </div>
+                    {capabilities.includes("document.read") && (
+                      <SelectedDocuments
+                        adapter={runtime.adapter}
+                        owner={extensionOwner(id)}
+                        enabled={state.status === "active"}
+                      />
+                    )}
                     {state.status === "cleanup-failed" && (
                       <p className="error">请重新启动应用以恢复此扩展。</p>
                     )}
