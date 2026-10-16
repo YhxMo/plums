@@ -1,0 +1,139 @@
+{
+  "sourceBaseHead": "26502a896c6e6910b5adaa88b1dd14a9b324e549",
+  "sourceManifest": "evidence/source-manifest-1a078308c1bd9a5137dff5724d69e320b721c0a112e4c5b6a625f118c047019e.json",
+  "sourceDigest": "1a078308c1bd9a5137dff5724d69e320b721c0a112e4c5b6a625f118c047019e",
+  "sourceFileCount": 172,
+  "scope": "Synthetic public-service restore confirmation panel; default app and SDK unchanged",
+  "rawEvidence": {
+    ".cache/restore-ui/red.log": "7031bad6bca0daf166a29cf75c27868709aae43c5e0fe10ab77e949b18fa054e",
+    ".cache/restore-ui/unit.log": "3ef33dd5815a55fd2a3a46ced6770db31e6fdf4445146c406c44437ddc5e62fb",
+    ".cache/restore-ui/build.log": "b1f4a7998173f702e653636731adf034f5126deda228dd27c73d86be07f58bec",
+    ".cache/restore-ui/format.log": "96c3555c6d5268dfc96dcdfe4a6b1660ae3419505b800c82fc5230ac18885be1",
+    ".cache/restore-ui/probe-build.log": "f17654b23c354d84fdeabb033a24990c49eef9e502c5e2f72dad3ae3286c0953",
+    ".cache/restore-ui/mac-build.log": "709b7680edd646f75bfeb32fbbc8b41516200947bf30e9c1fdb1dbe1d03729da",
+    ".cache/restore-ui/android-build.log": "3e4bb026973a71e252a2533b4aca1df0c970a50cbcd576b499e3678d3ae0593b",
+    ".cache/restore-ui/browser.json": "c69bcfb3f8e5219d7ef752cf5186a9c3900622a56a03111ef5572c9b47803a7c",
+    ".cache/restore-ui/mac-initial-ax.txt": "940038719c60f5a770b48bb0c65e97a72a8c237f8d7a3122a32dfe0719c6c7c0",
+    ".cache/restore-ui/mac-final-ax.txt": "bebf33b53d17f1055383c6cdf50c74c7a007bf09662616c389d0591f62160226",
+    ".cache/restore-ui/mac-result.json": "eefb8d8f5b3acee0e75629c6d735af686fd5cb048f3d11e7544cece110accdfb",
+    ".cache/restore-ui/android-result/result.json": "eefb8d8f5b3acee0e75629c6d735af686fd5cb048f3d11e7544cece110accdfb",
+    ".cache/restore-ui/apk-signature.log": "66bb67b17936a044ecaaf4dbd1aa92bb3fc950553c16abdcc8d20d4cfe85b672",
+    ".cache/restore-ui/cleanup.json": "7017428d930c1892d9fdb5f42cb1706f00df935a68277670fd31ae23608dd10b"
+  },
+  "release": {
+    "unchangedVerified": true,
+    "sourceDigest": "9bc1ccda9e100db52c7d445d574ac21569a2ad78f7cdc483a99ca27c2e4e9f6d",
+    "checksumSha256": "ca3b16d744c046b6f84398f74f3ea5d6445488cd55d1d0eb3c4e20d448298030"
+  },
+  "limitations": [
+    "Only isolated synthetic state; no authorization to restore real data",
+    "Read failure, rejection and lost receipt injected in test provider; normal storage uses native broker",
+    "Cancellation before write dispatch; no claim of revoking committed writes",
+    "Browser Escape/viewport checks separate from actual native WebView checks",
+    "No package rollback UI, stable SDK, iOS or real-device acceptance"
+  ],
+  "mac": {
+    "bundleIdentifier": "dev.plums.m1.restoreuiprobe",
+    "artifact": ".cache/restore-ui/artifacts/Plums Restore UI Probe.app",
+    "files": {
+      "Contents/Info.plist": "3151d187c9d91fd505502a6d0db939384c87f5dfa152a5a5225d0041132f462f",
+      "Contents/MacOS/plums-m1": "447d6bea8ba015063ca8aaed0e79ac274cb94724703d927161295828754af410",
+      "Contents/Resources/icon.icns": "6a7e5b00689e5640726ecf5319fbdc2aad4b8c43dea54a379e60ddfdbf50a231"
+    },
+    "report": {
+      "passed": true,
+      "checks": [
+        "preview-does-not-write",
+        "cancel-no-write-focus-return",
+        "stale-confirmation-requires-reread",
+        "rejected-write-visible-and-preserved",
+        "explicit-confirmation-once-and-success",
+        "unknown-receipt-locks-without-false-failure",
+        "reread-confirms-no-applicable-older-target",
+        "unmount-cancels-pending-and-ignores-late-ui"
+      ],
+      "platform": "native",
+      "limitations": "Synthetic provider faults; native storage normal commit only; no real-data restoration"
+    }
+  },
+  "android": {
+    "artifact": ".cache/restore-ui/artifacts/restore-ui-android-arm64-debug.apk",
+    "sha256": "cab84eb721c473c9704bec17d79b0539bf672b2cd89b1011c4837d4e5f291463",
+    "installedMatchesBuild": true,
+    "platform": "Android 16 / API 36 / arm64 / isolated software-rendered emulator",
+    "report": {
+      "passed": true,
+      "checks": [
+        "preview-does-not-write",
+        "cancel-no-write-focus-return",
+        "stale-confirmation-requires-reread",
+        "rejected-write-visible-and-preserved",
+        "explicit-confirmation-once-and-success",
+        "unknown-receipt-locks-without-false-failure",
+        "reread-confirms-no-applicable-older-target",
+        "unmount-cancels-pending-and-ignores-late-ui"
+      ],
+      "platform": "native",
+      "limitations": "Synthetic provider faults; native storage normal commit only; no real-data restoration"
+    }
+  },
+  "browser": [
+    {
+      "width": 1440,
+      "overflow": false,
+      "report": {
+        "passed": true,
+        "checks": [
+          "preview-does-not-write",
+          "cancel-no-write-focus-return",
+          "stale-confirmation-requires-reread",
+          "rejected-write-visible-and-preserved",
+          "explicit-confirmation-once-and-success",
+          "unknown-receipt-locks-without-false-failure",
+          "reread-confirms-no-applicable-older-target",
+          "unmount-cancels-pending-and-ignores-late-ui"
+        ],
+        "platform": "browser",
+        "limitations": "Synthetic provider faults; native storage normal commit only; no real-data restoration"
+      }
+    },
+    {
+      "width": 768,
+      "overflow": false,
+      "report": {
+        "passed": true,
+        "checks": [
+          "preview-does-not-write",
+          "cancel-no-write-focus-return",
+          "stale-confirmation-requires-reread",
+          "rejected-write-visible-and-preserved",
+          "explicit-confirmation-once-and-success",
+          "unknown-receipt-locks-without-false-failure",
+          "reread-confirms-no-applicable-older-target",
+          "unmount-cancels-pending-and-ignores-late-ui"
+        ],
+        "platform": "browser",
+        "limitations": "Synthetic provider faults; native storage normal commit only; no real-data restoration"
+      }
+    },
+    {
+      "width": 375,
+      "overflow": false,
+      "report": {
+        "passed": true,
+        "checks": [
+          "preview-does-not-write",
+          "cancel-no-write-focus-return",
+          "stale-confirmation-requires-reread",
+          "rejected-write-visible-and-preserved",
+          "explicit-confirmation-once-and-success",
+          "unknown-receipt-locks-without-false-failure",
+          "reread-confirms-no-applicable-older-target",
+          "unmount-cancels-pending-and-ignores-late-ui"
+        ],
+        "platform": "browser",
+        "limitations": "Synthetic provider faults; native storage normal commit only; no real-data restoration"
+      }
+    }
+  ]
+}
