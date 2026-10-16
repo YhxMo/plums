@@ -87,3 +87,5 @@ export type {
 } from "./credential";
 export { migrateState } from "./state-migration";
 export type { StateMigration, VersionedState } from "./state-migration";
+export { mountViewTree } from "./view-tree";
+export type { ViewNode, ViewTreeScope, ViewTree } from "./view-tree";

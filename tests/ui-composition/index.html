@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Plums 组合工作台</title>
+  </head>
+  <body>
+    <header>
+      <strong>Plums · 组合工作台</strong><button id="manage">扩展管理</button>
+    </header>
+    <main>
+      <section id="management" hidden>
+        <h1>扩展管理</h1>
+        <p>贡献视图停用或失败时，仍可从这里恢复。</p>
+        <button id="restore">恢复组合</button>
+        <p id="status" role="status"></p>
+      </section>
+      <section id="workspace" aria-label="组合工作区"></section>
+    </main>
+    <footer>
+      <p>隔离界面实验 · 合成数据</p>
+      <button id="run">运行验收</button>
+    </footer>
+    <pre id="result" aria-live="polite"></pre>
+    <script type="module" src="./probe.ts"></script>
+  </body>
+</html>
