@@ -4,21 +4,20 @@
 
 ## 当前状态
 
-当前为 0.0.4 / M1 调试原型：Tauri 2 + React/TypeScript/Vite、Rust 平台层、本地 ESM 扩展宿主，以及框架无关的可替换 DOM 布局。默认界面采用白底橙色梅子图标、深浅主题与 Agent 列表/会话/详情布局，支持添加、角色卡导入、特别关注和多会话管理；扩展、设置与诊断由顶栏菜单进入。Android 构建、图标同步、系统栏与键盘适配已纳入项目入口。当前不是稳定 SDK 或可分发产品。
+当前为 0.0.4 debug 原型，SDK 仍在实验阶段。通用底座管理扩展生命周期、依赖、资源、状态与平台能力；业务循环、模型协议和角色卡解析留在扩展。默认 UI 同样通过公开契约挂载，整体布局、页面和导航可替换。
 
-通用底座管理生命周期、依赖、资源与平台能力契约；业务循环、模型协议和角色卡解析留在扩展。默认 UI 也通过公开实验契约提供。后期重点是多 Agent 合作，角色卡优先帮助人类理解 Agent，同时作为联系协作媒介。
+默认 Agent 界面支持角色导入、特别关注、多会话和本地文本处理；桌面未选中角色时保留品牌与双卡片欢迎页。菜单提供独立扩展管理、设置和诊断。[文本工作台与动态页面](docs/PAGES.md)、[独立嵌套页面](docs/LOCAL-PROOF.md)、[公开主题](docs/THEMES.md)及[会话文档只读](docs/SELECTED-DOCUMENT.md)提供非聊天与平台样板。模型／MCP 连接器和多 Agent 协作尚未实现。
 
-已执行的测试、源码摘要、平台覆盖与限制见 [M1 证据](evidence/RESULTS.md)。当前受验版本、独立审查与两端运行范围按证据分别记录。Android 真机、iOS、Windows、Linux 及完整 A11/A12 尚未验收，iOS 继续暂缓。
+M1 已按 Mac 与单配置 Android 模拟器的限定风险范围收敛，M2 整体尚未退出。当前交付、对应源码和未验范围统一见 [验证索引](evidence/RESULTS.md)，执行状态见 [HANDOFF](HANDOFF.md)。Android 真机、iOS、Windows/Linux、稳定 SDK 与正式签名分发仍待验；iOS 最小实验是接口正式稳定前门槛。
 
-M1 已按 Mac＋Android 限定风险实验范围收敛；iOS 最小验证移至接口正式稳定前，五端目标保留。实验作者可从 [SDK 作者入口](docs/SDK-AUTHORING.md)运行服务、非聊天界面与无 UI 事件样板，或安装 [公开主题样板](docs/THEMES.md)。扩展管理支持手动安装项的“卸载（保留数据）”，两端限定原生结果见 [卸载验收](evidence/UNINSTALL-2026-10-15.md)。
+## 本地应用包
 
-当前源码与普通交付包包含 [会话内文档只读样板](docs/SELECTED-DOCUMENT.md)：宿主系统选择器、多个会话内只读句柄与停用撤销，已在 Mac 和 Android API36 ARM64 模拟器完成普通包限定验收。
+| 平台 | 当前入口 | 范围 |
+| --- | --- | --- |
+| Apple Silicon Mac | `release/mac/Plums M1.app` | 当前源码的 debug 本地预览，来源与校验见同目录 build-info.json |
+| Android ARM64 | `release/android/plums-m1-0.0.4-android-arm64-debug.apk` | 保留的2026-10-16受验版本；未随本次Mac变更重新构建 |
 
-同版普通 Mac app／Android APK 已完成 Agent、非聊天工作台、独立页面、主题与文档只读集成；React 卸载和长会话回归保留，手机结果详情遮挡宿主管理的反例已修复。实际系统选择器、系统键盘、冷进程和交付范围见 [普通包证据](evidence/M2-NATIVE-DELIVERY-2026-10-16.md)。应用 UI 的目标包含整体布局、导航与交互替换，颜色主题只是子能力。
-
-当前普通包也包含 [文本处理工作台与动态页面契约](docs/PAGES.md)：从扩展管理启用后，以表单执行和结果详情提供非聊天体验；页面与宿主入口按公开契约接入，两端限定路径已验收。
-
-冻结宿主和 SDK 后，内部独立作者已通过公开文档接入 [交稿检查页面](docs/LOCAL-PROOF.md)，提供跨扩展嵌套、动态页面和冲突回退；接入独立性见 [接入证据](evidence/INDEPENDENT-PAGES-2026-10-16.md)，两端普通包结果见普通包证据。
+在 macOS 执行 `npm run release:mac`，统一构建、临时签名、文件校验和旧Mac包归档。当前包只存于 release 对应平台目录；本次历史整理清单在 `.cache/archive/INDEX.json`，后续命令自动归档的旧Mac包位于 `.cache/archive/releases/`，具体路径由命令输出。恢复说明在 `.cache/archive/README.md`；二进制恢复不回滚应用数据。
 
 ## 快速开始（Quick Start）
 
@@ -33,7 +32,7 @@ npm run dev
 
 浏览器打开回环地址 `http://127.0.0.1:1420`。首次可从“添加”创建本地 Agent，或选择 JSON 角色卡导入。进入角色后发送文本，在详情查看实际能力、特别关注和多会话；顶栏菜单的“角色卡设置”可集中编辑名称与说明、导入文件。顶栏太阳/月亮按钮切换并保存外观。当前内置示例仅处理本地文本，模型与 MCP 连接器仍需扩展实现。角色卡的实验格式、同源链接限制和交互说明见 [UI](docs/UI.md)。
 
-从顶栏菜单打开扩展管理，检查来源、能力与资源，再启用或停用。诊断工具保留原文本工作台、授权/撤权、服务替换和故障注入；启动后可从应用设置切换工作台、画布和默认 Agent 界面。浏览器明确标为预览，localStorage 不能证明 Rust 或原生能力。
+从顶栏菜单打开扩展管理，检查来源、能力与资源，再启用或停用。诊断工具保留原文本工作台、授权/撤权、服务替换和故障注入；启动后可从应用设置切换工作台、画布和默认 Agent 界面。浏览器localStorage仅用于预览，不能证明Rust或原生能力。
 
 ```sh
 npm run native -- dev --no-watch
@@ -47,8 +46,6 @@ npm run native -- build --debug --bundles app
 Android 复用既有 YHX 工具链。将 `PLUMS_ANDROID_TOOLS_ROOT` 设置为含 `env.sh` 的工具链目录，首次执行 `npm run android:init`，随后执行 `npm run android:build`；已有生成工程使用 `npm run android:prepare`。系统栏和键盘适配从受控模板生成，具体环境与维护入口见 [Android 工程](docs/ANDROID.md)。
 
 图标源为 `src-tauri/icons/source.png`；执行 `npm run icons` 可重新生成 Mac、Android 和 Web 所需资源。默认界面与可替换布局共用语义颜色变量，所有权见 [UI](docs/UI.md)。
-
-本地查看包统一放在根 `release/`，当前为 `Plums M1 0.0.4.app` 和 `plums-m1-0.0.4-android-arm64-debug.apk`；使用范围与摘要见该目录的 `README.md`、`CHECKSUMS.json`。当前普通包绑定 214 文件源码摘要 `c0a3fd5`，包含完整交互小阶段的两端限定结果，见 [交付证据](evidence/M2-NATIVE-DELIVERY-2026-10-16.md)。旧交付目录可恢复，路径在清单中；目录名不代表发布模式构建。
 
 ## 文档索引
 

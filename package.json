@@ -9,6 +9,7 @@
     "test": "vitest run",
     "test:web": "playwright test",
     "native": "node scripts/tauri.mjs",
+    "release:mac": "node scripts/release-mac.mjs",
     "native:test": "node scripts/cargo.mjs test --locked",
     "native:check": "node scripts/cargo.mjs clippy --locked --all-targets -- -D warnings",
     "format:check": "prettier --check src modules extensions scripts tests *.json *.ts index.html",

@@ -340,22 +340,6 @@
   font-size: 12px;
   margin: 18px 0 0;
 }
-.chooseAgent {
-  display: flex;
-  flex: 1;
-  align-items: center;
-  justify-content: center;
-  flex-direction: column;
-  color: var(--muted);
-  gap: 12px;
-}
-.chooseAgent h1 {
-  font-size: 22px;
-  color: var(--text);
-}
-.chooseAgent p {
-  margin: 0 0 20px;
-}
 .chat {
   display: flex;
   flex: 1;
@@ -652,9 +636,6 @@
 .sessionRow svg {
   flex-shrink: 0;
 }
-.sessionRow .icon-button {
-  flex-shrink: 0;
-}
 .source code {
   font-size: 10px;
   color: var(--muted);
@@ -769,14 +750,11 @@
   .workspace[data-conversation="true"] > .agentList {
     display: none;
   }
-  .workspace[data-conversation="false"] > .mainColumn:has(.chooseAgent) {
+  .workspace[data-conversation="false"][data-has-agents="true"] > .mainColumn {
     display: none;
   }
-  .workspace[data-conversation="false"]:has(.empty) > .agentList {
+  .workspace[data-conversation="false"][data-has-agents="false"] > .agentList {
     display: none;
-  }
-  .workspace[data-conversation="false"]:has(.empty) .mainColumn {
-    display: flex;
   }
   .workspace[data-conversation="true"] .mainColumn {
     width: 100%;

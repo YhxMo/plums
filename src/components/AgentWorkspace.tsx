@@ -10,6 +10,7 @@ import type {
   AgentConfig,
   AgentProvider,
 } from "../../modules/sdk/agents";
+import type { WorkspaceChromeController } from "../../modules/sdk";
 import { parseRoleCard } from "../../modules/agents/store";
 import { readRoleCardLink } from "../../modules/agents/role-card";
 import { AgentList } from "./AgentList";
@@ -39,9 +40,11 @@ type Modal =
   | null;
 export function AgentWorkspace({
   api,
+  chrome,
   onExtensions,
 }: {
   api: AgentProvider;
+  chrome: WorkspaceChromeController;
   onExtensions: () => void;
 }) {
   const subscribe = useCallback(
@@ -56,38 +59,14 @@ export function AgentWorkspace({
   const [modal, setModal] = useState<Modal>(null);
   const modalTrigger = useRef<HTMLElement | null>(null);
   const detailTrigger = useRef<HTMLElement | null>(null);
-  const selectedRef = useRef<string | null>(null);
-  selectedRef.current = selected;
-  const agentsRef = useRef(agents);
-  agentsRef.current = agents;
-  useEffect(() => {
-    const onSelectAgent = (event: Event) => {
-      const id = (event as CustomEvent<string>).detail;
-      if (id) {
+  useEffect(
+    () =>
+      chrome.connect((id) => {
         setSelected(id);
         setDetail(false);
-      }
-    };
-    const onToggleDetail = (event: Event) => {
-      const source = (event as CustomEvent<HTMLElement | null>).detail;
-      if (source) detailTrigger.current = source;
-      setDetail((prev) => {
-        if (!prev && !selectedRef.current && agentsRef.current.length > 0) {
-          setSelected(agentsRef.current[0].id);
-        }
-        return !prev;
-      });
-    };
-    const onDetailClosed = () => setDetail(false);
-    window.addEventListener("plums:select-agent", onSelectAgent);
-    window.addEventListener("plums:toggle-agent-detail", onToggleDetail);
-    window.addEventListener("plums:agent-detail-closed", onDetailClosed);
-    return () => {
-      window.removeEventListener("plums:select-agent", onSelectAgent);
-      window.removeEventListener("plums:toggle-agent-detail", onToggleDetail);
-      window.removeEventListener("plums:agent-detail-closed", onDetailClosed);
-    };
-  }, []);
+      }),
+    [chrome],
+  );
   const [busy, setBusy] = useState(false);
   const [reading, setReading] = useState(false);
   const readController = useRef<AbortController | null>(null);
@@ -128,11 +107,6 @@ export function AgentWorkspace({
   const agent = agents.find((a) => a.id === selected);
   const key = agent ? `${agent.id}:${agent.currentSessionId}` : "";
   useEffect(() => {
-    window.dispatchEvent(
-      new CustomEvent("plums:agent-detail-state", { detail }),
-    );
-  }, [detail]);
-  useEffect(() => {
     const session = agent?.sessions.find(
       (item) => item.id === agent.currentSessionId,
     );
@@ -142,15 +116,26 @@ export function AgentWorkspace({
           ? `${agent.name} · ${session.title}`
           : agent.name
         : "";
-    window.dispatchEvent(
-      new CustomEvent("plums:workspace-title", { detail: title }),
-    );
-    return () => {
-      window.dispatchEvent(
-        new CustomEvent("plums:workspace-title", { detail: "" }),
-      );
-    };
-  }, [agent]);
+    chrome.publish({
+      title,
+      contextOwner: agent?.extensionId,
+      sidebar: agents.length
+        ? {
+            label: "Agent 详情",
+            open: detail && !!agent,
+            presentation: mobile ? "dialog" : "sidebar",
+            close() {
+              setDetail(false);
+            },
+            toggle(source) {
+              detailTrigger.current = source;
+              if (!agent) setSelected(agents[0].id);
+              setDetail((open) => !open);
+            },
+          }
+        : undefined,
+    });
+  }, [chrome, agent, agents, detail, mobile]);
   const open = (next: Modal, source?: HTMLElement | null) => {
     if (!modal) modalTrigger.current = source ?? null;
     setModal(next);
@@ -223,6 +208,7 @@ export function AgentWorkspace({
     <div
       className={s.workspace}
       data-conversation={!!agent}
+      data-has-agents={agents.length > 0}
       data-detail={detail}
     >
       {!(mobile && detail && agent) && feedback(s.sharedFeedback)}
@@ -238,22 +224,12 @@ export function AgentWorkspace({
       />
       <div className={s.mainColumn}>
         {!agent ? (
-          agents.length === 0 ? (
-            <EmptyState
-              onImport={(source) => open("import", source)}
-              onAdd={(source) => open("create", source)}
-              onExtensions={onExtensions}
-            />
-          ) : (
-            <div className={s.chooseAgent}>
-              <Icon name="card" size={48} />
-              <h1>选择一个 Agent</h1>
-              <p>从左侧开始，或添加新的角色与能力。</p>
-              <button onClick={(e) => open("add", e.currentTarget)}>
-                添加 Agent
-              </button>
-            </div>
-          )
+          <EmptyState
+            hasAgents={agents.length > 0}
+            onImport={(source) => open("import", source)}
+            onAdd={(source) => open("create", source)}
+            onExtensions={onExtensions}
+          />
         ) : (
           <ChatView
             agent={agent}

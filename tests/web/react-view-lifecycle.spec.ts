@@ -143,7 +143,7 @@ test("overlapping React view releases retain the replacement and release subscri
         });
       },
     });
-    host.install(agentUI(() => {}));
+    host.install(agentUI());
     await host.start("test.agents");
     await host.start("ui.agents");
     const container = document.createElement("div");

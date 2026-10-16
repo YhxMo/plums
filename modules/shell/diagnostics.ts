@@ -198,45 +198,44 @@ export function mapExtensionAgents(
 ): Record<string, Agent[]> {
   const result: Record<string, Agent[]> = Object.create(null);
   if (!agents.length) return result;
-  const activeIds = host
-    .ids()
-    .filter((id) => host.inspect(id).status === "active");
+  const active = new Map(
+    host
+      .ids()
+      .filter((id) => host.inspect(id).status === "active")
+      .map((id) => [id, host.manifest(id)]),
+  );
   const activeProviders = new Map<string, string>();
-  for (const id of activeIds) {
-    for (const service of Object.keys(host.manifest(id).provides ?? {})) {
+  for (const [id, manifest] of active) {
+    for (const service of Object.keys(manifest.provides ?? {})) {
       activeProviders.set(service, id);
     }
   }
+  const viewOwners = new Set(host.views().map((view) => view.owner));
+  const agentViews = [...active]
+    .filter(
+      ([id, manifest]) => manifest.requires?.agents === 1 && viewOwners.has(id),
+    )
+    .map(([id]) => id);
   const addAgent = (extensionId: string, agent: Agent) => {
     const list = (result[extensionId] ??= []);
     if (!list.some((item) => item.id === agent.id)) list.push(agent);
   };
   for (const agent of agents) {
-    if (!host.ids().includes(agent.extensionId)) continue;
-    if (host.inspect(agent.extensionId).status !== "active") continue;
+    if (!active.has(agent.extensionId)) continue;
     const queue = [agent.extensionId];
     const visited = new Set<string>();
     while (queue.length) {
       const current = queue.shift()!;
-      if (visited.has(current) || !host.ids().includes(current)) continue;
+      const manifest = active.get(current);
+      if (visited.has(current) || !manifest) continue;
       visited.add(current);
-      if (host.inspect(current).status !== "active") continue;
       addAgent(current, agent);
-      const manifest = host.manifest(current);
       for (const req of Object.keys(manifest.requires ?? {})) {
         const depOwner = activeProviders.get(req);
         if (depOwner && !visited.has(depOwner)) queue.push(depOwner);
       }
     }
-    for (const id of activeIds) {
-      const manifest = host.manifest(id);
-      if (
-        manifest.requires?.agents === 1 &&
-        host.views().some((v) => v.owner === id)
-      ) {
-        addAgent(id, agent);
-      }
-    }
+    for (const id of agentViews) addAgent(id, agent);
   }
   return result;
 }

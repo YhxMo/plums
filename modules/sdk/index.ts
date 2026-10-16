@@ -1,4 +1,11 @@
 import type { Theme } from "./theme";
+import type { WorkspaceChrome } from "./workspace-chrome";
+export { createWorkspaceChrome } from "./workspace-chrome";
+export type {
+  WorkspaceChrome,
+  WorkspaceChromeController,
+  WorkspaceChromeState,
+} from "./workspace-chrome";
 import type {
   ConfigurationDeclaration,
   ConfigurationValue,
@@ -43,6 +50,8 @@ export interface View {
   presentation?: "workspace" | "dialog" | "sidebar";
   /** Deterministic fallback among workspace views; higher wins, then id. */
   priority?: number;
+  /** Optional reactive title, contextual sidebar and entity navigation. */
+  chrome?: WorkspaceChrome;
   beforeLeave?: () => Promise<void>;
   /** A rejected disposer remains cleanup-failed; the host does not blindly retry it. */
   mount(root: HTMLElement): () => void | Promise<void>;

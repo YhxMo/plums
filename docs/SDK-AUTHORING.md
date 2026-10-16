@@ -48,7 +48,7 @@ host.serviceNames(); // string[]
 host.manifest(id); // Manifest
 host.inspect(id); // {status, error?: string, desired: boolean, resources: number, tasks: number}
 // status: disabled | waiting | active | stopping | failed | cleanup-failed
-host.views(); // {id, label, owner, generation, presentation, priority}[]
+host.views(); // {id, label, owner, generation, presentation, priority, chrome?}[]
 host.themes(); // (Theme & {owner, generation})[]，仅开放的 active 贡献
 const close = host.mountView(viewId, root); // () => void | Promise<void>
 ```
@@ -59,9 +59,53 @@ const close = host.mountView(viewId, root); // () => void | Promise<void>
 
 ## 页面与公开宿主入口
 
-扩展可通过 `ctx.shell.open("extensions" | "settings" | "diagnostics")` 请求呈现宿主入口；这不授予权限或直接管理其他扩展。`View.presentation` 可选声明 workspace/dialog，外壳按声明装配主视图和菜单，旧视图默认 workspace。动态页面、导航保存、嵌套贡献、焦点与清理见 [页面契约和文本处理工作台](PAGES.md)。
+扩展可通过 `ctx.shell.open("extensions" | "settings" | "diagnostics")` 请求呈现宿主入口；这不授予权限或直接管理其他扩展。`View.presentation` 可选声明 workspace/dialog/sidebar，外壳按声明装配主视图、菜单和上下文侧栏，旧视图默认 workspace。动态页面、导航保存、嵌套贡献、焦点与清理见 [页面契约和文本处理工作台](PAGES.md)。
 
 从扩展管理启用内置公开样板 `ui.workbench-board` 并确认状态权限，可体验“处理项→编辑执行→结果详情”的非聊天界面。作者可通过普通服务 `text-workbench.pages@1` 登记自己的页面，无需改内核；冻结后的内部独立作者已通过同源安装接入 [交稿检查页面](LOCAL-PROOF.md)，受验范围见专项证据。
+
+## 工作区标题与上下文侧栏
+
+工作区希望在顶栏显示当前处理项时，在 `ctx.view` 中提供可选 `chrome`。下面的普通 ESM 示例通过稳定快照和订阅发布标题，不需要 React 或宿主私有事件：
+
+```js
+export default {
+  manifest: { id: "sample.titles", version: "1.0.0", apiVersion: 1 },
+  activate(ctx) {
+    let state = { title: "待处理项目" };
+    const listeners = new Set();
+    const chrome = {
+      getSnapshot() {
+        return state;
+      },
+      subscribe(listener) {
+        listeners.add(listener);
+        return () => listeners.delete(listener);
+      },
+    };
+    ctx.view({
+      id: "sample.titles",
+      label: "项目工作区",
+      chrome,
+      mount(root) {
+        const button = document.createElement("button");
+        button.textContent = "打开项目";
+        button.onclick = () => {
+          state = { title: "当前项目" };
+          listeners.forEach((listener) => listener());
+        };
+        root.append(button);
+        return () => root.replaceChildren();
+      },
+    });
+  },
+};
+```
+
+`getSnapshot()` 在状态未变时返回同一对象；变化时先替换快照，再通知订阅者。外壳只订阅当前工作区，切换或停用时取消订阅。读取或订阅失败会让外壳排除该代视图并回退，管理入口仍可达。
+
+完整类型见 [workspace-chrome.ts](../modules/sdk/workspace-chrome.ts)。`contextOwner` 指向当前实体所属扩展；外壳优先查找该扩展的 sidebar 贡献，然后查找当前工作区扩展自己的 sidebar，同一所有者内按 priority 降序和 ID 升序选择。无匹配贡献时使用可选 `sidebar` 中的 label、真实 open 状态、toggle(source) 和 close()。默认 inline 详情与扩展侧栏互斥；移动模态详情声明 `presentation: "dialog"`，转为 inline 后重新协调。不要在外壳另存默认详情开关。
+
+可选 `navigation` 包含实体类型 `entityType` 和 `reveal(id)`。调用方先匹配类型，再导航；当前 Agent 管理链接只接受 `agents.agent`，其他类型显示不可用原因。仓库内 TypeScript 视图可用 `createWorkspaceChrome(entityType)`、`publish(state)` 和 `connect(handler)` 组装同一接口；挂载时连接处理器，释放时执行 connect 返回的清理函数，旧挂载的迟到清理不会断开替代处理器。未提供 chrome 的已有视图继续按原挂载契约工作。
 
 ## 状态、取消与演进
 

@@ -1,42 +1,28 @@
 # Plums 工程状态
 
-核对日期：2026-10-16（Asia/Shanghai）。完整交互界面小阶段与第5步同版普通包交付已限定完成，已[归档](docs/spec/archive/M2-interaction-2026-10-16.md)。最终214文件源码摘要 `c0a3fd5`，92浏览器与两端普通构建通过；265单元/15 Rust按未变实现与输入复用。独立源码、原生记录/关键屏与交付复核无剩余P1/P2；最终范围见[交付证据](evidence/M2-NATIVE-DELIVERY-2026-10-16.md)。M2整体未退出，SDK未稳定。
+核对日期：2026-10-17（Asia/Shanghai）。窗口与宿主重构源自提交 `97c9818` 上的本次收敛实现；下一阶段以保存该实现的本地 Git 提交为候选基线，执行前核实 HEAD 与工作区差异。能力路线由 [整体计划](docs/spec/total.md) 维护，当前执行与门槛由 [阶段计划](docs/spec/milestone.md) 维护；版本与平台结果从 [验证索引](evidence/RESULTS.md) 查阅。
 
-能力路线由[整体计划](docs/spec/total.md)维护，执行阶段由[当前计划](docs/spec/milestone.md)维护。“宿主窗口与扩展管理修整”已完成实现与验证：macOS `Overlay` 一体化顶栏、可解释且可关闭的界面回退提示、方向 A 独立全幅扩展管理页（左列表＋右详情与关联启用 Agent）及顶栏右侧侧栏切换按钮均已合入，原有 256px/268px 齐平分栏、48px 顶栏底边对齐、间距与字号完整保留；根 `release/` 已同步更新并保留旧包恢复目录。交接不另存执行清单。
+## 当前实现
 
-## 当前源码与使用
+App 负责启动，Workbench 装配工作区、外观、导航、授权和管理；表单状态归扩展管理。工作区通过可选 View.chrome 发布会话标题、上下文和默认详情，按视图代处理异常，导航匹配实体类型，默认详情与上下文侧栏互斥。入口与状态所有权见 [架构](docs/ARCHITECTURE.md#当前前端的状态所有权)。
 
-默认Agent UI提供角色列表、会话、多会话、特别关注、角色卡导入与设置，消费公开`agents@1`；当前Agent仅执行本地文本转换，模型/MCP连接器、完整角色卡格式与多Agent协作尚未实现。内置中性深浅外观与橙色品牌保持既定方向；颜色样板仅作SDK技术示例。
+默认 Agent 只执行本地文本业务。桌面未选中角色时显示原品牌、导入角色卡／安装扩展双卡片和次要添加入口；手机按已有列表／会话／零角色欢迎切换。管理页隐藏业务区时保留挂载及草稿，顶栏和详情的字号、间距、颜色继续使用 [UI 约定](docs/UI.md)。
 
-[文本处理工作台](docs/PAGES.md)从普通扩展管理启用并确认隔离状态权限，提供表单、执行/取消、保存、结果列表/详情和再编辑。[交稿检查](docs/LOCAL-PROOF.md)两份ESM从普通安装入口接入公开页面服务与嵌套节点；动态冲突、依赖/界面停用恢复及缺失偏好已经两端普通包限定验证。独立性与首次移动导航失败保留在[接入证据](evidence/INDEPENDENT-PAGES-2026-10-16.md)，内部作者不代表社区反馈。
+宿主偏好、安装路径、主题、Agent／会话和组合共用串行 host.shell 快照；文本工作台使用自身命名空间。权限会话内确认，不随组合自动授予。未知写入回执锁住继续修改，坏数据保留；64 KiB上限和精确版本规则不变。
 
-宿主偏好、安装路径、主题、Agent/会话和组合共用串行快照；文本工作台另有隔离命名空间。工作台未保存草稿只在当前激活周期保留，独立节点的文本/清单为内存会话。权限不随组合保存自动授予；冷启动重授权后恢复业务，动态贡献缺失时保留原页面偏好。未知写入回执继续锁住修改，64 KiB、坏数据保留和精确版本规则不变。
+## 使用、交付与恢复
 
-## 普通交付与恢复
+- Mac 当前入口：`release/mac/Plums M1.app`。执行 `npm run release:mac` 更新；同目录 build-info.json 和 source.patch 记录产物与源码。
+- Android 当前入口：`release/android/plums-m1-0.0.4-android-arm64-debug.apk`，仍为2026-10-16的受验版本；Mac更新不代表Android当前源码通过。
+- 本次历史包、原始实验和清理清单在 `.cache/archive/INDEX.json`；后续 `release:mac` 自动归档位于 `.cache/archive/releases/`，以命令输出定位。恢复说明在归档根 README.md；源码版本化证据继续在 evidence，已完成计划继续在 docs/spec/archive。
+- 当前验证材料在 `.cache/current/`；运行数据留在 `.dev-data/`。Cargo、npm、Android构建缓存和正在使用的模拟器目录保留。PID、临时操作脚本及旧候选路径不作为当前工程入口。
 
-根`release/`已更新为同一源码的0.0.4 debug普通包，显示名Plums M1、标识`dev.plums.plums`：
+Android复用现有工具链与受控生成工程，见 [Android工程](docs/ANDROID.md)。默认界面、非聊天工作台与独立作者接入各自消费公开契约；完整操作和验证入口见 README、SDK与子系统文档。
 
-| 平台 | 产物 |
-| --- | --- |
-| Apple Silicon Mac | `Plums M1 0.0.4.app` |
-| Android ARM64 | `plums-m1-0.0.4-android-arm64-debug.apk` |
+## 验证与未完成范围
 
-说明和校验清单在release目录，源码/产物身份见[机器记录](evidence/m2-native-delivery-2026-10-16.json)。旧交付完整目录保留于`.cache/replaced-release/0.0.4-before-ui-replacement-20261016T133122Z`，含旧说明/清单；这是二进制恢复路径，不是运行数据回滚。此前`.cache/replaced-release/`中的历史包与实验产物不清理。
+当前交付和精简检查以 [项目收敛记录](evidence/RELEASE-2026-10-17.md) 为准。此前的 [宿主重构](evidence/SHELL-ARCHITECTURE-2026-10-17.md) 和 [欢迎页修复](evidence/WELCOME-2026-10-17.md) 保留各自源码与平台结果，不拼成其他平台结论。
 
-[会话文档只读](docs/SELECTED-DOCUMENT.md)已在当前两端普通包验证系统取消/单选/多选、读取、65536字节上限、65537与非法UTF-8拒绝、单项/全部撤销、停用及冷进程无授权。仅使用自建文件，不提供跨进程持久文档授权。
+当前阶段“当前版本双端验收与生产能力准备”的[计划](docs/spec/milestone.md)已复核并获执行授权，由新会话从固定候选与验证范围开始。已完成的项目收敛和Mac交付单独[归档](docs/spec/archive/M2-project-consolidation-2026-10-17.md)；宿主窗口与扩展管理的剩余验收继续留在当前计划。
 
-## 工程入口与现场
-
-构建入口见[README](README.md)与[Android工程](docs/ANDROID.md)。Android继续使用既有工具链和本工作副本生成工程/target，不改全局环境或系统安全配置。
-
-最终候选、原始命令/AX/XML/截图与隔离报告在`.cache/m2-final/`；Mac测试数据在`.dev-data/m2-final-mac/`。原生操作与WebView自动化分开记录。Android系统键盘输入/滚动/收起后执行通过；首触可能只收起IME，须按新布局再次点击执行，实际保存与输出另有记录。
-
-本次收尾时点：Mac最终候选PID78744使用上述隔离数据；专用ADB PID15489、模拟器PID15490仍在，端口5075、5626/5627及WebView转发9265保留。Android当前App PID4240。PID只作时点快照，下次操作前重新核对身份与存活，不停止其他Plums应用或测试进程。
-
-旧统一集成候选和自建文件仍在`.cache/m2-integration/`，其[历史证据](evidence/M2-INTEGRATION-2026-10-16.md)保留原版本和当时未完成状态；剩余项现由最终同版证据关闭，不把旧包当作本次受验包。
-
-## 仍未验收的范围
-
-Android真机/其他配置/WebView、完整辅助技术、iOS、Windows/Linux未验；iOS最小原生风险实验仍是接口正式稳定前门槛。更广输入与组合升级、兼容/废弃政策、正式签名分发及许可证全量核对按[M2退出清单](docs/spec/M2-EXIT-CHECKLIST.md)继续判断。
-
-完整升级事务、多跳迁移、提交中崩溃/断电、多进程、生产网络/凭据、长期后台与强隔离仍未完成。可信ESM共享WebView，公开契约和DI不是恶意代码安全沙箱。私人愿景、运行数据、原始日志和截图继续忽略；不自动提交、推送或部署。
+M2整体、SDK稳定、原生外部上下文贡献替换、完整原生窗口操作及辅助技术仍未退出。Android真机／其他配置、iOS、Windows/Linux与正式分发继续待验；生产网络／凭据、长期后台、强隔离、事务升级、多跳迁移和崩溃一致性尚未完成。可信ESM共享WebView，不构成恶意代码沙箱。

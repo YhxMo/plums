@@ -171,9 +171,14 @@ describe("mapExtensionAgents", () => {
       },
     ];
 
+    sampleAgents.push({ ...sampleAgents[0], id: "a2", name: "文字助手" });
     const mapped = mapExtensionAgents(host, sampleAgents);
-    expect(mapped["agents.local"]?.map((a) => a.name)).toEqual(["代码助手"]);
-    expect(mapped["transform.upper"]?.map((a) => a.name)).toEqual(["代码助手"]);
-    expect(mapped["ui.agents"]?.map((a) => a.name)).toEqual(["代码助手"]);
+    for (const id of ["agents.local", "transform.upper", "ui.agents"])
+      expect(mapped[id]?.map((agent) => agent.name)).toEqual([
+        "代码助手",
+        "文字助手",
+      ]);
+    await host.stop("transform.upper");
+    expect(mapExtensionAgents(host, sampleAgents)).toEqual({});
   });
 });

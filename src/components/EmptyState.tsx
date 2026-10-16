@@ -1,10 +1,12 @@
 import { Icon } from "./Icon";
 import s from "./Workspace.module.css";
 export function EmptyState({
+  hasAgents,
   onImport,
   onExtensions,
   onAdd,
 }: {
+  hasAgents: boolean;
   onImport: (source: HTMLElement) => void;
   onExtensions: () => void;
   onAdd: (source: HTMLElement) => void;
@@ -16,9 +18,15 @@ export function EmptyState({
         <span className="eyebrow">从这里开始</span>
         <h1>欢迎使用 Plums</h1>
         <p>
-          添加你的第一个 Agent，
-          <br className={s.mobileOnly} />
-          把角色与能力放到一起。
+          {hasAgents ? (
+            "从左侧选择 Agent，或添加新的角色与能力。"
+          ) : (
+            <>
+              添加你的第一个 Agent，
+              <br className={s.mobileOnly} />
+              把角色与能力放到一起。
+            </>
+          )}
         </p>
       </div>
       <div className={s.onboarding}>

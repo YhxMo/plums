@@ -305,14 +305,17 @@ export class Host {
   views() {
     return [...this.registeredViews.values()]
       .filter((view) => this.record(view.owner).status === "active")
-      .map(({ id, label, owner, generation, presentation, priority }) => ({
-        id,
-        label,
-        owner,
-        generation,
-        presentation: presentation ?? "workspace",
-        priority: priority ?? 0,
-      }));
+      .map(
+        ({ id, label, owner, generation, presentation, priority, chrome }) => ({
+          id,
+          label,
+          owner,
+          generation,
+          presentation: presentation ?? "workspace",
+          priority: priority ?? 0,
+          ...(chrome ? { chrome } : {}),
+        }),
+      );
   }
   async leaveView(id: string) {
     await this.registeredViews.get(id)?.beforeLeave?.();

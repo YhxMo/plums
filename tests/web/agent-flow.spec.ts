@@ -17,6 +17,66 @@ async function add(page: Page, name = "编程助手", multi = true) {
     .getByRole("button", { name: "添加", exact: true })
     .click();
 }
+for (const width of [375, 1180]) {
+  test(`welcome actions and existing Agent navigation survive reload at ${width}`, async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width, height: 820 });
+    await page.goto("/");
+    const welcome = page.getByRole("main");
+    await expect(
+      welcome.getByRole("button", { name: /导入角色卡/ }),
+    ).toBeVisible();
+    await expect(
+      welcome.getByRole("button", { name: /安装扩展/ }),
+    ).toBeVisible();
+    await add(page, "已有角色");
+    await page.reload();
+    const existing = page.getByRole("button", {
+      name: "与 已有角色 交互",
+      exact: true,
+    });
+    await expect(existing).toBeVisible();
+    if (width === 1180) {
+      await expect(
+        page.getByRole("heading", { name: "欢迎使用 Plums" }),
+      ).toBeVisible();
+      await expect(welcome).not.toContainText("第一个 Agent");
+      await expect(
+        welcome.getByRole("button", { name: "添加 Agent", exact: true }),
+      ).toHaveCount(0);
+      await welcome.getByRole("button", { name: /导入角色卡/ }).click();
+      await expect(
+        page.getByRole("dialog", { name: "导入角色卡", exact: true }),
+      ).toBeVisible();
+      await page
+        .getByRole("dialog")
+        .getByRole("button", { name: "取消", exact: true })
+        .click();
+      await welcome.getByRole("button", { name: /安装扩展/ }).click();
+      await expect(
+        page.getByRole("heading", { name: "扩展与状态" }),
+      ).toBeVisible();
+      await page
+        .getByRole("button", { name: "返回工作区", exact: true })
+        .click();
+      await expect(
+        page.getByRole("heading", { name: "欢迎使用 Plums" }),
+      ).toBeVisible();
+    } else {
+      await expect(welcome).toBeHidden();
+    }
+    await existing.click();
+    await expect(
+      page.getByRole("textbox", { name: "消息", exact: true }),
+    ).toBeVisible();
+    if (width === 375) {
+      await page.getByRole("button", { name: "返回 Agent 列表" }).click();
+      await expect(existing).toBeVisible();
+      await expect(welcome).toBeHidden();
+    }
+  });
+}
 for (const width of [375, 1440]) {
   test(`agent creation, pinned shortcuts, sessions and reload at ${width}`, async ({
     page,
@@ -29,11 +89,17 @@ for (const width of [375, 1440]) {
     await expect(page.locator("select")).toHaveCount(0);
     await expect(page.getByRole("tab")).toHaveCount(0);
     await add(page);
+    await expect(page.getByRole("banner")).toContainText(
+      "编程助手 · 未命名会话",
+    );
     await page
       .getByRole("textbox", { name: "消息", exact: true })
       .fill("hello agent");
     await page.getByRole("button", { name: "发送", exact: true }).click();
     await expect(page.getByRole("log")).toContainText("HELLO AGENT");
+    await expect(page.getByRole("banner")).toContainText(
+      "编程助手 · hello agent",
+    );
     if (width === 375)
       await page.getByRole("button", { name: "查看 Agent 详情" }).click();
     else await sidebarToggle(page).click();
@@ -41,10 +107,14 @@ for (const width of [375, 1440]) {
       .getByRole("button", { name: "设为特别关注", exact: true })
       .click();
     await page.getByRole("button", { name: "新建会话", exact: true }).click();
+    await expect(page.getByRole("banner")).toContainText(
+      "编程助手 · 未命名会话",
+    );
     await expect(
       page.getByRole("button", { name: "未命名会话", exact: true }),
     ).toBeVisible();
     await page.getByRole("button", { name: "收起详情" }).click();
+    await expect(sidebarToggle(page)).toHaveAttribute("aria-pressed", "false");
     await expect(page.getByRole("log")).not.toContainText("HELLO AGENT");
     await page.reload();
     await page
@@ -341,8 +411,8 @@ for (const width of [375, 1440])
     await expect(settings.getByRole("status")).toHaveText("角色卡已保存。");
     await page.keyboard.press("Escape");
     await expect(
-    page.getByRole("region", { name: "新的角色名称 的会话", exact: true }),
-  ).toBeVisible();
+      page.getByRole("region", { name: "新的角色名称 的会话", exact: true }),
+    ).toBeVisible();
     await page.reload();
     await page
       .getByRole("button", { name: "与 新的角色名称 交互", exact: true })
