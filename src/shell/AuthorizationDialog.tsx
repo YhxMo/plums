@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import type { Runtime } from "./runtime";
-import type { ShellOperations } from "./useOperations";
+import type { AuthorizationDialogProps } from "./controllers";
 import { capabilityLabel } from "./messages";
 import styles from "./dialogs.module.css";
 import managerStyles from "../features/extensions/ExtensionManager.module.css";
@@ -36,11 +35,7 @@ export function AuthorizationDialog({
   runtime,
   operations,
   controller,
-}: {
-  runtime: Runtime;
-  operations: ShellOperations;
-  controller: Authorization;
-}) {
+}: AuthorizationDialogProps) {
   const { host, catalog } = runtime;
   const { operate } = operations;
   const {

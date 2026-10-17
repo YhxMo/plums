@@ -94,6 +94,24 @@
 
 原生组合门禁、原生窗口、普通包、Android 模拟器／真机和其他浏览器未重验，release 未替换；TS/TSX Hooks lint 的既有解析器缺口保留。C2 验收完成并停止，负责人、退出结果及范围见[阶段归档](../docs/spec/archive/C2-styles-2026-10-17.md)。
 
+## C3：扩展操作与组件依赖
+
+2026-10-17，macOS arm64、Node.js 26.5.1、TypeScript 7.0.2，配置的 Chrome 浏览器。先确认 C2 提交 `f5f78e1` 和干净工作区；以下结果绑定该父基线上的 C3 源码、测试及文档增量，与本节纳入同一次本地提交。未替换交付包。
+
+[extension-actions.ts](../modules/shell/extension-actions.ts) 抽出安装、重试、移除失效路径、卸载、组合保存和配置写入，接收 Host 的 Pick 与窄状态接口，不依赖 React。安装保留加载后检查重复 ID、确认保存后更新 imports、安装成功后发布 catalog 的顺序；卸载保留停用、撤权、凭据准备、同次保存 imports／组合、最终卸载和目录发布的顺序。最终卸载失败保留实时 imports／catalog，同时保留已经确认的组合裁剪；配置保存失败仍保留旧配置和停用状态。仅收窄三个既有内部助手的 Host 参数类型，既有调用者继续有效。
+
+新增 [controllers.ts](../src/shell/controllers.ts) 用 Pick 限制组件消费的 Hook 字段；[useExtensionManager](../src/features/extensions/useExtensionManager.ts) 生成页头、列表、详情和弹窗的消费接口。ExtensionManager 从 294 降到 66 行，只组合渲染；另拆出列表、卡片操作、弹窗组合、诊断动作和恢复引导。Workbench 从 96 到 110 行，对象透传从 5 处降到 0 处，全部改为具名 props。本次涉及的组件顶层 props 均不超过六个，没有接收完整 Hook 返回类型或新增 Context。旧 UI operations.ts 的卸载保存助手迁入动作模块后删除。
+
+失败证据：先新增 [extension-actions.test.ts](../tests/extension-actions.test.ts)，执行 `npm test -- tests/extension-actions.test.ts`；新模块尚不存在，结果为 1 个套件加载失败、0 个已执行用例，报找不到目标模块。该记录不表示 15 个行为断言已执行失败。完成抽取后修正测试夹具中无关的无效凭据声明，15／15 通过，覆盖安装保存失败／重试、加载失败／跨源／重复 ID、已保存后安装失败、重试路径与配置、卸载保留数据、卸载保存与最终撤权失败、移除准备失败、组合冲突／保存失败和配置保存失败。与原有配置、卸载单元共同约束执行顺序及部分成功结果。
+
+`npm run verify:web` 全绿：构建／类型、45 文件／449 单元、Prettier、项目／导入边界、行数和 ESLint；ESLint 0 错误／0 警告。`npm run test:web -- --workers=4` 全量 117／117 通过（57.6 秒），既有浏览器测试文件未改，包括安装／导入恢复、配置取消／失败、组合冲突／卸载裁剪、凭据管理、焦点与视图生命周期。
+
+以 `f5f78e1` 原实现和候选分别执行 375／1180px × light／dark × 五状态：管理页、安装弹窗、配置弹窗、组合保存通知、卸载弹窗。使用同一隔离扩展配置，逐节点核对标签、属性、文本、矩形与所测计算样式，20 个状态零差异；20 张截图逐字节相同。实际查看手机深色配置弹窗和桌面浅色管理页，横向溢出为 false，pageerror 为 0；截图和原始比较材料不提交。
+
+独立只读审查以 `git show f5f78e1:<path>` 对照候选，核对安装／重试、卸载各失败点、失效路径移除、组合／配置顺序、安装草稿常驻、关闭／卸载焦点及诊断组件生命周期，未发现 P1/P2/P3。CSS、公开 SDK、Runtime 声明、Rust、依赖与既有浏览器测试均未改；Runtime 的 imports／configurations／composition 可变所有权保持，C4 未实施。提交前精确暂存内容经过逐项阅读与隐私检查。
+
+原生组合门禁、原生窗口、普通包、Android 模拟器／真机及其他浏览器本次未重验；TS/TSX Hooks lint 的阶段 A 解析器兼容缺口保留。不增加系统秘密或真实连接器的通过结论。C3 验收完成并停止，范围与退出条件见[阶段归档](../docs/spec/archive/C3-extension-actions-2026-10-17.md)；C4–C6 未实施。
+
 ## 此前源码维护验证
 
 2026-10-17 项目精简覆盖启动/Host/SDK、平台管理、扩展样板、构建脚本、测试入口与当前文档。删除仅供自测调用的 JS 代理校验及其 8 项测试；实际配置保留 Rust 校验。Host 安装按有效配置直接解析，失败仍保留默认配置与错误；Android 插件模板共用检查流程，未知代码保护及已知前版兼容保留，拒绝测试覆盖三种插件。回环传输说明合并为[单一入口](../docs/NATIVE-TRANSPORT-EXPERIMENT.md)，当前文档统一使用现有实现与验收状态。

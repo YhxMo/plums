@@ -1,10 +1,6 @@
 import { useState } from "react";
 import { diagnoseLayoutFallback } from "../../modules/shell/diagnostics";
-import type { Runtime } from "./runtime";
-import type { ShellOperations } from "./useOperations";
-import type { Workspace } from "./useWorkspace";
-import type { Appearance } from "./useAppearance";
-import type { ShellNavigation } from "./useShellNavigation";
+import type { ShellFeedbackProps } from "./controllers";
 import { Icon } from "../components/Icon";
 import styles from "./dialogs.module.css";
 import layoutStyles from "./layout.module.css";
@@ -15,14 +11,7 @@ export function ShellFeedback({
   appearance,
   navigation,
   failedImports,
-}: {
-  runtime: Runtime;
-  operations: ShellOperations;
-  workspace: Workspace;
-  appearance: Appearance;
-  navigation: ShellNavigation;
-  failedImports: Record<string, string>;
-}) {
+}: ShellFeedbackProps) {
   const [dismissedFallback, setDismissedFallback] = useState("");
   const fallbackDiagnosis = diagnoseLayoutFallback(
     runtime.host,

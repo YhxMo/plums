@@ -1,26 +1,15 @@
 import { preservedMessage } from "./messages";
-import type { Runtime } from "./runtime";
-import type { ShellOperations } from "./useOperations";
-import type { Workspace } from "./useWorkspace";
-import type { Appearance } from "./useAppearance";
-import type { ShellNavigation } from "./useShellNavigation";
+import type { ShellDialogsProps } from "./controllers";
 import { ExtensionView } from "../components/ExtensionView";
 import { Dialog } from "../components/Dialog";
 import styles from "../features/extensions/ExtensionManager.module.css";
 export function ShellDialogs({
-  runtime,
+  host,
   operations,
   workspace,
   appearance: settingsAppearance,
   navigation,
-}: {
-  runtime: Runtime;
-  operations: ShellOperations;
-  workspace: Workspace;
-  appearance: Appearance;
-  navigation: ShellNavigation;
-}) {
-  const { host } = runtime;
+}: ShellDialogsProps) {
   const { busy, error, operate } = operations;
   const { views, activeView } = workspace;
   const { appearance, themes, themeId, selectTheme } = settingsAppearance;

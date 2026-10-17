@@ -1,25 +1,19 @@
-import type { Runtime } from "../../shell/runtime";
-import type { ShellOperations } from "../../shell/useOperations";
+import type { DialogFeedback } from "../../shell/controllers";
 import { Dialog } from "../../components/Dialog";
-import { uninstallImport } from "../../../modules/shell/uninstall";
-import { saveRemovedImport } from "./operations";
 export function UninstallDialog({
-  runtime,
-  operations,
+  feedback,
   id: removal,
   source,
   onClose,
-  onRemoved,
+  onUninstall,
 }: {
-  runtime: Runtime;
-  operations: ShellOperations;
+  feedback: DialogFeedback;
   id: string;
   source: HTMLElement | null;
-  onClose: () => void;
-  onRemoved: () => void;
+  onClose(): void;
+  onUninstall(): Promise<void>;
 }) {
-  const { host, catalog } = runtime;
-  const { busy, error, operate, setNotice } = operations;
+  const { busy, error } = feedback;
   return (
     <Dialog
       title="卸载扩展"
@@ -45,25 +39,7 @@ export function UninstallDialog({
         <button className="secondary" disabled={busy} onClick={() => onClose()}>
           取消
         </button>
-        <button
-          disabled={busy}
-          onClick={() =>
-            void operate(async () => {
-              const id = removal;
-              const imports = await uninstallImport(
-                host,
-                id,
-                runtime.imports,
-                (imports) => saveRemovedImport(runtime, id, imports),
-              );
-              runtime.imports = imports;
-              const index = catalog.findIndex((entry) => entry.id === id);
-              if (index !== -1) catalog.splice(index, 1);
-              onRemoved();
-              setNotice("扩展已卸载，已保存的数据和模块文件已保留。");
-            })
-          }
-        >
+        <button disabled={busy} onClick={() => void onUninstall()}>
           保留数据并卸载
         </button>
       </footer>

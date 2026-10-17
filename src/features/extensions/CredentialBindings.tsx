@@ -8,7 +8,7 @@ import type {
   CredentialBinding,
   CredentialManagementResponse,
 } from "../../credentials";
-import type { ShellOperations } from "../../shell/useOperations";
+import type { CredentialOperations } from "../../shell/controllers";
 import styles from "../../components/SelectedDocuments.module.css";
 
 const stateLabel = {
@@ -42,7 +42,7 @@ export function CredentialBindings({
   declarations,
 }: {
   access: CredentialAccess;
-  operations: ShellOperations;
+  operations: CredentialOperations;
   id: string;
   source: string;
   version: string;
@@ -228,7 +228,7 @@ export function RetainedCredentialBindings({
   installed,
 }: {
   access: CredentialAccess;
-  operations: ShellOperations;
+  operations: CredentialOperations;
   installed: string[];
 }) {
   const [items, setItems] = useState<CredentialBinding[]>([]);

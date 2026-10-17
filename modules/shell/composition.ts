@@ -34,7 +34,8 @@ export function readComposition(value: unknown): Composition | undefined {
   );
   return candidate as Composition;
 }
-function issues(host: Host, composition: Composition): string[] {
+type CompositionHost = Pick<Host, "ids" | "manifest" | "inspect">;
+function issues(host: CompositionHost, composition: Composition): string[] {
   const errors: string[] = [];
   const providers = new Map<string, string>();
   for (const entry of composition.enabled) {
@@ -56,7 +57,7 @@ function issues(host: Host, composition: Composition): string[] {
   }
   return errors;
 }
-export function captureComposition(host: Host): Composition {
+export function captureComposition(host: CompositionHost): Composition {
   const composition: Composition = {
     schema: 1,
     enabled: host
@@ -75,7 +76,10 @@ export function captureComposition(host: Host): Composition {
   return composition;
 }
 /** Boot-only restoration: grants stay session-scoped; missing permissions remain waiting. */
-export async function restoreComposition(host: Host, composition: Composition) {
+export async function restoreComposition(
+  host: CompositionHost & Pick<Host, "start">,
+  composition: Composition,
+) {
   const errors = issues(host, composition);
   if (errors.length) return errors;
   for (const { id } of composition.enabled) {

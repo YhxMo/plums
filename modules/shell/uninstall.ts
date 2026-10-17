@@ -3,7 +3,7 @@ export type ImportedExtension = { id: string; url: string; label: string };
 
 /** Persist removal only after cleanup and revocation. Never remove extension data or code. */
 export async function uninstallImport(
-  host: Host,
+  host: Pick<Host, "stop" | "grant" | "uninstall">,
   id: string,
   imports: ImportedExtension[],
   save: (next: ImportedExtension[]) => Promise<void>,

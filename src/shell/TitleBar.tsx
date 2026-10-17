@@ -1,35 +1,23 @@
-import type { Runtime } from "./runtime";
-import type { Appearance } from "./useAppearance";
-import type { ShellOperations } from "./useOperations";
-import type { Workspace } from "./useWorkspace";
-import type { WorkspaceChrome } from "./useWorkspaceChrome";
-import type { ShellNavigation } from "./useShellNavigation";
+import type { TitleBarProps } from "./controllers";
 import { SettingsMenu } from "../components/SettingsMenu";
 import { Icon } from "../components/Icon";
 import styles from "./layout.module.css";
 
 export function TitleBar({
-  runtime,
+  platformKind,
   appearance,
   workspace,
   chrome,
   navigation,
   operations,
-}: {
-  runtime: Runtime;
-  appearance: Appearance;
-  workspace: Workspace;
-  chrome: WorkspaceChrome;
-  navigation: ShellNavigation;
-  operations: ShellOperations;
-}) {
+}: TitleBarProps) {
   const managerOpen = navigation.manager.open;
   const title = managerOpen
     ? "扩展管理"
     : chrome.title ||
       (workspace.current?.chrome ? "" : workspace.current?.label || "工作空间");
   const isMacOverlay =
-    runtime.adapter.kind === "native" && !/android/i.test(navigator.userAgent);
+    platformKind === "native" && !/android/i.test(navigator.userAgent);
   return (
     <header
       className={`${styles.header} ${isMacOverlay ? styles.macOverlayHeader : ""}`}

@@ -1,26 +1,19 @@
-import type { Runtime } from "../../shell/runtime";
-import type { Agent } from "../../../modules/sdk/agents";
+import type { ExtensionDetailsProps } from "../../shell/controllers";
 import { capabilityLabel, translateStatus } from "../../shell/messages";
 import styles from "../../shell/dialogs.module.css";
 import managerStyles from "./ExtensionManager.module.css";
 import { CredentialBindings } from "./CredentialBindings";
-import type { ShellOperations } from "../../shell/useOperations";
 export function ExtensionDetails({
-  runtime,
+  host,
+  access,
   entry: activeSelectedExt,
   agents: extBoundAgents,
   onReveal,
   operations,
-}: {
-  runtime: Runtime;
-  entry: Runtime["catalog"][number];
-  agents: Agent[];
-  onReveal?: (id: string) => void;
-  operations: ShellOperations;
-}) {
+}: ExtensionDetailsProps) {
   const extId = activeSelectedExt.id;
-  const extState = runtime.host.inspect(extId);
-  const extManifest = runtime.host.manifest(extId);
+  const extState = host.inspect(extId);
+  const extManifest = host.manifest(extId);
   const extCaps = extManifest.capabilities ?? [];
   return (
     <div className={styles.detailCard}>
@@ -96,7 +89,7 @@ export function ExtensionDetails({
       </section>
       <CredentialBindings
         key={extId}
-        access={runtime.adapter.credentials}
+        access={access}
         operations={operations}
         id={extId}
         source={activeSelectedExt.url}

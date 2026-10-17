@@ -38,7 +38,7 @@
 
 ## 当前前端的状态所有权
 
-`src/App.tsx` 只负责启动结果和加载／恢复界面的选择；`src/shell/Workbench.tsx` 装配各责任域及共享反馈，不持有扩展编辑表单或 Agent 的选中状态。
+`src/App.tsx` 只负责启动结果和加载／恢复界面的选择；`src/shell/Workbench.tsx` 装配各责任域及共享反馈，通过具名 props 传入消费者实际使用的字段。`controllers.ts` 用 Pick 定义组件的 Hook 消费范围；管理页按页头、列表、操作、详情和弹窗组合，不新增 Context。
 
 | 所有者 | 持有的状态与副作用 | 调用边界 |
 | --- | --- | --- |
@@ -48,11 +48,14 @@
 | `useWorkspace` | 视图选择、挂载释放、按代排除失败视图、恢复到可用布局 | 复用 `createViewSlot` 和公开 Host 生命周期 |
 | `useAppearance` | 外观偏好、主题贡献、DOM 与原生外观同步 | 成功保存后更新偏好；贡献缺失保留选择 |
 | `useShellNavigation`、授权与弹窗组件 | 管理页、宿主模态入口、发起控件和返回焦点 | 管理返回在工作区可见后恢复焦点 |
-| `src/features/extensions/` | 管理页选中项、安装输入、配置草稿和卸载确认 | 启停、授权和保存仍调用已有公开入口 |
+| `src/features/extensions/useExtensionManager.ts` | 管理页选中项、失败导入显示、模态入口与返回焦点；按消费者生成窄控制接口 | 组合 extension-actions 与外壳反馈；安装表单常驻，输入／配置草稿仍归各弹窗 |
+| `modules/shell/extension-actions.ts` | 安装、重试、失效路径移除、卸载、组合保存和配置写入的执行顺序 | 不依赖 React，接收 Host 的 Pick 与窄状态接口；确认保存后才发布对应内存状态，保留已确认的部分结果 |
 | `src/features/agents/` | AgentWorkspace 组合选中项、会话草稿和详情；AgentDialogs 持有创建表单草稿；useAgentModals 持有弹窗、反馈与发起控件；useRoleCardDraft 持有卡片输入与读取取消 | AgentDialogs 常驻以保留取消后的草稿；focus 选择仍可操作的返回控件，useMediaQuery 订阅视口变化 |
 | 各工作区扩展 | 业务选中项、会话、草稿及默认详情开关 | 可选 `View.chrome` 向外壳发布标题和上下文状态 |
 
 `src/shell/useAsyncAction.ts` 共用忙碌、错误与通知状态。Agent 将 AbortError 显示为停止通知，外壳 `useOperations` 保留 `errorMessage` 错误映射；共用 Hook 不改变两者的反馈语义。
+
+extension-actions 的状态接口当前仍由 Runtime 对象实现，imports、configurations、composition 与 catalog 的可变所有权保持。保存队列继续归 persistence；本次职责拆分不改变 Runtime 形状或卸载的数据保留规则。
 
 外壳订阅当前视图的 `chrome`，由视图发布标题和默认详情状态。自定义侧栏依次匹配当前实体的扩展所有者、当前工作区所有者，再使用工作区默认详情；同类贡献按 priority 和 ID 确定顺序。自定义侧栏出现时关闭默认 inline 详情；移动端默认详情可用 dialog 呈现，转为桌面后参与互斥。
 

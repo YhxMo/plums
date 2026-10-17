@@ -1,4 +1,4 @@
-import { useState, useSyncExternalStore } from "react";
+import { useSyncExternalStore } from "react";
 import type { Runtime } from "./runtime";
 import { useOperations } from "./useOperations";
 import { useAppearance } from "./useAppearance";
@@ -10,8 +10,12 @@ import { AuthorizationDialog, useAuthorization } from "./AuthorizationDialog";
 import { TitleBar } from "./TitleBar";
 import { ShellFeedback } from "./ShellFeedback";
 import { WorkspaceArea } from "./WorkspaceArea";
+import { RecoveryWelcome } from "./RecoveryWelcome";
 import { ShellDialogs } from "./ShellDialogs";
 import { ExtensionManager } from "../features/extensions/ExtensionManager";
+import { useExtensionManager } from "../features/extensions/useExtensionManager";
+import { DiagnosticsPanel } from "../features/extensions/DiagnosticsPanel";
+import { DiagnosticActions } from "../features/extensions/DiagnosticActions";
 import styles from "./layout.module.css";
 
 /** Composes feature owners; it does not own extension form or workspace state. */
@@ -28,63 +32,73 @@ export function Workbench({ runtime }: { runtime: Runtime }) {
     workspace,
     navigation.closeManager,
   );
-  const [failedImports, setFailedImports] = useState(runtime.failedImports);
-  function clearFailure(id: string) {
-    setFailedImports((previous) => {
-      const next = { ...previous };
-      delete next[id];
-      return next;
-    });
-  }
+  const management = useExtensionManager(runtime, {
+    operations,
+    workspace,
+    theme: appearance.theme,
+    navigation,
+    authorization,
+    onReveal:
+      chrome.navigation?.entityType === "agents.agent"
+        ? (id) => chrome.navigation!.reveal(id)
+        : undefined,
+  });
   return (
     <div className={styles.app}>
       <TitleBar
-        {...{ runtime, operations, appearance, workspace, chrome, navigation }}
+        platformKind={runtime.adapter.kind}
+        operations={operations}
+        appearance={appearance}
+        workspace={workspace}
+        chrome={chrome}
+        navigation={navigation}
       />
       <ShellFeedback
-        {...{
-          runtime,
-          operations,
-          appearance,
-          workspace,
-          navigation,
-          failedImports,
-        }}
+        runtime={runtime}
+        operations={operations}
+        appearance={appearance}
+        workspace={workspace}
+        navigation={navigation}
+        failedImports={management.failedImports}
       />
       <div className={styles.body} data-inspecting={navigation.manager.open}>
         <WorkspaceArea
-          {...{
-            runtime,
-            operations,
-            workspace,
-            chrome,
-            experiments,
-            authorization,
-          }}
+          host={runtime.host}
+          workspace={workspace}
+          chrome={chrome}
           hidden={navigation.manager.open}
-          onExtensions={() => navigation.openManager()}
-        />
+        >
+          <RecoveryWelcome
+            operations={operations}
+            experiments={experiments}
+            authorization={authorization}
+            onExtensions={() => navigation.openManager()}
+          />
+        </WorkspaceArea>
         <ExtensionManager
-          {...{
-            runtime,
-            operations,
-            workspace,
-            appearance,
-            authorization,
-            navigation,
-            experiments,
-            failedImports,
-            clearFailure,
-          }}
-          onReveal={
-            chrome.navigation?.entityType === "agents.agent"
-              ? (id) => chrome.navigation!.reveal(id)
-              : undefined
+          controller={management}
+          diagnostics={
+            <DiagnosticsPanel
+              open={navigation.manager.diagnostics}
+              onToggle={navigation.setDiagnostics}
+            >
+              <DiagnosticActions
+                runtime={runtime}
+                operations={operations}
+                workspace={workspace}
+                authorization={authorization}
+                experiments={experiments}
+              />
+            </DiagnosticsPanel>
           }
         />
       </div>
       <ShellDialogs
-        {...{ runtime, operations, appearance, workspace, navigation }}
+        host={runtime.host}
+        operations={operations}
+        appearance={appearance}
+        workspace={workspace}
+        navigation={navigation}
       />
       <AuthorizationDialog
         runtime={runtime}

@@ -1,24 +1,24 @@
 import { useState } from "react";
-import type { Runtime } from "../../shell/runtime";
-import type { ShellOperations } from "../../shell/useOperations";
-import { Dialog } from "../../components/Dialog";
+import type { Host } from "../../../modules/extension-host/host";
 import type { ConfigurationValue } from "../../../modules/sdk/configuration";
-import { saveConfiguration } from "../../../modules/shell/configuration";
+import type { DialogFeedback } from "../../shell/controllers";
+import { Dialog } from "../../components/Dialog";
 export function ConfigurationDialog({
-  runtime,
-  operations,
+  host,
+  feedback,
   id: configuring,
   source,
   onClose,
+  onSave,
 }: {
-  runtime: Runtime;
-  operations: ShellOperations;
+  host: Pick<Host, "manifest" | "configuration">;
+  feedback: DialogFeedback;
   id: string;
   source: HTMLElement | null;
-  onClose: () => void;
+  onClose(): void;
+  onSave(values: Record<string, ConfigurationValue>): Promise<void>;
 }) {
-  const { host } = runtime;
-  const { busy, error, operate, setNotice } = operations;
+  const { busy, error } = feedback;
   const [configDraft, setConfigDraft] = useState<
     Record<string, ConfigurationValue>
   >(() => ({ ...host.configuration(configuring).value.values }));
@@ -33,28 +33,7 @@ export function ConfigurationDialog({
       <form
         onSubmit={(event) => {
           event.preventDefault();
-          void operate(async () => {
-            const id = configuring;
-            await saveConfiguration(
-              host,
-              id,
-              {
-                version: host.manifest(id).configuration!.version,
-                values: configDraft,
-              },
-              async (value) => {
-                const configurations = Object.assign(
-                  Object.create(null),
-                  runtime.configurations,
-                  { [id]: value },
-                );
-                await runtime.save({ configurations });
-                runtime.configurations = configurations;
-              },
-            );
-            onClose();
-            setNotice("配置已保存并应用；未启用的扩展保持停用。");
-          });
+          void onSave(configDraft);
         }}
       >
         <div className="dialog-content">

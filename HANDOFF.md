@@ -4,7 +4,7 @@
 
 ## 当前实现
 
-App 负责启动，Workbench 组合工作区、外观、导航、授权和管理；扩展管理持有表单状态。公开 View.chrome 提供标题、上下文侧栏和实体导航；布局、页面、主题与业务通过公开契约挂载，入口见[架构](docs/ARCHITECTURE.md)。
+App 负责启动，Workbench 以具名 props 组合工作区、外观、导航、授权和管理；useExtensionManager 持有管理页选择、模态和反馈接线，表单草稿留在弹窗，extension-actions 执行安装、卸载、组合与配置流程。公开 View.chrome 提供标题、上下文侧栏和实体导航；布局、页面、主题与业务通过公开契约挂载，入口见[架构](docs/ARCHITECTURE.md)。
 
 默认 Agent 使用本地文本服务，支持角色导入、关注和多会话。零角色显示欢迎页；桌面已有角色未选择时显示品牌占位。管理页固定页头并保留业务草稿；弹窗保留悬停反馈和键盘焦点，视觉约定见[UI](docs/UI.md)。
 
@@ -22,7 +22,9 @@ App 负责启动，Workbench 组合工作区、外观、导航、授权和管理
 
 C1 已完成并提交为 `ee4ff82`，以 `0e80dcd` 和干净工作区开工：组合文件 554 → 210 行，弹窗、模态状态、角色卡草稿和焦点各自归属，Agent 与外壳复用 useAsyncAction。新增模块导入测试先因模块级 matchMedia 失败，移入 useMediaQuery 后通过。该版 Web 门禁 44 文件／434 单元及全量 Chrome 117／117 通过；手机浅色和桌面深色的实际渲染、取消草稿、焦点返回及媒体切换通过，独立审查无 P1/P2/P3。范围与结果见 [C1 归档](docs/spec/archive/C1-agent-workspace-2026-10-17.md)及[验证证据](evidence/RESULTS.md#c1agent-工作区职责拆分)。
 
-C2 已完成，以 `ee4ff82` 和干净工作区开工，源码、验证与本记录纳入同一次独立本地提交：先核对 class 使用方和复合选择器，再将 951／680 行的两个 CSS module 拆为七个 145–332 行文件；选择器与声明保持，更新 TSX 样式引用及行数棘轮。Web 门禁 44 文件／434 单元、Chrome 全量 117／117 通过；375／1180px 双主题的 48 个状态对照中，所测计算样式和元素几何无差异。独立审查无 P1/P2/P3，实际范围见 [C2 证据](evidence/RESULTS.md#c2按使用方拆分样式)与[阶段归档](docs/spec/archive/C2-styles-2026-10-17.md)。C2 在此停止，C3–C6 未开始。
+C2 已完成并提交为 `f5f78e1`，以 `ee4ff82` 和干净工作区开工：先核对 class 使用方和复合选择器，再将 951／680 行的两个 CSS module 拆为七个 145–332 行文件；选择器与声明保持，更新 TSX 样式引用及行数棘轮。Web 门禁 44 文件／434 单元、Chrome 全量 117／117 通过；375／1180px 双主题的 48 个状态对照中，所测计算样式和元素几何无差异。独立审查无 P1/P2/P3，实际范围见 [C2 证据](evidence/RESULTS.md#c2按使用方拆分样式)与[阶段归档](docs/spec/archive/C2-styles-2026-10-17.md)。
+
+C3 以 `f5f78e1` 和干净工作区开工，源码、测试和本记录纳入同一次 C3 本地提交：新增 extension-actions 与 controllers 的窄 props，拆出管理页控制 Hook、列表／操作／弹窗和诊断／恢复区；ExtensionManager 从 294 降到 66 行，Workbench 对象透传从 5 处降到 0 处。新增测试先因目标模块不存在而加载失败，完成抽取后 15／15 通过；完整 Web 门禁 45 文件／449 单元及 Chrome 117／117 通过。375／1180px 双主题的 20 个管理／弹窗状态逐节点对照零差异，20 张截图一致；独立审查无 P1/P2/P3。运行范围与失败顺序见 [C3 证据](evidence/RESULTS.md#c3扩展操作与组件依赖)及[阶段归档](docs/spec/archive/C3-extension-actions-2026-10-17.md)。runtime 可变字段仍由原对象持有，原生门禁、窗口与普通包本次未重验。C3 在此停止，C4–C6 未开始。
 
 阶段 A 新增统一入口 `npm run verify:web`（构建、单元、格式、项目/导入边界、行数、ESLint）、`npm run verify:native`（Rust 格式、Clippy、单元）及组合命令 `npm run verify`；浏览器另用 `npm run verify:e2e`。Web 门禁通过，40 文件/358 单元、ESLint 0 错误/0 警告；浏览器回归 117 项通过。最终结果与独立审查见[阶段证据](evidence/RESULTS.md#阶段-a安全网与基线)。
 

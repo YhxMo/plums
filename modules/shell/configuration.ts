@@ -3,7 +3,7 @@ import { resolveConfiguration, type Configuration } from "../sdk/configuration";
 
 /** Validate before stop; publish only after storage confirms. A failed save leaves the extension stopped. */
 export async function saveConfiguration(
-  host: Host,
+  host: Pick<Host, "manifest" | "inspect" | "stop" | "configure" | "start">,
   id: string,
   input: unknown,
   save: (value: Configuration) => Promise<void>,

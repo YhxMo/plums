@@ -1,25 +1,20 @@
 import { useState } from "react";
-import type { Runtime } from "../../shell/runtime";
-import type { ShellOperations } from "../../shell/useOperations";
 import { Dialog } from "../../components/Dialog";
-import { loadExtension } from "../../../modules/extension-host/host";
+import type { DialogFeedback } from "../../shell/controllers";
 export function InstallDialog({
-  runtime,
-  operations,
+  feedback,
   open,
   source,
   onClose,
-  onInstalled,
+  onInstall,
 }: {
-  runtime: Runtime;
-  operations: ShellOperations;
+  feedback: DialogFeedback;
   open: boolean;
   source: HTMLElement | null;
-  onClose: () => void;
-  onInstalled: (id: string) => void;
+  onClose(): void;
+  onInstall(id: string, url: string): Promise<void>;
 }) {
-  const { host, catalog } = runtime;
-  const { busy, error, operate, setNotice } = operations;
+  const { busy, error } = feedback;
   const [moduleUrl, setModuleUrl] = useState("");
   const [moduleId, setModuleId] = useState("");
   if (!open) return null;
@@ -34,34 +29,7 @@ export function InstallDialog({
       <form
         onSubmit={(e) => {
           e.preventDefault();
-          void operate(async () => {
-            const target = new URL(moduleUrl, location.href);
-            if (target.origin !== location.origin)
-              throw Error(
-                "当前 M1 仅加载本地可信 ESM 模块。请将扩展放入应用目录后填写模块路径。",
-              );
-            const definition = await loadExtension(target.href, moduleId);
-            if (host.ids().includes(moduleId))
-              throw Error("此扩展 ID 已存在。");
-            const entry = {
-              id: moduleId,
-              url: target.pathname + target.search,
-              label: moduleId,
-            };
-            const imports = [
-              ...runtime.imports.filter((saved) => saved.id !== moduleId),
-              entry,
-            ];
-            await runtime.save({ imports });
-            runtime.imports = imports;
-            host.install(definition, runtime.configurations[moduleId]);
-            catalog.push(entry);
-            onInstalled(moduleId);
-            onClose();
-            setNotice(
-              "模块路径已保存。请检查来源与能力，再启用扩展；下次启动会重新加载模块。",
-            );
-          });
+          void onInstall(moduleId, moduleUrl);
         }}
       >
         <div className="dialog-content">
