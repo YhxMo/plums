@@ -8,11 +8,14 @@ import type { StoredState } from "../../modules/sdk";
 import { PlatformAdapter } from "../platform";
 import { agentExtension } from "../../modules/agents/provider";
 import type { SaveOptions } from "../../modules/agents/store";
-import type { Agent } from "../../modules/sdk/agents";
 import { agentUI } from "../agent-ui";
 import { textWorkbench } from "../../modules/text-workbench/extension";
 import { errorMessage } from "./messages";
-import { parsePersistedState, checkImportIds } from "./persisted-state";
+import {
+  parsePersistedState,
+  checkImportIds,
+  type Preferences,
+} from "./persisted-state";
 import { createPersistence, createShellBridge } from "./persistence";
 import {
   loadCatalog,
@@ -21,33 +24,39 @@ import {
   builtInCatalog,
 } from "./extensions";
 
-export type Runtime = {
+export type Runtime = Readonly<{
   host: Host;
   adapter: PlatformAdapter;
   catalog: ImportedExtension[];
-  layout: string;
-  theme: "light" | "dark";
-  themeId: string | null;
-  imports: ImportedExtension[];
   events: EventTarget;
-  failedImports: Record<string, string>;
-  configurations: Record<string, unknown>;
-  composition?: Composition;
-  compositionErrors: string[];
+  initial: Readonly<
+    Pick<
+      Preferences,
+      | "layout"
+      | "theme"
+      | "themeId"
+      | "imports"
+      | "configurations"
+      | "composition"
+    > & {
+      failedImports: Record<string, string>;
+      compositionErrors: string[];
+    }
+  >;
   save: (
     patch: {
       layout?: string;
       theme?: "light" | "dark";
       themeId?: string | null;
-      agents?: Agent[];
-      imports?: Runtime["imports"];
+      agents?: Preferences["agents"];
+      imports?: ImportedExtension[];
       composition?: Composition;
       configurations?: Record<string, unknown>;
       pages?: Record<string, string>;
     },
     options?: SaveOptions,
   ) => Promise<void>;
-};
+}>;
 export class CompositionRecovery extends Error {
   constructor(
     message: string,
@@ -127,14 +136,16 @@ export async function boot(): Promise<Runtime> {
     host,
     adapter,
     catalog: [...catalog, ...builtInCatalog()],
-    layout: preferences.layout,
-    theme: preferences.theme,
-    themeId: preferences.themeId,
-    imports,
-    failedImports,
-    composition,
-    compositionErrors,
-    configurations,
+    initial: {
+      layout: preferences.layout,
+      theme: preferences.theme,
+      themeId: preferences.themeId,
+      imports,
+      failedImports,
+      composition,
+      compositionErrors,
+      configurations,
+    },
     events,
     save,
   };

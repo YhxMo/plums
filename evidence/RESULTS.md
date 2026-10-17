@@ -112,6 +112,24 @@
 
 原生组合门禁、原生窗口、普通包、Android 模拟器／真机及其他浏览器本次未重验；TS/TSX Hooks lint 的阶段 A 解析器兼容缺口保留。不增加系统秘密或真实连接器的通过结论。C3 验收完成并停止，范围与退出条件见[阶段归档](../docs/spec/archive/C3-extension-actions-2026-10-17.md)；C4–C6 未实施。
 
+## C4：扩展状态所有权
+
+2026-10-17，macOS arm64、Node.js 26.5.1、TypeScript 7.0.2，配置的 Chrome 浏览器。先核对 C3 提交 `942b70b` 和干净工作区。本节结果绑定该父基线上的 C4 源码、测试及文档增量，与本节纳入同一次本地提交；未替换交付包。
+
+[useExtensionState.ts](../src/shell/useExtensionState.ts) 以 React state 持有 imports／configurations／composition，[extension-state.ts](../src/shell/extension-state.ts) 串行执行读取最新确认快照、动作、保存及发布。每个动作只修改局部 draft，结束时向 React 发布改变的已确认字段；写入失败不发布未确认值，队列失败后仍可执行下一项，未知回执继续由原 persistence 锁存。最终卸载失败仍发布已确认的组合裁剪并保留实时 imports；保存成功后安装失败仍保留已确认路径。
+
+Runtime 改为只读内部接口，提供 host／adapter／catalog／events／save 和只作启动初值的 initial；不再暴露三个活动字段。外观、工作区、实验入口、初始诊断及管理 Hook 的读取点已迁移。C3 的六条管理动作改为使用局部 draft，不再将 Runtime 当作可变状态接口；`grep -rn 'runtime\.[a-z]* =' src` 无匹配，旧活动字段读取也无残留。catalog 仍是稳定目录引用，公开 SDK、状态格式、Host 和保存回执契约不变。
+
+失败证据：先增加 [extension-state.test.ts](../tests/extension-state.test.ts)，在生产实现未改时，以真实 Host、原 createPersistence 和 C3 动作直接执行；修正夹具后有效七项得到 3 失败／4 通过。三项失败分别是第二次保存的 imports 缺失第一路径、第二次配置合并缺失第一扩展值、第一写入完成前已执行第二动作。它们发生在实际行为断言，非模块缺失或类型错误。接入新队列后保留这些断言，另加组合保存失败、保存后安装失败发布、与非扩展保存共用 revision 三项，总计新增十项全部通过；覆盖失败保留旧值／重试、并发合并、未知回执锁存和卸载部分成功。
+
+`npm run verify:web` 全绿：构建／类型、46 文件／459 单元、Prettier、项目／导入边界、行数及 ESLint；ESLint 0 错误／0 警告。`npm run test:web -- --workers=4` 全量 117／117 通过（1.1 分钟），包括组合保存失败／卸载裁剪、配置取消／保存失败／恢复、卸载失败重试、导入及角色／视图恢复；既有浏览器测试文件未改。新增状态队列 44 行、Hook 16 行，管理控制 Hook 194 → 208 行，ExtensionManager 保持 66 行、Workbench 对象透传保持零。
+
+以 `942b70b` 和候选分别执行 375／1180px × light／dark × 五状态：管理页、安装弹窗、配置弹窗、组合保存通知、卸载弹窗。20 个状态逐节点核对标签、属性、文本、矩形与所测计算样式，零差异，无横向溢出／pageerror。19 张截图逐字节相同；另 1 张桌面深色卸载弹窗截图在背景模糊区域有 21 个像素差异。已查看该状态前后实图和手机浅色配置弹窗，未见布局或内容变化；临时截图与原始材料不提交。
+
+独立只读审查对照 `942b70b`，核对 React 消费链、初值隔离、队列等待关系、异常传播、六条动作接线与失败／部分成功发布，未发现 P1/P2/P3。审查者另行执行 extension-state、extension-actions、persistence、persisted-state 四个定向测试文件，68／68 通过；StrictMode 初始化安全性来自静态检查，未单独挂载 Hook 作运行实测。精确暂存内容经过逐项阅读与隐私检查，使用已核验的 GitHub noreply 身份本地提交，不推送。
+
+原生组合门禁、原生窗口、普通包、Android 模拟器／真机及其他浏览器本次未重验；阶段 A 的 TS/TSX Hooks lint 兼容缺口保留。未操作实际秘密或真实连接器。C4 验收完成并停止，负责人、范围与退出结果见[阶段归档](../docs/spec/archive/C4-extension-state-2026-10-17.md)；C5–C6 未实施。
+
 ## 此前源码维护验证
 
 2026-10-17 项目精简覆盖启动/Host/SDK、平台管理、扩展样板、构建脚本、测试入口与当前文档。删除仅供自测调用的 JS 代理校验及其 8 项测试；实际配置保留 Rust 校验。Host 安装按有效配置直接解析，失败仍保留默认配置与错误；Android 插件模板共用检查流程，未知代码保护及已知前版兼容保留，拒绝测试覆盖三种插件。回环传输说明合并为[单一入口](../docs/NATIVE-TRANSPORT-EXPERIMENT.md)，当前文档统一使用现有实现与验收状态。

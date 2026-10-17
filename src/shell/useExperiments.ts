@@ -20,7 +20,7 @@ export function useExperiments(
       await host.start("transform.upper");
     setStarted(true);
     workspace.setSelected(
-      runtime.layout === "agents" ? "default" : runtime.layout,
+      runtime.initial.layout === "agents" ? "default" : runtime.initial.layout,
     );
     closeManager();
   }

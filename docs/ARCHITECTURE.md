@@ -42,20 +42,23 @@
 
 | 所有者 | 持有的状态与副作用 | 调用边界 |
 | --- | --- | --- |
-| `src/shell/runtime.ts` | 启动编排、内置扩展接线与组合恢复 | 保持 Runtime 对外形状和 `CompositionRecovery` 入口 |
+| `src/shell/runtime.ts` | 启动编排、内置扩展接线与组合恢复 | 返回稳定服务与只读启动初值，保留 `CompositionRecovery` 入口 |
 | `persisted-state.ts`、`extensions.ts` | 旧状态解析与默认值、目录／手动扩展安装 | 保留未知快照字段、旧布局意图、坏数据与导入失败归属 |
 | `persistence.ts` | 串行快照、revision、未知写入锁存和页面保存队列 | 成功回执后发布偏好；已提交回执胜出，未知结果先重载 |
 | `useWorkspace` | 视图选择、挂载释放、按代排除失败视图、恢复到可用布局 | 复用 `createViewSlot` 和公开 Host 生命周期 |
 | `useAppearance` | 外观偏好、主题贡献、DOM 与原生外观同步 | 成功保存后更新偏好；贡献缺失保留选择 |
 | `useShellNavigation`、授权与弹窗组件 | 管理页、宿主模态入口、发起控件和返回焦点 | 管理返回在工作区可见后恢复焦点 |
-| `src/features/extensions/useExtensionManager.ts` | 管理页选中项、失败导入显示、模态入口与返回焦点；按消费者生成窄控制接口 | 组合 extension-actions 与外壳反馈；安装表单常驻，输入／配置草稿仍归各弹窗 |
-| `modules/shell/extension-actions.ts` | 安装、重试、失效路径移除、卸载、组合保存和配置写入的执行顺序 | 不依赖 React，接收 Host 的 Pick 与窄状态接口；确认保存后才发布对应内存状态，保留已确认的部分结果 |
+| `src/features/extensions/useExtensionManager.ts` | 管理页选中项、失败导入显示、模态入口与返回焦点；按消费者生成窄控制接口 | 组合 extension-actions、扩展状态 Hook 与外壳反馈；安装表单常驻，输入／配置草稿仍归各弹窗 |
+| `src/shell/useExtensionState.ts`、`extension-state.ts` | React 持有 imports／configurations／composition，按动作串行读取最新确认值、执行与发布 | 各动作使用局部 draft，不修改 Runtime；保存拒绝保留旧值，部分成功按已确认字段发布 |
+| `modules/shell/extension-actions.ts` | 安装、重试、失效路径移除、卸载、组合保存和配置写入的执行顺序 | 不依赖 React，接收 Host 的 Pick 与局部状态接口；确认保存后才改变 draft，保留已确认的部分结果 |
 | `src/features/agents/` | AgentWorkspace 组合选中项、会话草稿和详情；AgentDialogs 持有创建表单草稿；useAgentModals 持有弹窗、反馈与发起控件；useRoleCardDraft 持有卡片输入与读取取消 | AgentDialogs 常驻以保留取消后的草稿；focus 选择仍可操作的返回控件，useMediaQuery 订阅视口变化 |
 | 各工作区扩展 | 业务选中项、会话、草稿及默认详情开关 | 可选 `View.chrome` 向外壳发布标题和上下文状态 |
 
 `src/shell/useAsyncAction.ts` 共用忙碌、错误与通知状态。Agent 将 AbortError 显示为停止通知，外壳 `useOperations` 保留 `errorMessage` 错误映射；共用 Hook 不改变两者的反馈语义。
 
-extension-actions 的状态接口当前仍由 Runtime 对象实现，imports、configurations、composition 与 catalog 的可变所有权保持。保存队列继续归 persistence；本次职责拆分不改变 Runtime 形状或卸载的数据保留规则。
+Runtime 的 initial 只作外观、布局、恢复诊断和扩展状态的启动初值；运行中不再读取它作为扩展当前快照。catalog 仍是供加载与诊断消费的稳定目录引用。扩展状态队列串行覆盖整个读／改／保存过程，避免并发动作使用同一旧数组或配置表；persistence 继续串行所有 host.shell 写入和 revision，包括 Agent、页面与外观。两个队列各自持有单向依赖，扩展动作通过稳定 save 进入 persistence。
+
+状态只发布已确认的结果，写入拒绝时无需撤回乐观值；未知回执仍由 persistence 锁住后续写入。最终卸载失败时保留实时 imports，同时发布已经确认的 composition 裁剪；路径保存成功后安装失败也保留已确认路径。生命周期、模块目录和扩展数据的原语义保持。
 
 外壳订阅当前视图的 `chrome`，由视图发布标题和默认详情状态。自定义侧栏依次匹配当前实体的扩展所有者、当前工作区所有者，再使用工作区默认详情；同类贡献按 priority 和 ID 确定顺序。自定义侧栏出现时关闭默认 inline 详情；移动端默认详情可用 dialog 呈现，转为桌面后参与互斥。
 

@@ -65,7 +65,7 @@ it.each([
   [{ layout: "external" }, "external"],
 ] as const)("preserves layout compatibility: %j", async (value, layout) => {
   prepareRuntime({ version: 1, ...value });
-  expect((await boot()).layout).toBe(layout);
+  expect((await boot()).initial.layout).toBe(layout);
 });
 it.each([true, false])("falls back to the media theme (%s)", async (dark) => {
   prepareRuntime({ version: 1, theme: "invalid" });
@@ -73,12 +73,12 @@ it.each([true, false])("falls back to the media theme (%s)", async (dark) => {
     "matchMedia",
     vi.fn(() => ({ matches: dark })),
   );
-  expect((await boot()).theme).toBe(dark ? "dark" : "light");
+  expect((await boot()).initial.theme).toBe(dark ? "dark" : "light");
   expect(matchMedia).toHaveBeenCalledWith("(prefers-color-scheme: dark)");
 });
 it("accepts absent state and preserves composition recovery with the original snapshot", async () => {
   runtimeFixture.saved = null;
-  expect((await boot()).layout).toBe("agents");
+  expect((await boot()).initial.layout).toBe("agents");
   const original = { version: 1, composition: { schema: 2 } };
   prepareRuntime(original);
   await expect(boot()).rejects.toBeInstanceOf(CompositionRecovery);

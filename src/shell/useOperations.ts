@@ -4,9 +4,9 @@ import { useAsyncAction } from "./useAsyncAction";
 
 export function useOperations(runtime: Runtime) {
   const { run: operate, ...feedback } = useAsyncAction({
-    initialError: runtime.compositionErrors.length
-      ? `组合未完整恢复：${runtime.compositionErrors.join("；")}。原配置已保留。`
-      : Object.keys(runtime.failedImports).length
+    initialError: runtime.initial.compositionErrors.length
+      ? `组合未完整恢复：${runtime.initial.compositionErrors.join("；")}。原配置已保留。`
+      : Object.keys(runtime.initial.failedImports).length
         ? "有扩展加载失败，请在扩展管理重试或移除失效路径。"
         : "",
     describeError: errorMessage,

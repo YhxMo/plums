@@ -6,8 +6,8 @@ import type { ShellOperations } from "./useOperations";
 import { errorMessage } from "./messages";
 
 export function useAppearance(runtime: Runtime, operations: ShellOperations) {
-  const [theme, setTheme] = useState(runtime.theme);
-  const [themeId, setThemeId] = useState(runtime.themeId);
+  const [theme, setTheme] = useState(runtime.initial.theme);
+  const [themeId, setThemeId] = useState(runtime.initial.themeId);
   const themes = runtime.host.themes();
   const currentTheme = themes.find((entry) => entry.id === themeId);
   const appearance = currentTheme?.appearance ?? theme;

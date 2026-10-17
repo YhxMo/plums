@@ -13,6 +13,7 @@ import {
 } from "../../../modules/shell/diagnostics";
 import type { ConfigurationValue } from "../../../modules/sdk/configuration";
 import type { Runtime } from "../../shell/runtime";
+import { useExtensionState } from "../../shell/useExtensionState";
 import type {
   ManagementInputs,
   ExtensionCardModel,
@@ -35,6 +36,7 @@ export function useExtensionManager(
   }: ManagementInputs,
 ) {
   const { host, catalog } = runtime;
+  const { value, run } = useExtensionState(runtime);
   const { manager, closeManager } = navigation;
   const { busy, operate, setError, setNotice } = operations;
   const [selectedId, setSelectedId] = useState(
@@ -43,7 +45,9 @@ export function useExtensionManager(
       "agents.local",
   );
   const [dialog, setDialog] = useState<ManagementDialog>(null);
-  const [failedImports, setFailedImports] = useState(runtime.failedImports);
+  const [failedImports, setFailedImports] = useState(
+    runtime.initial.failedImports,
+  );
   const heading = useRef<HTMLHeadingElement>(null);
   const removed = useRef(false);
   useEffect(() => {
@@ -85,7 +89,7 @@ export function useExtensionManager(
     state: host.inspect(entry.id),
     agents: agents[entry.id] ?? [],
     selected: selected?.id === entry.id,
-    imported: runtime.imports.some((item) => item.id === entry.id),
+    imported: value.imports.some((item) => item.id === entry.id),
   }));
   return {
     failedImports,
@@ -98,10 +102,12 @@ export function useExtensionManager(
       install: (source: HTMLElement) => setDialog({ kind: "install", source }),
       save: () =>
         operate(async () => {
-          await saveComposition(host, runtime, {
-            layout: workspace.selected,
-            theme,
-          });
+          await run((draft) =>
+            saveComposition(host, draft, {
+              layout: workspace.selected,
+              theme,
+            }),
+          );
           setNotice("当前组合已保存，下次启动自动恢复；所需权限须重新确认。");
         }),
     },
@@ -137,12 +143,16 @@ export function useExtensionManager(
         },
         retry: (id: string) =>
           operate(async () => {
-            await retryImport(host, runtime, id, location.href, Date.now());
+            await run((draft) =>
+              retryImport(host, draft, id, location.href, Date.now()),
+            );
             clearFailure(id);
           }),
         removeFailure: (id: string) =>
           operate(async () => {
-            await removeFailedImport(host, runtime, id, prepareUninstall);
+            await run((draft) =>
+              removeFailedImport(host, draft, id, prepareUninstall),
+            );
             clearFailure(id);
           }),
       },
@@ -165,11 +175,13 @@ export function useExtensionManager(
       close,
       install: (id: string, url: string) =>
         operate(async () => {
-          await installExtension(host, runtime, {
-            id,
-            url,
-            baseUrl: location.href,
-          });
+          await run((draft) =>
+            installExtension(host, draft, {
+              id,
+              url,
+              baseUrl: location.href,
+            }),
+          );
           clearFailure(id);
           close();
           setNotice(
@@ -178,14 +190,16 @@ export function useExtensionManager(
         }),
       uninstall: (id: string) =>
         operate(async () => {
-          await uninstallExtension(host, runtime, id, prepareUninstall);
+          await run((draft) =>
+            uninstallExtension(host, draft, id, prepareUninstall),
+          );
           removed.current = true;
           close();
           setNotice("扩展已卸载，已保存的数据和模块文件已保留。");
         }),
       configure: (id: string, values: Record<string, ConfigurationValue>) =>
         operate(async () => {
-          await configureExtension(host, runtime, id, values);
+          await run((draft) => configureExtension(host, draft, id, values));
           close();
           setNotice("配置已保存并应用；未启用的扩展保持停用。");
         }),

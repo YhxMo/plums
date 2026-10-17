@@ -4,7 +4,7 @@
 
 更新日期：2026-10-17（Asia/Shanghai）。当前阶段：**M2 受限网络／凭据与首个真实模型连接器**。协议扩展、通用绑定与原生入口已有[限定结果](../../evidence/CREDENTIAL-BINDINGS-2026-10-17.md)，请求授权、受限传输、系统秘密实际读写和真实调用待完成。SDK/平台维护者负责通用能力，扩展维护者负责模型业务，应用维护者协调两端验收与资源授权。
 
-工程维护阶段 A、B、C1、C2、C3 已完成，任务、负责人、可证伪验收与退出结果分别保留在[安全网与基线](archive/A-hardening-2026-10-17.md)、[启动、保存与校验边界](archive/B-runtime-validation-2026-10-17.md)、[Agent 工作区职责拆分](archive/C1-agent-workspace-2026-10-17.md)、[按使用方拆分样式](archive/C2-styles-2026-10-17.md)和[扩展操作与组件依赖](archive/C3-extension-actions-2026-10-17.md)归档。C3 以 C2 提交 `f5f78e1` 和干净工作区开工，Web 门禁 449 单元、Chrome 117 项、双视口双主题 20 状态对照及独立审查完成，见 [C3 证据](../../evidence/RESULTS.md#c3扩展操作与组件依赖)。C3 在此停止，C4–C6 等待继续授权；以下 M2 连接器工作仍未完成。
+工程维护阶段 A、B、C1–C4 已完成，任务、负责人、可证伪验收与退出结果分别保留在[安全网与基线](archive/A-hardening-2026-10-17.md)、[启动、保存与校验边界](archive/B-runtime-validation-2026-10-17.md)、[Agent 工作区职责拆分](archive/C1-agent-workspace-2026-10-17.md)、[按使用方拆分样式](archive/C2-styles-2026-10-17.md)、[扩展操作与组件依赖](archive/C3-extension-actions-2026-10-17.md)和[扩展状态所有权](archive/C4-extension-state-2026-10-17.md)归档。C4 以 C3 提交 `942b70b` 和干净工作区开工，Web 门禁 459 单元、Chrome 117 项、双视口双主题 20 状态对照及独立审查完成，见 [C4 证据](../../evidence/RESULTS.md#c4扩展状态所有权)。C4 在此停止，C5–C6 等待继续授权；以下 M2 连接器工作仍未完成。
 
 ## 阶段目标
 

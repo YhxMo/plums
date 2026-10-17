@@ -11,7 +11,7 @@ export function useWorkspace(
 ) {
   const { host } = runtime;
   const { setError } = operations;
-  const [selected, setSelected] = useState(runtime.layout);
+  const [selected, setSelected] = useState(runtime.initial.layout);
   const [failedViews, setFailedViews] = useState<Record<string, number>>({});
   const slot = useRef<HTMLDivElement>(null);
   const [outlet] = useState(() => createViewSlot(host));
