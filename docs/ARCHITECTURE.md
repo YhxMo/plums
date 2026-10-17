@@ -49,7 +49,10 @@
 | `useAppearance` | 外观偏好、主题贡献、DOM 与原生外观同步 | 成功保存后更新偏好；贡献缺失保留选择 |
 | `useShellNavigation`、授权与弹窗组件 | 管理页、宿主模态入口、发起控件和返回焦点 | 管理返回在工作区可见后恢复焦点 |
 | `src/features/extensions/` | 管理页选中项、安装输入、配置草稿和卸载确认 | 启停、授权和保存仍调用已有公开入口 |
+| `src/features/agents/` | AgentWorkspace 组合选中项、会话草稿和详情；AgentDialogs 持有创建表单草稿；useAgentModals 持有弹窗、反馈与发起控件；useRoleCardDraft 持有卡片输入与读取取消 | AgentDialogs 常驻以保留取消后的草稿；focus 选择仍可操作的返回控件，useMediaQuery 订阅视口变化 |
 | 各工作区扩展 | 业务选中项、会话、草稿及默认详情开关 | 可选 `View.chrome` 向外壳发布标题和上下文状态 |
+
+`src/shell/useAsyncAction.ts` 共用忙碌、错误与通知状态。Agent 将 AbortError 显示为停止通知，外壳 `useOperations` 保留 `errorMessage` 错误映射；共用 Hook 不改变两者的反馈语义。
 
 外壳订阅当前视图的 `chrome`，由视图发布标题和默认详情状态。自定义侧栏依次匹配当前实体的扩展所有者、当前工作区所有者，再使用工作区默认详情；同类贡献按 priority 和 ID 确定顺序。自定义侧栏出现时关闭默认 inline 详情；移动端默认详情可用 dialog 呈现，转为桌面后参与互斥。
 

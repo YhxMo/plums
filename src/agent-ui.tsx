@@ -6,7 +6,7 @@ import {
 } from "../modules/sdk";
 import { withAgents } from "../modules/sdk/agents";
 import { RoleCardSettings } from "./components/RoleCardSettings";
-import { AgentWorkspace } from "./components/AgentWorkspace";
+import { AgentWorkspace } from "./features/agents/AgentWorkspace";
 
 function mountReactView(
   container: HTMLElement,

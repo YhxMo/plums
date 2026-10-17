@@ -55,6 +55,22 @@
 
 独立审查共发现两项 P2，均已修复并复核关闭：默认 Host 的缺失 values／布尔值诊断退化为裸错误码，已补齐配置及同类凭据校验的英文 label 和默认 Host 精确回归；错误字典误命中继承属性会返回对象／函数，新增 6 个错误名称用例先得到 6 红／25 绿，再改为只读字典自有属性，最终全部通过。当前无剩余 P1/P2/P3。原生组合门禁、原生窗口、普通包、模拟器／真机及其他平台本阶段未重验；阶段 A 的 cargo-fmt 缺失与 TS/TSX Hooks lint 缺口仍按其原记录保留，不增加通过结论。未触碰实际秘密或外部请求。范围、负责人和退出结果见[阶段归档](../docs/spec/archive/B-runtime-validation-2026-10-17.md)。
 
+## C1：Agent 工作区职责拆分
+
+2026-10-17，macOS arm64、Node.js 26.5.1、TypeScript 7.0.2，使用配置的 Chrome 浏览器。先复核阶段 B 的独立审查和精确暂存内容，以可核验的 GitHub noreply 身份本地提交 `0e80dcd`（34 文件）；提交前重跑 `npm run verify:web`，43 文件／433 单元和全部检查通过，提交后工作区干净。本节结果覆盖 `0e80dcd` 上的 C1 源码、测试和文档增量，与本节纳入同一次 C1 提交；未推送或替换交付包。
+
+[AgentWorkspace](../src/features/agents/AgentWorkspace.tsx) 从原位置的 554 行降到 210 行，只组合 Agent 列表、会话、详情、草稿及 chrome。新增 AgentDialogs 315 行、useAgentModals 64 行、useRoleCardDraft 51 行、focus 15 行；通用 useAsyncAction 37 行、useMediaQuery 14 行。agent-ui 更新挂载入口，useOperations 复用反馈 Hook，行数棘轮移除已删除工作区文件的旧上限。CSS、Workbench、公开 SDK 契约及 Rust 未修改。
+
+失败证据：[agent-ui-import.test.ts](../tests/agent-ui-import.test.ts) 在不存在全局 matchMedia 的单元环境加载 Agent 扩展模块，拆分前为 1 失败，报 `ReferenceError: matchMedia is not defined`，定位旧 AgentWorkspace 第 24 行。媒体查询改为 Hook 内创建和订阅后，同一测试 1／1 通过；最终完整单元为 44 文件／434 用例，比 B 新增 1 项。
+
+`npm run verify:web` 通过：构建／类型、44 文件／434 单元、Prettier、项目／导入边界、文件行数及 ESLint 全绿。`npm run test:web -- --workers=4` 全量 117／117 通过，包含 [agent-flow.spec.ts](../tests/web/agent-flow.spec.ts) 原文未改的 24 个展开用例、链接读取中止／迟到结果、保存失败／重试、浅深主题、焦点与视图订阅释放。当前测试文件实际展开数为 24，沿用仓库测试而非按旧计数删减。
+
+另用独立浏览器上下文检查 375px 浅色、1180px 深色的创建弹窗和详情，实际截图已人工阅图；创建取消后名称按原规则清空，说明／多会话选择保留；会话草稿保留、关闭焦点返回、375 → 1180 → 375 的详情模态／侧栏切换通过，横向溢出为 false，pageerror 为 0。临时截图不纳入源码。
+
+独立只读审查以 `0e80dcd` 原实现对照当前候选，未发现 P1/P2/P3：确认弹窗组件常驻、草稿重置范围、发起控件、异步闭包、文件限额、链接取消和媒体订阅释放保持原语义，抽出弹窗未新增 DOM 包裹节点。提交前逐项阅读精确暂存 diff 并检查隐私与产物边界，使用已核验的 GitHub noreply 身份本地提交。
+
+原生组合门禁、原生窗口、普通包、Android 模拟器／真机及其他平台本阶段未重验；TS/TSX Hooks lint 仍受阶段 A 的解析器兼容缺口限制。C1 验收完成并停止，范围与退出结果见[阶段归档](../docs/spec/archive/C1-agent-workspace-2026-10-17.md)；C2–C6 未实施。
+
 ## 此前源码维护验证
 
 2026-10-17 项目精简覆盖启动/Host/SDK、平台管理、扩展样板、构建脚本、测试入口与当前文档。删除仅供自测调用的 JS 代理校验及其 8 项测试；实际配置保留 Rust 校验。Host 安装按有效配置直接解析，失败仍保留默认配置与错误；Android 插件模板共用检查流程，未知代码保护及已知前版兼容保留，拒绝测试覆盖三种插件。回环传输说明合并为[单一入口](../docs/NATIVE-TRANSPORT-EXPERIMENT.md)，当前文档统一使用现有实现与验收状态。

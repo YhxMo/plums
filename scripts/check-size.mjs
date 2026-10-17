@@ -11,7 +11,6 @@ export const sizeLimits = {
   "src-tauri/src/credential_bindings.rs": 876,
   "modules/extension-host/host.ts": 678,
   "src/App.module.css": 680,
-  "src/components/AgentWorkspace.tsx": 554,
   "modules/text-workbench/view.ts": 528,
   "src-tauri/src/credentials.rs": 447,
   "src-tauri/src/transport_probe.rs": 443,
