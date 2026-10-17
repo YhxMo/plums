@@ -6,6 +6,7 @@ import {
 } from "../modules/shell/diagnostics";
 import type { Agent } from "../modules/sdk/agents";
 import type { Platform } from "../modules/sdk";
+import { errorMessage } from "../src/shell/messages";
 
 const createPlatform = (): Platform => ({
   kind: "browser",
@@ -23,92 +24,98 @@ const catalog = [
 ];
 
 describe("diagnoseLayoutFallback", () => {
-  it("explains when default workbench is disabled vs waiting for permission", async () => {
-    const host = new Host(createPlatform());
-    host.install({
-      manifest: {
-        id: "transform.upper",
-        version: "1.0.0",
-        apiVersion: 1,
-        provides: { "text.transform": 1 },
-      },
-      activate(ctx) {
-        ctx.provide("text.transform", 1, { name: "Upper" });
-      },
-    });
-    host.install({
-      manifest: {
-        id: "workbench",
-        version: "1.0.0",
-        apiVersion: 1,
-        requires: { "text.transform": 1 },
-        provides: { workbench: 1 },
-        capabilities: ["state.read", "state.write"],
-      },
-      activate(ctx) {
-        ctx.provide("workbench", 1, {});
-      },
-    });
-    host.install({
-      manifest: {
-        id: "ui.default",
-        version: "1.0.0",
-        apiVersion: 1,
-        requires: { workbench: 1 },
-      },
-      activate(ctx) {
-        ctx.view({
-          id: "default",
-          label: "工作台",
-          mount: () => () => {},
-        });
-      },
-    });
-    host.install({
-      manifest: {
-        id: "ui.agents",
-        version: "0.0.4",
-        apiVersion: 1,
-      },
-      activate(ctx) {
-        ctx.view({
-          id: "agents",
-          label: "Agent 界面",
-          priority: 100,
-          mount: () => () => {},
-        });
-      },
-    });
-    await host.start("transform.upper");
-    await host.start("ui.agents");
+  it.each([
+    { label: "default diagnostics", describe: undefined },
+    { label: "shell formatting", describe: errorMessage },
+  ])(
+    "explains disabled vs waiting for permission with $label",
+    async ({ describe }) => {
+      const host = new Host(createPlatform(), undefined, describe);
+      host.install({
+        manifest: {
+          id: "transform.upper",
+          version: "1.0.0",
+          apiVersion: 1,
+          provides: { "text.transform": 1 },
+        },
+        activate(ctx) {
+          ctx.provide("text.transform", 1, { name: "Upper" });
+        },
+      });
+      host.install({
+        manifest: {
+          id: "workbench",
+          version: "1.0.0",
+          apiVersion: 1,
+          requires: { "text.transform": 1 },
+          provides: { workbench: 1 },
+          capabilities: ["state.read", "state.write"],
+        },
+        activate(ctx) {
+          ctx.provide("workbench", 1, {});
+        },
+      });
+      host.install({
+        manifest: {
+          id: "ui.default",
+          version: "1.0.0",
+          apiVersion: 1,
+          requires: { workbench: 1 },
+        },
+        activate(ctx) {
+          ctx.view({
+            id: "default",
+            label: "工作台",
+            mount: () => () => {},
+          });
+        },
+      });
+      host.install({
+        manifest: {
+          id: "ui.agents",
+          version: "0.0.4",
+          apiVersion: 1,
+        },
+        activate(ctx) {
+          ctx.view({
+            id: "agents",
+            label: "Agent 界面",
+            priority: 100,
+            mount: () => () => {},
+          });
+        },
+      });
+      await host.start("transform.upper");
+      await host.start("ui.agents");
 
-    const disabledDiag = diagnoseLayoutFallback(
-      host,
-      catalog,
-      "default",
-      "agents",
-      {},
-      {},
-    );
-    expect(disabledDiag?.targetExtensionId).toBe("ui.default");
-    expect(disabledDiag?.message).toContain("工作台 (default)");
-    expect(disabledDiag?.message).toContain("尚未启用");
-    expect(disabledDiag?.message).toContain("已切换至 Agent 界面");
+      const disabledDiag = diagnoseLayoutFallback(
+        host,
+        catalog,
+        "default",
+        "agents",
+        {},
+        {},
+      );
+      expect(disabledDiag?.targetExtensionId).toBe("ui.default");
+      expect(disabledDiag?.message).toContain("工作台 (default)");
+      expect(disabledDiag?.message).toContain("尚未启用");
+      expect(disabledDiag?.message).toContain("已切换至 Agent 界面");
 
-    await host.start("workbench");
-    await host.start("ui.default");
-    const permissionDiag = diagnoseLayoutFallback(
-      host,
-      catalog,
-      "default",
-      "agents",
-      {},
-      {},
-    );
-    expect(permissionDiag?.targetExtensionId).toBe("workbench");
-    expect(permissionDiag?.message).toContain("等待「读取隔离状态」授权");
-    expect(permissionDiag?.signature).not.toBe(disabledDiag?.signature);
-  });
+      await host.start("workbench");
+      await host.start("ui.default");
+      const permissionDiag = diagnoseLayoutFallback(
+        host,
+        catalog,
+        "default",
+        "agents",
+        {},
+        {},
+      );
+      expect(permissionDiag?.targetExtensionId).toBe("workbench");
+      expect(permissionDiag?.message).toContain("等待「读取隔离状态」授权");
+      expect(permissionDiag?.signature).not.toBe(disabledDiag?.signature);
+    },
+  );
 });
 
 describe("mapExtensionAgents", () => {

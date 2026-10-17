@@ -1,3 +1,5 @@
+import { ContractError } from "./errors";
+import { object, string } from "./validation";
 import type { ExtensionContext, StoredState } from "./index";
 
 export interface StateMigration {
@@ -19,29 +21,49 @@ function copy(value: unknown, ancestors = new Set<object>()): unknown {
   if (value === null || typeof value === "string" || typeof value === "boolean")
     return value;
   if (typeof value === "number" && Number.isFinite(value)) return value;
-  if (typeof value !== "object" || !value || ancestors.has(value))
-    throw Error("Migration requires JSON data");
+  if (!Array.isArray(value))
+    object(value, "state.corrupt", {
+      path: "migration.json",
+      label: "Migration requires JSON data",
+    });
+  if (ancestors.has(value as object))
+    throw new ContractError(
+      "state.corrupt",
+      "migration.json",
+      "Migration requires JSON data",
+    );
   if (
     !Array.isArray(value) &&
     Object.getPrototypeOf(value) !== Object.prototype &&
     Object.getPrototypeOf(value) !== null
   )
-    throw Error("Migration requires plain JSON data");
-  ancestors.add(value);
+    throw new ContractError(
+      "state.corrupt",
+      "migration",
+      "Migration requires plain JSON data",
+    );
+  ancestors.add(value as object);
   const result: Record<string, unknown> | unknown[] = Array.isArray(value)
     ? []
     : {};
-  for (const key of Reflect.ownKeys(value)) {
+  for (const key of Reflect.ownKeys(value as object)) {
     if (Array.isArray(value) && key === "length") continue;
     const descriptor = Object.getOwnPropertyDescriptor(value, key)!;
+    const name = string(key, "state.corrupt", {
+      path: "migration.json.key",
+      label: "Migration requires JSON properties",
+    });
     if (
-      typeof key !== "string" ||
       !descriptor.enumerable ||
       !Object.hasOwn(descriptor, "value") ||
-      (Array.isArray(value) && !/^(0|[1-9][0-9]*)$/.test(key))
+      (Array.isArray(value) && !/^(0|[1-9][0-9]*)$/.test(name))
     )
-      throw Error("Migration requires JSON properties");
-    Object.defineProperty(result, key, {
+      throw new ContractError(
+        "state.corrupt",
+        "migration",
+        "Migration requires JSON properties",
+      );
+    Object.defineProperty(result, name, {
       value: copy(descriptor.value, ancestors),
       enumerable: true,
       writable: true,
@@ -49,22 +71,30 @@ function copy(value: unknown, ancestors = new Set<object>()): unknown {
     });
   }
   if (Array.isArray(value) && Object.keys(value).length !== value.length)
-    throw Error("Migration requires dense JSON arrays");
-  ancestors.delete(value);
+    throw new ContractError(
+      "state.corrupt",
+      "migration",
+      "Migration requires dense JSON arrays",
+    );
+  ancestors.delete(value as object);
   return result;
 }
 function envelope(value: unknown): VersionedState {
-  const v = value as VersionedState | null;
+  const v = object(value, "state.corrupt", {
+    path: "migration.state",
+    label: "Unsupported migration state; original preserved",
+  });
   if (
-    !v ||
-    typeof v !== "object" ||
-    Array.isArray(v) ||
     !Number.isSafeInteger(v.version) ||
-    v.version < 1 ||
+    Number(v.version) < 1 ||
     !Object.hasOwn(v, "data")
   )
-    throw Error("Unsupported migration state; original preserved");
-  return v;
+    throw new ContractError(
+      "state.corrupt",
+      "migration",
+      "Unsupported migration state; original preserved",
+    );
+  return v as unknown as VersionedState;
 }
 
 /** One explicit migration, one revision-checked commit. Never initializes missing state,
@@ -84,7 +114,11 @@ export function migrateState(
       !Number.isSafeInteger(to) ||
       to <= from
     )
-      throw Error("Invalid migration versions");
+      throw new ContractError(
+        "state.corrupt",
+        "migration",
+        "Invalid migration versions",
+      );
     const source = copy(
       await ctx.platform("state.read", undefined, active),
     ) as StoredState | null;
@@ -93,19 +127,35 @@ export function migrateState(
       !Number.isSafeInteger(source.revision) ||
       source.revision < 1
     )
-      throw Error("Migration needs existing state");
+      throw new ContractError(
+        "state.corrupt",
+        "migration",
+        "Migration needs existing state",
+      );
     const saved = envelope(source.value);
     if (saved.version === to) {
       if (validate(copy(saved.data)) !== true)
-        throw Error("Invalid target state; original preserved");
+        throw new ContractError(
+          "state.corrupt",
+          "migration",
+          "Invalid target state; original preserved",
+        );
       active.throwIfAborted();
       return source;
     }
     if (saved.version !== from)
-      throw Error("Unsupported migration version; original preserved");
+      throw new ContractError(
+        "state.corrupt",
+        "migration",
+        "Unsupported migration version; original preserved",
+      );
     const data = copy(await migrate(copy(saved.data), active));
     if (validate(copy(data)) !== true)
-      throw Error("Invalid migration result; original preserved");
+      throw new ContractError(
+        "state.corrupt",
+        "migration",
+        "Invalid migration result; original preserved",
+      );
     active.throwIfAborted();
     // The original snapshot and target share the same atomic storage write/CAS.
     // A confirmed receipt wins even if cancellation arrives after dispatch.
@@ -147,15 +197,27 @@ export function restorePreviousState(
       to < 1 ||
       from <= to
     )
-      throw Error("Invalid restore confirmation");
+      throw new ContractError(
+        "state.corrupt",
+        "migration",
+        "Invalid restore confirmation",
+      );
     const current = copy(
       await ctx.platform("state.read", undefined, active),
     ) as StoredState | null;
     if (!current || current.revision !== revision)
-      throw Error("Restore confirmation is stale or state is missing");
+      throw new ContractError(
+        "state.corrupt",
+        "migration",
+        "Restore confirmation is stale or state is missing",
+      );
     const saved = envelope(current.value);
     if (saved.version !== from)
-      throw Error("Unexpected current restore version");
+      throw new ContractError(
+        "state.corrupt",
+        "migration",
+        "Unexpected current restore version",
+      );
     const previous = saved.previous;
     if (
       !previous ||
@@ -163,10 +225,18 @@ export function restorePreviousState(
       previous.revision < 1 ||
       previous.revision >= revision
     )
-      throw Error("Missing or invalid previous snapshot");
+      throw new ContractError(
+        "state.corrupt",
+        "migration",
+        "Missing or invalid previous snapshot",
+      );
     const target = envelope(previous.value);
     if (target.version !== to || validate(copy(target.data)) !== true)
-      throw Error("Invalid restore target; current preserved");
+      throw new ContractError(
+        "state.corrupt",
+        "migration",
+        "Invalid restore target; current preserved",
+      );
     active.throwIfAborted();
     return (await ctx.platform(
       "state.write",

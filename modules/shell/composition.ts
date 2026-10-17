@@ -1,3 +1,5 @@
+import { ContractError } from "../sdk/errors";
+import { array, object, string } from "../sdk/validation";
 import type { Host } from "../extension-host/host";
 
 export type Composition = {
@@ -6,24 +8,31 @@ export type Composition = {
 };
 export function readComposition(value: unknown): Composition | undefined {
   if (value === undefined) return undefined;
-  const candidate = value as Composition | null;
+  const candidate = object(value, "state.composition", { path: "composition" });
+  if (candidate.schema !== 1)
+    throw new ContractError("state.composition", "composition");
   const seen = new Set<string>();
-  if (!candidate || candidate.schema !== 1 || !Array.isArray(candidate.enabled))
-    throw Error("组合配置版本不支持或已损坏，原数据已保留。");
-  for (const entry of candidate.enabled) {
-    if (
-      !entry ||
-      typeof entry.id !== "string" ||
-      !/^[a-z][a-z0-9.-]{0,63}$/.test(entry.id) ||
-      entry.id.includes("..") ||
-      typeof entry.version !== "string" ||
-      !entry.version ||
-      seen.has(entry.id)
-    )
-      throw Error("组合配置无效，原数据已保留。");
-    seen.add(entry.id);
-  }
-  return candidate;
+  array(
+    candidate.enabled,
+    "state.composition",
+    (value, path) => {
+      const entry = object(value, "state.composition", { path });
+      const id = string(entry.id, "state.composition", {
+        path: `${path}.id`,
+        pattern: /^[a-z][a-z0-9.-]{0,63}$/,
+      });
+      string(entry.version, "state.composition", {
+        path: `${path}.version`,
+        min: 1,
+      });
+      if (id.includes("..") || seen.has(id))
+        throw new ContractError("state.composition", `${path}.id`);
+      seen.add(id);
+      return entry;
+    },
+    { path: "composition.enabled" },
+  );
+  return candidate as Composition;
 }
 function issues(host: Host, composition: Composition): string[] {
   const errors: string[] = [];

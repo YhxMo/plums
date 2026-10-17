@@ -37,6 +37,7 @@ it("rejects corrupt, duplicate and incompatible schema without changing input", 
     null,
     {},
     { schema: 2, enabled: [] },
+    { schema: 1, enabled: Array(1) },
     { schema: 1, enabled: [{ id: "one", version: "" }] },
     {
       schema: 1,

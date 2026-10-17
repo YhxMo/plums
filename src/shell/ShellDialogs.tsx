@@ -1,3 +1,4 @@
+import { preservedMessage } from "./messages";
 import type { Runtime } from "./runtime";
 import type { ShellOperations } from "./useOperations";
 import type { Workspace } from "./useWorkspace";
@@ -45,7 +46,7 @@ export function ShellDialogs({
           />
         ) : (
           <div className="dialog-content">
-            <p>界面提供者暂不可用，原数据已保留。</p>
+            <p>{preservedMessage("界面提供者暂不可用")}</p>
             <button onClick={() => navigation.openManager()}>查看扩展</button>
           </div>
         )}

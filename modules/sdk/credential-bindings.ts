@@ -1,3 +1,5 @@
+import { ContractError } from "./errors";
+import { object, string, oneOf } from "./validation";
 /** Non-secret suggestions for host review. They do not create bindings or grant requests. */
 export interface CredentialBindingDeclaration {
   label: string;
@@ -9,8 +11,6 @@ export interface CredentialBindingDeclaration {
 /** Routing is host-owned, explicit, and separate from a provider's API target. */
 export type NetworkRoute = { type: "direct" } | { type: "proxy"; url: string };
 
-const object = (value: unknown): value is Record<string, unknown> =>
-  !!value && typeof value === "object" && !Array.isArray(value);
 const token = /^[!#$%&'*+\-.^_`|~0-9A-Za-z]+$/;
 const forbidden = new Set([
   "host",
@@ -27,30 +27,42 @@ const forbidden = new Set([
   "set-cookie",
   "content-type",
 ]);
-function keys(value: Record<string, unknown>, expected: string[]) {
-  if (Object.keys(value).some((key) => !expected.includes(key)))
-    throw Error("Invalid credential binding fields");
+function invalid(path: string, message: string): never {
+  throw new ContractError("extension.invalid", path, message);
 }
-function header(name: string) {
+function keys(
+  value: Record<string, unknown>,
+  expected: string[],
+  path: string,
+) {
+  if (Object.keys(value).some((key) => !expected.includes(key)))
+    invalid(path, "Invalid credential binding fields");
+}
+function header(name: string, path: string) {
   if (
     !token.test(name) ||
     name.length > 80 ||
     forbidden.has(name.toLowerCase()) ||
     name.toLowerCase().startsWith("proxy-")
   )
-    throw Error("Invalid credential header");
+    invalid(path, "Invalid credential header");
 }
-function parseUrl(value: unknown) {
-  if (
-    typeof value !== "string" ||
-    value.length > 512 ||
-    value !== value.trim() ||
-    /[\u0000-\u0020\u007f\\?#]/.test(value)
-  )
-    throw Error("Invalid credential URL");
-  const url = new URL(value);
+function parseUrl(value: unknown, path: string) {
+  const raw = string(value, "extension.invalid", {
+    path,
+    max: 512,
+    label: "Invalid credential URL",
+  });
+  if (raw !== raw.trim() || /[\u0000-\u0020\u007f\\?#]/.test(raw))
+    invalid(path, "Invalid credential URL");
+  let url: URL;
+  try {
+    url = new URL(raw);
+  } catch {
+    return invalid(path, "Invalid credential URL");
+  }
   if (!url.hostname || url.username || url.password || url.search || url.hash)
-    throw Error("Invalid credential URL");
+    invalid(path, "Invalid credential URL");
   return url;
 }
 export function validateCredentialBindings(
@@ -58,67 +70,91 @@ export function validateCredentialBindings(
   capabilities: readonly string[] = [],
 ): asserts value is Record<string, CredentialBindingDeclaration> | undefined {
   if (value === undefined) return;
+  const bindings = object(value, "extension.invalid", {
+    path: "credentialBindings",
+    label: "Invalid credential bindings",
+  });
   if (
-    !object(value) ||
     !capabilities.includes("credential.request") ||
-    Object.keys(value).length > 4
+    Object.keys(bindings).length > 4
   )
-    throw Error("Invalid credential bindings");
-  for (const [alias, declaration] of Object.entries(value)) {
-    if (!/^[a-z][a-z0-9-]{0,31}$/.test(alias) || !object(declaration))
-      throw Error("Invalid credential binding alias");
-    keys(declaration, [
-      "label",
-      "target",
-      "contentType",
-      "headers",
-      "authentication",
-    ]);
-    if (
-      typeof declaration.label !== "string" ||
-      !declaration.label.trim() ||
-      declaration.label.length > 80 ||
-      /[\u0000-\u001f\u007f]/.test(declaration.label)
-    )
-      throw Error("Invalid credential binding label");
-    const url = parseUrl(declaration.target);
+    invalid("credentialBindings", "Invalid credential bindings");
+  for (const [alias, value] of Object.entries(bindings)) {
+    const path = `credentialBindings.${alias}`;
+    string(alias, "extension.invalid", {
+      path,
+      pattern: /^[a-z][a-z0-9-]{0,31}$/,
+      label: "Invalid credential binding alias",
+    });
+    const declaration = object(value, "extension.invalid", {
+      path,
+      label: "Invalid credential binding alias",
+    });
+    keys(
+      declaration,
+      ["label", "target", "contentType", "headers", "authentication"],
+      path,
+    );
+    const label = string(declaration.label, "extension.invalid", {
+      path: `${path}.label`,
+      max: 80,
+      label: "Invalid credential binding label",
+    });
+    if (!label.trim() || /[\u0000-\u001f\u007f]/.test(label))
+      invalid(`${path}.label`, "Invalid credential binding label");
+    const url = parseUrl(declaration.target, `${path}.target`);
     if (
       url.protocol !== "https:" ||
       url.port ||
       url.href !== declaration.target
     )
-      throw Error("Invalid credential target");
-    if (
-      typeof declaration.contentType !== "string" ||
-      !/^[A-Za-z0-9!#$&^_.+-]+\/[A-Za-z0-9!#$&^_.+-]+$/.test(
-        declaration.contentType,
-      ) ||
-      declaration.contentType.length > 120
-    )
-      throw Error("Invalid credential media type");
-    const auth = declaration.authentication;
-    if (!object(auth) || (auth.type !== "bearer" && auth.type !== "header"))
-      throw Error("Invalid credential authentication");
-    keys(auth, auth.type === "bearer" ? ["type"] : ["type", "name"]);
-    const authName = auth.type === "bearer" ? "authorization" : auth.name;
-    if (typeof authName !== "string")
-      throw Error("Invalid credential authentication");
-    header(authName);
-    if (
-      !object(declaration.headers) ||
-      Object.keys(declaration.headers).length > 8
-    )
-      throw Error("Invalid credential headers");
+      invalid(`${path}.target`, "Invalid credential target");
+    string(declaration.contentType, "extension.invalid", {
+      path: `${path}.contentType`,
+      max: 120,
+      pattern: /^[A-Za-z0-9!#$&^_.+-]+\/[A-Za-z0-9!#$&^_.+-]+$/,
+      label: "Invalid credential media type",
+    });
+    const auth = object(declaration.authentication, "extension.invalid", {
+      path: `${path}.authentication`,
+      label: "Invalid credential authentication",
+    });
+    oneOf(auth.type, "extension.invalid", ["bearer", "header"], {
+      path: `${path}.authentication.type`,
+      label: "Invalid credential authentication",
+    });
+    keys(
+      auth,
+      auth.type === "bearer" ? ["type"] : ["type", "name"],
+      `${path}.authentication`,
+    );
+    const authName = string(
+      auth.type === "bearer" ? "authorization" : auth.name,
+      "extension.invalid",
+      {
+        path: `${path}.authentication.name`,
+        label: "Invalid credential authentication",
+      },
+    );
+    header(authName, `${path}.authentication.name`);
+    const headers = object(declaration.headers, "extension.invalid", {
+      path: `${path}.headers`,
+      label: "Invalid credential headers",
+    });
+    if (Object.keys(headers).length > 8)
+      invalid(`${path}.headers`, "Invalid credential headers");
     const names = new Set<string>([authName.toLowerCase(), "authorization"]);
-    for (const [name, content] of Object.entries(declaration.headers)) {
-      header(name);
-      if (
-        names.has(name.toLowerCase()) ||
-        typeof content !== "string" ||
-        content.length > 256 ||
-        /[^\u0020-\u007e]/.test(content)
-      )
-        throw Error("Invalid credential header value or duplicate");
+    for (const [name, content] of Object.entries(headers)) {
+      const headerPath = `${path}.headers.${name}`;
+      header(name, headerPath);
+      string(content, "extension.invalid", {
+        path: headerPath,
+        max: 256,
+        pattern: /^[\u0020-\u007e]*$/,
+        label: "Invalid credential header value or duplicate",
+      });
+      if (names.has(name.toLowerCase()))
+        invalid(headerPath, "Invalid credential header value or duplicate");
       names.add(name.toLowerCase());
     }
   }

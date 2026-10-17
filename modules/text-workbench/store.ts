@@ -1,3 +1,5 @@
+import { ContractError } from "../sdk/errors";
+import { string } from "../sdk/validation";
 export interface TextResult {
   id: string;
   input: string;
@@ -38,13 +40,17 @@ export function readTextDocument(value: unknown): TextDocument {
     doc.version !== 1 ||
     !Array.isArray(doc.items) ||
     doc.items.some((item) => {
-      if (!item || typeof item.id !== "string" || !item.id || ids.has(item.id))
-        return true;
+      if (!item) return true;
+      const check = {
+        path: "workbench.items",
+        label: "工作台状态版本或内容无效",
+      };
+      string(item.id, "state.corrupt", { ...check, min: 1 });
+      if (ids.has(item.id)) return true;
       ids.add(item.id);
+      string(item.title, "state.corrupt", { ...check, max: 120 });
+      string(item.input, "state.corrupt", check);
       return (
-        typeof item.title !== "string" ||
-        item.title.length > 120 ||
-        typeof item.input !== "string" ||
         !Array.isArray(item.results) ||
         item.results.some(
           (result) =>
@@ -58,7 +64,11 @@ export function readTextDocument(value: unknown): TextDocument {
     (doc.selected !== undefined &&
       !doc.items.some((item) => item.id === doc.selected))
   )
-    throw Error("工作台状态版本或内容无效；原数据已保留");
+    throw new ContractError(
+      "state.corrupt",
+      "workbench",
+      "工作台状态版本或内容无效",
+    );
   return structuredClone(doc);
 }
 

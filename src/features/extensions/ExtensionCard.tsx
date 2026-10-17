@@ -5,7 +5,11 @@ import type { Authorization } from "../../shell/AuthorizationDialog";
 import type { Agent } from "../../../modules/sdk/agents";
 import { extensionOwner } from "../../../modules/sdk";
 import { SelectedDocuments } from "../../components/SelectedDocuments";
-import { capabilityLabel, translateStatus } from "../../shell/messages";
+import {
+  capabilityLabel,
+  errorMessage,
+  translateStatus,
+} from "../../shell/messages";
 import styles from "../../App.module.css";
 export function ExtensionCard({
   runtime,
@@ -64,7 +68,7 @@ export function ExtensionCard({
           ))}
         </div>
       )}
-      {state.error && <p className="error">{state.error}</p>}
+      {state.error && <p className="error">{errorMessage(state.error)}</p>}
       <p className={styles.resourceCount}>
         {state.resources} 项资源 · {state.tasks} 个在途任务
       </p>

@@ -16,7 +16,9 @@ App 负责启动，Workbench 组合工作区、外观、导航、授权和管理
 
 开发增量的完整本地基线为 `9d025b3`，分支 `refactor/hardening`；实现、测试和文档分别保存在 `bc962ac`、`9345223`、`9d025b3`。该基线包含开工前已有的凭据、连接器、UI 修复与交付脚本增量，原 UI 回退标签 `ui-baseline-2026-10-17` 继续指向 `9c05356`。
 
-阶段 A 已完成，门禁实现提交为 `17cc97d`，独立审查无剩余 P1/P2；[阶段计划已归档](docs/spec/archive/A-hardening-2026-10-17.md)，阶段 B 未开始。
+阶段 A 已完成，门禁实现提交为 `17cc97d`，收尾状态提交为 `4bf42a6`，独立审查无剩余 P1/P2；[阶段计划已归档](docs/spec/archive/A-hardening-2026-10-17.md)。
+
+阶段 B 已完成，源码基于 `4bf42a6`，实现、测试和证据纳入同一阶段提交：boot 拆为解析、保存和安装边界，226 行降到 63 行，Runtime 类型形状保持；共用校验 61 行，保留提示从 12 处到 1 处，目标 typeof 检查从 35 处到 7 处。最终 Web 门禁 43 文件／433 单元通过，Chrome 全量 117／117 通过；其后错误字典修复另有 6 条定向回归，正常映射未变。独立审查的两项 P2 均已修复并复核关闭，无剩余问题；[阶段已归档](docs/spec/archive/B-runtime-validation-2026-10-17.md)，未进入阶段 C。实际范围与红绿证据见[阶段 B 验证](evidence/RESULTS.md#阶段-b启动保存与校验边界)。
 
 阶段 A 新增统一入口 `npm run verify:web`（构建、单元、格式、项目/导入边界、行数、ESLint）、`npm run verify:native`（Rust 格式、Clippy、单元）及组合命令 `npm run verify`；浏览器另用 `npm run verify:e2e`。Web 门禁通过，40 文件/358 单元、ESLint 0 错误/0 警告；浏览器回归 117 项通过。最终结果与独立审查见[阶段证据](evidence/RESULTS.md#阶段-a安全网与基线)。
 

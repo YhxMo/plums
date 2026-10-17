@@ -9,7 +9,7 @@ export const sizeLimits = {
   "src/components/Workspace.module.css": 951,
   "src-tauri/src/documents.rs": 906,
   "src-tauri/src/credential_bindings.rs": 876,
-  "modules/extension-host/host.ts": 735,
+  "modules/extension-host/host.ts": 678,
   "src/App.module.css": 680,
   "src/components/AgentWorkspace.tsx": 554,
   "modules/text-workbench/view.ts": 528,

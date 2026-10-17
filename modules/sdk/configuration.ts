@@ -1,3 +1,5 @@
+import { ContractError } from "./errors";
+import { object, string, oneOf } from "./validation";
 export type ConfigurationValue = string | number | boolean;
 export type ConfigurationField = { label: string } & (
   | { type: "string"; default: string; maxLength: number }
@@ -12,56 +14,105 @@ export type Configuration = {
   version: number;
   values: Readonly<Record<string, ConfigurationValue>>;
 };
-const object = (value: unknown): value is Record<string, unknown> =>
-  !!value && typeof value === "object" && !Array.isArray(value);
-function valid(field: ConfigurationField, value: unknown) {
-  if (field.type === "string")
-    return typeof value === "string" && value.length <= field.maxLength;
-  if (field.type === "number")
-    return (
-      typeof value === "number" &&
-      Number.isFinite(value) &&
-      value >= field.min &&
-      value <= field.max
-    );
-  return field.type === "boolean" && typeof value === "boolean";
+function validateValue(
+  field: ConfigurationField,
+  value: unknown,
+  path: string,
+  label: string,
+) {
+  if (field.type === "string") {
+    string(value, "extension.invalid", {
+      path,
+      max: field.maxLength,
+      label,
+    });
+    return;
+  }
+  if (
+    field.type === "number" &&
+    typeof value === "number" &&
+    Number.isFinite(value) &&
+    value >= field.min &&
+    value <= field.max
+  )
+    return;
+  if (field.type === "boolean") {
+    oneOf(value, "extension.invalid", [true, false], { path, label });
+    return;
+  }
+  throw new ContractError("extension.invalid", path, label);
 }
 export function validateConfigurationDeclaration(
   value: unknown,
 ): asserts value is ConfigurationDeclaration | undefined {
   if (value === undefined) return;
+  const declaration = object(value, "extension.invalid", {
+    path: "configuration",
+    label: "Invalid configuration declaration",
+  });
   if (
-    !object(value) ||
-    !Number.isSafeInteger(value.version) ||
-    Number(value.version) < 1 ||
-    !object(value.fields)
+    !Number.isSafeInteger(declaration.version) ||
+    Number(declaration.version) < 1
   )
-    throw Error("Invalid configuration declaration");
-  for (const [key, candidate] of Object.entries(value.fields)) {
+    throw new ContractError(
+      "extension.invalid",
+      "configuration.version",
+      "Invalid configuration declaration",
+    );
+  const fields = object(declaration.fields, "extension.invalid", {
+    path: "configuration.fields",
+    label: "Invalid configuration declaration",
+  });
+  for (const [key, candidate] of Object.entries(fields)) {
+    const path = `configuration.fields.${key}`;
+    string(key, "extension.invalid", {
+      path,
+      pattern: /^[a-z][a-zA-Z0-9_]{0,63}$/,
+      label: "Invalid configuration field",
+    });
+    const field = object(candidate, "extension.invalid", {
+      path,
+      label: "Invalid configuration field",
+    }) as ConfigurationField;
     if (
-      !/^[a-z][a-zA-Z0-9_]{0,63}$/.test(key) ||
-      !object(candidate) ||
-      typeof candidate.label !== "string" ||
-      !candidate.label.trim()
+      !string(field.label, "extension.invalid", {
+        path: `${path}.label`,
+        label: "Invalid configuration field",
+      }).trim()
     )
-      throw Error("Invalid configuration field");
-    const field = candidate as ConfigurationField;
+      throw new ContractError(
+        "extension.invalid",
+        `${path}.label`,
+        "Invalid configuration field",
+      );
     if (
       field.type === "string" &&
       (!Number.isSafeInteger(field.maxLength) ||
         field.maxLength < 1 ||
         field.maxLength > 4000)
     )
-      throw Error("Invalid configuration string bound");
+      throw new ContractError(
+        "extension.invalid",
+        `${path}.maxLength`,
+        "Invalid configuration string bound",
+      );
     if (
       field.type === "number" &&
       (!Number.isFinite(field.min) ||
         !Number.isFinite(field.max) ||
         field.min > field.max)
     )
-      throw Error("Invalid configuration number bounds");
-    if (!valid(field, field.default))
-      throw Error("Invalid configuration default");
+      throw new ContractError(
+        "extension.invalid",
+        path,
+        "Invalid configuration number bounds",
+      );
+    validateValue(
+      field,
+      field.default,
+      `${path}.default`,
+      "Invalid configuration default",
+    );
   }
 }
 export function resolveConfiguration(
@@ -70,29 +121,58 @@ export function resolveConfiguration(
 ): Configuration {
   validateConfigurationDeclaration(declaration);
   if (!declaration) {
-    if (input !== undefined) throw Error("Extension declares no configuration");
+    if (input !== undefined)
+      throw new ContractError(
+        "extension.invalid",
+        "configuration",
+        "Extension declares no configuration",
+      );
     return { version: 1, values: Object.freeze({}) };
   }
   const fields = declaration.fields;
-  if (
-    input !== undefined &&
-    (!object(input) ||
-      input.version !== declaration.version ||
-      !object(input.values))
-  )
-    throw Error(
-      "Configuration version or shape is invalid; original preserved",
+  let values: Record<string, unknown>;
+  if (input === undefined) {
+    values = Object.fromEntries(
+      Object.entries(fields).map(([key, field]) => [key, field.default]),
     );
-  const values =
-    input === undefined
-      ? Object.fromEntries(
-          Object.entries(fields).map(([key, field]) => [key, field.default]),
-        )
-      : (input as Configuration).values;
+  } else {
+    const candidate = object(input, "state.corrupt", {
+      path: "configurations",
+      label: "Configuration version or shape is invalid; original preserved",
+    });
+    if (candidate.version !== declaration.version)
+      throw new ContractError(
+        "state.corrupt",
+        "configurations.version",
+        "Configuration version or shape is invalid; original preserved",
+      );
+    values = object(candidate.values, "state.corrupt", {
+      path: "configurations.values",
+      label: "Configuration version or shape is invalid; original preserved",
+    });
+  }
   if (Object.keys(values).some((key) => !Object.hasOwn(fields, key)))
-    throw Error("Unknown configuration field");
-  for (const [key, field] of Object.entries(fields))
-    if (!Object.hasOwn(values, key) || !valid(field, values[key]))
-      throw Error(`Invalid configuration value: ${key}`);
-  return { version: declaration.version, values: Object.freeze({ ...values }) };
+    throw new ContractError(
+      "extension.invalid",
+      "configuration.values",
+      "Unknown configuration field",
+    );
+  for (const [key, field] of Object.entries(fields)) {
+    if (!Object.hasOwn(values, key))
+      throw new ContractError(
+        "extension.invalid",
+        `configuration.values.${key}`,
+        `Invalid configuration value: ${key}`,
+      );
+    validateValue(
+      field,
+      values[key],
+      `configuration.values.${key}`,
+      `Invalid configuration value: ${key}`,
+    );
+  }
+  return {
+    version: declaration.version,
+    values: Object.freeze({ ...values }) as Configuration["values"],
+  };
 }

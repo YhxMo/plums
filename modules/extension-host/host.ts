@@ -1,9 +1,8 @@
+import { validateDefinition } from "./definition";
+export { validateDefinition, loadExtension } from "./definition";
+import { ContractError } from "../sdk/errors";
 import { copyTheme, type Theme } from "../sdk/theme";
-import {
-  resolveConfiguration,
-  validateConfigurationDeclaration,
-  type Configuration,
-} from "../sdk/configuration";
+import { resolveConfiguration, type Configuration } from "../sdk/configuration";
 import type {
   ExtensionContext,
   ExtensionDefinition,
@@ -12,7 +11,6 @@ import type {
   ShellBridge,
 } from "../sdk";
 import { extensionOwner, platformRejection } from "../sdk";
-import { validateCredentialBindings } from "../sdk/credential-bindings";
 
 type Status =
   "disabled" | "waiting" | "active" | "stopping" | "failed" | "cleanup-failed";
@@ -31,6 +29,8 @@ type RegisteredView = View & {
   generation: number;
   mounts: Set<() => void | Promise<void>>;
 };
+const hostError = (message: string) =>
+  new ContractError("host.invalid", "host", message);
 const message = (error: unknown) =>
   error instanceof Error ? error.message : String(error);
 
@@ -41,7 +41,7 @@ async function within<T>(promise: Promise<T>, timeout: number): Promise<T> {
       promise,
       new Promise<never>((_, reject) => {
         timer = setTimeout(
-          () => reject(new Error("cleanup timeout; restart required")),
+          () => reject(hostError("cleanup timeout; restart required")),
           timeout,
         );
       }),
@@ -52,6 +52,9 @@ async function within<T>(promise: Promise<T>, timeout: number): Promise<T> {
 }
 
 class Scope {
+  constructor(
+    private readonly describe: (error: unknown) => string = message,
+  ) {}
   readonly controller = new AbortController();
   readonly tasks = new Set<Promise<unknown>>();
   readonly disposers: (() => void | Promise<void>)[] = [];
@@ -66,7 +69,7 @@ class Scope {
     this.accepting = false;
   }
   assertOpen() {
-    if (!this.open) throw new Error("Extension stopped");
+    if (!this.open) throw hostError("Extension stopped");
   }
   async dispose(timeout: number) {
     if (this.disposed) {
@@ -79,85 +82,24 @@ class Scope {
       try {
         await within(Promise.resolve().then(dispose), timeout);
       } catch (error) {
-        this.errors.add(message(error));
+        this.errors.add(this.describe(error));
       }
     }
     try {
       await within(Promise.allSettled([...this.tasks]), timeout);
     } catch (error) {
-      this.errors.add(message(error));
+      this.errors.add(this.describe(error));
     }
     this.disposed = true;
     if (this.errors.size) throw new Error([...this.errors].join("; "));
   }
 }
 
-export function validateDefinition(
-  value: unknown,
-): asserts value is ExtensionDefinition {
-  const candidate = value as Partial<ExtensionDefinition> | null;
-  if (
-    !candidate ||
-    !candidate.manifest ||
-    typeof candidate.activate !== "function"
-  )
-    throw new Error("Invalid extension module");
-  const manifest = candidate.manifest;
-  validateConfigurationDeclaration(manifest.configuration);
-  if (
-    typeof manifest.id !== "string" ||
-    !/^[a-z][a-z0-9.-]{0,63}$/.test(manifest.id) ||
-    manifest.id.includes("..") ||
-    typeof manifest.version !== "string" ||
-    !manifest.version ||
-    manifest.apiVersion !== 1
-  )
-    throw new Error("Unsupported extension identity or SDK version");
-  for (const declarations of [manifest.requires, manifest.provides]) {
-    if (
-      declarations !== undefined &&
-      (typeof declarations !== "object" ||
-        declarations === null ||
-        Array.isArray(declarations))
-    )
-      throw new Error("Invalid service declarations");
-    if (
-      declarations &&
-      Object.entries(declarations).some(
-        ([key, version]) => !key || !Number.isInteger(version) || version < 1,
-      )
-    )
-      throw new Error("Invalid service contract version");
-  }
-  if (
-    manifest.capabilities &&
-    (!Array.isArray(manifest.capabilities) ||
-      manifest.capabilities.some((cap) => typeof cap !== "string"))
-  )
-    throw new Error("Invalid capability declaration");
-  validateCredentialBindings(
-    manifest.credentialBindings,
-    manifest.capabilities,
-  );
-}
-
-/** Modules execute as trusted code in the same JS environment. Import is not sandboxed. */
-export async function loadExtension(
-  url: string,
-  expectedId: string,
-): Promise<ExtensionDefinition> {
-  const module = await import(/* @vite-ignore */ url);
-  validateDefinition(module.default);
-  if (module.default.manifest.id !== expectedId)
-    throw new Error("Module identity does not match catalog");
-  return module.default;
-}
-
 export class Host {
   private shellBridge?: ShellBridge;
   /** Attach host-owned controls; an absent bridge explicitly rejects requests. */
   connectShell(bridge: ShellBridge) {
-    if (this.shellBridge) throw Error("Shell bridge already connected");
+    if (this.shellBridge) throw hostError("Shell bridge already connected");
     this.shellBridge = bridge;
     return () => {
       if (this.shellBridge === bridge) this.shellBridge = undefined;
@@ -181,6 +123,7 @@ export class Host {
   constructor(
     readonly platform: Platform,
     private readonly cleanupTimeout = 800,
+    private readonly describe: (error: unknown) => string = message,
   ) {}
   readonly subscribe = (listener: () => void) => {
     this.subscribers.add(listener);
@@ -200,14 +143,14 @@ export class Host {
   }
   private record(id: string) {
     const record = this.records.get(id);
-    if (!record) throw new Error(`Unknown extension: ${id}`);
+    if (!record) throw hostError(`Unknown extension: ${id}`);
     return record;
   }
   install(definition: ExtensionDefinition, configuration?: unknown) {
     validateDefinition(definition);
     const id = definition.manifest.id;
     if (this.records.has(id))
-      throw new Error(`Extension already installed: ${id}`);
+      throw hostError(`Extension already installed: ${id}`);
     let resolved: Configuration;
     let configurationError: string | undefined;
     try {
@@ -220,7 +163,7 @@ export class Host {
         definition.manifest.configuration,
         undefined,
       );
-      configurationError = message(error);
+      configurationError = this.describe(error);
     }
     this.records.set(id, {
       definition,
@@ -245,7 +188,7 @@ export class Host {
     return this.serial(async () => {
       const record = this.record(id);
       if (record.desired || record.status !== "disabled")
-        throw Error("Stop extension before configuring");
+        throw hostError("Stop extension before configuring");
       const value = resolveConfiguration(
         record.definition.manifest.configuration,
         input,
@@ -263,7 +206,7 @@ export class Host {
     return this.serial(async () => {
       const record = this.record(id);
       if (record.desired || record.status !== "disabled")
-        throw new Error("Stop extension successfully before uninstall");
+        throw hostError("Stop extension successfully before uninstall");
       await this.platform.grant(extensionOwner(id), []);
       this.grants.delete(id);
       this.records.delete(id);
@@ -329,7 +272,7 @@ export class Host {
   mountView(id: string, root: HTMLElement): () => void | Promise<void> {
     const view = this.registeredViews.get(id);
     if (!view || this.record(view.owner).status !== "active")
-      throw new Error(`View unavailable: ${id}`);
+      throw hostError(`View unavailable: ${id}`);
     const record = this.record(view.owner);
     const scope = record.scope!;
     scope.assertOpen();
@@ -342,7 +285,7 @@ export class Host {
       view.mounts.delete(close);
     };
     const failed = (error: unknown): never => {
-      failure = new Error(message(error));
+      failure = new Error(this.describe(error));
       scope.errors.add(failure.message);
       scope.failedMounts.add(close);
       record.status = "cleanup-failed";
@@ -379,7 +322,7 @@ export class Host {
     return this.serial(async () => {
       const record = this.record(id);
       if (record.status === "cleanup-failed")
-        throw new Error("Cleanup incomplete; restart required");
+        throw hostError("Cleanup incomplete; restart required");
       if (record.status === "failed") {
         record.status = "disabled";
         record.scope = undefined;
@@ -404,7 +347,7 @@ export class Host {
           (cap) => !record.definition.manifest.capabilities?.includes(cap),
         )
       )
-        throw new Error("Capability not declared");
+        throw hostError("Capability not declared");
       await this.platform.grant(extensionOwner(id), capabilities);
       this.grants.set(id, new Set(capabilities));
       if (record.status === "active" && this.waitReason(id)) {
@@ -468,7 +411,7 @@ export class Host {
           record.error = reason;
           continue;
         }
-        const scope = new Scope();
+        const scope = new Scope(this.describe);
         if (this.platform.release) {
           let released: Promise<void> | undefined;
           const release = () =>
@@ -497,12 +440,12 @@ export class Host {
           progress = true;
         } catch (error) {
           record.status = "failed";
-          record.error = message(error);
+          record.error = this.describe(error);
           try {
             await scope.dispose(this.cleanupTimeout);
           } catch (cleanup) {
             record.status = "cleanup-failed";
-            record.error += `; ${message(cleanup)}`;
+            record.error += `; ${this.describe(cleanup)}`;
           }
           this.changed();
           throw new Error(record.error);
@@ -547,7 +490,7 @@ export class Host {
       try {
         await this.deactivate(dependent, visited);
       } catch (error) {
-        errors.push(message(error));
+        errors.push(this.describe(error));
       }
     }
     if (
@@ -560,7 +503,7 @@ export class Host {
         record.error = undefined;
       } catch (error) {
         record.status = "cleanup-failed";
-        record.error = message(error);
+        record.error = this.describe(error);
         errors.push(record.error);
       }
     } else if (!record.desired && record.status !== "cleanup-failed")
@@ -582,8 +525,8 @@ export class Host {
         open: async (action) => {
           scope.assertOpen();
           if (!["extensions", "settings", "diagnostics"].includes(action))
-            throw Error("Unknown shell action");
-          if (!this.shellBridge) throw Error("Shell controls unavailable");
+            throw hostError("Unknown shell action");
+          if (!this.shellBridge) throw hostError("Shell controls unavailable");
           await this.shellBridge.open(action, id);
         },
         readPage: (viewId) => {
@@ -592,7 +535,7 @@ export class Host {
         },
         savePage: async (viewId, route) => {
           scope.assertOpen();
-          if (!this.shellBridge) throw Error("Shell controls unavailable");
+          if (!this.shellBridge) throw hostError("Shell controls unavailable");
           await this.shellBridge.savePage(`${id}/${viewId}`, route);
         },
       },
@@ -604,15 +547,15 @@ export class Host {
           service?.version !== manifest.requires[name] ||
           this.record(service.owner).status !== "active"
         )
-          throw new Error(`Service not declared or unavailable: ${name}`);
+          throw hostError(`Service not declared or unavailable: ${name}`);
         return service.value as T;
       },
       provide: (name, version, value) => {
         scope.assertOpen();
         if (manifest.provides?.[name] !== version)
-          throw new Error(`Service not declared: ${name}`);
+          throw hostError(`Service not declared: ${name}`);
         if (this.services.has(name))
-          throw new Error(`Service already provided: ${name}`);
+          throw hostError(`Service already provided: ${name}`);
         this.services.set(name, { owner: id, version, value });
         own(() => {
           this.services.delete(name);
@@ -646,7 +589,7 @@ export class Host {
         const theme = copyTheme(input);
         scope.assertOpen();
         if (this.registeredThemes.has(theme.id))
-          throw Error(`Theme conflict: ${theme.id}`);
+          throw hostError(`Theme conflict: ${theme.id}`);
         this.registeredThemes.set(theme.id, {
           ...theme,
           owner: id,
@@ -660,7 +603,7 @@ export class Host {
       view: (view) => {
         scope.assertOpen();
         if (this.registeredViews.has(view.id))
-          throw new Error(`View conflict: ${view.id}`);
+          throw hostError(`View conflict: ${view.id}`);
         const registered = {
           ...view,
           owner: id,

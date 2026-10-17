@@ -114,14 +114,20 @@ test("incompatible stored configuration waits without overwriting original until
   page,
 }) => {
   await seed(page, true);
-  await expect(page.getByText(/Configuration invalid:/)).toBeVisible();
+  await expect(
+    page.getByText("扩展配置无效：扩展配置损坏，原数据已保留。", {
+      exact: true,
+    }),
+  ).toBeVisible();
   const before = await page.evaluate(() =>
     localStorage.getItem("plums:m1:host.shell"),
   );
   await page
     .getByRole("button", { name: "配置 sample.counter", exact: true })
     .click();
-  await expect(page.getByRole("dialog")).toContainText("原配置无效");
+  await expect(page.getByRole("dialog")).toContainText(
+    "原配置无效：扩展配置损坏，原数据已保留。",
+  );
   await page.getByRole("button", { name: "取消", exact: true }).click();
   expect(
     await page.evaluate(() => localStorage.getItem("plums:m1:host.shell")),

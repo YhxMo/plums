@@ -93,7 +93,9 @@ test("known save failure retains previous results and retry; unknown receipt loc
   expect(store.snapshot().items[0].results).toHaveLength(1);
 });
 test("invalid persisted state and invalid transform results never overwrite prior data", async () => {
-  expect(() => readTextDocument({ version: 99, items: [] })).toThrow("保留");
+  expect(() => readTextDocument({ version: 99, items: [] })).toThrow(
+    "工作台状态版本或内容无效",
+  );
   const { store, persist } = fixture(async () => "x".repeat(32001));
   await store.run();
   expect(store.snapshot().phase).toBe("failed");

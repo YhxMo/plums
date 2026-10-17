@@ -1,3 +1,4 @@
+import { ContractError } from "../sdk/errors";
 import type { Agent, AgentConfig, AgentProvider, Session } from "../sdk/agents";
 
 const id = () => crypto.randomUUID();
@@ -34,7 +35,8 @@ export function parseRoleCard(raw: string): AgentConfig {
 }
 export function restoreAgents(value: unknown): Agent[] {
   if (value === undefined) return [];
-  if (!Array.isArray(value)) throw new Error("Agent 配置损坏，原数据已保留。");
+  if (!Array.isArray(value))
+    throw new ContractError("state.corrupt", "agents", "Agent 配置损坏");
   const ids = new Set<string>();
   for (const a of value) {
     if (
@@ -53,7 +55,7 @@ export function restoreAgents(value: unknown): Agent[] {
       a.sessions.length === 0 ||
       !text(a.currentSessionId)
     )
-      throw new Error("Agent 配置损坏，原数据已保留。");
+      throw new ContractError("state.corrupt", "agents", "Agent 配置损坏");
     ids.add(a.id);
     const sessions = new Set<string>();
     for (const s of a.sessions) {
@@ -73,11 +75,19 @@ export function restoreAgents(value: unknown): Agent[] {
             text(m.text, 32000),
         )
       )
-        throw new Error("会话配置损坏，原数据已保留。");
+        throw new ContractError(
+          "state.corrupt",
+          "agents.sessions",
+          "会话配置损坏",
+        );
       sessions.add(s.id);
     }
     if (!sessions.has(a.currentSessionId))
-      throw new Error("当前会话不存在，原数据已保留。");
+      throw new ContractError(
+        "state.corrupt",
+        "agents.currentSessionId",
+        "当前会话不存在",
+      );
   }
   return structuredClone(value).map(({ canCancel, ...a }) => ({
     ...a,
