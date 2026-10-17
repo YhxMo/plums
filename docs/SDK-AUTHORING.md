@@ -55,7 +55,7 @@ const close = host.mountView(viewId, root); // () => void | Promise<void>
 
 管理查询未知 ID 会抛错；公开服务通过另一个声明 requires 的扩展 ctx.use 获取，管理者不直接读取内部服务表。管理操作 start/stop/grant/uninstall 串行执行；install 是同步登记。Platform 为注入适配器，测试可以实现 SDK 中的接口，不能把模拟结果当原生证据。
 
-应用外壳仅为手动安装的扩展提供“卸载（保留数据）”：先停用、撤权，再保存安装路径移除结果，最后移除宿主记录。内置扩展只能停用；模块文件与扩展数据不删除。配置保存或撤权失败显示未完成，可重试；回执未知时须重载确认，不能把在途失败当作完整成功。升级需外部保留旧模块与数据、核对兼容再停用/卸载/重装。没有事务升级或自动回滚承诺，迁移工具与删除数据尚未实现。ESM 由环境缓存，同 URL 重新 import 不保证新代码；新版本使用新 URL 并记录来源。
+应用外壳仅为手动安装的扩展提供“卸载（保留数据）”：先停用、撤权，再保存安装路径移除结果，最后移除宿主记录。内置扩展只能停用；模块文件与扩展数据不删除。配置保存或撤权失败显示未完成，可重试；回执未知时须重载确认。升级需保留旧模块与数据、核对兼容，再停用/卸载/重装；业务迁移可使用[可选状态助手](STATE-MIGRATION.md)，包升级事务和自动数据删除待实现。ESM 由环境缓存，同 URL 重新 import 不保证新代码；新版本使用新 URL 并记录来源。
 
 ## 页面与公开宿主入口
 
@@ -103,6 +103,8 @@ export default {
 
 `getSnapshot()` 在状态未变时返回同一对象；变化时先替换快照，再通知订阅者。外壳只订阅当前工作区，切换或停用时取消订阅。读取或订阅失败会让外壳排除该代视图并回退，管理入口仍可达。
 
+普通包可手动安装 `example.workspace-chrome`（`/examples/workspace-chrome.js`）和 `example.workspace-context`（`/examples/workspace-context.js`）查看标题更新、实体/工作区侧栏优先级、草稿跨管理保留及回调失败回退。它们不在默认启用集合中；“模拟标题回调失败”会隔离该代工作区，停用后重新启用可恢复。样板只消费公开 ctx.view/ctx.shell，不提供持久业务或平台权限。
+
 完整类型见 [workspace-chrome.ts](../modules/sdk/workspace-chrome.ts)。`contextOwner` 指向当前实体所属扩展；外壳优先查找该扩展的 sidebar 贡献，然后查找当前工作区扩展自己的 sidebar，同一所有者内按 priority 降序和 ID 升序选择。无匹配贡献时使用可选 `sidebar` 中的 label、真实 open 状态、toggle(source) 和 close()。默认 inline 详情与扩展侧栏互斥；移动模态详情声明 `presentation: "dialog"`，转为 inline 后重新协调。不要在外壳另存默认详情开关。
 
 可选 `navigation` 包含实体类型 `entityType` 和 `reveal(id)`。调用方先匹配类型，再导航；当前 Agent 管理链接只接受 `agents.agent`，其他类型显示不可用原因。仓库内 TypeScript 视图可用 `createWorkspaceChrome(entityType)`、`publish(state)` 和 `connect(handler)` 组装同一接口；挂载时连接处理器，释放时执行 connect 返回的清理函数，旧挂载的迟到清理不会断开替代处理器。未提供 chrome 的已有视图继续按原挂载契约工作。
@@ -129,9 +131,13 @@ ctx.task 跟踪异步任务，使用传入 signal 合作式取消；ctx.onDispos
 
 ## 凭据代用请求实验
 
-[接口与参考模型](CREDENTIAL-REQUEST.md)仅用于隔离假数据接入，生产能力不可用。扩展引用所属绑定，由平台侧确定目标和凭据；不在普通配置中保存秘密，真实适配及授权仍待独立阶段。
+[接口与参考模型](CREDENTIAL-REQUEST.md)已有隔离假数据实验，当前生产能力仍不可用。生产设计按真实接口确定每绑定批准的内容类型、固定头和认证注入，扩展只提交别名与序列化载荷，秘密留在原生侧；不在普通配置中保存秘密。[当前阶段](spec/milestone.md)以一个真实连接器通过text.transform复用Agent界面，本地代码可推进，实际秘密操作和外发在对应操作前确认范围。
 
-[公开生命周期隔离传输样例](HOST-TRANSPORT-EXPERIMENT.md)展示 ctx.task/ctx.platform 与停用、卸载和撤权的限定两端结果，仅测试包可用，不代表生产网络或凭据能力。
+[DeepSeek 协议扩展](DEEPSEEK.md)是当前的实际服务实现入口：`connector.deepseek` / `/connectors/deepseek.js`，提供 `text.transform@1`。JSON 载荷、模型配置、完整回复解析和错误脱敏留在扩展；本地测试通过现有 Agent 消费者验证，不直接调用 fetch 或读取密钥。它不自动安装或启用，生产适配缺失时不能发请求。
+
+可选 `manifest.credentialBindings` 声明非秘密连接建议，沿用现有扩展安装与管理入口；声明不创建绑定或授予请求权限。[通用绑定与原生录入](CREDENTIAL-BINDINGS.md)说明每绑定媒体类型、固定头、秘密注入、显式代理配置及取消/未知/卸载清理状态。既有扩展可继续不声明该字段。
+
+[公开生命周期隔离传输样例](NATIVE-TRANSPORT-EXPERIMENT.md#host-公开调用)展示 ctx.task/ctx.platform 与停用、卸载和撤权的限定两端结果，仅测试包可用，不代表生产网络或凭据能力。
 
 [可选单跳状态迁移助手](STATE-MIGRATION.md)已提供公开 SDK 入口与独立样板：扩展定义业务转换，助手用一次修订号提交保留旧快照；当前不自动迁移默认业务，也不提供通用包升级事务或自动回退。
 

@@ -23,10 +23,12 @@ Rust 编译输出固定到本项目 `.cache/android/target/`。Tauri 的 Android
 
 [MainActivity.kt](../native/android/MainActivity.kt) 是受版本控制的系统栏适配源码；`{{PACKAGE}}` 从 Tauri 的 `identifier` 生成。它在内容根节点合并 system bars、display cutout 和 IME 的 Insets，并请求初次应用，使 WebView 避开系统栏，键盘出现时缩小可用视口。[AppearancePlugin.kt](../native/android/AppearancePlugin.kt) 通过 Tauri 原生插件同步深浅模式的根背景和系统栏图标亮度，关闭导航栏的额外对比遮罩；Insets 的计算仍由 MainActivity 负责。
 
+[CredentialsPlugin.kt](../native/android/CredentialsPlugin.kt)提供原生 API Key 输入、Android Keystore AES-GCM 与 noBackup 密文存储；命令只返回状态，不向 WebView 交付密钥。源码由同一准备流程生成，未知既有插件代码会拒绝覆盖；实际秘密操作与网络请求的验证范围见[凭据管理](CREDENTIAL-BINDINGS.md)。
+
 [scripts/android-project.mjs](../scripts/android-project.mjs) 在写入前核对所有目标：
 
 - MainActivity 必须是锁定 CLI 的原模板或当前已适配版本。
-- 外观插件从受控源码生成；接受当前源码及仅浅色背景不同的已知前版并升级，遇到其他未知既有插件代码时停止准备。
+- 外观、文档和凭据插件由同一流程从受控源码生成，未知既有代码停止准备；外观插件另接受已知前版深浅背景色并升级。
 - Gradle 回调转换为从 Rust 目录调用项目锁定的 Node CLI，覆盖直接 Node 和 npm 初始化两种已知模板。
 - 调试签名使用本地环境变量；未知既有签名配置停止准备。
 - 保留生成模板的兼容标志，增加无常驻 daemon、最多 4 workers 的本地资源设置。
@@ -41,4 +43,4 @@ Rust 编译输出固定到本项目 `.cache/android/target/`。Tauri 的 Android
 
 本流程固定 npm/Cargo 锁文件，构建参数为 `android build --debug --target aarch64 --apk -- --locked`。现有环境为 macOS arm64、JDK 21、NDK 28.2、Gradle 9.6.1、AGP 9.3.1、compile/target SDK 37；实际运行使用 API 36 ARM64 AOSP 模拟器。版本与当前产物的运行结果见证据。
 
-准备操作测试覆盖幂等性、两种构建回调、图标刷新、缺少图标源时不部分写入，以及未知模板/签名/分发/外观插件的拒绝；编译、签名、安装、真实 WebView、系统栏和键盘仍以原生运行分别验收。清单 minSdk 24 不是最低支持版本已验收的声明。真机、其他 ABI、手势导航、其他系统/WebView 以及长期后台仍未验证；iOS 继续暂缓，M1 保持开放。
+准备操作测试覆盖幂等性、两种构建回调、图标刷新、缺少图标源时不部分写入，以及未知模板/签名/分发/外观插件的拒绝；编译、签名、安装、真实 WebView、系统栏和键盘仍以原生运行分别验收。清单 minSdk 24 不是最低支持版本已验收的声明。真机、其他 ABI、手势导航、其他系统/WebView 以及长期后台仍未验证；iOS 继续暂缓，M2 整体尚未退出。

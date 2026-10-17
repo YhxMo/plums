@@ -6,7 +6,7 @@
 
 当前为 0.0.4 debug 原型，SDK 仍在实验阶段。通用底座管理扩展生命周期、依赖、资源、状态与平台能力；业务循环、模型协议和角色卡解析留在扩展。默认 UI 同样通过公开契约挂载，整体布局、页面和导航可替换。
 
-默认 Agent 界面支持角色导入、特别关注、多会话和本地文本处理；桌面未选中角色时保留品牌与双卡片欢迎页。菜单提供独立扩展管理、设置和诊断。[文本工作台与动态页面](docs/PAGES.md)、[独立嵌套页面](docs/LOCAL-PROOF.md)、[公开主题](docs/THEMES.md)及[会话文档只读](docs/SELECTED-DOCUMENT.md)提供非聊天与平台样板。模型／MCP 连接器和多 Agent 协作尚未实现。
+默认 Agent 界面支持角色导入、特别关注、多会话和本地文本处理；零角色时显示双卡片欢迎页，桌面已有角色未选中时只在会话区显示居中品牌图标。菜单提供独立扩展管理、设置和诊断。[文本工作台与动态页面](docs/PAGES.md)、[独立嵌套页面](docs/LOCAL-PROOF.md)、[公开主题](docs/THEMES.md)及[会话文档只读](docs/SELECTED-DOCUMENT.md)提供非聊天与平台样板。[DeepSeek 协议扩展](docs/DEEPSEEK.md)已通过本地隔离测试，[通用绑定与原生录入](docs/CREDENTIAL-BINDINGS.md)已接入开发版，系统秘密实际读写与生产传输仍待验，尚无真实调用；MCP 连接器和多 Agent 协作尚未实现。
 
 M1 已按 Mac 与单配置 Android 模拟器的限定风险范围收敛，M2 整体尚未退出。当前交付、对应源码和未验范围统一见 [验证索引](evidence/RESULTS.md)，执行状态见 [HANDOFF](HANDOFF.md)。Android 真机、iOS、Windows/Linux、稳定 SDK 与正式签名分发仍待验；iOS 最小实验是接口正式稳定前门槛。
 
@@ -14,10 +14,10 @@ M1 已按 Mac 与单配置 Android 模拟器的限定风险范围收敛，M2 整
 
 | 平台 | 当前入口 | 范围 |
 | --- | --- | --- |
-| Apple Silicon Mac | `release/mac/Plums M1.app` | 当前源码的 debug 本地预览，来源与校验见同目录 build-info.json |
-| Android ARM64 | `release/android/plums-m1-0.0.4-android-arm64-debug.apk` | 保留的2026-10-16受验版本；未随本次Mac变更重新构建 |
+| Apple Silicon Mac | `release/mac/Plums M1.app` | 2026-10-17 同源受验普通包；[最新修复与交付](evidence/DIALOG-FOCUS-2026-10-17.md)，来源与校验见同目录 build-info.json |
+| Android ARM64 | `release/android/plums-m1-0.0.4-android-arm64-debug.apk` | 2026-10-17 同源受验普通包；限定 Android 16/API36 ARM64 模拟器 |
 
-在 macOS 执行 `npm run release:mac`，统一构建、临时签名、文件校验和旧Mac包归档。当前包只存于 release 对应平台目录；本次历史整理清单在 `.cache/archive/INDEX.json`，后续命令自动归档的旧Mac包位于 `.cache/archive/releases/`，具体路径由命令输出。恢复说明在 `.cache/archive/README.md`；二进制恢复不回滚应用数据。
+在 macOS 执行 `npm run release:mac`，统一构建、临时签名、文件校验和旧Mac包归档。先验收后交付使用 `npm run release:mac -- --stage`，通过后以 `--publish <候选目录>` 发布原候选，不重新构建；见[交付约定](docs/DEVELOPMENT.md#本地交付目录)。当前包按平台存放；旧包保留在 `.cache/archive/releases/`，归档清单与恢复说明见 `.cache/archive/INDEX.json` 和 README.md。二进制恢复不回滚应用数据。
 
 ## 快速开始（Quick Start）
 
@@ -30,7 +30,7 @@ npm run build
 npm run dev
 ```
 
-浏览器打开回环地址 `http://127.0.0.1:1420`。首次可从“添加”创建本地 Agent，或选择 JSON 角色卡导入。进入角色后发送文本，在详情查看实际能力、特别关注和多会话；顶栏菜单的“角色卡设置”可集中编辑名称与说明、导入文件。顶栏太阳/月亮按钮切换并保存外观。当前内置示例仅处理本地文本，模型与 MCP 连接器仍需扩展实现。角色卡的实验格式、同源链接限制和交互说明见 [UI](docs/UI.md)。
+浏览器打开回环地址 `http://127.0.0.1:1420`。首次可从“添加”创建本地 Agent，或选择 JSON 角色卡导入。进入角色后发送文本，在详情查看实际能力、特别关注和多会话；顶栏菜单的“角色卡设置”可集中编辑名称与说明、导入文件。顶栏太阳/月亮按钮切换并保存外观。当前默认示例仍仅处理本地文本；DeepSeek 扩展不默认启用，需后续生产适配才能真实调用。角色卡的实验格式、同源链接限制和交互说明见 [UI](docs/UI.md)。
 
 从顶栏菜单打开扩展管理，检查来源、能力与资源，再启用或停用。诊断工具保留原文本工作台、授权/撤权、服务替换和故障注入；启动后可从应用设置切换工作台、画布和默认 Agent 界面。浏览器localStorage仅用于预览，不能证明Rust或原生能力。
 

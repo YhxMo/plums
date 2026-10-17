@@ -87,7 +87,7 @@
 
 0.0.3 的深浅主题与原生外观结果保留在 [历史证据](UI-ANDROID-0.0.3.md)，绑定 [77 文件集合](source-manifest.json) 和[历史产物元数据](ui-android-artifacts-0.0.3.json)。0.0.2 的整体 UI 与 Android 工程验证保留在 [历史证据](UI-ANDROID-0.0.2.md)，绑定 [54 文件集合](source-manifest-0.0.2.json) 和[历史产物元数据](ui-android-artifacts-0.0.2.json)。这些结果仅证明各自版本。
 
-以下各节保留 **0.0.1 历史证据**，只证明对应旧版本。其 49 文件集合保存于 [source-manifest-0.0.1.json](source-manifest-0.0.1.json)。历史环境缺口不代表当前工具链状态；Android 后续实验见 [M1 实验](../docs/M1-EXPERIMENTS.md#android-隔离构建记录)，正式入口见 [Android 工程](../docs/ANDROID.md)。
+以下各节保留 **0.0.1 历史证据**，只证明对应旧版本。其 49 文件集合保存于 [source-manifest-0.0.1.json](source-manifest-0.0.1.json)。历史环境缺口不代表当前工具链状态；Android 后续实验见 [M1 实验](HISTORY.md#android-隔离构建记录)，正式入口见 [Android 工程](../docs/ANDROID.md)。
 
 ## 0.0.1 受检版本与命令
 
@@ -188,3 +188,64 @@
 公开文档已人工核对状态、契约、链接和工程表述，并与自动模式检查分开记录。无私人愿景的公开副本也通过链接检查：64 文件、11 篇文档、77 个本地链接；仅根目录可选的 `goal.md` 链接允许缺失。完整项目检查为 65 文件、12 篇文档、82 个本地链接。源码清单排除本地愿景、实验数据、依赖缓存、打包产物、原始日志和截图；文档与证据本身不受上述源码摘要约束，独立审查需同时核对实际文件。
 
 自动扫描仅覆盖指定凭据、路径、文件名和文档模式，不能证明不存在所有泄漏。本地阶段提交须逐项核对精确暂存 diff、全部待提交文件及可核验身份；该核对与独立源码审查分开，阶段版本由 Git 提交对象标识。未推送或部署。依赖许可证核对限于 [直接依赖元数据](dependency-licenses.json)，全量传递依赖与分发义务仍待审计。
+
+## Android 初始实验的依赖核查
+
+以下保留 2026-10-15 的静态核查、隔离构建和模拟器观察；其中环境与阶段状态属于原受验版本。当前命令见 [Android 工程](../docs/ANDROID.md)。
+
+
+构建前核查日期：2026-10-15 UTC。基线提交 `197463aefd05454c6bd7e2ac8c325230ef4ae3fd`，49 文件源码摘要为 `39e17c8d4d81973ccaf65af54c3454351a3e786f3d395fd6c8e0e17b8b127764`。该次仅阅读项目、锁文件、安装包及既有实验副本的 Cargo registry 缓存，并执行 CLI `--help`，未补齐依赖或执行移动构建。以下保留当时的静态发现与缓存快照；后续 Android 构建已补齐实际所需依赖，见下节，不能以旧快照描述当前缓存。静态发现不构成目标平台运行通过结论。
+
+| 检查对象与本地依据 | 静态发现 | 尚需证伪的风险 |
+| --- | --- | --- |
+| [npm 锁文件](../package-lock.json)、已安装包的 package.json | 生产依赖为 @tauri-apps/api 2.12.4、React/ReactDOM 19.3.1、scheduler 0.28.0；四者未声明 OS/CPU 限制。API 包无运行依赖，ReactDOM 引入 scheduler；许可证元数据分别为 Apache-2.0 OR MIT、MIT、MIT、MIT，相应许可证文件存在 | 元数据不证明移动 WebView 兼容；React 的 Node engines 字段也不代表 WebView 需要 Node |
+| [前端入口](../src/main.tsx)、[宿主](../modules/extension-host/host.ts)、[扩展目录](../extensions/catalog.json)、[构建配置](../vite.config.ts) | 应用执行路径未发现 Node 内建模块导入；Node 的 fs/child_process 等仅在主机脚本与测试。Vite/CLI 是主机工具。扩展使用本地动态 import，UI 使用 DOM；现有 dist 中 7 个扩展 JS 及 1 个 CSS 与源码逐字节相同，未经过转译 | Web 构建 target 为 es2022，代码使用 Object.hasOwn、TextEncoder、AbortController 及 signal.throwIfAborted；没有显式兼容补丁。须在所选系统/WebView 检查，不能由桌面绿测外推 |
+| 已安装 @tauri-apps/api/core.js、[平台适配器](../src/platform.ts) | invoke 通过 WebView 内的 Tauri 桥接调用；生产前端无需启动 Node 服务，浏览器 localStorage 路径与原生 invoke 路径分开 | 必须观察实际 Rust 调用及数据，单独“原生已连接”标签不构成验收；移动 capability 与窗口匹配未验证 |
+| [Cargo 清单](../src-tauri/Cargo.toml)、[锁文件](../src-tauri/Cargo.lock)、缓存的 tauri 2.12.4 / tauri-runtime-wry 2.12.2 / wry 0.57.0 / tao 0.37.1 清单 | 依赖按 target 区分；iOS 分支包含 objc2-ui-kit，Android 分支包含 JNI/NDK，桌面 GTK/菜单等有相应条件。tauri 系列最低 Rust 元数据为 1.90，本机 1.98.1 满足该项。前三者许可证元数据为 Apache-2.0 OR MIT，tao 为 Apache-2.0，相关许可证文件存在 | 有条件分支不等于 Plums 能编译或正确初始化；未执行各移动 target 的依赖解析/编译，不把锁文件的全部包视为每端都使用 |
+| 受检实验副本 Cargo registry 中的锁定包 | 407 个 registry 锁定项中，240 项有源码和归档缓存，167 项两者均缺；240 份缓存清单可读取许可证元数据。缺项包括 jni 0.21.1、ndk 0.9.0、ndk-context 0.1.1、ndk-sys 0.6.0+11769913、tao-macros 0.1.4、objc2-ui-kit 0.3.2、reqwest 0.13.5 | 即使复用该缓存，也不足以宣称移动离线构建可行；167 是整份锁文件的缺项数，不是某端实际所需下载数。缺失包的源码、许可证正文与移动实现不能在现有缓存中核验；完整传递依赖/分发义务仍未审计 |
+| 缓存 wry 的 custom_protocols 文档、[资源 URL](../extensions/ui/default.js)、[CSP](../src-tauri/tauri.conf.json) | 上游文档区分 iOS 与 Android 自定义协议的 Origin 表达；目录、模块相对导入和样式均经应用资源 URL 加载 | 两端分别检查 fetch/import/CSS 的 Origin、MIME、CSP 和资源路径；不靠关闭 CSP、忽略版本冲突或启动开发服务器掩盖打包失败 |
+| [Rust 入口](../src-tauri/src/lib.rs)、[状态层](../src-tauri/src/storage.rs)、[主机环境包装器](../scripts/environment.mjs) | 有 mobile_entry_point；默认状态根取 app_data_dir，缓存 Tauri 路径代码存在 Android/Apple 解析路径。读写使用 std::fs、锁、修订检查和临时文件替换。桌面包装器会设置主机 PLUMS_M1_DATA_DIR；应用没有显式前后台/检查点逻辑 | 设备必须使用实际应用数据目录，不能把主机 .m1-data 当作设备路径。挂起期间计时、取消、提交回执和进程重建仍待观察；无持续后台执行承诺 |
+
+来源核对范围为锁文件的 npm registry URL、crates.io registry 标识和完整性字段，以及已缓存核心包的仓库/许可证元数据，不是供应链安全认证。复核入口是上述固定版本的清单、包源码及 CLI 帮助，缓存路径本身不属于分发物。许可证字段与文件存在性检查不等于已确认全部分发义务；不据缺失正文补写许可结论。本地 CLI schema 的默认最低值为 iOS 15.0、Android API 24，不是 Plums 已验证的最低支持范围。
+
+## Android 隔离构建记录
+
+本节及后续隔离运行、Insets 配方保留 0.0.1 的历史证据。当前 0.0.2 使用主项目 `npm run android:init` / `android:prepare` / `android:build`；生成工程仍不提交，维护源码与流程见 [Android 工程](../docs/ANDROID.md)。历史包标识 `dev.plums.m1.androidcheck` 与当前 `dev.plums.m1` 分开，不混用原生产物结果。
+
+2026-10-15 UTC，基于主项目提交 `cd6fb7c76cfd26bec0c956f55b056c0d5e064ec5` 的隔离副本完成调试构建。49 文件基线摘要仍为上节所列值；副本在该 49 文件范围内仅更改 tauri.conf.json 的应用标识、产品名与窗口标题，变体摘要为 `f8317b1f84cde4a31c90b3dcc766d70c03bcd806196bfb663f508322c49015f7`。Host、SDK、扩展、Rust 实现及 npm/Cargo 锁文件未改。
+
+生成工程的 BuildTask.kt 从 src-tauri 工作目录运行 Node，原首参数 `tauri` 指向不存在的脚本；修正为 `../node_modules/@tauri-apps/cli/tauri.js`。隔离回归在修正前复现失败，修正后及真实 CLI 帮助通过；这是生成构建工具入口修正，未修改内核。另仅在生成工程配置独立调试签名、受限 Gradle 资源和相同版本 wrapper 的已校验本地归档；保留模板兼容标志。重新 init 后须重新审阅生成配置并应用这些调整。
+
+| 已检查项 | 结果与边界 |
+| --- | --- |
+| 编译与 APK | Rust ARM64 编译/链接、Gradle 构建、ZIP 完整性和调试签名检查通过；标识 dev.plums.m1.androidcheck，minSdk 24 / targetSdk 37，实际 ABI 仅 arm64-v8a。调试产物不代表发布包优化或最低支持范围已验收 |
+| 前端资源 | 13 项资源经编码解码与原生库嵌入核对；其中 7 个扩展 JS、1 个 CSS 与源码一致。APK 内原生库摘要与受检 Rust 产物一致，将资源检查绑定到该 APK；不证明 WebView 已成功加载或执行 |
+| APK SHA-256 | `ca1cb7d861db671e65be8956c6ad3558e0bc470434739dda4a12a04cb1cb48f2` |
+| 截至该次构建复核未执行 | 设备/模拟器安装与启动，ESM/CSP/MIME/Origin/Web API，原生桥接、状态保存及重启，依赖/布局替换与停用清理，前后台及进程重建 |
+
+构建、配置、产物与资源证据保存在独立实验目录的 `RESULTS.md`、`evidence/BUILD-RESULT.json`、`evidence/VARIANT-SOURCE-MANIFEST.json`、`evidence/GENERATED-CONFIG-REVIEW.json`、`evidence/APK-VERIFICATION.json` 和 `evidence/NATIVE-RESOURCE-EMBEDDING.json`；这些是相对实验目录的本地记录，不属于仓库内 Mac 证据，也未随 Git 分发。独立复核报告 `INDEPENDENT-REVIEW.md` 及配套证据也保存在该实验目录；已独立核对 APK/资源、生成配置、入口正反例和两份公开文档，未发现范围内阻塞。未独立重跑完整 Android 构建、从零初始化或离线重建，不承诺重建字节相同；截至该次构建复核尚未执行设备运行；后续结果见[模拟器运行记录](#android-模拟器运行记录)。iOS 暂缓，M1 保持开放。
+
+## Android 模拟器运行记录
+
+2026-10-15 UTC，复用同一隔离工程，在 Emulator 37.2.12 / AOSP Android 16 API 36 / arm64-v8a / WebView 133.0.6943.137 完成运行自验并通过限定独立复核。SDK、镜像、AVD、临时文件及缓存均使用外置实验目录；只安装一个无 Google Play 的官方 ARM64 镜像，未安装 Android Studio 或 iOS 工具，未接受新种类许可。
+
+原 APK 在真实 WebView 加载目录、ESM、相对导入和样式；实际 Origin 为 http://tauri.localhost，资源 MIME 与有效 CSP 已记录。通过正常界面授权、处理合成文本并核对应用数据目录中的 Rust JSON，未使用浏览器 localStorage 冒充原生状态。
+
+运行暴露系统栏覆盖内容，原生几何回归先失败，再仅在隔离生成工程的 MainActivity 对系统栏、缺口和键盘应用 Insets。WebView 从覆盖整屏变为避开系统栏，键盘显示时视口收缩；当时主项目 Host/SDK/扩展/Rust、锁文件及 49 文件实现集合未变，修正尚未并入主项目。该历史实验仅保存隔离配方；0.0.2 已将适配模板及受控生成流程纳入主项目，并对新包重新验证。
+
+修正版 APK SHA-256：`fd7f071ef85d7e5cbcc03ba6b9220545fc672584584f1683ed95fb9d0b082b79`。其原生库与原已独立核验的 Rust/13 项资源字节相同；修正版重新通过保存、拒绝/恢复、服务替换、依赖停用零资源/任务、故障布局回退、真实触控取消、短任务后台切换及新进程冷启动恢复。普通重启不等于写入中断恢复；一次模拟器后台短任务不构成长任务或真机保证。
+
+证据位于独立实验根目录的 `runtime-20261015T094547Z/`，包括 `RESULTS.md`、`evidence/RUNTIME-RESULT.json` 和 `INDEPENDENT-REVIEW.md`，未纳入 Git。复核独立重现冷启动、原生状态恢复、系统栏与键盘；其余路径按报告限定的自验或静态核对范围引用。早期 42/44 号截图存在样式/IME 采样时序差异，不能单独证明稳定绘制；原图保留，稳定补证见 `independent-review/02-restored-stable.png`、`03-keyboard-stable.png`、`04-keyboard-closed.png`。
+
+复核发现实验停止脚本将 ADB 的 KO 应答误报成功，已改为校验应答、精确进程身份及最终 PID/端口；超时保留活动记录，后备 SIGTERM 只用于已核实的本次 AVD。六项合成回归及实际停止验证通过，见运行目录 `metadata/STOP-TOOL-REGRESSION.json` 与 `metadata/STOP-TOOL-VALIDATION.json`。本次 QEMU 和专用 ADB 已退出，5041/5560/5561 关闭，AVD 数据保留；仅清理本次临时链接，既有 5037 ADB 与主机令牌保持原状。真机未验证，iOS 暂缓，M1 未关闭。
+
+### 隔离 Insets 修正的保存与复现
+
+保存位置为外置实验根 `plums-m1-android-20261015T082500Z/` 的 `runtime-20261015T094547Z/`，以下路径相对此运行目录，不是仓库路径。修正前后文件为 `metadata/MainActivity-before.kt`、`metadata/MainActivity-after.kt`，差异范围及摘要见 `metadata/INSETS-FIX.json`；修正版产物保留于 `artifacts/plums-m1-android-insets-debug.apk`。
+
+1. 复用已有工具链和隔离工程，不重复初始化或安装。当前生成文件在实验根的 `project/src-tauri/gen/android/app/src/main/java/dev/plums/m1/androidcheck/MainActivity.kt`；其内容须与保存的 after 文件一致。
+2. 若原生工程被重新生成，只在模板与 before 文件逐字节一致、包名仍为 `dev.plums.m1.androidcheck` 时应用 before→after 的差异。若模板或初始 padding 改变，先重新审查，不能盲目覆盖。after 文件 SHA-256 为 `614c75be358cbc1f8c5d038400adf87a812a0b69bcb5ad67601fe38794f14fb7`。
+3. 在运行目录 `source environment.sh` 后执行 `python3 tools/rebuild-candidate.py`；该配方先断言当前 MainActivity 与 after 一致，以锁文件构建并另存带时间戳的候选 APK，保留原基线产物，不承诺新包哈希相同。此次未重新构建应用。
+4. 新包须重新核对签名/资源、系统栏与 IME 几何及稳定截图，再验证受影响路径；旧 APK 的通过记录不能替代新产物。横屏、手势导航和其他模板/WebView 仍待验证。
+
+上述配方仅供恢复旧 `androidcheck` 实验，不用于当前包；当前生成入口和版本维护以 [Android 工程](../docs/ANDROID.md) 为准。

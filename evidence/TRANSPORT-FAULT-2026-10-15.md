@@ -6,7 +6,7 @@
 
 ## 反例与最小修复
 
-旧源码新增 abandoned_reservation_expires_without_revoking_owner 后失败：等待 1100ms，pending 仍为 1，预期 0；`.cache/transport-fault/red.log` 保留失败。修复仅为未开始预约的 1000ms 租期和后续命令触发回收；已开始请求仍由 800ms 总时限收尾。没有新增后台线程、依赖、生产权限或真实凭据。具体语义见 [实验设计](../docs/TRANSPORT-FAULT-EXPERIMENT.md)。
+旧源码新增 abandoned_reservation_expires_without_revoking_owner 后失败：等待 1100ms，pending 仍为 1，预期 0；`.cache/transport-fault/red.log` 保留失败。修复仅为未开始预约的 1000ms 租期和后续命令触发回收；已开始请求仍由 800ms 总时限收尾。没有新增后台线程、依赖、生产权限或真实凭据。具体语义见 [实验设计](../docs/NATIVE-TRANSPORT-EXPERIMENT.md#异常回执)。
 
 ## 原生异常矩阵
 
