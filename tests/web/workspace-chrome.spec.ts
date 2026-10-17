@@ -246,3 +246,66 @@ for (const scenario of ["resize", "dynamic"]) {
     ).toHaveCount(0);
   });
 }
+
+for (const width of [375, 1180]) {
+  test(`ordinary chrome samples install through public paths at ${width}`, async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width, height: 820 });
+    await page.goto("/");
+    for (const name of ["workspace-context", "workspace-chrome"]) {
+      await manage(page);
+      await page.getByRole("button", { name: "安装扩展", exact: true }).click();
+      await page.getByLabel("扩展 ID", { exact: true }).fill(`example.${name}`);
+      await page
+        .getByLabel("模块路径", { exact: true })
+        .fill(`/examples/${name}.js`);
+      await page.getByRole("button", { name: "加载模块", exact: true }).click();
+      await page
+        .getByRole("button", { name: `启用 example.${name}`, exact: true })
+        .click();
+    }
+    await page.getByRole("button", { name: "返回工作区", exact: true }).click();
+    await expect(page.getByRole("banner")).toContainText("外部任务 · 1");
+    await page
+      .getByRole("button", { name: "更新任务标题", exact: true })
+      .click();
+    await expect(page.getByRole("banner")).toContainText("外部任务 · 2");
+    await page
+      .getByLabel("任务草稿", { exact: true })
+      .fill("keep external draft");
+    await page
+      .getByRole("button", { name: "打开扩展管理", exact: true })
+      .click();
+    await expect(
+      page.getByLabel("任务草稿", { exact: true }),
+    ).not.toBeVisible();
+    await page.getByRole("button", { name: "返回工作区", exact: true }).click();
+    await expect(page.getByLabel("任务草稿", { exact: true })).toHaveValue(
+      "keep external draft",
+    );
+    await page.getByRole("button", { name: "展开或收起右侧栏" }).click();
+    await expect(
+      page.getByRole("complementary", { name: "实体侧栏", exact: true }),
+    ).toContainText("实体拥有的上下文");
+    await page.getByRole("button", { name: "展开或收起右侧栏" }).click();
+    await page
+      .getByRole("button", { name: "切换上下文归属", exact: true })
+      .click();
+    await page.getByRole("button", { name: "展开或收起右侧栏" }).click();
+    await expect(
+      page.getByRole("complementary", { name: "工作区侧栏", exact: true }),
+    ).toContainText("工作区拥有的上下文");
+    await page.getByRole("button", { name: "展开或收起右侧栏" }).click();
+    await page
+      .getByRole("button", { name: "模拟标题回调失败", exact: true })
+      .click();
+    await expect(page.getByRole("alert")).toContainText(
+      "workspace chrome sample failure",
+    );
+    await manage(page);
+    await expect(
+      page.getByRole("heading", { name: "扩展与状态", exact: true }),
+    ).toBeVisible();
+  });
+}

@@ -43,6 +43,10 @@ class MainActivity : TauriActivity() {
       new URL("../native/android/DocumentsPlugin.kt", import.meta.url),
       "utf8",
     ),
+    "native/android/CredentialsPlugin.kt": readFileSync(
+      new URL("../native/android/CredentialsPlugin.kt", import.meta.url),
+      "utf8",
+    ),
     [activity]: original,
     "src-tauri/gen/android/buildSrc/src/main/java/dev/plums/plums/kotlin/BuildTask.kt":
       'val executable = """node""";\nval args = listOf("tauri", "android", "android-studio-script");\n',
@@ -118,17 +122,19 @@ test("missing icon sources fail before generated templates are changed", () => {
   expect(readFileSync(join(root, activity), "utf8")).toBe(original);
 });
 
-test("unknown appearance plugin code is preserved before any template writes", () => {
-  const { root, activity, original } = fixture();
-  writeFileSync(
-    join(root, activity.replace("MainActivity.kt", "AppearancePlugin.kt")),
-    "custom appearance\n",
-  );
-  expect(() => prepareAndroid(root, "/toolchain")).toThrow(
-    /Appearance plugin changed/,
-  );
-  expect(readFileSync(join(root, activity), "utf8")).toBe(original);
-});
+test.each(["Appearance", "Documents", "Credentials"])(
+  "unknown %s plugin code is preserved before any template writes",
+  (name) => {
+    const { root, activity, original } = fixture();
+    const plugin = activity.replace("MainActivity.kt", `${name}Plugin.kt`);
+    writeFileSync(join(root, plugin), `custom ${name}\n`);
+    expect(() => prepareAndroid(root, "/toolchain")).toThrow(
+      `${name} plugin changed`,
+    );
+    expect(readFileSync(join(root, activity), "utf8")).toBe(original);
+    expect(readFileSync(join(root, plugin), "utf8")).toBe(`custom ${name}\n`);
+  },
+);
 
 test.each(["activity", "callback", "signing", "distribution"] as const)(
   "unknown %s changes are rejected before any file is overwritten",
@@ -172,18 +178,6 @@ test("preparation upgrades the known previous light system-bar color", () => {
   writeFileSync(plugin, current.replace('"#181818"', '"#1c1917"'));
   prepareAndroid(root, "/toolchain");
   expect(readFileSync(plugin, "utf8")).toBe(current);
-});
-
-test("unknown document plugin code is preserved before any template writes", () => {
-  const { root, activity, original } = fixture();
-  writeFileSync(
-    join(root, activity.replace("MainActivity.kt", "DocumentsPlugin.kt")),
-    "custom documents\n",
-  );
-  expect(() => prepareAndroid(root, "/toolchain")).toThrow(
-    /Documents plugin changed/,
-  );
-  expect(readFileSync(join(root, activity), "utf8")).toBe(original);
 });
 
 test("document picker requests only temporary read access and bounded worker reads", () => {
