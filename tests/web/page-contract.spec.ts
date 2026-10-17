@@ -151,24 +151,29 @@ test("mounted nested page contributions release before conflict fallback and ret
       },
     });
     await router.navigate("broken");
-    let rejected = false;
+    let rejectedError = "";
     try {
       await router.navigate("list");
-    } catch {
-      rejected = true;
+    } catch (error) {
+      rejectedError = (error as Error).message;
     }
     const retained = root.textContent;
-    await router.close().catch(() => {});
+    let closeError = "";
+    await router.close().catch((error: unknown) => {
+      closeError = (error as Error).message;
+    });
     root.remove();
-    return { nested, fallback, sequence, rejected, retained };
+    return { nested, fallback, sequence, rejectedError, retained, closeError };
   });
   expect(result).toEqual({
     nested: "Nested",
     fallback: "Base",
     sequence: ["child", "parent"],
-    rejected: true,
+    rejectedError: expect.stringContaining("View cleanup failed"),
     retained: "Broken cleanup",
+    closeError: expect.stringContaining("View cleanup failed"),
   });
+  expect(result.closeError).toBe(result.rejectedError);
 });
 
 test("failed dynamic mount restores the previous contribution and its navigation snapshot", async ({
@@ -215,6 +220,64 @@ test("failed dynamic mount restores the previous contribution and its navigation
     return { snapshot, restored };
   });
   expect(result).toEqual({ snapshot: "base", restored: "Base" });
+});
+
+test("rollback refresh failure keeps the original mount error", async ({
+  page,
+}) => {
+  await page.goto("/");
+  const result = await page.evaluate(async () => {
+    const path = "/modules/sdk/index.ts";
+    const { createPageRouter } = await import(path);
+    const root = document.createElement("div");
+    document.body.append(root);
+    let baseMounts = 0;
+    const router = createPageRouter();
+    await router.register({
+      id: "base",
+      route: "list",
+      label: "Base",
+      priority: 0,
+      node: {
+        id: "base",
+        mount(target: HTMLElement) {
+          baseMounts++;
+          if (baseMounts > 1) throw Error("recovery mount failed");
+          target.textContent = "Base";
+        },
+      },
+    });
+    await router.mount(root);
+    let error: string | null = null;
+    try {
+      await router.register({
+        id: "bad",
+        route: "list",
+        label: "Bad",
+        priority: 10,
+        node: {
+          id: "bad",
+          mount() {
+            throw Error("original mount failed");
+          },
+        },
+      });
+    } catch (caught) {
+      error = (caught as Error).message;
+    }
+    const snapshot = router.snapshot();
+    await router.close();
+    root.remove();
+    return {
+      error,
+      entries: snapshot.entries.map((entry: { id: string }) => entry.id),
+      published: snapshot.error,
+    };
+  });
+  expect(result.error).toBe("original mount failed");
+  expect(result.entries).toEqual(["base"]);
+  expect(result.published).toContain("original mount failed");
+  expect(result.published).toContain("回退刷新失败");
 });
 
 test("closing interrupts a cooperative asynchronous page mount", async ({

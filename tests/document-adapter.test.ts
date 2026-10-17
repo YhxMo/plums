@@ -28,6 +28,20 @@ test("native capability is opt-in after successful support probe and denied with
     "Permission denied",
   );
 });
+test("keeps a failed native probe distinct from an unsupported platform", async () => {
+  bridge.invoke.mockRejectedValueOnce(new Error("ipc unavailable"));
+  const a = new PlatformAdapter();
+  await a.initializeDocuments();
+  expect(a.available("document.read")).toBe(false);
+  expect(a.documentsInitializationError).toBe("ipc unavailable");
+});
+test("keeps an empty probe failure observable", async () => {
+  bridge.invoke.mockRejectedValueOnce(new Error(""));
+  const adapter = new PlatformAdapter();
+  await adapter.initializeDocuments();
+  expect(adapter.documentsInitializationError).toBe("初始化探测失败");
+  expect(adapter.available("document.read")).toBe(false);
+});
 test("cancelled native selection discards and revokes a late handle", async () => {
   const a = await setup();
   let finish!: (v: unknown) => void;

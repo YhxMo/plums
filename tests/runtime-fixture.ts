@@ -7,6 +7,8 @@ const runtimeFixture = vi.hoisted(() => ({
   install: vi.fn(),
   start: vi.fn(),
   connectShell: vi.fn(),
+  documentsError: null as string | null,
+  credentialsError: null as string | null,
 }));
 export { runtimeFixture };
 vi.mock("../src/agent-ui", () => ({
@@ -18,7 +20,16 @@ vi.mock("../src/agent-ui", () => ({
 vi.mock("../src/platform", () => ({
   PlatformAdapter: class {
     kind = "browser";
-    credentials = { initialize: async () => {} };
+    credentials = {
+      initialize: async () => {},
+      initializationError: null as string | null,
+    };
+    get documentsInitializationError() {
+      return runtimeFixture.documentsError;
+    }
+    get credentialsInitializationError() {
+      return runtimeFixture.credentialsError;
+    }
     initializeDocuments = async () => {};
     grant = async () => {};
     call = async (
@@ -46,6 +57,8 @@ vi.mock("../modules/extension-host/host", () => ({
 
 export function prepareRuntime(value: unknown = { version: 1 }) {
   runtimeFixture.saved = { revision: 7, value };
+  runtimeFixture.documentsError = null;
+  runtimeFixture.credentialsError = null;
   runtimeFixture.write.mockReset().mockImplementation(async (next) => ({
     revision: next.revision + 1,
     value: next.value,

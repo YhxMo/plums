@@ -16,6 +16,7 @@ type DocumentResult = DocumentSelection | SelectedDocumentResponse;
 /** Host management entry. Native locations stay in the native broker. */
 export class DocumentAccess {
   supported = false;
+  initializationError: string | null = null;
   private readonly epochs = new Map<string, number>();
   private readonly pending = new Map<string, Set<() => void>>();
   private readonly mutations = new Map<string, Promise<void>>();
@@ -26,8 +27,11 @@ export class DocumentAccess {
     if (!native) return;
     try {
       this.supported = (await invoke("document_supported")) === true;
-    } catch {
+      this.initializationError = null;
+    } catch (error) {
       this.supported = false;
+      const message = error instanceof Error ? error.message : String(error);
+      this.initializationError = message.trim() || "初始化探测失败";
     }
   }
   private check(owner: string) {

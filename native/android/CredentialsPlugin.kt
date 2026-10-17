@@ -10,6 +10,7 @@ import android.text.InputType
 import android.text.method.PasswordTransformationMethod
 import android.util.AtomicFile
 import android.util.Base64
+import android.util.Log
 import android.view.View
 import android.view.WindowManager
 import android.widget.EditText
@@ -146,10 +147,11 @@ class CredentialsPlugin(private val activity: Activity) : Plugin(activity) {
         dialog.window?.addFlags(WindowManager.LayoutParams.FLAG_SECURE)
         dialog.show()
         input.requestFocus()
-      } catch (_: Exception) {
+      } catch (error: Exception) {
         input.text.clear()
         if (!hadSecureFlag) activity.window.clearFlags(WindowManager.LayoutParams.FLAG_SECURE)
-        finish("cancelled")
+        Log.w("PlumsCredentials", "credential prompt failed: ${error.javaClass.simpleName}")
+        finish("unavailable")
       }
     }
   }
@@ -230,7 +232,7 @@ class CredentialsPlugin(private val activity: Activity) : Plugin(activity) {
         dialog.setOnCancelListener { finish(response("cancelled")) }
         dialog.setOnDismissListener { finish(response("cancelled")) }
         dialog.show()
-      } catch (_: Exception) { finish(response("unknown")) }
+      } catch (_: Exception) { finish(response("unavailable")) }
     }
   }
 }

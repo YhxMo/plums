@@ -8,11 +8,11 @@
 
 ## 验证入口
 
-提交前运行 `npm run verify:web`，依次检查构建与类型、单元测试、Prettier、项目清单与导入边界、文件行数、ESLint。原生工具齐备时运行 `npm run verify`，串联 Web 与 `npm run verify:native`；后者依次执行 Rust 格式、Clippy 和原生单元。缺少工具或命令失败均单独记录，不作为通过。浏览器回归单独运行 `npm run verify:e2e`，不进入默认门禁。
+提交前运行 `npm run verify:web`，依次检查构建与类型、单元测试、Prettier、项目清单与导入边界、文件行数、ESLint。原生工具齐备时运行 `npm run verify`，串联 Web 与 `npm run verify:native`；后者依次执行 Rust 格式、Clippy 和原生单元。缺少工具或命令失败均单独记录，不作为通过。浏览器回归单独运行 `npm run verify:e2e`，不进入默认门禁。E2E 默认自起隔离 dev server，1420 被占用或来源不明时失败而非复用；只有快速迭代可显式设置 `PLUMS_E2E_REUSE_SERVER=1` 复用本地服务，该模式不作为证据。
 
 ESLint 使用 flat config 与推荐 JS 规则，不承担排版。当前 TypeScript 7.0.2 不满足 typescript-eslint 8.71.2 的 peer 范围，保留原 TypeScript，JS/MJS/JSX 使用 ESLint；src 下的 JS/JSX 启用 Hooks 错误与依赖警告。TS/TSX Hooks lint 待兼容解析器，不能用 tsc 通过替代。
 
-`verify:web` 使用 `npm run check:project -- --boundaries`，复用已锁定 TypeScript 的 AST，覆盖 SDK/扩展的 TS、TSX、JS、MJS 中静态路径的 import、export、类型导入、动态 import 和 require，拒绝规范化后的私有 src、modules/shell 和 modules/extension-host 依赖；源码解析失败也返回失败。先按 README 执行 npm ci，不新增解析器依赖。该脚本使用 TypeScript 7 的 unstable API，升级 TypeScript 时须重新验证边界用例。普通 `npm run check:project` 保持只需 Node 的清单、文档和隐私模式检查。
+`verify:web` 使用 `npm run check:project -- --boundaries`，复用已锁定 TypeScript 的 AST，覆盖 SDK/扩展的 TS、TSX、JS、MJS 中静态路径的 import、export、类型导入、动态 import 和 require，拒绝规范化后的私有 src、modules/shell 和 modules/extension-host 依赖；源码解析失败也返回失败，候选集合为空同样失败，避免规则失效时静默零覆盖。该边界检查须在完整仓库根执行，裁剪检出或只含子集的工作区会因候选为空而失败。先按 README 执行 npm ci，不新增解析器依赖。该脚本使用 TypeScript 7 的 unstable API，升级 TypeScript 时须重新验证边界用例。普通 `npm run check:project` 保持只需 Node 的清单、文档和隐私模式检查。
 
 `check:size` 扫描项目源码清单的 TS、TSX、JS、MJS、Rust、Kotlin 和 CSS，默认上限 400 行；已有超长文件使用 [固定清单](../scripts/check-size.mjs)。以物理行数计数，末尾换行不增加空行；减少文件规模后人工降低上限，不自动更新或提高。清单包含测试，生成输出沿用项目清单的排除规则。
 

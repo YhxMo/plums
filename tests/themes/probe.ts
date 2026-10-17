@@ -135,9 +135,12 @@ async function run() {
       root.style.getPropertyValue("--text") ===
         palette("sample.ink").colors.text,
   );
-  if (adapter.kind === "native")
+  if (adapter.kind === "native") {
     await invoke("shell_set_theme", { theme: "dark" });
-  check("appearance-adapter-receipt", true);
+    // Only proves the adapter invoke resolved; window/system appearance is
+    // checked manually, so this is not a receipt assertion.
+    check("appearance-adapter-invoke-completed", true);
+  }
   const detached = host.themes()[0];
   const before = palette(detached.id).colors.text;
   detached.colors.text = "#000000";

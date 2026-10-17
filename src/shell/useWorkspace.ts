@@ -3,6 +3,7 @@ import { createViewSlot } from "../../modules/shell/view-slot";
 import type { Runtime } from "./runtime";
 import type { ShellOperations } from "./useOperations";
 import { errorMessage } from "./messages";
+import { selectionAfterFailure } from "./selection";
 
 export function useWorkspace(
   runtime: Runtime,
@@ -46,7 +47,7 @@ export function useWorkspace(
       );
       setFailedViews((previous) => ({ ...previous, [id]: failedGeneration }));
       setSelected((previous) =>
-        previous === id ? (lastWorking.current ?? "") : previous,
+        selectionAfterFailure(previous, id, lastWorking.current),
       );
     },
     [host, setError],

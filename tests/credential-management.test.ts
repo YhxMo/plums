@@ -37,6 +37,20 @@ it("does not call native APIs for browser preview", async () => {
   });
   expect(invoke).not.toHaveBeenCalled();
 });
+it("keeps a failed native probe distinct from an unsupported platform", async () => {
+  invoke.mockRejectedValueOnce(new Error("ipc unavailable"));
+  const access = new CredentialAccess();
+  await access.initialize(true);
+  expect(access.supported).toBe(false);
+  expect(access.initializationError).toBe("ipc unavailable");
+});
+it("keeps an empty probe failure observable", async () => {
+  invoke.mockRejectedValueOnce(new Error(""));
+  const access = new CredentialAccess();
+  await access.initialize(true);
+  expect(access.initializationError).toBe("初始化探测失败");
+  expect(access.supported).toBe(false);
+});
 it("opens native key entry using non-secret binding metadata only", async () => {
   const access = new CredentialAccess();
   await access.initialize(true);
@@ -69,6 +83,7 @@ it("keeps native management visible when metadata loading fails", async () => {
   const access = new CredentialAccess();
   await access.initialize(true);
   expect(access.supported).toBe(true);
+  expect(access.initializationError).toBe("synthetic sensitive failure");
   await expect(access.list(record.owner)).rejects.toThrow("原记录已保留");
   expect(await access.delete(record.owner, "text", 1)).toEqual({
     status: "unknown",
@@ -96,5 +111,17 @@ it("keeps the installed source if binding disable receipt is unknown", async () 
   invoke.mockRejectedValueOnce(Error("synthetic sensitive failure"));
   await expect(access.prepareUninstall(record.owner, true)).rejects.toThrow(
     "安装路径仍保留",
+  );
+});
+it("reports an unavailable retain as not attempted instead of a pending receipt", async () => {
+  const access = new CredentialAccess();
+  await access.initialize(true);
+  invoke.mockImplementation(async (command: string) =>
+    command === "credential_retain"
+      ? { status: "rejected", reason: "unavailable" }
+      : { status: "saved" },
+  );
+  await expect(access.prepareUninstall(record.owner, true)).rejects.toThrow(
+    "操作未执行",
   );
 });

@@ -7,10 +7,11 @@ import { projectFiles } from "./project-files.mjs";
 /** @type {Record<string, number>} */
 export const sizeLimits = {
   "src-tauri/src/documents.rs": 906,
-  "src-tauri/src/credential_bindings.rs": 876,
-  "modules/extension-host/host.ts": 678,
+  "src-tauri/src/credential_bindings.rs": 601,
+  "modules/extension-host/host.ts": 660,
   "modules/text-workbench/view.ts": 528,
-  "src-tauri/src/credentials.rs": 447,
+  "src-tauri/src/credentials.rs": 242,
+  "src-tauri/src/credentials_native.rs": 263,
   "src-tauri/src/transport_probe.rs": 443,
   // Existing files outside the original inventory. Stage A preserves behavior.
   "src/styles.css": 445,

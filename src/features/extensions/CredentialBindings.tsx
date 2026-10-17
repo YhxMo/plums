@@ -10,6 +10,7 @@ import type {
 } from "../../credentials";
 import type { CredentialOperations } from "../../shell/controllers";
 import styles from "../../components/SelectedDocuments.module.css";
+import { resultMessage } from "./credential-copy";
 
 const stateLabel = {
   ready: "凭据已保存，连接尚未验证",
@@ -17,22 +18,6 @@ const stateLabel = {
   disabled: "连接已禁用",
   "delete-pending": "已禁用，凭据删除待核对",
 };
-function resultMessage(result: CredentialManagementResponse, success: string) {
-  if (result.status === "saved") return success;
-  if (result.status === "cancelled") return "已取消，保留原连接记录。";
-  if (result.status === "unknown")
-    return "操作结果待核对，请刷新记录后处理待核对项。";
-  const reasons: Record<string, string> = {
-    "invalid-key": "API Key 不能为空、包含空格或超过 4096 字节。",
-    "invalid-policy":
-      "目标、请求头或代理地址无效；代理地址仅支持无账号密码的 HTTP(S) 地址。",
-    conflict: "连接记录已变化，请刷新后重试。",
-    busy: "已有原生操作进行中，请先完成或取消。",
-    "reconcile-required": "请先核对保存状态或完成凭据删除。",
-    "cleanup-required": "请先撤销并删除旧凭据，再重新录入。",
-  };
-  return reasons[result.reason] ?? "操作未完成，请核对连接记录后重试。";
-}
 export function CredentialBindings({
   access,
   operations,
@@ -104,8 +89,18 @@ export function CredentialBindings({
   return (
     <section className={styles.documents} aria-label="连接与凭据">
       <h3>连接与凭据</h3>
+      {access.supported && access.initializationError && (
+        <p role="status">
+          初始化读取失败：{access.initializationError}
+          。原记录已保留，重新加载应用后可重试。
+        </p>
+      )}
       {!access.supported ? (
-        <p>请在 Mac 或 Android 应用中配置连接。</p>
+        <p>
+          {access.initializationError
+            ? `凭据服务初始化失败：${access.initializationError}。请重新加载应用后重试。`
+            : "请在 Mac 或 Android 应用中配置连接。"}
+        </p>
       ) : (
         <>
           <p>

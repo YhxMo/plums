@@ -19,6 +19,8 @@
 
 [通用绑定与原生凭据管理](CREDENTIAL-BINDINGS-2026-10-17.md)记录后续工作区增量：329单元、27 Rust单元、117浏览器通过；Mac隔离配置测试包与Android API36 ARM64模拟器完成原生安全输入、取消返回和非秘密代理配置限定验证。系统秘密实际读写、请求授权/受限传输及真实模型调用继续待验，release保持当前UI交付。
 
+[防御性编程审查与收敛](HARDENING-2026-10-17.md)记录后续分支增量：源码快照308文件；488单元、28 Rust单元和120浏览器用例通过，Web门禁、Clippy与nightly rustfmt通过；stable `native:fmt`因工具链缺rustfmt未执行，Android编译与Mac原生窗口未验。独立审查无剩余P1/P2，范围与未验项见该证据。
+
 ## 阶段 A：安全网与基线
 
 2026-10-17，macOS arm64、Node.js 26.5.1、TypeScript 7.0.2。完整开发基线 `9d025b3`，由 `bc962ac`（已有实现，32 文件）、`9345223`（测试，7 文件）和 `9d025b3`（文档与阶段范围，29 文件）依次保存。门禁受验源码为 `17cc97d`，即基线上的工程维护增量：package.json/锁文件、eslint.config.js、check-boundaries/check-size/check-project/project-files、发布脚本未使用导入清理和 hardening 回归；其余应用源码保持基线。后续收尾仅更新本节及状态文档。

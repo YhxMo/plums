@@ -14,9 +14,9 @@
 
 ## 让扩展使用宿主入口
 
-`ctx.shell.open("extensions" | "settings" | "diagnostics")` 打开宿主界面；它不授予权限，也不直接启停其他扩展。宿主通过 `Host.connectShell(bridge)` 接入自己的呈现与保存逻辑；未接入时请求明确拒绝。已停用的上下文不能再打开入口或写入页面偏好。
+`ctx.shell.open("extensions" | "settings" | "diagnostics")` 打开宿主界面；它不授予权限，也不直接启停其他扩展。宿主通过 `Host.connectShell(bridge)` 接入自己的呈现与保存逻辑；未接入时 `open`/`savePage` 明确拒绝，`readPage` 返回 undefined（等同无偏好）。已停用的上下文不能再打开入口或写入页面偏好。
 
-`ctx.shell.readPage(viewId)` 读取页面偏好，`savePage(viewId, route)` 在宿主状态保存成功后完成。Host 自动以扩展 ID 与 viewId 组成键，业务内容仍由扩展另存。没有偏好返回 undefined；旧配置不需要增加 pages 字段。坏页面偏好结构拒绝启动并保留数据。并发写入沿用宿主串行保存与未知回执锁定。
+`ctx.shell.readPage(viewId)` 读取页面偏好，`savePage(viewId, route)` 在宿主状态保存成功后完成。Host 自动以扩展 ID 与 viewId 组成键，业务内容仍由扩展另存。没有偏好返回 undefined；旧配置不需要增加 pages 字段。坏页面偏好结构拒绝启动并保留数据。并发写入沿用宿主串行保存与未知回执锁定。未连接宿主桥时 `readPage` 同样返回 undefined（等同无偏好），`open`/`savePage` 显式拒绝；接线错误须通过后两者暴露，不能把 undefined 当作“偏好为空”推断宿主已接线。
 
 `ctx.view` 新增可选字段：
 

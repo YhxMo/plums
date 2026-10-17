@@ -25,3 +25,7 @@
 | 历史证据使用不可覆盖的输出 | 固定快照文件名会改变历史报告绑定；[快照回归](tests/snapshot.test.ts) 在临时目录验证 | 内容摘要命名并排他创建，保留历史引用，重复执行明确拒绝 |
 | 弹窗发起控件被删除后仍须有可操作焦点 | 删除 Agent 与嵌套删除会话的浏览器反例分别复现焦点丢失，后者不能回到下层模态背后的控件 | 先返回有效发起控件，否则将后备焦点限制在仍打开的顶层弹窗内；无弹窗才回工作区可见控件，见[本阶段证据](evidence/M2-CURRENT-2026-10-17.md) |
 | 移动点击目标须核对打包后的样式 | 管理返回在开发页为44px，普通 Android 包被后加载的全局按钮规则覆盖为32px | 组件关键目标使用足够的选择器优先级；浏览器断言尺寸，并在原生包读取实际几何，见[修复证据](evidence/UI-STARTUP-2026-10-17.md) |
+| 初始化探测失败不得降级为“平台不支持” | 浏览器无法复现；单元注入 `document_supported`/`credential_supported` reject 后，原实现只置 `supported=false`，界面显示“平台不支持”且启动无错误提示 | 保留 `initializationError` 并在启动提示与管理区域显示原因；仅探测明确返回 false 才显示不支持；测试固化于 `tests/document-adapter.test.ts`、`tests/credential-management.test.ts`、`tests/persisted-state.test.ts` |
+| 错误码不得把“未尝试”折叠为“未知” | 凭据 `unavailable` 与 `unknown` 原合并为 Unknown，卸载时把确定未执行提示成“回执待核对”；Android 面板异常曾被报成用户取消 | 分离 `unavailable`、`cancelled`、`unknown`；Kotlin 对话框失败映射 `unavailable` 并恢复旧记录，Rust `response`/`KeyResult` 单测固化；不支持的平台管理命令显式拒绝 |
+| 证据运行不得复用来源不明服务，异步界面等待须用有界条件 | Playwright 原默认复用 1420 现存服务，可能绑定旧源码；React 生命周期测试用固定 50ms 等待 | E2E 默认自起服务、复用需显式 `PLUMS_E2E_REUSE_SERVER=1`；固定延时改为有界条件轮询并在超时时失败，见 `playwright.config.ts` 与 `tests/web/react-view-lifecycle.spec.ts` |
+| 失败回退不写内部哨兵 | 视图挂载失败曾把空字符串写入 layout 偏好，抑制诊断并在重启后静默回退 | 保留失败标识或最后可用视图，空布局在解析层归一；冷启动失败布局的浏览器回归覆盖持久化值，见 `src/shell/selection.ts` 与 `tests/web/workbench.spec.ts` |

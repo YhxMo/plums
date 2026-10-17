@@ -57,6 +57,8 @@ Android Keystore 保存加密密钥，令牌保存在应用私有的加密文件
 
 撤销先持久化禁用状态，再删除该绑定持有的秘密；删除和最终元数据提交都确认后才显示完成。秘密缺失按幂等删除处理；部分删除保留禁用与待核对状态。元数据提交失败锁住当前管理状态，重启重新读取，不拿旧内存状态覆盖磁盘。
 
+管理命令在平台不支持或凭据存储不可用时显式返回 `rejected: unavailable`，表示未尝试、未执行；`unknown` 只表示回执未确认、可能已发生副作用，二者不合并。宿主初始化探测或首次 inventory 失败会记录并显示原因，不写成平台不支持。Android 录入对话框构建或显示失败（尚未进入密钥写入）按 `unavailable` 返回并恢复旧记录，仅在 logcat 记录异常类名，不伪装为用户取消；已进入写入线程后的失败仍按 unknown 保留待核对。
+
 移除 alias 或连接声明后，已有记录继续显示，保留核对/删除入口。卸载前禁用该扩展的绑定，系统秘密随“保留数据”操作保留；宿主的“卸载后保留的凭据”入口允许之后删除。删除完全部秘密引用的卸载记录不再占用界面，非秘密禁用记录仍保留。无需凭据的既有扩展不增加凭据前置条件。
 
 ## 当前验证范围
@@ -65,6 +67,6 @@ Android Keystore 保存加密密钥，令牌保存在应用私有的加密文件
 
 这些路径不执行系统秘密实际保存/读取/删除，也不发送 DeepSeek 请求。系统秘密与网络的真实操作在对应授权范围确认后执行；受限 TLS/DNS、代理传输、请求授权世代、取消与总时限仍由[当前阶段](spec/milestone.md)维护。
 
-实现入口为 [SDK 声明](../modules/sdk/credential-bindings.ts)、[原生绑定状态](../src-tauri/src/credential_bindings.rs)、[原生管理命令](../src-tauri/src/credentials.rs)、[Android 秘密适配](../native/android/CredentialsPlugin.kt)和[宿主管理组件](../src/features/extensions/CredentialBindings.tsx)。底座不包含模型协议或业务循环。
+实现入口为 [SDK 声明](../modules/sdk/credential-bindings.ts)、[原生绑定状态](../src-tauri/src/credential_bindings.rs)、[原生管理命令](../src-tauri/src/credentials.rs)、[原生秘密适配](../src-tauri/src/credentials_native.rs)、[Android 秘密适配](../native/android/CredentialsPlugin.kt)和[宿主管理组件](../src/features/extensions/CredentialBindings.tsx)。底座不包含模型协议或业务循环。
 
 管理命令属于宿主管理面，不是扩展的公开 ctx 平台能力。M1 的可信 ESM 与宿主共享 WebView，原生桥接不构成恶意扩展隔离；正常扩展调用仍经 owner/alias 契约处理。实际验证与剩余范围见[限定证据](../evidence/CREDENTIAL-BINDINGS-2026-10-17.md)。

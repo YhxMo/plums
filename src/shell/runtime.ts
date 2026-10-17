@@ -41,6 +41,7 @@ export type Runtime = Readonly<{
     > & {
       failedImports: Record<string, string>;
       compositionErrors: string[];
+      platformErrors: string[];
     }
   >;
   save: (
@@ -132,6 +133,12 @@ export async function boot(): Promise<Runtime> {
     await host.start("agents.local");
     await host.start("ui.agents");
   }
+  const platformErrors = [
+    adapter.documentsInitializationError &&
+      `文档服务初始化失败：${adapter.documentsInitializationError}`,
+    adapter.credentialsInitializationError &&
+      `凭据服务初始化失败：${adapter.credentialsInitializationError}`,
+  ].filter((entry): entry is string => Boolean(entry));
   return {
     host,
     adapter,
@@ -144,6 +151,7 @@ export async function boot(): Promise<Runtime> {
       failedImports,
       composition,
       compositionErrors,
+      platformErrors,
       configurations,
     },
     events,

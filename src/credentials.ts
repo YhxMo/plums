@@ -23,14 +23,19 @@ export type CredentialManagementResponse =
 /** Host management only. This entry never accepts or returns an API key. */
 export class CredentialAccess {
   supported = false;
+  initializationError: string | null = null;
   private readonly owners = new Set<string>();
   async initialize(native: boolean) {
     if (!native) return;
     try {
       this.supported = (await invoke("credential_supported")) === true;
       if (this.supported) await this.inventory();
-    } catch {
-      // A bad binding file must not hide the native management entry.
+      this.initializationError = null;
+    } catch (error) {
+      // A bad binding file must not hide the native management entry, but the
+      // failure must stay observable instead of reading as "unsupported".
+      const message = error instanceof Error ? error.message : String(error);
+      this.initializationError = message.trim() || "初始化探测失败";
     }
   }
   async list(owner: string) {
@@ -56,6 +61,12 @@ export class CredentialAccess {
   async prepareUninstall(owner: string, declared: boolean) {
     if (!this.supported || (!declared && !this.owners.has(owner))) return;
     const result = await this.run("credential_retain", { owner });
+    if (result.status === "rejected")
+      throw Error(
+        result.reason === "unavailable"
+          ? "凭据服务当前不可用，操作未执行；原记录已保留。"
+          : "凭据绑定未能禁用；请核对连接记录后重试。",
+      );
     if (result.status !== "saved")
       throw Error(
         "凭据绑定禁用回执待核对，安装路径仍保留；请检查连接记录后重试。",

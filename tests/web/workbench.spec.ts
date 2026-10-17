@@ -105,6 +105,77 @@ test("broken layout recovers to the working default without losing management", 
     page.getByRole("button", { name: "应用菜单", exact: true }),
   ).toBeEnabled();
 });
+test("a failed preferred layout keeps a non-empty selection instead of persisting an empty layout", async ({
+  page,
+}) => {
+  await page.goto("/");
+  await page.evaluate(() => {
+    localStorage.setItem(
+      "plums:m1:host.shell",
+      JSON.stringify({
+        schema: 1,
+        revision: 1,
+        value: {
+          version: 1,
+          theme: "light",
+          layout: "broken",
+          layoutIntent: "explicit",
+          agents: [],
+          composition: {
+            schema: 1,
+            enabled: [{ id: "ui.broken", version: "1.0.0" }],
+          },
+        },
+      }),
+    );
+  });
+  await page.reload();
+  await expect(
+    page.getByRole("alert").filter({ hasText: "布局不可用" }),
+  ).toBeVisible();
+  await page
+    .getByRole("button", { name: "切换到深色模式", exact: true })
+    .click();
+  await expect
+    .poll(() =>
+      page.evaluate(
+        () => JSON.parse(localStorage.getItem("plums:m1:host.shell")!).revision,
+      ),
+    )
+    .toBe(2);
+  const saved = await page.evaluate(
+    () => JSON.parse(localStorage.getItem("plums:m1:host.shell")!).value,
+  );
+  expect(saved.theme).toBe("dark");
+  expect(saved.layout).toBe("broken");
+});
+test("enabling a workspace with a missing dependency explains the wait in Chinese", async ({
+  page,
+}) => {
+  await page.goto("/");
+  await page.evaluate(() => {
+    localStorage.setItem(
+      "plums:m1:host.shell",
+      JSON.stringify({
+        schema: 1,
+        revision: 1,
+        value: {
+          version: 1,
+          agents: [],
+          composition: { schema: 1, enabled: [] },
+        },
+      }),
+    );
+  });
+  await page.reload();
+  await manage(page);
+  await page
+    .getByRole("button", { name: "启用 ui.agents", exact: true })
+    .click();
+  const notice = page.getByRole("status").filter({ hasText: "扩展尚未运行" });
+  await expect(notice).toContainText("依赖暂不可用：agents@1");
+  await expect(notice).not.toContainText("Dependency unavailable");
+});
 test("ordinary UI fits a narrow viewport and works with keyboard input", async ({
   page,
 }) => {

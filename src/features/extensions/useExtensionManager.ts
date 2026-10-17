@@ -11,8 +11,10 @@ import {
   mapExtensionAgents,
   readActiveAgents,
 } from "../../../modules/shell/diagnostics";
+import { waitingNotice } from "./enable-feedback";
 import type { ConfigurationValue } from "../../../modules/sdk/configuration";
 import type { Runtime } from "../../shell/runtime";
+import { errorMessage } from "../../shell/messages";
 import { useExtensionState } from "../../shell/useExtensionState";
 import type {
   ManagementInputs,
@@ -65,7 +67,26 @@ export function useExtensionManager(
   const installed = catalog.filter((entry) => host.ids().includes(entry.id));
   const selected =
     installed.find((entry) => entry.id === selectedId) ?? installed[0];
-  const agents = mapExtensionAgents(host, readActiveAgents(host));
+  const { agents: providerAgents, error: agentsError } = readActiveAgents(host);
+  const agents = mapExtensionAgents(host, providerAgents);
+  const reportedAgentsError = useRef<string | null>(null);
+  useEffect(() => {
+    if (!agentsError) {
+      reportedAgentsError.current = null;
+      return;
+    }
+    if (reportedAgentsError.current) return;
+    reportedAgentsError.current = agentsError;
+    setNotice(`Agent 提供者读取失败：${agentsError}`);
+  }, [agentsError, setNotice]);
+  const reportNotRunning = (id: string) => {
+    const info = host.inspect(id);
+    const notice = waitingNotice(
+      info.status,
+      info.error ? errorMessage(info.error) : undefined,
+    );
+    if (notice) setNotice(notice);
+  };
   const clearFailure = (id: string) =>
     setFailedImports((previous) => {
       const next = { ...previous };
@@ -136,10 +157,15 @@ export function useExtensionManager(
               async () => {
                 await host.grant(id, capabilities);
                 await workspace.enableExtension(id);
+                reportNotRunning(id);
               },
               source,
             );
-          else void operate(() => workspace.enableExtension(id));
+          else
+            void operate(async () => {
+              await workspace.enableExtension(id);
+              reportNotRunning(id);
+            });
         },
         retry: (id: string) =>
           operate(async () => {

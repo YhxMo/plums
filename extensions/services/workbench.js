@@ -67,7 +67,8 @@ export default {
         current?.abort();
       },
       async run(input) {
-        if (current || state.phase === "uncertain") return;
+        if (current || state.phase === "uncertain")
+          throw Error("工作台正在运行或保存结果待核对，本次请求未执行。");
         let writing = false;
         const operation = new AbortController();
         current = operation;
@@ -128,7 +129,10 @@ export default {
       },
     };
     ctx.on("workbench.request", (data) => {
-      if (typeof data === "string") void api.run(data);
+      if (typeof data === "string")
+        void api.run(data).catch(() => {
+          // Event-driven duplicates are rejected before execution; state keeps the phase.
+        });
     });
     ctx.onDispose(() => {
       current?.abort();

@@ -51,3 +51,6 @@ export const builtInCatalog = (): ImportedExtension[] => [
     label: "文本处理工作台",
   },
 ];
+export const builtInExtensionIds = new Set(
+  builtInCatalog().map((entry) => entry.id),
+);

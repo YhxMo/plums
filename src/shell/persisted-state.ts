@@ -3,6 +3,7 @@ import {
   type Composition,
 } from "../../modules/shell/composition";
 import type { ImportedExtension } from "../../modules/shell/uninstall";
+import { builtInExtensionIds } from "./extensions";
 import { restoreAgents } from "../../modules/agents/store";
 import type { Agent } from "../../modules/sdk/agents";
 import { ContractError } from "../../modules/sdk/errors";
@@ -72,7 +73,7 @@ export function parsePersistedState(input: unknown): Preferences {
           }
           if (
             origin !== location.origin ||
-            ["agents.local", "ui.agents"].includes(id) ||
+            builtInExtensionIds.has(id) ||
             seen.has(id)
           )
             throw new ContractError("state.imports", `${path}.id`);
@@ -85,13 +86,14 @@ export function parsePersistedState(input: unknown): Preferences {
   return {
     ...value,
     version: 1,
-    // Only the unmarked early-preview default adopts the Agent start.
+    // Only the unmarked early-preview default adopts the Agent start. Empty
+    // layout ids are display-preference damage, not a durable selection.
     layout:
       value.layout === "default" &&
       value.layoutIntent !== "explicit" &&
       !composition
         ? "agents"
-        : typeof value.layout === "string"
+        : typeof value.layout === "string" && value.layout.trim()
           ? value.layout
           : "agents",
     theme:

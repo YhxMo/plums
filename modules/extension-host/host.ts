@@ -1,6 +1,6 @@
 import { validateDefinition } from "./definition";
+import { hostError, within } from "./lifecycle";
 export { validateDefinition, loadExtension } from "./definition";
-import { ContractError } from "../sdk/errors";
 import { copyTheme, type Theme } from "../sdk/theme";
 import { resolveConfiguration, type Configuration } from "../sdk/configuration";
 import type {
@@ -29,27 +29,8 @@ type RegisteredView = View & {
   generation: number;
   mounts: Set<() => void | Promise<void>>;
 };
-const hostError = (message: string) =>
-  new ContractError("host.invalid", "host", message);
 const message = (error: unknown) =>
   error instanceof Error ? error.message : String(error);
-
-async function within<T>(promise: Promise<T>, timeout: number): Promise<T> {
-  let timer: ReturnType<typeof setTimeout>;
-  try {
-    return await Promise.race([
-      promise,
-      new Promise<never>((_, reject) => {
-        timer = setTimeout(
-          () => reject(hostError("cleanup timeout; restart required")),
-          timeout,
-        );
-      }),
-    ]);
-  } finally {
-    clearTimeout(timer!);
-  }
-}
 
 class Scope {
   constructor(
@@ -97,7 +78,7 @@ class Scope {
 
 export class Host {
   private shellBridge?: ShellBridge;
-  /** Attach host-owned controls; an absent bridge explicitly rejects requests. */
+  /** Attach host-owned controls; open/savePage reject while readPage reports no preference. */
   connectShell(bridge: ShellBridge) {
     if (this.shellBridge) throw hostError("Shell bridge already connected");
     this.shellBridge = bridge;
@@ -434,6 +415,7 @@ export class Host {
               record.definition.activate(this.context(id, scope)),
             ),
             this.cleanupTimeout,
+            "activation timeout; retry allowed",
           );
           record.status = "active";
           record.error = undefined;

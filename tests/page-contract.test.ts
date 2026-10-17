@@ -67,6 +67,31 @@ test("G3 any active extension can open public shell management; stale context re
   );
 });
 
+test("G3b readPage without a connected shell bridge reports no preference", async () => {
+  const host = new Host({
+    kind: "browser",
+    available: () => true,
+    grant: async () => {},
+    call: async () => null,
+  });
+  let context!: SDK.ExtensionContext;
+  host.install({
+    manifest: { id: "third.party", version: "1", apiVersion: 1 },
+    activate: (ctx) => {
+      context = ctx;
+    },
+  });
+  await host.start("third.party");
+  expect(context.shell.readPage("view")).toBeUndefined();
+  await expect(context.shell.savePage("view", "route")).rejects.toThrow(
+    "Shell controls unavailable",
+  );
+  await expect(context.shell.open("settings")).rejects.toThrow(
+    "Shell controls unavailable",
+  );
+  await host.stop("third.party");
+});
+
 test("G4 page contributions can be added and removed while running with deterministic conflict recovery", async () => {
   const router = SDK.createPageRouter();
   await router.register(page("base", "list", 0));

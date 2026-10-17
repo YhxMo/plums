@@ -148,14 +148,29 @@ test("overlapping React view releases retain the replacement and release subscri
     await host.start("ui.agents");
     const container = document.createElement("div");
     document.body.append(container);
-    const settle = () => new Promise((resolve) => setTimeout(resolve, 50));
+    const until = async (label: string, predicate: () => boolean) => {
+      const deadline = performance.now() + 2000;
+      while (!predicate()) {
+        if (performance.now() > deadline)
+          throw new Error(`timeout waiting for ${label}`);
+        await new Promise((resolve) => setTimeout(resolve, 0));
+      }
+    };
     const first = host.mountView("role-settings", container);
-    await settle();
+    await until(
+      "initial mount",
+      () => container.childElementCount > 0 && listeners.size > 0,
+    );
     const initial = listeners.size;
     const release = first();
     const second = host.mountView("role-settings", container);
     await release;
-    await settle();
+    await until(
+      "replacement mount",
+      () =>
+        container.textContent?.includes("管理角色名称与说明") === true &&
+        listeners.size > 0,
+    );
     const replacement = {
       nodes: container.childElementCount,
       visible: container.textContent?.includes("管理角色名称与说明"),
@@ -163,6 +178,7 @@ test("overlapping React view releases retain the replacement and release subscri
     };
     const pending = second();
     await Promise.all([pending, host.stop("ui.agents")]);
+    await until("final release", () => container.childElementCount === 0);
     const final = {
       nodes: container.childElementCount,
       subscriptions: listeners.size,

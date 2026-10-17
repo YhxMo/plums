@@ -84,6 +84,19 @@ export function prepareAndroid(root, toolsRoot) {
           .replace('"#181818"', '"#1c1917"')
           .replace('"#fafafa"', '"#f7f4ef"'),
       );
+    if (name === "Credentials")
+      accepted.push(
+        source
+          .replace("import android.util.Log\n", "")
+          .replace(
+            'catch (_: Exception) { finish(response("unavailable")) }',
+            'catch (_: Exception) { finish(response("unknown")) }',
+          )
+          .replace(
+            '      } catch (error: Exception) {\n        input.text.clear()\n        if (!hadSecureFlag) activity.window.clearFlags(WindowManager.LayoutParams.FLAG_SECURE)\n        Log.w("PlumsCredentials", "credential prompt failed: ${error.javaClass.simpleName}")\n        finish("unavailable")\n      }',
+            '      } catch (_: Exception) {\n        input.text.clear()\n        if (!hadSecureFlag) activity.window.clearFlags(WindowManager.LayoutParams.FLAG_SECURE)\n        finish("cancelled")\n      }',
+          ),
+      );
     if (existsSync(path) && !accepted.includes(readFileSync(path, "utf8")))
       throw new Error(`${name} plugin changed; review before adapting`);
     edits.set(path, source);

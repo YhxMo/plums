@@ -18,6 +18,7 @@ function hostMessage(message: string) {
   const exact: Record<string, string> = {
     "Extension stopped": "扩展已停用。",
     "cleanup timeout; restart required": "清理超时，请重新启动应用。",
+    "activation timeout; retry allowed": "激活超时；可以重试。",
     "Cleanup incomplete; restart required": "清理未完成，请重新启动应用。",
     "Stop extension before configuring": "请先停用扩展，再修改配置。",
     "Stop extension successfully before uninstall":

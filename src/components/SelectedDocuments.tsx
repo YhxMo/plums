@@ -49,9 +49,15 @@ export function SelectedDocuments({
       const result = await adapter.selectDocuments(owner, multiple, c.signal);
       if (!current()) return;
       if (result.status === "selected") {
-        const items = await adapter.documents(owner);
-        if (!current()) return;
-        setItems(items);
+        try {
+          const items = await adapter.documents(owner);
+          if (!current()) return;
+          setItems(items);
+        } catch {
+          if (current())
+            setStatus("已选择文档，但列表刷新失败；请重新打开详情或稍后重试。");
+          return;
+        }
         setStatus(
           `已选择 ${result.documents.length} 个文档，请在扩展界面刷新列表后读取。`,
         );
@@ -95,7 +101,11 @@ export function SelectedDocuments({
         仅向此扩展提供所选文档的只读句柄，每次最多64 KiB。停用或退出应用即失效。
       </p>
       {!adapter.available("document.read") ? (
-        <p>此平台尚不支持文档选择。</p>
+        <p>
+          {adapter.documentsInitializationError
+            ? `文档服务初始化失败：${adapter.documentsInitializationError}。请重新加载应用后重试。`
+            : "此平台尚不支持文档选择。"}
+        </p>
       ) : (
         <>
           {!enabled && <p>启用并确认扩展能力后，可选择文档。</p>}

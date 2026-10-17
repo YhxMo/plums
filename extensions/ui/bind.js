@@ -42,7 +42,9 @@ export function bind(root, api) {
   };
   const submit = (/** @type {SubmitEvent} */ event) => {
     event.preventDefault();
-    void api.run(input.value);
+    void api.run(input.value).catch(() => {
+      // Duplicate requests are rejected before execution; the form reflects the phase.
+    });
   };
   const stop = () => api.cancel();
   form.addEventListener("submit", submit);

@@ -11,7 +11,8 @@ export default defineConfig({
   webServer: {
     command: "npm run dev",
     url: "http://127.0.0.1:1420",
-    reuseExistingServer: !process.env.CI,
+    // Evidence runs must bind to this checkout. Reuse requires an explicit opt-in.
+    reuseExistingServer: process.env.PLUMS_E2E_REUSE_SERVER === "1",
   },
   reporter: "list",
 });

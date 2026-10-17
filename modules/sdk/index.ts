@@ -72,6 +72,7 @@ export interface ShellBridge {
 }
 export interface ShellAccess {
   open(action: ShellAction): Promise<void>;
+  /** Returns undefined for no preference or no connected shell bridge; writes reject instead. */
   readPage(viewId: string): string | undefined;
   savePage(viewId: string, route: string): Promise<void>;
 }

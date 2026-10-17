@@ -1,6 +1,7 @@
 mod appearance;
 mod credential_bindings;
 mod credentials;
+mod credentials_native;
 mod documents;
 mod storage;
 #[cfg(feature = "native-transport-experiment")]

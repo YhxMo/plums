@@ -125,7 +125,7 @@ it("keeps an unconfirmed write outcome distinct from proven cancellation", async
   receipt.resolve();
   await operation;
   expect(api.snapshot().phase).toBe("uncertain");
-  await api.run("do not blindly retry");
+  await expect(api.run("do not blindly retry")).rejects.toThrow("未执行");
   expect(writes).toBe(1);
   await host.stop("workbench");
 });

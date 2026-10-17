@@ -48,6 +48,7 @@ it.each(
     [entry, entry],
     [{ ...entry, id: "agents.local" }],
     [{ ...entry, id: "ui.agents" }],
+    [{ ...entry, id: "ui.workbench-board" }],
   ].map((imports) => ({ imports })),
 )(
   "rejects invalid imported paths without installing them: $imports",
@@ -63,6 +64,8 @@ it.each([
   [{ layout: "default", layoutIntent: "explicit" }, "default"],
   [{ layout: "default", composition: { schema: 1, enabled: [] } }, "default"],
   [{ layout: "external" }, "external"],
+  [{ layout: "" }, "agents"],
+  [{ layout: "   " }, "agents"],
 ] as const)("preserves layout compatibility: %j", async (value, layout) => {
   prepareRuntime({ version: 1, ...value });
   expect((await boot()).initial.layout).toBe(layout);
@@ -85,6 +88,15 @@ it("accepts absent state and preserves composition recovery with the original sn
   await expect(boot()).rejects.toMatchObject({
     saved: { revision: 7, value: original },
   });
+});
+it("surfaces platform initialization failures at boot", async () => {
+  runtimeFixture.documentsError = "ipc unavailable";
+  runtimeFixture.credentialsError = "keychain locked";
+  const runtime = await boot();
+  expect(runtime.initial.platformErrors).toEqual([
+    "文档服务初始化失败：ipc unavailable",
+    "凭据服务初始化失败：keychain locked",
+  ]);
 });
 it("parses page and configuration maps without losing opaque snapshot fields", () => {
   const value = {

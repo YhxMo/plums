@@ -25,12 +25,12 @@ Rust 编译输出固定到本项目 `.cache/android/target/`。Tauri 的 Android
 
 [MainActivity.kt](../native/android/MainActivity.kt) 是受版本控制的系统栏适配源码；`{{PACKAGE}}` 从 Tauri 的 `identifier` 生成。它在内容根节点合并 system bars、display cutout 和 IME 的 Insets，并请求初次应用，使 WebView 避开系统栏，键盘出现时缩小可用视口。[AppearancePlugin.kt](../native/android/AppearancePlugin.kt) 通过 Tauri 原生插件同步深浅模式的根背景和系统栏图标亮度，关闭导航栏的额外对比遮罩；Insets 的计算仍由 MainActivity 负责。
 
-[CredentialsPlugin.kt](../native/android/CredentialsPlugin.kt)提供原生 API Key 输入、Android Keystore AES-GCM 与 noBackup 密文存储；命令只返回状态，不向 WebView 交付密钥。源码由同一准备流程生成，未知既有插件代码会拒绝覆盖；实际秘密操作与网络请求的验证范围见[凭据管理](CREDENTIAL-BINDINGS.md)。
+[CredentialsPlugin.kt](../native/android/CredentialsPlugin.kt)提供原生 API Key 输入、Android Keystore AES-GCM 与 noBackup 密文存储；命令只返回状态，不向 WebView 交付密钥。源码由同一准备流程生成，未知既有插件代码会拒绝覆盖；实际秘密操作与网络请求的验证范围见[凭据管理](CREDENTIAL-BINDINGS.md)。录入对话框构建或显示失败按 `unavailable` 返回并恢复旧记录、记录 logcat 异常类名；已开始写入后的线程内失败仍按 unknown，均不伪装为用户取消，也不记录秘密。
 
 [scripts/android-project.mjs](../scripts/android-project.mjs) 在写入前核对所有目标：
 
 - MainActivity 必须是锁定 CLI 的原模板或当前已适配版本。
-- 外观、文档和凭据插件由同一流程从受控源码生成，未知既有代码停止准备；外观插件另接受已知前版深浅背景色并升级。
+- 外观、文档和凭据插件由同一流程从受控源码生成，未知既有代码停止准备；外观插件接受已知前版深浅背景色，凭据插件接受已知前版面板失败状态，两者均升级到当前模板。
 - Gradle 回调转换为从 Rust 目录调用项目锁定的 Node CLI，覆盖直接 Node 和 npm 初始化两种已知模板。
 - 调试签名使用本地环境变量；未知既有签名配置停止准备。
 - 保留生成模板的兼容标志，增加无常驻 daemon、最多 4 workers 的本地资源设置。

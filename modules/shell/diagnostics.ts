@@ -183,12 +183,19 @@ export function diagnoseLayoutFallback(
   };
 }
 
-export function readActiveAgents(host: Host): Agent[] {
+export function readActiveAgents(host: Host): {
+  agents: Agent[];
+  error?: string;
+} {
   try {
     const provider = host.peekService<AgentProvider>("agents", 1);
-    return provider ? provider.list() : [];
-  } catch {
-    return [];
+    return { agents: provider ? provider.list() : [] };
+  } catch (reason) {
+    const message = reason instanceof Error ? reason.message : String(reason);
+    return {
+      agents: [],
+      error: message.trim() || "提供者返回空错误",
+    };
   }
 }
 

@@ -47,6 +47,12 @@ export class PlatformAdapter implements Platform {
   private readonly documentAccess = new DocumentAccess(
     (owner) => this.grants.get(owner)?.has("document.read") === true,
   );
+  get documentsInitializationError() {
+    return this.documentAccess.initializationError;
+  }
+  get credentialsInitializationError() {
+    return this.credentials.initializationError;
+  }
   initializeDocuments() {
     return this.documentAccess.initialize(this.kind === "native");
   }

@@ -223,7 +223,16 @@ export function createPageRouter(options: PageRouterOptions = {}) {
           await refresh();
         } catch (error) {
           pages.delete(contribution.id);
-          if (!cleanupFailure) await refresh();
+          if (!cleanupFailure) {
+            try {
+              await refresh();
+            } catch (recoveryError) {
+              publish({
+                error: `${String(error)}（回退刷新失败：${String(recoveryError)}）`,
+              });
+              throw error;
+            }
+          }
           publish({ error: String(error) });
           throw error;
         }

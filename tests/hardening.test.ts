@@ -3,7 +3,10 @@ import { tmpdir } from "node:os";
 import { join, dirname } from "node:path";
 import { afterEach, expect, it } from "vitest";
 import { ESLint } from "eslint";
-import { boundaryProblems } from "../scripts/check-boundaries.mjs";
+import {
+  boundaryProblems,
+  checkBoundaries,
+} from "../scripts/check-boundaries.mjs";
 import { checkSize } from "../scripts/check-size.mjs";
 
 const roots: string[] = [];
@@ -39,6 +42,12 @@ it("rejects growth beyond an existing cap and reports remaining allowance after 
   expect(checkSize(fixture(file, 907)).failures).toBe(1);
   expect(checkSize(fixture(file, 905)).rows).toEqual([
     `${file} | 905 | 906 | 1`,
+  ]);
+});
+
+it("fails closed when no eligible boundary source is present", () => {
+  expect(checkBoundaries([["tests/hardening.test.ts", "export {};"]])).toEqual([
+    "no eligible SDK/extension source files for import boundary check",
   ]);
 });
 

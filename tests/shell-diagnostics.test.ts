@@ -3,6 +3,7 @@ import { Host } from "../modules/extension-host/host";
 import {
   diagnoseLayoutFallback,
   mapExtensionAgents,
+  readActiveAgents,
 } from "../modules/shell/diagnostics";
 import type { Agent } from "../modules/sdk/agents";
 import type { Platform } from "../modules/sdk";
@@ -187,5 +188,43 @@ describe("mapExtensionAgents", () => {
       ]);
     await host.stop("transform.upper");
     expect(mapExtensionAgents(host, sampleAgents)).toEqual({});
+  });
+});
+
+describe("readActiveAgents", () => {
+  it.each([
+    ["provider failed", "provider failed"],
+    ["", "提供者返回空错误"],
+  ])(
+    "reports a throwing provider with message %j",
+    async (message, expected) => {
+      const host = new Host(createPlatform());
+      host.install({
+        manifest: {
+          id: "agents.broken",
+          version: "1.0.0",
+          apiVersion: 1,
+          provides: { agents: 1 },
+        },
+        activate(ctx) {
+          ctx.provide("agents", 1, {
+            list() {
+              throw Error(message);
+            },
+            subscribe: () => () => {},
+          });
+        },
+      });
+      await host.start("agents.broken");
+      expect(readActiveAgents(host)).toEqual({
+        agents: [],
+        error: expected,
+      });
+    },
+  );
+
+  it("returns no error when no provider is active", () => {
+    const host = new Host(createPlatform());
+    expect(readActiveAgents(host)).toEqual({ agents: [] });
   });
 });

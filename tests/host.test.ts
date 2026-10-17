@@ -210,6 +210,24 @@ describe("M1 extension lifecycle contract", () => {
     expect(host.inspect("stuck").status).toBe("cleanup-failed");
   });
 
+  it("reports a retryable activation timeout separately from cleanup", async () => {
+    const host = new Host(platform(), 20);
+    let calls = 0;
+    host.install(
+      definition("slow-activate", () => {
+        calls++;
+        return calls === 1 ? new Promise<void>(() => {}) : undefined;
+      }),
+    );
+    await expect(host.start("slow-activate")).rejects.toThrow(
+      "activation timeout",
+    );
+    expect(host.inspect("slow-activate").status).toBe("failed");
+    await host.start("slow-activate");
+    expect(host.inspect("slow-activate").status).toBe("active");
+    expect(calls).toBe(2);
+  });
+
   it("rejects incompatible service versions and duplicate providers", async () => {
     const host = new Host(platform());
     host.install(definition("consumer", () => {}, { requires: { value: 2 } }));

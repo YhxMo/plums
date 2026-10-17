@@ -23,7 +23,8 @@ const eligible = (file) =>
 /** @param {Array<[string, string]>} entries */
 export function checkBoundaries(entries) {
   const files = entries.filter(([file]) => eligible(file));
-  if (!files.length) return [];
+  if (!files.length)
+    return ["no eligible SDK/extension source files for import boundary check"];
   const config = resolve("tsconfig.boundaries.json");
   const virtualFiles = Object.fromEntries(
     files.map(([file, text]) => [resolve(file), text]),
@@ -107,5 +108,8 @@ export function checkBoundaries(entries) {
 
 /** @param {string} file @param {string} text */
 export function boundaryProblems(file, text) {
+  // Unit callers pass arbitrary files to probe the visitor; ineligible files
+  // mean "nothing to check here" rather than an empty gate run.
+  if (!eligible(file)) return [];
   return checkBoundaries([[file, text]]);
 }

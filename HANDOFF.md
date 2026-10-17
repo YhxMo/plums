@@ -12,13 +12,15 @@ App 负责启动，Workbench 以具名 props 组合工作区、外观、导航�
 
 [DeepSeek 扩展](docs/DEEPSEEK.md)已通过公开 text.transform 接入现有 Agent 消费者的隔离测试。[通用绑定与原生凭据管理](docs/CREDENTIAL-BINDINGS.md)已接入开发版，两端原生输入/取消和非秘密网络配置有受验结果。绑定默认指向官方 API、直连，支持明确保存 HTTP(S) 代理；实际秘密读写、请求授权与受限传输待完成。当前交付包仍使用本地服务，真实调用前确认对应范围，密钥由账户所有者在原生入口录入。
 
+防御性编程收敛（开发分支增量，未替换交付包）：文档/凭据初始化失败与“平台不支持”分开并在启动提示与管理区域显示原因；桌面窗口外观失败回传前端；Android 录入对话框构建/显示异常按 `unavailable` 恢复旧记录并记录 logcat 类名；凭据管理 `unavailable` 与 `unknown` 分档；视图失败不再写入空布局；诊断吞错与扩展启用 waiting 可观察；激活超时区分可重试；页面回滚保留原始错误；E2E 默认隔离服务、边界空集合失败、固定等待替换。证据与未验项见[验证索引](evidence/RESULTS.md)。
+
 ## 工程基线与门禁
 
 阶段 A、B、C1–C4 与文档整理 D 已完成，任务范围、结果与证据入口见[阶段归档索引](docs/spec/archive/README.md)。原 UI 回退标签 `ui-baseline-2026-10-17` 指向 `9c05356`。开发分支为 `refactor/hardening`，当前状态以实际提交为准。
 
-统一门禁为 `npm run verify:web`（构建、单元、格式、项目/导入边界、行数、ESLint）与 `npm run verify:native`（Rust 格式、Clippy、单元）；浏览器回归另用 `npm run verify:e2e`。原生 `native:check` 与 27 个 `native:test` 用例在 macOS arm64 通过；`verify:native` 因 stable 工具链缺少 rustfmt 未完成组合验证。TypeScript 与 ESLint 的兼容缺口及检查覆盖见[开发流程](docs/DEVELOPMENT.md#验证入口)。
+统一门禁为 `npm run verify:web`（构建、单元、格式、项目/导入边界、行数、ESLint）与 `npm run verify:native`（Rust 格式、Clippy、单元）；浏览器回归另用 `npm run verify:e2e`。防御性编程收敛后：`verify:web` 51 文件/488 单元通过，`verify:e2e` 120 通过，`native:check` 与 28 个 `native:test` 用例在 macOS arm64 通过，`cargo +nightly fmt --check` 通过；`verify:native` 仍因 stable 工具链缺少 rustfmt 未完成组合验证，Android 工具链未设置，修复后未编译。TypeScript 与 ESLint 的兼容缺口及检查覆盖见[开发流程](docs/DEVELOPMENT.md#验证入口)。
 
-原生窗口、普通应用包、Android 模拟器/真机及其他平台未因后续开发变更重验。
+原生窗口、普通应用包、Android 模拟器/真机及其他平台未因后续开发变更重验。修复后的 Android 编译与运行时、Mac 原生主题切换及失败注入、iOS/Windows/Linux 未验；既有原生与模拟器结论不自动继承到当前工作区。
 
 ## 交付与恢复
 
