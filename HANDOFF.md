@@ -16,6 +16,8 @@ App 负责启动，Workbench 组合工作区、外观、导航、授权和管理
 
 开发增量的完整本地基线为 `9d025b3`，分支 `refactor/hardening`；实现、测试和文档分别保存在 `bc962ac`、`9345223`、`9d025b3`。该基线包含开工前已有的凭据、连接器、UI 修复与交付脚本增量，原 UI 回退标签 `ui-baseline-2026-10-17` 继续指向 `9c05356`。
 
+阶段 A 已完成，门禁实现提交为 `17cc97d`，独立审查无剩余 P1/P2；[阶段计划已归档](docs/spec/archive/A-hardening-2026-10-17.md)，阶段 B 未开始。
+
 阶段 A 新增统一入口 `npm run verify:web`（构建、单元、格式、项目/导入边界、行数、ESLint）、`npm run verify:native`（Rust 格式、Clippy、单元）及组合命令 `npm run verify`；浏览器另用 `npm run verify:e2e`。Web 门禁通过，40 文件/358 单元、ESLint 0 错误/0 警告；浏览器回归 117 项通过。最终结果与独立审查见[阶段证据](evidence/RESULTS.md#阶段-a安全网与基线)。
 
 原生 `native:check` 与 27 个 `native:test` 用例在 macOS arm64 通过；`verify:native` 因 stable 工具链缺少 rustfmt 在格式步骤失败，格式及原生组合门禁未验证。未重新验收原生窗口、普通应用包、Android 真机或其他平台。

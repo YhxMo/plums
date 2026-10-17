@@ -21,7 +21,7 @@
 
 ## 阶段 A：安全网与基线
 
-2026-10-17，macOS arm64、Node.js 26.5.1、TypeScript 7.0.2。完整开发基线 `9d025b3`，由 `bc962ac`（已有实现，32 文件）、`9345223`（测试，7 文件）和 `9d025b3`（文档与阶段范围，29 文件）依次保存。门禁受验源码为该基线上本节所在提交的工程维护增量：package.json/锁文件、eslint.config.js、check-boundaries/check-size/check-project/project-files、发布脚本未使用导入清理和 hardening 回归；其余应用源码保持基线。
+2026-10-17，macOS arm64、Node.js 26.5.1、TypeScript 7.0.2。完整开发基线 `9d025b3`，由 `bc962ac`（已有实现，32 文件）、`9345223`（测试，7 文件）和 `9d025b3`（文档与阶段范围，29 文件）依次保存。门禁受验源码为 `17cc97d`，即基线上的工程维护增量：package.json/锁文件、eslint.config.js、check-boundaries/check-size/check-project/project-files、发布脚本未使用导入清理和 hardening 回归；其余应用源码保持基线。后续收尾仅更新本节及状态文档。
 
 新增开发依赖精确固定 eslint 10.13.0、@eslint/js 10.0.1、eslint-plugin-react-hooks 7.1.1，既有锁定包版本未改变。注册表元数据中的 typescript-eslint 8.71.2 要求 TypeScript >=4.8.4 <6.1.0，故保留 TS7，使用 JS ESLint 与独立 TS/TSX/JS/MJS 导入检查。后者复用已锁定 TypeScript 7 的 unstable AST API，以单个内存项目解析真实节点，解析失败拒绝，API 在 finally 关闭；不写入配置、源码或构建产物，不新增解析器依赖。Web 门禁传入 --boundaries，普通项目检查仍保持只需 Node。TS/TSX Hooks lint 暂未覆盖。初次 ESLint 的 4 项问题已通过删除一个未使用导入、补充 Node 定时器全局解决，无大范围禁用。
 
@@ -34,6 +34,8 @@
 原有 9 项行数清单之外，还发现 src/styles.css 445、tests/abort-reentrancy.test.ts 441、tests/documents/probe.ts 648、tests/navigation/probe.ts 424、tests/web/agent-flow.spec.ts 696 行；以各自开工行数加入固定清单，不为门禁拆改这些文件。14 项均无超额，剩余额度为 0。
 
 生产与工程源码以项目清单中 tests 之外的 ts/tsx/js/mjs/rs/kt/css/html 物理行计数，原基线为 122 文件/17,586 行，阶段 A 后为 125 文件/17,861 行；测试由 106 文件/15,672 行增至 107 文件/15,838 行，其中 Vitest 40 文件、Playwright 20 文件。其余为平台实验、夹具与测试页面。计数不含生成输出、依赖、JSON、文档和运行数据。
+
+独立审查通过，无剩余 P1/P2；另经实际 --boundaries CLI 的隔离反例及内存批量检查确认类型导入、import = require、重导出、无插值模板路径和多文件解析失败均按预期拒绝，公开 SDK 与普通正则/JSX 文本通过。提交前核对精确暂存内容，未纳入秘密、私人路径或运行产物。阶段 A 退出，阶段 B 未开始。
 
 阶段范围与退出条件见[阶段记录](../docs/spec/archive/A-hardening-2026-10-17.md)，默认命令及 TS/TSX lint 缺口见[开发流程](../docs/DEVELOPMENT.md#验证入口)。
 
