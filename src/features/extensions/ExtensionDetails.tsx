@@ -2,16 +2,20 @@ import type { Runtime } from "../../shell/runtime";
 import type { Agent } from "../../../modules/sdk/agents";
 import { capabilityLabel, translateStatus } from "../../shell/messages";
 import styles from "../../App.module.css";
+import { CredentialBindings } from "./CredentialBindings";
+import type { ShellOperations } from "../../shell/useOperations";
 export function ExtensionDetails({
   runtime,
   entry: activeSelectedExt,
   agents: extBoundAgents,
   onReveal,
+  operations,
 }: {
   runtime: Runtime;
   entry: Runtime["catalog"][number];
   agents: Agent[];
   onReveal?: (id: string) => void;
+  operations: ShellOperations;
 }) {
   const extId = activeSelectedExt.id;
   const extState = runtime.host.inspect(extId);
@@ -89,6 +93,15 @@ export function ExtensionDetails({
           </dd>
         </dl>
       </section>
+      <CredentialBindings
+        key={extId}
+        access={runtime.adapter.credentials}
+        operations={operations}
+        id={extId}
+        source={activeSelectedExt.url}
+        version={extManifest.version}
+        declarations={extManifest.credentialBindings ?? {}}
+      />
     </div>
   );
 }

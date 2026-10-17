@@ -1,4 +1,5 @@
 import { DocumentAccess } from "./documents";
+import { CredentialAccess } from "./credentials";
 import { invoke, isTauri } from "@tauri-apps/api/core";
 import {
   platformRejection,
@@ -40,6 +41,7 @@ function browserState(raw: string | null): StoredState | null {
 
 export class PlatformAdapter implements Platform {
   readonly kind = isTauri() ? "native" : "browser";
+  readonly credentials = new CredentialAccess();
   failWrites = false;
   private readonly grants = new Map<string, Set<string>>();
   private readonly documentAccess = new DocumentAccess(

@@ -8,16 +8,39 @@ import {
   readdirSync,
   readFileSync,
   readlinkSync,
-  renameSync,
   writeFileSync,
 } from "node:fs";
 import { join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { publishDirectory } from "./publish-directory.mjs";
 import { projectFiles } from "./project-files.mjs";
 
 const root = fileURLToPath(new URL("../", import.meta.url));
 const run = (command, args, options = {}) =>
   execFileSync(command, args, { cwd: root, encoding: "utf8", ...options });
+const args = process.argv.slice(2);
+if (args[0] === "--publish" && args.length === 2) {
+  const candidate = resolve(args[1]);
+  const info = JSON.parse(readFileSync(join(candidate, "build-info.json")));
+  run("codesign", [
+    "--verify",
+    "--deep",
+    "--strict",
+    join(candidate, info.app),
+  ]);
+  console.log(
+    JSON.stringify(
+      publishDirectory(
+        candidate,
+        join(root, "release/mac"),
+        join(root, ".cache/archive/releases"),
+      ),
+    ),
+  );
+  process.exit(0);
+}
+if (args.length && !(args.length === 1 && args[0] === "--stage"))
+  throw new Error("Usage: release-mac.mjs [--stage | --publish candidate]");
 if (process.platform !== "darwin")
   throw new Error("Mac packaging requires macOS");
 
@@ -134,22 +157,18 @@ writeFileSync(
   `# Plums Mac 本地预览\n\n打开 \`${name}\`。版本 ${metadata.version}，${metadata.architecture}，debug 本地临时签名；SDK 仍为实验接口。\n\n来源和文件校验见 build-info.json，未提交差异见 source.patch。实际运行范围以项目 evidence/RESULTS.md 的对应源码记录为准。\n`,
 );
 
-const current = join(release, "mac");
-const archives = join(root, ".cache/archive/releases");
-mkdirSync(archives, { recursive: true });
-const backup = existsSync(current)
-  ? join(mkdtempSync(join(archives, "mac-")), "mac")
-  : undefined;
-try {
-  if (backup) renameSync(current, backup);
-  renameSync(stage, current);
-} catch (error) {
-  if (backup && !existsSync(current)) renameSync(backup, current);
-  throw error;
+if (args[0] === "--stage") {
+  console.log(JSON.stringify({ candidate: stage, app: join(stage, name) }));
+} else {
+  const result = publishDirectory(
+    stage,
+    join(release, "mac"),
+    join(root, ".cache/archive/releases"),
+  );
+  console.log(
+    JSON.stringify({
+      app: `release/mac/${name}`,
+      archived: result.archived ? result.archived.slice(root.length) : null,
+    }),
+  );
 }
-console.log(
-  JSON.stringify({
-    app: `release/mac/${name}`,
-    archived: backup ? backup.slice(root.length) : null,
-  }),
-);

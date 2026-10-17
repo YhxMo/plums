@@ -11,6 +11,12 @@ export function EmptyState({
   onExtensions: () => void;
   onAdd: (source: HTMLElement) => void;
 }) {
+  if (hasAgents)
+    return (
+      <main className={s.empty}>
+        <img className={s.idleMark} src="/brand/plums.png" alt="Plums" />
+      </main>
+    );
   return (
     <main className={s.empty}>
       <div className={s.welcome}>
@@ -18,15 +24,9 @@ export function EmptyState({
         <span className="eyebrow">从这里开始</span>
         <h1>欢迎使用 Plums</h1>
         <p>
-          {hasAgents ? (
-            "从左侧选择 Agent，或添加新的角色与能力。"
-          ) : (
-            <>
-              添加你的第一个 Agent，
-              <br className={s.mobileOnly} />
-              把角色与能力放到一起。
-            </>
-          )}
+          添加你的第一个 Agent，
+          <br className={s.mobileOnly} />
+          把角色与能力放到一起。
         </p>
       </div>
       <div className={s.onboarding}>

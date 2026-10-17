@@ -1,4 +1,4 @@
-import { manage, legacyEntry } from "./helpers";
+import { manage, legacyEntry, chooseLayout } from "./helpers";
 import { test, expect } from "@playwright/test";
 
 test("cancel returns to the initiating control even when activation does not focus it", async ({
@@ -145,6 +145,7 @@ test("dismissible fallback notice, independent extension manager page and topbar
           version: 1,
           theme: "light",
           layout: "default",
+          layoutIntent: "explicit",
           agents: [],
         },
       }),
@@ -207,3 +208,107 @@ test("dismissible fallback notice, independent extension manager page and topbar
   await page.getByRole("button", { name: "跳转到 Agent →" }).first().click();
   await expect(page.locator("[data-workspace]")).toBeVisible();
 });
+
+test("legacy unconfigured workbench default boots into Agents without changing saved business data", async ({
+  page,
+}) => {
+  await page.goto("/");
+  await page
+    .getByRole("button", { name: "从头添加 Agent", exact: true })
+    .click();
+  await page
+    .getByRole("textbox", { name: "名称", exact: true })
+    .fill("代码助手");
+  await page
+    .getByRole("dialog")
+    .getByRole("button", { name: "添加", exact: true })
+    .click();
+  const original = await page.evaluate(() => {
+    const key = "plums:m1:host.shell";
+    const data = JSON.parse(localStorage.getItem(key)!);
+    data.value.layout = "default";
+    data.value.theme = "dark";
+    delete data.value.layoutIntent;
+    delete data.value.composition;
+    const raw = JSON.stringify(data);
+    localStorage.setItem(key, raw);
+    return raw;
+  });
+  await page.reload();
+  await expect(
+    page.getByRole("button", { name: "与 代码助手 交互", exact: true }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("status").filter({ hasText: "所选界面" }),
+  ).toHaveCount(0);
+  expect(
+    await page.evaluate(() => localStorage.getItem("plums:m1:host.shell")),
+  ).toBe(original);
+  await page
+    .getByRole("button", { name: "切换到浅色模式", exact: true })
+    .click();
+  const saved = await page.evaluate(() =>
+    JSON.parse(localStorage.getItem("plums:m1:host.shell")!),
+  );
+  expect(saved.value.layout).toBe("agents");
+  expect(saved.value.agents).toEqual(JSON.parse(original).value.agents);
+  await page.reload();
+  await expect(
+    page.getByRole("status").filter({ hasText: "所选界面" }),
+  ).toHaveCount(0);
+});
+
+test("deliberately selected workbench keeps its preference and diagnoses unavailability after reload", async ({
+  page,
+}) => {
+  await page.goto("/");
+  await (await legacyEntry(page)).click();
+  await page
+    .getByRole("dialog")
+    .getByRole("button", { name: "授权并启动", exact: true })
+    .click();
+  await chooseLayout(page, "default");
+  await manage(page);
+  await page
+    .getByRole("button", { name: "停用 ui.default", exact: true })
+    .click();
+  await page.reload();
+  const fallback = page.getByRole("status").filter({ hasText: "所选界面" });
+  await expect(fallback).toContainText("工作台 (default)");
+  const saved = await page.evaluate(() =>
+    JSON.parse(localStorage.getItem("plums:m1:host.shell")!),
+  );
+  expect(saved.value.layout).toBe("default");
+  expect(saved.value.layoutIntent).toBe("explicit");
+});
+
+for (const width of [375, 1180]) {
+  test(`management back stays fixed while its content scrolls at ${width}`, async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width, height: 600 });
+    await page.goto("/");
+    await manage(page, true);
+    const back = page.getByRole("button", { name: "返回工作区", exact: true });
+    const before = await back.boundingBox();
+    if (width === 375) {
+      expect(before!.width).toBeGreaterThanOrEqual(44);
+      expect(before!.height).toBeGreaterThanOrEqual(44);
+    }
+    const manager = page.locator("#extension-manager");
+    await manager.evaluate((root) => {
+      for (const item of [root, ...root.querySelectorAll("*")])
+        if (
+          item.scrollHeight > item.clientHeight &&
+          ["auto", "scroll"].includes(getComputedStyle(item).overflowY)
+        )
+          item.scrollTop = item.scrollHeight;
+    });
+    await expect(back).toBeInViewport({ ratio: 1 });
+    expect((await back.boundingBox())!.y).toBeCloseTo(before!.y, 1);
+    await back.click();
+    await expect(
+      page.getByRole("heading", { name: "欢迎使用 Plums" }),
+    ).toBeVisible();
+  });
+}

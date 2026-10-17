@@ -19,6 +19,7 @@ import { UninstallDialog } from "./UninstallDialog";
 import { DiagnosticsPanel } from "./DiagnosticsPanel";
 import { ExtensionCard } from "./ExtensionCard";
 import { ExtensionDetails } from "./ExtensionDetails";
+import { RetainedCredentialBindings } from "./CredentialBindings";
 import { saveRemovedImport } from "./operations";
 import styles from "../../App.module.css";
 
@@ -93,153 +94,169 @@ export function ExtensionManager({
         className={styles.inspector}
         aria-label="扩展管理"
       >
-        <div className={styles.managerPage}>
-          <div className={styles.managerMaster}>
-            <div className={styles.inspectorHeading}>
-              <div className={styles.inspectorHeadingLeft}>
-                <button
-                  className={`topbar-ghost ${styles.backArrow}`}
-                  aria-label="返回工作区"
-                  title="返回工作区"
-                  onClick={closeManager}
-                >
-                  <Icon name="arrowLeft" size={18} />
-                </button>
-                <div>
-                  <span className="eyebrow">本地扩展 · {catalog.length}</span>
-                  <h2 ref={heading} tabIndex={-1}>
-                    扩展与状态
-                  </h2>
-                </div>
-              </div>
-              <div className={styles.managerGlobalActions}>
-                <button
-                  className="secondary"
-                  onClick={(event) =>
-                    setDialog({ kind: "install", source: event.currentTarget })
-                  }
-                >
-                  安装扩展
-                </button>
-                <button
-                  className="secondary"
-                  disabled={busy}
-                  onClick={() =>
-                    void operate(async () => {
-                      const composition = captureComposition(host);
-                      await runtime.save({
-                        composition,
-                        layout: workspace.selected,
-                        theme: appearance.theme,
-                      });
-                      runtime.composition = composition;
-                      setNotice(
-                        "当前组合已保存，下次启动自动恢复；所需权限须重新确认。",
-                      );
-                    })
-                  }
-                >
-                  保存当前组合
-                </button>
+        <div className={styles.managerHeader}>
+          <div className={styles.inspectorHeading}>
+            <div className={styles.inspectorHeadingLeft}>
+              <button
+                className={`topbar-ghost ${styles.backArrow}`}
+                aria-label="返回工作区"
+                title="返回工作区"
+                onClick={closeManager}
+              >
+                <Icon name="arrowLeft" size={18} />
+              </button>
+              <div>
+                <span className="eyebrow">本地扩展 · {catalog.length}</span>
+                <h2 ref={heading} tabIndex={-1}>
+                  扩展与状态
+                </h2>
               </div>
             </div>
-            <p className={styles.managerHint}>
-              检查模块与所需能力；停用后保留已保存的数据。保存当前组合会记录启用集合、扩展版本与当前外观，权限和扩展业务数据分别管理。
-            </p>
-            <div className={styles.extensions}>
-              {Object.entries(failedImports).map(([id, reason]) => (
-                <article key={id}>
-                  <strong>{id}</strong>
-                  <p className="error">加载失败：{reason}</p>
-                  <button
-                    className="secondary"
-                    disabled={busy}
-                    aria-label={`重试加载 ${id}`}
-                    onClick={() =>
-                      void operate(async () => {
-                        const entry = runtime.imports.find(
-                          (item) => item.id === id,
-                        )!;
-                        const target = new URL(entry.url, location.href);
-                        target.searchParams.set("_retry", String(Date.now()));
-                        host.install(
-                          await loadExtension(target.href, id),
-                          runtime.configurations[id],
-                        );
-                        catalog.push(entry);
-                        clearFailure(id);
-                      })
-                    }
-                  >
-                    重试加载
-                  </button>{" "}
-                  <button
-                    className="secondary"
-                    disabled={busy}
-                    aria-label={`移除路径 ${id}`}
-                    onClick={() =>
-                      void operate(async () => {
-                        const imports = runtime.imports.filter(
-                          (entry) => entry.id !== id,
-                        );
-                        await saveRemovedImport(runtime, id, imports);
-                        runtime.imports = imports;
-                        clearFailure(id);
-                      })
-                    }
-                  >
-                    移除失效路径
-                  </button>
-                </article>
-              ))}
-              {installed.map((entry) => (
-                <ExtensionCard
-                  key={entry.id}
-                  {...{ runtime, operations, workspace, authorization, entry }}
-                  boundAgents={extensionAgents[entry.id] ?? []}
-                  selected={selected?.id === entry.id}
-                  onSelect={() => setSelectedId(entry.id)}
-                  onConfigure={(source) =>
-                    openDialog("configure", entry.id, source)
-                  }
-                  onUninstall={(source) =>
-                    openDialog("uninstall", entry.id, source)
-                  }
-                />
-              ))}
+            <div className={styles.managerGlobalActions}>
+              <button
+                className="secondary"
+                onClick={(event) =>
+                  setDialog({ kind: "install", source: event.currentTarget })
+                }
+              >
+                安装扩展
+              </button>
+              <button
+                className="secondary"
+                disabled={busy}
+                onClick={() =>
+                  void operate(async () => {
+                    const composition = captureComposition(host);
+                    await runtime.save({
+                      composition,
+                      layout: workspace.selected,
+                      theme: appearance.theme,
+                    });
+                    runtime.composition = composition;
+                    setNotice(
+                      "当前组合已保存，下次启动自动恢复；所需权限须重新确认。",
+                    );
+                  })
+                }
+              >
+                保存当前组合
+              </button>
             </div>
           </div>
-          <section
-            className={styles.managerDetailPane}
-            aria-label="所选扩展与关联 Agent 详情"
-          >
-            {selected && (
-              <ExtensionDetails
-                runtime={runtime}
-                entry={selected}
-                agents={extensionAgents[selected.id] ?? []}
-                onReveal={
-                  onReveal
-                    ? (id) => {
-                        onReveal(id);
-                        closeManager();
+        </div>
+        <div className={styles.managerScroll}>
+          <div className={styles.managerPage}>
+            <div className={styles.managerMaster}>
+              <p className={styles.managerHint}>
+                检查模块与所需能力；停用后保留已保存的数据。保存当前组合会记录启用集合、扩展版本与当前外观，权限和扩展业务数据分别管理。
+              </p>
+              <div className={styles.extensions}>
+                {Object.entries(failedImports).map(([id, reason]) => (
+                  <article key={id}>
+                    <strong>{id}</strong>
+                    <p className="error">加载失败：{reason}</p>
+                    <button
+                      className="secondary"
+                      disabled={busy}
+                      aria-label={`重试加载 ${id}`}
+                      onClick={() =>
+                        void operate(async () => {
+                          const entry = runtime.imports.find(
+                            (item) => item.id === id,
+                          )!;
+                          const target = new URL(entry.url, location.href);
+                          target.searchParams.set("_retry", String(Date.now()));
+                          host.install(
+                            await loadExtension(target.href, id),
+                            runtime.configurations[id],
+                          );
+                          catalog.push(entry);
+                          clearFailure(id);
+                        })
                       }
-                    : undefined
-                }
+                    >
+                      重试加载
+                    </button>{" "}
+                    <button
+                      className="secondary"
+                      disabled={busy}
+                      aria-label={`移除路径 ${id}`}
+                      onClick={() =>
+                        void operate(async () => {
+                          const imports = runtime.imports.filter(
+                            (entry) => entry.id !== id,
+                          );
+                          await saveRemovedImport(runtime, id, imports);
+                          runtime.imports = imports;
+                          clearFailure(id);
+                        })
+                      }
+                    >
+                      移除失效路径
+                    </button>
+                  </article>
+                ))}
+                {installed.map((entry) => (
+                  <ExtensionCard
+                    key={entry.id}
+                    {...{
+                      runtime,
+                      operations,
+                      workspace,
+                      authorization,
+                      entry,
+                    }}
+                    boundAgents={extensionAgents[entry.id] ?? []}
+                    selected={selected?.id === entry.id}
+                    onSelect={() => setSelectedId(entry.id)}
+                    onConfigure={(source) =>
+                      openDialog("configure", entry.id, source)
+                    }
+                    onUninstall={(source) =>
+                      openDialog("uninstall", entry.id, source)
+                    }
+                  />
+                ))}
+              </div>
+            </div>
+            <section
+              className={styles.managerDetailPane}
+              aria-label="所选扩展与关联 Agent 详情"
+            >
+              {selected && (
+                <ExtensionDetails
+                  runtime={runtime}
+                  operations={operations}
+                  entry={selected}
+                  agents={extensionAgents[selected.id] ?? []}
+                  onReveal={
+                    onReveal
+                      ? (id) => {
+                          onReveal(id);
+                          closeManager();
+                        }
+                      : undefined
+                  }
+                />
+              )}
+              <DiagnosticsPanel
+                {...{
+                  runtime,
+                  operations,
+                  workspace,
+                  authorization,
+                  experiments,
+                }}
+                open={manager.diagnostics}
+                onToggle={navigation.setDiagnostics}
               />
-            )}
-            <DiagnosticsPanel
-              {...{
-                runtime,
-                operations,
-                workspace,
-                authorization,
-                experiments,
-              }}
-              open={manager.diagnostics}
-              onToggle={navigation.setDiagnostics}
-            />
-          </section>
+              <RetainedCredentialBindings
+                access={runtime.adapter.credentials}
+                operations={operations}
+                installed={host.ids()}
+              />
+            </section>
+          </div>
         </div>
       </aside>
       <InstallDialog

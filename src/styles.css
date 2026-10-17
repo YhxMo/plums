@@ -317,6 +317,7 @@ svg {
   font-size: 15px;
   font-weight: 600;
   margin: 0;
+  outline: none;
 }
 .dialog-content {
   padding: 18px 20px;

@@ -265,6 +265,13 @@
 .welcome {
   text-align: center;
 }
+.idleMark {
+  width: 88px;
+  height: 88px;
+  object-fit: contain;
+  filter: grayscale(1);
+  opacity: 0.28;
+}
 .welcome img {
   display: block;
   width: 48px;

@@ -6,6 +6,7 @@ export const capabilityLabel = (capability: string) =>
     "state.write": "写入隔离状态",
     "platform.info": "查看平台信息",
     "document.read": "只读访问本次选择的文档（最多64 KiB）",
+    "credential.request": "通过已授权连接发送请求",
   })[capability] ?? capability;
 export const translateStatus = (status: string) =>
   ({

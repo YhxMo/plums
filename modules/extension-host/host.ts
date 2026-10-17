@@ -12,6 +12,7 @@ import type {
   ShellBridge,
 } from "../sdk";
 import { extensionOwner, platformRejection } from "../sdk";
+import { validateCredentialBindings } from "../sdk/credential-bindings";
 
 type Status =
   "disabled" | "waiting" | "active" | "stopping" | "failed" | "cleanup-failed";
@@ -134,6 +135,10 @@ export function validateDefinition(
       manifest.capabilities.some((cap) => typeof cap !== "string"))
   )
     throw new Error("Invalid capability declaration");
+  validateCredentialBindings(
+    manifest.credentialBindings,
+    manifest.capabilities,
+  );
 }
 
 /** Modules execute as trusted code in the same JS environment. Import is not sandboxed. */
@@ -203,10 +208,7 @@ export class Host {
     const id = definition.manifest.id;
     if (this.records.has(id))
       throw new Error(`Extension already installed: ${id}`);
-    let resolved = resolveConfiguration(
-      definition.manifest.configuration,
-      undefined,
-    );
+    let resolved: Configuration;
     let configurationError: string | undefined;
     try {
       resolved = resolveConfiguration(
@@ -214,6 +216,10 @@ export class Host {
         configuration,
       );
     } catch (error) {
+      resolved = resolveConfiguration(
+        definition.manifest.configuration,
+        undefined,
+      );
       configurationError = message(error);
     }
     this.records.set(id, {

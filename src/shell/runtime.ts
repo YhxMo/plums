@@ -53,7 +53,10 @@ export class CompositionRecovery extends Error {
 
 export async function boot(): Promise<Runtime> {
   const adapter = new PlatformAdapter();
-  await adapter.initializeDocuments();
+  await Promise.all([
+    adapter.initializeDocuments(),
+    adapter.credentials.initialize(adapter.kind === "native"),
+  ]);
   const host = new Host(adapter);
   const response = await fetch("/catalog.json");
   if (!response.ok) throw new Error("扩展目录读取失败");
@@ -71,6 +74,7 @@ export async function boot(): Promise<Runtime> {
     | {
         version?: unknown;
         layout?: unknown;
+        layoutIntent?: unknown;
         theme?: unknown;
         themeId?: unknown;
         agents?: unknown;
@@ -156,7 +160,16 @@ export async function boot(): Promise<Runtime> {
   let preferences = {
     ...value,
     version: 1,
-    layout: typeof value?.layout === "string" ? value.layout : "agents",
+    // Early previews saved the workbench's initial value without an enabled
+    // composition. Only that unmarked legacy default adopts the Agent start.
+    layout:
+      value?.layout === "default" &&
+      value.layoutIntent !== "explicit" &&
+      !composition
+        ? "agents"
+        : typeof value?.layout === "string"
+          ? value.layout
+          : "agents",
     theme:
       value?.theme === "light" || value?.theme === "dark"
         ? value.theme
@@ -176,7 +189,11 @@ export async function boot(): Promise<Runtime> {
       options?.signal?.throwIfAborted();
       if (uncertain)
         throw Error("保存回执未确认，请重新加载应用后再修改配置。");
-      const next = { ...preferences, ...patch };
+      const next = {
+        ...preferences,
+        ...patch,
+        ...(patch.layout === undefined ? {} : { layoutIntent: "explicit" }),
+      };
       try {
         options?.onCommit?.();
         const receipt = (await adapter.call(

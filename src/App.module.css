@@ -162,12 +162,28 @@
   overflow: auto;
 }
 .inspector {
-  overflow: auto;
+  overflow: hidden;
   flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
   width: 100%;
   flex-shrink: 0;
   background: var(--surface);
-  padding: 20px 24px;
+}
+.managerHeader {
+  flex-shrink: 0;
+  padding: 20px 24px 14px;
+}
+.managerHeader > .inspectorHeading {
+  max-width: 1240px;
+  margin: 0 auto;
+}
+.managerScroll {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding: 0 24px 20px;
 }
 .managerPage {
   display: grid;
@@ -560,7 +576,12 @@
 @media (max-width: 1020px) {
   .inspector {
     width: 100%;
-    padding: 16px;
+  }
+  .managerHeader {
+    padding: 16px 16px 14px;
+  }
+  .managerScroll {
+    padding: 0 16px 16px;
   }
   .managerPage {
     grid-template-columns: 1fr;
@@ -593,7 +614,7 @@
   }
   .headerRight .themeSwitch,
   .headerRight .sidebarToggle,
-  .backArrow {
+  .managerHeader .backArrow {
     width: 44px;
     min-height: 44px;
     padding: 0;
@@ -607,7 +628,12 @@
   .inspector {
     width: 100%;
     border-left: 0;
-    padding: 24px 20px;
+  }
+  .managerHeader {
+    padding: 24px 20px 14px;
+  }
+  .managerScroll {
+    padding: 0 20px 24px;
   }
   .inspectorHeading button {
     font-size: 14px;

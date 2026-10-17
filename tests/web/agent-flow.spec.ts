@@ -18,7 +18,7 @@ async function add(page: Page, name = "编程助手", multi = true) {
     .click();
 }
 for (const width of [375, 1180]) {
-  test(`welcome actions and existing Agent navigation survive reload at ${width}`, async ({
+  test(`welcome is reserved for zero Agents and existing Agent navigation survives reload at ${width}`, async ({
     page,
   }) => {
     await page.setViewportSize({ width, height: 820 });
@@ -40,29 +40,14 @@ for (const width of [375, 1180]) {
     if (width === 1180) {
       await expect(
         page.getByRole("heading", { name: "欢迎使用 Plums" }),
-      ).toBeVisible();
-      await expect(welcome).not.toContainText("第一个 Agent");
-      await expect(
-        welcome.getByRole("button", { name: "添加 Agent", exact: true }),
       ).toHaveCount(0);
-      await welcome.getByRole("button", { name: /导入角色卡/ }).click();
-      await expect(
-        page.getByRole("dialog", { name: "导入角色卡", exact: true }),
-      ).toBeVisible();
-      await page
-        .getByRole("dialog")
-        .getByRole("button", { name: "取消", exact: true })
-        .click();
-      await welcome.getByRole("button", { name: /安装扩展/ }).click();
-      await expect(
-        page.getByRole("heading", { name: "扩展与状态" }),
-      ).toBeVisible();
+      await expect(welcome.getByRole("img", { name: "Plums" })).toBeVisible();
+      await expect(welcome.getByRole("button")).toHaveCount(0);
+      await manage(page);
       await page
         .getByRole("button", { name: "返回工作区", exact: true })
         .click();
-      await expect(
-        page.getByRole("heading", { name: "欢迎使用 Plums" }),
-      ).toBeVisible();
+      await expect(welcome.getByRole("img", { name: "Plums" })).toBeVisible();
     } else {
       await expect(welcome).toBeHidden();
     }
@@ -246,6 +231,9 @@ test("mobile details trap focus and allow rename and session deletion", async ({
   await expect(
     detail.getByRole("button", { name: "未命名会话", exact: true }),
   ).toHaveCount(1);
+  await expect(
+    detail.getByRole("button", { name: "收起详情", exact: true }),
+  ).toBeFocused();
   await page.keyboard.press("Escape");
   await expect(
     page.getByRole("button", { name: "查看 Agent 详情" }),
@@ -498,6 +486,47 @@ test("mobile detail pin failure appears inside the current modal", async ({
   ).toBeVisible();
 });
 
+for (const theme of ["light", "dark"] as const) {
+  test(`dialog close is quiet on non-focusing open and shows pointer and keyboard feedback in ${theme}`, async ({
+    page,
+  }) => {
+    await page.emulateMedia({ colorScheme: theme });
+    await page.goto("/");
+    const trigger = page
+      .getByRole("button", { name: "添加", exact: true })
+      .first();
+    // Reproduce WebKit pointer activation without first focusing the opener.
+    await trigger.evaluate((button: HTMLButtonElement) => button.click());
+    const dialog = page.getByRole("dialog", { name: "添加", exact: true });
+    const close = dialog.getByRole("button", { name: "关闭", exact: true });
+    const outline = () =>
+      close.evaluate((button) => getComputedStyle(button).outlineStyle);
+    await expect(close).toBeVisible();
+    expect(await outline()).toBe("none");
+    await close.hover();
+    await expect
+      .poll(() =>
+        close.evaluate((button) => getComputedStyle(button).backgroundColor),
+      )
+      .not.toBe("rgba(0, 0, 0, 0)");
+    await page.mouse.move(1, 1);
+    expect(await outline()).toBe("none");
+    await page.keyboard.press("Tab");
+    await expect(close).toBeFocused();
+    expect(await outline()).toBe("solid");
+    await page.keyboard.press("Escape");
+    await expect(dialog).not.toBeVisible();
+    await expect(trigger).toBeFocused();
+    await trigger.click();
+    await dialog.getByRole("button", { name: /^添加 Agent/ }).click();
+    await expect(
+      page
+        .getByRole("dialog", { name: "添加 Agent", exact: true })
+        .getByRole("textbox", { name: "名称", exact: true }),
+    ).toBeFocused();
+  });
+}
+
 for (const close of ["Escape", "button"] as const) {
   test(`non-focusing add activation returns focus after ${close}`, async ({
     page,
@@ -634,3 +663,34 @@ test("service reply boundary rejects without losing draft and valid output survi
       ),
   ).toBe(true);
 });
+
+for (const width of [375, 1180]) {
+  test(`removing a dialog opener restores an operable fallback at ${width}`, async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width, height: 820 });
+    await page.goto("/");
+    await add(page);
+    if (width === 375)
+      await page.getByRole("button", { name: "返回 Agent 列表" }).click();
+    await page
+      .getByRole("button", { name: "编程助手 的操作", exact: true })
+      .click();
+    await page
+      .getByRole("menuitem", { name: "移除 Agent", exact: true })
+      .click();
+    await page.getByRole("button", { name: "确认删除", exact: true }).click();
+    await expect(page.getByRole("dialog")).not.toBeVisible();
+    const fallback =
+      width === 375
+        ? page.getByRole("button", {
+            name: "导入角色卡 从文件或链接，了解并添加 Agent 选择角色卡",
+            exact: true,
+          })
+        : page
+            .getByRole("complementary", { name: "Agent 列表", exact: true })
+            .getByRole("button", { name: "添加", exact: true })
+            .first();
+    await expect(fallback).toBeFocused();
+  });
+}

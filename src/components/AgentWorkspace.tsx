@@ -57,6 +57,24 @@ export function AgentWorkspace({
   const [selected, setSelected] = useState<string | null>(null);
   const [detail, setDetail] = useState(false);
   const [modal, setModal] = useState<Modal>(null);
+  const workspaceRoot = useRef<HTMLDivElement>(null);
+  const fallbackFocus = () => {
+    const root = workspaceRoot.current;
+    const scope =
+      Array.from(
+        root?.querySelectorAll<HTMLDialogElement>("dialog[open]") ?? [],
+      ).at(-1) ?? root;
+    return (
+      Array.from(
+        scope?.querySelectorAll<HTMLButtonElement>("button:not(:disabled)") ??
+          [],
+      ).find(
+        (button) =>
+          button.getClientRects().length > 0 &&
+          !button.closest("dialog:not([open])"),
+      ) ?? null
+    );
+  };
   const modalTrigger = useRef<HTMLElement | null>(null);
   const detailTrigger = useRef<HTMLElement | null>(null);
   useEffect(
@@ -206,6 +224,7 @@ export function AgentWorkspace({
   );
   return (
     <div
+      ref={workspaceRoot}
       className={s.workspace}
       data-conversation={!!agent}
       data-has-agents={agents.length > 0}
@@ -262,6 +281,7 @@ export function AgentWorkspace({
             title="Agent 详情"
             bare
             returnFocusTo={detailTrigger.current}
+            fallbackFocus={fallbackFocus}
             onClose={() => setDetail(false)}
           >
             <div className={s.mobileDetail}>
@@ -275,6 +295,7 @@ export function AgentWorkspace({
       {modal && (
         <Dialog
           returnFocusTo={modalTrigger.current}
+          fallbackFocus={fallbackFocus}
           title={
             typeof modal === "string"
               ? { add: "添加", create: "添加 Agent", import: "导入角色卡" }[

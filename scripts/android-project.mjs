@@ -68,36 +68,26 @@ export function prepareAndroid(root, toolsRoot) {
     throw new Error("MainActivity template changed; review before adapting");
   edits.set(activity, adapted);
 
-  const appearance = join(dirname(activity), "AppearancePlugin.kt");
-  const appearanceSource = readFileSync(
-    join(root, "native/android/AppearancePlugin.kt"),
-    "utf8",
-  ).replace("{{PACKAGE}}", packageName);
-  if (
-    existsSync(appearance) &&
-    ![
-      appearanceSource,
-      appearanceSource.replace('"#fafafa"', '"#f7f4ef"'),
-      appearanceSource.replace('"#181818"', '"#1c1917"'),
-      appearanceSource
-        .replace('"#181818"', '"#1c1917"')
-        .replace('"#fafafa"', '"#f7f4ef"'),
-    ].includes(readFileSync(appearance, "utf8"))
-  )
-    throw new Error("Appearance plugin changed; review before adapting");
-  edits.set(appearance, appearanceSource);
-
-  const documents = join(dirname(activity), "DocumentsPlugin.kt");
-  const documentsSource = readFileSync(
-    join(root, "native/android/DocumentsPlugin.kt"),
-    "utf8",
-  ).replace("{{PACKAGE}}", packageName);
-  if (
-    existsSync(documents) &&
-    readFileSync(documents, "utf8") !== documentsSource
-  )
-    throw new Error("Documents plugin changed; review before adapting");
-  edits.set(documents, documentsSource);
+  for (const name of ["Appearance", "Documents", "Credentials"]) {
+    const filename = `${name}Plugin.kt`;
+    const path = join(dirname(activity), filename);
+    const source = readFileSync(
+      join(root, "native/android", filename),
+      "utf8",
+    ).replace("{{PACKAGE}}", packageName);
+    const accepted = [source];
+    if (name === "Appearance")
+      accepted.push(
+        source.replace('"#fafafa"', '"#f7f4ef"'),
+        source.replace('"#181818"', '"#1c1917"'),
+        source
+          .replace('"#181818"', '"#1c1917"')
+          .replace('"#fafafa"', '"#f7f4ef"'),
+      );
+    if (existsSync(path) && !accepted.includes(readFileSync(path, "utf8")))
+      throw new Error(`${name} plugin changed; review before adapting`);
+    edits.set(path, source);
+  }
 
   const task = join(
     generated,

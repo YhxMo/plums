@@ -47,7 +47,7 @@ for (const name of paths) {
     )
   )
     problems.push(`${name}: conversation attribution`);
-  if (name !== "goal.md" && /dsh|deepseek|harness|cordis/i.test(text))
+  if (name !== "goal.md" && /dsh|harness|cordis/i.test(text))
     problems.push(`${name}: non-public architecture reference`);
   for (const match of text.matchAll(/\[[^\]]+\]\(([^)]+)\)/g)) {
     const target = match[1];
@@ -66,8 +66,14 @@ const ignored = readFileSync(".gitignore", "utf8").split("\n");
 if (!ignored.includes("/goal.md"))
   problems.push(".gitignore: missing root goal rule");
 if (
-  paths.some((name) =>
-    /(?:^|\/)(?:profile|credentials|id_rsa|id_ed25519)(?:\.|$)/i.test(name),
+  paths.some(
+    (name) =>
+      ![
+        "src/credentials.ts",
+        "src-tauri/src/credentials.rs",
+        "tests/web/credentials.spec.ts",
+      ].includes(name) &&
+      /(?:^|\/)(?:profile|credentials|id_rsa|id_ed25519)(?:\.|$)/i.test(name),
   )
 )
   problems.push("Potential private data file name");

@@ -1,5 +1,10 @@
 import type { Theme } from "./theme";
 import type { WorkspaceChrome } from "./workspace-chrome";
+import type { CredentialBindingDeclaration } from "./credential-bindings";
+export type {
+  CredentialBindingDeclaration,
+  NetworkRoute,
+} from "./credential-bindings";
 export { createWorkspaceChrome } from "./workspace-chrome";
 export type {
   WorkspaceChrome,
@@ -25,6 +30,8 @@ export interface Manifest {
   provides?: Record<string, number>;
   capabilities?: string[];
   configuration?: ConfigurationDeclaration;
+  /** Host-reviewed connection suggestions; never contain secrets or imply authorization. */
+  credentialBindings?: Record<string, CredentialBindingDeclaration>;
 }
 
 export interface Platform {
