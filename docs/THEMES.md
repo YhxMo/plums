@@ -2,6 +2,8 @@
 
 [SDK](../modules/sdk/index.ts) · [作者入口](SDK-AUTHORING.md) · [UI](UI.md)
 
+状态：当前有效（2026-10-17 核实）；实验主题契约，尚未稳定，不是安全沙箱。
+
 本契约是 M2 实验接口，尚未稳定。主题只提供 Web 内容的语义颜色，不注入 CSS、字体、布局或脚本；共享 WebView 的可信扩展仍可自行改 DOM，因此该校验不是安全沙箱。原生窗口/系统栏仅跟随明暗模式，颜色仍使用原生内置值。
 
 扩展在 activate(ctx) 中调用 `ctx.theme({ id, label, appearance, colors })`。`id` 遵循扩展 ID 格式（小写字母开头，最多64字符，仅小写字母、数字、点、连字符，无连续点），不能为内置 `light` / `dark`；`label` 为1–80字符非空白显示名；`appearance` 为 `light` 或 `dark`。`colors` 必须完整提供下表17个键，不能增加其他字段。除 shadow 外只接受 `#RRGGBB`，shadow 接受 `#RRGGBB` 或 `#RRGGBBAA`；可使用大小写。样板不需要平台权限或服务声明。

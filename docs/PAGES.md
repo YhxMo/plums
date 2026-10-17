@@ -1,6 +1,8 @@
 # 页面导航与文本处理工作台
 
-[SDK 作者入口](SDK-AUTHORING.md) · [视图树](VIEW-TREE.md) · [交互方案](spec/M2-INTERACTION-DESIGN.md)
+[SDK 作者入口](SDK-AUTHORING.md) · [视图树](VIEW-TREE.md) · [交互方案（已归档）](spec/archive/M2-interaction-design-2026-10-16.md)
+
+状态：当前有效（2026-10-17 核实）；页面导航与文本工作台当前实现，交互方案设计依据已归档。
 
 ## 使用文本处理工作台
 

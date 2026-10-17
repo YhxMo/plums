@@ -1,8 +1,8 @@
 # 扩展契约草案
 
-[文档索引](../README.md) · [架构](ARCHITECTURE.md) · [验收](ACCEPTANCE.md)
+[文档导航](README.md) · [架构](ARCHITECTURE.md) · [验收](ACCEPTANCE.md)
 
-状态：下文是目标语义。M1 的 [实验 SDK](../modules/sdk/index.ts) 和 [宿主](../modules/extension-host/host.ts) 仅实现其中一部分，不构成稳定 API 或长期兼容承诺；实际覆盖见 [证据](../evidence/RESULTS.md)。
+状态：当前有效（2026-10-17 核实）；下文是目标语义。M1 的 [实验 SDK](../modules/sdk/index.ts) 和 [宿主](../modules/extension-host/host.ts) 仅实现其中一部分，不构成稳定 API 或长期兼容承诺；实际覆盖见 [证据](../evidence/RESULTS.md)。
 
 ## 最小作者与管理入口
 

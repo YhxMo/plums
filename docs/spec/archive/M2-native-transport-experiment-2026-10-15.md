@@ -1,6 +1,6 @@
 # 回环传输实验
 
-[凭据请求契约](CREDENTIAL-REQUEST.md) · [原生传输证据](../evidence/NATIVE-TRANSPORT-2026-10-15.md) · [Host 集成证据](../evidence/HOST-TRANSPORT-2026-10-15.md) · [异常回执证据](../evidence/TRANSPORT-FAULT-2026-10-15.md)
+[凭据请求契约](../../CREDENTIAL-REQUEST.md) · [原生传输证据](../../../evidence/NATIVE-TRANSPORT-2026-10-15.md) · [Host 集成证据](../../../evidence/HOST-TRANSPORT-2026-10-15.md) · [异常回执证据](../../../evidence/TRANSPORT-FAULT-2026-10-15.md)
 
 这些测试入口复用默认关闭的 Cargo 特性 `native-transport-experiment`，验证 WebView → Tauri → Rust HTTP 客户端 → 本机合成服务，以及公开 Host 生命周期与失败回执。普通 `PlatformAdapter` 的 `credential.request` 仍不可用；生产绑定、系统秘密和 TLS/DNS/代理策略见凭据请求契约。
 
@@ -54,4 +54,4 @@ Tauri 测试配置将 beforeBuildCommand 置空、frontendDist 指向对应输�
 
 Android 复用既有工具链、生成工程及调试签名，仅覆盖测试前端，执行 `tauri android build --debug --target aarch64 --apk --features native-transport-experiment --config <隔离配置> -- --locked --offline`。包名为 dev.plums.plums，只安装到专用只读 AVD 克隆；异常回执受验实例使用 ADB 5058、模拟器 5594、CDP 9248。
 
-测试包及原始材料保留在各 `.cache/` 目录；运行结果按所链接的源码与平台分别判断。生成输出可能仍是实验包，普通交付按[交付流程](DEVELOPMENT.md#本地交付目录)另行构建和验收。真实资源在对应操作前确认范围；Android 真机、其他平台及 iOS 接口稳定前实验继续由[整体计划](spec/total.md)维护。
+测试包及原始材料保留在各 `.cache/` 目录；运行结果按所链接的源码与平台分别判断。生成输出可能仍是实验包，普通交付按[交付流程](../../DEVELOPMENT.md#本地交付目录)另行构建和验收。真实资源在对应操作前确认范围；Android 真机、其他平台及 iOS 接口稳定前实验继续由[整体计划](../total.md)维护。

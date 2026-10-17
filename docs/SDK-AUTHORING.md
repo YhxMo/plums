@@ -2,6 +2,8 @@
 
 [SDK 类型](../modules/sdk/index.ts) · [契约与失败语义](EXTENSION-CONTRACTS.md) · [整体计划](spec/total.md)
 
+状态：当前有效（2026-10-17 核实）；实验 SDK 入口，不承诺稳定兼容与发布包。
+
 这是仓库内实验接口，不是已发布 npm 包或稳定 SDK。运行时只需要标准 ESM 与 Web API，不需要 Node.js；Node 仅用于开发工具。`apiVersion: 1` 精确匹配，服务版本也是正整数精确匹配，没有 semver 范围协商。扩展自身 `version` 是显示/追溯字符串，不会自动迁移状态。正式稳定前必须完成 iOS 最小原生实验。
 
 ## 创建与运行
@@ -137,7 +139,7 @@ ctx.task 跟踪异步任务，使用传入 signal 合作式取消；ctx.onDispos
 
 可选 `manifest.credentialBindings` 声明非秘密连接建议，沿用现有扩展安装与管理入口；声明不创建绑定或授予请求权限。[通用绑定与原生录入](CREDENTIAL-BINDINGS.md)说明每绑定媒体类型、固定头、秘密注入、显式代理配置及取消/未知/卸载清理状态。既有扩展可继续不声明该字段。
 
-[公开生命周期隔离传输样例](NATIVE-TRANSPORT-EXPERIMENT.md#host-公开调用)展示 ctx.task/ctx.platform 与停用、卸载和撤权的限定两端结果，仅测试包可用，不代表生产网络或凭据能力。
+[公开生命周期隔离传输样例](spec/archive/M2-native-transport-experiment-2026-10-15.md#host-公开调用)展示 ctx.task/ctx.platform 与停用、卸载和撤权的限定两端结果，仅测试包可用，不代表生产网络或凭据能力。
 
 [可选单跳状态迁移助手](STATE-MIGRATION.md)已提供公开 SDK 入口与独立样板：扩展定义业务转换，助手用一次修订号提交保留旧快照；当前不自动迁移默认业务，也不提供通用包升级事务或自动回退。
 

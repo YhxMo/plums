@@ -132,7 +132,7 @@ Runtime 改为只读内部接口，提供 host／adapter／catalog／events／sa
 
 ## 此前源码维护验证
 
-2026-10-17 项目精简覆盖启动/Host/SDK、平台管理、扩展样板、构建脚本、测试入口与当前文档。删除仅供自测调用的 JS 代理校验及其 8 项测试；实际配置保留 Rust 校验。Host 安装按有效配置直接解析，失败仍保留默认配置与错误；Android 插件模板共用检查流程，未知代码保护及已知前版兼容保留，拒绝测试覆盖三种插件。回环传输说明合并为[单一入口](../docs/NATIVE-TRANSPORT-EXPERIMENT.md)，当前文档统一使用现有实现与验收状态。
+2026-10-17 项目精简覆盖启动/Host/SDK、平台管理、扩展样板、构建脚本、测试入口与当前文档。删除仅供自测调用的 JS 代理校验及其 8 项测试；实际配置保留 Rust 校验。Host 安装按有效配置直接解析，失败仍保留默认配置与错误；Android 插件模板共用检查流程，未知代码保护及已知前版兼容保留，拒绝测试覆盖三种插件。回环传输说明合并为[单一入口](../docs/spec/archive/M2-native-transport-experiment-2026-10-15.md)，当前文档统一使用现有实现与验收状态。
 
 受验源码基于 `9c05356` 加 `.cache/simplify-2026-10-17/source/` 中的工作区差异和未跟踪原件；本次前态保存在同材料根的 before/。`npm test` 322 项、`npm run test:web -- --workers=4` 117 项、`npm run build` 和 `npm run format:check` 通过；实际 `npm run android:prepare` 通过，MainActivity 与三个插件的生成结果均与受控源码一致。日志分别为 unit.log、browser.log、build.log、format.log 和 android-prepare.log，生成核对见 android-generated.json。独立审查未发现 P1/P2。Rust/Kotlin、UI 源码和样式未改，未重建或替换原生交付包；原生与真实连接器的剩余范围按各自记录继续维护。
 

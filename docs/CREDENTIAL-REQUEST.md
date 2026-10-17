@@ -1,6 +1,6 @@
 # 凭据代用请求契约
 
-状态：实验类型、测试专用参考适配器与 [DeepSeek 协议扩展](DEEPSEEK.md)已有本地实现；[通用绑定与原生凭据管理](CREDENTIAL-BINDINGS.md)已接入 Mac/Android 代码及宿主管理入口。生产 `PlatformAdapter` 仍不提供 `credential.request`，受限传输与请求授权待接通。系统秘密保存/读取/删除与真实外发的实际验收分开记录；接口正式稳定前仍须 iOS 最小验证。
+状态：当前有效（2026-10-17 核实）；实验类型、测试专用参考适配器与 [DeepSeek 协议扩展](DEEPSEEK.md)已有本地实现；[通用绑定与原生凭据管理](CREDENTIAL-BINDINGS.md)已接入 Mac/Android 代码及宿主管理入口。生产 `PlatformAdapter` 仍不提供 `credential.request`，受限传输与请求授权待接通。系统秘密保存/读取/删除与真实外发的实际验收分开记录；接口正式稳定前仍须 iOS 最小验证。
 
 连接器提交序列化载荷并取得响应，只引用自己的非秘密绑定名。平台管理凭据、精确目标和请求政策；扩展构造 JSON 等载荷并解析业务响应。
 
@@ -91,8 +91,8 @@ Mac Keychain 的项目及访问控制依据 [Apple Keychain Services](https://de
 | 已有入口 | 可复用语义或机制 | 生产尚缺 |
 | --- | --- | --- |
 | `tests/fixtures/credential-platform.ts` 与凭据单元测试 | owner/alias 隔离、严格字段、字节限额、世代、迟到响应与合成失败；无网络、只允许 .invalid | 真实绑定创建/撤销、OS 秘密、TLS、目标及网络故障 |
-| [Host 传输实验](NATIVE-TRANSPORT-EXPERIMENT.md#host-公开调用) | 独立扩展的 ctx.platform/ctx.task、依赖/停用、公开授权及回环实际传输 | 普通 PlatformAdapter 和原生生产命令接入、真实授权入口 |
-| [异常回执实验](NATIVE-TRANSPORT-EXPERIMENT.md#异常回执) | prepare/execute/cancel、未知回执、取消失败、容量和预约租期 | IPC 永不返回、系统休眠/进程终止、生产时限与平台秘密失败 |
+| [Host 传输实验](spec/archive/M2-native-transport-experiment-2026-10-15.md#host-公开调用) | 独立扩展的 ctx.platform/ctx.task、依赖/停用、公开授权及回环实际传输 | 普通 PlatformAdapter 和原生生产命令接入、真实授权入口 |
+| [异常回执实验](spec/archive/M2-native-transport-experiment-2026-10-15.md#异常回执) | prepare/execute/cancel、未知回执、取消失败、容量和预约租期 | IPC 永不返回、系统休眠/进程终止、生产时限与平台秘密失败 |
 | 普通包平台探测 | 不支持时明确不可用，不授予假能力 | 分平台可用性、用户拒绝/锁定/密钥失效后的恢复 |
 
 Mac 秘密库拒绝/锁定、Android 密钥不可用/失效或平台适配缺失时，绑定显示不可用，保留非秘密记录供重新绑定；不回退明文、浏览器 localStorage、环境变量或把秘密交给扩展。无需该能力的本地工作继续可用。

@@ -1,5 +1,7 @@
 # 实验固定视图树契约
 
+状态：当前有效（2026-10-17 核实）；实验视图树契约，仅固定树与公开挂载边界。
+
 可选 SDK `mountViewTree(root,node)` 返回 `{ready,close}`。节点为 `{id,mount(root,scope)}`；mount 可异步，scope 提供 signal、onDispose(fn) 与 mount(child,descendantRoot)。扩展可经普通版本服务传递节点，不需要 Host 理解具体 UI。仅固定树，不能在 mount 完成后保存 scope 再动态挂载。
 
 ready 等待所有已启动子挂载，包括未 await 的子调用。当前路径重复 ID 拒绝；兄弟允许相同 ID。一个 HTMLElement 同时只能被一棵树中的一个节点占用，子根必须是父根的严格后代。冲突拒绝，不偷偷替换已有贡献。DOM 边界仅约束此公开方法；共享 WebView 不能限制恶意代码直接改 DOM。

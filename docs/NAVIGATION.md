@@ -1,5 +1,7 @@
 # 实验导航选择契约
 
+状态：当前有效（2026-10-17 核实）；实验导航契约，仅同进程路由与停用恢复。
+
 可选纯函数 `resolveNavigation(entries, preferredRoute?)` 只选择贡献，不管理 DOM、生命周期、URL 或历史。每项为 `{id,route,label,priority,viewId}`，id 和 viewId 非空且分别唯一，route 为非空字符串，label 非空，priority 为有限安全整数。输入复制后选择，不修改调用者数组。
 
 同一路径优先级数值较高者胜出；相同优先级按 ID 的代码单元顺序升序决胜，避免激活先后或 locale 导致变化。返回每条路径的胜出项、冲突诊断（胜出 ID 与落选 ID），以及 preferredRoute 的胜出项；该路径不存在则选路径排序第一项，无贡献则 selected 为空。不会自动覆盖注册或持久保存选择。

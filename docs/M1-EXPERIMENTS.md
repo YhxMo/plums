@@ -1,5 +1,7 @@
 # M1 实验与工程决策
 
+状态：当前有效（2026-10-17 核实）；M1 已限定收敛，长期决策与后续平台门槛见架构与整体计划。
+
 M1 已按 Mac arm64 与 Android API36 ARM64 模拟器的限定范围收敛。当前开发与交付状态见[验证索引](../evidence/RESULTS.md)，工具链和构建入口见[开发流程](DEVELOPMENT.md)与[Android 工程](ANDROID.md)。
 
 ## 实验范围

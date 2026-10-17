@@ -47,23 +47,9 @@ Android 复用既有 YHX 工具链。将 `PLUMS_ANDROID_TOOLS_ROOT` 设置为含
 
 图标源为 `src-tauri/icons/source.png`；执行 `npm run icons` 可重新生成 Mac、Android 和 Web 所需资源。默认界面与可替换布局共用语义颜色变量，所有权见 [UI](docs/UI.md)。
 
-## 文档索引
+## 文档导航
 
-| 任务 | 文档 |
-| --- | --- |
-| 了解架构、选型与待验证风险 | [ARCHITECTURE](docs/ARCHITECTURE.md) |
-| 查看公开实验契约与生命周期语义 | [EXTENSION-CONTRACTS](docs/EXTENSION-CONTRACTS.md) |
-| 按验收、测试、实现和独立审查开展工作 | [DEVELOPMENT](docs/DEVELOPMENT.md) |
-| 查看可扩展本体的目标验收矩阵 | [ACCEPTANCE](docs/ACCEPTANCE.md) |
-| 查看完整能力路线、依赖与阶段验收 | [整体实现计划](docs/spec/total.md) |
-| 查看正在执行及紧接准备执行的阶段 | [当前阶段计划](docs/spec/milestone.md) |
-| 按阶段查找计划与验收入口 | [ROADMAP](docs/ROADMAP.md) |
-| 查看 M1 决策、风险与回退方案 | [M1-EXPERIMENTS](docs/M1-EXPERIMENTS.md) |
-| 了解桌面/移动界面、状态路径与 UI 所有权 | [UI](docs/UI.md) |
-| 使用既有工具链构建 Android、维护 Insets 适配 | [ANDROID](docs/ANDROID.md) |
-| 查看验证证据与源码版本 | [RESULTS](evidence/RESULTS.md) |
-| 恢复当前工程状态 | [HANDOFF](HANDOFF.md) |
-| 查看经验与防再犯措施 | [LESSONS](LESSONS.md) |
+本文件项目介绍与当前状态；当前文档按用途分层的唯一导航见[文档导航](docs/README.md)，已完成阶段与退役记录见[归档索引](docs/spec/archive/README.md)。工程状态、经验与证据分别在 [HANDOFF](HANDOFF.md)、[LESSONS](LESSONS.md) 和[验证索引](evidence/RESULTS.md)。文档职责、登记与退休规则见[开发流程](docs/DEVELOPMENT.md#文档职责与索引)。
 
 完整愿景唯一保存于本地 [goal.md](goal.md)，该文件不随 Git 分发；缺少它不影响使用公开工程文档。
 

@@ -2,6 +2,8 @@
 
 [快速开始](../README.md) · [默认界面](UI.md) · [实验范围](M1-EXPERIMENTS.md) · [当前证据](../evidence/RESULTS.md)
 
+状态：当前有效（2026-10-17 核实）；接入既有 YHX 工具链，构建与设备结果按平台分别留证。
+
 在既有 YHX Android 工具链目录设置 `PLUMS_ANDROID_TOOLS_ROOT`，然后从项目根目录执行：
 
 ```sh

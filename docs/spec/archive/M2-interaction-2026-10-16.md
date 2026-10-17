@@ -2,7 +2,7 @@
 
 日期：2026-10-16（Asia/Shanghai）。本小阶段已按 Mac arm64 打包应用与 Android API36 ARM64 模拟器范围完成，普通 release 已交付；M2 整体未退出，SDK 未稳定。
 
-[整体路线](../total.md) · [当前阶段](../milestone.md) · [交互设计](../M2-INTERACTION-DESIGN.md) · [最终证据](../../../evidence/M2-NATIVE-DELIVERY-2026-10-16.md)
+[整体路线](../total.md) · [当前阶段](../milestone.md) · [交互设计](M2-interaction-design-2026-10-16.md) · [最终证据](../../../evidence/M2-NATIVE-DELIVERY-2026-10-16.md)
 
 负责人：集成维护者负责统一候选、必要修复和交付；隔离作者负责新页面；未参与实现的独立执行者只读审查源码、日志、实际截图和交付清单。
 

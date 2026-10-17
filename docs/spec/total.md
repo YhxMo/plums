@@ -1,6 +1,8 @@
 # 整体实现计划
 
-[文档索引](../../README.md) · [当前阶段](milestone.md) · [验收矩阵](../ACCEPTANCE.md) · [架构](../ARCHITECTURE.md) · [证据](../../evidence/RESULTS.md)
+[文档导航](../README.md) · [当前阶段](milestone.md) · [验收矩阵](../ACCEPTANCE.md) · [架构](../ARCHITECTURE.md) · [证据](../../evidence/RESULTS.md)
+
+更新日期：2026-10-17（Asia/Shanghai）。
 
 ## 职责与基线
 
@@ -14,15 +16,15 @@
 
 应用 UI 的能力目标包含整体布局、导航、页面和操作流程的组合与替换，并允许扩展声明新的界面扩展点。颜色主题是其中一个子能力；验收须观察明显不同的交互体验、跨作者接入和生命周期恢复，不能用主题数量或固定聊天布局中的附加控件代替。
 
-阶段状态：M1限定风险范围已[收敛](archive/M1-scope-2026-10-15.md)；M2正在执行，作者入口、组合／恢复、平台样板、[完整交互子阶段](archive/M2-interaction-2026-10-16.md)、[项目收敛与Mac交付](archive/M2-project-consolidation-2026-10-17.md)和[当前版本双端验收与生产能力准备](archive/M2-current-dual-acceptance-2026-10-17.md)已有各自限定结果；M2整体未退出，M3–M5未开始。已完成子阶段保留在[阶段归档](archive/)，对应版本及范围从[验证索引](../../evidence/RESULTS.md)查阅。
+阶段状态：M1限定风险范围已[收敛](archive/M1-scope-2026-10-15.md)；M2正在执行，作者入口、组合／恢复、平台样板、[完整交互子阶段](archive/M2-interaction-2026-10-16.md)、[项目收敛与Mac交付](archive/M2-project-consolidation-2026-10-17.md)和[当前版本双端验收与生产能力准备](archive/M2-current-dual-acceptance-2026-10-17.md)已有各自限定结果；M2整体未退出，M3–M5未开始。已完成子阶段保留在[阶段归档索引](archive/README.md)，对应版本及范围从[验证索引](../../evidence/RESULTS.md)查阅。
 
 ## 平台优先级与门槛调整
 
-Mac arm64 与 Android API36 ARM64 模拟器已有同源普通包的限定交付。当前启动、管理与弹窗行为见[验证索引](../../evidence/RESULTS.md)，已完成计划见[阶段归档](archive/)；已确认 UI 继续沿用。
+Mac arm64 与 Android API36 ARM64 模拟器已有同源普通包的限定交付。当前启动、管理与弹窗行为见[验证索引](../../evidence/RESULTS.md)，已完成计划见[阶段归档索引](archive/README.md)；已确认 UI 继续沿用。
 
 当前推进受限网络／凭据与首个真实模型连接器：DeepSeek 官方接口需求及协议扩展的本地增量已有[限定结果](../../evidence/DEEPSEEK-LOCAL-2026-10-17.md)，通用绑定与原生凭据管理已有[限定结果](../../evidence/CREDENTIAL-BINDINGS-2026-10-17.md)，受限传输和真实调用仍待完成。两端默认官方API直连，并支持管理者显式配置HTTP(S)网络代理；中转/网关后续独立支持。以中立绑定政策和系统秘密适配支撑公开text.transform服务的一次非流式输入输出；本地代码不等待全部测试资源，实际秘密操作和外发分别取得对应范围授权，夹具由实现者按缺口准备，详见[当前计划](milestone.md)。该连接器是M2底座的实际消费者，不提前完成M4的完整组装、MCP或多Agent协作；M2整体退出条件不变。
 
-工程维护“阶段 A：安全网与基线”已[完成](archive/A-hardening-2026-10-17.md)，固化现有开发增量并增加统一门禁、静态边界检查和文件行数棘轮；“阶段 B：启动、保存与校验边界”已[完成](archive/B-runtime-validation-2026-10-17.md)，补充失败测试、拆分启动职责并统一校验与错误映射；[C1：Agent 工作区职责拆分](archive/C1-agent-workspace-2026-10-17.md)、[C2：按使用方拆分样式](archive/C2-styles-2026-10-17.md)、[C3：扩展操作与组件依赖](archive/C3-extension-actions-2026-10-17.md)和 [C4：扩展状态所有权](archive/C4-extension-state-2026-10-17.md)已完成并停止。C5–C6 未开始，状态见[当前阶段](milestone.md)；M2 整体退出条件保持。
+工程维护阶段 A–D 已完成：安全网与基线、启动/保存/校验边界、C1–C4 的组件与状态所有权拆分，以及 D 的文档职责解耦与归档整理；结果与证据入口见[阶段归档索引](archive/README.md)。C5–C6 未开始，状态见[当前阶段](milestone.md)；M2 整体退出条件保持。
 
 先主攻 Mac＋Android 稳定第一版，最终仍覆盖 macOS、Android、iOS、Windows、Linux。共享 SDK、状态、生命周期和能力探测契约继续面向五端，平台差异经适配层表达。稳定第一版是目标，当前 0.0.4 debug 原型不因此成为稳定产品。
 

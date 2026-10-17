@@ -1,6 +1,6 @@
 # 已选择文档的会话内只读访问
 
-状态：实验实现已在Mac和Android API36 ARM64模拟器限定验收；不是稳定 SDK。Mac 使用 NSOpenPanel，Android 使用 ACTION_GET_CONTENT 系统选择器。浏览器明确不可用，iOS/Windows/Linux 未实现此原生适配。此前合成设计的历史结果见 [合成契约证据](../evidence/DOCUMENT-CONTRACT-2026-10-16.md)。
+状态：当前有效（2026-10-17 核实）；实验实现已在Mac和Android API36 ARM64模拟器限定验收；不是稳定 SDK。Mac 使用 NSOpenPanel，Android 使用 ACTION_GET_CONTENT 系统选择器。浏览器明确不可用，iOS/Windows/Linux 未实现此原生适配。此前合成设计的历史结果见 [合成契约证据](../evidence/DOCUMENT-CONTRACT-2026-10-16.md)。
 
 ## 用户路径与所有权
 

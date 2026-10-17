@@ -1,5 +1,7 @@
 # 合成状态恢复确认界面
 
+状态：当前有效（2026-10-17 核实）；合成数据样板，默认不加载，不授权恢复真实数据。
+
 可选 ESM 样板 `sample.restore-panel` 通过公开 `sample.restore@1` 服务取得预览和恢复能力，使用 ctx.view，不读 Host 私有状态。默认应用不加载样板；本阶段只对隔离合成数据运行，不授权恢复真实数据。
 
 服务契约：`preview(signal?)` 返回 null（当前无适用快照）或 `{revision,from,to,current,target}`；`restore(revision,signal?)` 返回已确认 StoredState。提供者负责业务 schema、目标版本及 restorePreviousState 调用，UI 不解析业务格式。提供者必须只给出适用且经校验的目标，不能用目标版本代替业务验证。unknown错误通过 outcome 保留。

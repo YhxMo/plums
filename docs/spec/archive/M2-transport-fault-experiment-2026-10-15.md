@@ -1,6 +1,6 @@
 # 原生异常回执与预约恢复实验
 
-限定结果见 [验收证据](../evidence/TRANSPORT-FAULT-2026-10-15.md)。本阶段只修改默认关闭的 native-transport-experiment 与测试页，不开放生产网络或凭据。普通 PlatformAdapter、Host、SDK 业务调用及默认前端保持原样。
+限定结果见 [验收证据](../../../evidence/TRANSPORT-FAULT-2026-10-15.md)。本阶段只修改默认关闭的 native-transport-experiment 与测试页，不开放生产网络或凭据。普通 PlatformAdapter、Host、SDK 业务调用及默认前端保持原样。
 
 ## 最小恢复机制
 
@@ -24,6 +24,6 @@ probe_faults 仅在显式实验特性中注册，接受已授权合成 owner 与
 
 ## 复现
 
-沿用 [原生实验](NATIVE-TRANSPORT-EXPERIMENT.md)工具链与固定回环服务。Vite root 为 tests/transport-fault，输出 `.cache/transport-fault/dist`，target es2022。Mac 标识 dev.plums.plums.transportfaultprobe，显示名称 Plums Transport Fault Probe，数据目录 `.dev-data/transport-fault-mac`。Android 仅覆盖测试前端，装入独立只读 AVD 克隆，使用专用 ADB 5058、模拟器 5594、CDP 9248。服务 18765 仅监听回环，临时 reverse 验收后删除。
+沿用 [原生实验](M2-native-transport-experiment-2026-10-15.md)工具链与固定回环服务。Vite root 为 tests/transport-fault，输出 `.cache/transport-fault/dist`，target es2022。Mac 标识 dev.plums.plums.transportfaultprobe，显示名称 Plums Transport Fault Probe，数据目录 `.dev-data/transport-fault-mac`。Android 仅覆盖测试前端，装入独立只读 AVD 克隆，使用专用 ADB 5058、模拟器 5594、CDP 9248。服务 18765 仅监听回环，临时 reverse 验收后删除。
 
 Mac 与 Android 顺序运行，页面报告与服务命中计数共同核对副作用；实际窗口与 WebView 分别留证。原始日志和产物在 `.cache/transport-fault/`，不提交。生成构建输出可能为实验包，普通 release 不替换。模拟器不代表真机、触控或其他平台；iOS 正式接口稳定前门槛不变。

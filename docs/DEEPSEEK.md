@@ -2,6 +2,8 @@
 
 [源码](../extensions/connectors/deepseek.js) · [凭据请求契约](CREDENTIAL-REQUEST.md) · [本地证据](../evidence/DEEPSEEK-LOCAL-2026-10-17.md)
 
+状态：当前有效（2026-10-17 核实）；协议扩展与隔离测试已实现，生产传输与真实调用待接通。
+
 需要为现有 Agent 替换文本处理服务时，本扩展提供 `text.transform@1`，通过连接器自己的凭据绑定提交 DeepSeek Chat Completions 载荷。协议代码和隔离测试已实现；普通 `PlatformAdapter` 尚不提供 `credential.request`，因此目前不能在应用内完成真实调用。默认目录和现有交付包不启用此扩展。
 
 ## 模块与配置

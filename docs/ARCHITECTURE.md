@@ -1,6 +1,8 @@
 # 架构边界与决策状态
 
-[文档索引](../README.md) · [扩展契约](EXTENSION-CONTRACTS.md) · [验收计划](ACCEPTANCE.md)
+[文档导航](README.md) · [扩展契约](EXTENSION-CONTRACTS.md) · [验收计划](ACCEPTANCE.md)
+
+状态：当前有效（2026-10-17 核实）；记录目标职责与当前模块边界，长期决策见文末 D1–D8。
 
 当前为 0.0.4 debug 实验原型，M1 已限定收敛，M2 正在推进受限网络与凭据。默认 Agent、主题、页面组合与原生适配的当前实现和验证范围见[验证索引](../evidence/RESULTS.md)。下文区分目标职责与当前模块边界。
 

@@ -1,5 +1,7 @@
 # 非敏感扩展配置（实验）
 
+状态：当前有效（2026-10-17 核实）；实验配置契约，仅非秘密值，无授权与加密能力。
+
 Manifest 可选声明 `configuration: { version: 1, fields: { step: { type: "number", label: "每次增加量", default: 1, min: 1, max: 100 } } }`。version 是正整数且精确匹配；本阶段支持 string（必填 maxLength，1–4000）、有限 number（必填 min/max）和 boolean，所有字段必须有类型正确且满足边界的 default。字段名限定小写字母开头的字母/数字/下划线。未知类型和非法声明拒绝加载。
 
 持久化值为 `{ version, values }`，values 必须包含全部声明字段且不能增加未知字段，不做隐式类型转换或迁移。未保存时使用默认值。普通配置不是秘密存储：禁止放入密钥、令牌或其他凭据；没有 secret 字段类型、加密或授权能力。敏感凭据仍等待独立契约。
