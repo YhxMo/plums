@@ -33,6 +33,8 @@
 
 ## M2 子阶段
 
+[M2.0 重新基线与两端限定交付](M2-baseline-2026-10-18.md) · [证据](../../../evidence/BASELINE-2026-10-18.md)
+
 | 归档 | 结果入口 |
 | --- | --- |
 | [M2 最小组合保存与恢复](M2-composition-2026-10-15.md) | [COMPOSITION-2026-10-15](../../../evidence/COMPOSITION-2026-10-15.md) |

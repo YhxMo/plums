@@ -4,16 +4,20 @@
 
 ## 当前交付
 
-[2026-10-17 弹窗初始焦点修复](DIALOG-FOCUS-2026-10-17.md)记录当前受验源码：关闭按钮默认无框，悬停保留反馈，Tab仍显示焦点环。112 浏览器通过；Mac 普通包与 Android API36 ARM64 模拟器的浅深主题、默认状态、Tab、表单聚焦和关闭返回均已实际验收并经独立审查。同源受验原包进入 release，旧完整目录保留，本小阶段已归档；M2 整体尚未退出。
+[2026-10-18 M2.0 重新基线](BASELINE-2026-10-18.md)记录当前两端交付：标签 `m2-baseline-2026-10-18`（015ac2d）、空 source.patch；普通候选实际运行并经独立复核后原包发布。
 
-| 平台 | 当前入口与证据范围 |
+| 平台 | 当前入口与范围 |
 | --- | --- |
-| Mac arm64 | `release/mac/Plums M1.app`，0.0.4 debug 临时签名；本期弹窗初始/键盘状态、表单与关闭返回限定验收 |
-| Android ARM64 | `release/android/plums-m1-0.0.4-android-arm64-debug.apk`，0.0.4 debug；Android 16/API36 ARM64 模拟器、WebView 133.0.6943.137，本期弹窗受影响路径、44px关闭目标 |
+| Mac arm64 | `release/mac/Plums M1.app`，0.0.4 debug ad-hoc；主题双向与冷恢复、管理、Agent 恢复、真实拒写反馈、原生凭据取消 |
+| Android ARM64 | `release/android/plums-m1-0.0.4-android-arm64-debug.apk`；API36 ARM64 模拟器，主题恢复、显式管理返回、IME/Back 收键盘、Agent 恢复、凭据取消 |
 
-两端目录的 build-info.json 与 source.patch 保存来源和交付校验，acceptance.json链接本期范围。[此前启动与管理修复](UI-STARTUP-2026-10-17.md)的274单元/110浏览器及冷恢复结果继续绑定其源码；本期完整浏览器包含这三项回归，未重跑未变的单元/Rust路径。[此前双端完整限定验收](M2-CURRENT-2026-10-17.md)继续绑定其源码和路径，未改 Rust/平台适配的专项证据按各自输入复用。
+已知限制：管理页系统 Back 退出 Activity，排入 P7；真机、中文 IME 组合输入、其他平台和真实模型调用不在本次范围。旧两端包分别保留在 `.cache/archive/releases/mac-Eyjl1K/mac`、`.cache/archive/releases/android-TcFWvt/android`。此前[弹窗焦点交付](DIALOG-FOCUS-2026-10-17.md)仅证明其受验版本，不能代表当前包全范围验收。
 
 ## 当前本地增量
+
+[2026-10-18 M2.0 重新基线](BASELINE-2026-10-18.md)：标签 `m2-baseline-2026-10-18`（`015ac2d`）通过 Web 517 单元、浏览器 121 项与 stable 原生门禁 30 单元；Mac、Android 同源候选已构建和实际启动，补验主题保存/恢复、管理、原生凭据取消及 Mac 写入拒绝。Android 管理页系统 Back 退出 Activity 的导航缺口已记录；限定独立复核与原候选发布已完成，旧包保留。
+
+以下为已纳入当前基线的各阶段历史证据，保留当时的交付与未验口径；当前结果以本页“当前交付”及重新基线证据为准。
 
 [DeepSeek 协议扩展](DEEPSEEK-LOCAL-2026-10-17.md)已通过隔离平台的现有 Agent 服务接线、取消、解析失败和切回本地测试；298 项全单元及构建通过，源码经独立审查。该结果对应工作区本地增量，未改 UI 或替换交付包，不代表真实 API、秘密存储或两端原生接入完成。[生产设计](../docs/CREDENTIAL-REQUEST.md#生产接入)和[当前阶段](../docs/spec/milestone.md)继续维护生产适配及真实验收缺口，普通包不开放该能力。
 

@@ -8,16 +8,16 @@
 
 默认 Agent 界面支持角色导入、特别关注、多会话和本地文本处理；零角色时显示双卡片欢迎页，桌面已有角色未选中时只在会话区显示居中品牌图标。菜单提供独立扩展管理、设置和诊断。[文本工作台与动态页面](docs/PAGES.md)、[独立嵌套页面](docs/LOCAL-PROOF.md)、[公开主题](docs/THEMES.md)及[会话文档只读](docs/SELECTED-DOCUMENT.md)提供非聊天与平台样板。[DeepSeek 协议扩展](docs/DEEPSEEK.md)已通过本地隔离测试，[通用绑定与原生录入](docs/CREDENTIAL-BINDINGS.md)已接入开发版；系统秘密实际读取/注入、请求授权、生产传输和真实调用仍未完成；MCP 连接器和多 Agent 协作尚未实现。
 
-M1 已按 Mac 与单配置 Android 模拟器的限定风险范围收敛，M2 整体尚未退出。M2 按 M2.0 重新基线、M2.1 契约闭合、M2.2 作者与 UI 开放、M2.3 平台能力切片、M2.4 M2 退出与稳定 SDK 推进；当前先做 M2.0，详见[整体计划](docs/spec/total.md)与[当前阶段](docs/spec/milestone.md)。当前交付、对应源码和未验范围统一见[验证索引](evidence/RESULTS.md)，执行状态见 [HANDOFF](HANDOFF.md)。Android 真机、iOS、Windows/Linux、稳定 SDK 与正式签名分发仍待验；iOS 最小实验须在 M2.4 内、稳定 SDK 声明前完成。
+M1 已按 Mac 与单配置 Android 模拟器的限定风险范围收敛，M2 整体尚未退出。M2 按 M2.0 重新基线、M2.1 契约闭合、M2.2 作者与 UI 开放、M2.3 平台能力切片、M2.4 M2 退出与稳定 SDK 推进；M2.0 已限定完成，当前准备执行工程前置 P6 → P1，详见[整体计划](docs/spec/total.md)与[当前阶段](docs/spec/milestone.md)。当前交付、对应源码和未验范围统一见[验证索引](evidence/RESULTS.md)，执行状态见 [HANDOFF](HANDOFF.md)。Android 真机、iOS、Windows/Linux、稳定 SDK 与正式签名分发仍待验；iOS 最小实验须在 M2.4 内、稳定 SDK 声明前完成。
 
 ## 本地应用包
 
-`release/` 当前仍是绑定 `9c05356` 加 source.patch 的 0.0.4 debug 交付；开发分支更新尚未进入 release，两者不同源。真实调用与新的两端验收完成前，不把开发分支结果当作交付结果；来源与恢复入口见 [HANDOFF](HANDOFF.md#交付与恢复)。
+`release/` 已更新为 `m2-baseline-2026-10-18`（015ac2d）的同源 0.0.4 debug 包。[重新基线证据](evidence/BASELINE-2026-10-18.md)列出实际范围和恢复入口。Android 管理页系统 Back 当前退出 Activity，请使用页面“返回工作区”按钮；修复已排期。
 
 | 平台 | 当前入口 | 范围 |
 | --- | --- | --- |
-| Apple Silicon Mac | `release/mac/Plums M1.app` | 2026-10-17 同源受验普通包，绑定 `9c05356` 加 source.patch；[最新修复与交付](evidence/DIALOG-FOCUS-2026-10-17.md)，来源与校验见同目录 build-info.json |
-| Android ARM64 | `release/android/plums-m1-0.0.4-android-arm64-debug.apk` | 2026-10-17 同源受验普通包，绑定 `9c05356` 加 source.patch；限定 Android 16/API36 ARM64 模拟器 |
+| Apple Silicon Mac | `release/mac/Plums M1.app` | 普通包启动、主题/状态恢复、管理与凭据取消、拒写提示限定验收 |
+| Android ARM64 | `release/android/plums-m1-0.0.4-android-arm64-debug.apk` | API36 ARM64 模拟器：主题恢复、管理显式返回、IME/Back 收键盘与凭据取消 |
 
 在 macOS 执行 `npm run release:mac`，统一构建、临时签名、文件校验和旧Mac包归档。先验收后交付使用 `npm run release:mac -- --stage`，通过后以 `--publish <候选目录>` 发布原候选，不重新构建；见[交付约定](docs/DEVELOPMENT.md#本地交付目录)。当前包按平台存放；旧包保留在 `.cache/archive/releases/`，归档清单与恢复说明见 `.cache/archive/INDEX.json` 和 README.md。二进制恢复不回滚应用数据。
 
