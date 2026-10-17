@@ -6,7 +6,7 @@ import type { Appearance } from "./useAppearance";
 import type { ShellNavigation } from "./useShellNavigation";
 import { ExtensionView } from "../components/ExtensionView";
 import { Dialog } from "../components/Dialog";
-import styles from "../App.module.css";
+import styles from "../features/extensions/ExtensionManager.module.css";
 export function ShellDialogs({
   runtime,
   operations,

@@ -1,7 +1,8 @@
 import type { Runtime } from "../../shell/runtime";
 import type { Agent } from "../../../modules/sdk/agents";
 import { capabilityLabel, translateStatus } from "../../shell/messages";
-import styles from "../../App.module.css";
+import styles from "../../shell/dialogs.module.css";
+import managerStyles from "./ExtensionManager.module.css";
 import { CredentialBindings } from "./CredentialBindings";
 import type { ShellOperations } from "../../shell/useOperations";
 export function ExtensionDetails({
@@ -25,10 +26,10 @@ export function ExtensionDetails({
     <div className={styles.detailCard}>
       <header className={styles.detailCardHeader}>
         <div>
-          <div className={styles.extensionTitle}>
+          <div className={managerStyles.extensionTitle}>
             <h3>{activeSelectedExt.label}</h3>
             <span
-              className={`${styles.status} ${extState.status === "active" ? styles.active : ""}`}
+              className={`${managerStyles.status} ${extState.status === "active" ? managerStyles.active : ""}`}
             >
               {translateStatus(extState.status)}
             </span>

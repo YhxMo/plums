@@ -6,7 +6,8 @@ import type { Authorization } from "./AuthorizationDialog";
 import type { WorkspaceChrome } from "./useWorkspaceChrome";
 import { ExtensionView } from "../components/ExtensionView";
 import { Icon } from "../components/Icon";
-import styles from "../App.module.css";
+import styles from "./layout.module.css";
+import managerStyles from "../features/extensions/ExtensionManager.module.css";
 function RecoveryWelcome({
   operations,
   experiments,
@@ -22,7 +23,7 @@ function RecoveryWelcome({
   const { started, start } = experiments;
   const { requestAuthorization } = authorization;
   return (
-    <main className={styles.welcome}>
+    <main className={managerStyles.welcome}>
       <img className={styles.welcomeMark} src="/brand/plums.png" alt="" />
       <span className="eyebrow">你的本地工作空间</span>
       <h1>{started ? "扩展正在等待条件。" : "从一个可替换的界面开始。"}</h1>
@@ -31,7 +32,7 @@ function RecoveryWelcome({
           ? "查看扩展状态以恢复依赖，或重新启用默认组合。已保存的数据会在恢复时读取。"
           : "服务处理输入，布局呈现结果。先查看扩展，再授权启动你的第一个组合。"}
       </p>
-      <ol className={styles.steps}>
+      <ol className={managerStyles.steps}>
         <li>
           <b>1</b>查看扩展
         </li>
@@ -42,7 +43,7 @@ function RecoveryWelcome({
           <b>3</b>运行与保存
         </li>
       </ol>
-      <div className={styles.welcomeActions}>
+      <div className={managerStyles.welcomeActions}>
         <button
           disabled={busy}
           onClick={(event) =>
@@ -55,7 +56,7 @@ function RecoveryWelcome({
           查看本地扩展
         </button>
       </div>
-      <p className={styles.welcomeHint}>
+      <p className={managerStyles.welcomeHint}>
         默认组合：文本工作台、大写服务、工作台与画布布局。只处理本地示例文本。
       </p>
     </main>

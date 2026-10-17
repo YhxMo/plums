@@ -35,10 +35,10 @@ it.each([true, false])(
 );
 
 it("rejects growth beyond an existing cap and reports remaining allowance after shrinkage", () => {
-  const file = "src/components/Workspace.module.css";
-  expect(checkSize(fixture(file, 952)).failures).toBe(1);
-  expect(checkSize(fixture(file, 950)).rows).toEqual([
-    `${file} | 950 | 951 | 1`,
+  const file = "src-tauri/src/documents.rs";
+  expect(checkSize(fixture(file, 907)).failures).toBe(1);
+  expect(checkSize(fixture(file, 905)).rows).toEqual([
+    `${file} | 905 | 906 | 1`,
   ]);
 });
 

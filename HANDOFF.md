@@ -20,7 +20,9 @@ App 负责启动，Workbench 组合工作区、外观、导航、授权和管理
 
 阶段 B 已完成并提交为 `0e80dcd`（34 文件），父基线为 `4bf42a6`：boot 拆为解析、保存和安装边界，226 行降到 63 行，Runtime 类型形状保持；共用校验 61 行，保留提示从 12 处到 1 处，目标 typeof 检查从 35 处到 7 处。提交前重跑 Web 门禁，43 文件／433 单元及全部检查通过，提交后工作区干净。Chrome 全量 117／117 通过；其后错误字典修复另有 6 条定向回归，正常映射未变。独立审查的两项 P2 均已修复并复核关闭，无剩余问题；[阶段已归档](docs/spec/archive/B-runtime-validation-2026-10-17.md)。实际范围与红绿证据见[阶段 B 验证](evidence/RESULTS.md#阶段-b启动保存与校验边界)。
 
-C1 已完成，以 `0e80dcd` 和干净工作区开工，源码、测试与本记录纳入同一独立本地提交：组合文件 554 → 210 行，弹窗、模态状态、角色卡草稿和焦点各自归属，Agent 与外壳复用 useAsyncAction。新增模块导入测试先因模块级 matchMedia 失败，移入 useMediaQuery 后通过。当前 Web 门禁 44 文件／434 单元及全量 Chrome 117／117 通过；手机浅色和桌面深色的实际渲染、取消草稿、焦点返回及媒体切换通过，独立审查无 P1/P2/P3。范围与结果见 [C1 归档](docs/spec/archive/C1-agent-workspace-2026-10-17.md)及[验证证据](evidence/RESULTS.md#c1agent-工作区职责拆分)。C1 在此停止，C2–C6 未开始。
+C1 已完成并提交为 `ee4ff82`，以 `0e80dcd` 和干净工作区开工：组合文件 554 → 210 行，弹窗、模态状态、角色卡草稿和焦点各自归属，Agent 与外壳复用 useAsyncAction。新增模块导入测试先因模块级 matchMedia 失败，移入 useMediaQuery 后通过。该版 Web 门禁 44 文件／434 单元及全量 Chrome 117／117 通过；手机浅色和桌面深色的实际渲染、取消草稿、焦点返回及媒体切换通过，独立审查无 P1/P2/P3。范围与结果见 [C1 归档](docs/spec/archive/C1-agent-workspace-2026-10-17.md)及[验证证据](evidence/RESULTS.md#c1agent-工作区职责拆分)。
+
+C2 已完成，以 `ee4ff82` 和干净工作区开工，源码、验证与本记录纳入同一次独立本地提交：先核对 class 使用方和复合选择器，再将 951／680 行的两个 CSS module 拆为七个 145–332 行文件；选择器与声明保持，更新 TSX 样式引用及行数棘轮。Web 门禁 44 文件／434 单元、Chrome 全量 117／117 通过；375／1180px 双主题的 48 个状态对照中，所测计算样式和元素几何无差异。独立审查无 P1/P2/P3，实际范围见 [C2 证据](evidence/RESULTS.md#c2按使用方拆分样式)与[阶段归档](docs/spec/archive/C2-styles-2026-10-17.md)。C2 在此停止，C3–C6 未开始。
 
 阶段 A 新增统一入口 `npm run verify:web`（构建、单元、格式、项目/导入边界、行数、ESLint）、`npm run verify:native`（Rust 格式、Clippy、单元）及组合命令 `npm run verify`；浏览器另用 `npm run verify:e2e`。Web 门禁通过，40 文件/358 单元、ESLint 0 错误/0 警告；浏览器回归 117 项通过。最终结果与独立审查见[阶段证据](evidence/RESULTS.md#阶段-a安全网与基线)。
 

@@ -17,7 +17,8 @@ import { useMediaQuery } from "../../shell/useMediaQuery";
 import { useAgentModals } from "./useAgentModals";
 import { AgentDialogs } from "./AgentDialogs";
 import { fallbackFocus } from "./focus";
-import s from "../../components/Workspace.module.css";
+import s from "../../components/AgentList.module.css";
+import detailStyles from "../../components/DetailPanel.module.css";
 
 export function AgentWorkspace({
   api,
@@ -184,13 +185,13 @@ export function AgentWorkspace({
             fallbackFocus={focusFallback}
             onClose={() => setDetail(false)}
           >
-            <div className={s.mobileDetail}>
-              {feedback(s.detailFeedback)}
+            <div className={detailStyles.mobileDetail}>
+              {feedback(detailStyles.detailFeedback)}
               {detailContent}
             </div>
           </Dialog>
         ) : (
-          <div className={s.detailHost}>{detailContent}</div>
+          <div className={detailStyles.detailHost}>{detailContent}</div>
         ))}
       <AgentDialogs
         api={api}

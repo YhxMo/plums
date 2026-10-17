@@ -8,7 +8,7 @@ import { parseRoleCard } from "../../../modules/agents/store";
 import { Dialog } from "../../components/Dialog";
 import { Icon } from "../../components/Icon";
 import type { AgentModals } from "./useAgentModals";
-import s from "../../components/Workspace.module.css";
+import s from "../../components/Onboarding.module.css";
 
 export function AgentDialogs({
   api,

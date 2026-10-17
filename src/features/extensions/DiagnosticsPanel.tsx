@@ -4,7 +4,7 @@ import type { ShellOperations } from "../../shell/useOperations";
 import type { Workspace } from "../../shell/useWorkspace";
 import type { Authorization } from "../../shell/AuthorizationDialog";
 import type { Experiments } from "../../shell/useExperiments";
-import styles from "../../App.module.css";
+import styles from "./ExtensionManager.module.css";
 export function DiagnosticsPanel({
   runtime,
   operations,

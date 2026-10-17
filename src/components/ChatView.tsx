@@ -2,7 +2,7 @@ import { useEffect, useRef } from "react";
 import type { Agent, AgentProviderInfo } from "../../modules/sdk/agents";
 import { Avatar } from "./AgentList";
 import { Icon } from "./Icon";
-import s from "./Workspace.module.css";
+import s from "./ChatView.module.css";
 export function ChatView({
   agent,
   provider,

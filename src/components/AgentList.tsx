@@ -1,7 +1,9 @@
 import { useEffect, useRef, useState } from "react";
 import type { Agent } from "../../modules/sdk/agents";
 import { Icon } from "./Icon";
-import s from "./Workspace.module.css";
+import s from "./AgentList.module.css";
+import chatStyles from "./ChatView.module.css";
+import detailStyles from "./DetailPanel.module.css";
 export function Avatar({
   agent,
   size = "normal",
@@ -10,7 +12,9 @@ export function Avatar({
   size?: "normal" | "large";
 }) {
   return (
-    <span className={`${s.avatar} ${size === "large" ? s.avatarLarge : ""}`}>
+    <span
+      className={`${s.avatar} ${chatStyles.avatar} ${detailStyles.avatar} ${size === "large" ? s.avatarLarge : ""}`}
+    >
       <Icon
         name={agent.multiSession ? "code" : "document"}
         size={size === "large" ? 30 : 22}

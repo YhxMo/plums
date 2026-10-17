@@ -2,7 +2,7 @@ import { useCallback, useState, useSyncExternalStore } from "react";
 import type { Agent, AgentProvider } from "../../modules/sdk/agents";
 import { parseRoleCard } from "../../modules/agents/store";
 import { Icon } from "./Icon";
-import s from "./Workspace.module.css";
+import s from "./Onboarding.module.css";
 
 export function RoleCardSettings({ api }: { api: AgentProvider }) {
   const subscribe = useCallback(

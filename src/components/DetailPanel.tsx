@@ -1,7 +1,7 @@
 import type { Agent, AgentProviderInfo } from "../../modules/sdk/agents";
 import { Avatar } from "./AgentList";
 import { Icon } from "./Icon";
-import s from "./Workspace.module.css";
+import s from "./DetailPanel.module.css";
 export function DetailPanel({
   agent,
   provider,

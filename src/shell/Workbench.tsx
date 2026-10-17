@@ -12,7 +12,7 @@ import { ShellFeedback } from "./ShellFeedback";
 import { WorkspaceArea } from "./WorkspaceArea";
 import { ShellDialogs } from "./ShellDialogs";
 import { ExtensionManager } from "../features/extensions/ExtensionManager";
-import styles from "../App.module.css";
+import styles from "./layout.module.css";
 
 /** Composes feature owners; it does not own extension form or workspace state. */
 export function Workbench({ runtime }: { runtime: Runtime }) {

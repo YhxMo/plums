@@ -54,7 +54,21 @@ Agent 界面的组合、弹窗、卡片草稿与后备焦点位于 [src/features
 
 外壳保留扩展管理、授权与无布局恢复入口。启用提供新视图的扩展时优先选中其视图；用户可在设置切回。`ui.default` 与 `ui.board` 保留公开挂载路径。挂载失败排除该代视图并回退到可用界面；无布局时展示宿主恢复入口。共享 WebView 的可信模式不构成防恶意代码或界面伪装的沙箱。
 
-颜色变量在 `src/styles.css`，布局样式在各组件模块；默认 Agent、工作台与画布共享语义变量。图标源为 `src-tauri/icons/source.png`，`npm run icons` 生成 Mac、Android 与 Web 资源。公开 `ctx.theme` 可贡献这17个语义色，应用设置选择、停用回退和保存规则见 [主题契约](THEMES.md)。原生窗口/系统栏只跟随明暗模式，未扩展到任意原生颜色。内置CSS为恢复后备；这是实验契约，尚非稳定主题或 Agent SDK。
+颜色变量和公共原子类在 `src/styles.css`，默认 Agent、工作台与画布共享语义变量。样式按实际使用方分组：
+
+| 模块 | 使用方与范围 |
+| --- | --- |
+| [AgentList.module.css](../src/components/AgentList.module.css) | 列表、共享头像基础样式，以及工作区根节点／主区的手机切换规则 |
+| [ChatView.module.css](../src/components/ChatView.module.css) | 会话、消息、输入框与共享 mobileOnly；包含手机会话头中的头像选择器 |
+| [DetailPanel.module.css](../src/components/DetailPanel.module.css) | 详情、会话列表、移动详情容器与内部反馈 |
+| [Onboarding.module.css](../src/components/Onboarding.module.css) | 欢迎、添加／导入表单及角色卡设置 |
+| [layout.module.css](../src/shell/layout.module.css) | 外壳根布局、顶栏、挂载区、扩展侧栏、启动屏与回退提示布局 |
+| [ExtensionManager.module.css](../src/features/extensions/ExtensionManager.module.css) | 管理页、扩展卡片、诊断、权限说明与恢复引导 |
+| [dialogs.module.css](../src/shell/dialogs.module.css) | 授权弹窗、外壳反馈，以及详情卡片和其中的 Agent 行 |
+
+CSS module 不互相 import。复合选择器跨组件时，由 TSX 显式绑定相应模块的局部 class：共享 Avatar 同时携带列表、会话、详情的 avatar；管理返回按钮和页头携带 layout 中原分组媒体规则的 class。选择器和声明保持原样，受验版本及对照范围见 [C2 证据](../evidence/RESULTS.md#c2按使用方拆分样式)。
+
+图标源为 `src-tauri/icons/source.png`，`npm run icons` 生成 Mac、Android 与 Web 资源。公开 `ctx.theme` 可贡献这17个语义色，应用设置选择、停用回退和保存规则见 [主题契约](THEMES.md)。原生窗口/系统栏只跟随明暗模式，未扩展到任意原生颜色。内置CSS为恢复后备；这是实验契约，尚非稳定主题或 Agent SDK。
 
 ## 验收与覆盖
 

@@ -6,7 +6,8 @@ import type { Workspace } from "./useWorkspace";
 import type { Appearance } from "./useAppearance";
 import type { ShellNavigation } from "./useShellNavigation";
 import { Icon } from "../components/Icon";
-import styles from "../App.module.css";
+import styles from "./dialogs.module.css";
+import layoutStyles from "./layout.module.css";
 export function ShellFeedback({
   runtime,
   operations,
@@ -39,10 +40,10 @@ export function ShellFeedback({
         dismissedFallback !== fallbackDiagnosis.signature && (
           <div
             role="status"
-            className={`theme-fallback ${styles.fallbackBanner}`}
+            className={`theme-fallback ${layoutStyles.fallbackBanner}`}
           >
             <span>{fallbackDiagnosis.message}</span>
-            <div className={styles.fallbackActions}>
+            <div className={layoutStyles.fallbackActions}>
               <button
                 type="button"
                 className="text-button"

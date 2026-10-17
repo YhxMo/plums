@@ -6,11 +6,9 @@ import { projectFiles } from "./project-files.mjs";
 // Manually lower a cap after splitting a file; never regenerate or raise caps.
 /** @type {Record<string, number>} */
 export const sizeLimits = {
-  "src/components/Workspace.module.css": 951,
   "src-tauri/src/documents.rs": 906,
   "src-tauri/src/credential_bindings.rs": 876,
   "modules/extension-host/host.ts": 678,
-  "src/App.module.css": 680,
   "modules/text-workbench/view.ts": 528,
   "src-tauri/src/credentials.rs": 447,
   "src-tauri/src/transport_probe.rs": 443,

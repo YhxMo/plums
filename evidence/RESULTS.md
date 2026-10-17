@@ -71,6 +71,29 @@
 
 原生组合门禁、原生窗口、普通包、Android 模拟器／真机及其他平台本阶段未重验；TS/TSX Hooks lint 仍受阶段 A 的解析器兼容缺口限制。C1 验收完成并停止，范围与退出结果见[阶段归档](../docs/spec/archive/C1-agent-workspace-2026-10-17.md)；C2–C6 未实施。
 
+## C2：按使用方拆分样式
+
+2026-10-17，macOS arm64、Node.js 26.5.1、TypeScript 7.0.2，配置的 Chrome 浏览器。以 `refactor/hardening` 的 `ee4ff82` 和干净工作区开工；以下结果覆盖该提交上的样式、引用、棘轮及文档增量，与本节纳入同一次 C2 本地提交。先通过 rg 列出两个旧模块的全部 import，再逐项核对每个 class 的 TSX 使用位置及分组／复合选择器，确定归属后移动规则。
+
+| 原文件 | 新文件与物理行数 | 主要使用方 |
+| --- | --- | --- |
+| Workspace.module.css，951 行 | [AgentList](../src/components/AgentList.module.css) 332、[ChatView](../src/components/ChatView.module.css) 204、[DetailPanel](../src/components/DetailPanel.module.css) 208、[Onboarding](../src/components/Onboarding.module.css) 217 | 列表／共享 Avatar、会话、详情、EmptyState／AgentDialogs／RoleCardSettings；AgentWorkspace 使用列表与详情模块 |
+| App.module.css，680 行 | [layout](../src/shell/layout.module.css) 212、[ExtensionManager](../src/features/extensions/ExtensionManager.module.css) 327、[dialogs](../src/shell/dialogs.module.css) 145 | 顶栏／外壳布局、扩展管理／诊断／引导／权限说明、授权弹窗／反馈／详情卡片 |
+
+复合选择器保持原文：Avatar 由 TSX 同时绑定列表的基础 avatar、会话头和详情排除条件的局部 avatar；手机顶栏与管理返回按钮的分组规则保留在 layout，管理页头／返回按钮显式绑定其局部 class。CSS module 间没有 import 或 composes，公共原子样式仍在 styles.css；没有新增规则、改变值或改动业务逻辑。两个旧模块已删除，src／tests／scripts 无旧路径引用；行数棘轮删除两项旧上限，其余上限保持。原 hardening 上限回归改用仍存在的 documents.rs 906 行豁免，不改 Rust 源码。
+
+使用已安装 PostCSS 对照 `ee4ff82` 的原文件与七个新文件：Workspace 的 175 条、App 的 128 条规则，其媒体条件、完整选择器、声明顺序／值／important 的多重集合完全一致；各目标模块保留其规则在原文件中的相对顺序。七个文件均满足各自 350／220／330／150 行目标，无新增豁免。
+
+`npm run verify:web` 全部通过：build／类型、44 文件／434 单元、Prettier、项目／导入边界、行数和 ESLint。`npm run test:web -- --workers=4` 全量 117／117 通过（3.4 分钟），包含 375／1180px 的欢迎／导航、管理页头滚动、浅深主题与凭据管理，以及焦点、授权、组合、配置、卸载和断点切换。既有 tests/web 文件未修改，单元数量保持 434。
+
+拆分前后各以独立浏览器上下文执行 375／1180px × light／dark × 12 状态：欢迎、导入、创建、会话、详情、嵌套删除、列表菜单、角色卡设置、关于、管理、诊断、授权。逐节点对照所测布局／字体／颜色／边框等计算属性、矩形及伪元素 content，48 个状态零差异；横向溢出为 false，pageerror 为 0。34 张截图逐字节相同，另 14 张每张相差 5–72 像素（最多占 0.015%）；已检查局部像素差异并查看欢迎、弹窗、管理、详情与授权的实际截图，未见布局或内容变化。截图和原始对照数据留在临时目录，不提交。
+
+归组与预设类名前缀有三处调整：extensionSidebar 属于外壳 WorkspaceArea，与 fallback 布局一起放入 layout；boundAgentList／boundAgentRow 仅用于详情卡片，随 detailCard 放入 dialogs。这样保留真实消费关系与行数目标，不改选择器或值。Workbench 仅更新 CSS import，依赖透传和 runtime 状态所有权保持，C3–C6 未实施。
+
+独立只读审查以 `ee4ff82` 对照候选，另行核对全部 175／128 条规则和各模块内部顺序，并检查 Avatar／工作区手机切换／返回按钮的局部 class 绑定、其他消费方引用及行数夹具；未发现 P1/P2/P3。精确暂存内容经逐项阅读和隐私检查，使用已核验的 GitHub noreply 身份本地提交，不推送。
+
+原生组合门禁、原生窗口、普通包、Android 模拟器／真机和其他浏览器未重验，release 未替换；TS/TSX Hooks lint 的既有解析器缺口保留。C2 验收完成并停止，负责人、退出结果及范围见[阶段归档](../docs/spec/archive/C2-styles-2026-10-17.md)。
+
 ## 此前源码维护验证
 
 2026-10-17 项目精简覆盖启动/Host/SDK、平台管理、扩展样板、构建脚本、测试入口与当前文档。删除仅供自测调用的 JS 代理校验及其 8 项测试；实际配置保留 Rust 校验。Host 安装按有效配置直接解析，失败仍保留默认配置与错误；Android 插件模板共用检查流程，未知代码保护及已知前版兼容保留，拒绝测试覆盖三种插件。回环传输说明合并为[单一入口](../docs/NATIVE-TRANSPORT-EXPERIMENT.md)，当前文档统一使用现有实现与验收状态。

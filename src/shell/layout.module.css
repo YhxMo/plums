@@ -1,0 +1,212 @@
+.app {
+  height: 100vh;
+  height: 100dvh;
+  min-height: 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+.header {
+  flex-shrink: 0;
+  min-height: 48px;
+  padding: 6px 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  user-select: none;
+  -webkit-user-select: none;
+}
+.macOverlayHeader {
+  padding-left: 78px;
+}
+.headerLeft {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  flex: 1;
+}
+.brand {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-shrink: 0;
+}
+.brand strong {
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: -0.3px;
+}
+.topDivider {
+  width: 1px;
+  height: 14px;
+  background: var(--border);
+  margin: 0 2px;
+  flex-shrink: 0;
+}
+.topTitle {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.logo {
+  width: 26px;
+  height: 26px;
+  display: inline-grid;
+  place-items: center;
+  object-fit: contain;
+  border-radius: 6px;
+}
+.headerRight {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+}
+.themeSwitch {
+  width: 32px;
+  min-height: 32px;
+  padding: 0;
+  display: inline-grid;
+  place-items: center;
+  flex-shrink: 0;
+  border-radius: 7px;
+}
+.themeSwitch svg {
+  width: 16px;
+  height: 16px;
+}
+.sidebarToggle {
+  width: 32px;
+  min-height: 32px;
+  border-radius: 7px;
+}
+.body {
+  isolation: isolate;
+  min-height: 0;
+  flex: 1;
+  display: flex;
+  align-items: stretch;
+}
+.stageArea {
+  overflow: auto;
+  flex: 1;
+  min-width: 0;
+}
+.viewSlot {
+  min-width: 0;
+  height: 100%;
+}
+.viewSlot > div {
+  height: 100%;
+}
+.fallbackBanner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  border-bottom: 1px solid var(--border);
+}
+.fallbackActions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+}
+.extensionSidebar {
+  width: 268px;
+  flex-shrink: 0;
+  margin: 10px 10px 10px 0;
+  border: 1px solid var(--sidebar-border);
+  border-radius: 14px;
+  background: var(--sidebar-bg);
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+}
+.extensionSidebarHeader {
+  display: flex;
+  min-height: 48px;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 14px 6px 18px;
+  border-bottom: 1px solid var(--border);
+}
+.extensionSidebarHeader h2 {
+  font-size: 13px;
+  font-weight: 600;
+  margin: 0;
+}
+.extensionSidebarBody {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+}
+.welcomeMark {
+  position: relative;
+  display: block;
+  width: 48px;
+  height: 48px;
+  object-fit: contain;
+  margin-bottom: 20px;
+  border-radius: 10px;
+}
+.loading {
+  padding: 80px 24px;
+  text-align: center;
+}
+.loading h1 {
+  font-size: 25px;
+}
+.loading p {
+  color: var(--muted);
+}
+@media (max-width: 767px) {
+  .header {
+    min-height: 54px;
+    padding: 8px 16px;
+    gap: 12px;
+  }
+  .macOverlayHeader {
+    padding-left: 78px;
+  }
+  .brand {
+    gap: 8px;
+  }
+  .brand strong {
+    font-size: 17px;
+  }
+  .logo {
+    width: 30px;
+    height: 30px;
+  }
+  .headerRight {
+    gap: 4px;
+  }
+  .headerRight .themeSwitch,
+  .headerRight .sidebarToggle,
+  .managerHeader .backArrow {
+    width: 44px;
+    min-height: 44px;
+    padding: 0;
+  }
+  .body {
+    display: flex;
+  }
+  .body[data-inspecting="true"] .stageArea {
+    display: none;
+  }
+  .welcomeMark {
+    margin-bottom: 24px;
+  }
+}

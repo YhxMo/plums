@@ -1,5 +1,6 @@
 import { Icon } from "./Icon";
-import s from "./Workspace.module.css";
+import s from "./Onboarding.module.css";
+import chatStyles from "./ChatView.module.css";
 export function EmptyState({
   hasAgents,
   onImport,
@@ -25,7 +26,7 @@ export function EmptyState({
         <h1>欢迎使用 Plums</h1>
         <p>
           添加你的第一个 Agent，
-          <br className={s.mobileOnly} />
+          <br className={chatStyles.mobileOnly} />
           把角色与能力放到一起。
         </p>
       </div>

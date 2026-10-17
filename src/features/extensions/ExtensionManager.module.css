@@ -1,0 +1,327 @@
+.backArrow {
+  flex-shrink: 0;
+}
+.inspectorHeadingLeft {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+.inspector {
+  overflow: hidden;
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  flex-shrink: 0;
+  background: var(--surface);
+}
+.managerHeader {
+  flex-shrink: 0;
+  padding: 20px 24px 14px;
+}
+.managerHeader > .inspectorHeading {
+  max-width: 1240px;
+  margin: 0 auto;
+}
+.managerScroll {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding: 0 24px 20px;
+}
+.managerPage {
+  display: grid;
+  grid-template-columns: minmax(320px, 44%) minmax(340px, 56%);
+  gap: 20px;
+  max-width: 1240px;
+  margin: 0 auto;
+  align-items: start;
+}
+.managerMaster {
+  min-width: 0;
+}
+.managerGlobalActions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.managerDetailPane {
+  min-width: 0;
+  position: sticky;
+  top: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.inspectorHeading {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  align-items: center;
+}
+.inspectorHeading h2 {
+  font-size: 15px;
+  margin: 2px 0;
+}
+.inspectorHeading button {
+  padding: 5px 10px;
+  font-size: 12px;
+}
+.managerHint {
+  color: var(--muted);
+  font-size: 12px;
+  margin: 8px 0 14px;
+}
+.extensions article {
+  padding: 12px;
+  margin-bottom: 8px;
+  background: var(--sidebar-bg);
+  border: 1px solid var(--sidebar-border);
+  border-radius: var(--radius);
+  transition:
+    background 0.14s ease,
+    border-color 0.14s ease;
+}
+.extensionItem {
+  cursor: pointer;
+}
+.extensionItem:hover {
+  background: var(--sidebar-hover);
+}
+.extensionItemSelected {
+  background: var(--sidebar-active) !important;
+  border-color: var(--control-border) !important;
+}
+.boundAgentPills {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin-top: 8px;
+  font-size: 12px;
+}
+.agentPill {
+  padding: 2px 8px;
+  border-radius: 6px;
+  background: var(--subtle);
+  color: var(--text);
+  font-size: 11px;
+}
+.extensionTitle {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+}
+.extensionTitle strong {
+  font-size: 13px;
+  font-weight: 600;
+}
+.status {
+  font-size: 12px;
+  color: var(--muted);
+  white-space: nowrap;
+  padding: 2px 7px;
+  background: var(--surface);
+  border-radius: 5px;
+}
+.active {
+  color: var(--text);
+}
+.active::before {
+  content: "● ";
+  font-size: 8px;
+  color: var(--running);
+}
+.extensions code {
+  display: block;
+  margin-top: 5px;
+  color: var(--muted);
+  font-size: 12px;
+}
+.resourceCount {
+  font-size: 12px;
+  color: var(--muted);
+  margin: 8px 0;
+}
+.extensionActions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 8px;
+}
+.extensionActions > button {
+  padding: 5px 10px;
+  font-size: 12px;
+  background: var(--surface);
+  border-color: var(--control-border);
+}
+.extensionActions details {
+  flex: 1 1 100%;
+  order: 1;
+  font-size: 13px;
+}
+.extensionActions dl {
+  margin: 0;
+  padding: 12px;
+  background: var(--surface);
+  border-radius: 8px;
+  overflow-wrap: anywhere;
+}
+.extensionActions dt {
+  color: var(--muted);
+  font-size: 12px;
+}
+.extensionActions dd {
+  margin: 2px 0 12px;
+}
+.extensionActions dd:last-child {
+  margin-bottom: 0;
+}
+.diagnostics {
+  border-top: 1px solid var(--border);
+  margin-top: 8px;
+  padding-top: 8px;
+}
+.diagnostics > summary {
+  font-weight: 600;
+  color: inherit;
+}
+.diagnosticActions {
+  display: grid;
+  gap: 10px;
+  padding-top: 10px;
+}
+.diagnosticActions > p {
+  font-size: 12px;
+  color: var(--muted);
+}
+.checkbox {
+  display: flex;
+  align-items: center;
+  min-height: 34px;
+  gap: 8px;
+}
+.checkbox input {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--accent);
+}
+.welcome {
+  max-width: 600px;
+  margin: clamp(28px, 7vh, 72px) auto;
+  padding: 0 24px;
+}
+.aboutLogo {
+  border-radius: 12px;
+}
+.welcome h1 {
+  font-size: clamp(20px, 2.2vw, 26px);
+  font-weight: 600;
+  letter-spacing: -0.5px;
+  line-height: 1.4;
+  margin: 8px 0 12px;
+}
+.welcome > p {
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.7;
+  max-width: 510px;
+}
+.steps {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 20px;
+  list-style: none;
+  padding: 0;
+  margin: 20px 0;
+  font-size: 13px;
+  color: var(--muted);
+}
+.steps b {
+  display: inline-grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: var(--accent-soft);
+  color: var(--accent);
+  margin-right: 8px;
+  font-size: 12px;
+}
+.welcomeActions {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.welcome .welcomeHint {
+  font-size: 12px;
+  margin-top: 20px;
+}
+.permissionList {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  padding: 16px 20px;
+  border-radius: var(--radius);
+  margin: 20px 0;
+}
+.permissionList code {
+  display: block;
+  font-size: 12px;
+  color: var(--muted);
+}
+.permissionList ul {
+  padding-left: 20px;
+  margin: 12px 0 0;
+}
+.trustNote {
+  font-size: 12px;
+}
+@media (max-width: 1020px) {
+  .inspector {
+    width: 100%;
+  }
+  .managerHeader {
+    padding: 16px 16px 14px;
+  }
+  .managerScroll {
+    padding: 0 16px 16px;
+  }
+  .managerPage {
+    grid-template-columns: 1fr;
+  }
+  .managerDetailPane {
+    position: static;
+  }
+}
+@media (max-width: 767px) {
+  .inspector {
+    width: 100%;
+    border-left: 0;
+  }
+  .managerHeader {
+    padding: 24px 20px 14px;
+  }
+  .managerScroll {
+    padding: 0 20px 24px;
+  }
+  .inspectorHeading button {
+    font-size: 14px;
+  }
+  .welcome {
+    margin: 36px auto 48px;
+    padding: 0 24px;
+  }
+  .welcome h1 {
+    font-size: 27px;
+  }
+  .steps {
+    gap: 10px 14px;
+  }
+  .welcomeActions {
+    flex-direction: column;
+    align-items: stretch;
+  }
+}

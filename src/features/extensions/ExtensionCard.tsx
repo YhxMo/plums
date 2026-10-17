@@ -10,7 +10,7 @@ import {
   errorMessage,
   translateStatus,
 } from "../../shell/messages";
-import styles from "../../App.module.css";
+import styles from "./ExtensionManager.module.css";
 export function ExtensionCard({
   runtime,
   entry,

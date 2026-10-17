@@ -21,7 +21,8 @@ import { ExtensionCard } from "./ExtensionCard";
 import { ExtensionDetails } from "./ExtensionDetails";
 import { RetainedCredentialBindings } from "./CredentialBindings";
 import { saveRemovedImport } from "./operations";
-import styles from "../../App.module.css";
+import styles from "./ExtensionManager.module.css";
+import layoutStyles from "../../shell/layout.module.css";
 
 type ManagementDialog =
   | { kind: "install"; source: HTMLElement }
@@ -94,11 +95,13 @@ export function ExtensionManager({
         className={styles.inspector}
         aria-label="扩展管理"
       >
-        <div className={styles.managerHeader}>
+        <div
+          className={`${styles.managerHeader} ${layoutStyles.managerHeader}`}
+        >
           <div className={styles.inspectorHeading}>
             <div className={styles.inspectorHeadingLeft}>
               <button
-                className={`topbar-ghost ${styles.backArrow}`}
+                className={`topbar-ghost ${styles.backArrow} ${layoutStyles.backArrow}`}
                 aria-label="返回工作区"
                 title="返回工作区"
                 onClick={closeManager}

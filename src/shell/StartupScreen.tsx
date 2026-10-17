@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { recoverComposition } from "../../modules/shell/composition-recovery";
 import { Dialog } from "../components/Dialog";
-import styles from "../App.module.css";
+import styles from "./layout.module.css";
 import { CompositionRecovery } from "./runtime";
 import { errorMessage } from "./messages";
 

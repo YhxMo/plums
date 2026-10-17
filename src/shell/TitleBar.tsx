@@ -6,7 +6,7 @@ import type { WorkspaceChrome } from "./useWorkspaceChrome";
 import type { ShellNavigation } from "./useShellNavigation";
 import { SettingsMenu } from "../components/SettingsMenu";
 import { Icon } from "../components/Icon";
-import styles from "../App.module.css";
+import styles from "./layout.module.css";
 
 export function TitleBar({
   runtime,

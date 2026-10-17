@@ -2,7 +2,8 @@ import { useEffect, useRef, useState } from "react";
 import type { Runtime } from "./runtime";
 import type { ShellOperations } from "./useOperations";
 import { capabilityLabel } from "./messages";
-import styles from "../App.module.css";
+import styles from "./dialogs.module.css";
+import managerStyles from "../features/extensions/ExtensionManager.module.css";
 
 type Request = { ids: string[]; run: () => Promise<void> };
 export function useAuthorization() {
@@ -77,7 +78,7 @@ export function AuthorizationDialog({
           <span className="eyebrow">应用内能力授权</span>
           <h2 id="authorization-title">授权并启动扩展</h2>
           <p>以下扩展请求使用列出的应用能力。</p>
-          <div className={styles.permissionList}>
+          <div className={managerStyles.permissionList}>
             {authorization.ids.map((id) => (
               <section key={id}>
                 <strong>
@@ -94,7 +95,7 @@ export function AuthorizationDialog({
               </section>
             ))}
           </div>
-          <p className={styles.trustNote}>
+          <p className={managerStyles.trustNote}>
             可信扩展共享运行环境。授权约束公开契约调用，不构成恶意代码安全沙箱。
           </p>
           <div className={styles.dialogActions}>
