@@ -51,11 +51,7 @@ export function TitleBar({
               : "切换到浅色模式"
           }
           disabled={operations.busy}
-          onClick={() =>
-            void operations.operate(() =>
-              appearance.toggleTheme(workspace.selected),
-            )
-          }
+          onClick={() => void operations.operate(appearance.toggleTheme)}
         >
           <svg
             viewBox="0 0 24 24"

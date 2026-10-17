@@ -51,6 +51,86 @@ for (const width of [375, 1440]) {
   });
 }
 
+test("a layout choice during a pending theme write keeps the new theme", async ({
+  page,
+}) => {
+  await page.emulateMedia({ colorScheme: "light" });
+  await page.addInitScript(() => {
+    type Saved = { revision: number; value: Record<string, unknown> };
+    const w = window as unknown as {
+      isTauri: boolean;
+      __TAURI_INTERNALS__: unknown;
+      __writes: { saved: Saved; hold: boolean; release?: () => void };
+    };
+    w.isTauri = true;
+    w.__writes = {
+      saved: {
+        revision: 1,
+        value: { version: 1, theme: "light", layout: "agents" },
+      },
+      hold: false,
+    };
+    w.__TAURI_INTERNALS__ = {
+      invoke: async (
+        command: string,
+        args: {
+          capability?: string;
+          payload?: Saved;
+        },
+      ) => {
+        if (command !== "platform_call") return undefined;
+        if (args.capability === "state.read") return w.__writes.saved;
+        if (args.capability !== "state.write") return undefined;
+        if (w.__writes.hold) {
+          w.__writes.hold = false;
+          await new Promise<void>((resolve) => {
+            w.__writes.release = resolve;
+          });
+        }
+        return (w.__writes.saved = {
+          revision: args.payload!.revision + 1,
+          value: args.payload!.value,
+        });
+      },
+    };
+  });
+  await page.goto("/");
+  await page.getByRole("button", { name: "应用菜单", exact: true }).click();
+  await page.getByRole("menuitem", { name: "应用设置", exact: true }).click();
+  const dialog = page.getByRole("dialog", { name: "应用设置" });
+  await page.evaluate(() => {
+    (window as unknown as { __writes: { hold: boolean } }).__writes.hold = true;
+  });
+  await dialog.getByRole("button", { name: "切换到深色模式" }).click();
+  await page.waitForFunction(
+    () =>
+      (window as unknown as { __writes: { release?: unknown } }).__writes
+        .release !== undefined,
+  );
+  await dialog
+    .getByRole("button", { name: "使用 Agent 界面", exact: true })
+    .click();
+  await page.evaluate(() =>
+    (
+      window as unknown as { __writes: { release: () => void } }
+    ).__writes.release(),
+  );
+  await expect(dialog).not.toBeVisible();
+  await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
+  await expect
+    .poll(() =>
+      page.evaluate(
+        () =>
+          (
+            window as unknown as {
+              __writes: { saved: { value: { theme?: string } } };
+            }
+          ).__writes.saved.value.theme,
+      ),
+    )
+    .toBe("dark");
+});
+
 test("a rejected preference write keeps the current theme and reports the failure", async ({
   page,
 }) => {

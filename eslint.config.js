@@ -1,8 +1,9 @@
 import js from "@eslint/js";
 import hooks from "eslint-plugin-react-hooks";
 
-// typescript-eslint 8.71.2 excludes TypeScript 7 from its peer range.
-// TS/TSX remain covered by tsc and check-project's import boundary check.
+// typescript-eslint 8.71.2 excludes TypeScript 7 from its peer range, so TS/TSX
+// are not linted: tsc covers types and check-boundaries covers layering, but
+// Hooks rules currently run only on JS/JSX until a compatible parser exists.
 export default [
   {
     ignores: [

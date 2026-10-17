@@ -47,7 +47,7 @@ it("rejects growth beyond an existing cap and reports remaining allowance after 
 
 it("fails closed when no eligible boundary source is present", () => {
   expect(checkBoundaries([["tests/hardening.test.ts", "export {};"]])).toEqual([
-    "no eligible SDK/extension source files for import boundary check",
+    "no eligible SDK/kernel/extension source files for import boundary check",
   ]);
 });
 
@@ -88,6 +88,34 @@ it.each([
 ])("normalizes private imports from %s", (file, target) => {
   expect(boundaryProblems(file, `import "${target}";`)).toHaveLength(1);
 });
+
+it.each([
+  ["modules/sdk/example.ts", "../agents/store"],
+  ["modules/sdk/example.ts", "../../extensions/contracts"],
+  ["extensions/examples/example.js", "../../modules/agents/store"],
+  ["extensions/examples/example.js", "../../modules/text-workbench/store"],
+  ["modules/extension-host/example.ts", "../shell/composition"],
+  ["modules/extension-host/example.ts", "../agents/provider"],
+  ["modules/extension-host/example.ts", "../../src/platform"],
+  ["modules/shell/example.ts", "../agents/store"],
+  ["modules/shell/example.ts", "../text-workbench/extension"],
+  ["modules/shell/example.ts", "../../extensions/ui/default"],
+  ["modules/shell/example.ts", "../../src/shell/runtime"],
+])("keeps kernel layers off business and app code: %s -> %s", (file, target) =>
+  expect(boundaryProblems(file, `import "${target}";`)).toHaveLength(1),
+);
+
+it.each([
+  ["modules/sdk/example.ts", "./errors"],
+  ["modules/sdk/nested/example.ts", "../index"],
+  ["modules/extension-host/example.ts", "../sdk"],
+  ["modules/shell/example.ts", "../extension-host/host"],
+  ["modules/shell/example.ts", "../sdk/agents"],
+  ["extensions/examples/example.js", "../../modules/sdk"],
+  ["extensions/examples/example.js", "../contracts"],
+])("allows downward imports: %s -> %s", (file, target) =>
+  expect(boundaryProblems(file, `import "${target}";`)).toEqual([]),
+);
 
 it.each([
   'export const view = <div></div>; import "../../src/platform";',

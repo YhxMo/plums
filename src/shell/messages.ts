@@ -28,6 +28,23 @@ function hostMessage(message: string) {
     "Unknown shell action": "宿主操作不支持。",
     "Shell controls unavailable": "宿主入口暂不可用。",
     "Dependency cycle": "扩展存在循环依赖。",
+    // Browser and native state adapters share these platform rejections.
+    "State is corrupt; original preserved": "应用状态已损坏，原数据已保留。",
+    "Unsupported or corrupt state; original preserved":
+      "状态版本不支持或已损坏，原数据已保留。",
+    "Unsupported state schema; original preserved":
+      "状态版本不支持，原数据已保留。",
+    "State read failed; original preserved": "状态读取失败，原数据已保留。",
+    "State write failed; original preserved": "状态写入失败，原数据已保留。",
+    "State temporary file unavailable; original preserved":
+      "状态临时文件不可用，原数据已保留。",
+    "State exceeds experiment limit": "状态超过 64 KiB 实验上限，未保存。",
+    "State revision conflict; reload before retry":
+      "状态已被其他操作更新，请重新加载应用后重试。",
+    "Native write receipt unavailable":
+      "写入回执未确认，请重新加载应用后再修改。",
+    "State directory unavailable": "状态目录不可用，原数据已保留。",
+    "Revision limit reached": "状态修订号已达上限，未保存。",
   };
   if (Object.hasOwn(exact, message)) return exact[message];
   const prefixes: Record<string, string> = {

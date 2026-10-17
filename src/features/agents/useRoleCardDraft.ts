@@ -1,5 +1,8 @@
 import { useEffect, useRef, useState } from "react";
-import { readRoleCardLink } from "../../../modules/agents/role-card";
+import {
+  readRoleCardFile,
+  readRoleCardLink,
+} from "../../../modules/agents/role-card";
 
 export type RoleCardDraft = {
   raw: string;
@@ -44,8 +47,7 @@ export function useRoleCardDraft(
     }
   }
   async function readFile(file: File) {
-    if (file.size > 32000) throw Error("角色卡不能超过 32 KB。");
-    setRaw(await file.text());
+    setRaw(await readRoleCardFile(file));
   }
   return { raw, url, reading, setRaw, setUrl, readLink, readFile, cancelRead };
 }

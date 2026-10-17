@@ -26,7 +26,7 @@ export function ChatView({
   const bottom = useRef<HTMLDivElement>(null);
   useEffect(() => {
     bottom.current?.scrollIntoView({ block: "end" });
-  }, [session.messages.length, agent.status]);
+  }, [session.id, session.messages.length, agent.status]);
   return (
     <section className={s.chat} aria-label={`${agent.name} 的会话`}>
       <header className={s.chatHeader}>

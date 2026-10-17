@@ -5,11 +5,7 @@ import type { ShellOperations } from "./useOperations";
 import { errorMessage } from "./messages";
 import { selectionAfterFailure } from "./selection";
 
-export function useWorkspace(
-  runtime: Runtime,
-  operations: ShellOperations,
-  theme: "light" | "dark",
-) {
+export function useWorkspace(runtime: Runtime, operations: ShellOperations) {
   const { host } = runtime;
   const { setError } = operations;
   const [selected, setSelected] = useState(runtime.initial.layout);
@@ -79,7 +75,7 @@ export function useWorkspace(
   }, [activeView, generation, outlet, setError, failView]);
   async function selectLayout(layout: string) {
     if (activeView) await host.leaveView(activeView);
-    await runtime.save({ layout, theme });
+    await runtime.save({ layout });
     setSelected(layout);
   }
   async function enableExtension(id: string) {

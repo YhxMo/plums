@@ -12,8 +12,8 @@ export function ShellDialogs({
 }: ShellDialogsProps) {
   const { busy, error, operate } = operations;
   const { views, activeView } = workspace;
-  const { appearance, themes, themeId, selectTheme } = settingsAppearance;
-  const toggleTheme = () => settingsAppearance.toggleTheme(workspace.selected);
+  const { appearance, themes, themeId, selectTheme, toggleTheme } =
+    settingsAppearance;
   const settings = navigation.dialog;
   const setSettings = navigation.setDialog;
   async function selectLayout(id: string) {

@@ -249,27 +249,24 @@ it("conflicting desired providers cannot replace the saved composition", async (
     });
   await host.start("one");
   await expect(host.start("two")).rejects.toThrow();
-  await expect(
-    saveComposition(host, state, { layout: "agents", theme: "dark" }),
-  ).rejects.toThrow("冲突");
+  await expect(saveComposition(host, state, "agents")).rejects.toThrow("冲突");
   expect(state.save).not.toHaveBeenCalled();
   expect(state.composition).toBe(previous);
 });
 
-it("composition failure retains the previous snapshot and success saves layout and theme together", async () => {
+it("composition failure retains the previous snapshot and success saves only composition and layout", async () => {
   const { host, state } = installed();
   await host.start(id);
   const previous = state.composition;
   vi.mocked(state.save).mockRejectedValueOnce(Error("write failed"));
-  await expect(
-    saveComposition(host, state, { layout: "agents", theme: "dark" }),
-  ).rejects.toThrow("write failed");
+  await expect(saveComposition(host, state, "agents")).rejects.toThrow(
+    "write failed",
+  );
   expect(state.composition).toBe(previous);
-  await saveComposition(host, state, { layout: "agents", theme: "dark" });
+  await saveComposition(host, state, "agents");
   expect(state.save).toHaveBeenLastCalledWith({
     composition: { schema: 1, enabled: [{ id, version: "1" }] },
     layout: "agents",
-    theme: "dark",
   });
   expect(state.composition).not.toBe(previous);
 });

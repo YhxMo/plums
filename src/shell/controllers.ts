@@ -18,7 +18,7 @@ export type DialogFeedback = Pick<ShellOperations, "busy" | "error">;
 export type TitleBarProps = {
   platformKind: Runtime["adapter"]["kind"];
   appearance: Pick<Appearance, "appearance" | "toggleTheme">;
-  workspace: Pick<Workspace, "current" | "selected" | "allViews">;
+  workspace: Pick<Workspace, "current" | "allViews">;
   chrome: Pick<WorkspaceChrome, "title" | "custom" | "open" | "toggle">;
   navigation: Pick<ShellNavigation, "manager" | "setDialog" | "openManager">;
   operations: Pick<ShellOperations, "busy" | "operate">;
@@ -39,7 +39,7 @@ export type ShellDialogsProps = {
   operations: Pick<ShellOperations, "busy" | "error" | "operate">;
   workspace: Pick<
     Workspace,
-    "views" | "activeView" | "allViews" | "selected" | "selectLayout"
+    "views" | "activeView" | "allViews" | "selectLayout"
   >;
   appearance: Pick<
     Appearance,
@@ -85,7 +85,6 @@ export type ManagementInputs = {
     "busy" | "error" | "operate" | "setError" | "setNotice"
   >;
   workspace: Pick<Workspace, "selected" | "enableExtension">;
-  theme: Appearance["theme"];
   navigation: Pick<ShellNavigation, "manager" | "closeManager">;
   authorization: Pick<Authorization, "requestAuthorization">;
   onReveal?: (id: string) => void;

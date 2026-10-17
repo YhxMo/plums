@@ -13,10 +13,39 @@ import {
   isStringLiteralLikeNode,
 } from "typescript/unstable/ast";
 
+// Each checked layer may import only downward. Business modules and src/ are
+// composition-root code and are deliberately not origins here.
+const business = String.raw`modules\/(?:agents|text-workbench)`;
+/** @type {Array<[RegExp, RegExp]>} origin -> forbidden destination */
+const layers = [
+  [
+    /^modules\/sdk\//,
+    /^(?:src|extensions|modules\/(?!sdk(?:\/|$))[^/]+)(?:\/|$)/,
+  ],
+  [
+    /^modules\/extension-host\//,
+    new RegExp(
+      String.raw`^(?:src|extensions|modules\/shell|${business})(?:\/|$)`,
+    ),
+  ],
+  [
+    /^modules\/shell\//,
+    new RegExp(String.raw`^(?:src|extensions|${business})(?:\/|$)`),
+  ],
+  [
+    /^extensions\//,
+    new RegExp(
+      String.raw`^(?:src|modules\/(?:shell|extension-host)|${business})(?:\/|$)`,
+    ),
+  ],
+];
 /** @param {string} file */
-const eligible = (file) =>
-  /^(?:modules\/sdk\/|extensions\/)/.test(file) &&
-  /\.(?:ts|tsx|js|mjs)$/.test(file);
+const forbiddenFor = (file) =>
+  /\.(?:ts|tsx|js|mjs)$/.test(file)
+    ? layers.find(([origin]) => origin.test(file))?.[1]
+    : undefined;
+/** @param {string} file */
+const eligible = (file) => forbiddenFor(file) !== undefined;
 
 // Reuse the pinned TypeScript 7 parser. Its unstable API is confined to this
 // development check; the in-memory project never writes source or build output.
@@ -24,7 +53,9 @@ const eligible = (file) =>
 export function checkBoundaries(entries) {
   const files = entries.filter(([file]) => eligible(file));
   if (!files.length)
-    return ["no eligible SDK/extension source files for import boundary check"];
+    return [
+      "no eligible SDK/kernel/extension source files for import boundary check",
+    ];
   const config = resolve("tsconfig.boundaries.json");
   const virtualFiles = Object.fromEntries(
     files.map(([file, text]) => [resolve(file), text]),
@@ -61,6 +92,7 @@ export function checkBoundaries(entries) {
         );
       }
       if (diagnostics.length) continue;
+      const forbidden = /** @type {RegExp} */ (forbiddenFor(file));
       /** @type {(node: import("typescript/unstable/ast").Node) => void} */
       const visit = (node) => {
         let target;
@@ -86,11 +118,7 @@ export function checkBoundaries(entries) {
               ? target.text.slice(1)
               : posix.join(posix.dirname(file), target.text),
           );
-          if (
-            /^(?:src|modules\/(?:shell|extension-host))(?:\/|$)/.test(
-              destination,
-            )
-          ) {
+          if (forbidden.test(destination)) {
             const line =
               source.getLineAndCharacterOfPosition(target.getStart()).line + 1;
             problems.push(`${file}:${line}: forbidden import ${target.text}`);

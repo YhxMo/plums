@@ -4,7 +4,7 @@ use std::{
     collections::{HashMap, HashSet},
     fs::{self, OpenOptions},
     io::Write,
-    path::PathBuf,
+    path::{Path, PathBuf},
     sync::Mutex,
 };
 
@@ -128,26 +128,34 @@ impl Broker {
                     return Err("State exceeds experiment limit".into());
                 }
                 fs::create_dir_all(&self.root).map_err(|_| "State directory unavailable")?;
-                let path = self.root.join(format!("{owner}.json"));
-                let temporary = self.root.join(format!("{owner}.pending"));
-                let mut file = OpenOptions::new()
-                    .write(true)
-                    .create_new(true)
-                    .open(&temporary)
-                    .map_err(|_| "State temporary file unavailable; original preserved")?;
-                let result = file
-                    .write_all(&bytes)
-                    .and_then(|_| file.sync_all())
-                    .and_then(|_| fs::rename(&temporary, &path));
-                if result.is_err() {
-                    let _ = fs::remove_file(&temporary);
-                    return Err("State write failed; original preserved".into());
-                }
+                commit(&self.root, owner, &bytes)?;
                 serde_json::to_value(document).map_err(|e| e.to_string())
             }
             _ => Err("Unknown capability".into()),
         }
     }
+}
+
+/// Writes `{owner}.json` through a temporary file unique to this write, so an
+/// interrupted write cannot block later ones and concurrent writers never
+/// commit each other's file.
+fn commit(root: &Path, owner: &str, bytes: &[u8]) -> Result<(), String> {
+    let path = root.join(format!("{owner}.json"));
+    let temporary = root.join(format!("{owner}.{}.pending", uuid::Uuid::new_v4()));
+    let mut file = OpenOptions::new()
+        .write(true)
+        .create_new(true)
+        .open(&temporary)
+        .map_err(|_| "State temporary file unavailable; original preserved")?;
+    let result = file
+        .write_all(bytes)
+        .and_then(|_| file.sync_all())
+        .and_then(|_| fs::rename(&temporary, &path));
+    if result.is_err() {
+        let _ = fs::remove_file(&temporary);
+        return Err("State write failed; original preserved".into());
+    }
+    Ok(())
 }
 
 #[cfg(test)]
@@ -266,18 +274,70 @@ mod tests {
             )
             .unwrap_err()
             .contains("conflict"));
-        fs::create_dir(fixture.0.join("sample.pending")).unwrap();
-        assert!(broker
-            .call(
-                "sample",
-                "state.write",
-                serde_json::json!({"revision":1,"value":"failed"})
-            )
-            .is_err());
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            // A read-only directory rejects the temporary file; the original stays.
+            let mode = |bits| fs::Permissions::from_mode(bits);
+            fs::set_permissions(&fixture.0, mode(0o555)).unwrap();
+            // Privileged runs (for example root) bypass the mode; skip rather than misreport.
+            let enforced = fs::write(fixture.0.join("probe"), "").is_err();
+            let failed = enforced.then(|| {
+                broker.call(
+                    "sample",
+                    "state.write",
+                    serde_json::json!({"revision":1,"value":"failed"}),
+                )
+            });
+            fs::set_permissions(&fixture.0, mode(0o755)).unwrap();
+            if let Some(failed) = failed {
+                assert!(failed.is_err());
+            }
+        }
         assert_eq!(
             broker.call("sample", "state.read", Value::Null).unwrap()["value"],
             "saved"
         );
+    }
+    #[test]
+    fn interrupted_temporary_file_does_not_block_later_writes() {
+        let fixture = Fixture::new();
+        let broker = fixture.broker();
+        let leftover = fixture.0.join("sample.pending");
+        fs::write(&leftover, "partial").unwrap();
+        broker
+            .call(
+                "sample",
+                "state.write",
+                serde_json::json!({"revision":0,"value":"saved"}),
+            )
+            .unwrap();
+        assert_eq!(
+            broker.call("sample", "state.read", Value::Null).unwrap()["value"],
+            "saved"
+        );
+        // Another writer's file is never adopted or removed.
+        assert_eq!(fs::read_to_string(&leftover).unwrap(), "partial");
+    }
+    #[test]
+    fn failed_commit_removes_only_its_own_temporary_file() {
+        let fixture = Fixture::new();
+        let foreign = fixture.0.join("sample.other.pending");
+        fs::write(&foreign, "other writer").unwrap();
+        // A non-empty directory at the target makes the final rename fail.
+        fs::create_dir(fixture.0.join("sample.json")).unwrap();
+        fs::write(fixture.0.join("sample.json").join("keep"), "").unwrap();
+        assert_eq!(
+            commit(&fixture.0, "sample", b"{}").unwrap_err(),
+            "State write failed; original preserved"
+        );
+        let pending: Vec<_> = fs::read_dir(&fixture.0)
+            .unwrap()
+            .map(|entry| entry.unwrap().file_name().to_string_lossy().into_owned())
+            .filter(|name| name.ends_with(".pending"))
+            .collect();
+        assert_eq!(pending, ["sample.other.pending"]);
+        assert_eq!(fs::read_to_string(&foreign).unwrap(), "other writer");
     }
     #[test]
     fn rejects_path_escape_and_cross_owner_access() {

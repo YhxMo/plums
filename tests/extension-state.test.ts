@@ -231,9 +231,7 @@ it("failed composition persistence retains the rendered snapshot", async () => {
     Object.assign(Error("rejected"), { outcome: "not-committed" }),
   );
   await expect(
-    run((draft) =>
-      saveComposition(host, draft, { layout: "agents", theme: "dark" }),
-    ),
+    run((draft) => saveComposition(host, draft, "agents")),
   ).rejects.toThrow("rejected");
   expect(current()).toBe(previous);
   expect(publish).not.toHaveBeenCalled();

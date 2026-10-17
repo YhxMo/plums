@@ -87,54 +87,44 @@ pub fn run() {
             })
             .build(),
     );
+    // One command list for both builds; the experiment only appends its probes.
+    macro_rules! handler {
+        ($($extra:path),* $(,)?) => {
+            tauri::generate_handler![
+                credentials::credential_supported,
+                credentials::credential_list,
+                credentials::credential_inventory,
+                credentials::credential_retain,
+                credentials::credential_configure,
+                credentials::credential_route,
+                credentials::credential_reconcile,
+                credentials::credential_delete,
+                documents::document_supported,
+                documents::document_select,
+                documents::document_list,
+                documents::document_read,
+                documents::document_cancel,
+                documents::document_revoke,
+                platform_grant,
+                platform_call,
+                appearance::shell_set_theme
+                $(, $extra)*
+            ]
+        };
+    }
     #[cfg(feature = "native-transport-experiment")]
     let builder = builder
         .manage(transport_probe::Probe::default())
-        .invoke_handler(tauri::generate_handler![
-            credentials::credential_supported,
-            credentials::credential_list,
-            credentials::credential_inventory,
-            credentials::credential_retain,
-            credentials::credential_configure,
-            credentials::credential_route,
-            credentials::credential_reconcile,
-            credentials::credential_delete,
-            documents::document_supported,
-            documents::document_select,
-            documents::document_list,
-            documents::document_read,
-            documents::document_cancel,
-            documents::document_revoke,
-            platform_grant,
-            platform_call,
-            appearance::shell_set_theme,
+        .invoke_handler(handler![
             transport_probe::probe_grant,
             transport_probe::probe_prepare,
             transport_probe::probe_cancel,
             transport_probe::probe_execute,
             transport_probe::probe_faults,
-            transport_probe::probe_info
+            transport_probe::probe_info,
         ]);
     #[cfg(not(feature = "native-transport-experiment"))]
-    let builder = builder.invoke_handler(tauri::generate_handler![
-        credentials::credential_supported,
-        credentials::credential_list,
-        credentials::credential_inventory,
-        credentials::credential_retain,
-        credentials::credential_configure,
-        credentials::credential_route,
-        credentials::credential_reconcile,
-        credentials::credential_delete,
-        documents::document_supported,
-        documents::document_select,
-        documents::document_list,
-        documents::document_read,
-        documents::document_cancel,
-        documents::document_revoke,
-        platform_grant,
-        platform_call,
-        appearance::shell_set_theme
-    ]);
+    let builder = builder.invoke_handler(handler![]);
     builder
         .setup(|app| {
             let root = std::env::var_os("PLUMS_M1_DATA_DIR")

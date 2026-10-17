@@ -1,5 +1,10 @@
 import { parseRoleCard } from "./store";
 
+export async function readRoleCardFile(file: Blob) {
+  if (file.size > 32000) throw Error("角色卡不能超过 32 KB。");
+  return file.text();
+}
+
 /** Business-owned import: same-origin only, bounded even without Content-Length. */
 export async function readRoleCardLink(url: string, signal: AbortSignal) {
   const target = new URL(url, location.href);

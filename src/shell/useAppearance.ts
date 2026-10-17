@@ -22,9 +22,10 @@ export function useAppearance(runtime: Runtime, operations: ShellOperations) {
         setError(`窗口外观更新失败：${errorMessage(reason)}`),
       );
   }, [runtime, appearance, setError]);
-  async function toggleTheme(layout: string) {
+  // Write only appearance fields; a queued save must not carry another domain's stale value.
+  async function toggleTheme() {
     const next = appearance === "light" ? "dark" : "light";
-    await runtime.save({ layout, theme: next, themeId: null });
+    await runtime.save({ theme: next, themeId: null });
     setTheme(next);
     setThemeId(null);
   }

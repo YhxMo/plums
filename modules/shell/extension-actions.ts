@@ -12,7 +12,6 @@ export type ExtensionSavePatch = {
   configurations?: Record<string, unknown>;
   composition?: Composition;
   layout?: string;
-  theme?: "light" | "dark";
 };
 
 export type ExtensionState = {
@@ -129,10 +128,11 @@ export async function removeFailedImport(
 export async function saveComposition(
   host: Pick<Host, "ids" | "inspect" | "manifest">,
   state: Pick<ExtensionState, "save" | "composition">,
-  appearance: { layout: string; theme: "light" | "dark" },
+  layout: string,
 ) {
   const composition = captureComposition(host);
-  await state.save({ composition, ...appearance });
+  // Appearance owns theme fields; a composition save must not carry a stale copy.
+  await state.save({ composition, layout });
   state.composition = composition;
   return composition;
 }

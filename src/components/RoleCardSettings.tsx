@@ -1,6 +1,8 @@
 import { useCallback, useState, useSyncExternalStore } from "react";
 import type { Agent, AgentProvider } from "../../modules/sdk/agents";
 import { parseRoleCard } from "../../modules/agents/store";
+import { readRoleCardFile } from "../../modules/agents/role-card";
+import { useAsyncAction } from "../shell/useAsyncAction";
 import { Icon } from "./Icon";
 import s from "./Onboarding.module.css";
 
@@ -14,9 +16,14 @@ export function RoleCardSettings({ api }: { api: AgentProvider }) {
   const [selected, setSelected] = useState(agents[0]?.id);
   const [name, setName] = useState(agents[0]?.name ?? "");
   const [description, setDescription] = useState(agents[0]?.description ?? "");
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState("");
-  const [notice, setNotice] = useState("");
+  const {
+    busy,
+    error,
+    notice,
+    setError,
+    setNotice,
+    run: act,
+  } = useAsyncAction();
   const agent = agents.find((a) => a.id === selected);
   function select(a: Agent) {
     setSelected(a.id);
@@ -24,18 +31,6 @@ export function RoleCardSettings({ api }: { api: AgentProvider }) {
     setDescription(a.description);
     setError("");
     setNotice("");
-  }
-  async function act(run: () => Promise<void>) {
-    setBusy(true);
-    setError("");
-    setNotice("");
-    try {
-      await run();
-    } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
-    } finally {
-      setBusy(false);
-    }
   }
   return (
     <div className="dialog-content">
@@ -51,8 +46,8 @@ export function RoleCardSettings({ api }: { api: AgentProvider }) {
             e.target.value = "";
             if (file)
               void act(async () => {
-                if (file.size > 32000) throw Error("角色卡不能超过 32 KB。");
-                select(await api.create(parseRoleCard(await file.text())));
+                const card = await readRoleCardFile(file);
+                select(await api.create(parseRoleCard(card)));
                 setNotice("角色卡已导入。");
               });
           }}

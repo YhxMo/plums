@@ -31,7 +31,6 @@ export function useExtensionManager(
   {
     operations,
     workspace,
-    theme,
     navigation,
     authorization,
     onReveal,
@@ -124,10 +123,7 @@ export function useExtensionManager(
       save: () =>
         operate(async () => {
           await run((draft) =>
-            saveComposition(host, draft, {
-              layout: workspace.selected,
-              theme,
-            }),
+            saveComposition(host, draft, workspace.selected),
           );
           setNotice("当前组合已保存，下次启动自动恢复；所需权限须重新确认。");
         }),
