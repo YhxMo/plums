@@ -133,7 +133,7 @@ ctx.task 跟踪异步任务，使用传入 signal 合作式取消；ctx.onDispos
 
 ## 凭据代用请求实验
 
-[接口与参考模型](CREDENTIAL-REQUEST.md)已有隔离假数据实验，当前生产能力仍不可用。生产设计按真实接口确定每绑定批准的内容类型、固定头和认证注入，扩展只提交别名与序列化载荷，秘密留在原生侧；不在普通配置中保存秘密。[当前阶段](spec/milestone.md)以一个真实连接器通过text.transform复用Agent界面，本地代码可推进，实际秘密操作和外发在对应操作前确认范围。
+[接口与参考模型](CREDENTIAL-REQUEST.md)已有隔离假数据实验，当前生产能力仍不可用。生产设计按真实接口确定每绑定批准的内容类型、固定头和认证注入，扩展只提交别名与序列化载荷，秘密留在原生侧；不在普通配置中保存秘密。[M2.3 计划](spec/milestone.md)以一个真实连接器通过 text.transform 复用 Agent 界面，本地代码可推进，实际秘密操作和外发在对应操作前确认范围。
 
 [DeepSeek 协议扩展](DEEPSEEK.md)是当前的实际服务实现入口：`connector.deepseek` / `/connectors/deepseek.js`，提供 `text.transform@1`。JSON 载荷、模型配置、完整回复解析和错误脱敏留在扩展；本地测试通过现有 Agent 消费者验证，不直接调用 fetch 或读取密钥。它不自动安装或启用，生产适配缺失时不能发请求。
 

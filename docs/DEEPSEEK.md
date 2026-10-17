@@ -2,7 +2,7 @@
 
 [源码](../extensions/connectors/deepseek.js) · [凭据请求契约](CREDENTIAL-REQUEST.md) · [本地证据](../evidence/DEEPSEEK-LOCAL-2026-10-17.md)
 
-状态：当前有效（2026-10-17 核实）；协议扩展与隔离测试已实现，生产传输与真实调用待接通。
+状态：当前有效（2026-10-17 核实）；协议扩展与隔离测试已实现，生产传输、系统秘密用于传输的读取/注入、发送授权与真实调用待接通。
 
 需要为现有 Agent 替换文本处理服务时，本扩展提供 `text.transform@1`，通过连接器自己的凭据绑定提交 DeepSeek Chat Completions 载荷。协议代码和隔离测试已实现；普通 `PlatformAdapter` 尚不提供 `credential.request`，因此目前不能在应用内完成真实调用。默认目录和现有交付包不启用此扩展。
 
@@ -15,7 +15,7 @@
 | 提供服务 | `text.transform@1` |
 | 平台能力 | `credential.request`；必须由宿主另行授权 |
 | 绑定归属 | owner `extension.connector.deepseek`，alias `text` |
-| model | 普通字符串配置，默认 `deepseek-flash`，非空、无首尾空白，最长 80 字符；实际模型可用性由服务确认 |
+| model | 普通字符串配置，当前代码默认值为 `deepseek-flash`，非空、无首尾空白，最长 80 字符；该名称尚未核验，真实调用前须按官方文档和账户可用模型确认，若不可用改用官方可用模型，这属于扩展配置而非平台契约变更 |
 | maxTokens | 普通数值配置，默认 256，仅接受 1–512 的整数 |
 
 模型和预算通过已有声明配置编辑，不能在配置中填写 URL、认证头或密钥。停用旧 `text.transform` 提供者后才可启用新提供者，重复提供者继续拒绝；缺少平台能力或授权时保持 `waiting`。
@@ -34,6 +34,6 @@
 
 执行 `npm test -- tests/deepseek-connector.test.ts` 可运行协议和公开 Host/Agent 接线测试；`npm test` 为全单元回归，`npm run build` 检查类型及随包模块。测试使用 `.invalid` 目标和固定假凭据，没有真实账户、系统秘密或外部模型请求。
 
-[通用绑定与原生凭据管理](CREDENTIAL-BINDINGS.md)已接入代码和管理入口；生产接入还需验证系统秘密实际保存/读取/删除，并完成请求授权/撤销、受限 TLS/DNS 与显式代理传输、资源限额及脱敏回执；共享工作台消费者和关于/能力来源说明也须反映实际文本外发。布局、配色、尺寸和已确认交互保持。真实调用及 Mac/Android 同源普通包验收前，本地通过不能关闭[当前阶段](spec/milestone.md)。
+[通用绑定与原生凭据管理](CREDENTIAL-BINDINGS.md)已接入代码和管理入口；生产接入还需验证系统秘密用于传输的读取/注入，并完成发送授权、受限 TLS/DNS 与显式代理传输、资源限额及脱敏回执；共享工作台消费者和关于/能力来源说明也须反映实际文本外发。当前实施顺序与失败矩阵见[当前阶段](spec/milestone.md)与[凭据请求契约](CREDENTIAL-REQUEST.md)。布局、配色、尺寸和已确认交互保持。真实调用及 Mac/Android 同源普通包验收前，本地通过不能关闭当前阶段。
 
 协议依据为 2026-10-17 查阅的 [DeepSeek 官方入门](https://api-docs.deepseek.com/)、[Chat Completions](https://api-docs.deepseek.com/api/create-chat-completion/)及[思考模式](https://api-docs.deepseek.com/guides/thinking_mode/)。首版选择非思考、非流式和较小输出，以验证完整的输入输出及取消路径；后续协议演进仍归扩展维护。

@@ -17,6 +17,8 @@
 | [C3：扩展操作与组件依赖](C3-extension-actions-2026-10-17.md) | [RESULTS](../../../evidence/RESULTS.md) |
 | [C4：扩展状态所有权](C4-extension-state-2026-10-17.md) | [RESULTS](../../../evidence/RESULTS.md#c4扩展状态所有权) |
 | [D：文档职责解耦与归档整理](D-document-decoupling-2026-10-17.md) | [验证与审查记录](D-document-decoupling-2026-10-17.md#独立审查) |
+| [H：防御性编程审查与收敛](H-defensive-hardening-2026-10-17.md) | [HARDENING](../../../evidence/HARDENING-2026-10-17.md) |
+| [E：状态所有权与门禁收敛](E-ownership-gates-2026-10-17.md) | [OWNERSHIP-GATES](../../../evidence/OWNERSHIP-GATES-2026-10-17.md) |
 
 ## M1 阶段
 

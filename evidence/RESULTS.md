@@ -21,6 +21,8 @@
 
 [防御性编程审查与收敛](HARDENING-2026-10-17.md)记录后续分支增量：源码快照308文件；488单元、28 Rust单元和120浏览器用例通过，Web门禁、Clippy与nightly rustfmt通过；stable `native:fmt`因工具链缺rustfmt未执行，Android编译与Mac原生窗口未验。独立审查无剩余P1/P2，范围与未验项见该证据。
 
+[状态所有权与门禁收敛](OWNERSHIP-GATES-2026-10-17.md)记录其后的提交 `c1624d5`：源码快照310文件；517单元、121浏览器用例、默认30与实验特性36个Rust单元通过，两种特性Clippy与nightly rustfmt通过；主题/布局交叉写入、原生临时文件阻塞和按层边界规则均有先失败后通过的测试。stable `native:fmt`未执行，Android编译、Mac原生窗口与TS/TSX Hooks lint未验。
+
 ## 阶段 A：安全网与基线
 
 2026-10-17，macOS arm64、Node.js 26.5.1、TypeScript 7.0.2。完整开发基线 `9d025b3`，由 `bc962ac`（已有实现，32 文件）、`9345223`（测试，7 文件）和 `9d025b3`（文档与阶段范围，29 文件）依次保存。门禁受验源码为 `17cc97d`，即基线上的工程维护增量：package.json/锁文件、eslint.config.js、check-boundaries/check-size/check-project/project-files、发布脚本未使用导入清理和 hardening 回归；其余应用源码保持基线。后续收尾仅更新本节及状态文档。

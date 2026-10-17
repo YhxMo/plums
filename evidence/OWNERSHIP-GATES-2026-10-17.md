@@ -4,7 +4,7 @@
 
 ## 源码与范围
 
-开工基线为 `refactor/hardening` 的 `1cb3b61a33514b3cf1d6faf5a8c34ee6f70d67eb`；开工时工作区已有未提交的计划文档改动，本阶段不改写其内容。受验工作区源码快照：[source-manifest-e7ad65708d798a479351a840e4737e3046cfe7ff62f97d86b64bb48a3cf8c4ce.json](source-manifest-e7ad65708d798a479351a840e4737e3046cfe7ff62f97d86b64bb48a3cf8c4ce.json)（310 文件，摘要 `e7ad65708d798a479351a840e4737e3046cfe7ff62f97d86b64bb48a3cf8c4ce`）。快照排除文档、证据与生成产物；代码差异为 22 个文件，351 增 131 删，尚未提交。
+开工基线为 `refactor/hardening` 的 `1cb3b61a33514b3cf1d6faf5a8c34ee6f70d67eb`；开工时工作区已有未提交的计划文档改动，随后单独提交。受验工作区源码快照：[source-manifest-e7ad65708d798a479351a840e4737e3046cfe7ff62f97d86b64bb48a3cf8c4ce.json](source-manifest-e7ad65708d798a479351a840e4737e3046cfe7ff62f97d86b64bb48a3cf8c4ce.json)（310 文件，摘要 `e7ad65708d798a479351a840e4737e3046cfe7ff62f97d86b64bb48a3cf8c4ce`）。快照排除文档、证据与生成产物；代码差异为 22 个文件，351 增 131 删，已提交为 `c1624d5`（与证据、源码清单共 24 个文件）。
 
 主要修正：
 

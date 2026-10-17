@@ -36,7 +36,7 @@ M1 已按 Mac arm64 与 Android API36 ARM64 模拟器的限定范围收敛。当
 | --- | --- |
 | Mac | macOS arm64、Node.js 26.5.1、Rust/cargo 1.98.1 与 Command Line Tools；脚本补充既有 Rust 路径，不改全局配置 |
 | Android | JDK21、NDK28.2、Gradle9.6.1、AGP9.3.1；受验为 AOSP API36 ARM64 / WebView133。工具链通过 PLUMS_ANDROID_TOOLS_ROOT 选择，生成输出归当前工作副本 |
-| iOS | 工具与最小实验暂缓；接口正式稳定前必须补验 |
+| iOS | 工具与最小实验暂缓；须在 M2.4 内、稳定 SDK 声明前补验 |
 | Windows / Linux | 尚无对应原生执行证据 |
 
 早期依赖缓存快照、Android 隔离构建、Insets 配方及原生观察保存在[历史证据](../evidence/HISTORY.md#android-初始实验的依赖核查)。当前适配源码和命令以 Android 工程文档为准。
@@ -54,7 +54,7 @@ M1 已按 Mac arm64 与 Android API36 ARM64 模拟器的限定范围收敛。当
 
 ### 阶段边界与记录
 
-Mac 与 Android 指定模拟器结果支持 M1 限定收敛；Android 真机及声明配置是稳定 Android 发布门槛，iOS 最小实验是接口正式稳定前门槛。Windows/Linux 按后续平台计划验收。长期后台、完整事务升级和崩溃恢复按实际用例推进。
+Mac 与 Android 指定模拟器结果支持 M1 限定收敛；Android 真机及声明配置是稳定 Android 发布门槛，iOS 最小实验须在 M2.4 内、稳定 SDK 声明前完成。Windows/Linux 按后续平台计划验收。长期后台、完整事务升级和崩溃恢复按实际用例推进。
 
 每端记录源码提交及工作区差异、负责人、锁定依赖、最终配置、OS/ABI/设备/WebView、产物、操作、实际结果和未覆盖项。完整支持声明与阶段退出条件统一见[整体计划](spec/total.md)。
 
