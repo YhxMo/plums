@@ -13,6 +13,7 @@ const excluded = new Set([
   "playwright-report",
   "raw",
 ]);
+/** @returns {string[]} */
 export function projectFiles(root = ".", prefix = "") {
   return readdirSync(join(root, prefix), { withFileTypes: true })
     .flatMap((entry) => {

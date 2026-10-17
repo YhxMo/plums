@@ -19,7 +19,25 @@
 
 [通用绑定与原生凭据管理](CREDENTIAL-BINDINGS-2026-10-17.md)记录后续工作区增量：329单元、27 Rust单元、117浏览器通过；Mac隔离配置测试包与Android API36 ARM64模拟器完成原生安全输入、取消返回和非秘密代理配置限定验证。系统秘密实际读写、请求授权/受限传输及真实模型调用继续待验，release保持当前UI交付。
 
-## 当前源码维护验证
+## 阶段 A：安全网与基线
+
+2026-10-17，macOS arm64、Node.js 26.5.1、TypeScript 7.0.2。完整开发基线 `9d025b3`，由 `bc962ac`（已有实现，32 文件）、`9345223`（测试，7 文件）和 `9d025b3`（文档与阶段范围，29 文件）依次保存。门禁受验源码为该基线上本节所在提交的工程维护增量：package.json/锁文件、eslint.config.js、check-boundaries/check-size/check-project/project-files、发布脚本未使用导入清理和 hardening 回归；其余应用源码保持基线。
+
+新增开发依赖精确固定 eslint 10.13.0、@eslint/js 10.0.1、eslint-plugin-react-hooks 7.1.1，既有锁定包版本未改变。注册表元数据中的 typescript-eslint 8.71.2 要求 TypeScript >=4.8.4 <6.1.0，故保留 TS7，使用 JS ESLint 与独立 TS/TSX/JS/MJS 导入检查。后者复用已锁定 TypeScript 7 的 unstable AST API，以单个内存项目解析真实节点，解析失败拒绝，API 在 finally 关闭；不写入配置、源码或构建产物，不新增解析器依赖。Web 门禁传入 --boundaries，普通项目检查仍保持只需 Node。TS/TSX Hooks lint 暂未覆盖。初次 ESLint 的 4 项问题已通过删除一个未使用导入、补充 Node 定时器全局解决，无大范围禁用。
+
+原生 `npm run native:check` 与 `npm run native:test` 分别通过 Clippy 零警告和 27 个 Rust 单元。`npm run verify:native` 返回失败：stable-aarch64-apple-darwin 缺少 cargo-fmt，格式未验证；其后的检查未由组合命令继续执行，上述两项为独立执行结果。
+
+`npm run test:web -- --workers=4` 在配置的 Chrome 浏览器通过 117 项，使用独立浏览器测试上下文；后续修改仅涉及静态边界检查脚本及其单元。原生窗口、普通包、Android 真机及其他平台未重验，release 未替换，系统秘密与真实连接器未增加验收结论。
+
+`npm run verify:web` 最终通过：构建与 TypeScript 零错误，40 文件/358 单元通过，Prettier、项目/导入边界、行数和 ESLint 全部通过。新增 36 个门禁单元覆盖 400/401 行、旧上限、生成输出排除、私有导入拒绝、公开依赖通过、模板插值、正则文本、TSX、解析失败与 Hooks 规则；边界与行数失败样本在隔离数据中拒绝。ESLint 实际检查 43 个 JS/MJS 文件，0 错误/0 警告，JSX 规则另以内存输入验证。
+
+原有 9 项行数清单之外，还发现 src/styles.css 445、tests/abort-reentrancy.test.ts 441、tests/documents/probe.ts 648、tests/navigation/probe.ts 424、tests/web/agent-flow.spec.ts 696 行；以各自开工行数加入固定清单，不为门禁拆改这些文件。14 项均无超额，剩余额度为 0。
+
+生产与工程源码以项目清单中 tests 之外的 ts/tsx/js/mjs/rs/kt/css/html 物理行计数，原基线为 122 文件/17,586 行，阶段 A 后为 125 文件/17,861 行；测试由 106 文件/15,672 行增至 107 文件/15,838 行，其中 Vitest 40 文件、Playwright 20 文件。其余为平台实验、夹具与测试页面。计数不含生成输出、依赖、JSON、文档和运行数据。
+
+阶段范围与退出条件见[阶段记录](../docs/spec/archive/A-hardening-2026-10-17.md)，默认命令及 TS/TSX lint 缺口见[开发流程](../docs/DEVELOPMENT.md#验证入口)。
+
+## 此前源码维护验证
 
 2026-10-17 项目精简覆盖启动/Host/SDK、平台管理、扩展样板、构建脚本、测试入口与当前文档。删除仅供自测调用的 JS 代理校验及其 8 项测试；实际配置保留 Rust 校验。Host 安装按有效配置直接解析，失败仍保留默认配置与错误；Android 插件模板共用检查流程，未知代码保护及已知前版兼容保留，拒绝测试覆盖三种插件。回环传输说明合并为[单一入口](../docs/NATIVE-TRANSPORT-EXPERIMENT.md)，当前文档统一使用现有实现与验收状态。
 

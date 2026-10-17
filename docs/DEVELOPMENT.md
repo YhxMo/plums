@@ -4,6 +4,16 @@
 
 可用命令以 [package.json](../package.json) 与 [README](../README.md) 为准；运行数据、缓存与原始日志使用隔离目录，不进入源码提交。
 
+## 验证入口
+
+提交前运行 `npm run verify:web`，依次检查构建与类型、单元测试、Prettier、项目清单与导入边界、文件行数、ESLint。原生工具齐备时运行 `npm run verify`，串联 Web 与 `npm run verify:native`；后者依次执行 Rust 格式、Clippy 和原生单元。缺少工具或命令失败均单独记录，不作为通过。浏览器回归单独运行 `npm run verify:e2e`，不进入默认门禁。
+
+ESLint 使用 flat config 与推荐 JS 规则，不承担排版。当前 TypeScript 7.0.2 不满足 typescript-eslint 8.71.2 的 peer 范围，保留原 TypeScript，JS/MJS/JSX 使用 ESLint；src 下的 JS/JSX 启用 Hooks 错误与依赖警告。TS/TSX Hooks lint 待兼容解析器，不能用 tsc 通过替代。
+
+`verify:web` 使用 `npm run check:project -- --boundaries`，复用已锁定 TypeScript 的 AST，覆盖 SDK/扩展的 TS、TSX、JS、MJS 中静态路径的 import、export、类型导入、动态 import 和 require，拒绝规范化后的私有 src、modules/shell 和 modules/extension-host 依赖；源码解析失败也返回失败。先按 README 执行 npm ci，不新增解析器依赖。该脚本使用 TypeScript 7 的 unstable API，升级 TypeScript 时须重新验证边界用例。普通 `npm run check:project` 保持只需 Node 的清单、文档和隐私模式检查。
+
+`check:size` 扫描项目源码清单的 TS、TSX、JS、MJS、Rust、Kotlin 和 CSS，默认上限 400 行；已有超长文件使用 [固定清单](../scripts/check-size.mjs)。以物理行数计数，末尾换行不增加空行；减少文件规模后人工降低上限，不自动更新或提高。清单包含测试，生成输出沿用项目清单的排除规则。
+
 ## 工作单与职责
 
 每个问题有一个明确负责人，负责收敛范围、更新状态和接收审查结果。需求整理、实现与验收、独立审查分开；独立审查由未主导该实现的人或独立执行者承担。自查不能标记为已独立审查。并行修改使用隔离工作区并明确文件所有权，集成由负责人协调，避免共享目录混入彼此变更。

@@ -12,6 +12,16 @@ App 负责启动，Workbench 组合工作区、外观、导航、授权和管理
 
 [DeepSeek 扩展](docs/DEEPSEEK.md)已通过公开 text.transform 接入现有 Agent 消费者的隔离测试。[通用绑定与原生凭据管理](docs/CREDENTIAL-BINDINGS.md)已接入开发版，两端原生输入/取消和非秘密网络配置有受验结果。绑定默认指向官方 API、直连，支持明确保存 HTTP(S) 代理；实际秘密读写、请求授权与受限传输待完成。当前交付包仍使用本地服务，真实调用前确认对应范围，密钥由账户所有者在原生入口录入。
 
+## 工程基线与门禁
+
+开发增量的完整本地基线为 `9d025b3`，分支 `refactor/hardening`；实现、测试和文档分别保存在 `bc962ac`、`9345223`、`9d025b3`。该基线包含开工前已有的凭据、连接器、UI 修复与交付脚本增量，原 UI 回退标签 `ui-baseline-2026-10-17` 继续指向 `9c05356`。
+
+阶段 A 新增统一入口 `npm run verify:web`（构建、单元、格式、项目/导入边界、行数、ESLint）、`npm run verify:native`（Rust 格式、Clippy、单元）及组合命令 `npm run verify`；浏览器另用 `npm run verify:e2e`。Web 门禁通过，40 文件/358 单元、ESLint 0 错误/0 警告；浏览器回归 117 项通过。最终结果与独立审查见[阶段证据](evidence/RESULTS.md#阶段-a安全网与基线)。
+
+原生 `native:check` 与 27 个 `native:test` 用例在 macOS arm64 通过；`verify:native` 因 stable 工具链缺少 rustfmt 在格式步骤失败，格式及原生组合门禁未验证。未重新验收原生窗口、普通应用包、Android 真机或其他平台。
+
+TypeScript 7.0.2 超出 typescript-eslint 8.71.2 的 peer 范围，未强装解析器。ESLint 当前覆盖 JS/MJS/JSX；TS/TSX 由构建类型检查和复用现有 TypeScript AST 的导入边界检查覆盖，React Hooks lint 尚未覆盖 TS/TSX。Web 门禁为 check:project 传入 --boundaries；普通项目检查仍只需 Node，AST 检查需已安装的锁定工具链。命令范围见[开发流程](docs/DEVELOPMENT.md#验证入口)，本期证据见[验证索引](evidence/RESULTS.md)。
+
 ## 交付与恢复
 
 | 平台 | 当前入口 | 来源与范围 |
@@ -19,7 +29,7 @@ App 负责启动，Workbench 组合工作区、外观、导航、授权和管理
 | Mac arm64 | release/mac/Plums M1.app | 0.0.4 debug，临时签名；当前弹窗/启动/管理路径见验证索引 |
 | Android ARM64 | release/android/plums-m1-0.0.4-android-arm64-debug.apk | 同源 0.0.4 debug，限定 Android API36 ARM64 模拟器 |
 
-交付源码为 `9c05356`（ui-baseline-2026-10-17）加各目录 source.patch；build-info.json 和 acceptance.json 保存来源、校验与验收范围。工作区包含后续未提交的开发增量，尚未替换 release。构建、候选验收和发布使用[交付流程](docs/DEVELOPMENT.md#本地交付目录)。
+交付源码为 `9c05356`（ui-baseline-2026-10-17）加各目录 source.patch；build-info.json 和 acceptance.json 保存来源、校验与验收范围。后续开发增量已保存于上述工程基线，尚未替换 release。构建、候选验收和发布使用[交付流程](docs/DEVELOPMENT.md#本地交付目录)。
 
 旧包与历史材料位于 `.cache/archive/`，INDEX.json 和 README.md 保存清单与恢复方法；后续自动归档的旧平台目录位于 releases。恢复前核对原包布局和证据，使用隔离数据；二进制恢复不回滚应用数据。原始材料、构建缓存和 `.dev-data/` 保持本地，具体受验路径由各证据记录提供。
 

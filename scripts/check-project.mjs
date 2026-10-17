@@ -5,6 +5,8 @@ import { projectFiles } from "./project-files.mjs";
 const paths = projectFiles();
 const docs = paths.filter((name) => name.endsWith(".md"));
 const problems = [];
+/** @type {Array<[string, string]>} */
+const boundarySources = [];
 let links = 0;
 const slug = (heading) =>
   heading
@@ -24,6 +26,7 @@ const anchors = new Map(
 for (const name of paths) {
   if (/\.(?:png|icns)$/.test(name)) continue;
   const text = readFileSync(name, "utf8");
+  boundarySources.push([name, text]);
   if (!text.endsWith("\n") || text.split("\n").some((line) => /\s$/.test(line)))
     problems.push(`${name}: whitespace`);
   if (/(?:\/Users\/|\/Volumes\/)/.test(text))
@@ -61,6 +64,10 @@ for (const name of paths) {
     else if (fragment && !anchors.get(destination)?.has(fragment))
       problems.push(`${name}: missing anchor ${target}`);
   }
+}
+if (process.argv.includes("--boundaries")) {
+  const { checkBoundaries } = await import("./check-boundaries.mjs");
+  problems.push(...checkBoundaries(boundarySources));
 }
 const ignored = readFileSync(".gitignore", "utf8").split("\n");
 if (!ignored.includes("/goal.md"))
