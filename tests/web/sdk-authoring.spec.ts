@@ -123,7 +123,9 @@ test("sample provider replacement releases the mounted panel and rebinds both co
   const result = await page.evaluate(async () => {
     const hostPath = "/modules/extension-host/host.ts";
     const platformPath = "/src/platform.ts";
-    const { Host, loadExtension } = await import(hostPath);
+    const { Host } = await import(hostPath);
+    const definitionPath = "/modules/extension-host/definition.ts";
+    const { loadExtension } = await import(definitionPath);
     const { PlatformAdapter } = await import(platformPath);
     const host = new Host(new PlatformAdapter());
     for (const name of ["counter", "events", "panel"]) {

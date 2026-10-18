@@ -50,6 +50,8 @@ vi.mock("../modules/extension-host/host", () => ({
     start = runtimeFixture.start;
     connectShell = runtimeFixture.connectShell;
   },
+}));
+vi.mock("../modules/extension-host/definition", () => ({
   loadExtension: async (_url: string, id: string) => ({
     manifest: { id, version: "1", apiVersion: 1 },
     activate() {},

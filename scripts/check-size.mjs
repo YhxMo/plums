@@ -8,7 +8,7 @@ import { projectFiles } from "./project-files.mjs";
 export const sizeLimits = {
   "src-tauri/src/documents.rs": 510,
   "src-tauri/src/credential_bindings.rs": 460,
-  "modules/extension-host/host.ts": 660,
+  "modules/extension-host/host.ts": 455,
   "modules/text-workbench/view.ts": 528,
   "src-tauri/src/credentials.rs": 240,
   "src-tauri/src/credentials_native.rs": 263,

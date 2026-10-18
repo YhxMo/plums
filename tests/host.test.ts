@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
-import { Host, loadExtension } from "../modules/extension-host/host";
+import { Host } from "../modules/extension-host/host";
+import { loadExtension } from "../modules/extension-host/definition";
 import type {
   ExtensionContext,
   ExtensionDefinition,

@@ -3,7 +3,7 @@ import { captureComposition, type Composition } from "./composition";
 import type { ImportedExtension } from "./uninstall";
 import { uninstallImport } from "./uninstall";
 import { saveConfiguration } from "./configuration";
-import { loadExtension } from "../extension-host/host";
+import { loadExtension } from "../extension-host/definition";
 import { extensionOwner } from "../sdk";
 import type { ConfigurationValue } from "../sdk/configuration";
 

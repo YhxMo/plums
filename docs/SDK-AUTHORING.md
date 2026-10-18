@@ -24,7 +24,7 @@
 
 ## 宿主管理入口
 
-管理集成使用 [Host 与 loadExtension](../modules/extension-host/host.ts) 的公开方法；扩展自身只获得 SDK 的 `ExtensionContext`，没有管理权限。应用外壳的安装路径持久化仍归外壳所有。
+管理集成使用 [Host](../modules/extension-host/host.ts) 与 [loadExtension](../modules/extension-host/definition.ts) 的公开方法；扩展自身只获得 SDK 的 `ExtensionContext`，没有管理权限。应用外壳的安装路径持久化仍归外壳所有。
 
 | 操作 | 当前保证与失败行为 |
 | --- | --- |

@@ -11,7 +11,7 @@ import {
   optional,
   string,
 } from "../modules/sdk/validation";
-import { errorMessage } from "../src/shell/messages";
+import { errorMessage, stateMessage } from "../src/shell/messages";
 import { Host } from "../modules/extension-host/host";
 import type { Platform } from "../modules/sdk";
 import { validateCredentialBindings } from "../modules/sdk/credential-bindings";
@@ -154,7 +154,7 @@ it("formats coded failures before Host flattens diagnostics to strings", async (
   expect(host.inspect("configured").error).toBe(
     "Configuration invalid: 扩展配置损坏，原数据已保留。",
   );
-  expect(errorMessage(host.inspect("configured").error)).toBe(
+  expect(stateMessage(host.inspect("configured"))).toBe(
     "扩展配置无效：扩展配置损坏，原数据已保留。",
   );
   host.install({

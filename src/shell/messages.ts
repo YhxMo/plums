@@ -1,4 +1,5 @@
 import { ContractError, type ErrorCode } from "../../modules/sdk/errors";
+import type { WaitReason } from "../../modules/extension-host/lifecycle";
 
 export const preservedMessage = (
   reason: string,
@@ -27,7 +28,6 @@ function hostMessage(message: string) {
     "Shell bridge already connected": "宿主入口已连接。",
     "Unknown shell action": "宿主操作不支持。",
     "Shell controls unavailable": "宿主入口暂不可用。",
-    "Dependency cycle": "扩展存在循环依赖。",
     "Native write receipt unavailable":
       "写入回执未确认，请重新加载应用后再修改。",
   };
@@ -41,10 +41,6 @@ function hostMessage(message: string) {
     "Service already provided: ": "服务提供者冲突：",
     "Theme conflict: ": "主题标识冲突：",
     "View conflict: ": "界面标识冲突：",
-    "Configuration invalid: ": "扩展配置无效：",
-    "Capability unavailable: ": "能力暂不可用：",
-    "Permission required: ": "需要授权：",
-    "Dependency unavailable: ": "依赖暂不可用：",
   };
   for (const [prefix, translated] of Object.entries(prefixes))
     if (message.startsWith(prefix))
@@ -78,6 +74,23 @@ export function errorMessage(error: unknown): string {
   if (code === "state.composition" && detail.startsWith("composition.enabled."))
     reason = "组合配置无效";
   return preservedMessage(reason);
+}
+/** User copy for an extension's state, preferring the structured wait reason. */
+export function stateMessage(state: { error?: string; wait?: WaitReason }) {
+  const { wait } = state;
+  if (!wait) return state.error ? errorMessage(state.error) : undefined;
+  switch (wait.kind) {
+    case "configuration":
+      return `扩展配置无效：${wait.message}`;
+    case "capability-unavailable":
+      return `能力暂不可用：${capabilityLabel(wait.capability)}`;
+    case "permission":
+      return `需要授权：${capabilityLabel(wait.capability)}`;
+    case "dependency":
+      return `依赖暂不可用：${wait.service}@${wait.version}`;
+    case "cycle":
+      return "扩展存在循环依赖。";
+  }
 }
 export const capabilityLabel = (capability: string) =>
   ({

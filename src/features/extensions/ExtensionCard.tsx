@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import type { ExtensionCardModel } from "./controllers";
-import { errorMessage, translateStatus } from "../../shell/messages";
+import { stateMessage, translateStatus } from "../../shell/messages";
 import styles from "./ExtensionManager.module.css";
 
 export function ExtensionCard({
@@ -34,7 +34,7 @@ export function ExtensionCard({
       <code>
         {id} · {manifest.version}
       </code>
-      {state.error && <p className="error">{errorMessage(state.error)}</p>}
+      {state.error && <p className="error">{stateMessage(state)}</p>}
       <p className={styles.resourceCount}>
         {state.resources} 项资源 · {state.tasks} 个在途任务
       </p>

@@ -10,7 +10,7 @@ import {
 import { waitingNotice } from "./enable-feedback";
 import type { ConfigurationValue } from "../../../modules/sdk/configuration";
 import type { Runtime } from "../../shell/runtime";
-import { errorMessage } from "../../shell/messages";
+import { stateMessage } from "../../shell/messages";
 import { useExtensionState } from "../../shell/useExtensionState";
 import type { ManagementInputs, ExtensionCardModel } from "./controllers";
 
@@ -53,10 +53,7 @@ export function useExtensionManager(
     installed.find((entry) => entry.id === selectedId) ?? installed[0];
   const reportNotRunning = (id: string) => {
     const info = host.inspect(id);
-    const notice = waitingNotice(
-      info.status,
-      info.error ? errorMessage(info.error) : undefined,
-    );
+    const notice = waitingNotice(info.status, stateMessage(info));
     if (notice) setNotice(notice);
   };
   const clearFailure = (id: string) =>

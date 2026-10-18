@@ -60,33 +60,27 @@ function explainWaitReason(
       targetId: extensionId,
     };
   }
-  const raw = info.error ?? "";
-  if (raw.startsWith("Permission required:")) {
-    const cap = raw.slice("Permission required:".length).trim();
+  const wait = info.wait;
+  if (wait?.kind === "permission")
     return {
-      reason: `扩展 ${name}（${extensionId}）等待「${capabilityText(cap)}」授权`,
+      reason: `扩展 ${name}（${extensionId}）等待「${capabilityText(wait.capability)}」授权`,
       targetId: extensionId,
     };
-  }
-  if (raw.startsWith("Capability unavailable:")) {
-    const cap = raw.slice("Capability unavailable:".length).trim();
+  if (wait?.kind === "capability-unavailable")
     return {
-      reason: `当前平台不支持能力 ${capabilityText(cap)}`,
+      reason: `当前平台不支持能力 ${capabilityText(wait.capability)}`,
       targetId: extensionId,
     };
-  }
-  if (raw.startsWith("Configuration invalid:")) {
+  if (wait?.kind === "configuration")
     return {
       reason: `扩展 ${name}（${extensionId}）配置无效`,
       targetId: extensionId,
     };
-  }
-  if (raw.startsWith("Dependency unavailable:")) {
-    const dep = raw.slice("Dependency unavailable:".length).trim();
-    const serviceName = dep.split("@")[0];
+  if (wait?.kind === "dependency") {
+    const dep = `${wait.service}@${wait.version}`;
     const candidate = host
       .ids()
-      .find((id) => host.manifest(id).provides?.[serviceName] !== undefined);
+      .find((id) => host.manifest(id).provides?.[wait.service] !== undefined);
     if (candidate) {
       const nested = explainWaitReason(host, catalog, candidate, visited);
       return {
@@ -123,7 +117,10 @@ function explainWaitReason(
     }
   }
   return {
-    reason: raw || `扩展 ${name}（${extensionId}）暂未就绪`,
+    reason:
+      wait?.kind === "cycle"
+        ? `扩展 ${name}（${extensionId}）存在循环依赖`
+        : info.error || `扩展 ${name}（${extensionId}）暂未就绪`,
     targetId: extensionId,
   };
 }

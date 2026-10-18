@@ -1,4 +1,5 @@
-import { Host, loadExtension } from "../../modules/extension-host/host";
+import { Host } from "../../modules/extension-host/host";
+import { loadExtension } from "../../modules/extension-host/definition";
 import type { ImportedExtension } from "../../modules/shell/uninstall";
 import { errorMessage } from "./messages";
 
