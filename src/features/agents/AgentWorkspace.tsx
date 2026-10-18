@@ -40,7 +40,22 @@ export function AgentWorkspace({
   const [detail, setDetail] = useState(false);
   const workspaceRoot = useRef<HTMLDivElement>(null);
   const detailTrigger = useRef<HTMLElement | null>(null);
+  const returnToAgent = useRef<string | null>(null);
   const focusFallback = () => fallbackFocus(workspaceRoot.current);
+  const returnToList = useCallback(() => {
+    returnToAgent.current = selected;
+    setSelected(null);
+    setDetail(false);
+  }, [selected]);
+  useEffect(() => {
+    if (selected || !returnToAgent.current) return;
+    const target = workspaceRoot.current?.querySelector<HTMLElement>(
+      `[data-agent-id="${CSS.escape(returnToAgent.current)}"]`,
+    );
+    if (target?.getClientRects().length) target.focus();
+    else fallbackFocus(workspaceRoot.current)?.focus();
+    returnToAgent.current = null;
+  }, [selected]);
   const modals = useAgentModals();
   const { modal, error, notice, setError, setNotice, open, act } = modals;
   useEffect(
@@ -66,6 +81,7 @@ export function AgentWorkspace({
         : "";
     chrome.publish({
       title,
+      back: mobile && agent ? returnToList : undefined,
       contextOwner: agent?.extensionId,
       sidebar: agents.length
         ? {
@@ -83,7 +99,7 @@ export function AgentWorkspace({
           }
         : undefined,
     });
-  }, [chrome, agent, agents, detail, mobile]);
+  }, [chrome, agent, agents, detail, mobile, returnToList]);
   function agentAction(
     a: Agent,
     action: "pin" | "rename" | "remove",
@@ -156,10 +172,7 @@ export function AgentWorkspace({
             provider={api.info}
             draft={drafts[key] ?? ""}
             onDraft={(value) => setDrafts((d) => ({ ...d, [key]: value }))}
-            onBack={() => {
-              setSelected(null);
-              setDetail(false);
-            }}
+            onBack={returnToList}
             onDetail={(source) => {
               detailTrigger.current = source;
               setDetail((d) => !d);

@@ -2,7 +2,7 @@
 
 [架构](ARCHITECTURE.md) · [扩展契约](EXTENSION-CONTRACTS.md) · [验证证据](../evidence/RESULTS.md)
 
-状态：当前有效（2026-10-17 核实）；0.0.4 默认界面说明，验证范围见证据索引。
+状态：当前有效（2026-10-18 核实）；0.0.4 默认界面说明，验证范围见证据索引。
 
 ## 从添加 Agent 开始
 
@@ -26,6 +26,8 @@
 
 小于 768px 时，Agent 列表和会话单页切换；返回按钮回到列表。详情使用带深色遮罩的模态浮层，焦点保留在浮层内，关闭后返回发起控件。中等宽度将详情浮在工作区侧边。列表、消息和详情分别滚动，触控操作至少 44 CSS px。
 
+Android 开发候选的系统 Back 先收起 IME，再关闭顶层菜单/弹窗、退出管理页回到工作区，最后执行工作区返回；默认 Agent 会话返回列表并聚焦相应角色，未发送草稿保留。工作区根层才交回系统退出。公开入口和当前交付差异见 [Android 系统 Back](ANDROID.md#系统-back)。
+
 ## 菜单、外观与扩展管理
 
 macOS采用48px一体化顶栏，保留原生红绿灯，品牌旁显示当前会话名称；桌面会话区不重复标题。系统按钮使用主窗口的trafficLightPosition配置，本机原生测量中心距顶端24px，见[Mac核对](../evidence/MAC-TITLEBAR-2026-10-17.md)。顶栏不显示运行环境或阶段标签。主题、菜单及侧栏按钮默认透明，悬停和按下显示反馈。
@@ -46,15 +48,15 @@ macOS采用48px一体化顶栏，保留原生红绿灯，品牌旁显示当前�
 
 `ui.agents` 使用公开 `ctx.view` 挂载；`agents.local` 通过普通版本服务 `agents@1` 提供业务。SDK 的 `withAgents(ctx)` 提供可选 `ctx.agents` facade，底层仍是 `ctx.use`，没有给通用内核新增聊天 API。默认 UI 读取提供者的公开快照、订阅、操作和来源说明，不访问其私有状态，并保留普通类方法的接收对象。第三方提供者可替换该服务，也可贡献完全不同的 UI。
 
-会话标题、当前 Agent 的扩展所有者和默认详情的真实状态通过当前视图的可选 `View.chrome` 发布。外壳优先选择当前实体扩展的侧栏，其次为工作区扩展侧栏，最后使用默认详情；上下文侧栏与默认 inline 详情保持互斥。移动模态详情转为桌面时重新协调。管理页的 Agent 跳转只发送给声明 `agents.agent` 的工作区，其他工作区显示不可用原因。状态所有权与模块入口见 [前端架构](ARCHITECTURE.md#当前前端的状态所有权)。
+会话标题、当前 Agent 的扩展所有者和默认详情的真实状态通过当前视图的可选 `View.chrome` 发布。外壳优先选择当前实体扩展的侧栏，其次为工作区扩展侧栏，最后使用默认详情；上下文侧栏与默认 inline 详情保持互斥。移动模态详情转为桌面时重新协调。管理功能在 feature 层读取业务来源，并将 Agent 跳转只发送给声明 `agents.agent` 的工作区；其他工作区显示不可用原因，通用外壳只透传导航接口。状态所有权与模块入口见 [前端架构](ARCHITECTURE.md#当前前端的状态所有权)。
 
 React视图每次挂载创建独立节点；释放先移除该节点，跨微任务卸载root并向Host返回清理Promise，避免外壳提交期间同步卸载或旧释放清空替换视图。Agent工作区节点继续填满可用高度，角色设置节点保持自然高度；长会话滚动和交叠替换/订阅释放由 `react-view-lifecycle.spec.ts` 覆盖。
 
-Agent 界面的组合、弹窗、卡片草稿与后备焦点位于 [src/features/agents](../src/features/agents/)。弹窗组件随工作区常驻，关闭仅移除 Dialog，保留创建说明、多会话选择及卡片输入；成功添加后沿用原重置规则。媒体查询在 Hook 内创建和订阅，模块导入不访问 matchMedia；限定回归见 [C1 证据](../evidence/RESULTS.md#c1agent-工作区职责拆分)。
+Agent 界面的组合、弹窗、卡片草稿与后备焦点位于 [src/features/agents](../src/features/agents/)。弹窗组件随工作区常驻，关闭仅移除 Dialog，保留创建说明、多会话选择及卡片输入；成功添加后沿用原重置规则。媒体查询在 Hook 内创建和订阅，模块导入不访问 matchMedia；限定回归见 [C1 证据](../evidence/MAINTENANCE-2026-10-17.md#c1agent-工作区职责拆分)。
 
-角色、会话、文本处理与卡片解析位于扩展层；应用外壳只装配内置组合并提供通用持久化回调。Agent/会话与宿主偏好暂共用 `host.shell` 小快照；文本处理工作台通过自身 `ctx.platform` 另存于 `extension.ui.workbench-board`，页面贡献的业务数据归各贡献者管理。每个状态快照均受现有 64 KiB 限制；长期存储与通用升级迁移尚未实现。特别关注直接保存为每个 Agent 的 `pinned` 字段，避免维护第二份 ID 列表。
+角色、会话、文本处理与卡片解析位于扩展层；`src/application.ts` 接线默认组合和业务恢复，通用外壳只保存不透明业务字段并提供串行持久化回调。Agent/会话与宿主偏好暂共用 `host.shell` 小快照；文本处理工作台通过自身 `ctx.platform` 另存于 `extension.ui.workbench-board`，页面贡献的业务数据归各贡献者管理。每个状态快照均受现有 64 KiB 限制；长期存储与通用升级迁移尚未实现。特别关注直接保存为每个 Agent 的 `pinned` 字段，避免维护第二份 ID 列表。
 
-外壳保留扩展管理、授权与无布局恢复入口。启用提供新视图的扩展时优先选中其视图；用户可在设置切回。`ui.default` 与 `ui.board` 保留公开挂载路径。挂载失败排除该代视图并回退到可用界面；无布局时展示宿主恢复入口。共享 WebView 的可信模式不构成防恶意代码或界面伪装的沙箱。
+外壳保留扩展管理、授权与无布局恢复入口。启用提供新视图的扩展时优先选中其视图；用户可在设置切回。`ui.default` 与 `ui.board` 保留公开挂载路径。挂载失败排除该代视图并回退到可用界面；无布局时展示宿主恢复入口；未安装文本工作台实验的组合仅提供扩展管理，不展示该实验的授权启动按钮。无 `agents` 服务的独立组合可照常启动、管理与恢复。共享 WebView 的可信模式不构成防恶意代码或界面伪装的沙箱。
 
 颜色变量和公共原子类在 `src/styles.css`，默认 Agent、工作台与画布共享语义变量。样式按实际使用方分组：
 
@@ -68,7 +70,7 @@ Agent 界面的组合、弹窗、卡片草稿与后备焦点位于 [src/features
 | [ExtensionManager.module.css](../src/features/extensions/ExtensionManager.module.css) | 管理页、扩展卡片、诊断、权限说明与恢复引导 |
 | [dialogs.module.css](../src/shell/dialogs.module.css) | 授权弹窗、外壳反馈，以及详情卡片和其中的 Agent 行 |
 
-CSS module 不互相 import。复合选择器跨组件时，由 TSX 显式绑定相应模块的局部 class：共享 Avatar 同时携带列表、会话、详情的 avatar；管理返回按钮和页头携带 layout 中原分组媒体规则的 class。选择器和声明保持原样，受验版本及对照范围见 [C2 证据](../evidence/RESULTS.md#c2按使用方拆分样式)。
+CSS module 不互相 import。复合选择器跨组件时，由 TSX 显式绑定相应模块的局部 class：共享 Avatar 同时携带列表、会话、详情的 avatar；管理返回按钮和页头携带 layout 中原分组媒体规则的 class。选择器和声明保持原样，受验版本及对照范围见 [C2 证据](../evidence/MAINTENANCE-2026-10-17.md#c2按使用方拆分样式)。
 
 图标源为 `src-tauri/icons/source.png`，`npm run icons` 生成 Mac、Android 与 Web 资源。公开 `ctx.theme` 可贡献这17个语义色，应用设置选择、停用回退和保存规则见 [主题契约](THEMES.md)。原生窗口/系统栏只跟随明暗模式，未扩展到任意原生颜色。内置CSS为恢复后备；这是实验契约，尚非稳定主题或 Agent SDK。
 

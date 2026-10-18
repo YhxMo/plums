@@ -41,16 +41,3 @@ export async function installImports(
   }
   return { catalog, failedImports };
 }
-
-export const builtInCatalog = (): ImportedExtension[] => [
-  { id: "agents.local", url: "内置公开服务", label: "本地 Agent 提供者" },
-  { id: "ui.agents", url: "内置可替换界面", label: "默认 Agent 界面" },
-  {
-    id: "ui.workbench-board",
-    url: "内置公开契约样板",
-    label: "文本处理工作台",
-  },
-];
-export const builtInExtensionIds = new Set(
-  builtInCatalog().map((entry) => entry.id),
-);

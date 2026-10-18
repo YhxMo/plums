@@ -54,13 +54,15 @@ it("preserves the explicit native rejection outcome", async () => {
   const adapter = new PlatformAdapter();
   await adapter.grant("sample", ["state.write"]);
   bridge.invoke.mockRejectedValueOnce({
-    message: "State is corrupt; original preserved",
+    code: "state-corrupt",
+    message: "The native wording may change",
     outcome: "not-committed",
   });
   await expect(
     adapter.call("sample", "state.write", { revision: 0, value: 1 }),
   ).rejects.toMatchObject({
-    message: "State is corrupt; original preserved",
+    message: "应用状态已损坏，原数据已保留。",
+    code: "state-corrupt",
     outcome: "not-committed",
   });
 });
@@ -77,9 +79,9 @@ it("reports a lost native receipt as unknown rather than cancelled or uncommitte
 it("keeps document access unavailable until native support has been probed", async () => {
   const adapter = new PlatformAdapter();
   expect(adapter.available("document.read")).toBe(false);
-  await expect(adapter.grant("sample", ["document.read"])).rejects.toThrow(
-    "Unknown capability",
-  );
+  await expect(
+    adapter.grant("sample", ["document.read"]),
+  ).rejects.toMatchObject({ code: "unknown-capability" });
   await expect(
     adapter.call("sample", "document.read", {
       handle: "synthetic",
@@ -87,4 +89,16 @@ it("keeps document access unavailable until native support has been probed", asy
     }),
   ).rejects.toThrow("Permission denied");
   expect(bridge.invoke).not.toHaveBeenCalled();
+});
+
+it("does not treat an unknown error code as a confirmed rejection", async () => {
+  const adapter = new PlatformAdapter();
+  await adapter.grant("sample", ["state.write"]);
+  bridge.invoke.mockRejectedValueOnce({
+    code: "made-up",
+    outcome: "not-committed",
+  });
+  await expect(
+    adapter.call("sample", "state.write", { revision: 0, value: 1 }),
+  ).rejects.toMatchObject({ outcome: "unknown" });
 });

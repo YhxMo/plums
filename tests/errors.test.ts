@@ -1,3 +1,7 @@
+import {
+  stateRejection,
+  type StateErrorCode,
+} from "../src/native/state-errors";
 import { expect, it } from "vitest";
 import { ContractError, type ErrorCode } from "../modules/sdk/errors";
 import {
@@ -26,14 +30,6 @@ it.each([
 it.each([
   ["state.corrupt", "pages.view", "页面偏好损坏，原数据已保留。"],
   ["state.corrupt", "configurations.version", "扩展配置损坏，原数据已保留。"],
-  ["state.corrupt", "agents", "Agent 配置损坏，原数据已保留。"],
-  ["state.corrupt", "agents.sessions", "会话配置损坏，原数据已保留。"],
-  [
-    "state.corrupt",
-    "agents.currentSessionId",
-    "当前会话不存在，原数据已保留。",
-  ],
-  ["state.corrupt", "workbench", "工作台状态版本或内容无效；原数据已保留"],
   ["state.imports", "imports", "扩展路径配置损坏，原数据已保留。"],
   [
     "state.composition",
@@ -54,36 +50,17 @@ it("retains fallback behavior for unknown errors and future codes", () => {
   expect(errorMessage(new ContractError("future" as ErrorCode))).toBe("future");
 });
 it.each([
-  ["State is corrupt; original preserved", "应用状态已损坏，原数据已保留。"],
-  [
-    "Unsupported or corrupt state; original preserved",
-    "状态版本不支持或已损坏，原数据已保留。",
-  ],
-  [
-    "Unsupported state schema; original preserved",
-    "状态版本不支持，原数据已保留。",
-  ],
-  ["State read failed; original preserved", "状态读取失败，原数据已保留。"],
-  ["State write failed; original preserved", "状态写入失败，原数据已保留。"],
-  [
-    "State temporary file unavailable; original preserved",
-    "状态临时文件不可用，原数据已保留。",
-  ],
-  ["State exceeds experiment limit", "状态超过 64 KiB 实验上限，未保存。"],
-  [
-    "State revision conflict; reload before retry",
-    "状态已被其他操作更新，请重新加载应用后重试。",
-  ],
-  [
-    "Native write receipt unavailable",
-    "写入回执未确认，请重新加载应用后再修改。",
-  ],
-  ["State directory unavailable", "状态目录不可用，原数据已保留。"],
-  ["Revision limit reached", "状态修订号已达上限，未保存。"],
-])("translates platform state failure %s", (message, copy) => {
-  expect(errorMessage(Object.assign(Error(message), { outcome: "x" }))).toBe(
-    copy,
-  );
+  ["state-corrupt", "应用状态已损坏，原数据已保留。"],
+  ["state-schema", "状态版本不支持或已损坏，原数据已保留。"],
+  ["state-read", "状态读取失败，原数据已保留。"],
+  ["state-write", "状态写入失败，原数据已保留。"],
+  ["state-temporary", "状态临时文件不可用，原数据已保留。"],
+  ["state-too-large", "状态超过 64 KiB 实验上限，未保存。"],
+  ["revision-conflict", "状态已被其他操作更新，请重新加载应用后重试。"],
+  ["state-directory", "状态目录不可用，原数据已保留。"],
+  ["revision-limit", "状态修订号已达上限，未保存。"],
+])("translates platform state failure %s", (code, copy) => {
+  expect(errorMessage(stateRejection(code as StateErrorCode))).toBe(copy);
 });
 it.each([
   "__proto__",
@@ -252,4 +229,22 @@ it("retains developer diagnostics for invalid credential declaration shapes", ()
       ["credential.request"],
     ),
   ).toThrow("Invalid credential authentication");
+});
+
+it.each([
+  "Agent 配置损坏",
+  "会话配置损坏",
+  "当前会话不存在",
+  "工作台状态版本或内容无效",
+  "独立业务数据损坏",
+])("preserves provider-owned corrupt-state explanation: %s", (reason) => {
+  expect(
+    errorMessage(new ContractError("state.corrupt", "provider.opaque", reason)),
+  ).toBe(`${reason}，原数据已保留。`);
+});
+
+it("keeps unknown native receipts distinct from explicit rejection", () => {
+  expect(errorMessage(Error("Native write receipt unavailable"))).toBe(
+    "写入回执未确认，请重新加载应用后再修改。",
+  );
 });

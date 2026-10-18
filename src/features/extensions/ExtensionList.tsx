@@ -1,4 +1,4 @@
-import type { ExtensionListController } from "../../shell/controllers";
+import type { ExtensionListController } from "./controllers";
 import { extensionOwner } from "../../../modules/sdk";
 import { SelectedDocuments } from "../../components/SelectedDocuments";
 import { ExtensionCard } from "./ExtensionCard";

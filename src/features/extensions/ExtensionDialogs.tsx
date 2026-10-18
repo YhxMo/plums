@@ -1,8 +1,6 @@
 import type { Host } from "../../../modules/extension-host/host";
-import type {
-  DialogFeedback,
-  ExtensionDialogController,
-} from "../../shell/controllers";
+import type { DialogFeedback } from "../../shell/controllers";
+import type { ExtensionDialogController } from "./controllers";
 import { InstallDialog } from "./InstallDialog";
 import { UninstallDialog } from "./UninstallDialog";
 import { ConfigurationDialog } from "./ConfigurationDialog";

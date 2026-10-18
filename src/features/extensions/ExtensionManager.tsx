@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import type { ExtensionManagerController } from "../../shell/controllers";
+import type { ExtensionManagerController } from "./controllers";
 import { ManagerHeader } from "./ManagerHeader";
 import { ExtensionList } from "./ExtensionList";
 import { ExtensionDetails } from "./ExtensionDetails";

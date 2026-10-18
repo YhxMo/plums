@@ -1,4 +1,4 @@
-import { invoke } from "@tauri-apps/api/core";
+import { invokeExperimental as invoke } from "../fixtures/native-invoke";
 const owner = "probe.alpha";
 let sequence = 0;
 type Failure = { code: string; outcome: string };
@@ -14,7 +14,7 @@ async function prepare(binding: string, body = "synthetic") {
 }
 async function request(binding: string, body = "synthetic") {
   const id = await prepare(binding, body);
-  return invoke<Reply>("probe_execute", { owner, id });
+  return invoke("probe_execute", { owner, id });
 }
 async function rejects(work: Promise<unknown>, code: string, outcome: string) {
   const result = await work.then(
@@ -37,9 +37,7 @@ async function until(work: () => Promise<boolean>) {
   }
 }
 async function run() {
-  const platform = await invoke<{ os: string; arch: string; pending: number }>(
-    "probe_info",
-  );
+  const platform = await invoke("probe_info");
   try {
     await rejects(
       invoke("probe_prepare", {
@@ -127,7 +125,7 @@ async function run() {
       await rejects(request(binding), "limit", "unknown");
       checks.push(`${binding}-response-limit`);
     }
-    const end = await invoke<{ pending: number }>("probe_info");
+    const end = await invoke("probe_info");
     assert(end.pending === 0, "pending leak");
     checks.push("zero-pending");
     const report = { passed: true, platform, checks };

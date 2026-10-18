@@ -89,6 +89,7 @@ export function AgentList({
               {pinned.map((a) => (
                 <button
                   key={a.id}
+                  data-agent-id={a.id}
                   className={s.pinnedAgent}
                   aria-label={`打开 ${a.name}`}
                   aria-pressed={selected === a.id}
@@ -126,6 +127,7 @@ export function AgentList({
           >
             <button
               className={s.agentMain}
+              data-agent-id={a.id}
               onClick={() => onSelect(a.id)}
               aria-label={`与 ${a.name} 交互`}
             >

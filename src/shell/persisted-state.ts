@@ -3,9 +3,6 @@ import {
   type Composition,
 } from "../../modules/shell/composition";
 import type { ImportedExtension } from "../../modules/shell/uninstall";
-import { builtInExtensionIds } from "./extensions";
-import { restoreAgents } from "../../modules/agents/store";
-import type { Agent } from "../../modules/sdk/agents";
 import { ContractError } from "../../modules/sdk/errors";
 import { array, object, optional, string } from "../../modules/sdk/validation";
 
@@ -16,7 +13,6 @@ export type Preferences = Record<string, unknown> & {
   layoutIntent?: unknown;
   theme: "light" | "dark";
   themeId: string | null;
-  agents: Agent[];
   imports: ImportedExtension[];
   configurations: Record<string, unknown>;
   pages?: Record<string, string>;
@@ -39,7 +35,6 @@ export function parsePersistedState(input: unknown): Preferences {
   if (input !== undefined && value.version !== 1)
     throw new ContractError("state.version", "version");
   const composition = readComposition(value.composition);
-  const agents = restoreAgents(value.agents);
   const pages = optional(value.pages, (v) => {
     const pages = object(v, "state.corrupt", { path: "pages" });
     for (const [key, route] of Object.entries(pages))
@@ -71,11 +66,7 @@ export function parsePersistedState(input: unknown): Preferences {
           } catch {
             throw new ContractError("state.imports", `${path}.url`);
           }
-          if (
-            origin !== location.origin ||
-            builtInExtensionIds.has(id) ||
-            seen.has(id)
-          )
+          if (origin !== location.origin || seen.has(id))
             throw new ContractError("state.imports", `${path}.id`);
           seen.add(id);
           return entry as ImportedExtension;
@@ -86,16 +77,7 @@ export function parsePersistedState(input: unknown): Preferences {
   return {
     ...value,
     version: 1,
-    // Only the unmarked early-preview default adopts the Agent start. Empty
-    // layout ids are display-preference damage, not a durable selection.
-    layout:
-      value.layout === "default" &&
-      value.layoutIntent !== "explicit" &&
-      !composition
-        ? "agents"
-        : typeof value.layout === "string" && value.layout.trim()
-          ? value.layout
-          : "agents",
+    layout: typeof value.layout === "string" ? value.layout : "",
     theme:
       value.theme === "light" || value.theme === "dark"
         ? value.theme
@@ -103,7 +85,6 @@ export function parsePersistedState(input: unknown): Preferences {
           ? "dark"
           : "light",
     themeId: typeof value.themeId === "string" ? value.themeId : null,
-    agents,
     imports,
     configurations,
     ...(composition === undefined ? {} : { composition }),

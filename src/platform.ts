@@ -1,29 +1,32 @@
 import { DocumentAccess } from "./documents";
 import { CredentialAccess } from "./credentials";
-import { invoke, isTauri } from "@tauri-apps/api/core";
+import { isTauri } from "@tauri-apps/api/core";
+import { invokeNative } from "./native/invoke";
+import { isStateErrorCode, stateRejection } from "./native/state-errors";
 import {
   platformRejection,
   type Platform,
   type StoredState,
+  type Appearance,
 } from "../modules/sdk";
 
 function validOwner(owner: string) {
   if (!/^[a-z][a-z0-9.-]{0,95}$/.test(owner) || owner.includes(".."))
-    throw platformRejection("Invalid state owner");
+    throw stateRejection("invalid-owner");
 }
 
 function browserState(raw: string | null): StoredState | null {
   if (raw === null) return null;
   if (new TextEncoder().encode(raw).length > 65536)
-    throw platformRejection("State exceeds experiment limit");
+    throw stateRejection("state-too-large");
   let saved: unknown;
   try {
     saved = JSON.parse(raw);
   } catch {
-    throw platformRejection("State is corrupt; original preserved");
+    throw stateRejection("state-corrupt");
   }
   if (typeof saved !== "object" || saved === null || Array.isArray(saved))
-    throw platformRejection("State is corrupt; original preserved");
+    throw stateRejection("state-corrupt");
   const document = saved as {
     schema?: unknown;
     revision?: unknown;
@@ -35,7 +38,7 @@ function browserState(raw: string | null): StoredState | null {
     Number(document.revision) < 1 ||
     !Object.hasOwn(document, "value")
   )
-    throw platformRejection("Unsupported or corrupt state; original preserved");
+    throw stateRejection("state-schema");
   return document as StoredState;
 }
 
@@ -43,6 +46,9 @@ export class PlatformAdapter implements Platform {
   readonly kind = isTauri() ? "native" : "browser";
   readonly credentials = new CredentialAccess();
   failWrites = false;
+  async setTheme(theme: Appearance) {
+    await invokeNative("shell_set_theme", { theme });
+  }
   private readonly grants = new Map<string, Set<string>>();
   private readonly documentAccess = new DocumentAccess(
     (owner) => this.grants.get(owner)?.has("document.read") === true,
@@ -80,10 +86,16 @@ export class PlatformAdapter implements Platform {
   async grant(owner: string, capabilities: string[]) {
     validOwner(owner);
     if (capabilities.some((cap) => !this.available(cap)))
-      throw platformRejection("Unknown capability");
+      throw stateRejection("unknown-capability");
     await this.documentAccess.authorize(owner, async () => {
-      if (this.kind === "native")
-        await invoke("platform_grant", { owner, capabilities });
+      if (this.kind === "native") {
+        try {
+          await invokeNative("platform_grant", { owner, capabilities });
+        } catch (error) {
+          if (isStateErrorCode(error)) throw stateRejection(error);
+          throw error;
+        }
+      }
       this.grants.set(owner, new Set(capabilities));
     });
   }
@@ -107,21 +119,18 @@ export class PlatformAdapter implements Platform {
     if (this.kind === "native") {
       let value: unknown;
       try {
-        value = await invoke("platform_call", {
+        value = await invokeNative("platform_call", {
           owner,
           capability,
           payload: payload ?? null,
         });
       } catch (error) {
-        const failure = error as {
-          message?: unknown;
-          outcome?: unknown;
-        } | null;
+        const failure = error as { code?: unknown; outcome?: unknown } | null;
         if (
           failure?.outcome === "not-committed" &&
-          typeof failure.message === "string"
+          isStateErrorCode(failure.code)
         )
-          throw platformRejection(failure.message);
+          throw stateRejection(failure.code);
         if (capability === "state.write")
           throw Object.assign(new Error("Native write receipt unavailable"), {
             outcome: "unknown" as const,
@@ -153,11 +162,11 @@ export class PlatformAdapter implements Platform {
         !Object.hasOwn(update, "value") ||
         ["undefined", "function", "symbol"].includes(typeof update.value)
       )
-        throw platformRejection("Invalid state update");
+        throw stateRejection("missing-revision");
       if (update.revision !== (saved?.revision ?? 0))
-        throw platformRejection("State revision conflict; reload before retry");
+        throw stateRejection("revision-conflict");
       if (!Number.isSafeInteger(update.revision + 1))
-        throw platformRejection("Revision limit reached");
+        throw stateRejection("revision-limit");
       const document = {
         schema: 1,
         revision: update.revision + 1,
@@ -165,16 +174,16 @@ export class PlatformAdapter implements Platform {
       };
       const encoded = JSON.stringify(document);
       if (new TextEncoder().encode(encoded).length > 65536)
-        throw platformRejection("State exceeds experiment limit");
+        throw stateRejection("state-too-large");
       signal?.throwIfAborted();
       localStorage.setItem(key, encoded);
       return document;
     } catch (error) {
       if (error instanceof Error && error.name === "AbortError") throw error;
-      throw platformRejection(
-        error instanceof Error
-          ? error.message
-          : "Browser state access failed; original preserved",
+      if (isStateErrorCode((error as { code?: unknown } | null)?.code))
+        throw error;
+      throw stateRejection(
+        capability === "state.write" ? "state-write" : "state-read",
       );
     }
   }

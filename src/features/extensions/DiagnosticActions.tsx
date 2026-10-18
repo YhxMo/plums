@@ -18,7 +18,7 @@ export function DiagnosticActions({
     <>
       <button
         className="secondary"
-        disabled={busy}
+        disabled={busy || !experiments.available}
         onClick={(event) =>
           requestAuthorization(["workbench"], start, event.currentTarget)
         }

@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { prepareRuntime, runtimeFixture } from "./runtime-fixture";
-import { boot, CompositionRecovery } from "../src/shell/runtime";
+import { boot } from "../src/application";
+import { bootShell, CompositionRecovery } from "../src/shell/runtime";
 import { parsePersistedState } from "../src/shell/persisted-state";
 import { ContractError } from "../modules/sdk/errors";
 
@@ -145,4 +146,71 @@ it("rejects a collision with the fetched catalog before installing any module", 
 it("rejects an undefined value in an existing snapshot instead of treating it as fresh state", async () => {
   runtimeFixture.saved = { revision: 7, value: undefined };
   await expect(boot()).rejects.toMatchObject({ code: "state.version" });
+});
+
+it("boots an alternative composition without interpreting opaque Agent data", async () => {
+  const retained = {
+    format: "owned-by-an-uninstalled-provider",
+    draft: "keep",
+  };
+  prepareRuntime({ version: 1, agents: retained, layout: "notes" });
+  const runtime = await bootShell({
+    catalog: [],
+    restore: (state: ReturnType<typeof parsePersistedState>) => state,
+    extensions: () => [],
+    start: [],
+  });
+  expect(runtimeFixture.install).not.toHaveBeenCalled();
+  expect(runtimeFixture.start).not.toHaveBeenCalled();
+  await runtime.save({ theme: "dark" });
+  expect(runtimeFixture.write.mock.calls[0][0].value.agents).toEqual(retained);
+  expect(runtime.initial.layout).toBe("notes");
+});
+
+it("keeps legacy roles, sessions and opaque draft fields in the shared snapshot", async () => {
+  const { AgentStore } = await import("../modules/agents/store");
+  const store = new AgentStore(
+    [],
+    async () => {},
+    async () => "旧回复",
+  );
+  const role = await store.create({
+    name: "旧角色",
+    description: "旧说明",
+    multiSession: true,
+  });
+  await store.send(role.id, "旧输入");
+  const savedAgents = structuredClone(store.list()).map((agent) => ({
+    ...agent,
+    status: "busy",
+    canCancel: true,
+  }));
+  const opaque = {
+    drafts: { [role.id]: "未发送草稿" },
+    future: { kept: true },
+  };
+  prepareRuntime({ version: 1, agents: savedAgents, ...opaque });
+  const before = structuredClone(runtimeFixture.saved);
+  const runtime = await boot();
+  await runtime.save({ theme: "dark" });
+  const saved = runtimeFixture.write.mock.calls[0][0].value;
+  expect(saved).toMatchObject(opaque);
+  expect(saved.agents[0]).toMatchObject({
+    name: "旧角色",
+    description: "旧说明",
+    status: "idle",
+    sessions: savedAgents[0].sessions,
+  });
+  expect(saved.agents[0]).not.toHaveProperty("canCancel");
+  expect(runtimeFixture.saved).toEqual(before);
+});
+
+it("validates business data before default application installation or writes", async () => {
+  prepareRuntime({ version: 1, agents: { malformed: true } });
+  await expect(boot()).rejects.toMatchObject({
+    code: "state.corrupt",
+    detail: "agents",
+  });
+  expect(runtimeFixture.install).not.toHaveBeenCalled();
+  expect(runtimeFixture.write).not.toHaveBeenCalled();
 });

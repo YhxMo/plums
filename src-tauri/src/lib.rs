@@ -1,8 +1,11 @@
+use crate::ipc::{ipc_command, wire_enum, wire_object};
 mod appearance;
 mod credential_bindings;
+mod credential_types;
 mod credentials;
 mod credentials_native;
 mod documents;
+mod ipc;
 mod storage;
 #[cfg(feature = "native-transport-experiment")]
 mod transport_probe;
@@ -11,13 +14,13 @@ use serde_json::Value;
 use storage::Broker;
 use tauri::Manager;
 
-#[tauri::command]
+ipc_command! {
 fn platform_grant(
     owner: String,
     capabilities: Vec<String>,
     state: tauri::State<'_, Broker>,
     documents: tauri::State<'_, documents::Documents>,
-) -> Result<(), String> {
+) -> Result<(), storage::StateErrorCode> {
     Broker::validate_grant(&owner, &capabilities)?;
     documents
         .grant_with(
@@ -25,16 +28,20 @@ fn platform_grant(
             capabilities.iter().any(|cap| cap == "document.read"),
             || state.grant(&owner, capabilities).map_err(|_| "unknown"),
         )
-        .map_err(str::to_owned)
+        .map_err(|_| storage::StateErrorCode::GrantUnavailable)
+}
 }
 
+wire_object! {
 #[derive(Serialize)]
-struct PlatformFailure {
-    message: String,
-    outcome: &'static str,
+struct PlatformFailure, rename_all = "camelCase" { code: storage::StateErrorCode, outcome: CommitOutcome }
+}
+wire_enum! {
+#[derive(Serialize)]
+enum CommitOutcome { NotCommitted => "not-committed" }
 }
 
-#[tauri::command]
+ipc_command! {
 fn platform_call(
     owner: String,
     capability: String,
@@ -43,10 +50,74 @@ fn platform_call(
 ) -> Result<Value, PlatformFailure> {
     state
         .call(&owner, &capability, payload.unwrap_or(Value::Null))
-        .map_err(|message| PlatformFailure {
-            message,
-            outcome: "not-committed",
+        .map_err(|code| PlatformFailure {
+            code,
+            outcome: CommitOutcome::NotCommitted,
         })
+}
+}
+
+// Both runtime registration and the compiled exporter consume this list.
+macro_rules! native_commands {
+    ($callback:ident) => {
+        $callback! {
+            credentials::credential_supported,
+            credentials::credential_list,
+            credentials::credential_inventory,
+            credentials::credential_retain,
+            credentials::credential_configure,
+            credentials::credential_route,
+            credentials::credential_reconcile,
+            credentials::credential_delete,
+            documents::document_supported,
+            documents::document_select,
+            documents::document_list,
+            documents::document_read,
+            documents::document_cancel,
+            documents::document_revoke,
+            crate::platform_grant,
+            crate::platform_call,
+            appearance::shell_set_theme;
+            transport_probe::probe_grant,
+            transport_probe::probe_prepare,
+            transport_probe::probe_cancel,
+            transport_probe::probe_execute,
+            transport_probe::probe_faults,
+            transport_probe::probe_info
+        }
+    };
+}
+macro_rules! native_handler {
+    ($($module:ident :: $name:ident),*; $($probe:ident :: $extra:ident),*) => {{
+        #[cfg(not(feature = "native-transport-experiment"))]
+        return tauri::generate_handler![$($module::$name),*];
+        #[cfg(feature = "native-transport-experiment")]
+        return tauri::generate_handler![$($module::$name),*, $($probe::$extra),*];
+    }};
+}
+macro_rules! native_contract {
+    ($($module:ident :: $name:ident),*; $($probe:ident :: $extra:ident),*) => {{
+        let header = "// Generated from compiled Rust IPC declarations. Do not edit.\n";
+        #[cfg(not(feature = "native-transport-experiment"))]
+        {
+            let ordinary = vec![$($module::$name::contract()),*].join("");
+            format!("{header}export interface NativeCommands {{\n{ordinary}}}\n")
+        }
+        #[cfg(feature = "native-transport-experiment")]
+        {
+            // Collect ordinary entries here too: feature builds must compile the same contract.
+            let _ordinary = vec![$($module::$name::contract()),*];
+            let extra = vec![$($probe::$extra::contract()),*].join("");
+            format!("{header}import type {{ NativeCommands }} from \"./contract.generated\";\nexport interface ExperimentalCommands extends NativeCommands {{\n{extra}}}\n")
+        }
+    }};
+}
+/// Export tooling only; does not start Tauri or access application data.
+pub fn ipc_typescript() -> String {
+    native_commands!(native_contract)
+}
+fn command_handler() -> impl Fn(tauri::ipc::Invoke<tauri::Wry>) -> bool + Send + Sync + 'static {
+    native_commands!(native_handler)
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -87,44 +158,9 @@ pub fn run() {
             })
             .build(),
     );
-    // One command list for both builds; the experiment only appends its probes.
-    macro_rules! handler {
-        ($($extra:path),* $(,)?) => {
-            tauri::generate_handler![
-                credentials::credential_supported,
-                credentials::credential_list,
-                credentials::credential_inventory,
-                credentials::credential_retain,
-                credentials::credential_configure,
-                credentials::credential_route,
-                credentials::credential_reconcile,
-                credentials::credential_delete,
-                documents::document_supported,
-                documents::document_select,
-                documents::document_list,
-                documents::document_read,
-                documents::document_cancel,
-                documents::document_revoke,
-                platform_grant,
-                platform_call,
-                appearance::shell_set_theme
-                $(, $extra)*
-            ]
-        };
-    }
     #[cfg(feature = "native-transport-experiment")]
-    let builder = builder
-        .manage(transport_probe::Probe::default())
-        .invoke_handler(handler![
-            transport_probe::probe_grant,
-            transport_probe::probe_prepare,
-            transport_probe::probe_cancel,
-            transport_probe::probe_execute,
-            transport_probe::probe_faults,
-            transport_probe::probe_info,
-        ]);
-    #[cfg(not(feature = "native-transport-experiment"))]
-    let builder = builder.invoke_handler(handler![]);
+    let builder = builder.manage(transport_probe::Probe::default());
+    let builder = builder.invoke_handler(command_handler());
     builder
         .setup(|app| {
             let root = std::env::var_os("PLUMS_M1_DATA_DIR")
@@ -138,3 +174,6 @@ pub fn run() {
         .run(tauri::generate_context!())
         .expect("Plums M1 runtime failed");
 }
+
+#[cfg(test)]
+mod ipc_tests;

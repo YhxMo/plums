@@ -2,7 +2,7 @@
 
 [快速开始](../README.md) · [默认界面](UI.md) · [实验范围](M1-EXPERIMENTS.md) · [当前证据](../evidence/RESULTS.md)
 
-状态：当前有效（2026-10-17 核实）；接入既有 YHX 工具链，构建与设备结果按平台分别留证。
+状态：当前有效（2026-10-18 核实）；系统 Back 适配已接入开发候选，构建与设备结果按平台分别留证。
 
 在既有 YHX Android 工具链目录设置 `PLUMS_ANDROID_TOOLS_ROOT`，然后从项目根目录执行：
 
@@ -30,6 +30,7 @@ Rust 编译输出固定到本项目 `.cache/android/target/`。Tauri 的 Android
 [scripts/android-project.mjs](../scripts/android-project.mjs) 在写入前核对所有目标：
 
 - MainActivity 必须是锁定 CLI 的原模板或当前已适配版本。
+- 从既有 Insets-only MainActivity 升级时，仅额外接受已知完整旧模板；其他改动仍拒绝覆盖。
 - 外观、文档和凭据插件由同一流程从受控源码生成，未知既有代码停止准备；外观插件接受已知前版深浅背景色，凭据插件接受已知前版面板失败状态，两者均升级到当前模板。
 - Gradle 回调转换为从 Rust 目录调用项目锁定的 Node CLI，覆盖直接 Node 和 npm 初始化两种已知模板。
 - 调试签名使用本地环境变量；未知既有签名配置停止准备。
@@ -42,6 +43,16 @@ Rust 编译输出固定到本项目 `.cache/android/target/`。Tauri 的 Android
 替换 `src-tauri/icons/source.png` 后执行 `npm run icons`，再执行 `npm run android:build`。图标生成入口复用项目锁定 CLI；只将 Mac、Android 与 Web 所需资源接入源码，iOS 工作继续暂缓。
 
 ## 已验证条件与边界
+
+### 系统 Back
+
+MainActivity 通过 AndroidX 生命周期回调处理系统返回：IME 可见时先收键盘；否则向当前 WebView 发送可取消的 `plums:back` 事件。外壳依次取消顶层菜单/弹窗、关闭管理页、调用当前工作区的可选 `chrome` 快照 `back()`。没有可返回层时才交回 Android 默认导航。返回管理页不卸载工作区，未发送草稿保留；回调失败走现有视图恢复路径，不能继续调用失效工作区。
+
+原生只在 WebView 明确返回“未消费”时执行系统返回，结果未知时记录无正文诊断并留在应用。同一原生请求未回执前不重复派发。弹窗沿用 cancel/Escape 和焦点恢复；工作区自己负责返回后的焦点，默认 Agent 回到相应列表入口。该桥接属于共享 WebView 的合作式 UI 机制，不提供恶意扩展隔离。
+
+API36 ARM64 普通包的 IME、管理返回、嵌套弹窗、菜单、工作区与顶层返回按本次证据验收；手势预测动画、其他系统/WebView 和真机未验。当前 `release/` 的基线包仍保留旧 Back 行为，开发候选不自动替换交付。
+
+### 构建和设备
 
 本流程固定 npm/Cargo 锁文件，构建参数为 `android build --debug --target aarch64 --apk -- --locked`。现有环境为 macOS arm64、JDK 21、NDK 28.2、Gradle 9.6.1、AGP 9.3.1、compile/target SDK 37；实际运行使用 API 36 ARM64 AOSP 模拟器。版本与当前产物的运行结果见证据。
 

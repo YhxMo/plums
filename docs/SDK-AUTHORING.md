@@ -2,7 +2,7 @@
 
 [SDK 类型](../modules/sdk/index.ts) · [契约与失败语义](EXTENSION-CONTRACTS.md) · [整体计划](spec/total.md)
 
-状态：当前有效（2026-10-17 核实）；实验 SDK 入口，不承诺稳定兼容与发布包。
+状态：当前有效（2026-10-18 核实）；实验 SDK 入口，不承诺稳定兼容与发布包。
 
 这是仓库内实验接口，不是已发布 npm 包或稳定 SDK。运行时只需要标准 ESM 与 Web API，不需要 Node.js；Node 仅用于开发工具。`apiVersion: 1` 精确匹配，服务版本也是正整数精确匹配，没有 semver 范围协商。扩展自身 `version` 是显示/追溯字符串，不会自动迁移状态。正式稳定前必须完成 iOS 最小原生实验。
 
@@ -108,6 +108,8 @@ export default {
 普通包可手动安装 `example.workspace-chrome`（`/examples/workspace-chrome.js`）和 `example.workspace-context`（`/examples/workspace-context.js`）查看标题更新、实体/工作区侧栏优先级、草稿跨管理保留及回调失败回退。它们不在默认启用集合中；“模拟标题回调失败”会隔离该代工作区，停用后重新启用可恢复。样板只消费公开 ctx.view/ctx.shell，不提供持久业务或平台权限。
 
 完整类型见 [workspace-chrome.ts](../modules/sdk/workspace-chrome.ts)。`contextOwner` 指向当前实体所属扩展；外壳优先查找该扩展的 sidebar 贡献，然后查找当前工作区扩展自己的 sidebar，同一所有者内按 priority 降序和 ID 升序选择。无匹配贡献时使用可选 `sidebar` 中的 label、真实 open 状态、toggle(source) 和 close()。默认 inline 详情与扩展侧栏互斥；移动模态详情声明 `presentation: "dialog"`，转为 inline 后重新协调。不要在外壳另存默认详情开关。
+
+工作区存在上一层时，在快照中提供 `back()`；回到根层后发布不含 `back` 的新快照。Android 系统 Back 先处理 IME、顶层弹窗和宿主管理，再调用当前工作区的该方法；方法保留快照对象的接收者。工作区负责保存草稿并在返回后恢复有效焦点，操作抛错时外壳隔离该代视图并保留恢复入口。未提供 `back()` 的既有视图保持原挂载契约，宿主不猜测其业务路由。
 
 可选 `navigation` 包含实体类型 `entityType` 和 `reveal(id)`。调用方先匹配类型，再导航；当前 Agent 管理链接只接受 `agents.agent`，其他类型显示不可用原因。仓库内 TypeScript 视图可用 `createWorkspaceChrome(entityType)`、`publish(state)` 和 `connect(handler)` 组装同一接口；挂载时连接处理器，释放时执行 connect 返回的清理函数，旧挂载的迟到清理不会断开替代处理器。未提供 chrome 的已有视图继续按原挂载契约工作。
 

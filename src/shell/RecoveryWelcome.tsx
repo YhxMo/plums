@@ -8,7 +8,7 @@ export function RecoveryWelcome({
   onExtensions,
 }: RecoveryWelcomeProps) {
   const { busy } = operations;
-  const { started, start } = experiments;
+  const { started, start, available, authorizationOwners } = experiments;
   const { requestAuthorization } = authorization;
   return (
     <main className={managerStyles.welcome}>
@@ -32,21 +32,29 @@ export function RecoveryWelcome({
         </li>
       </ol>
       <div className={managerStyles.welcomeActions}>
-        <button
-          disabled={busy}
-          onClick={(event) =>
-            requestAuthorization(["workbench"], start, event.currentTarget)
-          }
-        >
-          {started ? "恢复权限与默认界面" : "授予实验能力并启动"}
-        </button>
+        {available && (
+          <button
+            disabled={busy}
+            onClick={(event) =>
+              requestAuthorization(
+                authorizationOwners,
+                start,
+                event.currentTarget,
+              )
+            }
+          >
+            {started ? "恢复权限与默认界面" : "授予实验能力并启动"}
+          </button>
+        )}
         <button className="secondary" onClick={onExtensions}>
           查看本地扩展
         </button>
       </div>
-      <p className={managerStyles.welcomeHint}>
-        默认组合：文本工作台、大写服务、工作台与画布布局。只处理本地示例文本。
-      </p>
+      {available && (
+        <p className={managerStyles.welcomeHint}>
+          默认组合：文本工作台、大写服务、工作台与画布布局。只处理本地示例文本。
+        </p>
+      )}
     </main>
   );
 }

@@ -1,3 +1,4 @@
+use crate::ipc::wire_enum;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::{
@@ -7,6 +8,30 @@ use std::{
     path::{Path, PathBuf},
     sync::Mutex,
 };
+
+wire_enum! {
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+pub enum StateErrorCode {
+    InvalidOwner => "invalid-owner",
+    UnknownCapability => "unknown-capability",
+    GrantLock => "grant-lock",
+    GrantUnavailable => "grant-unavailable",
+    StateLock => "state-lock",
+    StateTooLarge => "state-too-large",
+    StateCorrupt => "state-corrupt",
+    StateSchema => "state-schema",
+    StateRead => "state-read",
+    MissingRevision => "missing-revision",
+    MissingValue => "missing-value",
+    RevisionLimit => "revision-limit",
+    RevisionConflict => "revision-conflict",
+    StateDirectory => "state-directory",
+    StateTemporary => "state-temporary",
+    StateWrite => "state-write",
+    PermissionDenied => "permission-denied",
+    Serialization => "serialization",
+}
+}
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Document {
@@ -29,7 +54,7 @@ impl Broker {
             io: Mutex::new(()),
         }
     }
-    fn owner(owner: &str) -> Result<(), String> {
+    fn owner(owner: &str) -> Result<(), StateErrorCode> {
         if owner.is_empty()
             || owner.len() > 96
             || !owner
@@ -37,11 +62,11 @@ impl Broker {
                 .all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == b'-' || c == b'.')
             || owner.contains("..")
         {
-            return Err("Invalid state owner".into());
+            return Err(StateErrorCode::InvalidOwner);
         }
         Ok(())
     }
-    pub fn validate_grant(owner: &str, capabilities: &[String]) -> Result<(), String> {
+    pub fn validate_grant(owner: &str, capabilities: &[String]) -> Result<(), StateErrorCode> {
         Self::owner(owner)?;
         if capabilities.iter().any(|cap| {
             ![
@@ -52,86 +77,93 @@ impl Broker {
             ]
             .contains(&cap.as_str())
         }) {
-            return Err("Unknown capability".into());
+            return Err(StateErrorCode::UnknownCapability);
         }
         Ok(())
     }
-    pub fn grant(&self, owner: &str, capabilities: Vec<String>) -> Result<(), String> {
+    pub fn grant(&self, owner: &str, capabilities: Vec<String>) -> Result<(), StateErrorCode> {
         Self::validate_grant(owner, &capabilities)?;
         self.grants
             .lock()
-            .map_err(|_| "Grant lock poisoned")?
+            .map_err(|_| StateErrorCode::GrantLock)?
             .insert(owner.into(), capabilities.into_iter().collect());
         Ok(())
     }
-    fn read_unlocked(&self, owner: &str) -> Result<Option<Document>, String> {
+    fn read_unlocked(&self, owner: &str) -> Result<Option<Document>, StateErrorCode> {
         let path = self.root.join(format!("{owner}.json"));
         match fs::read(&path) {
             Ok(bytes) => {
                 if bytes.len() > 65536 {
-                    return Err("State exceeds experiment limit".into());
+                    return Err(StateErrorCode::StateTooLarge);
                 }
-                let document: Document = serde_json::from_slice(&bytes)
-                    .map_err(|_| "State is corrupt; original preserved")?;
+                let document: Document =
+                    serde_json::from_slice(&bytes).map_err(|_| StateErrorCode::StateCorrupt)?;
                 if document.schema != 1
                     || document.revision == 0
                     || document.revision > 9_007_199_254_740_991
                 {
-                    return Err("Unsupported state schema; original preserved".into());
+                    return Err(StateErrorCode::StateSchema);
                 }
                 Ok(Some(document))
             }
             Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(None),
-            Err(_) => Err("State read failed; original preserved".into()),
+            Err(_) => Err(StateErrorCode::StateRead),
         }
     }
-    pub fn call(&self, owner: &str, capability: &str, payload: Value) -> Result<Value, String> {
+    pub fn call(
+        &self,
+        owner: &str,
+        capability: &str,
+        payload: Value,
+    ) -> Result<Value, StateErrorCode> {
         Self::owner(owner)?;
-        let grants = self.grants.lock().map_err(|_| "Grant lock poisoned")?;
+        let grants = self.grants.lock().map_err(|_| StateErrorCode::GrantLock)?;
         if !grants
             .get(owner)
             .is_some_and(|caps| caps.contains(capability))
         {
-            return Err(format!("Permission denied: {capability}"));
+            return Err(StateErrorCode::PermissionDenied);
         }
-        let _guard = self.io.lock().map_err(|_| "State lock poisoned")?;
+        let _guard = self.io.lock().map_err(|_| StateErrorCode::StateLock)?;
         match capability {
             "platform.info" => Ok(
                 serde_json::json!({ "os": std::env::consts::OS, "arch": std::env::consts::ARCH, "storage": "isolated-experiment" }),
             ),
-            "state.read" => {
-                serde_json::to_value(self.read_unlocked(owner)?).map_err(|e| e.to_string())
-            }
+            "state.read" => serde_json::to_value(self.read_unlocked(owner)?)
+                .map_err(|_| StateErrorCode::Serialization),
             "state.write" => {
                 let expected = payload
                     .get("revision")
                     .and_then(Value::as_u64)
-                    .ok_or("Missing state revision")?;
-                let value = payload.get("value").ok_or("Missing state value")?;
+                    .ok_or(StateErrorCode::MissingRevision)?;
+                let value = payload.get("value").ok_or(StateErrorCode::MissingValue)?;
                 let current = self
                     .read_unlocked(owner)?
                     .map_or(0, |document| document.revision);
                 if current >= 9_007_199_254_740_991 {
-                    return Err("Revision limit reached".into());
+                    return Err(StateErrorCode::RevisionLimit);
                 }
                 if expected != current {
-                    return Err("State revision conflict; reload before retry".into());
+                    return Err(StateErrorCode::RevisionConflict);
                 }
-                let revision = current.checked_add(1).ok_or("Revision limit reached")?;
+                let revision = current
+                    .checked_add(1)
+                    .ok_or(StateErrorCode::RevisionLimit)?;
                 let document = Document {
                     schema: 1,
                     revision,
                     value: value.clone(),
                 };
-                let bytes = serde_json::to_vec(&document).map_err(|e| e.to_string())?;
+                let bytes =
+                    serde_json::to_vec(&document).map_err(|_| StateErrorCode::Serialization)?;
                 if bytes.len() > 65536 {
-                    return Err("State exceeds experiment limit".into());
+                    return Err(StateErrorCode::StateTooLarge);
                 }
-                fs::create_dir_all(&self.root).map_err(|_| "State directory unavailable")?;
+                fs::create_dir_all(&self.root).map_err(|_| StateErrorCode::StateDirectory)?;
                 commit(&self.root, owner, &bytes)?;
-                serde_json::to_value(document).map_err(|e| e.to_string())
+                serde_json::to_value(document).map_err(|_| StateErrorCode::Serialization)
             }
-            _ => Err("Unknown capability".into()),
+            _ => Err(StateErrorCode::UnknownCapability),
         }
     }
 }
@@ -139,253 +171,25 @@ impl Broker {
 /// Writes `{owner}.json` through a temporary file unique to this write, so an
 /// interrupted write cannot block later ones and concurrent writers never
 /// commit each other's file.
-fn commit(root: &Path, owner: &str, bytes: &[u8]) -> Result<(), String> {
+fn commit(root: &Path, owner: &str, bytes: &[u8]) -> Result<(), StateErrorCode> {
     let path = root.join(format!("{owner}.json"));
     let temporary = root.join(format!("{owner}.{}.pending", uuid::Uuid::new_v4()));
     let mut file = OpenOptions::new()
         .write(true)
         .create_new(true)
         .open(&temporary)
-        .map_err(|_| "State temporary file unavailable; original preserved")?;
+        .map_err(|_| StateErrorCode::StateTemporary)?;
     let result = file
         .write_all(bytes)
         .and_then(|_| file.sync_all())
         .and_then(|_| fs::rename(&temporary, &path));
     if result.is_err() {
         let _ = fs::remove_file(&temporary);
-        return Err("State write failed; original preserved".into());
+        return Err(StateErrorCode::StateWrite);
     }
     Ok(())
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-    use std::{
-        sync::atomic::{AtomicU64, Ordering},
-        time::{SystemTime, UNIX_EPOCH},
-    };
-    static FIXTURE_SEQUENCE: AtomicU64 = AtomicU64::new(0);
-    struct Fixture(PathBuf);
-    impl Fixture {
-        fn new() -> Self {
-            let root = std::env::temp_dir().join(format!(
-                "plums-test-{}-{}-{}",
-                std::process::id(),
-                SystemTime::now()
-                    .duration_since(UNIX_EPOCH)
-                    .unwrap()
-                    .as_nanos(),
-                FIXTURE_SEQUENCE.fetch_add(1, Ordering::Relaxed)
-            ));
-            fs::create_dir(&root).unwrap();
-            Self(root)
-        }
-        fn broker(&self) -> Broker {
-            let broker = Broker::new(self.0.clone());
-            broker
-                .grant("sample", vec!["state.read".into(), "state.write".into()])
-                .unwrap();
-            broker
-        }
-    }
-    impl Drop for Fixture {
-        fn drop(&mut self) {
-            let _ = fs::remove_dir_all(&self.0);
-        }
-    }
-    #[test]
-    fn round_trip_and_restart_preserve_revision() {
-        let fixture = Fixture::new();
-        let broker = fixture.broker();
-        assert_eq!(
-            broker.call("sample", "state.read", Value::Null).unwrap(),
-            Value::Null
-        );
-        broker
-            .call(
-                "sample",
-                "state.write",
-                serde_json::json!({"revision":0,"value":{"text":"first"}}),
-            )
-            .unwrap();
-        let restarted = fixture.broker();
-        let saved = restarted.call("sample", "state.read", Value::Null).unwrap();
-        assert_eq!(saved["value"]["text"], "first");
-        assert_eq!(saved["revision"], 1);
-    }
-    #[test]
-    fn denied_and_revoked_calls_do_not_write() {
-        let fixture = Fixture::new();
-        let broker = Broker::new(fixture.0.clone());
-        assert!(broker
-            .call(
-                "sample",
-                "state.write",
-                serde_json::json!({"revision":0,"value":1})
-            )
-            .unwrap_err()
-            .contains("Permission denied"));
-        broker.grant("sample", vec!["state.write".into()]).unwrap();
-        broker.grant("sample", vec![]).unwrap();
-        assert!(broker
-            .call(
-                "sample",
-                "state.write",
-                serde_json::json!({"revision":0,"value":1})
-            )
-            .is_err());
-        assert!(!fixture.0.join("sample.json").exists());
-    }
-    #[test]
-    fn corrupt_and_future_schema_files_are_not_overwritten() {
-        let fixture = Fixture::new();
-        let broker = fixture.broker();
-        let path = fixture.0.join("sample.json");
-        for original in ["{broken", "{\"schema\":99,\"revision\":1,\"value\":4}"] {
-            fs::write(&path, original).unwrap();
-            assert!(broker.call("sample", "state.read", Value::Null).is_err());
-            assert!(broker
-                .call(
-                    "sample",
-                    "state.write",
-                    serde_json::json!({"revision":0,"value":"lost"})
-                )
-                .is_err());
-            assert_eq!(fs::read_to_string(&path).unwrap(), original);
-        }
-    }
-    #[test]
-    fn stale_revision_and_failed_temporary_file_preserve_prior_state() {
-        let fixture = Fixture::new();
-        let broker = fixture.broker();
-        broker
-            .call(
-                "sample",
-                "state.write",
-                serde_json::json!({"revision":0,"value":"saved"}),
-            )
-            .unwrap();
-        assert!(broker
-            .call(
-                "sample",
-                "state.write",
-                serde_json::json!({"revision":0,"value":"stale"})
-            )
-            .unwrap_err()
-            .contains("conflict"));
-        #[cfg(unix)]
-        {
-            use std::os::unix::fs::PermissionsExt;
-            // A read-only directory rejects the temporary file; the original stays.
-            let mode = |bits| fs::Permissions::from_mode(bits);
-            fs::set_permissions(&fixture.0, mode(0o555)).unwrap();
-            // Privileged runs (for example root) bypass the mode; skip rather than misreport.
-            let enforced = fs::write(fixture.0.join("probe"), "").is_err();
-            let failed = enforced.then(|| {
-                broker.call(
-                    "sample",
-                    "state.write",
-                    serde_json::json!({"revision":1,"value":"failed"}),
-                )
-            });
-            fs::set_permissions(&fixture.0, mode(0o755)).unwrap();
-            if let Some(failed) = failed {
-                assert!(failed.is_err());
-            }
-        }
-        assert_eq!(
-            broker.call("sample", "state.read", Value::Null).unwrap()["value"],
-            "saved"
-        );
-    }
-    #[test]
-    fn interrupted_temporary_file_does_not_block_later_writes() {
-        let fixture = Fixture::new();
-        let broker = fixture.broker();
-        let leftover = fixture.0.join("sample.pending");
-        fs::write(&leftover, "partial").unwrap();
-        broker
-            .call(
-                "sample",
-                "state.write",
-                serde_json::json!({"revision":0,"value":"saved"}),
-            )
-            .unwrap();
-        assert_eq!(
-            broker.call("sample", "state.read", Value::Null).unwrap()["value"],
-            "saved"
-        );
-        // Another writer's file is never adopted or removed.
-        assert_eq!(fs::read_to_string(&leftover).unwrap(), "partial");
-    }
-    #[test]
-    fn failed_commit_removes_only_its_own_temporary_file() {
-        let fixture = Fixture::new();
-        let foreign = fixture.0.join("sample.other.pending");
-        fs::write(&foreign, "other writer").unwrap();
-        // A non-empty directory at the target makes the final rename fail.
-        fs::create_dir(fixture.0.join("sample.json")).unwrap();
-        fs::write(fixture.0.join("sample.json").join("keep"), "").unwrap();
-        assert_eq!(
-            commit(&fixture.0, "sample", b"{}").unwrap_err(),
-            "State write failed; original preserved"
-        );
-        let pending: Vec<_> = fs::read_dir(&fixture.0)
-            .unwrap()
-            .map(|entry| entry.unwrap().file_name().to_string_lossy().into_owned())
-            .filter(|name| name.ends_with(".pending"))
-            .collect();
-        assert_eq!(pending, ["sample.other.pending"]);
-        assert_eq!(fs::read_to_string(&foreign).unwrap(), "other writer");
-    }
-    #[test]
-    fn rejects_path_escape_and_cross_owner_access() {
-        let fixture = Fixture::new();
-        let broker = fixture.broker();
-        assert!(broker.grant("../escape", vec![]).is_err());
-        assert!(broker.call("other", "state.read", Value::Null).is_err());
-    }
-    #[test]
-    fn two_authorized_namespaces_do_not_share_state() {
-        let fixture = Fixture::new();
-        let broker = fixture.broker();
-        for owner in ["host.shell", "extension.host.shell"] {
-            broker
-                .grant(owner, vec!["state.read".into(), "state.write".into()])
-                .unwrap();
-        }
-        broker
-            .call(
-                "host.shell",
-                "state.write",
-                serde_json::json!({"revision":0,"value":"shell"}),
-            )
-            .unwrap();
-        assert_eq!(
-            broker
-                .call("extension.host.shell", "state.read", Value::Null)
-                .unwrap(),
-            Value::Null
-        );
-        broker
-            .call(
-                "extension.host.shell",
-                "state.write",
-                serde_json::json!({"revision":0,"value":"extension"}),
-            )
-            .unwrap();
-        assert_eq!(
-            broker
-                .call("host.shell", "state.read", Value::Null)
-                .unwrap()["value"],
-            "shell"
-        );
-        assert_eq!(
-            broker
-                .call("extension.host.shell", "state.read", Value::Null)
-                .unwrap()["value"],
-            "extension"
-        );
-    }
-}
+#[path = "storage_tests.rs"]
+mod tests;

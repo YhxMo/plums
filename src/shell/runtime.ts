@@ -1,15 +1,8 @@
 import { Host } from "../../modules/extension-host/host";
-import {
-  restoreComposition,
-  type Composition,
-} from "../../modules/shell/composition";
+import { restoreComposition } from "../../modules/shell/composition";
 import type { ImportedExtension } from "../../modules/shell/uninstall";
-import type { StoredState } from "../../modules/sdk";
+import type { ExtensionDefinition, StoredState } from "../../modules/sdk";
 import { PlatformAdapter } from "../platform";
-import { agentExtension } from "../../modules/agents/provider";
-import type { SaveOptions } from "../../modules/agents/store";
-import { agentUI } from "../agent-ui";
-import { textWorkbench } from "../../modules/text-workbench/extension";
 import { errorMessage } from "./messages";
 import {
   parsePersistedState,
@@ -17,12 +10,7 @@ import {
   type Preferences,
 } from "./persisted-state";
 import { createPersistence, createShellBridge } from "./persistence";
-import {
-  loadCatalog,
-  installCatalog,
-  installImports,
-  builtInCatalog,
-} from "./extensions";
+import { loadCatalog, installCatalog, installImports } from "./extensions";
 
 export type Runtime = Readonly<{
   host: Host;
@@ -44,19 +32,7 @@ export type Runtime = Readonly<{
       platformErrors: string[];
     }
   >;
-  save: (
-    patch: {
-      layout?: string;
-      theme?: "light" | "dark";
-      themeId?: string | null;
-      agents?: Preferences["agents"];
-      imports?: ImportedExtension[];
-      composition?: Composition;
-      configurations?: Record<string, unknown>;
-      pages?: Record<string, string>;
-    },
-    options?: SaveOptions,
-  ) => Promise<void>;
+  save: ReturnType<typeof createPersistence>["save"];
 }>;
 export class CompositionRecovery extends Error {
   constructor(
@@ -86,7 +62,19 @@ function readPreferences(
   }
 }
 
-export async function boot(): Promise<Runtime> {
+export type ShellApplication = {
+  catalog: ImportedExtension[];
+  restore: (state: Preferences) => Preferences;
+  extensions: (
+    state: Preferences,
+    save: Runtime["save"],
+  ) => ExtensionDefinition[];
+  start: string[];
+};
+
+export async function bootShell(
+  application: ShellApplication,
+): Promise<Runtime> {
   const adapter = new PlatformAdapter();
   await Promise.all([
     adapter.initializeDocuments(),
@@ -103,8 +91,10 @@ export async function boot(): Promise<Runtime> {
     "host.shell",
     "state.read",
   )) as StoredState | null;
-  const preferences = readPreferences(saved, adapter, catalog);
-  const { imports, configurations, agents, composition } = preferences;
+  const preferences = application.restore(
+    readPreferences(saved, adapter, [...catalog, ...application.catalog]),
+  );
+  const { imports, configurations, composition } = preferences;
   await installCatalog(host, catalog, configurations);
   const { failedImports } = await installImports(
     host,
@@ -119,20 +109,12 @@ export async function boot(): Promise<Runtime> {
   );
   const events = new EventTarget();
   host.connectShell(createShellBridge({ save, current }, events));
-  host.install(textWorkbench, configurations["ui.workbench-board"]);
-  host.install(
-    agentExtension(agents, (agents, options) => save({ agents }, options)),
-    configurations["agents.local"],
-  );
-  host.install(agentUI(), configurations["ui.agents"]);
+  for (const extension of application.extensions(preferences, save))
+    host.install(extension, configurations[extension.manifest.id]);
   const compositionErrors = composition
     ? await restoreComposition(host, composition)
     : [];
-  if (!composition) {
-    await host.start("transform.upper");
-    await host.start("agents.local");
-    await host.start("ui.agents");
-  }
+  if (!composition) for (const id of application.start) await host.start(id);
   const platformErrors = [
     adapter.documentsInitializationError &&
       `文档服务初始化失败：${adapter.documentsInitializationError}`,
@@ -142,7 +124,7 @@ export async function boot(): Promise<Runtime> {
   return {
     host,
     adapter,
-    catalog: [...catalog, ...builtInCatalog()],
+    catalog: [...catalog, ...application.catalog],
     initial: {
       layout: preferences.layout,
       theme: preferences.theme,

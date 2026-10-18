@@ -8,11 +8,11 @@
 
 默认 Agent 界面支持角色导入、特别关注、多会话和本地文本处理；零角色时显示双卡片欢迎页，桌面已有角色未选中时只在会话区显示居中品牌图标。菜单提供独立扩展管理、设置和诊断。[文本工作台与动态页面](docs/PAGES.md)、[独立嵌套页面](docs/LOCAL-PROOF.md)、[公开主题](docs/THEMES.md)及[会话文档只读](docs/SELECTED-DOCUMENT.md)提供非聊天与平台样板。[DeepSeek 协议扩展](docs/DEEPSEEK.md)已通过本地隔离测试，[通用绑定与原生录入](docs/CREDENTIAL-BINDINGS.md)已接入开发版；系统秘密实际读取/注入、请求授权、生产传输和真实调用仍未完成；MCP 连接器和多 Agent 协作尚未实现。
 
-M1 已按 Mac 与单配置 Android 模拟器的限定风险范围收敛，M2 整体尚未退出。M2 按 M2.0 重新基线、M2.1 契约闭合、M2.2 作者与 UI 开放、M2.3 平台能力切片、M2.4 M2 退出与稳定 SDK 推进；M2.0 已限定完成，当前准备执行工程前置 P6 → P1，详见[整体计划](docs/spec/total.md)与[当前阶段](docs/spec/milestone.md)。当前交付、对应源码和未验范围统一见[验证索引](evidence/RESULTS.md)，执行状态见 [HANDOFF](HANDOFF.md)。Android 真机、iOS、Windows/Linux、稳定 SDK 与正式签名分发仍待验；iOS 最小实验须在 M2.4 内、稳定 SDK 声明前完成。
+M1 已按 Mac 与单配置 Android 模拟器的限定风险范围收敛，M2 整体尚未退出。M2 按 M2.0 重新基线、M2.1 契约闭合、M2.2 作者与 UI 开放、M2.3 平台能力切片、M2.4 M2 退出与稳定 SDK 推进；M2.0 已限定完成，工程前置进度见[当前阶段](docs/spec/milestone.md)，能力依赖和退出门槛见[整体计划](docs/spec/total.md)。当前交付、对应源码和未验范围统一见[验证索引](evidence/RESULTS.md)，工程状态见 [HANDOFF](HANDOFF.md)。Android 真机、iOS、Windows/Linux、稳定 SDK 与正式签名分发仍待验；iOS 最小实验须在 M2.4 内、稳定 SDK 声明前完成。
 
 ## 本地应用包
 
-`release/` 已更新为 `m2-baseline-2026-10-18`（015ac2d）的同源 0.0.4 debug 包。[重新基线证据](evidence/BASELINE-2026-10-18.md)列出实际范围和恢复入口。Android 管理页系统 Back 当前退出 Activity，请使用页面“返回工作区”按钮；修复已排期。
+`release/` 保留 `m2-baseline-2026-10-18`（015ac2d）的同源 0.0.4 debug 包。[重新基线证据](evidence/BASELINE-2026-10-18.md)列出实际范围和恢复入口。该 Android 交付包的管理页系统 Back 会退出 Activity，请使用页面“返回工作区”按钮；开发候选已修复，验证见[工程前置证据](evidence/ENGINEERING-PREREQUISITES-2026-10-18.md)。
 
 | 平台 | 当前入口 | 范围 |
 | --- | --- | --- |

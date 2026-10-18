@@ -56,6 +56,7 @@ export function useWorkspaceChrome(workspace: Workspace) {
   }, [custom?.id, custom?.generation, state.sidebar, invoke]);
   return {
     title: state.title ?? "",
+    back: state.back ? () => invoke(() => state.back!()) : undefined,
     custom,
     open: custom ? customOpen : (state.sidebar?.open ?? false),
     label: custom?.label ?? state.sidebar?.label,

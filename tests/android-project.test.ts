@@ -85,6 +85,44 @@ test("preparation is repeatable and preserves the verified Insets behavior and C
   expect(first.join("\n")).toContain("file\\:///toolchain%20with%20spaces/");
 });
 
+test("preparation upgrades the known Insets-only activity without accepting unknown edits", () => {
+  const { root, activity } = fixture();
+  const previous = `package dev.plums.plums
+
+import android.os.Bundle
+import android.view.View
+import androidx.activity.enableEdgeToEdge
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowInsetsCompat
+
+class MainActivity : TauriActivity() {
+  override fun onCreate(savedInstanceState: Bundle?) {
+    enableEdgeToEdge()
+    super.onCreate(savedInstanceState)
+
+    val content = findViewById<View>(android.R.id.content)
+    ViewCompat.setOnApplyWindowInsetsListener(content) { view, insets ->
+      val safeArea = insets.getInsets(
+        WindowInsetsCompat.Type.systemBars() or
+          WindowInsetsCompat.Type.displayCutout() or
+          WindowInsetsCompat.Type.ime()
+      )
+      view.setPadding(safeArea.left, safeArea.top, safeArea.right, safeArea.bottom)
+      insets
+    }
+    ViewCompat.requestApplyInsets(content)
+  }
+}
+`;
+  writeFileSync(join(root, activity), previous);
+  prepareAndroid(root, "/toolchain");
+  expect(readFileSync(join(root, activity), "utf8")).toContain("plums:back");
+  writeFileSync(join(root, activity), previous.replace("safeArea.left", "0"));
+  expect(() => prepareAndroid(root, "/toolchain")).toThrow(
+    "MainActivity template changed",
+  );
+});
+
 test("npm-launched initialization still calls the local CLI from the Rust directory", () => {
   const { root } = fixture();
   const task = join(

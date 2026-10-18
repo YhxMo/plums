@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
-import { boot, type Runtime } from "./shell/runtime";
+import { boot } from "./application";
+import type { Runtime } from "./shell/runtime";
 import { StartupScreen } from "./shell/StartupScreen";
 import { Workbench } from "./shell/Workbench";
 

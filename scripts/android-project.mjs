@@ -20,6 +20,33 @@ class MainActivity : TauriActivity() {
   }
 }
 `;
+const previousInsetsActivity = `package {{PACKAGE}}
+
+import android.os.Bundle
+import android.view.View
+import androidx.activity.enableEdgeToEdge
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowInsetsCompat
+
+class MainActivity : TauriActivity() {
+  override fun onCreate(savedInstanceState: Bundle?) {
+    enableEdgeToEdge()
+    super.onCreate(savedInstanceState)
+
+    val content = findViewById<View>(android.R.id.content)
+    ViewCompat.setOnApplyWindowInsetsListener(content) { view, insets ->
+      val safeArea = insets.getInsets(
+        WindowInsetsCompat.Type.systemBars() or
+          WindowInsetsCompat.Type.displayCutout() or
+          WindowInsetsCompat.Type.ime()
+      )
+      view.setPadding(safeArea.left, safeArea.top, safeArea.right, safeArea.bottom)
+      insets
+    }
+    ViewCompat.requestApplyInsets(content)
+  }
+}
+`;
 const callback = 'listOf("tauri", "android", "android-studio-script")';
 const npmCallback =
   'listOf("run", "--", "tauri", "android", "android-studio-script")';
@@ -64,7 +91,13 @@ export function prepareAndroid(root, toolsRoot) {
     "utf8",
   ).replace("{{PACKAGE}}", packageName);
   const current = readFileSync(activity, "utf8");
-  if (current !== expected && current !== adapted)
+  if (
+    ![
+      expected,
+      adapted,
+      previousInsetsActivity.replace("{{PACKAGE}}", packageName),
+    ].includes(current)
+  )
     throw new Error("MainActivity template changed; review before adapting");
   edits.set(activity, adapted);
 

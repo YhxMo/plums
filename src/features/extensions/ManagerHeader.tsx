@@ -1,4 +1,4 @@
-import type { ManagerHeaderController } from "../../shell/controllers";
+import type { ManagerHeaderController } from "./controllers";
 import { Icon } from "../../components/Icon";
 import styles from "./ExtensionManager.module.css";
 import layoutStyles from "../../shell/layout.module.css";

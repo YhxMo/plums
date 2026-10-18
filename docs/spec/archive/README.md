@@ -10,14 +10,16 @@
 
 | 归档 | 结果入口 |
 | --- | --- |
-| [阶段 A：安全网与基线](A-hardening-2026-10-17.md) | [RESULTS](../../../evidence/RESULTS.md) |
-| [阶段 B：启动、保存与校验边界](B-runtime-validation-2026-10-17.md) | [RESULTS](../../../evidence/RESULTS.md) |
-| [C1：Agent 工作区职责拆分](C1-agent-workspace-2026-10-17.md) | [RESULTS](../../../evidence/RESULTS.md) |
-| [C2：按使用方拆分样式](C2-styles-2026-10-17.md) | [RESULTS](../../../evidence/RESULTS.md) |
-| [C3：扩展操作与组件依赖](C3-extension-actions-2026-10-17.md) | [RESULTS](../../../evidence/RESULTS.md) |
-| [C4：扩展状态所有权](C4-extension-state-2026-10-17.md) | [RESULTS](../../../evidence/RESULTS.md#c4扩展状态所有权) |
+| [阶段 A：安全网与基线](A-hardening-2026-10-17.md) | [阶段证据](../../../evidence/MAINTENANCE-2026-10-17.md#阶段-a安全网与基线) |
+| [阶段 B：启动、保存与校验边界](B-runtime-validation-2026-10-17.md) | [阶段证据](../../../evidence/MAINTENANCE-2026-10-17.md#阶段-b启动保存与校验边界) |
+| [C1：Agent 工作区职责拆分](C1-agent-workspace-2026-10-17.md) | [阶段证据](../../../evidence/MAINTENANCE-2026-10-17.md#c1agent-工作区职责拆分) |
+| [C2：按使用方拆分样式](C2-styles-2026-10-17.md) | [阶段证据](../../../evidence/MAINTENANCE-2026-10-17.md#c2按使用方拆分样式) |
+| [C3：扩展操作与组件依赖](C3-extension-actions-2026-10-17.md) | [阶段证据](../../../evidence/MAINTENANCE-2026-10-17.md#c3扩展操作与组件依赖) |
+| [C4：扩展状态所有权](C4-extension-state-2026-10-17.md) | [阶段证据](../../../evidence/MAINTENANCE-2026-10-17.md#c4扩展状态所有权) |
 | [D：文档职责解耦与归档整理](D-document-decoupling-2026-10-17.md) | [验证与审查记录](D-document-decoupling-2026-10-17.md#独立审查) |
 | [H：防御性编程审查与收敛](H-defensive-hardening-2026-10-17.md) | [HARDENING](../../../evidence/HARDENING-2026-10-17.md) |
+| [P2：IPC 单一来源](P2-ipc-contract-2026-10-18.md) | [工程前置证据](../../../evidence/ENGINEERING-PREREQUISITES-2026-10-18.md) |
+| [P6/P1/P7：边界、业务所有权与 Android 返回](P6-P1-P7-foundations-2026-10-18.md) | [工程前置证据](../../../evidence/ENGINEERING-PREREQUISITES-2026-10-18.md) |
 | [E：状态所有权与门禁收敛](E-ownership-gates-2026-10-17.md) | [OWNERSHIP-GATES](../../../evidence/OWNERSHIP-GATES-2026-10-17.md) |
 
 ## M1 阶段

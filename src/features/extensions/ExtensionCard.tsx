@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import type { ExtensionCardModel } from "../../shell/controllers";
+import type { ExtensionCardModel } from "./controllers";
 import { errorMessage, translateStatus } from "../../shell/messages";
 import styles from "./ExtensionManager.module.css";
 

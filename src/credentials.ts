@@ -1,24 +1,17 @@
-import { invoke } from "@tauri-apps/api/core";
-import type {
-  CredentialBindingDeclaration,
-  NetworkRoute,
-} from "../modules/sdk";
+import { invokeNative } from "./native/invoke";
+import type { NativeCommands } from "./native/contract.generated";
+import type { CredentialBindingDeclaration } from "../modules/sdk";
 
-export interface CredentialBinding {
-  owner: string;
-  alias: string;
-  source: string;
-  version: string;
-  declaration: CredentialBindingDeclaration;
-  route: NetworkRoute;
-  revision: number;
-  status: "pending" | "ready" | "disabled" | "delete-pending";
-}
+export type CredentialBinding =
+  NativeCommands["credential_list"]["response"][number];
 export type CredentialManagementResponse =
-  | { status: "saved" }
-  | { status: "cancelled" }
-  | { status: "unknown" }
-  | { status: "rejected"; reason: string };
+  NativeCommands["credential_configure"]["response"];
+type Mutation =
+  | "credential_retain"
+  | "credential_configure"
+  | "credential_route"
+  | "credential_reconcile"
+  | "credential_delete";
 
 /** Host management only. This entry never accepts or returns an API key. */
 export class CredentialAccess {
@@ -28,7 +21,7 @@ export class CredentialAccess {
   async initialize(native: boolean) {
     if (!native) return;
     try {
-      this.supported = (await invoke("credential_supported")) === true;
+      this.supported = (await invokeNative("credential_supported")) === true;
       if (this.supported) await this.inventory();
       this.initializationError = null;
     } catch (error) {
@@ -41,7 +34,7 @@ export class CredentialAccess {
   async list(owner: string) {
     if (!this.supported) return [];
     try {
-      const items = await invoke<CredentialBinding[]>("credential_list", {
+      const items = await invokeNative("credential_list", {
         owner,
       });
       if (items.length) this.owners.add(owner);
@@ -53,7 +46,7 @@ export class CredentialAccess {
   }
   async inventory() {
     if (!this.supported) return [];
-    const items = await invoke<CredentialBinding[]>("credential_inventory");
+    const items = await invokeNative("credential_inventory");
     this.owners.clear();
     for (const item of items) this.owners.add(item.owner);
     return items;
@@ -98,13 +91,13 @@ export class CredentialAccess {
   delete(owner: string, alias: string, revision: number) {
     return this.run("credential_delete", { owner, alias, revision });
   }
-  private async run(
-    command: string,
-    args: Record<string, unknown>,
+  private async run<K extends Mutation>(
+    command: K,
+    args: NativeCommands[K]["args"],
   ): Promise<CredentialManagementResponse> {
     if (!this.supported) return { status: "rejected", reason: "unavailable" };
     try {
-      return await invoke<CredentialManagementResponse>(command, args);
+      return await invokeNative(command, args);
     } catch {
       return { status: "unknown" };
     }

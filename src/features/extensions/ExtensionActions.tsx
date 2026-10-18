@@ -1,7 +1,4 @@
-import type {
-  ExtensionCardModel,
-  ExtensionRowActions,
-} from "../../shell/controllers";
+import type { ExtensionCardModel, ExtensionRowActions } from "./controllers";
 import { capabilityLabel } from "../../shell/messages";
 import styles from "./ExtensionManager.module.css";
 

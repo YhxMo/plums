@@ -10,16 +10,13 @@ import {
 import {
   mapExtensionAgents,
   readActiveAgents,
-} from "../../../modules/shell/diagnostics";
+} from "../../../modules/agents/diagnostics";
 import { waitingNotice } from "./enable-feedback";
 import type { ConfigurationValue } from "../../../modules/sdk/configuration";
 import type { Runtime } from "../../shell/runtime";
 import { errorMessage } from "../../shell/messages";
 import { useExtensionState } from "../../shell/useExtensionState";
-import type {
-  ManagementInputs,
-  ExtensionCardModel,
-} from "../../shell/controllers";
+import type { ManagementInputs, ExtensionCardModel } from "./controllers";
 
 type ManagementDialog =
   | { kind: "install"; source: HTMLElement }
@@ -33,17 +30,19 @@ export function useExtensionManager(
     workspace,
     navigation,
     authorization,
-    onReveal,
+    entityNavigation,
   }: ManagementInputs,
 ) {
   const { host, catalog } = runtime;
+  const onReveal =
+    entityNavigation?.entityType === "agents.agent"
+      ? (id: string) => entityNavigation.reveal(id)
+      : undefined;
   const { value, run } = useExtensionState(runtime);
   const { manager, closeManager } = navigation;
   const { busy, operate, setError, setNotice } = operations;
   const [selectedId, setSelectedId] = useState(
-    () =>
-      catalog.find((entry) => host.ids().includes(entry.id))?.id ??
-      "agents.local",
+    () => catalog.find((entry) => host.ids().includes(entry.id))?.id ?? "",
   );
   const [dialog, setDialog] = useState<ManagementDialog>(null);
   const [failedImports, setFailedImports] = useState(

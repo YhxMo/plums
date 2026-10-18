@@ -1,6 +1,8 @@
 /** Chrome belongs to a workspace, not to the application-wide window. */
 export interface WorkspaceChromeState {
   readonly title?: string;
+  /** Return one level inside the active workspace; absent at its root. */
+  readonly back?: () => void;
   /** Extension providing the current workspace entity's contextual sidebar. */
   readonly contextOwner?: string;
   readonly sidebar?: {

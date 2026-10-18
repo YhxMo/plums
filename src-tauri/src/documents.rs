@@ -1,4 +1,5 @@
 //! Session-only selected-document access. No paths, URIs, or persistent grants cross IPC.
+use crate::ipc::{ipc_command, wire_enum, wire_object};
 use serde::Serialize;
 use std::{
     collections::HashMap,
@@ -12,26 +13,23 @@ const OWNER_OPERATIONS: usize = 1024;
 const TOTAL_OPERATIONS: usize = 4096;
 const TOTAL_OWNERS: usize = 32;
 
+wire_object! {
 #[derive(Clone, Debug, Serialize)]
-pub struct Descriptor {
-    handle: String,
-    name: String,
+pub struct Descriptor, rename_all = "camelCase" { handle: String, name: String }
 }
+wire_enum! {
 #[derive(Debug, Serialize)]
-#[serde(tag = "status", rename_all = "lowercase")]
-pub enum SelectResponse {
-    Selected { documents: Vec<Descriptor> },
-    Cancelled,
-    Rejected { reason: &'static str },
-    Unknown,
+pub enum SelectResponse, tag = "status" {
+    Selected => "selected" { documents: Vec<Descriptor> }, Cancelled => "cancelled",
+    Rejected => "rejected" { reason: &'static str }, Unknown => "unknown"
 }
+}
+wire_enum! {
 #[derive(Debug, Serialize)]
-#[serde(tag = "status", rename_all = "lowercase")]
-pub enum ReadResponse {
-    Read { text: String, bytes: usize },
-    Cancelled,
-    Rejected { reason: &'static str },
-    Unknown,
+pub enum ReadResponse, tag = "status" {
+    Read => "read" { text: String, bytes: usize }, Cancelled => "cancelled",
+    Rejected => "rejected" { reason: &'static str }, Unknown => "unknown"
+}
 }
 #[derive(Clone)]
 enum Source {
@@ -418,18 +416,20 @@ fn decode_bytes(bytes: Vec<u8>, max_bytes: usize) -> Result<String, &'static str
     }
     String::from_utf8(bytes).map_err(|_| "encoding")
 }
-#[tauri::command]
+ipc_command! {
 pub fn document_supported() -> bool {
     cfg!(any(target_os = "macos", target_os = "android"))
 }
-#[tauri::command]
+}
+ipc_command! {
 pub fn document_list(
     owner: String,
     state: tauri::State<'_, Documents>,
 ) -> Result<Vec<Descriptor>, String> {
     state.list(&owner).map_err(str::to_owned)
 }
-#[tauri::command]
+}
+ipc_command! {
 pub fn document_cancel(
     owner: String,
     operation_id: String,
@@ -437,7 +437,8 @@ pub fn document_cancel(
 ) -> Result<(), String> {
     state.cancel(&owner, &operation_id).map_err(str::to_owned)
 }
-#[tauri::command]
+}
+ipc_command! {
 pub fn document_revoke(
     owner: String,
     handle: Option<String>,
@@ -447,7 +448,8 @@ pub fn document_revoke(
         .revoke(&owner, handle.as_deref())
         .map_err(str::to_owned)
 }
-#[tauri::command]
+}
+ipc_command! {
 pub async fn document_select(
     app: tauri::AppHandle,
     owner: String,
@@ -469,7 +471,8 @@ pub async fn document_select(
     let result = select_native(app, multiple).await;
     state.finish_select(ticket, result)
 }
-#[tauri::command]
+}
+ipc_command! {
 pub async fn document_read(
     app: tauri::AppHandle,
     owner: String,
@@ -490,417 +493,11 @@ pub async fn document_read(
     let result = read_native(app, ticket.binding.source.clone(), max_bytes).await;
     state.finish_read(ticket, result)
 }
-
-#[cfg(target_os = "macos")]
-async fn select_native(
-    app: tauri::AppHandle,
-    multiple: bool,
-) -> Result<Option<Vec<SelectedSource>>, &'static str> {
-    use objc2::MainThreadMarker;
-    use objc2_app_kit::{NSModalResponseOK, NSOpenPanel};
-    let (send, receive) = std::sync::mpsc::sync_channel(1);
-    app.run_on_main_thread(move || {
-        let result = (|| {
-            let marker = MainThreadMarker::new().ok_or("unavailable")?;
-            let panel = NSOpenPanel::openPanel(marker);
-            panel.setCanChooseFiles(true);
-            panel.setCanChooseDirectories(false);
-            panel.setAllowsMultipleSelection(multiple);
-            panel.setCanCreateDirectories(false);
-            panel.setTreatsFilePackagesAsDirectories(false);
-            if panel.runModal() != NSModalResponseOK {
-                return Ok(None);
-            }
-            let urls = panel.URLs();
-            if urls.len() > OWNER_HANDLES {
-                return Err("resource-limit");
-            }
-            let mut paths = Vec::new();
-            for url in urls.iter() {
-                if !url.isFileURL() {
-                    return Err("denied");
-                }
-                let path = url.path().ok_or("io")?.to_string();
-                let name = url
-                    .lastPathComponent()
-                    .map(|name| name.to_string())
-                    .unwrap_or_else(|| "Selected document".into());
-                paths.push((path, name));
-            }
-            Ok(Some(paths))
-        })();
-        let _ = send.send(result);
-    })
-    .map_err(|_| "unavailable")?;
-    tauri::async_runtime::spawn_blocking(move || {
-        let Some(paths) = receive.recv().map_err(|_| "unknown")?? else {
-            return Ok(None);
-        };
-        let mut selected = Vec::new();
-        for (path, name) in paths {
-            let file = std::fs::File::open(path).map_err(|_| "io")?;
-            if !file.metadata().map_err(|_| "io")?.is_file() {
-                return Err("denied");
-            }
-            selected.push(SelectedSource {
-                name,
-                source: Source::File(Arc::new(Mutex::new(file))),
-            });
-        }
-        Ok(Some(selected))
-    })
-    .await
-    .map_err(|_| "unknown")?
-}
-#[cfg(target_os = "macos")]
-async fn read_native(
-    _app: tauri::AppHandle,
-    source: Source,
-    max_bytes: usize,
-) -> Result<String, &'static str> {
-    use std::io::{Read, Seek, SeekFrom};
-    tauri::async_runtime::spawn_blocking(move || match source {
-        Source::File(file) => {
-            let mut file = file.lock().map_err(|_| "unknown")?;
-            file.seek(SeekFrom::Start(0)).map_err(|_| "io")?;
-            let mut bytes = Vec::new();
-            (&mut *file)
-                .take(max_bytes as u64 + 1)
-                .read_to_end(&mut bytes)
-                .map_err(|_| "io")?;
-            decode_bytes(bytes, max_bytes)
-        }
-        #[cfg(test)]
-        Source::Test(bytes) => decode_bytes(bytes, max_bytes),
-    })
-    .await
-    .map_err(|_| "unknown")?
-}
-#[cfg(target_os = "android")]
-pub struct AndroidDocuments(pub tauri::plugin::PluginHandle<tauri::Wry>);
-#[cfg(target_os = "android")]
-async fn select_native(
-    app: tauri::AppHandle,
-    multiple: bool,
-) -> Result<Option<Vec<SelectedSource>>, &'static str> {
-    use tauri::Manager;
-    let response: serde_json::Value = app
-        .state::<AndroidDocuments>()
-        .0
-        .run_mobile_plugin_async("select", serde_json::json!({ "multiple": multiple }))
-        .await
-        .map_err(|_| "unknown")?;
-    match response.get("status").and_then(serde_json::Value::as_str) {
-        Some("cancelled") => Ok(None),
-        Some("selected") => {
-            let documents = response
-                .get("documents")
-                .and_then(serde_json::Value::as_array)
-                .ok_or("unknown")?;
-            if documents.is_empty() || documents.len() > OWNER_HANDLES {
-                return Err("resource-limit");
-            }
-            documents
-                .iter()
-                .map(|document| {
-                    let uri = document
-                        .get("uri")
-                        .and_then(serde_json::Value::as_str)
-                        .ok_or("unknown")?;
-                    if !uri.starts_with("content://") || uri.len() > 8192 {
-                        return Err("denied");
-                    }
-                    let name = document
-                        .get("name")
-                        .and_then(serde_json::Value::as_str)
-                        .ok_or("unknown")?;
-                    Ok(SelectedSource {
-                        name: name.into(),
-                        source: Source::Uri(uri.into()),
-                    })
-                })
-                .collect::<Result<Vec<_>, _>>()
-                .map(Some)
-        }
-        Some("rejected") => Err(native_reason(&response)),
-        _ => Err("unknown"),
-    }
-}
-#[cfg(target_os = "android")]
-async fn read_native(
-    app: tauri::AppHandle,
-    source: Source,
-    max_bytes: usize,
-) -> Result<String, &'static str> {
-    use tauri::Manager;
-    let uri = match source {
-        Source::Uri(uri) => uri,
-        #[cfg(test)]
-        Source::Test(bytes) => return decode_bytes(bytes, max_bytes),
-    };
-    let response: serde_json::Value = app
-        .state::<AndroidDocuments>()
-        .0
-        .run_mobile_plugin_async(
-            "read",
-            serde_json::json!({ "uri": uri, "maxBytes": max_bytes }),
-        )
-        .await
-        .map_err(|_| "unknown")?;
-    match response.get("status").and_then(serde_json::Value::as_str) {
-        Some("read") => {
-            let text = response
-                .get("text")
-                .and_then(serde_json::Value::as_str)
-                .ok_or("unknown")?;
-            if text.len() > max_bytes {
-                return Err("too-large");
-            }
-            Ok(text.into())
-        }
-        Some("rejected") => Err(native_reason(&response)),
-        _ => Err("unknown"),
-    }
-}
-#[cfg(target_os = "android")]
-fn native_reason(value: &serde_json::Value) -> &'static str {
-    match value.get("reason").and_then(serde_json::Value::as_str) {
-        Some("denied") => "denied",
-        Some("unavailable") => "unavailable",
-        Some("resource-limit") => "resource-limit",
-        Some("too-large") => "too-large",
-        Some("encoding") => "encoding",
-        Some("io") => "io",
-        _ => "unknown",
-    }
-}
-#[cfg(not(any(target_os = "macos", target_os = "android")))]
-async fn select_native(
-    _app: tauri::AppHandle,
-    _multiple: bool,
-) -> Result<Option<Vec<SelectedSource>>, &'static str> {
-    Err("unavailable")
-}
-#[cfg(not(any(target_os = "macos", target_os = "android")))]
-async fn read_native(
-    _app: tauri::AppHandle,
-    _source: Source,
-    _max_bytes: usize,
-) -> Result<String, &'static str> {
-    Err("unavailable")
 }
 
+mod native;
+#[cfg(target_os = "android")]
+pub use native::AndroidDocuments;
+use native::{read_native, select_native};
 #[cfg(test)]
-mod tests {
-    use super::*;
-    fn broker() -> Documents {
-        let broker = Documents::default();
-        broker.grant("sample", true).unwrap();
-        broker
-    }
-    fn source() -> SelectedSource {
-        SelectedSource {
-            name: "test.txt".into(),
-            source: Source::Test(b"safe text".to_vec()),
-        }
-    }
-    fn selected(broker: &Documents, operation: &str) -> String {
-        let ticket = broker.begin("sample", operation, true).unwrap();
-        match broker.finish_select(ticket, Ok(Some(vec![source()]))) {
-            SelectResponse::Selected { documents } => documents[0].handle.clone(),
-            other => panic!("{other:?}"),
-        }
-    }
-    #[test]
-    fn handles_are_owner_bound_and_revocation_is_final() {
-        let broker = broker();
-        let handle = selected(&broker, "pick");
-        broker.grant("other", true).unwrap();
-        assert_eq!(broker.list("other").unwrap().len(), 0);
-        assert!(matches!(
-            broker.begin_read("other", &handle, 64, "cross"),
-            Err(ReadResponse::Rejected { reason: "denied" })
-        ));
-        broker.revoke("other", Some(&handle)).unwrap();
-        assert_eq!(broker.list("sample").unwrap().len(), 1);
-        broker.revoke("sample", Some(&handle)).unwrap();
-        assert!(matches!(
-            broker.begin_read("sample", &handle, 64, "old"),
-            Err(ReadResponse::Rejected { reason: "denied" })
-        ));
-    }
-    #[test]
-    fn cancelled_selection_and_late_grant_generation_do_not_bind() {
-        let broker = broker();
-        let ticket = broker.begin("sample", "cancel-picker", true).unwrap();
-        broker.cancel("sample", "cancel-picker").unwrap();
-        assert!(matches!(
-            broker.finish_select(ticket, Ok(Some(vec![source()]))),
-            SelectResponse::Cancelled
-        ));
-        let ticket = broker.begin("sample", "old-picker", true).unwrap();
-        broker.revoke("sample", None).unwrap();
-        assert!(matches!(
-            broker.finish_select(ticket, Ok(Some(vec![source()]))),
-            SelectResponse::Cancelled
-        ));
-        assert!(broker.list("sample").unwrap().is_empty());
-        let ticket = broker.begin("sample", "decline", true).unwrap();
-        assert!(matches!(
-            broker.finish_select(ticket, Ok(None)),
-            SelectResponse::Cancelled
-        ));
-    }
-    #[test]
-    fn pre_cancel_and_reused_operation_cannot_start_even_after_release() {
-        let broker = broker();
-        broker.cancel("sample", "before").unwrap();
-        broker.revoke("sample", None).unwrap();
-        assert!(matches!(
-            broker.begin("sample", "before", false),
-            Err("cancelled")
-        ));
-        selected(&broker, "once");
-        assert!(matches!(
-            broker.begin("sample", "once", false),
-            Err("invalid-request")
-        ));
-    }
-    #[test]
-    fn selection_capacity_is_atomic_and_no_existing_handle_is_evicted() {
-        let broker = broker();
-        for i in 0..7 {
-            selected(&broker, &format!("pick-{i}"));
-        }
-        let ticket = broker.begin("sample", "too-many", true).unwrap();
-        assert!(matches!(
-            broker.finish_select(ticket, Ok(Some(vec![source(), source()]))),
-            SelectResponse::Rejected {
-                reason: "resource-limit"
-            }
-        ));
-        assert_eq!(broker.list("sample").unwrap().len(), 7);
-        selected(&broker, "last");
-        assert_eq!(broker.list("sample").unwrap().len(), 8);
-    }
-    #[test]
-    fn reads_recheck_cancellation_revocation_and_grant_after_io() {
-        for mode in 0..3 {
-            let broker = broker();
-            let handle = selected(&broker, "pick");
-            let ticket = broker.begin_read("sample", &handle, 64, "read").unwrap();
-            match mode {
-                0 => broker.cancel("sample", "read").unwrap(),
-                1 => broker.revoke("sample", Some(&handle)).unwrap(),
-                _ => broker.grant("sample", false).unwrap(),
-            }
-            assert!(!matches!(
-                broker.finish_read(ticket, Ok("private".into())),
-                ReadResponse::Read { .. }
-            ));
-        }
-    }
-    #[test]
-    fn byte_limit_utf8_errors_and_fixed_failures_have_no_payload() {
-        assert!(matches!(decode_bytes(vec![0xff], 64), Err("encoding")));
-        assert!(matches!(
-            decode_bytes("梅子".as_bytes().to_vec(), 5),
-            Err("too-large")
-        ));
-        let broker = broker();
-        let handle = selected(&broker, "pick");
-        for bytes in [0, 65537] {
-            assert!(matches!(
-                broker.begin_read("sample", &handle, bytes, &format!("bad-{bytes}")),
-                Err(ReadResponse::Rejected {
-                    reason: "invalid-request"
-                })
-            ));
-        }
-        let ticket = broker.begin_read("sample", &handle, 64, "read").unwrap();
-        let response = broker.finish_read(ticket, Err("io"));
-        assert_eq!(
-            serde_json::to_string(&response).unwrap(),
-            r#"{"status":"rejected","reason":"io"}"#
-        );
-    }
-    #[test]
-    fn global_capacity_picker_busy_pending_and_operation_budgets_are_bounded() {
-        let broker = broker();
-        let picker = broker.begin("sample", "picker", true).unwrap();
-        assert!(matches!(
-            broker.begin("sample", "second-picker", true),
-            Err("busy")
-        ));
-        broker.finish_select(picker, Ok(None));
-        let tickets: Vec<_> = (0..8)
-            .map(|i| broker.begin("sample", &format!("hold-{i}"), false).unwrap())
-            .collect();
-        assert!(matches!(
-            broker.begin("sample", "ninth", false),
-            Err("resource-limit")
-        ));
-        for ticket in tickets {
-            broker.finish_select(ticket, Ok(None));
-        }
-        for i in 0..1015 {
-            broker.cancel("sample", &format!("cancel-{i}")).unwrap();
-        }
-        assert!(matches!(
-            broker.begin("sample", "over-budget", false),
-            Err("resource-limit")
-        ));
-        broker.revoke("sample", None).unwrap();
-        assert!(matches!(
-            broker.begin("sample", "still-over-budget", false),
-            Err("resource-limit")
-        ));
-        let broker = super::tests::broker();
-        for owner in 0..4 {
-            let owner = format!("owner-{owner}");
-            broker.grant(&owner, true).unwrap();
-            let ticket = broker.begin(&owner, "pick", true).unwrap();
-            assert!(matches!(
-                broker.finish_select(ticket, Ok(Some((0..8).map(|_| source()).collect()))),
-                SelectResponse::Selected { .. }
-            ));
-        }
-        let ticket = broker.begin("sample", "global-full", true).unwrap();
-        assert!(matches!(
-            broker.finish_select(ticket, Ok(Some(vec![source()]))),
-            SelectResponse::Rejected {
-                reason: "resource-limit"
-            }
-        ));
-    }
-    #[test]
-    fn owner_budget_and_grant_failure_preserve_existing_bindings() {
-        let broker = broker();
-        selected(&broker, "pick");
-        assert_eq!(
-            broker.grant_with("sample", false, || Err("unknown")),
-            Err("unknown")
-        );
-        assert_eq!(broker.list("sample").unwrap().len(), 1);
-        for owner in 0..31 {
-            broker.grant(&format!("owner-{owner}"), true).unwrap();
-        }
-        assert_eq!(broker.grant("extra", true), Err("resource-limit"));
-        // Owners without document permission do not consume this platform budget.
-        assert_eq!(broker.grant("state-only", false), Ok(()));
-    }
-    #[test]
-    fn grants_and_release_do_not_resurrect_old_documents() {
-        let broker = broker();
-        let handle = selected(&broker, "pick");
-        broker.grant("sample", true).unwrap();
-        assert_eq!(broker.list("sample").unwrap().len(), 1);
-        broker.grant("sample", false).unwrap();
-        broker.grant("sample", true).unwrap();
-        assert!(broker.list("sample").unwrap().is_empty());
-        assert!(matches!(
-            broker.begin_read("sample", &handle, 64, "old"),
-            Err(ReadResponse::Rejected { reason: "denied" })
-        ));
-    }
-}
+mod tests;

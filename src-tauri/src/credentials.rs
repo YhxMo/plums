@@ -3,16 +3,16 @@ use crate::credential_bindings::{Bindings, Declaration, Failure, KeyResult, Rout
 #[cfg(target_os = "android")]
 pub use crate::credentials_native::AndroidCredentials;
 use crate::credentials_native::{delete_key, key_exists, prompt, store_key};
+use crate::ipc::{ipc_command, wire_enum};
 use serde::Serialize;
 use tauri::Manager;
 
+wire_enum! {
 #[derive(Serialize)]
-#[serde(tag = "status", rename_all = "lowercase")]
-pub enum Response {
-    Saved,
-    Cancelled,
-    Rejected { reason: Failure },
-    Unknown,
+pub enum Response, tag = "status" {
+    Saved => "saved", Cancelled => "cancelled",
+    Rejected => "rejected" { reason: Failure }, Unknown => "unknown"
+}
 }
 fn unavailable() -> Response {
     Response::Rejected {
@@ -29,11 +29,12 @@ fn response(result: Result<(), Failure>) -> Response {
         Err(reason) => Response::Rejected { reason },
     }
 }
-#[tauri::command]
+ipc_command! {
 pub fn credential_supported() -> bool {
     cfg!(any(target_os = "macos", target_os = "android"))
 }
-#[tauri::command]
+}
+ipc_command! {
 pub fn credential_list(
     owner: String,
     bindings: tauri::State<'_, Bindings>,
@@ -43,21 +44,24 @@ pub fn credential_list(
     }
     bindings.list(&owner).map_err(str::to_owned)
 }
-#[tauri::command]
+}
+ipc_command! {
 pub fn credential_inventory(bindings: tauri::State<'_, Bindings>) -> Result<Vec<View>, String> {
     if !credential_supported() {
         return Err("unavailable".into());
     }
     bindings.inventory().map_err(str::to_owned)
 }
-#[tauri::command]
+}
+ipc_command! {
 pub fn credential_retain(owner: String, bindings: tauri::State<'_, Bindings>) -> Response {
     if !credential_supported() {
         return unavailable();
     }
     response(bindings.retain_disabled(&owner))
 }
-#[tauri::command]
+}
+ipc_command! {
 #[allow(clippy::too_many_arguments)]
 pub async fn credential_configure(
     app: tauri::AppHandle,
@@ -94,7 +98,8 @@ pub async fn credential_configure(
         Err(error) => response(Err(error)),
     }
 }
-#[tauri::command]
+}
+ipc_command! {
 pub async fn credential_route(
     app: tauri::AppHandle,
     owner: String,
@@ -142,7 +147,8 @@ pub async fn credential_route(
         }
     }
 }
-#[tauri::command]
+}
+ipc_command! {
 pub async fn credential_reconcile(
     app: tauri::AppHandle,
     owner: String,
@@ -170,7 +176,8 @@ pub async fn credential_reconcile(
     let result = key_exists(app, reference).await;
     response(bindings.finish_reconcile(ticket, result))
 }
-#[tauri::command]
+}
+ipc_command! {
 pub async fn credential_delete(
     app: tauri::AppHandle,
     owner: String,
@@ -219,24 +226,8 @@ pub async fn credential_delete(
     }
     response(bindings.finish_delete(ticket, removed))
 }
+}
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-    #[test]
-    fn unavailable_is_rejected_instead_of_reported_as_unknown() {
-        assert!(matches!(
-            response(Err("unavailable")),
-            Response::Rejected {
-                reason: "unavailable"
-            }
-        ));
-        assert!(matches!(response(Err("unknown")), Response::Unknown));
-        assert!(matches!(
-            response(Err("invalid-policy")),
-            Response::Rejected {
-                reason: "invalid-policy"
-            }
-        ));
-    }
-}
+#[path = "credentials_tests.rs"]
+mod tests;

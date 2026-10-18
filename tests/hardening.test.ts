@@ -7,7 +7,7 @@ import {
   boundaryProblems,
   checkBoundaries,
 } from "../scripts/check-boundaries.mjs";
-import { checkSize } from "../scripts/check-size.mjs";
+import { checkSize, sizeLimits } from "../scripts/check-size.mjs";
 
 const roots: string[] = [];
 afterEach(() => {
@@ -39,9 +39,10 @@ it.each([true, false])(
 
 it("rejects growth beyond an existing cap and reports remaining allowance after shrinkage", () => {
   const file = "src-tauri/src/documents.rs";
-  expect(checkSize(fixture(file, 907)).failures).toBe(1);
-  expect(checkSize(fixture(file, 905)).rows).toEqual([
-    `${file} | 905 | 906 | 1`,
+  const limit = sizeLimits[file];
+  expect(checkSize(fixture(file, limit + 1)).failures).toBe(1);
+  expect(checkSize(fixture(file, limit - 1)).rows).toEqual([
+    `${file} | ${limit - 1} | ${limit} | 1`,
   ]);
 });
 
@@ -110,7 +111,7 @@ it.each([
   ["modules/sdk/nested/example.ts", "../index"],
   ["modules/extension-host/example.ts", "../sdk"],
   ["modules/shell/example.ts", "../extension-host/host"],
-  ["modules/shell/example.ts", "../sdk/agents"],
+  ["modules/shell/example.ts", "../sdk/pages"],
   ["extensions/examples/example.js", "../../modules/sdk"],
   ["extensions/examples/example.js", "../contracts"],
 ])("allows downward imports: %s -> %s", (file, target) =>
@@ -201,3 +202,82 @@ it("enforces Hooks errors and dependency warnings on supported JavaScript input"
     ]),
   );
 });
+
+it.each([
+  ["modules/sdk/probe.ts", "../unknown-business/store"],
+  ["modules/extension-host/probe.ts", "../unknown-business/store"],
+  ["modules/shell/probe.ts", "../unknown-business/store"],
+  ["extensions/examples/probe.ts", "../../modules/unknown-business/store"],
+  ["modules/sdk/probe.ts", "../"],
+  ["modules/extension-host/probe.ts", "../"],
+  ["modules/shell/probe.ts", "../"],
+  ["extensions/probe.ts", "../"],
+  ["modules/shell/probe.ts", "../../outside"],
+  ["modules/shell/probe.ts", "../../../outside"],
+])(
+  "rejects unknown layers and directory-only escapes: %s -> %s",
+  (file, target) => {
+    expect(boundaryProblems(file, `import "${target}";`)).toHaveLength(1);
+  },
+);
+
+it.each([
+  ["src/shell/probe.ts", "../../modules/sdk/agents"],
+  ["modules/shell/probe.ts", "../sdk/agents"],
+  ["modules/extension-host/probe.ts", "../sdk/agents"],
+  ["src/shell/probe.ts", "../../modules/agents/store"],
+])(
+  "keeps generic shells and host away from Agent contracts: %s",
+  (file, target) => {
+    expect(
+      boundaryProblems(file, `import type { Agent } from "${target}";`),
+    ).toHaveLength(1);
+  },
+);
+it.each([
+  "agents",
+  "default",
+  "board",
+  "text-workbench",
+  "broken",
+  "role-settings",
+])("rejects business view ID %s in generic shell", (id) => {
+  expect(
+    boundaryProblems("src/shell/probe.ts", `const selected = "${id}";`),
+  ).toHaveLength(1);
+  expect(
+    boundaryProblems("modules/shell/probe.ts", `const selected = "${id}";`),
+  ).toHaveLength(1);
+});
+it("rejects Agent contracts re-exported through SDK barrels", () => {
+  expect(
+    checkBoundaries([
+      ["modules/sdk/bridge.ts", 'export type { Agent } from "./agents";'],
+      ["modules/sdk/index.ts", 'export * from "./bridge";'],
+      ["src/shell/probe.ts", 'import type { Agent } from "../../modules/sdk";'],
+    ]),
+  ).toEqual([
+    "src/shell/probe.ts:1: forbidden import ../../modules/sdk (Agent contract via SDK)",
+  ]);
+});
+
+it.each([
+  ["modules/sdk/probe.ts", ".."],
+  ["modules/extension-host/probe.ts", ".."],
+  ["modules/shell/probe.ts", ".."],
+  ["src/shell/probe.ts", ".."],
+  ["extensions/probe.ts", ".."],
+])("rejects bare parent-directory escape: %s -> %s", (file, target) => {
+  expect(boundaryProblems(file, `import "${target}";`)).toHaveLength(1);
+});
+it.each([
+  ["modules/sdk/probe.ts", "."],
+  ["modules/shell/probe.ts", "."],
+  ["modules/sdk/nested/probe.ts", ".."],
+  ["extensions/examples/probe.ts", ".."],
+])(
+  "allows bare directories inside an approved layer: %s -> %s",
+  (file, target) => {
+    expect(boundaryProblems(file, `import "${target}";`)).toEqual([]);
+  },
+);

@@ -60,8 +60,7 @@ export function ShellDialogs({
             <h3>Plums M1 · 0.0.4</h3>
             <p>通过扩展组合角色、能力和界面。</p>
             <p className="muted">
-              本地调试原型。当前 Agent 使用本地文本服务，模型与 MCP
-              连接器尚未内置。
+              本地调试原型。能力与数据格式由已启用的扩展提供；请在扩展详情核对来源、版本与权限。
             </p>
           </>
         ) : (

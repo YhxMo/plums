@@ -114,6 +114,8 @@ for (const name of docs) {
 if (process.argv.includes("--boundaries")) {
   const { checkBoundaries } = await import("./check-boundaries.mjs");
   problems.push(...checkBoundaries(boundarySources));
+  const { checkIpcImports } = await import("./check-ipc-imports.mjs");
+  problems.push(...checkIpcImports(boundarySources));
 }
 const ignored = readFileSync(".gitignore", "utf8").split("\n");
 if (!ignored.includes("/goal.md"))

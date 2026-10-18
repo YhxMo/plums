@@ -1,16 +1,15 @@
+use crate::ipc::{ipc_command, wire_enum};
 use tauri::Manager;
 
+wire_enum! {
 #[derive(serde::Deserialize)]
-#[serde(rename_all = "lowercase")]
-pub enum Theme {
-    Light,
-    Dark,
+pub enum Theme { Light => "light", Dark => "dark" }
 }
 
 #[cfg(target_os = "android")]
 pub struct Appearance(pub tauri::plugin::PluginHandle<tauri::Wry>);
 
-#[tauri::command]
+ipc_command! {
 pub async fn shell_set_theme(app: tauri::AppHandle, theme: Theme) -> Result<(), String> {
     #[cfg(desktop)]
     {
@@ -50,4 +49,5 @@ pub async fn shell_set_theme(app: tauri::AppHandle, theme: Theme) -> Result<(), 
         let _ = (app, theme);
         Err("Native appearance is not implemented on iOS".into())
     }
+}
 }

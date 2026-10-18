@@ -50,7 +50,7 @@
 | [当前阶段计划](spec/milestone.md) | 查正在执行的阶段、负责人、状态与退出条件 |
 | [M2 退出清单](spec/M2-EXIT-CHECKLIST.md) | 核对 M2 退出项的限定结果与待验缺口 |
 
-当前交付与基线证据：[M2.0 重新基线](../evidence/BASELINE-2026-10-18.md)。
+当前交付与基线证据：[M2.0 重新基线](../evidence/BASELINE-2026-10-18.md)。开发增量：[工程前置 P6/P1/P7/P2](../evidence/ENGINEERING-PREREQUISITES-2026-10-18.md)。
 
 ## 归档
 

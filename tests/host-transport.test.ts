@@ -157,7 +157,7 @@ it("does not restore permission from a delayed grant receipt after revoke", asyn
   let finish!: () => void;
   const p = await ExperimentPlatform.connect(async (command, args) => {
     const value = await f.bridge(command, args);
-    if (command === "probe_grant" && args?.allow)
+    if (command === "probe_grant" && "allow" in args && args.allow)
       await new Promise<void>((resolve) => (finish = resolve));
     return value;
   });

@@ -1,5 +1,11 @@
 import type { Host } from "../extension-host/host";
-export type ImportedExtension = { id: string; url: string; label: string };
+export type ImportedExtension = {
+  id: string;
+  url: string;
+  label: string;
+  /** Optional view hints keep disabled/unloaded contributions diagnosable. */
+  views?: Record<string, string>;
+};
 
 /** Persist removal only after cleanup and revocation. Never remove extension data or code. */
 export async function uninstallImport(

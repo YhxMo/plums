@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { prepareRuntime, runtimeFixture } from "./runtime-fixture";
-import { boot } from "../src/shell/runtime";
+import { boot } from "../src/application";
 import type { StoredState } from "../modules/sdk";
 import { createPersistence, createShellBridge } from "../src/shell/persistence";
 import { parsePersistedState } from "../src/shell/persisted-state";

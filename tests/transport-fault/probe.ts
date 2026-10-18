@@ -1,4 +1,4 @@
-import { invoke } from "@tauri-apps/api/core";
+import { invokeExperimental as invoke } from "../fixtures/native-invoke";
 import { Host } from "../../modules/extension-host/host";
 import { ExperimentPlatform } from "../host-transport/platform";
 import { createEchoProbe } from "../fixtures/author-echo-probe.mjs";
@@ -17,15 +17,16 @@ async function rejected(p: Promise<unknown>, outcome = "unknown") {
   );
   assert(e?.outcome === outcome, `expected ${outcome}: ${JSON.stringify(e)}`);
 }
-const info = () => invoke<{ pending: number; os: string }>("probe_info");
-const fault = (faults: Record<string, boolean>) =>
-  invoke("probe_faults", { owner, faults });
+const info = () => invoke("probe_info");
+const fault = (
+  faults: import("../../src/native/experimental.generated").ExperimentalCommands["probe_faults"]["args"]["faults"],
+) => invoke("probe_faults", { owner, faults });
 const prepare = (id: string) =>
   invoke("probe_prepare", { owner, id, binding: "echo", body: "synthetic" });
 async function observe(binding: string, body = "synthetic") {
   const args = { owner: "probe.beta", id: `observer-${++seq}` };
   await invoke("probe_prepare", { ...args, binding, body });
-  return invoke<{ body: string }>("probe_execute", args);
+  return invoke("probe_execute", args);
 }
 async function hits() {
   return JSON.parse((await observe("stats")).body) as Record<string, number>;

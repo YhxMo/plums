@@ -1,7 +1,8 @@
 import type { Platform, CredentialResponse } from "../../modules/sdk";
-export type Bridge = (
-  command: string,
-  args?: Record<string, unknown>,
+import type { ExperimentalCommands } from "../../src/native/experimental.generated";
+export type Bridge = <K extends keyof ExperimentalCommands>(
+  command: K,
+  args: ExperimentalCommands[K]["args"],
 ) => Promise<unknown>;
 const capability = "credential.request";
 const owners = new Map([
@@ -26,7 +27,7 @@ export class ExperimentPlatform implements Platform {
   private constructor(private readonly bridge: Bridge) {}
   static async connect(bridge: Bridge) {
     try {
-      await bridge("probe_info");
+      await bridge("probe_info", {});
     } catch {
       throw failure("not-dispatched");
     }

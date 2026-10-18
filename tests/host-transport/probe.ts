@@ -1,4 +1,4 @@
-import { invoke } from "@tauri-apps/api/core";
+import { invokeExperimental as invoke } from "../fixtures/native-invoke";
 import { Host } from "../../modules/extension-host/host";
 import { ExperimentPlatform } from "./platform";
 import { createEchoProbe } from "../fixtures/author-echo-probe.mjs";
@@ -24,7 +24,7 @@ async function observe(binding: string, body = "synthetic") {
     binding,
     body,
   });
-  return invoke<{ body: string }>("probe_execute", {
+  return invoke("probe_execute", {
     owner: observer,
     id: requestId,
   });
@@ -137,7 +137,7 @@ async function run() {
           );
         } else assert(host.inspect(id).resources === 0, "resource leaked");
       }
-      const native = await invoke<{ pending: number }>("probe_info");
+      const native = await invoke("probe_info");
       assert(native.pending === 0, "native reservation leaked");
       checks.push(`public-${action}-cancels-inflight`);
     }

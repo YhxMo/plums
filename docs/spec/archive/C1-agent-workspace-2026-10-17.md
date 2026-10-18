@@ -4,7 +4,7 @@
 
 ## 范围与前置条件
 
-先复核并本地提交阶段 B 为 `0e80dcd`，提交前 `npm run verify:web` 的 43 文件／433 单元及全部检查通过，提交后工作区干净。C1 以该提交为基线，保持 JSX 文案、焦点、响应式与公开契约，CSS 不变；实际命令、失败与成功结果见 [C1 证据](../../../evidence/RESULTS.md#c1agent-工作区职责拆分)。
+先复核并本地提交阶段 B 为 `0e80dcd`，提交前 `npm run verify:web` 的 43 文件／433 单元及全部检查通过，提交后工作区干净。C1 以该提交为基线，保持 JSX 文案、焦点、响应式与公开契约，CSS 不变；实际命令、失败与成功结果见 [C1 证据](../../../evidence/MAINTENANCE-2026-10-17.md#c1agent-工作区职责拆分)。
 
 将 AgentWorkspace 拆成组合、弹窗、模态与反馈状态、角色卡草稿和后备焦点；新增 useMediaQuery 消除模块级浏览器 API 访问，useAsyncAction 共用 Agent 与外壳的异步反馈。原工作区入口删除，agent-ui 更新 import；行数棘轮移除旧路径上限。
 

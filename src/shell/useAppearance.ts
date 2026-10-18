@@ -1,5 +1,4 @@
 import { useEffect, useLayoutEffect, useState } from "react";
-import { invoke } from "@tauri-apps/api/core";
 import { applyTheme } from "../../modules/shell/theme";
 import type { Runtime } from "./runtime";
 import type { ShellOperations } from "./useOperations";
@@ -18,9 +17,11 @@ export function useAppearance(runtime: Runtime, operations: ShellOperations) {
   }, [theme, currentTheme]);
   useEffect(() => {
     if (runtime.adapter.kind === "native")
-      void invoke("shell_set_theme", { theme: appearance }).catch((reason) =>
-        setError(`窗口外观更新失败：${errorMessage(reason)}`),
-      );
+      void runtime.adapter
+        .setTheme(appearance)
+        .catch((reason) =>
+          setError(`窗口外观更新失败：${errorMessage(reason)}`),
+        );
   }, [runtime, appearance, setError]);
   // Write only appearance fields; a queued save must not carry another domain's stale value.
   async function toggleTheme() {

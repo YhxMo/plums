@@ -8,17 +8,38 @@
 
 ## 验证入口
 
-提交前运行 `npm run verify:web`，依次检查构建与类型、单元测试、Prettier、项目清单与导入边界、文件行数、ESLint。原生工具齐备时运行 `npm run verify`，串联 Web 与 `npm run verify:native`；后者依次执行 Rust 格式、Clippy 和原生单元。缺少工具或命令失败均单独记录，不作为通过。浏览器回归单独运行 `npm run verify:e2e`，不进入默认门禁。E2E 默认自起隔离 dev server，1420 被占用或来源不明时失败而非复用；只有快速迭代可显式设置 `PLUMS_E2E_REUSE_SERVER=1` 复用本地服务，该模式不作为证据。
+提交前运行 `npm run verify:web`，依次检查构建与类型、单元测试、Prettier、项目清单与导入边界、文件行数、ESLint。原生工具齐备时运行 `npm run verify`，串联 Web 与 `npm run verify:native`；后者依次核对 Rust 导出的默认／实验 IPC 契约、执行 Rust 格式、Clippy 和原生单元。缺少工具或命令失败均单独记录，不作为通过。浏览器回归单独运行 `npm run verify:e2e`，不进入默认门禁。E2E 默认自起隔离 dev server，1420 被占用或来源不明时失败而非复用；只有快速迭代可显式设置 `PLUMS_E2E_REUSE_SERVER=1` 复用本地服务，该模式不作为证据。
 
 M2 按 M2.0–M2.4 子门禁执行：每个子阶段先定义可证伪验收和失败测试，再实现、回归、独立审查和精简重验；候选包验收通过后才替换 release。计划中新传输/秘密/授权夹具的命令和工具在实现落地前不写入本文，不能用文档中的计划命令冒充可执行入口。
 
 ESLint 使用 flat config 与推荐 JS 规则，不承担排版。当前 TypeScript 7.0.2 不满足 typescript-eslint 8.71.2 的 peer 范围，保留原 TypeScript，JS/MJS/JSX 使用 ESLint；src 下的 JS/JSX 启用 Hooks 错误与依赖警告。TS/TSX Hooks lint 待兼容解析器，不能用 tsc 通过替代。
 
-`verify:web` 使用 `npm run check:project -- --boundaries`，复用已锁定 TypeScript 的 AST，覆盖 SDK、扩展宿主、外壳工具与扩展的 TS、TSX、JS、MJS 中静态路径的 import、export、类型导入、动态 import 和 require，按层只允许向下依赖：SDK 只引用自身；`modules/extension-host` 不得引用外壳、业务模块、扩展或 src；`modules/shell` 不得引用业务模块、扩展或 src；扩展不得引用 src、外壳、宿主或业务模块。业务模块（`modules/agents`、`modules/text-workbench`）与 src 属于装配层，不作为起点。源码解析失败也返回失败，候选集合为空同样失败，避免规则失效时静默零覆盖。非字面量的动态 import/require 不在检查范围。该边界检查须在完整仓库根执行，裁剪检出或只含子集的工作区会因候选为空而失败。先按 README 执行 npm ci，不新增解析器依赖。该脚本使用 TypeScript 7 的 unstable API，升级 TypeScript 时须重新验证边界用例。普通 `npm run check:project` 保持只需 Node 的清单、文档和隐私模式检查。
+`verify:web` 使用 `npm run check:project -- --boundaries`，复用已锁定 TypeScript 的 AST 检查 TS、TSX、JS、MJS 的静态路径 import、export、类型导入、动态 import 和 require。仓库相对路径按允许名单检查：SDK 仅自身；宿主仅自身与 SDK；`modules/shell` 仅自身、宿主与 SDK；扩展仅扩展目录与 SDK。`src/shell` 仅通用 modules、外壳、组件、管理功能及平台／凭据适配入口，默认应用组合留在 `src/application.ts`。未知 modules 目录、父目录桶入口（如 `"../"`）与仓库逃逸路径均拒绝。
+
+通用宿主及两层外壳禁止直引 `modules/sdk/agents`，也检查通过 SDK barrel 间接引入的情况；业务视图 ID 字面量不得回到这些层。业务模块及其他 src 装配代码不作为检查起点。源码解析失败、候选集合为空均失败。非字面量动态 import/require 和包名导入不在此仓库相对路径检查范围；这不是运行时安全沙箱。
+
+完整门禁须在仓库根执行以覆盖所有源码与 SDK barrel；裁剪集合不能证明全仓边界。先按 README 执行 npm ci，无需新增解析器依赖。脚本使用 TypeScript 7 的 unstable API，升级 TypeScript 时须重验边界用例。普通 `npm run check:project` 仍只需 Node，检查清单、文档及隐私模式。
 
 `check:size` 扫描项目源码清单的 TS、TSX、JS、MJS、Rust、Kotlin 和 CSS，默认上限 400 行；已有超长文件使用 [固定清单](../scripts/check-size.mjs)。以物理行数计数，末尾换行不增加空行；减少文件规模后人工降低上限，不自动更新或提高。清单包含测试，生成输出沿用项目清单的排除规则。
 
-启动与声明校验复用 `modules/sdk/validation.ts` 和 `ContractError`：错误码表达类别，detail 保留字段路径，中文由 `src/shell/messages.ts` 映射。已有开发调用需要英文诊断时，通过校验的 label／ContractError 的可选 message 保留原因；不要用裸错误码替代已对外提供的字符串诊断。Host 的配置、激活与清理错误在转为字符串前使用可选格式化回调，等待原因的既有前缀继续供诊断助手解析，界面显示时再映射。
+启动与声明校验复用 `modules/sdk/validation.ts` 和 `ContractError`：错误码表达类别，detail 保留字段路径，通用中文由 `src/shell/messages.ts` 映射；业务数据错误由提供者提供具体 message，外壳不按 Agent 等业务字段名翻译。已有开发调用需要英文诊断时，通过校验的 label／ContractError 的可选 message 保留原因；不要用裸错误码替代已对外提供的字符串诊断。Host 的配置、激活与清理错误在转为字符串前使用可选格式化回调，等待原因的既有前缀继续供诊断助手解析，界面显示时再映射。
+
+## 修改原生命令
+
+修改命令参数或响应后，先更新 Rust 定义，再执行：
+
+```sh
+npm run ipc:generate
+npm run verify:web
+npm run verify:native
+node scripts/cargo.mjs test --locked --features native-transport-experiment
+```
+
+`ipc:generate` 运行已有工具链中的 Rust example，分别编译默认与实验 feature，输出 `src/native/contract.generated.ts` 和 `experimental.generated.ts`，不启动应用或访问应用数据；依赖使用锁文件和本地缓存。`ipc:check` 只比较编译导出与登记文件，漂移即失败，不覆盖文件。缺少 Rust／缓存时先补工具条件，不能手改生成文件来通过检查。
+
+新增命令使用 `ipc_command!` 声明实际函数，并加入 `lib.rs` 的 `native_commands!` 清单；原生注入参数保留在 Rust 签名中。新增 wire DTO 使用 `wire_object!`／`wire_enum!` 的当前受支持形状，不另写一份 TS 数据模型。声明、注册和导出共享同一名字；只改单侧名字会在 Rust 编译、生成漂移或 TS 调用检查失败。宏没有通用 schema 或运行时响应校验职责，未知结构需先补明确的序列化与失败样本。
+
+生产代码通过 `src/native/invoke.ts` 调用，项目门禁检查直接／别名／namespace／动态导入的桥接绕行；原生环境判断仍可导入 `isTauri`。`tests/ipc-types.ts` 由 `tsc` 检查改名、参数名／类型、漏必填参数、响应缺字段和错误状态等反例。Rust IPC 测试核对注册集合、注入参数排除、可选参数与 serde wire 名称；`native-adapter.test.ts` 保留取消和无回执反例。普通包与设备验收仍独立进行。
 
 ## 工作单与职责
 
@@ -110,7 +131,13 @@ Mac使用 `npm run release:mac` 统一构建普通debug包、本地临时签名�
 
 发布前核对 `build-info.json` 的源码提交/源码清单与本次受验源码一致，`source.patch` 可重放，校验和与实际包文件一致；工作区未提交差异、未验证的 Android/Mac 增量不得写成已交付。release 只保存当前受验产物，不保存构建缓存、秘密或运行数据。
 
-旧Mac交付按整个平台目录归入 `.cache/archive/releases/`，保留原包及来源；历史实验归入同一归档根下的压缩包。`.cache/archive/INDEX.json`记录已整理历史材料的路径与恢复方式；后续 `release:mac` 自动归档由命令输出和 releases 目录定位。恢复二进制前先关闭对应应用，使用隔离数据；恢复包不回滚应用数据。未知文件、在用模拟器、构建工具缓存和调试签名材料保持原位置，不通过清理中断当前操作。
+旧Mac交付按整个平台目录归入 `.cache/archive/releases/`，保留原包及来源；历史实验归入同一归档根下的压缩包。`.cache/archive/INDEX.json`记录已整理历史材料的路径与恢复方式；后续 `release:mac` 自动归档由命令输出和 releases 目录定位。恢复二进制前先关闭对应应用，使用隔离数据；恢复包不回滚应用数据。未知文件、在用模拟器和调试签名材料保持原位置，不通过清理中断当前操作。
+
+清理按用途区分，不以“被忽略”或“日期较旧”作为删除依据：
+
+- 确认没有构建或应用占用后，可删除 Rust 的 `build/deps/incremental/.fingerprint/examples`、Android Gradle 的 `build/.gradle/.kotlin`、`dist/`、图标生成暂存和测试报告。后续构建按原命令重新生成，首次原生编译会更慢。
+- 保留 `node_modules/`、Cargo/npm 下载缓存、Android 生成工程源码及 `.cache/android/debug.keystore`，避免无谓重装、丢失本地更新签名或破坏 JNI 链接。
+- `release/`、独立受验候选、源码差异/清单、被引用的日志/截图、`.cache/archive/`、`.dev-data/`、隔离模拟器数据与 `goal.md` 不属于构建垃圾。历史记录只移出当前入口并更新引用，不删除原有失败或未验证范围。
 
 当前操作和版本从README、HANDOFF及RESULTS查阅。阶段历史与失败证据保持原件；入口文档不复制多轮PID、临时脚本路径和交付时间线。项目清单、链接及隐私模式通过check:project检查，原始日志／截图继续忽略。
 

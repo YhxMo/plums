@@ -1,4 +1,4 @@
-import { invoke } from "@tauri-apps/api/core";
+import { invokeNative as invoke } from "../../src/native/invoke";
 import { Host } from "../../modules/extension-host/host";
 import { applyTheme } from "../../modules/shell/theme";
 import { PlatformAdapter } from "../../src/platform";

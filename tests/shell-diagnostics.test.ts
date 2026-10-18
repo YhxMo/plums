@@ -1,10 +1,10 @@
 import { describe, expect, it } from "vitest";
 import { Host } from "../modules/extension-host/host";
+import { diagnoseLayoutFallback } from "../modules/shell/diagnostics";
 import {
-  diagnoseLayoutFallback,
   mapExtensionAgents,
   readActiveAgents,
-} from "../modules/shell/diagnostics";
+} from "../modules/agents/diagnostics";
 import type { Agent } from "../modules/sdk/agents";
 import type { Platform } from "../modules/sdk";
 import { errorMessage } from "../src/shell/messages";
@@ -16,12 +16,22 @@ const createPlatform = (): Platform => ({
   call: async () => null,
 });
 
-const catalog = [
+const catalog: import("../modules/shell/uninstall").ImportedExtension[] = [
   { id: "transform.upper", url: "/services/upper.js", label: "大写转换服务" },
   { id: "workbench", url: "/services/workbench.js", label: "文本工作台" },
-  { id: "ui.default", url: "/ui/default.js", label: "默认工作台布局" },
+  {
+    id: "ui.default",
+    url: "/ui/default.js",
+    label: "默认工作台布局",
+    views: { default: "工作台" },
+  },
   { id: "agents.local", url: "内置公开服务", label: "本地 Agent 提供者" },
-  { id: "ui.agents", url: "内置可替换界面", label: "默认 Agent 界面" },
+  {
+    id: "ui.agents",
+    url: "内置可替换界面",
+    label: "默认 Agent 界面",
+    views: { agents: "Agent 界面" },
+  },
 ];
 
 describe("diagnoseLayoutFallback", () => {
@@ -228,3 +238,125 @@ describe("readActiveAgents", () => {
     expect(readActiveAgents(host)).toEqual({ agents: [] });
   });
 });
+
+it("uses catalog view hints for an unknown disabled UI without an Agent provider", () => {
+  const host = new Host(createPlatform());
+  host.install({
+    manifest: { id: "independent.ui", apiVersion: 1, version: "1" },
+    activate() {},
+  });
+  const result = diagnoseLayoutFallback(
+    host,
+    [
+      {
+        id: "independent.ui",
+        label: "独立界面",
+        url: "/independent.js",
+        views: { "notes-grid": "笔记网格" },
+      },
+    ],
+    "notes-grid",
+    undefined,
+    {},
+    {},
+  );
+  expect(result).toMatchObject({
+    label: "笔记网格",
+    targetExtensionId: "independent.ui",
+  });
+  expect(result?.message).toContain("尚未启用");
+  expect(readActiveAgents(host)).toEqual({ agents: [] });
+});
+
+it.each(["constructor", "toString"])(
+  "uses only own string view hints and failures for %s",
+  (viewId) => {
+    const host = new Host(createPlatform());
+    host.install({
+      manifest: { id: "notes.ui", apiVersion: 1, version: "1" },
+      activate() {},
+    });
+    const catalog: import("../modules/shell/uninstall").ImportedExtension[] = [
+      {
+        id: "first.ui",
+        url: "/first.js",
+        label: "First",
+        views: { default: "Default" },
+      },
+      {
+        id: "invalid.ui",
+        url: "/invalid.js",
+        label: "Invalid",
+        views: { [viewId]: 42 as unknown as string },
+      },
+      {
+        id: "notes.ui",
+        url: "/notes.js",
+        label: "Notes",
+        views: { [viewId]: "Notes grid" },
+      },
+    ];
+    const disabled = diagnoseLayoutFallback(
+      host,
+      catalog,
+      viewId,
+      undefined,
+      {},
+      {},
+    );
+    expect(disabled).toMatchObject({
+      label: "Notes grid",
+      targetExtensionId: "notes.ui",
+    });
+    expect(disabled?.reason).toContain("尚未启用");
+    expect(disabled?.reason).not.toContain("模块加载失败");
+    const active = diagnoseLayoutFallback(
+      host,
+      catalog,
+      "missing",
+      viewId,
+      {},
+      {},
+    );
+    expect(active?.activeLabel).toBe("Notes grid");
+    const failed = diagnoseLayoutFallback(
+      host,
+      catalog,
+      viewId,
+      undefined,
+      {},
+      { [viewId]: "fetch failed" },
+    );
+    expect(failed).toMatchObject({
+      targetExtensionId: viewId,
+      reason: "模块加载失败：fetch failed",
+    });
+  },
+);
+it.each(["constructor", "toString"])(
+  "ignores inherited string hints and failures for %s",
+  (viewId) => {
+    const host = new Host(createPlatform());
+    const catalog: import("../modules/shell/uninstall").ImportedExtension[] = [
+      {
+        id: "first.ui",
+        url: "/first.js",
+        label: "First",
+        views: Object.create({ [viewId]: "Inherited label" }),
+      },
+    ];
+    const result = diagnoseLayoutFallback(
+      host,
+      catalog,
+      viewId,
+      undefined,
+      {},
+      Object.create({ [viewId]: "Inherited failure" }),
+    );
+    expect(result).toMatchObject({
+      label: viewId,
+      targetExtensionId: undefined,
+      reason: "对应界面扩展尚未启用",
+    });
+  },
+);

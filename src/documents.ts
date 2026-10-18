@@ -1,17 +1,12 @@
-import { invoke } from "@tauri-apps/api/core";
-import {
-  platformRejection,
-  type SelectedDocumentResponse,
-} from "../modules/sdk";
+import { invokeNative } from "./native/invoke";
+import type { NativeCommands } from "./native/contract.generated";
+import { platformRejection } from "../modules/sdk";
 
 export type { SelectedDocument } from "../modules/sdk";
 import type { SelectedDocument } from "../modules/sdk";
-export type DocumentSelection =
-  | { status: "selected"; documents: SelectedDocument[] }
-  | { status: "cancelled" }
-  | { status: "rejected"; reason: string }
-  | { status: "unknown" };
-type DocumentResult = DocumentSelection | SelectedDocumentResponse;
+export type DocumentSelection = NativeCommands["document_select"]["response"];
+type DocumentResult =
+  DocumentSelection | NativeCommands["document_read"]["response"];
 
 /** Host management entry. Native locations stay in the native broker. */
 export class DocumentAccess {
@@ -26,7 +21,7 @@ export class DocumentAccess {
   async initialize(native: boolean) {
     if (!native) return;
     try {
-      this.supported = (await invoke("document_supported")) === true;
+      this.supported = (await invokeNative("document_supported")) === true;
       this.initializationError = null;
     } catch (error) {
       this.supported = false;
@@ -82,15 +77,15 @@ export class DocumentAccess {
     this.check(owner);
     return this.operation(
       owner,
-      "document_select",
-      { multiple },
+      (operationId) =>
+        invokeNative("document_select", { owner, operationId, multiple }),
       signal,
-    ) as Promise<DocumentSelection>;
+    );
   }
   async list(owner: string): Promise<SelectedDocument[]> {
     this.check(owner);
     const epoch = this.epochs.get(owner);
-    const result = await invoke<SelectedDocument[]>("document_list", { owner });
+    const result = await invokeNative("document_list", { owner });
     if (epoch !== this.epochs.get(owner)) return [];
     return result;
   }
@@ -107,12 +102,14 @@ export class DocumentAccess {
       Number(q.maxBytes) > 65536
     )
       return { status: "rejected", reason: "invalid-request" } as const;
+    const handle = q.handle,
+      maxBytes = Number(q.maxBytes);
     return this.operation(
       owner,
-      "document_read",
-      { handle: q.handle, maxBytes: q.maxBytes },
+      (operationId) =>
+        invokeNative("document_read", { owner, operationId, handle, maxBytes }),
       signal,
-    ) as Promise<SelectedDocumentResponse>;
+    );
   }
   revoke(owner: string, handle?: string) {
     return this.mutate(
@@ -120,7 +117,7 @@ export class DocumentAccess {
       async () => {
         if (!this.supported) return;
         try {
-          await invoke("document_revoke", {
+          await invokeNative("document_revoke", {
             owner,
             ...(handle === undefined ? {} : { handle }),
           });
@@ -133,39 +130,36 @@ export class DocumentAccess {
       handle === undefined,
     );
   }
-  private async operation(
+  private async operation<R extends DocumentResult>(
     owner: string,
-    command: string,
-    args: object,
+    perform: (operationId: string) => Promise<R>,
     signal?: AbortSignal,
-  ): Promise<DocumentResult> {
+  ): Promise<R | { status: "cancelled" } | { status: "unknown" }> {
     if (signal?.aborted) return { status: "cancelled" };
     const operationId = crypto.randomUUID(),
       epoch = this.epochs.get(owner);
     let cancelled = false;
-    let completeCancellation!: (result: DocumentResult) => void;
-    const cancellation = new Promise<DocumentResult>((resolve) => {
+    let completeCancellation!: (result: { status: "cancelled" }) => void;
+    const cancellation = new Promise<{ status: "cancelled" }>((resolve) => {
       completeCancellation = resolve;
     });
     const cancel = () => {
       cancelled = true;
-      void invoke("document_cancel", { owner, operationId }).catch(() => {});
+      void invokeNative("document_cancel", { owner, operationId }).catch(
+        () => {},
+      );
       completeCancellation({ status: "cancelled" });
     };
     const active = this.pending.get(owner) ?? new Set();
     this.pending.set(owner, active);
     active.add(cancel);
     signal?.addEventListener("abort", cancel, { once: true });
-    const work = invoke<DocumentResult>(command, {
-      owner,
-      operationId,
-      ...args,
-    }).then(
+    const work = perform(operationId).then(
       async (result) => {
         if (cancelled || epoch !== this.epochs.get(owner)) {
           if (result.status === "selected")
             for (const item of result.documents)
-              await invoke("document_revoke", {
+              await invokeNative("document_revoke", {
                 owner,
                 handle: item.handle,
               }).catch(() => {

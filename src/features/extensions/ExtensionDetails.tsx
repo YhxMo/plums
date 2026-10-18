@@ -1,4 +1,4 @@
-import type { ExtensionDetailsProps } from "../../shell/controllers";
+import type { ExtensionDetailsProps } from "./controllers";
 import { capabilityLabel, translateStatus } from "../../shell/messages";
 import styles from "../../shell/dialogs.module.css";
 import managerStyles from "./ExtensionManager.module.css";

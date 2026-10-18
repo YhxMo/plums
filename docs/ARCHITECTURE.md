@@ -4,7 +4,7 @@
 
 状态：当前有效（2026-10-18 核实）；记录目标职责与当前模块边界，长期决策见文末 D1–D8。
 
-当前为 0.0.4 debug 实验原型，M1 已限定收敛，M2 按 M2.0–M2.4 子门禁推进：当前先重新基线，再进入受限网络/凭据与真实连接器。默认 Agent、主题、页面组合与原生适配的当前实现和验证范围见[验证索引](../evidence/RESULTS.md)。下文区分目标职责与当前模块边界。
+当前为 0.0.4 debug 实验原型，M1 已限定收敛，M2 按 M2.0–M2.4 子门禁推进：M2.0 已限定重新基线，工程前置与后续平台切片按当前阶段计划推进。默认 Agent、主题、页面组合与原生适配的当前实现和验证范围见[验证索引](../evidence/RESULTS.md)。下文区分目标职责与当前模块边界。
 
 ## 目标与边界
 
@@ -32,7 +32,7 @@
 
 0.0.4 的应用外壳拥有扩展管理、应用内授权、布局与外观偏好、恢复入口；默认 Agent 界面、工作台、画布及各自导航通过公开 `ctx.view` 和 `ctx.use` 挂载，不读取宿主私有业务状态。扩展管理使用独立全幅页面，隐藏业务区时保留工作区挂载和草稿；布局扩展按自身容器宽度重排。外壳的通用控件与扩展样式共享两套语义颜色变量，布局和导航仍由扩展替换，详见 [默认界面](UI.md)。
 
-`agents.local` 是扩展层业务提供者，以 `agents@1` 公开快照、订阅、角色与会话操作；`ui.agents` 通过 `ctx.use`/可选 `withAgents` facade 消费，再用 `ctx.view` 注册默认界面。角色卡解析和文本执行位于扩展模块。`src/shell/runtime.ts` 编排状态解析、扩展安装、内置组合和保存接线，`persistence.ts` 拥有串行快照；通用 Host、ExtensionContext 与 Rust 桥接不认识 Agent 类型。当前例外：外壳的启动状态解析（`persisted-state.ts`）直接调用 Agent 恢复函数，管理诊断（`modules/shell/diagnostics.ts`）按名称读取 `agents` 服务并硬编码内置视图 ID；二者属于待移出的业务知识，计划见[当前阶段](spec/milestone.md#m20-后的工程前置)，在此之前不能宣称外壳与业务完全解耦。公开提供者说明用于呈现实际来源、版本与执行范围，外部提供者无需模仿内置实现。
+`agents.local` 是扩展层业务提供者，以 `agents@1` 公开快照、订阅、角色与会话操作；`ui.agents` 通过 `ctx.use`/可选 `withAgents` facade 消费，再用 `ctx.view` 注册默认界面。角色卡解析和文本执行位于扩展模块。`src/application.ts` 组合默认应用：调用业务模块的恢复函数，接线内置扩展与默认启用集合，并保留旧布局的兼容规则；`src/shell/runtime.ts` 的 `bootShell(application)` 编排通用配置解析、安装和组合恢复，`persistence.ts` 串行保存不透明快照字段。通用 Host、ExtensionContext、外壳与 Rust 桥接不读取 Agent 数据格式。Agent 来源关联诊断由 `modules/agents/diagnostics.ts` 提供，管理功能在 `src/features/extensions` 消费；业务类型与导航实体匹配不进入通用外壳。公开提供者说明用于呈现实际来源、版本与执行范围，外部提供者无需模仿内置实现。
 
 默认组合使用本地文本服务；[DeepSeek 协议扩展](DEEPSEEK.md)已提供可替换服务的隔离接线，生产传输、秘密读取/注入、发送授权与真实调用按 M2.3 继续，MCP 客户端待实现。外部视图启用后优先选中，工作台、画布和默认 Agent 界面可独立替换；最小启用集合、精确版本与配置快照已实现。复杂多提供者政策、组合升级事务和长期会话存储待实现。角色/会话与外观暂共同存于 `host.shell` 小快照，业务格式归扩展管理。
 
@@ -44,8 +44,9 @@
 
 | 所有者 | 持有的状态与副作用 | 调用边界 |
 | --- | --- | --- |
-| `src/shell/runtime.ts` | 启动编排、内置扩展接线与组合恢复 | 返回稳定服务与只读启动初值，保留 `CompositionRecovery` 入口 |
-| `persisted-state.ts`、`extensions.ts` | 旧状态解析与默认值、目录／手动扩展安装 | 保留未知快照字段、旧布局意图、坏数据与导入失败归属 |
+| `src/application.ts` | 默认应用组合、Agent 恢复接线和旧布局兼容 | App 调用无参数 `boot()`；业务格式由 `modules/agents/store.ts` 校验，未安装该业务的组合可保留其不透明数据 |
+| `src/shell/runtime.ts` | 通用启动编排、接收应用组合、安装与恢复 | 返回稳定服务与只读启动初值，保留 `CompositionRecovery` 入口 |
+| `persisted-state.ts`、`extensions.ts` | 通用偏好解析、目录／手动扩展安装 | 业务字段不透明保留，内置 ID 冲突按注入目录检查，坏数据与导入失败保留归属 |
 | `persistence.ts` | 串行快照、revision、未知写入锁存和页面保存队列 | 成功回执后发布偏好；已提交回执胜出，未知结果先重载 |
 | `useWorkspace` | 视图选择、挂载释放、按代排除失败视图、恢复到可用布局 | 复用 `createViewSlot` 和公开 Host 生命周期 |
 | `useAppearance` | 外观偏好、主题贡献、DOM 与原生外观同步 | 成功保存后更新偏好；贡献缺失保留选择 |
@@ -56,6 +57,10 @@
 | `src/features/agents/` | AgentWorkspace 组合选中项、会话草稿和详情；AgentDialogs 持有创建表单草稿；useAgentModals 持有弹窗、反馈与发起控件；useRoleCardDraft 持有卡片输入与读取取消 | AgentDialogs 常驻以保留取消后的草稿；focus 选择仍可操作的返回控件，useMediaQuery 订阅视口变化 |
 | 各工作区扩展 | 业务选中项、会话、草稿及默认详情开关 | 可选 `View.chrome` 向外壳发布标题和上下文状态 |
 
+布局回退诊断优先使用已注册视图的 owner/label；未注册时读取目录项的可选 `views: { [viewId]: label }` 提示。默认目录和应用组合声明各自视图，通用诊断不维护业务 ID 表；缺少提示仍保留原视图 ID 和管理入口。提示用于定位来源，不授予注册或执行权限。
+
+`src/features/extensions/useExperiments.ts` 拥有文本工作台实验接线；没有安装该实验的组合不展示恢复启动按钮，管理入口仍可用。
+
 `src/shell/useAsyncAction.ts` 共用忙碌、错误与通知状态。Agent 将 AbortError 显示为停止通知，外壳 `useOperations` 保留 `errorMessage` 错误映射；共用 Hook 不改变两者的反馈语义。
 
 Runtime 的 initial 只作外观、布局、恢复诊断和扩展状态的启动初值；运行中不再读取它作为扩展当前快照。catalog 仍是供加载与诊断消费的稳定目录引用。扩展状态队列串行覆盖整个读／改／保存过程，避免并发动作使用同一旧数组或配置表；persistence 继续串行所有 host.shell 写入和 revision，包括 Agent、页面与外观。两个队列各自持有单向依赖，扩展动作通过稳定 save 进入 persistence。
@@ -64,9 +69,19 @@ Runtime 的 initial 只作外观、布局、恢复诊断和扩展状态的启动
 
 外壳订阅当前视图的 `chrome`，由视图发布标题和默认详情状态。自定义侧栏依次匹配当前实体的扩展所有者、当前工作区所有者，再使用工作区默认详情；同类贡献按 priority 和 ID 确定顺序。自定义侧栏出现时关闭默认 inline 详情；移动端默认详情可用 dialog 呈现，转为桌面后参与互斥。
 
-SDK 的 `errors.ts` 与零依赖 `validation.ts` 提供错误码和字段路径；中文错误由外壳 `messages.ts` 映射。Host 保持字符串诊断接口，由外壳在构造时注入错误格式化回调，在配置、生命周期和清理错误转为字符串前映射；等待原因保留诊断助手使用的原前缀，界面显示时再映射。已有 Host 调用者继续使用原默认开发诊断。扩展声明校验及加载在 `modules/extension-host/definition.ts`，原 `host.ts` 导出入口保留。
+SDK 的 `errors.ts` 与零依赖 `validation.ts` 提供错误码和字段路径；通用中文错误由外壳 `messages.ts` 映射，业务数据损坏的具体原因由提供者通过 `ContractError.message` 传递，外壳补充数据保留提示而不解析业务字段名。Host 保持字符串诊断接口，由外壳在构造时注入错误格式化回调，在配置、生命周期和清理错误转为字符串前映射；等待原因保留诊断助手使用的原前缀，界面显示时再映射。已有 Host 调用者继续使用原默认开发诊断。扩展声明校验及加载在 `modules/extension-host/definition.ts`，原 `host.ts` 导出入口保留。
 
 `chrome` 是可选的框架无关接口。Host 只透传贡献；外壳在消费边界捕获读取、订阅和操作异常，排除失败的视图代并保留管理恢复入口。导航接收方声明实体类型，调用方必须匹配后才传递 ID，避免将 Agent ID 发送给任务等其他工作区。接口和作者示例见 [SDK 作者入口](SDK-AUTHORING.md#工作区标题与上下文侧栏)。
+
+## 原生 IPC 契约
+
+Rust 命令与 wire 类型是 IPC 的来源：[ipc.rs](../src-tauri/src/ipc.rs) 的声明宏同时生成实际函数／serde DTO 和类型元数据；[lib.rs](../src-tauri/src/lib.rs) 的一份清单同时用于 Tauri 注册与编译后导出。普通构建登记 17 条命令，`native-transport-experiment` 额外登记 6 条探针，普通包不注册探针。
+
+前端通过 [invokeNative](../src/native/invoke.ts) 调用生成的[普通契约](../src/native/contract.generated.ts)；实验夹具通过测试目录中的[实验桥接](../tests/fixtures/native-invoke.ts)使用[实验契约](../src/native/experimental.generated.ts)，生产模块不导出实验调用入口。命令名、参数、可选字段、响应状态及原生拒绝类型随 Rust 定义导出，调用者不再通过 `invoke<T>` 自行声明响应。AppHandle／State 是原生注入参数，不进入 WebView 参数；命令参数保持 camelCase，实验 Faults 保持既有 snake_case。公共 SDK 不依赖 `src/`，相关声明与生成类型通过编译期兼容样本核对。
+
+`platform_call` 的已确认拒绝返回 `{ code, outcome: "not-committed" }`；状态码由 Rust enum 导出，浏览器与原生适配按同一码映射提示，不匹配英文句子。收到未知错误码或丢失写入回执仍归为 `unknown`，不自动重试；成功写入回执继续胜过派发后的取消。Promise 拒绝对象不被生成入口包装成成功结果。
+
+声明宏只覆盖当前真实 wire 形状；`serde_json::Value` 保持不透明 `unknown`，`&str` 拒绝原因仍是字符串。类型门禁约束正常调用，不替代 Rust 授权／输入校验，也不阻止同一 WebView 中的恶意代码直接调用原生桥接。增加命令与重新生成的方法见[开发流程](DEVELOPMENT.md#修改原生命令)。
 
 ## 关键区分
 

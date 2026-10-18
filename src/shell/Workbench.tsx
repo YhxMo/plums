@@ -5,7 +5,8 @@ import { useAppearance } from "./useAppearance";
 import { useWorkspace } from "./useWorkspace";
 import { useWorkspaceChrome } from "./useWorkspaceChrome";
 import { useShellNavigation } from "./useShellNavigation";
-import { useExperiments } from "./useExperiments";
+import { useSystemBack } from "./useSystemBack";
+import { useExperiments } from "../features/extensions/useExperiments";
 import { AuthorizationDialog, useAuthorization } from "./AuthorizationDialog";
 import { TitleBar } from "./TitleBar";
 import { ShellFeedback } from "./ShellFeedback";
@@ -26,6 +27,7 @@ export function Workbench({ runtime }: { runtime: Runtime }) {
   const workspace = useWorkspace(runtime, operations);
   const chrome = useWorkspaceChrome(workspace);
   const navigation = useShellNavigation(runtime);
+  useSystemBack(navigation, chrome);
   const authorization = useAuthorization();
   const experiments = useExperiments(
     runtime,
@@ -37,10 +39,7 @@ export function Workbench({ runtime }: { runtime: Runtime }) {
     workspace,
     navigation,
     authorization,
-    onReveal:
-      chrome.navigation?.entityType === "agents.agent"
-        ? (id) => chrome.navigation!.reveal(id)
-        : undefined,
+    entityNavigation: chrome.navigation,
   });
   return (
     <div className={styles.app}>
