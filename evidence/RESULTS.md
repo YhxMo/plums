@@ -17,6 +17,8 @@
 
 [工程前置 P6/P1/P7/P2](ENGINEERING-PREREQUISITES-2026-10-18.md)：P6 允许名单与 P1 业务所有权已通过反例、回归及独立审查；P7 最终 Android 普通候选已验证 IME、菜单/嵌套弹窗、管理与工作区返回、草稿和焦点。P2 同源 IPC 与稳定错误码已通过独立审查。最终 584 单元、129 浏览器、Rust 默认 33/实验 39 单元及普通 Android IPC/返回路径通过；333 文件源码清单及首次失败记录见该证据，release 不变。
 
+[M2.3.1 TLS/JNI 可行性](TLS-JNI-FEASIBILITY-2026-10-18.md)：独立 Mac/Android 候选各通过 TLS 五项，Android JNI 六项通过；正式 companion 的首次反例、官方测试信任库的限定范围和 OS 辅助联网门槛见该记录。默认应用与 release 未变。
+
 ## 历史与验收范围
 
 已纳入交付的工程维护与平台增量按 [历史索引](HISTORY.md) 查阅；A/B/C1–C4 的完整命令、失败反例、审查和视觉对照保存在 [工程维护记录](MAINTENANCE-2026-10-17.md)，不再作为当前实现状态重复展示。

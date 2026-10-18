@@ -16,13 +16,15 @@ App 从 application 装配默认业务组合，通用 bootShell 接收组合定�
 
 已纳入交付的防御性编程与状态所有权改动分别见[阶段 H](docs/spec/archive/H-defensive-hardening-2026-10-17.md)和[阶段 E](docs/spec/archive/E-ownership-gates-2026-10-17.md)，不在当前交接重复执行历史。
 
+M2.3.1 的独立 Mac/Android TLS 候选及 Android JNI 假字节实验已限定通过，继续首选 Rust 路线；正式 Android 验证器不读取应用测试根，受控正例改用上游官方测试 companion。OS 证书吊销/根获取的独立联网边界成为 M2.3.4 前置门槛，证据与未验范围见[TLS/JNI 实验](evidence/TLS-JNI-FEASIBILITY-2026-10-18.md)。默认应用源码、真实秘密路径和 release 未因此更新。
+
 ## 工程基线与门禁
 
 当前交付基线为 `m2-baseline-2026-10-18`（`015ac2d`），M2.0 限定验收完成。开发源码为 `a307648` 上的工程前置增量，与 release 分开记录；源码清单和旧包恢复入口见[重新基线证据](evidence/BASELINE-2026-10-18.md)。
 
 基线交付的 Web 517 单元、浏览器 121 项与 Rust 格式/Clippy/30 单元通过；两端原生范围见基线证据。集成开发增量最终通过 584 单元、129 浏览器、Rust 默认 33 单元与格式/Clippy/契约漂移检查；实验特性另有 39 单元通过。Android 普通候选实测状态 IPC、稳定拒绝/冲突保留及完整返回/焦点路径。首次失败与定向复验单列于工程前置证据。TS/TSX Hooks lint、中文 IME 组合输入、真机与其他平台仍有未验范围。
 
-本地闲置 Rust/Gradle 构建中间产物已清理，首次原生编译会重新生成；目录保留与清理边界见[开发流程](docs/DEVELOPMENT.md#本地交付目录)。
+应用构建的闲置 Rust/Gradle 中间产物已清理；TLS/JNI 实验使用独立 `.cache/m2-3-1/`，首次应用原生编译仍会重新生成缓存；目录保留与清理边界见[开发流程](docs/DEVELOPMENT.md#本地交付目录)。
 
 正在执行的负责人、验收和后续顺序见[当前阶段](docs/spec/milestone.md)；M2 整体仍未退出。
 
@@ -37,4 +39,4 @@ build-info.json 与 acceptance.json 保存来源和验收范围。旧包保留�
 
 ## 后续范围
 
-M2.0 已限定完成，P6/P1/P7/P2 工程前置已归档，后续按 M2.3 平台能力切片（TLS/秘密/授权/受限传输/真实连接器）推进；M2.1 契约闭合与 M2.2 作者/UI 开放并行反馈。M2.4 完成 iOS 最小实验、Android 真机和稳定 SDK 后才退出 M2。Android 真机/其他配置、iOS 真机、Windows/Linux、正式分发、长期后台、强隔离和完整事务恢复由整体路线维护。可信 ESM 与宿主共享 WebView，权限 UI 不构成安全沙箱。
+M2.0 已限定完成，P6/P1/P7/P2 工程前置已归档，后续按 M2.3 原生秘密/授权/受限传输/真实连接器推进；M2.1 契约闭合与 M2.2 作者/UI 开放并行反馈。M2.4 完成 iOS 最小实验、Android 真机和稳定 SDK 后才退出 M2。Android 真机/其他配置、iOS 真机、Windows/Linux、正式分发、长期后台、强隔离和完整事务恢复由整体路线维护。可信 ESM 与宿主共享 WebView，权限 UI 不构成安全沙箱。

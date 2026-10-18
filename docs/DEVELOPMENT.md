@@ -24,6 +24,10 @@ ESLint 使用 flat config 与推荐 JS 规则，不承担排版。当前 TypeScr
 
 启动与声明校验复用 `modules/sdk/validation.ts` 和 `ContractError`：错误码表达类别，detail 保留字段路径，通用中文由 `src/shell/messages.ts` 映射；业务数据错误由提供者提供具体 message，外壳不按 Agent 等业务字段名翻译。已有开发调用需要英文诊断时，通过校验的 label／ContractError 的可选 message 保留原因；不要用裸错误码替代已对外提供的字符串诊断。Host 的配置、激活与清理错误在转为字符串前使用可选格式化回调，等待原因的既有前缀继续供诊断助手解析，界面显示时再映射。
 
+## TLS/JNI 隔离实验
+
+M2.3.1 的复现、独立 Cargo/Gradle 入口与专用模拟器操作见[实验说明](../tests/tls-jni/README.md)，结果见[版本证据](../evidence/TLS-JNI-FEASIBILITY-2026-10-18.md)。它不进入默认应用或 `verify:native`；实验私钥、测试 CA、`TEST=true` companion 和独立 APK 只在忽略目录。重跑选择新目录，不覆盖历史失败或修改系统信任库。
+
 ## 修改原生命令
 
 修改命令参数或响应后，先更新 Rust 定义，再执行：
