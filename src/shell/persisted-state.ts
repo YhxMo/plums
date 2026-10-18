@@ -4,7 +4,13 @@ import {
 } from "../../modules/shell/composition";
 import type { ImportedExtension } from "../../modules/shell/uninstall";
 import { ContractError } from "../../modules/sdk/errors";
-import { array, object, optional, string } from "../../modules/sdk/validation";
+import {
+  array,
+  object,
+  optional,
+  sameOrigin,
+  string,
+} from "../../modules/sdk/validation";
 
 // Preserve opaque fields and legacy layout intent, including absent page preferences.
 export type Preferences = Record<string, unknown> & {
@@ -60,13 +66,9 @@ export function parsePersistedState(input: unknown): Preferences {
             path: `${path}.url`,
           });
           string(entry.label, "state.imports", { path: `${path}.label` });
-          let origin: string;
-          try {
-            origin = new URL(url, location.href).origin;
-          } catch {
+          if (!sameOrigin(url, location.href))
             throw new ContractError("state.imports", `${path}.url`);
-          }
-          if (origin !== location.origin || seen.has(id))
+          if (seen.has(id))
             throw new ContractError("state.imports", `${path}.id`);
           seen.add(id);
           return entry as ImportedExtension;

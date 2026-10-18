@@ -1,3 +1,4 @@
+import { sameOrigin } from "../sdk/validation";
 import { parseRoleCard } from "./store";
 
 export async function readRoleCardFile(file: Blob) {
@@ -7,8 +8,8 @@ export async function readRoleCardFile(file: Blob) {
 
 /** Business-owned import: same-origin only, bounded even without Content-Length. */
 export async function readRoleCardLink(url: string, signal: AbortSignal) {
-  const target = new URL(url, location.href);
-  if (target.origin !== location.origin)
+  const target = sameOrigin(url, location.href);
+  if (!target)
     throw Error("当前版本仅支持应用内链接；外部角色卡请下载后选择文件。");
   signal.throwIfAborted();
   const controller = new AbortController();

@@ -17,7 +17,7 @@
 | 编号 | 内容 | 状态 | 退出条件 |
 | --- | --- | --- | --- |
 | R1 工具链 | TypeScript 回退到 typescript-eslint 支持的版本，恢复 TS/TSX 与 React Hooks lint（原 P4） | 完成：TypeScript 6.0.3 + typescript-eslint 8.71.2；边界/IPC 检查改用公开编译器 API | lint 覆盖 `src`/`modules`/`tests` 的 TS/TSX；故意的 Hooks 违规样本被拒绝；现有违规逐项修复 |
-| R2 原则修复 | 边界门禁覆盖全部 `src`；Agent 改用自身 `state.*` 命名空间并迁移旧数据；Agent 损坏不阻断启动；Agent 类型移出 SDK；扩展管理器去 Agent 特判；诊断改用结构化错误；`host.ts` 按职责拆分（原 P3） | 进行中：门禁已覆盖全部源码并要求每个文件归层；Agent 契约与界面移出 SDK/通用组件；扩展管理不再展示 Agent 关联；Agent 改存自身命名空间并迁移旧数据，损坏只使 `agents.local` 失败；等待原因改为结构化 `inspect().wait`，诊断不再解析文本；`host.ts` 拆出 scope/registry/context（660→455 行）。剩余：ID 与同源校验收敛到 `sdk/validation.ts` | 补洞后的门禁先在旧代码上失败再修复；坏 Agent 数据下应用可启动、管理可用、坏数据保留；旧快照中的 Agent 迁移后可用 |
+| R2 原则修复 | 边界门禁覆盖全部 `src`；Agent 改用自身 `state.*` 命名空间并迁移旧数据；Agent 损坏不阻断启动；Agent 类型移出 SDK；扩展管理器去 Agent 特判；诊断改用结构化错误；`host.ts` 按职责拆分（原 P3） | 已完成：门禁已覆盖全部源码并要求每个文件归层；Agent 契约与界面移出 SDK/通用组件；扩展管理不再展示 Agent 关联；Agent 改存自身命名空间并迁移旧数据，损坏只使 `agents.local` 失败；等待原因改为结构化 `inspect().wait`，诊断不再解析文本；`host.ts` 拆出 scope/registry/context（660→455 行）；ID 与同源校验收敛到 `sdk/validation.ts` 的 `identifier`/`sameOrigin`，测试禁止重复定义 | 补洞后的门禁先在旧代码上失败再修复；坏 Agent 数据下应用可启动、管理可用、坏数据保留；旧快照中的 Agent 迁移后可用 |
 | R3 存储与多实例 | 桌面单实例（原 P5）；会话消息按会话分片存储；Broker 拒绝保留名；提交补目录 fsync、读前检查大小、清理陈旧临时文件；重录密钥后删除旧引用 | 待开始 | 累计超过 64 KiB 的多会话可持续保存；第二实例聚焦首实例；保留名 owner 被拒绝 |
 | R4 真实连接器 | 最小安全集（见下节）接通 `credential.request`，DeepSeek 扩展进入目录、默认不启用 | 待开始 | 单元测试覆盖重定向/超时/超限/取消/未授权零发送；Mac 普通包与 Android 模拟器各一次真实调用；WebView 存储与日志无密钥 |
 | R5 产品清理 | 诊断与故障注入只在开发模式出现；生产目录移除故障样例；`dist` 只含运行所需扩展；合并两套文本工作台；无入口的 probe 删除或移出类型检查；应用标识去掉阶段名 | 待开始 | 生产构建菜单无故障注入；`dist` 不含示例与测试扩展；e2e 不依赖诊断入口 |

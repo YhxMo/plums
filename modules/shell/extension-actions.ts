@@ -4,6 +4,7 @@ import type { ImportedExtension } from "./uninstall";
 import { uninstallImport } from "./uninstall";
 import { saveConfiguration } from "./configuration";
 import { loadExtension } from "../extension-host/definition";
+import { sameOrigin } from "../sdk/validation";
 import { extensionOwner } from "../sdk";
 import type { ConfigurationValue } from "../sdk/configuration";
 
@@ -36,8 +37,8 @@ export async function installExtension(
   input: { id: string; url: string; baseUrl: string },
   load: Loader = loadExtension,
 ) {
-  const target = new URL(input.url, input.baseUrl);
-  if (target.origin !== new URL(input.baseUrl).origin)
+  const target = sameOrigin(input.url, input.baseUrl);
+  if (!target)
     throw Error(
       "当前 M1 仅加载本地可信 ESM 模块。请将扩展放入应用目录后填写模块路径。",
     );

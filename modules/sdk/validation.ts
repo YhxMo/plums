@@ -59,3 +59,25 @@ export function optional<T>(
 ): T | undefined {
   return value === undefined ? undefined : check(value);
 }
+
+const idPattern = /^[a-z][a-z0-9.-]{0,63}$/;
+/** Extension, theme and composition id: lowercase, `.`/`-` separated, no `..`. */
+export function identifier(
+  value: unknown,
+  code: ErrorCode,
+  check?: Check,
+): string {
+  const id = string(value, code, { ...check, pattern: idPattern });
+  if (id.includes("..")) fail(code, check);
+  return id;
+}
+
+/** Resolve `url` against `base`; only a target on base's own origin is returned. */
+export function sameOrigin(url: string, base: string): URL | undefined {
+  try {
+    const target = new URL(url, base);
+    return target.origin === new URL(base).origin ? target : undefined;
+  } catch {
+    return undefined;
+  }
+}

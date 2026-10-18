@@ -1,6 +1,6 @@
 import type { ExtensionDefinition } from "../sdk";
 import { ContractError } from "../sdk/errors";
-import { array, object, string } from "../sdk/validation";
+import { array, identifier, object, string } from "../sdk/validation";
 import { validateConfigurationDeclaration } from "../sdk/configuration";
 import { validateCredentialBindings } from "../sdk/credential-bindings";
 
@@ -24,16 +24,13 @@ export function validateDefinition(
     path: "manifest.id",
     label: "Unsupported extension identity or SDK version",
   };
-  const id = string(manifest.id, "extension.invalid", {
-    ...identity,
-    pattern: /^[a-z][a-z0-9.-]{0,63}$/,
-  });
+  identifier(manifest.id, "extension.invalid", identity);
   string(manifest.version, "extension.invalid", {
     ...identity,
     path: "manifest.version",
     min: 1,
   });
-  if (id.includes("..") || manifest.apiVersion !== 1)
+  if (manifest.apiVersion !== 1)
     throw new ContractError("extension.invalid", "manifest.id", identity.label);
   for (const [name, declarations] of Object.entries({
     requires: manifest.requires,

@@ -1,5 +1,5 @@
 import { ContractError } from "./errors";
-import { object, string } from "./validation";
+import { identifier, object, string } from "./validation";
 export const themeColorNames = [
   "text",
   "surface",
@@ -48,13 +48,9 @@ export function copyTheme(input: Theme): Theme {
   )
     return invalid();
   const { id, label, appearance, colors: rawColors } = input;
-  string(id, "extension.invalid", {
-    ...check("theme.id"),
-    pattern: /^[a-z][a-z0-9.-]{0,63}$/,
-  });
+  identifier(id, "extension.invalid", check("theme.id"));
   string(label, "extension.invalid", { ...check("theme.label"), max: 80 });
   if (
-    id.includes("..") ||
     ["light", "dark"].includes(id) ||
     !label.trim() ||
     !["light", "dark"].includes(appearance)
