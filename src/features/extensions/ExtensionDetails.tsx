@@ -7,8 +7,6 @@ export function ExtensionDetails({
   host,
   access,
   entry: activeSelectedExt,
-  agents: extBoundAgents,
-  onReveal,
   operations,
 }: ExtensionDetailsProps) {
   const extId = activeSelectedExt.id;
@@ -32,36 +30,6 @@ export function ExtensionDetails({
           </code>
         </div>
       </header>
-      <section className={styles.detailSection}>
-        <h4>已绑定的启用中 Agent（{extBoundAgents.length}）</h4>
-        {extBoundAgents.length ? (
-          <div className={styles.boundAgentList}>
-            {extBoundAgents.map((agent) => (
-              <div key={agent.id} className={styles.boundAgentRow}>
-                <div>
-                  <strong>{agent.name}</strong>
-                  <p className="muted">{agent.description}</p>
-                </div>
-                <button
-                  type="button"
-                  className="text-button"
-                  disabled={!onReveal}
-                  title={
-                    onReveal
-                      ? undefined
-                      : "当前工作区不支持 Agent 导航，请先切换到 Agent 界面"
-                  }
-                  onClick={() => onReveal?.(agent.id)}
-                >
-                  跳转到 Agent →
-                </button>
-              </div>
-            ))}
-          </div>
-        ) : (
-          <p className="muted">当前没有启用中的 Agent 直接绑定此扩展。</p>
-        )}
-      </section>
       <section className={styles.detailSection}>
         <h4>服务与权限概览</h4>
         <dl className={styles.detailMetaGrid}>

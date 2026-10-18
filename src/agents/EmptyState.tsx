@@ -1,4 +1,4 @@
-import { Icon } from "./Icon";
+import { Icon } from "../components/Icon";
 import s from "./Onboarding.module.css";
 import chatStyles from "./ChatView.module.css";
 export function EmptyState({

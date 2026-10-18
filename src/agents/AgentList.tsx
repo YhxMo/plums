@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
-import type { Agent } from "../../modules/sdk/agents";
-import { Icon } from "./Icon";
+import type { Agent } from "../../modules/agents/contract";
+import { Icon } from "../components/Icon";
 import s from "./AgentList.module.css";
 import chatStyles from "./ChatView.module.css";
 import detailStyles from "./DetailPanel.module.css";

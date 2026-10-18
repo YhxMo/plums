@@ -1,6 +1,6 @@
 import { preservedMessage } from "./messages";
 import type { ShellDialogsProps } from "./controllers";
-import { ExtensionView } from "../components/ExtensionView";
+import { ExtensionView } from "./ExtensionView";
 import { Dialog } from "../components/Dialog";
 import styles from "../features/extensions/ExtensionManager.module.css";
 export function ShellDialogs({

@@ -12,9 +12,9 @@
 
 ESLint 使用 flat config，对全部 JS/TS/TSX 启用推荐规则、typescript-eslint 推荐规则（不含类型感知规则）与 React Hooks 两条规则（均为错误），不承担排版。TypeScript 固定在 typescript-eslint 支持的版本；升级 TypeScript 前先确认其 peer 范围。以 `_` 开头的未用变量视为有意忽略；确需逐行豁免时写明原因。
 
-`verify:web` 使用 `npm run check:project -- --boundaries`，复用已锁定 TypeScript 的 AST 检查 TS、TSX、JS、MJS 的静态路径 import、export、类型导入、动态 import 和 require。仓库相对路径按允许名单检查：SDK 仅自身；宿主仅自身与 SDK；`modules/shell` 仅自身、宿主与 SDK；扩展仅扩展目录与 SDK。`src/shell` 仅通用 modules、外壳、组件、管理功能及平台／凭据适配入口，默认应用组合留在 `src/application.ts`。未知 modules 目录、父目录桶入口（如 `"../"`）与仓库逃逸路径均拒绝。
+`verify:web` 使用 `npm run check:project -- --boundaries`，复用已锁定 TypeScript 的 AST 检查 TS、TSX、JS、MJS 的静态路径 import、export、类型导入、动态 import 和 require。`src`、`modules`、`extensions` 下每个源码文件都必须属于一层，未归层即失败；层与允许目标见 `scripts/check-boundaries.mjs` 的 `layers`。通用层（SDK、宿主、`modules/shell`、`src/shell`、`src/features/extensions`、`src/components`、平台适配）不得引用业务模块；业务模块（`modules/agents`、`modules/text-workbench`）与默认 Agent 界面（`src/agents`）只能引用 SDK、自身与通用组件；只有组合根（`src/App.tsx`、`src/main.tsx`、`src/application.ts`）可接线全部。父目录桶入口（如 `"../"`）与仓库逃逸路径均拒绝。
 
-通用宿主及两层外壳禁止直引 `modules/sdk/agents`，也检查通过 SDK barrel 间接引入的情况；业务视图 ID 字面量不得回到这些层。业务模块及其他 src 装配代码不作为检查起点。源码解析失败、候选集合为空均失败。非字面量动态 import/require 和包名导入不在此仓库相对路径检查范围；这不是运行时安全沙箱。
+业务视图 ID 字面量不得出现在通用层；R5 前仅诊断实验两个文件按名单豁免。源码解析失败、候选集合为空均失败。非字面量动态 import/require 和包名导入不在此仓库相对路径检查范围；这不是运行时安全沙箱。
 
 完整门禁须在仓库根执行以覆盖所有源码与 SDK barrel；裁剪集合不能证明全仓边界。边界与 IPC 导入检查通过 `scripts/parse-sources.mjs` 使用 TypeScript 公开编译器 API 在内存中解析，不做类型解析或文件 I/O。普通 `npm run check:project` 仍只需 Node，检查清单、文档及隐私模式。
 

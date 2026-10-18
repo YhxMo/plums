@@ -159,7 +159,7 @@ test("dismissible fallback notice, independent extension manager page and topbar
   await expect(page.getByRole("heading", { name: "扩展与状态" })).toBeVisible();
   await expect(page.locator("[data-workspace]")).toBeHidden();
   await expect(
-    page.getByRole("region", { name: "所选扩展与关联 Agent 详情" }),
+    page.getByRole("region", { name: "所选扩展详情" }),
   ).toContainText("ui.default");
   await page.getByRole("button", { name: "返回工作区", exact: true }).click();
   await expect(page.locator("[data-workspace]")).toBeVisible();
@@ -198,14 +198,17 @@ test("dismissible fallback notice, independent extension manager page and topbar
   ).toHaveCount(0);
 
   await manage(page);
-  await expect(
-    page.locator("#extension-manager").getByText("代码助手").first(),
-  ).toBeVisible();
   await page
     .locator("#extension-manager article")
     .filter({ hasText: "本地 Agent 提供者" })
     .click();
-  await page.getByRole("button", { name: "跳转到 Agent →" }).first().click();
+  // The generic manager shows extension facts, never Agent business data.
+  const detail = page.getByRole("region", { name: "所选扩展详情" });
+  await expect(detail).toContainText("agents.local");
+  await expect(page.locator("#extension-manager")).not.toContainText(
+    "代码助手",
+  );
+  await page.getByRole("button", { name: "返回工作区", exact: true }).click();
   await expect(page.locator("[data-workspace]")).toBeVisible();
 });
 

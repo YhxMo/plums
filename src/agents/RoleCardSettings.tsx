@@ -1,9 +1,9 @@
 import { useCallback, useState, useSyncExternalStore } from "react";
-import type { Agent, AgentProvider } from "../../modules/sdk/agents";
+import type { Agent, AgentProvider } from "../../modules/agents/contract";
 import { parseRoleCard } from "../../modules/agents/store";
 import { readRoleCardFile } from "../../modules/agents/role-card";
-import { useAsyncAction } from "../shell/useAsyncAction";
-import { Icon } from "./Icon";
+import { useAsyncAction } from "../components/useAsyncAction";
+import { Icon } from "../components/Icon";
 import s from "./Onboarding.module.css";
 
 export function RoleCardSettings({ api }: { api: AgentProvider }) {

@@ -42,7 +42,7 @@
 
 2026-10-17，macOS arm64、Node.js 26.5.1、TypeScript 7.0.2，使用配置的 Chrome 浏览器。先复核阶段 B 的独立审查和精确暂存内容，以可核验的 GitHub noreply 身份本地提交 `0e80dcd`（34 文件）；提交前重跑 `npm run verify:web`，43 文件／433 单元和全部检查通过，提交后工作区干净。本节结果覆盖 `0e80dcd` 上的 C1 源码、测试和文档增量，与本节纳入同一次 C1 提交；未推送或替换交付包。
 
-[AgentWorkspace](../src/features/agents/AgentWorkspace.tsx) 从原位置的 554 行降到 210 行，只组合 Agent 列表、会话、详情、草稿及 chrome。新增 AgentDialogs 315 行、useAgentModals 64 行、useRoleCardDraft 51 行、focus 15 行；通用 useAsyncAction 37 行、useMediaQuery 14 行。agent-ui 更新挂载入口，useOperations 复用反馈 Hook，行数棘轮移除已删除工作区文件的旧上限。CSS、Workbench、公开 SDK 契约及 Rust 未修改。
+[AgentWorkspace](../src/agents/AgentWorkspace.tsx) 从原位置的 554 行降到 210 行，只组合 Agent 列表、会话、详情、草稿及 chrome。新增 AgentDialogs 315 行、useAgentModals 64 行、useRoleCardDraft 51 行、focus 15 行；通用 useAsyncAction 37 行、useMediaQuery 14 行。agent-ui 更新挂载入口，useOperations 复用反馈 Hook，行数棘轮移除已删除工作区文件的旧上限。CSS、Workbench、公开 SDK 契约及 Rust 未修改。
 
 失败证据：[agent-ui-import.test.ts](../tests/agent-ui-import.test.ts) 在不存在全局 matchMedia 的单元环境加载 Agent 扩展模块，拆分前为 1 失败，报 `ReferenceError: matchMedia is not defined`，定位旧 AgentWorkspace 第 24 行。媒体查询改为 Hook 内创建和订阅后，同一测试 1／1 通过；最终完整单元为 44 文件／434 用例，比 B 新增 1 项。
 
@@ -60,7 +60,7 @@
 
 | 原文件 | 新文件与物理行数 | 主要使用方 |
 | --- | --- | --- |
-| Workspace.module.css，951 行 | [AgentList](../src/components/AgentList.module.css) 332、[ChatView](../src/components/ChatView.module.css) 204、[DetailPanel](../src/components/DetailPanel.module.css) 208、[Onboarding](../src/components/Onboarding.module.css) 217 | 列表／共享 Avatar、会话、详情、EmptyState／AgentDialogs／RoleCardSettings；AgentWorkspace 使用列表与详情模块 |
+| Workspace.module.css，951 行 | [AgentList](../src/agents/AgentList.module.css) 332、[ChatView](../src/agents/ChatView.module.css) 204、[DetailPanel](../src/agents/DetailPanel.module.css) 208、[Onboarding](../src/agents/Onboarding.module.css) 217 | 列表／共享 Avatar、会话、详情、EmptyState／AgentDialogs／RoleCardSettings；AgentWorkspace 使用列表与详情模块 |
 | App.module.css，680 行 | [layout](../src/shell/layout.module.css) 212、[ExtensionManager](../src/features/extensions/ExtensionManager.module.css) 327、[dialogs](../src/shell/dialogs.module.css) 145 | 顶栏／外壳布局、扩展管理／诊断／引导／权限说明、授权弹窗／反馈／详情卡片 |
 
 复合选择器保持原文：Avatar 由 TSX 同时绑定列表的基础 avatar、会话头和详情排除条件的局部 avatar；手机顶栏与管理返回按钮的分组规则保留在 layout，管理页头／返回按钮显式绑定其局部 class。CSS module 间没有 import 或 composes，公共原子样式仍在 styles.css；没有新增规则、改变值或改动业务逻辑。两个旧模块已删除，src／tests／scripts 无旧路径引用；行数棘轮删除两项旧上限，其余上限保持。原 hardening 上限回归改用仍存在的 documents.rs 906 行豁免，不改 Rust 源码。

@@ -1,6 +1,6 @@
 import type { Runtime } from "./runtime";
 import { errorMessage } from "./messages";
-import { useAsyncAction } from "./useAsyncAction";
+import { useAsyncAction } from "../components/useAsyncAction";
 
 /** Combine boot-time failure classes so one does not hide the others. */
 export function initialErrorFor(initial: {

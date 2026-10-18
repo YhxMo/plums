@@ -1,11 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { Host } from "../modules/extension-host/host";
 import { diagnoseLayoutFallback } from "../modules/shell/diagnostics";
-import {
-  mapExtensionAgents,
-  readActiveAgents,
-} from "../modules/agents/diagnostics";
-import type { Agent } from "../modules/sdk/agents";
 import type { Platform } from "../modules/sdk";
 import { errorMessage } from "../src/shell/messages";
 
@@ -129,117 +124,7 @@ describe("diagnoseLayoutFallback", () => {
   );
 });
 
-describe("mapExtensionAgents", () => {
-  it("maps enabled agents to their provider, active dependencies and agent UI", async () => {
-    const host = new Host(createPlatform());
-    host.install({
-      manifest: {
-        id: "transform.upper",
-        version: "1.0.0",
-        apiVersion: 1,
-        provides: { "text.transform": 1 },
-      },
-      activate(ctx) {
-        ctx.provide("text.transform", 1, { name: "Upper" });
-      },
-    });
-    host.install({
-      manifest: {
-        id: "agents.local",
-        version: "0.0.4",
-        apiVersion: 1,
-        requires: { "text.transform": 1 },
-        provides: { agents: 1 },
-      },
-      activate(ctx) {
-        ctx.provide("agents", 1, {});
-      },
-    });
-    host.install({
-      manifest: {
-        id: "ui.agents",
-        version: "0.0.4",
-        apiVersion: 1,
-        requires: { agents: 1 },
-      },
-      activate(ctx) {
-        ctx.view({
-          id: "agents",
-          label: "Agent 界面",
-          mount: () => () => {},
-        });
-      },
-    });
-    await host.start("transform.upper");
-    await host.start("agents.local");
-    await host.start("ui.agents");
-
-    const sampleAgents: Agent[] = [
-      {
-        id: "a1",
-        name: "代码助手",
-        description: "coding",
-        status: "idle",
-        pinned: false,
-        extensionId: "agents.local",
-        capabilities: ["本地文本处理"],
-        multiSession: true,
-        sessions: [],
-        currentSessionId: "s1",
-      },
-    ];
-
-    sampleAgents.push({ ...sampleAgents[0], id: "a2", name: "文字助手" });
-    const mapped = mapExtensionAgents(host, sampleAgents);
-    for (const id of ["agents.local", "transform.upper", "ui.agents"])
-      expect(mapped[id]?.map((agent) => agent.name)).toEqual([
-        "代码助手",
-        "文字助手",
-      ]);
-    await host.stop("transform.upper");
-    expect(mapExtensionAgents(host, sampleAgents)).toEqual({});
-  });
-});
-
-describe("readActiveAgents", () => {
-  it.each([
-    ["provider failed", "provider failed"],
-    ["", "提供者返回空错误"],
-  ])(
-    "reports a throwing provider with message %j",
-    async (message, expected) => {
-      const host = new Host(createPlatform());
-      host.install({
-        manifest: {
-          id: "agents.broken",
-          version: "1.0.0",
-          apiVersion: 1,
-          provides: { agents: 1 },
-        },
-        activate(ctx) {
-          ctx.provide("agents", 1, {
-            list() {
-              throw Error(message);
-            },
-            subscribe: () => () => {},
-          });
-        },
-      });
-      await host.start("agents.broken");
-      expect(readActiveAgents(host)).toEqual({
-        agents: [],
-        error: expected,
-      });
-    },
-  );
-
-  it("returns no error when no provider is active", () => {
-    const host = new Host(createPlatform());
-    expect(readActiveAgents(host)).toEqual({ agents: [] });
-  });
-});
-
-it("uses catalog view hints for an unknown disabled UI without an Agent provider", () => {
+it("uses catalog view hints for an unknown disabled UI", () => {
   const host = new Host(createPlatform());
   host.install({
     manifest: { id: "independent.ui", apiVersion: 1, version: "1" },
@@ -265,7 +150,6 @@ it("uses catalog view hints for an unknown disabled UI without an Agent provider
     targetExtensionId: "independent.ui",
   });
   expect(result?.message).toContain("尚未启用");
-  expect(readActiveAgents(host)).toEqual({ agents: [] });
 });
 
 it.each(["constructor", "toString"])(

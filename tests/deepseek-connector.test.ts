@@ -3,7 +3,7 @@ import connector from "../extensions/connectors/deepseek.js";
 import upper from "../extensions/services/upper.js";
 import { Host } from "../modules/extension-host/host";
 import { agentExtension } from "../modules/agents/provider";
-import type { AgentProvider } from "../modules/sdk/agents";
+import type { AgentProvider } from "../modules/agents/contract";
 import type { Transformer } from "../extensions/contracts";
 import {
   FakeCredentialPlatform,

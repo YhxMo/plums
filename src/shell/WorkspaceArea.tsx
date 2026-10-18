@@ -1,5 +1,5 @@
 import type { WorkspaceAreaProps } from "./controllers";
-import { ExtensionView } from "../components/ExtensionView";
+import { ExtensionView } from "./ExtensionView";
 import { Icon } from "../components/Icon";
 import styles from "./layout.module.css";
 export function WorkspaceArea({

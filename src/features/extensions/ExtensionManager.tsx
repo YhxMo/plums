@@ -34,16 +34,14 @@ export function ExtensionManager({
             </div>
             <section
               className={styles.managerDetailPane}
-              aria-label="所选扩展与关联 Agent 详情"
+              aria-label="所选扩展详情"
             >
               {detail.entry && (
                 <ExtensionDetails
                   host={detail.host}
                   access={detail.access}
                   entry={detail.entry}
-                  agents={detail.agents}
                   operations={detail.operations}
-                  onReveal={detail.onReveal}
                 />
               )}
               {diagnostics}

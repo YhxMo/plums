@@ -32,7 +32,7 @@
 
 0.0.4 的应用外壳拥有扩展管理、应用内授权、布局与外观偏好、恢复入口；默认 Agent 界面、工作台、画布及各自导航通过公开 `ctx.view` 和 `ctx.use` 挂载，不读取宿主私有业务状态。扩展管理使用独立全幅页面，隐藏业务区时保留工作区挂载和草稿；布局扩展按自身容器宽度重排。外壳的通用控件与扩展样式共享两套语义颜色变量，布局和导航仍由扩展替换，详见 [默认界面](UI.md)。
 
-`agents.local` 是扩展层业务提供者，以 `agents@1` 公开快照、订阅、角色与会话操作；`ui.agents` 通过 `ctx.use`/可选 `withAgents` facade 消费，再用 `ctx.view` 注册默认界面。角色卡解析和文本执行位于扩展模块。`src/application.ts` 组合默认应用：调用业务模块的恢复函数，接线内置扩展与默认启用集合，并保留旧布局的兼容规则；`src/shell/runtime.ts` 的 `bootShell(application)` 编排通用配置解析、安装和组合恢复，`persistence.ts` 串行保存不透明快照字段。通用 Host、ExtensionContext、外壳与 Rust 桥接不读取 Agent 数据格式。Agent 来源关联诊断由 `modules/agents/diagnostics.ts` 提供，管理功能在 `src/features/extensions` 消费；业务类型与导航实体匹配不进入通用外壳。公开提供者说明用于呈现实际来源、版本与执行范围，外部提供者无需模仿内置实现。
+`agents.local` 是扩展层业务提供者，以 `agents@1` 公开快照、订阅、角色与会话操作；`ui.agents`（`src/agents/`）通过 `ctx.use` 消费，再用 `ctx.view` 注册默认界面；服务契约在 `modules/agents/contract.ts`。角色卡解析和文本执行位于扩展模块。`src/application.ts` 组合默认应用：调用业务模块的恢复函数，接线内置扩展与默认启用集合，并保留旧布局的兼容规则；`src/shell/runtime.ts` 的 `bootShell(application)` 编排通用配置解析、安装和组合恢复，`persistence.ts` 串行保存不透明快照字段。通用 Host、ExtensionContext、外壳、扩展管理与 Rust 桥接不读取 Agent 数据格式，也不展示 Agent 关联。公开提供者说明用于呈现实际来源、版本与执行范围，外部提供者无需模仿内置实现。
 
 默认组合使用本地文本服务；[DeepSeek 协议扩展](DEEPSEEK.md)已提供可替换服务的隔离接线，生产传输、秘密读取/注入、发送授权与真实调用按 M2.3 继续，MCP 客户端待实现。外部视图启用后优先选中，工作台、画布和默认 Agent 界面可独立替换；最小启用集合、精确版本与配置快照已实现。复杂多提供者政策、组合升级事务和长期会话存储待实现。角色/会话与外观暂共同存于 `host.shell` 小快照，业务格式归扩展管理。
 

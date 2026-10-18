@@ -80,7 +80,7 @@ M1 当前通过 `ctx.view` 注册框架无关的挂载/释放函数，通过 `ct
 
 ## M1 Agent 服务契约
 
-[agents.ts](../modules/sdk/agents.ts) 定义扩展层 `agents@1`，不是通用 Host 的固有概念。提供者通过 `ctx.provide("agents", 1, provider)` 注册，消费者声明 `requires: { agents: 1 }`，通过 `ctx.use` 获取；`withAgents(ctx)` 只是可选的 `ctx.agents` facade。
+[contract.ts](../modules/agents/contract.ts) 定义扩展层 `agents@1`，归 Agent 扩展所有，不属于 SDK 或通用 Host。提供者通过 `ctx.provide("agents", 1, provider)` 注册，消费者声明 `requires: { agents: 1 }`，通过 `ctx.use` 获取。
 
 提供者公开 `info`（label、version、description）、稳定的 `list()` 快照、`subscribe()` 及取消订阅函数，以及 `create`、`update`、`remove`、`session`、`send`、`cancel`。`update` 支持名称、说明和特别关注。快照包含人类可读说明、能力、来源、状态、特别关注、会话与消息。每次可观察变化发布新的快照，UI 通过订阅读取，不检查私有对象。来源与执行范围由公开说明呈现；UI 调用保留提供者方法的接收对象。
 

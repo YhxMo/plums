@@ -11,7 +11,7 @@ const runtimeFixture = vi.hoisted(() => ({
   credentialsError: null as string | null,
 }));
 export { runtimeFixture };
-vi.mock("../src/agent-ui", () => ({
+vi.mock("../src/agents/extension", () => ({
   agentUI: () => ({
     manifest: { id: "ui.agents", version: "1", apiVersion: 1 },
     activate() {},

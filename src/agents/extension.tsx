@@ -3,10 +3,10 @@ import type { ReactNode } from "react";
 import {
   createWorkspaceChrome,
   type ExtensionDefinition,
-} from "../modules/sdk";
-import { withAgents } from "../modules/sdk/agents";
-import { RoleCardSettings } from "./components/RoleCardSettings";
-import { AgentWorkspace } from "./features/agents/AgentWorkspace";
+} from "../../modules/sdk";
+import type { AgentProvider } from "../../modules/agents/contract";
+import { RoleCardSettings } from "./RoleCardSettings";
+import { AgentWorkspace } from "./AgentWorkspace";
 
 function mountReactView(
   container: HTMLElement,
@@ -35,18 +35,15 @@ export function agentUI(): ExtensionDefinition {
       apiVersion: 1,
       requires: { agents: 1 },
     },
-    activate(context) {
-      const ctx = withAgents(context);
+    activate(ctx) {
+      const agents = ctx.use<AgentProvider>("agents");
       const chrome = createWorkspaceChrome("agents.agent");
       ctx.view({
         id: "role-settings",
         label: "角色卡设置",
         presentation: "dialog",
         mount(container) {
-          return mountReactView(
-            container,
-            <RoleCardSettings api={ctx.agents} />,
-          );
+          return mountReactView(container, <RoleCardSettings api={agents} />);
         },
       });
       ctx.view({
@@ -58,7 +55,7 @@ export function agentUI(): ExtensionDefinition {
           return mountReactView(
             container,
             <AgentWorkspace
-              api={ctx.agents}
+              api={agents}
               chrome={chrome}
               onExtensions={() => {
                 void ctx.shell.open("extensions");

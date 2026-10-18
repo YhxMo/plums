@@ -48,7 +48,7 @@ it("rejects growth beyond an existing cap and reports remaining allowance after 
 
 it("fails closed when no eligible boundary source is present", () => {
   expect(checkBoundaries([["tests/hardening.test.ts", "export {};"]])).toEqual([
-    "no eligible SDK/kernel/extension source files for import boundary check",
+    "no repository source files for import boundary check",
   ]);
 });
 
@@ -231,12 +231,18 @@ it.each([
 );
 
 it.each([
-  ["src/shell/probe.ts", "../../modules/sdk/agents"],
-  ["modules/shell/probe.ts", "../sdk/agents"],
-  ["modules/extension-host/probe.ts", "../sdk/agents"],
+  ["src/shell/probe.ts", "../../modules/agents/contract"],
+  ["modules/shell/probe.ts", "../agents/contract"],
+  ["modules/extension-host/probe.ts", "../agents/contract"],
+  ["modules/sdk/probe.ts", "../agents/contract"],
   ["src/shell/probe.ts", "../../modules/agents/store"],
+  ["src/components/probe.tsx", "../../modules/agents/contract"],
+  ["src/components/probe.tsx", "../agents/AgentList"],
+  ["src/features/extensions/probe.ts", "../../../modules/agents/contract"],
+  ["src/features/extensions/probe.ts", "../../agents/AgentList"],
+  ["src/platform.ts", "../modules/agents/contract"],
 ])(
-  "keeps generic shells and host away from Agent contracts: %s",
+  "keeps generic layers away from Agent business code: %s -> %s",
   (file, target) => {
     expect(
       boundaryProblems(file, `import type { Agent } from "${target}";`),
@@ -258,17 +264,46 @@ it.each([
     boundaryProblems("modules/shell/probe.ts", `const selected = "${id}";`),
   ).toHaveLength(1);
 });
-it("rejects Agent contracts re-exported through SDK barrels", () => {
+it("cannot smuggle Agent contracts through an SDK barrel", () => {
   expect(
     checkBoundaries([
-      ["modules/sdk/bridge.ts", 'export type { Agent } from "./agents";'],
+      [
+        "modules/sdk/bridge.ts",
+        'export type { Agent } from "../agents/contract";',
+      ],
       ["modules/sdk/index.ts", 'export * from "./bridge";'],
       ["src/shell/probe.ts", 'import type { Agent } from "../../modules/sdk";'],
     ]),
-  ).toEqual([
-    "src/shell/probe.ts:1: forbidden import ../../modules/sdk (Agent contract via SDK)",
+  ).toEqual(["modules/sdk/bridge.ts:1: forbidden import ../agents/contract"]);
+});
+
+it.each([
+  "src/new-feature.ts",
+  "src/features/notes/probe.tsx",
+  "modules/notes/store.ts",
+])("rejects a source file outside every layer: %s", (file) => {
+  expect(boundaryProblems(file, "export {};")).toEqual([
+    `${file}: no boundary layer`,
   ]);
 });
+
+it.each([
+  ["src/agents/probe.tsx", "../../modules/agents/contract", true],
+  ["src/agents/probe.tsx", "../components/Dialog", true],
+  ["src/agents/probe.tsx", "../../modules/sdk", true],
+  ["src/agents/probe.tsx", "../shell/runtime", false],
+  ["src/agents/probe.tsx", "../features/extensions/controllers", false],
+  ["src/agents/probe.tsx", "../../modules/extension-host/host", false],
+  ["modules/agents/probe.ts", "../../src/agents/AgentList", false],
+  ["src/components/probe.tsx", "../shell/runtime", false],
+  ["src/components/probe.tsx", "../platform", false],
+  ["src/application.ts", "./agents/extension", true],
+  ["src/application.ts", "../modules/agents/provider", true],
+])("Agent UI and composition root: %s -> %s allowed=%s", (file, target, ok) =>
+  expect(boundaryProblems(file, `import "${target}";`)).toHaveLength(
+    ok ? 0 : 1,
+  ),
+);
 
 it.each([
   ["modules/sdk/probe.ts", ".."],

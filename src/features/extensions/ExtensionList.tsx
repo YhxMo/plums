@@ -1,6 +1,6 @@
 import type { ExtensionListController } from "./controllers";
 import { extensionOwner } from "../../../modules/sdk";
-import { SelectedDocuments } from "../../components/SelectedDocuments";
+import { SelectedDocuments } from "./SelectedDocuments";
 import { ExtensionCard } from "./ExtensionCard";
 import { ExtensionActions } from "./ExtensionActions";
 import styles from "./ExtensionManager.module.css";

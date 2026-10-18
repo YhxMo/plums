@@ -5,20 +5,20 @@ import {
   useState,
   useSyncExternalStore,
 } from "react";
-import type { Agent, AgentProvider } from "../../../modules/sdk/agents";
-import type { WorkspaceChromeController } from "../../../modules/sdk";
-import { AgentList } from "../../components/AgentList";
-import { ChatView } from "../../components/ChatView";
-import { DetailPanel } from "../../components/DetailPanel";
-import { EmptyState } from "../../components/EmptyState";
-import { Dialog } from "../../components/Dialog";
-import { Icon } from "../../components/Icon";
-import { useMediaQuery } from "../../shell/useMediaQuery";
+import type { Agent, AgentProvider } from "../../modules/agents/contract";
+import type { WorkspaceChromeController } from "../../modules/sdk";
+import { AgentList } from "./AgentList";
+import { ChatView } from "./ChatView";
+import { DetailPanel } from "./DetailPanel";
+import { EmptyState } from "./EmptyState";
+import { Dialog } from "../components/Dialog";
+import { Icon } from "../components/Icon";
+import { useMediaQuery } from "../components/useMediaQuery";
 import { useAgentModals } from "./useAgentModals";
 import { AgentDialogs } from "./AgentDialogs";
 import { fallbackFocus } from "./focus";
-import s from "../../components/AgentList.module.css";
-import detailStyles from "../../components/DetailPanel.module.css";
+import s from "./AgentList.module.css";
+import detailStyles from "./DetailPanel.module.css";
 
 export function AgentWorkspace({
   api,

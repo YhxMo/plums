@@ -39,7 +39,6 @@ export function Workbench({ runtime }: { runtime: Runtime }) {
     workspace,
     navigation,
     authorization,
-    entityNavigation: chrome.navigation,
   });
   return (
     <div className={styles.app}>

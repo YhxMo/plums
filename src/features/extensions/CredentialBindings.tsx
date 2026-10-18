@@ -9,7 +9,7 @@ import type {
   CredentialManagementResponse,
 } from "../../credentials";
 import type { CredentialOperations } from "../../shell/controllers";
-import styles from "../../components/SelectedDocuments.module.css";
+import styles from "./SelectedDocuments.module.css";
 import { resultMessage } from "./credential-copy";
 
 const stateLabel = {

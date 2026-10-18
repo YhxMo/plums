@@ -46,13 +46,13 @@ macOS采用48px一体化顶栏，保留原生红绿灯，品牌旁显示当前�
 
 ## 所有权与公开契约
 
-`ui.agents` 使用公开 `ctx.view` 挂载；`agents.local` 通过普通版本服务 `agents@1` 提供业务。SDK 的 `withAgents(ctx)` 提供可选 `ctx.agents` facade，底层仍是 `ctx.use`，没有给通用内核新增聊天 API。默认 UI 读取提供者的公开快照、订阅、操作和来源说明，不访问其私有状态，并保留普通类方法的接收对象。第三方提供者可替换该服务，也可贡献完全不同的 UI。
+`ui.agents` 使用公开 `ctx.view` 挂载；`agents.local` 通过普通版本服务 `agents@1` 提供业务，`ui.agents` 以 `ctx.use` 获取，没有给通用内核或 SDK 新增聊天 API。默认 UI 读取提供者的公开快照、订阅、操作和来源说明，不访问其私有状态，并保留普通类方法的接收对象。第三方提供者可替换该服务，也可贡献完全不同的 UI。
 
-会话标题、当前 Agent 的扩展所有者和默认详情的真实状态通过当前视图的可选 `View.chrome` 发布。外壳优先选择当前实体扩展的侧栏，其次为工作区扩展侧栏，最后使用默认详情；上下文侧栏与默认 inline 详情保持互斥。移动模态详情转为桌面时重新协调。管理功能在 feature 层读取业务来源，并将 Agent 跳转只发送给声明 `agents.agent` 的工作区；其他工作区显示不可用原因，通用外壳只透传导航接口。状态所有权与模块入口见 [前端架构](ARCHITECTURE.md#当前前端的状态所有权)。
+会话标题、当前 Agent 的扩展所有者和默认详情的真实状态通过当前视图的可选 `View.chrome` 发布。外壳优先选择当前实体扩展的侧栏，其次为工作区扩展侧栏，最后使用默认详情；上下文侧栏与默认 inline 详情保持互斥。移动模态详情转为桌面时重新协调。扩展管理不读取也不展示 Agent 关联；`WorkspaceChrome.navigation` 仍是 SDK 中的实验字段，外壳暂无消费者。状态所有权与模块入口见 [前端架构](ARCHITECTURE.md#当前前端的状态所有权)。
 
 React视图每次挂载创建独立节点；释放先移除该节点，跨微任务卸载root并向Host返回清理Promise，避免外壳提交期间同步卸载或旧释放清空替换视图。Agent工作区节点继续填满可用高度，角色设置节点保持自然高度；长会话滚动和交叠替换/订阅释放由 `react-view-lifecycle.spec.ts` 覆盖。
 
-Agent 界面的组合、弹窗、卡片草稿与后备焦点位于 [src/features/agents](../src/features/agents/)。弹窗组件随工作区常驻，关闭仅移除 Dialog，保留创建说明、多会话选择及卡片输入；成功添加后沿用原重置规则。媒体查询在 Hook 内创建和订阅，模块导入不访问 matchMedia；限定回归见 [C1 证据](../evidence/MAINTENANCE-2026-10-17.md#c1agent-工作区职责拆分)。
+Agent 界面的组合、弹窗、卡片草稿与后备焦点位于 [src/agents](../src/agents/)。弹窗组件随工作区常驻，关闭仅移除 Dialog，保留创建说明、多会话选择及卡片输入；成功添加后沿用原重置规则。媒体查询在 Hook 内创建和订阅，模块导入不访问 matchMedia；限定回归见 [C1 证据](../evidence/MAINTENANCE-2026-10-17.md#c1agent-工作区职责拆分)。
 
 角色、会话、文本处理与卡片解析位于扩展层；`src/application.ts` 接线默认组合和业务恢复，通用外壳只保存不透明业务字段并提供串行持久化回调。Agent/会话与宿主偏好暂共用 `host.shell` 小快照；文本处理工作台通过自身 `ctx.platform` 另存于 `extension.ui.workbench-board`，页面贡献的业务数据归各贡献者管理。每个状态快照均受现有 64 KiB 限制；长期存储与通用升级迁移尚未实现。特别关注直接保存为每个 Agent 的 `pinned` 字段，避免维护第二份 ID 列表。
 
@@ -62,13 +62,13 @@ Agent 界面的组合、弹窗、卡片草稿与后备焦点位于 [src/features
 
 | 模块 | 使用方与范围 |
 | --- | --- |
-| [AgentList.module.css](../src/components/AgentList.module.css) | 列表、共享头像基础样式，以及工作区根节点／主区的手机切换规则 |
-| [ChatView.module.css](../src/components/ChatView.module.css) | 会话、消息、输入框与共享 mobileOnly；包含手机会话头中的头像选择器 |
-| [DetailPanel.module.css](../src/components/DetailPanel.module.css) | 详情、会话列表、移动详情容器与内部反馈 |
-| [Onboarding.module.css](../src/components/Onboarding.module.css) | 欢迎、添加／导入表单及角色卡设置 |
+| [AgentList.module.css](../src/agents/AgentList.module.css) | 列表、共享头像基础样式，以及工作区根节点／主区的手机切换规则 |
+| [ChatView.module.css](../src/agents/ChatView.module.css) | 会话、消息、输入框与共享 mobileOnly；包含手机会话头中的头像选择器 |
+| [DetailPanel.module.css](../src/agents/DetailPanel.module.css) | 详情、会话列表、移动详情容器与内部反馈 |
+| [Onboarding.module.css](../src/agents/Onboarding.module.css) | 欢迎、添加／导入表单及角色卡设置 |
 | [layout.module.css](../src/shell/layout.module.css) | 外壳根布局、顶栏、挂载区、扩展侧栏、启动屏与回退提示布局 |
 | [ExtensionManager.module.css](../src/features/extensions/ExtensionManager.module.css) | 管理页、扩展卡片、诊断、权限说明与恢复引导 |
-| [dialogs.module.css](../src/shell/dialogs.module.css) | 授权弹窗、外壳反馈，以及详情卡片和其中的 Agent 行 |
+| [dialogs.module.css](../src/shell/dialogs.module.css) | 授权弹窗、外壳反馈与详情卡片 |
 
 CSS module 不互相 import。复合选择器跨组件时，由 TSX 显式绑定相应模块的局部 class：共享 Avatar 同时携带列表、会话、详情的 avatar；管理返回按钮和页头携带 layout 中原分组媒体规则的 class。选择器和声明保持原样，受验版本及对照范围见 [C2 证据](../evidence/MAINTENANCE-2026-10-17.md#c2按使用方拆分样式)。
 

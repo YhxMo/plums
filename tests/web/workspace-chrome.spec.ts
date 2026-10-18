@@ -125,50 +125,6 @@ for (const failure of ["snapshot", "subscribe", "notification"]) {
   });
 }
 
-test("Agent links never reveal an entity in an unrelated workspace", async ({
-  page,
-}) => {
-  await page.route("**/test.tasks.js", (route) =>
-    route.fulfill({
-      contentType: "text/javascript",
-      body: `export default {
-        manifest:{id:"test.tasks",version:"1",apiVersion:1},
-        activate(ctx) {
-          const reveal=id=>{document.body.dataset.wrongReveal=id};
-          const state={title:"任务工作区"};
-          ctx.view({id:"test.tasks",label:"任务工作区",chrome:{
-            getSnapshot(){return state},subscribe(){return()=>{}},
-            reveal,navigation:{entityType:"test.task",reveal}
-          },mount(root){root.textContent="任务正文";return()=>root.replaceChildren()}});
-        }
-      };`,
-    }),
-  );
-  await page.goto("/");
-  await page
-    .getByRole("button", { name: "从头添加 Agent", exact: true })
-    .click();
-  await page
-    .getByRole("textbox", { name: "名称", exact: true })
-    .fill("代码助手");
-  await page
-    .getByRole("dialog")
-    .getByRole("button", { name: "添加", exact: true })
-    .click();
-  await install(page, "test.tasks");
-  await page
-    .locator("#extension-manager article")
-    .filter({ hasText: "本地 Agent 提供者" })
-    .click();
-  const reveal = page.getByRole("button", { name: "跳转到 Agent →" }).first();
-  await expect(reveal).toBeDisabled();
-  await expect(reveal).toHaveAttribute(
-    "title",
-    "当前工作区不支持 Agent 导航，请先切换到 Agent 界面",
-  );
-  await expect(page.locator("body")).not.toHaveAttribute("data-wrong-reveal");
-});
-
 for (const scenario of ["resize", "dynamic"]) {
   test(`contextual and default details stay exclusive after ${scenario}`, async ({
     page,

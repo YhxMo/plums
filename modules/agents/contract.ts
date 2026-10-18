@@ -1,6 +1,4 @@
-import type { ExtensionContext } from "./index";
-
-/** Experimental extension-layer contract; no role-card format enters the host. */
+/** Experimental `agents@1` service contract owned by the Agent extension, not the SDK. */
 export type Session = {
   id: string;
   title: string;
@@ -50,8 +48,4 @@ export interface AgentProvider {
   ): Promise<void>;
   send(id: string, text: string): Promise<void>;
   cancel(id: string): void;
-}
-/** Optional SDK facade over a normal versioned service, not a kernel API. */
-export function withAgents(ctx: ExtensionContext) {
-  return { ...ctx, agents: ctx.use<AgentProvider>("agents") };
 }

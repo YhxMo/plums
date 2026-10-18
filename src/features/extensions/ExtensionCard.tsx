@@ -10,18 +10,12 @@ export function ExtensionCard({
 }: {
   extension: Pick<
     ExtensionCardModel,
-    "entry" | "manifest" | "state" | "agents" | "selected"
+    "entry" | "manifest" | "state" | "selected"
   >;
   onSelect(): void;
   children: ReactNode;
 }) {
-  const {
-    entry,
-    manifest,
-    state,
-    agents: boundAgents,
-    selected: isSelected,
-  } = extension;
+  const { entry, manifest, state, selected: isSelected } = extension;
   const { id } = entry;
   return (
     <article
@@ -40,16 +34,6 @@ export function ExtensionCard({
       <code>
         {id} · {manifest.version}
       </code>
-      {boundAgents.length > 0 && (
-        <div className={styles.boundAgentPills}>
-          <span className="muted">关联 Agent：</span>
-          {boundAgents.map((agent) => (
-            <span key={agent.id} className={styles.agentPill}>
-              {agent.name}
-            </span>
-          ))}
-        </div>
-      )}
       {state.error && <p className="error">{errorMessage(state.error)}</p>}
       <p className={styles.resourceCount}>
         {state.resources} 项资源 · {state.tasks} 个在途任务

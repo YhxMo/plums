@@ -94,21 +94,6 @@
   background: var(--sidebar-active) !important;
   border-color: var(--control-border) !important;
 }
-.boundAgentPills {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 6px;
-  margin-top: 8px;
-  font-size: 12px;
-}
-.agentPill {
-  padding: 2px 8px;
-  border-radius: 6px;
-  background: var(--subtle);
-  color: var(--text);
-  font-size: 11px;
-}
 .extensionTitle {
   display: flex;
   align-items: baseline;

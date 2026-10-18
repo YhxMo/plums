@@ -23,25 +23,6 @@
   font-size: 13px;
   margin: 0 0 10px;
 }
-.boundAgentList {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-.boundAgentRow {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  padding: 10px 12px;
-  border-radius: 8px;
-  background: var(--surface);
-  border: 1px solid var(--border);
-}
-.boundAgentRow p {
-  margin: 2px 0 0;
-  font-size: 12px;
-}
 .detailMetaGrid {
   display: grid;
   grid-template-columns: 88px 1fr;

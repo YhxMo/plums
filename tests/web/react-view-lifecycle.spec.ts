@@ -115,7 +115,7 @@ test("overlapping React view releases retain the replacement and release subscri
   await page.goto("/");
   const result = await page.evaluate(async () => {
     const hostPath = "/modules/extension-host/host.ts";
-    const uiPath = "/src/agent-ui.tsx";
+    const uiPath = "/src/agents/extension.tsx";
     const { Host } = await import(hostPath);
     const { agentUI } = await import(uiPath);
     const listeners = new Set<() => void>();

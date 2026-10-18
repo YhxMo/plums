@@ -7,10 +7,6 @@ import {
   saveComposition,
   configureExtension,
 } from "../../../modules/shell/extension-actions";
-import {
-  mapExtensionAgents,
-  readActiveAgents,
-} from "../../../modules/agents/diagnostics";
 import { waitingNotice } from "./enable-feedback";
 import type { ConfigurationValue } from "../../../modules/sdk/configuration";
 import type { Runtime } from "../../shell/runtime";
@@ -25,19 +21,9 @@ type ManagementDialog =
 
 export function useExtensionManager(
   runtime: Runtime,
-  {
-    operations,
-    workspace,
-    navigation,
-    authorization,
-    entityNavigation,
-  }: ManagementInputs,
+  { operations, workspace, navigation, authorization }: ManagementInputs,
 ) {
   const { host, catalog } = runtime;
-  const onReveal =
-    entityNavigation?.entityType === "agents.agent"
-      ? (id: string) => entityNavigation.reveal(id)
-      : undefined;
   const { value, run } = useExtensionState(runtime);
   const { manager, closeManager } = navigation;
   const { busy, operate, setError, setNotice } = operations;
@@ -65,18 +51,6 @@ export function useExtensionManager(
   const installed = catalog.filter((entry) => host.ids().includes(entry.id));
   const selected =
     installed.find((entry) => entry.id === selectedId) ?? installed[0];
-  const { agents: providerAgents, error: agentsError } = readActiveAgents(host);
-  const agents = mapExtensionAgents(host, providerAgents);
-  const reportedAgentsError = useRef<string | null>(null);
-  useEffect(() => {
-    if (!agentsError) {
-      reportedAgentsError.current = null;
-      return;
-    }
-    if (reportedAgentsError.current) return;
-    reportedAgentsError.current = agentsError;
-    setNotice(`Agent 提供者读取失败：${agentsError}`);
-  }, [agentsError, setNotice]);
   const reportNotRunning = (id: string) => {
     const info = host.inspect(id);
     const notice = waitingNotice(
@@ -106,7 +80,6 @@ export function useExtensionManager(
     entry,
     manifest: host.manifest(entry.id),
     state: host.inspect(entry.id),
-    agents: agents[entry.id] ?? [],
     selected: selected?.id === entry.id,
     imported: value.imports.some((item) => item.id === entry.id),
   }));
@@ -183,13 +156,6 @@ export function useExtensionManager(
       access: runtime.adapter.credentials,
       operations,
       entry: selected,
-      agents: selected ? (agents[selected.id] ?? []) : [],
-      onReveal: onReveal
-        ? (id: string) => {
-            onReveal(id);
-            closeManager();
-          }
-        : undefined,
     },
     dialogs: {
       dialog,

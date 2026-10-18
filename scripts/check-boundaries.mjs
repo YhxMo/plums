@@ -2,29 +2,78 @@ import { posix } from "node:path";
 import ts from "typescript";
 import { lineOf, parseSources } from "./parse-sources.mjs";
 
-// Repository-relative imports must stay in an explicitly allowed layer.
-// Business modules and app composition roots are not origins here.
+// Every repository source belongs to one layer, and its repository-relative
+// imports must stay in that layer's allowed destinations.
+const sdk = String.raw`modules\/sdk(?:\/|$)`;
+const platform = String.raw`src\/native(?:\/|$)|src\/(?:platform|credentials|documents)(?:\.ts)?$`;
+/** @param {string[]} parts */
+const to = (...parts) => new RegExp(`^(?:${parts.join("|")})`);
 /** @type {Array<[RegExp, RegExp]>} origin -> allowed destination */
 const layers = [
-  [/^modules\/sdk\//, /^modules\/sdk(?:\/|$)/],
-  [/^modules\/extension-host\//, /^modules\/(?:sdk|extension-host)(?:\/|$)/],
-  [/^modules\/shell\//, /^modules\/(?:sdk|extension-host|shell)(?:\/|$)/],
-  [/^extensions\//, /^(?:extensions|modules\/sdk)(?:\/|$)/],
+  [/^modules\/sdk\//, to(sdk)],
   [
-    /^src\/shell\//,
-    /^(?:modules\/(?:sdk|extension-host|shell)(?:\/|$)|src\/(?:shell|components|features\/extensions)(?:\/|$)|src\/(?:platform|credentials)(?:\.ts)?$)/,
+    /^modules\/extension-host\//,
+    to(String.raw`modules\/(?:sdk|extension-host)(?:\/|$)`),
+  ],
+  [
+    /^modules\/shell\//,
+    to(String.raw`modules\/(?:sdk|extension-host|shell)(?:\/|$)`),
+  ],
+  [/^extensions\//, to(String.raw`(?:extensions|modules\/sdk)(?:\/|$)`)],
+  [
+    /^src\/(?:native\/|(?:platform|credentials|documents)\.ts$)/,
+    to(sdk, platform),
+  ],
+  [/^src\/components\//, to(sdk, String.raw`src\/components(?:\/|$)`)],
+  [
+    /^src\/(?:shell|features\/extensions)\//,
+    to(
+      String.raw`modules\/(?:sdk|extension-host|shell)(?:\/|$)`,
+      String.raw`src\/(?:shell|components|features\/extensions)(?:\/|$)`,
+      platform,
+    ),
+  ],
+  // Business modules and their default UI.
+  [
+    /^modules\/agents\//,
+    to(
+      sdk,
+      String.raw`modules\/agents(?:\/|$)`,
+      String.raw`extensions\/contracts(?:\.d\.ts)?$`,
+    ),
+  ],
+  [
+    /^modules\/text-workbench\//,
+    to(
+      sdk,
+      String.raw`modules\/text-workbench(?:\/|$)`,
+      String.raw`extensions\/contracts(?:\.d\.ts)?$`,
+    ),
+  ],
+  [
+    /^src\/agents\//,
+    to(
+      sdk,
+      String.raw`modules\/agents(?:\/|$)`,
+      String.raw`src\/(?:agents|components)(?:\/|$)`,
+    ),
+  ],
+  // Application composition root wires everything together.
+  [
+    /^src\/(?:App\.tsx|main\.tsx|application\.ts)$/,
+    to(String.raw`(?:src|modules|extensions)(?:\/|$)`),
   ],
 ];
+const repositorySource = /^(?:src|modules|extensions)\/.*\.(?:ts|tsx|js|mjs)$/;
 /** @param {string} file */
-const allowedFor = (file) =>
-  /\.(?:ts|tsx|js|mjs)$/.test(file)
-    ? layers.find(([origin]) => origin.test(file))?.[1]
-    : undefined;
-/** @param {string} file */
-const eligible = (file) => allowedFor(file) !== undefined;
+const allowedFor = (file) => layers.find(([origin]) => origin.test(file))?.[1];
 
-const generic = /^(?:modules\/(?:shell|extension-host)|src\/shell)\//;
-const agentContract = /^modules\/sdk\/agents(?:\.[cm]?[jt]sx?|\/|$)/;
+const generic =
+  /^(?:modules\/(?:shell|extension-host)|src\/(?:shell|components|features\/extensions))\//;
+// Development experiments still drive the default composition from the
+// manager; R5 moves them out of the shell, then this exception goes away.
+const pendingDevTools =
+  /^src\/features\/extensions\/(?:DiagnosticActions\.tsx|useExperiments\.ts)$/;
 const businessViewIds = new Set([
   "agents",
   "default",
@@ -36,21 +85,16 @@ const businessViewIds = new Set([
 
 /** @param {Array<[string, string]>} entries */
 export function checkBoundaries(entries) {
-  const files = entries.filter(([file]) => eligible(file));
+  const files = entries.filter(([file]) => repositorySource.test(file));
   if (!files.length)
-    return [
-      "no eligible SDK/kernel/extension source files for import boundary check",
-    ];
+    return ["no repository source files for import boundary check"];
   const problems = [];
-  /** @type {Map<string, Array<{destination: string, target: string, line: number}>>} */
-  const imports = new Map();
+  for (const [file] of files)
+    if (!allowedFor(file)) problems.push(`${file}: no boundary layer`);
   for (const { file, source, errors } of parseSources(files)) {
     problems.push(...errors);
-    if (errors.length) continue;
-    const allowed = /** @type {RegExp} */ (allowedFor(file));
-    /** @type {Array<{destination: string, target: string, line: number}>} */
-    const edges = [];
-    imports.set(file, edges);
+    const allowed = allowedFor(file);
+    if (errors.length || !allowed) continue;
     /** @type {(node: ts.Node) => void} */
     const visit = (node) => {
       let target;
@@ -76,16 +120,14 @@ export function checkBoundaries(entries) {
             ? target.text.slice(1)
             : posix.join(posix.dirname(file), target.text),
         );
-        const line = lineOf(source, target);
-        edges.push({ destination, target: target.text, line });
-        if (
-          !allowed.test(destination) ||
-          (generic.test(file) && agentContract.test(destination))
-        )
-          problems.push(`${file}:${line}: forbidden import ${target.text}`);
+        if (!allowed.test(destination))
+          problems.push(
+            `${file}:${lineOf(source, target)}: forbidden import ${target.text}`,
+          );
       }
       if (
         generic.test(file) &&
+        !pendingDevTools.test(file) &&
         ts.isStringLiteralLike(node) &&
         businessViewIds.has(node.text)
       )
@@ -96,41 +138,6 @@ export function checkBoundaries(entries) {
     };
     visit(source);
   }
-  // A new SDK barrel must not smuggle business contracts into generic layers.
-  // Resolve only repository sources already supplied to this gate, without I/O.
-  const sourceFiles = new Set(files.map(([file]) => file));
-  /** @param {string} destination */
-  const sourceFor = (destination) =>
-    [
-      destination,
-      ...[".ts", ".tsx", ".js", ".mjs"].flatMap((ext) => [
-        destination + ext,
-        destination + "/index" + ext,
-      ]),
-      destination.replace(/\.[cm]?js$/, ".ts"),
-    ].find((path) => sourceFiles.has(path));
-  /** @param {string} destination @param {Set<string>} [visited] @returns {boolean} */
-  const reachesAgents = (destination, visited = new Set()) => {
-    if (agentContract.test(destination)) return true;
-    if (!/^modules\/sdk(?:\/|$)/.test(destination)) return false;
-    const file = sourceFor(destination.replace(/\/$/, ""));
-    if (!file || visited.has(file)) return false;
-    visited.add(file);
-    return (imports.get(file) ?? []).some((edge) =>
-      reachesAgents(edge.destination, visited),
-    );
-  };
-  for (const [file, edges] of imports) {
-    if (!generic.test(file)) continue;
-    for (const edge of edges)
-      if (
-        !agentContract.test(edge.destination) &&
-        reachesAgents(edge.destination)
-      )
-        problems.push(
-          `${file}:${edge.line}: forbidden import ${edge.target} (Agent contract via SDK)`,
-        );
-  }
   return problems;
 }
 
@@ -138,6 +145,6 @@ export function checkBoundaries(entries) {
 export function boundaryProblems(file, text) {
   // Unit callers pass arbitrary files to probe the visitor; ineligible files
   // mean "nothing to check here" rather than an empty gate run.
-  if (!eligible(file)) return [];
+  if (!repositorySource.test(file)) return [];
   return checkBoundaries([[file, text]]);
 }

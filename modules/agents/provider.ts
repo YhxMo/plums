@@ -1,5 +1,5 @@
 import type { ExtensionDefinition } from "../sdk";
-import type { Agent } from "../sdk/agents";
+import type { Agent } from "./contract";
 import type { Transformer } from "../../extensions/contracts";
 import { AgentStore, type SaveOptions } from "./store";
 

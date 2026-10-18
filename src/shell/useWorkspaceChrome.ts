@@ -70,14 +70,6 @@ export function useWorkspaceChrome(workspace: Workspace) {
     closeCustom() {
       setCustomOpen(false);
     },
-    navigation: chrome?.navigation
-      ? {
-          entityType: chrome.navigation.entityType,
-          reveal(id: string) {
-            invoke(() => chrome.navigation!.reveal(id));
-          },
-        }
-      : undefined,
   };
 }
 

@@ -1,5 +1,5 @@
 import { ContractError } from "../sdk/errors";
-import type { Agent, AgentConfig, AgentProvider, Session } from "../sdk/agents";
+import type { Agent, AgentConfig, AgentProvider, Session } from "./contract";
 
 const id = () => crypto.randomUUID();
 const newSession = (): Session => ({

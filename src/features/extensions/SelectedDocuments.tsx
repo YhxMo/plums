@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
-import type { PlatformAdapter } from "../platform";
-import type { SelectedDocument } from "../documents";
+import type { PlatformAdapter } from "../../platform";
+import type { SelectedDocument } from "../../documents";
 import styles from "./SelectedDocuments.module.css";
 
 export function SelectedDocuments({

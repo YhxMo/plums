@@ -1,7 +1,7 @@
 import { agentExtension } from "../modules/agents/provider";
 import { restoreAgents } from "../modules/agents/store";
 import { textWorkbench } from "../modules/text-workbench/extension";
-import { agentUI } from "./agent-ui";
+import { agentUI } from "./agents/extension";
 import { bootShell, type ShellApplication } from "./shell/runtime";
 
 /** Default application composition; the shell does not interpret business state. */

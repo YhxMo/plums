@@ -3,12 +3,12 @@ import type {
   Agent,
   AgentConfig,
   AgentProvider,
-} from "../../../modules/sdk/agents";
-import { parseRoleCard } from "../../../modules/agents/store";
-import { Dialog } from "../../components/Dialog";
-import { Icon } from "../../components/Icon";
+} from "../../modules/agents/contract";
+import { parseRoleCard } from "../../modules/agents/store";
+import { Dialog } from "../components/Dialog";
+import { Icon } from "../components/Icon";
 import type { AgentModals } from "./useAgentModals";
-import s from "../../components/Onboarding.module.css";
+import s from "./Onboarding.module.css";
 
 export function AgentDialogs({
   api,

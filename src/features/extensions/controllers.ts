@@ -1,11 +1,9 @@
 import type { Host } from "../../../modules/extension-host/host";
-import type { Agent } from "../../../modules/sdk/agents";
 import type { ImportedExtension } from "../../../modules/shell/uninstall";
 import type { CredentialAccess } from "../../credentials";
 import type { ShellOperations } from "../../shell/useOperations";
 import type { Workspace } from "../../shell/useWorkspace";
 import type { ShellNavigation } from "../../shell/useShellNavigation";
-import type { WorkspaceChrome } from "../../shell/useWorkspaceChrome";
 import type { Authorization } from "../../shell/AuthorizationDialog";
 import type { CredentialOperations } from "../../shell/controllers";
 import type { useExtensionManager } from "./useExtensionManager";
@@ -18,13 +16,11 @@ export type ManagementInputs = {
   workspace: Pick<Workspace, "selected" | "enableExtension">;
   navigation: Pick<ShellNavigation, "manager" | "closeManager">;
   authorization: Pick<Authorization, "requestAuthorization">;
-  entityNavigation?: WorkspaceChrome["navigation"];
 };
 export type ExtensionCardModel = {
   entry: ImportedExtension;
   manifest: ReturnType<Host["manifest"]>;
   state: ReturnType<Host["inspect"]>;
-  agents: Agent[];
   selected: boolean;
   imported: boolean;
 };
@@ -32,9 +28,7 @@ export type ExtensionDetailsProps = {
   host: Pick<Host, "inspect" | "manifest">;
   access: CredentialAccess;
   entry: ImportedExtension;
-  agents: Agent[];
   operations: CredentialOperations;
-  onReveal?: (id: string) => void;
 };
 type Management = ReturnType<typeof useExtensionManager>;
 export type ExtensionManagerController = Pick<
