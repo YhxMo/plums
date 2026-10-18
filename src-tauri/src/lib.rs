@@ -125,9 +125,28 @@ fn command_handler() -> impl Fn(tauri::ipc::Invoke<tauri::Wry>) -> bool + Send +
     native_commands!(native_handler)
 }
 
+/// Development and preview builds may redirect data for isolated runs; a
+/// release build always uses the platform data directory.
+fn data_dir_override() -> Option<std::path::PathBuf> {
+    #[cfg(debug_assertions)]
+    return std::env::var_os("PLUMS_M1_DATA_DIR").map(std::path::PathBuf::from);
+    #[cfg(not(debug_assertions))]
+    None
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     let builder = tauri::Builder::default();
+    // Registered first: a second launch only focuses the running window, so
+    // two processes never write the same state directory.
+    #[cfg(desktop)]
+    let builder = builder.plugin(tauri_plugin_single_instance::init(|app, _, _| {
+        if let Some(window) = app.get_webview_window("main") {
+            let _ = window.unminimize();
+            let _ = window.show();
+            let _ = window.set_focus();
+        }
+    }));
     #[cfg(target_os = "android")]
     let builder = builder.plugin(
         tauri::plugin::Builder::<tauri::Wry, ()>::new("appearance")
@@ -168,9 +187,8 @@ pub fn run() {
     let builder = builder.invoke_handler(command_handler());
     builder
         .setup(|app| {
-            let root = std::env::var_os("PLUMS_M1_DATA_DIR")
-                .map(std::path::PathBuf::from)
-                .unwrap_or(app.path().app_data_dir()?.join("data"));
+            let root =
+                data_dir_override().unwrap_or(app.path().app_data_dir()?.join("data"));
             app.manage(credential_bindings::Bindings::new(root.clone()));
             let broker = Broker::new(root);
             broker.sweep(std::time::Duration::from_secs(3600));
