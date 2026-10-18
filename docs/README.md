@@ -10,6 +10,7 @@
 | --- | --- |
 | [ARCHITECTURE](ARCHITECTURE.md) | 了解目标职责、当前模块边界与 D1–D8 决策状态 |
 | [EXTENSION-CONTRACTS](EXTENSION-CONTRACTS.md) | 查公开扩展契约、生命周期与失败语义（实验） |
+| [AUTHOR-QUICKSTART](AUTHOR-QUICKSTART.md) | 第一次写扩展：单文件模板、导入与替换、常见用途 |
 | [SDK-AUTHORING](SDK-AUTHORING.md) | 写扩展、样板与精确版本、状态和取消规则 |
 | [EXTENSION-CONFIGURATION](EXTENSION-CONFIGURATION.md) | 实现非敏感扩展配置与宿主管理接口 |
 | [COMPOSITION](COMPOSITION.md) | 理解组合快照、启动恢复与失败边界 |

@@ -1,6 +1,6 @@
 # Plums 工程状态
 
-核对日期：2026-10-18（Asia/Singapore）。[整体路线](docs/spec/total.md)维护能力依赖与门槛，[当前阶段](docs/spec/milestone.md)维护正在执行的工作，[验证索引](evidence/RESULTS.md)区分当前交付、开发增量和历史结果。
+核对日期：2026-10-19（Asia/Singapore）。[整体路线](docs/spec/total.md)维护能力依赖与门槛，[当前阶段](docs/spec/milestone.md)维护正在执行的工作，[验证索引](evidence/RESULTS.md)区分当前交付、开发增量和历史结果。
 
 ## 当前实现
 
@@ -39,6 +39,6 @@ build-info.json 与 acceptance.json 保存来源和验收范围。旧包保留�
 
 ## 后续范围
 
-2026-10-18 全项目审阅后转为**真实路径优先**：先恢复 TS/TSX lint、修复默认 Agent 绕过公开契约与边界门禁漏洞、按会话分片存储并限制单实例，再以最小安全集接通真实模型调用，最后清理生产包中的诊断与示例。R1–R3 已完成；R4 已在 Mac 与 Android 模拟器完成真实调用；R5 已让发布包只含内置文本工作台、大写服务与 DeepSeek 连接，诊断与故障注入只在开发构建出现，传输实验已删除。工作包见[当前阶段](docs/spec/milestone.md)；日常流程见 [AGENTS](AGENTS.md)，证据只在交付候选与阶段退出时记录。
+2026-10-18 全项目审阅后转为**真实路径优先**：先恢复 TS/TSX lint、修复默认 Agent 绕过公开契约与边界门禁漏洞、按会话分片存储并限制单实例，再以最小安全集接通真实模型调用，最后清理生产包中的诊断与示例。R1–R3 已完成；R4 已在 Mac 与 Android 模拟器完成真实调用；R5 已让发布包只含内置文本工作台、大写服务与 DeepSeek 连接，诊断与故障注入只在开发构建出现，传输实验已删除。第 7 步（外部作者写扩展）进行中：打包应用已可导入单文件扩展，作者入门见 [AUTHOR-QUICKSTART](docs/AUTHOR-QUICKSTART.md)。工作包见[当前阶段](docs/spec/milestone.md)；日常流程见 [AGENTS](AGENTS.md)，证据只在交付候选与阶段退出时记录。
 
 M2.4 完成 iOS 最小实验、Android 真机和稳定 SDK 后才退出 M2。开放扩展市场前须先完成按扩展隔离与来源签名，见[整体计划](docs/spec/total.md#支持范围与未决项)。可信 ESM 与宿主共享 WebView，权限 UI 不构成安全沙箱。
