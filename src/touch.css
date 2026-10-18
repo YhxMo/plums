@@ -1,0 +1,9 @@
+/* Taps fire at once (no double-tap zoom wait) and show the app's own pressed
+   state instead of the WebView's delayed blue highlight. */
+html {
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+button:active:not(:disabled) {
+  filter: brightness(0.9);
+}
