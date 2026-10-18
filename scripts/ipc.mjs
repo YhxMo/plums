@@ -5,7 +5,7 @@ import { format } from "prettier";
 import { projectEnvironment } from "./environment.mjs";
 
 const check = process.argv.includes("--check");
-for (const experimental of [false, true]) {
+{
   const args = [
     "run",
     "--manifest-path",
@@ -16,7 +16,6 @@ for (const experimental of [false, true]) {
     "--example",
     "export-ipc",
   ];
-  if (experimental) args.push("--features", "native-transport-experiment");
   const result = spawnSync("cargo", args, {
     env: projectEnvironment(),
     encoding: "utf8",
@@ -26,15 +25,10 @@ for (const experimental of [false, true]) {
   if (result.status !== 0)
     throw Error(result.stderr || `IPC export exited ${result.status}`);
   const output = await format(result.stdout, { parser: "typescript" });
-  const path = resolve(
-    "src/native",
-    experimental ? "experimental.generated.ts" : "contract.generated.ts",
-  );
+  const path = resolve("src/native/contract.generated.ts");
   if (check) {
     if (readFileSync(path, "utf8") !== output)
       throw Error(`IPC contract is stale: ${path}; run npm run ipc:generate`);
   } else writeFileSync(path, output);
-  console.log(
-    `${check ? "Checked" : "Generated"} ${experimental ? "experimental" : "default"} IPC contract`,
-  );
+  console.log(`${check ? "Checked" : "Generated"} IPC contract`);
 }

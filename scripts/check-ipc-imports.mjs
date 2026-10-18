@@ -1,4 +1,3 @@
-import { posix } from "node:path";
 import ts from "typescript";
 import { lineOf, parseSources } from "./parse-sources.mjs";
 
@@ -19,17 +18,11 @@ export function checkIpcImports(entries) {
     const visit = (node) => {
       if (ts.isStringLiteralLike(node)) {
         const reference = node.text;
-        const destination = reference.startsWith(".")
-          ? posix.normalize(posix.join(posix.dirname(file), reference))
-          : reference.replace(/^\//, "");
-        const testBridge =
-          destination.replace(/\.(?:ts|js)$/, "") ===
-          "tests/fixtures/native-invoke";
         const core = reference === "@tauri-apps/api/core";
         const root =
           reference === "@tauri-apps/api" ||
           reference === "@tauri-apps/api/index";
-        if (core || root || testBridge) {
+        if (core || root) {
           const parent = node.parent;
           const bindings = ts.isImportDeclaration(parent)
             ? parent.importClause?.namedBindings
@@ -49,17 +42,15 @@ export function checkIpcImports(entries) {
               : undefined;
           // Allow capability detection and package-root modules that do not expose core.
           // Namespace, wildcard and dynamic imports can expose invoke and are rejected.
-          const allowed =
-            !testBridge &&
-            (core
-              ? namedImport?.length &&
-                namedImport.every(
-                  (entry) =>
-                    (entry.propertyName ?? entry.name).text === "isTauri",
-                )
-              : (namedImport ?? namedExport)?.every(
-                  (entry) => (entry.propertyName ?? entry.name).text !== "core",
-                ));
+          const allowed = core
+            ? namedImport?.length &&
+              namedImport.every(
+                (entry) =>
+                  (entry.propertyName ?? entry.name).text === "isTauri",
+              )
+            : (namedImport ?? namedExport)?.every(
+                (entry) => (entry.propertyName ?? entry.name).text !== "core",
+              );
           if (!allowed)
             problems.push(
               `${file}:${lineOf(source, node)}: native calls must use src/native/invoke.ts`,

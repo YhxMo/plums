@@ -133,15 +133,13 @@ ctx.task 跟踪异步任务，使用传入 signal 合作式取消；ctx.onDispos
 
 通过 manifest.configuration 声明带默认值的 string/number/boolean 字段，activate 读取只读 ctx.configuration；外壳提供配置编辑、验证和持久化。示例与保存/重启/失败边界见 [配置契约](EXTENSION-CONFIGURATION.md)。普通配置禁止存放密钥或令牌，不提供凭据授权。counter/panel 当前为 1.1.0，旧组合需核对精确版本。
 
-## 凭据代用请求实验
+## 凭据代用请求
 
-[接口与参考模型](CREDENTIAL-REQUEST.md)已有隔离假数据实验，当前生产能力仍不可用。生产设计按真实接口确定每绑定批准的内容类型、固定头和认证注入，扩展只提交别名与序列化载荷，秘密留在原生侧；不在普通配置中保存秘密。[M2.3 计划](spec/milestone.md)以一个真实连接器通过 text.transform 复用 Agent 界面，本地代码可推进，实际秘密操作和外发在对应操作前确认范围。
+[凭据代用请求契约](CREDENTIAL-REQUEST.md)在 Mac 与 Android 应用中可用，浏览器预览不可用。绑定确定内容类型、固定头和认证注入，扩展只提交别名与序列化载荷，秘密留在原生侧；不在普通配置中保存秘密。
 
-[DeepSeek 协议扩展](DEEPSEEK.md)是当前的实际服务实现入口：`connector.deepseek` / `/connectors/deepseek.js`，提供 `text.transform@1`。JSON 载荷、模型配置、完整回复解析和错误脱敏留在扩展；本地测试通过现有 Agent 消费者验证，不直接调用 fetch 或读取密钥。它不自动安装或启用，生产适配缺失时不能发请求。
+[DeepSeek 协议扩展](DEEPSEEK.md)是当前的实际服务实现入口：`connector.deepseek` / `/connectors/deepseek.js`，提供 `text.transform@1`。JSON 载荷、模型配置、完整回复解析和错误脱敏留在扩展；本地测试通过现有 Agent 消费者验证，不直接调用 fetch 或读取密钥。它在默认目录中，但不自动启用；浏览器预览中保持等待。
 
 可选 `manifest.credentialBindings` 声明非秘密连接建议，沿用现有扩展安装与管理入口；声明不创建绑定或授予请求权限。[通用绑定与原生录入](CREDENTIAL-BINDINGS.md)说明每绑定媒体类型、固定头、秘密注入、显式代理配置及取消/未知/卸载清理状态。既有扩展可继续不声明该字段。
-
-[公开生命周期隔离传输样例](spec/archive/M2-native-transport-experiment-2026-10-15.md#host-公开调用)展示 ctx.task/ctx.platform 与停用、卸载和撤权的限定两端结果，仅测试包可用，不代表生产网络或凭据能力。
 
 [可选单跳状态迁移助手](STATE-MIGRATION.md)已提供公开 SDK 入口与独立样板：扩展定义业务转换，助手用一次修订号提交保留旧快照；当前不自动迁移默认业务，也不提供通用包升级事务或自动回退。
 
@@ -151,7 +149,7 @@ ctx.task 跟踪异步任务，使用传入 signal 合作式取消；ctx.onDispos
 
 可选 [显式旧快照恢复](STATE-MIGRATION.md#按确认修订号显式恢复旧快照)要求已确认的 revision/from/to 与业务校验，一次恢复保留被替换目标；不自动回滚包或用户状态。
 
-[会话内文档只读访问](SELECTED-DOCUMENT.md)提供实验类型、宿主选择/撤销及扩展 document.read；仅支持探测成功的 Mac/Android，浏览器不可用。样板 `/samples/documents.js` 从扩展管理选择文档后，经公开契约列举/读取；停用即失效，不保存文件授权。实际支持范围以专项证据为准。
+[会话内文档只读访问](SELECTED-DOCUMENT.md)提供实验类型、宿主选择/撤销及扩展 document.read；仅支持探测成功的 Mac/Android，浏览器不可用。样板 `/samples/documents.js`（仅开发构建目录）从扩展管理选择文档后，经公开契约列举/读取；停用即失效，不保存文件授权。实际支持范围以专项证据为准。
 
 ## 公开主题样板
 

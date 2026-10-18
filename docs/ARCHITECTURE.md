@@ -59,7 +59,7 @@
 
 布局回退诊断优先使用已注册视图的 owner/label；未注册时读取目录项的可选 `views: { [viewId]: label }` 提示。默认目录和应用组合声明各自视图，通用诊断不维护业务 ID 表；缺少提示仍保留原视图 ID 和管理入口。提示用于定位来源，不授予注册或执行权限。
 
-`src/features/extensions/useExperiments.ts` 拥有文本工作台实验接线；没有安装该实验的组合不展示恢复启动按钮，管理入口仍可用。
+`src/features/extensions/useExperiments.ts` 拥有文本工作台实验接线；该实验只在开发构建的目录中，没有安装它的组合（包括发布包）不展示恢复启动按钮，管理入口仍可用。
 
 `src/shell/useAsyncAction.ts` 共用忙碌、错误与通知状态。Agent 将 AbortError 显示为停止通知，外壳 `useOperations` 保留 `errorMessage` 错误映射；共用 Hook 不改变两者的反馈语义。
 
@@ -75,9 +75,9 @@ SDK 的 `errors.ts` 与零依赖 `validation.ts` 提供错误码和字段路径�
 
 ## 原生 IPC 契约
 
-Rust 命令与 wire 类型是 IPC 的来源：[ipc.rs](../src-tauri/src/ipc.rs) 的声明宏同时生成实际函数／serde DTO 和类型元数据；[lib.rs](../src-tauri/src/lib.rs) 的一份清单同时用于 Tauri 注册与编译后导出。普通构建登记 17 条命令，`native-transport-experiment` 额外登记 6 条探针，普通包不注册探针。
+Rust 命令与 wire 类型是 IPC 的来源：[ipc.rs](../src-tauri/src/ipc.rs) 的声明宏同时生成实际函数／serde DTO 和类型元数据；[lib.rs](../src-tauri/src/lib.rs) 的一份清单同时用于 Tauri 注册与编译后导出。构建登记 20 条命令，没有只在测试 feature 中出现的命令。
 
-前端通过 [invokeNative](../src/native/invoke.ts) 调用生成的[普通契约](../src/native/contract.generated.ts)；实验夹具通过测试目录中的[实验桥接](../tests/fixtures/native-invoke.ts)使用[实验契约](../src/native/experimental.generated.ts)，生产模块不导出实验调用入口。命令名、参数、可选字段、响应状态及原生拒绝类型随 Rust 定义导出，调用者不再通过 `invoke<T>` 自行声明响应。AppHandle／State 是原生注入参数，不进入 WebView 参数；命令参数保持 camelCase，实验 Faults 保持既有 snake_case。公共 SDK 不依赖 `src/`，相关声明与生成类型通过编译期兼容样本核对。
+前端通过 [invokeNative](../src/native/invoke.ts) 调用生成的[契约](../src/native/contract.generated.ts)。命令名、参数、可选字段、响应状态及原生拒绝类型随 Rust 定义导出，调用者不再通过 `invoke<T>` 自行声明响应。AppHandle／State 是原生注入参数，不进入 WebView 参数；命令参数保持 camelCase，实验 Faults 保持既有 snake_case。公共 SDK 不依赖 `src/`，相关声明与生成类型通过编译期兼容样本核对。
 
 `platform_call` 的已确认拒绝返回 `{ code, outcome: "not-committed" }`；状态码由 Rust enum 导出，浏览器与原生适配按同一码映射提示，不匹配英文句子。收到未知错误码或丢失写入回执仍归为 `unknown`，不自动重试；成功写入回执继续胜过派发后的取消。Promise 拒绝对象不被生成入口包装成成功结果。
 

@@ -1,7 +1,5 @@
 // Included by tsc; this function is never run. Errors must remain compile-time failures.
-import * as productionBridge from "../src/native/invoke";
 import { invokeNative } from "../src/native/invoke";
-import { invokeExperimental } from "./fixtures/native-invoke";
 import type { NativeCommands } from "../src/native/contract.generated";
 import type {
   CredentialBindingDeclaration,
@@ -9,8 +7,6 @@ import type {
   SelectedDocument,
 } from "../modules/sdk";
 export function checkNativeContractTypes() {
-  // @ts-expect-error The production bridge cannot expose experimental commands.
-  void productionBridge.invokeExperimental("probe_info");
   void invokeNative("document_read", {
     owner: "sample",
     operationId: "one",
@@ -39,17 +35,6 @@ export function checkNativeContractTypes() {
   void invokeNative("credential_delete", { owner: "sample", alias: "text" });
   // @ts-expect-error No-argument commands do not accept accidental payload fields.
   void invokeNative("credential_supported", { owner: "sample" });
-  // @ts-expect-error Probe commands are not in the ordinary native contract.
-  void invokeNative("probe_info");
-  void invokeExperimental("probe_faults", {
-    owner: "probe.alpha",
-    faults: { prepare_receipt: true },
-  });
-  void invokeExperimental("probe_faults", {
-    owner: "probe.alpha",
-    // @ts-expect-error Nested fault keys retain their existing snake_case wire names.
-    faults: { prepareReceipt: true },
-  });
 }
 type Assert<T extends true> = T;
 type Binding = NativeCommands["credential_list"]["response"][number];

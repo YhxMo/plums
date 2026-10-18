@@ -31,24 +31,9 @@ fn wire_enum_export_and_serde_agree() {
 #[test]
 fn feature_contract_matches_the_registered_command_set() {
     let output = ipc_typescript();
-    #[cfg(not(feature = "native-transport-experiment"))]
-    {
-        assert_eq!(output.matches(": { args:").count(), 20);
-        assert!(output.contains("credential_request: { args: { owner: string; id: string; binding: string; body: string }"));
-        assert!(output.contains("platform_call:"));
-        assert!(!output.contains("probe_info:"));
-    }
-    #[cfg(feature = "native-transport-experiment")]
-    {
-        assert_eq!(output.matches(": { args:").count(), 6);
-        assert!(output.contains("extends NativeCommands"));
-        assert!(output.contains("prepare_receipt?: boolean"));
-        let faults: transport_probe::Faults =
-            serde_json::from_value(serde_json::json!({"prepare_receipt":true})).unwrap();
-        let _ = faults;
-        assert!(serde_json::from_value::<transport_probe::Faults>(
-            serde_json::json!({"prepareReceipt":true})
-        )
-        .is_err());
-    }
+    assert_eq!(output.matches(": { args:").count(), 20);
+    assert!(output.contains(
+        "credential_request: { args: { owner: string; id: string; binding: string; body: string }"
+    ));
+    assert!(output.contains("platform_call:"));
 }

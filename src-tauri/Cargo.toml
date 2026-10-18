@@ -18,19 +18,9 @@ uuid = { version = "=1.28.0", features = ["v4"] }
 url = "=2.5.8"
 http = "=1.5.0"
 
-[features]
-default = []
-native-transport-experiment = ["dep:futures-util"]
-
 [dependencies.tokio]
 version = "=1.53.3"
 features = ["sync", "time", "macros"]
-
-[dependencies.futures-util]
-version = "=0.3.34"
-default-features = false
-features = ["std"]
-optional = true
 
 [target.'cfg(not(any(target_os = "android", target_os = "ios")))'.dependencies]
 tauri-plugin-single-instance = "=2.5.4"

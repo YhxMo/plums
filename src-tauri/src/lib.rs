@@ -10,8 +10,6 @@ mod credentials_native;
 mod documents;
 mod ipc;
 mod storage;
-#[cfg(feature = "native-transport-experiment")]
-mod transport_probe;
 use serde::Serialize;
 use serde_json::Value;
 use storage::Broker;
@@ -91,39 +89,20 @@ macro_rules! native_commands {
             documents::document_revoke,
             crate::platform_grant,
             crate::platform_call,
-            appearance::shell_set_theme;
-            transport_probe::probe_grant,
-            transport_probe::probe_prepare,
-            transport_probe::probe_cancel,
-            transport_probe::probe_execute,
-            transport_probe::probe_faults,
-            transport_probe::probe_info
+            appearance::shell_set_theme
         }
     };
 }
 macro_rules! native_handler {
-    ($($module:ident :: $name:ident),*; $($probe:ident :: $extra:ident),*) => {{
-        #[cfg(not(feature = "native-transport-experiment"))]
-        return tauri::generate_handler![$($module::$name),*];
-        #[cfg(feature = "native-transport-experiment")]
-        return tauri::generate_handler![$($module::$name),*, $($probe::$extra),*];
-    }};
+    ($($module:ident :: $name:ident),*) => {
+        tauri::generate_handler![$($module::$name),*]
+    };
 }
 macro_rules! native_contract {
-    ($($module:ident :: $name:ident),*; $($probe:ident :: $extra:ident),*) => {{
+    ($($module:ident :: $name:ident),*) => {{
         let header = "// Generated from compiled Rust IPC declarations. Do not edit.\n";
-        #[cfg(not(feature = "native-transport-experiment"))]
-        {
-            let ordinary = vec![$($module::$name::contract()),*].join("");
-            format!("{header}export interface NativeCommands {{\n{ordinary}}}\n")
-        }
-        #[cfg(feature = "native-transport-experiment")]
-        {
-            // Collect ordinary entries here too: feature builds must compile the same contract.
-            let _ordinary = vec![$($module::$name::contract()),*];
-            let extra = vec![$($probe::$extra::contract()),*].join("");
-            format!("{header}import type {{ NativeCommands }} from \"./contract.generated\";\nexport interface ExperimentalCommands extends NativeCommands {{\n{extra}}}\n")
-        }
+        let ordinary = vec![$($module::$name::contract()),*].join("");
+        format!("{header}export interface NativeCommands {{\n{ordinary}}}\n")
     }};
 }
 /// Export tooling only; does not start Tauri or access application data.
@@ -191,8 +170,6 @@ pub fn run() {
             })
             .build(),
     );
-    #[cfg(feature = "native-transport-experiment")]
-    let builder = builder.manage(transport_probe::Probe::default());
     let builder = builder.invoke_handler(command_handler());
     builder
         .setup(|app| {

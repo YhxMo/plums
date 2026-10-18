@@ -3,7 +3,6 @@ import { checkIpcImports } from "../scripts/check-ipc-imports.mjs";
 const bridge = vi.hoisted(() => ({ invoke: vi.fn() }));
 vi.mock("@tauri-apps/api/core", () => bridge);
 import { invokeNative } from "../src/native/invoke";
-import { invokeExperimental } from "./fixtures/native-invoke";
 
 it.each([
   'import { invoke } from "@tauri-apps/api/core";',
@@ -43,14 +42,6 @@ it.each([
       [file, 'import { core } from "@tauri-apps/api";'],
     ]),
   ).toHaveLength(1);
-});
-it.each([
-  'import { invokeExperimental } from "../tests/fixtures/native-invoke";',
-  'export { invokeExperimental } from "../tests/fixtures/native-invoke";',
-  'export * from "../tests/fixtures/native-invoke";',
-  'const probe = import("../tests/fixtures/native-invoke.ts");',
-])("keeps the test-only native bridge out of production: %s", (source) => {
-  expect(checkIpcImports([["src/escaped.ts", source]])).toHaveLength(1);
 });
 it("allows non-core package exports and excludes deliberate test bridges", () => {
   expect(
@@ -104,9 +95,5 @@ it("preserves arguments and explicit rejection objects without retries", async (
   bridge.invoke.mockRejectedValueOnce(failure);
   await expect(invokeNative("document_read", args)).rejects.toBe(failure);
   expect(bridge.invoke).toHaveBeenLastCalledWith("document_read", args);
-  bridge.invoke.mockResolvedValueOnce({ pending: 0, os: "test", arch: "test" });
-  await expect(invokeExperimental("probe_info")).resolves.toMatchObject({
-    pending: 0,
-  });
-  expect(bridge.invoke).toHaveBeenCalledTimes(2);
+  expect(bridge.invoke).toHaveBeenCalledTimes(1);
 });

@@ -12,7 +12,6 @@ export const sizeLimits = {
   "modules/text-workbench/view.ts": 528,
   "src-tauri/src/credentials.rs": 233,
   "src-tauri/src/credentials_native.rs": 243,
-  "src-tauri/src/transport_probe.rs": 350,
   // Existing files outside the original inventory. Stage A preserves behavior.
   "src/styles.css": 445,
   "tests/abort-reentrancy.test.ts": 441,

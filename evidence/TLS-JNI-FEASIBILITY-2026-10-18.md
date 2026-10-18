@@ -12,7 +12,7 @@
 
 ## 候选、信任库与许可
 
-`tests/tls-jni/` 是独立能力 probe，不是普通 Plums 应用；主应用 Cargo.toml/Cargo.lock、原生命令与默认构建未修改。[复现入口](../tests/tls-jni/README.md)和[产物记录](m2-3-1-artifacts.json)分别保存命令与 APK/可执行文件摘要、设备、最终布尔结果。
+`tests/tls-jni/` 是独立能力 probe，不是普通 Plums 应用；主应用 Cargo.toml/Cargo.lock、原生命令与默认构建未修改。复现入口 `tests/tls-jni/README.md`（R5 已删除，可从提交 `b27af7b` 取回）和[产物记录](m2-3-1-artifacts.json)分别保存命令与 APK/可执行文件摘要、设备、最终布尔结果。
 
 | 项目 | 锁定选择与实际条件 |
 | --- | --- |

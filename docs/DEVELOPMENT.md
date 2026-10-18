@@ -8,7 +8,7 @@
 
 ## 验证入口
 
-提交前运行 `npm run verify:web`，依次检查构建与类型、单元测试、Prettier、项目清单与导入边界、文件行数、ESLint。原生工具齐备时运行 `npm run verify`，串联 Web 与 `npm run verify:native`；后者依次核对 Rust 导出的默认／实验 IPC 契约、执行 Rust 格式、Clippy 和原生单元。缺少工具或命令失败均单独记录，不作为通过。浏览器回归单独运行 `npm run verify:e2e`，不进入默认门禁。E2E 默认自起隔离 dev server，1420 被占用或来源不明时失败而非复用；只有快速迭代可显式设置 `PLUMS_E2E_REUSE_SERVER=1` 复用本地服务，该模式不作为证据。
+提交前运行 `npm run verify:web`，依次检查构建与类型、单元测试、Prettier、项目清单与导入边界、文件行数、ESLint。原生工具齐备时运行 `npm run verify`，串联 Web 与 `npm run verify:native`；后者依次核对 Rust 导出的 IPC 契约、执行 Rust 格式、Clippy 和原生单元。缺少工具或命令失败均单独记录，不作为通过。浏览器回归单独运行 `npm run verify:e2e`，不进入默认门禁。E2E 默认自起隔离 dev server，1420 被占用或来源不明时失败而非复用；只有快速迭代可显式设置 `PLUMS_E2E_REUSE_SERVER=1` 复用本地服务，该模式不作为证据。
 
 ESLint 使用 flat config，对全部 JS/TS/TSX 启用推荐规则、typescript-eslint 推荐规则（不含类型感知规则）与 React Hooks 两条规则（均为错误），不承担排版。TypeScript 固定在 typescript-eslint 支持的版本；升级 TypeScript 前先确认其 peer 范围。以 `_` 开头的未用变量视为有意忽略；确需逐行豁免时写明原因。
 
@@ -22,9 +22,9 @@ ESLint 使用 flat config，对全部 JS/TS/TSX 启用推荐规则、typescript-
 
 启动与声明校验复用 `modules/sdk/validation.ts` 和 `ContractError`：错误码表达类别，detail 保留字段路径，通用中文由 `src/shell/messages.ts` 映射；业务数据错误由提供者提供具体 message，外壳不按 Agent 等业务字段名翻译。已有开发调用需要英文诊断时，通过校验的 label／ContractError 的可选 message 保留原因；不要用裸错误码替代已对外提供的字符串诊断。Host 的配置、激活与清理错误在转为字符串前使用可选格式化回调，等待原因的既有前缀继续供诊断助手解析，界面显示时再映射。
 
-## TLS/JNI 隔离实验
+## 已删除的传输实验
 
-M2.3.1 的复现、独立 Cargo/Gradle 入口与专用模拟器操作见[实验说明](../tests/tls-jni/README.md)，结果见[版本证据](../evidence/TLS-JNI-FEASIBILITY-2026-10-18.md)。它不进入默认应用或 `verify:native`；实验私钥、测试 CA、`TEST=true` companion 和独立 APK 只在忽略目录。重跑选择新目录，不覆盖历史失败或修改系统信任库。
+M2.3.1 TLS/JNI 隔离实验（`tests/tls-jni/`）与原生传输探针（`native-transport-experiment` feature、`transport_probe.rs`、`tests/{host-transport,native-transport,transport-fault}/`）已被生产 `credential.request` 取代，在 R5 删除；原件可从提交 `b27af7b` 取回，结果见[版本证据](../evidence/TLS-JNI-FEASIBILITY-2026-10-18.md)。
 
 ## 修改原生命令
 
@@ -34,10 +34,9 @@ M2.3.1 的复现、独立 Cargo/Gradle 入口与专用模拟器操作见[实验�
 npm run ipc:generate
 npm run verify:web
 npm run verify:native
-node scripts/cargo.mjs test --locked --features native-transport-experiment
 ```
 
-`ipc:generate` 运行已有工具链中的 Rust example，分别编译默认与实验 feature，输出 `src/native/contract.generated.ts` 和 `experimental.generated.ts`，不启动应用或访问应用数据；依赖使用锁文件和本地缓存。`ipc:check` 只比较编译导出与登记文件，漂移即失败，不覆盖文件。缺少 Rust／缓存时先补工具条件，不能手改生成文件来通过检查。
+`ipc:generate` 运行已有工具链中的 Rust example，输出 `src/native/contract.generated.ts`，不启动应用或访问应用数据；依赖使用锁文件和本地缓存。`ipc:check` 只比较编译导出与登记文件，漂移即失败，不覆盖文件。缺少 Rust／缓存时先补工具条件，不能手改生成文件来通过检查。
 
 新增命令使用 `ipc_command!` 声明实际函数，并加入 `lib.rs` 的 `native_commands!` 清单；原生注入参数保留在 Rust 签名中。新增 wire DTO 使用 `wire_object!`／`wire_enum!` 的当前受支持形状，不另写一份 TS 数据模型。声明、注册和导出共享同一名字；只改单侧名字会在 Rust 编译、生成漂移或 TS 调用检查失败。宏没有通用 schema 或运行时响应校验职责，未知结构需先补明确的序列化与失败样本。
 
