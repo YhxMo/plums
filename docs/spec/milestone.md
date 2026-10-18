@@ -16,7 +16,7 @@
 
 | 编号 | 内容 | 状态 | 退出条件 |
 | --- | --- | --- | --- |
-| R1 工具链 | TypeScript 回退到 typescript-eslint 支持的版本，恢复 TS/TSX 与 React Hooks lint（原 P4） | 待开始 | lint 覆盖 `src`/`modules`/`tests` 的 TS/TSX；故意的 Hooks 违规样本被拒绝；现有违规逐项修复 |
+| R1 工具链 | TypeScript 回退到 typescript-eslint 支持的版本，恢复 TS/TSX 与 React Hooks lint（原 P4） | 完成：TypeScript 6.0.3 + typescript-eslint 8.71.2；边界/IPC 检查改用公开编译器 API | lint 覆盖 `src`/`modules`/`tests` 的 TS/TSX；故意的 Hooks 违规样本被拒绝；现有违规逐项修复 |
 | R2 原则修复 | 边界门禁覆盖全部 `src`；Agent 改用自身 `state.*` 命名空间并迁移旧数据；Agent 损坏不阻断启动；Agent 类型移出 SDK；扩展管理器去 Agent 特判；诊断改用结构化错误；`host.ts` 按职责拆分（原 P3） | 待开始 | 补洞后的门禁先在旧代码上失败再修复；坏 Agent 数据下应用可启动、管理可用、坏数据保留；旧快照中的 Agent 迁移后可用 |
 | R3 存储与多实例 | 桌面单实例（原 P5）；会话消息按会话分片存储；Broker 拒绝保留名；提交补目录 fsync、读前检查大小、清理陈旧临时文件；重录密钥后删除旧引用 | 待开始 | 累计超过 64 KiB 的多会话可持续保存；第二实例聚焦首实例；保留名 owner 被拒绝 |
 | R4 真实连接器 | 最小安全集（见下节）接通 `credential.request`，DeepSeek 扩展进入目录、默认不启用 | 待开始 | 单元测试覆盖重定向/超时/超限/取消/未授权零发送；Mac 普通包与 Android 模拟器各一次真实调用；WebView 存储与日志无密钥 |

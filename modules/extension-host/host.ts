@@ -430,7 +430,7 @@ export class Host {
             record.error += `; ${this.describe(cleanup)}`;
           }
           this.changed();
-          throw new Error(record.error);
+          throw new Error(record.error, { cause: error });
         }
       }
     } while (progress);

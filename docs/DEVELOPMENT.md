@@ -10,13 +10,13 @@
 
 提交前运行 `npm run verify:web`，依次检查构建与类型、单元测试、Prettier、项目清单与导入边界、文件行数、ESLint。原生工具齐备时运行 `npm run verify`，串联 Web 与 `npm run verify:native`；后者依次核对 Rust 导出的默认／实验 IPC 契约、执行 Rust 格式、Clippy 和原生单元。缺少工具或命令失败均单独记录，不作为通过。浏览器回归单独运行 `npm run verify:e2e`，不进入默认门禁。E2E 默认自起隔离 dev server，1420 被占用或来源不明时失败而非复用；只有快速迭代可显式设置 `PLUMS_E2E_REUSE_SERVER=1` 复用本地服务，该模式不作为证据。
 
-ESLint 使用 flat config 与推荐 JS 规则，不承担排版。当前 TypeScript 7.0.2 不满足 typescript-eslint 8.71.2 的 peer 范围，保留原 TypeScript，JS/MJS/JSX 使用 ESLint；src 下的 JS/JSX 启用 Hooks 错误与依赖警告。TS/TSX Hooks lint 待兼容解析器，不能用 tsc 通过替代。
+ESLint 使用 flat config，对全部 JS/TS/TSX 启用推荐规则、typescript-eslint 推荐规则（不含类型感知规则）与 React Hooks 两条规则（均为错误），不承担排版。TypeScript 固定在 typescript-eslint 支持的版本；升级 TypeScript 前先确认其 peer 范围。以 `_` 开头的未用变量视为有意忽略；确需逐行豁免时写明原因。
 
 `verify:web` 使用 `npm run check:project -- --boundaries`，复用已锁定 TypeScript 的 AST 检查 TS、TSX、JS、MJS 的静态路径 import、export、类型导入、动态 import 和 require。仓库相对路径按允许名单检查：SDK 仅自身；宿主仅自身与 SDK；`modules/shell` 仅自身、宿主与 SDK；扩展仅扩展目录与 SDK。`src/shell` 仅通用 modules、外壳、组件、管理功能及平台／凭据适配入口，默认应用组合留在 `src/application.ts`。未知 modules 目录、父目录桶入口（如 `"../"`）与仓库逃逸路径均拒绝。
 
 通用宿主及两层外壳禁止直引 `modules/sdk/agents`，也检查通过 SDK barrel 间接引入的情况；业务视图 ID 字面量不得回到这些层。业务模块及其他 src 装配代码不作为检查起点。源码解析失败、候选集合为空均失败。非字面量动态 import/require 和包名导入不在此仓库相对路径检查范围；这不是运行时安全沙箱。
 
-完整门禁须在仓库根执行以覆盖所有源码与 SDK barrel；裁剪集合不能证明全仓边界。先按 README 执行 npm ci，无需新增解析器依赖。脚本使用 TypeScript 7 的 unstable API，升级 TypeScript 时须重验边界用例。普通 `npm run check:project` 仍只需 Node，检查清单、文档及隐私模式。
+完整门禁须在仓库根执行以覆盖所有源码与 SDK barrel；裁剪集合不能证明全仓边界。边界与 IPC 导入检查通过 `scripts/parse-sources.mjs` 使用 TypeScript 公开编译器 API 在内存中解析，不做类型解析或文件 I/O。普通 `npm run check:project` 仍只需 Node，检查清单、文档及隐私模式。
 
 `check:size` 扫描项目源码清单的 TS、TSX、JS、MJS、Rust、Kotlin 和 CSS，默认上限 400 行；已有超长文件使用 [固定清单](../scripts/check-size.mjs)。以物理行数计数，末尾换行不增加空行；减少文件规模后人工降低上限，不自动更新或提高。清单包含测试，生成输出沿用项目清单的排除规则。
 

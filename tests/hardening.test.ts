@@ -175,33 +175,42 @@ it("reports the original line of a forbidden import", () => {
   ).toBe("modules/sdk/example.ts:3: forbidden import ../../src/platform");
 });
 
-it("enforces Hooks errors and dependency warnings on supported JavaScript input", async () => {
-  const eslint = new ESLint();
-  const [bad] = await eslint.lintText(
-    'import { useState } from "react"; export function Example({ show }) { if (show) useState(0); return null; }',
-    { filePath: "src/hardening-probe.jsx" },
-  );
-  expect(bad.messages).toEqual(
-    expect.arrayContaining([
-      expect.objectContaining({
-        ruleId: "react-hooks/rules-of-hooks",
-        severity: 2,
-      }),
-    ]),
-  );
-  const [deps] = await eslint.lintText(
-    'import { useEffect } from "react"; export function Example({ value }) { useEffect(() => console.log(value), []); return null; }',
-    { filePath: "src/hardening-probe.jsx" },
-  );
-  expect(deps.messages).toEqual(
-    expect.arrayContaining([
-      expect.objectContaining({
-        ruleId: "react-hooks/exhaustive-deps",
-        severity: 1,
-      }),
-    ]),
-  );
-});
+it.each(["src/hardening-probe.jsx", "src/hardening-probe.tsx"])(
+  "rejects Hooks violations in %s",
+  async (filePath) => {
+    const eslint = new ESLint();
+    const [bad] = await eslint.lintText(
+      'import { useState } from "react"; export function Example({ show }: { show: boolean }) { if (show) useState(0); return null; }'.replace(
+        filePath.endsWith(".jsx") ? ": { show: boolean }" : "\0",
+        "",
+      ),
+      { filePath },
+    );
+    expect(bad.messages).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          ruleId: "react-hooks/rules-of-hooks",
+          severity: 2,
+        }),
+      ]),
+    );
+    const [deps] = await eslint.lintText(
+      'import { useEffect } from "react"; export function Example({ value }: { value: string }) { useEffect(() => console.log(value), []); return null; }'.replace(
+        filePath.endsWith(".jsx") ? ": { value: string }" : "\0",
+        "",
+      ),
+      { filePath },
+    );
+    expect(deps.messages).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          ruleId: "react-hooks/exhaustive-deps",
+          severity: 2,
+        }),
+      ]),
+    );
+  },
+);
 
 it.each([
   ["modules/sdk/probe.ts", "../unknown-business/store"],

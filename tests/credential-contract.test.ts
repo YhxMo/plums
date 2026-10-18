@@ -214,8 +214,7 @@ it("allows exact byte boundaries and returns HTTP errors without retry", async (
 });
 
 it("rejects response getter revocation before delivery", async () => {
-  let p: FakeCredentialPlatform;
-  p = await setup(async () => ({
+  const p: FakeCredentialPlatform = await setup(async () => ({
     status: 200,
     get body() {
       void p.grant(owner, []);

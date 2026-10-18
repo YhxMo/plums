@@ -21,17 +21,19 @@ export function Dialog({
   const opener = useRef(returnFocusTo);
   const fallback = useRef(fallbackFocus);
   useEffect(() => {
+    const dialog = ref.current;
+    const returnFallback = fallback.current;
     const active =
       opener.current ?? (document.activeElement as HTMLElement | null);
-    ref.current?.showModal();
+    dialog?.showModal();
     // Opening a dialog can give its first button a keyboard focus ring.
     // Start at the title without displacing a focused form control.
     if (document.activeElement === close.current)
       heading.current?.focus({ preventScroll: true });
     return () => {
-      ref.current?.close();
+      dialog?.close();
       if (active?.isConnected && active.getClientRects().length) active.focus();
-      else fallback.current?.()?.focus();
+      else returnFallback?.()?.focus();
     };
   }, []);
   return (

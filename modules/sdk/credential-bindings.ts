@@ -53,6 +53,7 @@ function parseUrl(value: unknown, path: string) {
     max: 512,
     label: "Invalid credential URL",
   });
+  // eslint-disable-next-line no-control-regex -- rejecting control characters is the point
   if (raw !== raw.trim() || /[\u0000-\u0020\u007f\\?#]/.test(raw))
     invalid(path, "Invalid credential URL");
   let url: URL;
@@ -100,6 +101,7 @@ export function validateCredentialBindings(
       max: 80,
       label: "Invalid credential binding label",
     });
+    // eslint-disable-next-line no-control-regex -- rejecting control characters is the point
     if (!label.trim() || /[\u0000-\u001f\u007f]/.test(label))
       invalid(`${path}.label`, "Invalid credential binding label");
     const url = parseUrl(declaration.target, `${path}.target`);

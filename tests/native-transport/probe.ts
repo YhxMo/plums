@@ -2,7 +2,6 @@ import { invokeExperimental as invoke } from "../fixtures/native-invoke";
 const owner = "probe.alpha";
 let sequence = 0;
 type Failure = { code: string; outcome: string };
-type Reply = { status: number; body: string };
 const checks: string[] = [];
 function assert(value: unknown, label: string): asserts value {
   if (!value) throw Error(label);
@@ -145,7 +144,9 @@ async function run() {
     try {
       await invoke("probe_grant", { owner, allow: true });
       await request("report", JSON.stringify(report));
-    } catch {}
+    } catch {
+      /* The report is best effort; the page already shows the result. */
+    }
   }
 }
 void run();

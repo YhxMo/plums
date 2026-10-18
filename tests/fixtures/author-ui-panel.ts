@@ -15,14 +15,14 @@ export function createPanel(): ExtensionDefinition {
       const node: ViewNode = {
         id: "panel.counter",
         mount(root, scope) {
-          let button: HTMLButtonElement | undefined;
-          let value: HTMLParagraphElement | undefined;
+          const value = document.createElement("p");
+          const button = document.createElement("button");
           const onClick = () => {
             clicks += 1;
-            if (value) value.textContent = `已完成 ${clicks} 项`;
+            value.textContent = `已完成 ${clicks} 项`;
           };
           scope.onDispose(() => {
-            button?.removeEventListener("click", onClick);
+            button.removeEventListener("click", onClick);
             root.replaceChildren();
             live -= 1;
             closed += 1;
@@ -32,10 +32,8 @@ export function createPanel(): ExtensionDefinition {
           section.dataset.testid = "counter";
           const heading = document.createElement("h2");
           heading.textContent = "今日进度";
-          value = document.createElement("p");
           value.dataset.testid = "counter-value";
           value.textContent = `已完成 ${clicks} 项`;
-          button = document.createElement("button");
           button.type = "button";
           button.textContent = "完成一项";
           button.addEventListener("click", onClick);

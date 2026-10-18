@@ -154,77 +154,71 @@ for (const width of [375, 1180]) {
 test("connector key entry uses native metadata and recovers an unknown save", async ({
   page,
 }) => {
-  await page.addInitScript(
-    ({ declaration }) => {
-      const w = window as unknown as {
-        isTauri: boolean;
-        __TAURI_INTERNALS__: unknown;
-        __credentialPayloads: unknown[];
-      };
-      w.isTauri = true;
-      w.__credentialPayloads = [];
-      let records: unknown[] = [];
-      let entries = 0;
-      const imported = {
-        id: "connector.deepseek",
-        label: "DeepSeek 测试",
-        url: "/connectors/deepseek.js",
-      };
-      let saved = { revision: 1, value: { version: 1, imports: [imported] } };
-      w.__TAURI_INTERNALS__ = {
-        invoke: async (
-          command: string,
-          args: {
-            owner?: string;
-            alias?: string;
-            declaration?: typeof declaration;
-            capability?: string;
-            payload?: { revision: number; value: typeof saved.value };
-          },
-        ) => {
-          if (command === "credential_supported") return true;
-          if (
-            command === "credential_inventory" ||
-            command === "credential_list"
-          )
-            return records;
-          if (command === "credential_configure") {
-            w.__credentialPayloads.push(args);
-            if (++entries > 1) return { status: "cancelled" };
-            records = [
-              {
-                owner: args.owner,
-                alias: args.alias,
-                declaration: args.declaration,
-                source: imported.url,
-                version: "0.1.0",
-                revision: 1,
-                status: "pending",
-                route: { type: "direct" },
-              },
-            ];
-            return { status: "unknown" };
-          }
-          if (command === "credential_reconcile") {
-            records = (records as Array<Record<string, unknown>>).map(
-              (record) => ({ ...record, status: "ready", revision: 2 }),
-            );
-            return { status: "saved" };
-          }
-          if (command === "document_supported") return false;
-          if (command === "platform_call") {
-            if (args.capability === "state.read") return saved;
-            if (args.capability === "state.write")
-              return (saved = {
-                revision: args.payload!.revision + 1,
-                value: args.payload!.value,
-              });
-          }
+  await page.addInitScript(() => {
+    const w = window as unknown as {
+      isTauri: boolean;
+      __TAURI_INTERNALS__: unknown;
+      __credentialPayloads: unknown[];
+    };
+    w.isTauri = true;
+    w.__credentialPayloads = [];
+    let records: unknown[] = [];
+    let entries = 0;
+    const imported = {
+      id: "connector.deepseek",
+      label: "DeepSeek 测试",
+      url: "/connectors/deepseek.js",
+    };
+    let saved = { revision: 1, value: { version: 1, imports: [imported] } };
+    w.__TAURI_INTERNALS__ = {
+      invoke: async (
+        command: string,
+        args: {
+          owner?: string;
+          alias?: string;
+          declaration?: typeof declaration;
+          capability?: string;
+          payload?: { revision: number; value: typeof saved.value };
         },
-      };
-    },
-    { declaration },
-  );
+      ) => {
+        if (command === "credential_supported") return true;
+        if (command === "credential_inventory" || command === "credential_list")
+          return records;
+        if (command === "credential_configure") {
+          w.__credentialPayloads.push(args);
+          if (++entries > 1) return { status: "cancelled" };
+          records = [
+            {
+              owner: args.owner,
+              alias: args.alias,
+              declaration: args.declaration,
+              source: imported.url,
+              version: "0.1.0",
+              revision: 1,
+              status: "pending",
+              route: { type: "direct" },
+            },
+          ];
+          return { status: "unknown" };
+        }
+        if (command === "credential_reconcile") {
+          records = (records as Array<Record<string, unknown>>).map(
+            (record) => ({ ...record, status: "ready", revision: 2 }),
+          );
+          return { status: "saved" };
+        }
+        if (command === "document_supported") return false;
+        if (command === "platform_call") {
+          if (args.capability === "state.read") return saved;
+          if (args.capability === "state.write")
+            return (saved = {
+              revision: args.payload!.revision + 1,
+              value: args.payload!.value,
+            });
+        }
+      },
+    };
+  });
   await page.goto("/");
   await manage(page);
   await page.getByText("DeepSeek 测试", { exact: true }).click();

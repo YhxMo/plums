@@ -42,7 +42,7 @@ export async function readRoleCardLink(url: string, signal: AbortSignal) {
     parseRoleCard(card);
     return card;
   } catch (error) {
-    if (timedOut) throw Error("角色卡读取超时，请重试。");
+    if (timedOut) throw Error("角色卡读取超时，请重试。", { cause: error });
     throw error;
   } finally {
     clearTimeout(timer);

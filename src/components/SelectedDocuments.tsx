@@ -34,7 +34,8 @@ export function SelectedDocuments({
         },
       );
     return () => {
-      generation.current++;
+      // Only this effect advances the generation, so this invalidates epoch.
+      generation.current = epoch + 1;
       controller.current?.abort();
     };
   }, [adapter, owner, enabled]);

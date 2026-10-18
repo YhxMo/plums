@@ -141,6 +141,7 @@ test("non-JSON callback output is rejected instead of silently converted", async
     new Date(),
     NaN,
     Infinity,
+    // eslint-disable-next-line no-sparse-arrays -- the hole is the rejected input
     [, 1],
     { x: () => 1 },
     { toJSON: () => ({ labels: ["hidden"] }) },

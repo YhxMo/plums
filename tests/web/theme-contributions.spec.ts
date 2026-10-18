@@ -149,7 +149,9 @@ test("a palette getter invalidating its scope cannot reserve a theme id", async 
         get label() {
           try {
             close();
-          } catch {}
+          } catch {
+            /* The getter only needs to trigger invalidation. */
+          }
           return "invalidating getter";
         },
       });

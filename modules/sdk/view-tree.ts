@@ -113,6 +113,7 @@ export function mountViewTree(root: HTMLElement, node: ViewNode): ViewTree {
         throw new AggregateError(
           [error, cleanupError],
           "View mount and cleanup failed",
+          { cause: cleanupError },
         );
       }
       throw error;

@@ -46,14 +46,17 @@ export function useWorkspaceChrome(workspace: Workspace) {
   useEffect(() => {
     setCustomOpen(false);
   }, [workspace.activeView, custom?.id, custom?.generation]);
+  const customId = custom?.id;
+  const customGeneration = custom?.generation;
   useEffect(() => {
+    // A newly selected custom sidebar replaces an open built-in sidebar.
     if (
-      custom &&
+      customId !== undefined &&
       state.sidebar?.open &&
       state.sidebar.presentation !== "dialog"
     )
       invoke(() => state.sidebar!.close());
-  }, [custom?.id, custom?.generation, state.sidebar, invoke]);
+  }, [customId, customGeneration, state.sidebar, invoke]);
   return {
     title: state.title ?? "",
     back: state.back ? () => invoke(() => state.back!()) : undefined,

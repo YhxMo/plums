@@ -260,7 +260,7 @@ for (const action of ["release-failure", "stop", "revoke"] as const)
 
 it("does not enter a queued task body after its scope was invalidated synchronously", async () => {
   const host = new Host(platform);
-  let notify!: () => void, close!: () => void | Promise<void>;
+  let notify!: () => void;
   let task!: Promise<unknown>,
     taskBodies = 0;
   host.install(
@@ -298,7 +298,7 @@ it("does not enter a queued task body after its scope was invalidated synchronou
     ),
   );
   for (const id of ["bus", "root", "consumer"]) await host.start(id);
-  close = host.mountView("root", {} as HTMLElement);
+  const close = host.mountView("root", {} as HTMLElement);
   try {
     notify();
     await expect(task).rejects.toThrow("Extension stopped");

@@ -483,7 +483,7 @@ async function runSelectedScenario() {
   };
   try {
     await lifecycle;
-    let files = new Map<string, Descriptor>();
+    const files = new Map<string, Descriptor>();
     let access: RawDocumentAccess | undefined;
     await check("five-selected-fixtures-ready", async () => {
       assert(

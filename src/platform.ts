@@ -137,6 +137,7 @@ export class PlatformAdapter implements Platform {
           });
         throw new Error(
           typeof error === "string" ? error : "Native platform call failed",
+          { cause: error },
         );
       }
       // A dispatched native write is a non-cancellable commit segment. Its receipt wins.
