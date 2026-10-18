@@ -29,6 +29,7 @@ export type Runtime = Readonly<{
     > & {
       failedImports: Record<string, string>;
       compositionErrors: string[];
+      startErrors: string[];
       platformErrors: string[];
     }
   >;
@@ -69,6 +70,8 @@ export type ShellApplication = {
     state: Preferences,
     save: Runtime["save"],
   ) => ExtensionDefinition[];
+  /** Capabilities the application grants its own built-in extensions. */
+  grants?: Record<string, string[]>;
   start: string[];
 };
 
@@ -111,10 +114,21 @@ export async function bootShell(
   host.connectShell(createShellBridge({ save, current }, events));
   for (const extension of application.extensions(preferences, save))
     host.install(extension, configurations[extension.manifest.id]);
+  for (const [id, capabilities] of Object.entries(application.grants ?? {}))
+    await host.grant(id, capabilities);
   const compositionErrors = composition
     ? await restoreComposition(host, composition)
     : [];
-  if (!composition) for (const id of application.start) await host.start(id);
+  // One extension's failed activation must not block the shell.
+  const startErrors: string[] = [];
+  if (!composition)
+    for (const id of application.start) {
+      try {
+        await host.start(id);
+      } catch (error) {
+        startErrors.push(`${id}：${errorMessage(error)}`);
+      }
+    }
   const platformErrors = [
     adapter.documentsInitializationError &&
       `文档服务初始化失败：${adapter.documentsInitializationError}`,
@@ -133,6 +147,7 @@ export async function bootShell(
       failedImports,
       composition,
       compositionErrors,
+      startErrors,
       platformErrors,
       configurations,
     },

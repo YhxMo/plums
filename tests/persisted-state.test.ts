@@ -167,50 +167,31 @@ it("boots an alternative composition without interpreting opaque Agent data", as
   expect(runtime.initial.layout).toBe("notes");
 });
 
-it("keeps legacy roles, sessions and opaque draft fields in the shared snapshot", async () => {
-  const { AgentStore } = await import("../modules/agents/store");
-  const store = new AgentStore(
-    [],
-    async () => {},
-    async () => "旧回复",
-  );
-  const role = await store.create({
-    name: "旧角色",
-    description: "旧说明",
-    multiSession: true,
-  });
-  await store.send(role.id, "旧输入");
-  const savedAgents = structuredClone(store.list()).map((agent) => ({
-    ...agent,
-    status: "busy",
-    canCancel: true,
-  }));
-  const opaque = {
-    drafts: { [role.id]: "未发送草稿" },
-    future: { kept: true },
-  };
-  prepareRuntime({ version: 1, agents: savedAgents, ...opaque });
+it("leaves legacy Agent data opaque in the shell until agents.local retires it", async () => {
+  const agents = [{ id: "a", status: "busy", canCancel: true, future: 1 }];
+  const opaque = { drafts: { a: "未发送草稿" }, future: { kept: true } };
+  prepareRuntime({ version: 1, agents, ...opaque });
   const before = structuredClone(runtimeFixture.saved);
   const runtime = await boot();
   await runtime.save({ theme: "dark" });
   const saved = runtimeFixture.write.mock.calls[0][0].value;
-  expect(saved).toMatchObject(opaque);
-  expect(saved.agents[0]).toMatchObject({
-    name: "旧角色",
-    description: "旧说明",
-    status: "idle",
-    sessions: savedAgents[0].sessions,
-  });
-  expect(saved.agents[0]).not.toHaveProperty("canCancel");
+  expect(saved).toMatchObject({ ...opaque, agents });
   expect(runtimeFixture.saved).toEqual(before);
 });
 
-it("validates business data before default application installation or writes", async () => {
+it("boots with corrupt legacy Agent data without validating or writing it", async () => {
   prepareRuntime({ version: 1, agents: { malformed: true } });
-  await expect(boot()).rejects.toMatchObject({
-    code: "state.corrupt",
-    detail: "agents",
-  });
-  expect(runtimeFixture.install).not.toHaveBeenCalled();
+  const runtime = await boot();
+  expect(runtime.initial.startErrors).toEqual([]);
+  expect(runtimeFixture.install).toHaveBeenCalled();
   expect(runtimeFixture.write).not.toHaveBeenCalled();
+});
+
+it("reports a failed default start without blocking the shell", async () => {
+  runtimeFixture.start.mockImplementation(async (id: string) => {
+    if (id === "agents.local") throw new Error("Agent 配置损坏");
+  });
+  const runtime = await boot();
+  expect(runtime.initial.startErrors).toEqual(["agents.local：Agent 配置损坏"]);
+  expect(runtimeFixture.start).toHaveBeenCalledWith("ui.agents");
 });

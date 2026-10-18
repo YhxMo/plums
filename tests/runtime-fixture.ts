@@ -46,6 +46,7 @@ vi.mock("../src/platform", () => ({
 vi.mock("../modules/extension-host/host", () => ({
   Host: class {
     install = runtimeFixture.install;
+    grant = async () => {};
     start = runtimeFixture.start;
     connectShell = runtimeFixture.connectShell;
   },
@@ -64,7 +65,7 @@ export function prepareRuntime(value: unknown = { version: 1 }) {
     value: next.value,
   }));
   runtimeFixture.install.mockClear();
-  runtimeFixture.start.mockClear();
+  runtimeFixture.start.mockReset();
   runtimeFixture.connectShell.mockClear();
   vi.stubGlobal("location", new URL("http://localhost:1420/"));
   vi.stubGlobal(

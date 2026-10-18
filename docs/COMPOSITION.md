@@ -2,7 +2,7 @@
 
 状态：当前有效（2026-10-18 核实）；M2 限定实现，完整组合升级事务与恢复未完成。
 
-扩展管理的“保存当前组合”显式替换一个本地快照。外壳 `host.shell` 的既有 version 1 配置新增可选 `composition: { schema: 1, enabled: [{ id, version }] }`；未设置时沿用默认启用集合。旧配置无需迁移，未知 schema 和损坏结构拒绝启动且不覆盖原数据。默认启用集合、布局兼容与业务恢复在 `src/application.ts` 接线；`bootShell(application)` 本身不要求 `agents` 服务。`host.shell` 中既有 Agent、会话与其他不透明字段保留原位置，仍与主题、页面、安装路径共用串行写入和 revision。
+扩展管理的“保存当前组合”显式替换一个本地快照。外壳 `host.shell` 的既有 version 1 配置新增可选 `composition: { schema: 1, enabled: [{ id, version }] }`；未设置时沿用默认启用集合。旧配置无需迁移，未知 schema 和损坏结构拒绝启动且不覆盖原数据。默认启用集合、布局兼容与业务恢复在 `src/application.ts` 接线；`bootShell(application)` 本身不要求 `agents` 服务。`host.shell` 中的其他不透明字段保留原位置，与主题、页面、安装路径共用串行写入和 revision；旧版 Agent 字段由 `agents.local` 迁出后移除。
 
 快照保存 desired 启用意图及精确扩展版本，包括等待权限/依赖的项；不保存瞬时运行状态。提供者由启用集合确定，同名服务冲突拒绝保存或恢复，不重复维护提供者映射。激活失败、清理未完成、停用中的项不能保存为新组合。布局和主题与快照同次保存；安装路径继续由 imports 管理。扩展运行数据仍归扩展状态作用域；非敏感声明配置由独立 configurations 表按扩展 ID 保存，见 [配置契约](EXTENSION-CONFIGURATION.md)，不随组合快照复制。
 

@@ -228,7 +228,11 @@ test("legacy unconfigured workbench default boots into Agents without changing s
     .click();
   const original = await page.evaluate(() => {
     const key = "plums:m1:host.shell";
-    const data = JSON.parse(localStorage.getItem(key)!);
+    // Agents save to their own state, so the shell may not have written yet.
+    const data = JSON.parse(
+      localStorage.getItem(key) ??
+        '{"schema":1,"revision":1,"value":{"version":1}}',
+    );
     data.value.layout = "default";
     data.value.theme = "dark";
     delete data.value.layoutIntent;

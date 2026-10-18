@@ -1,5 +1,4 @@
 import { agentExtension } from "../modules/agents/provider";
-import { restoreAgents } from "../modules/agents/store";
 import { textWorkbench } from "../modules/text-workbench/extension";
 import { agentUI } from "./agents/extension";
 import { bootShell, type ShellApplication } from "./shell/runtime";
@@ -24,7 +23,6 @@ export const defaultApplication: ShellApplication = {
   restore(state) {
     return {
       ...state,
-      agents: restoreAgents(state.agents),
       // Only the unmarked early-preview layout adopts the Agent start.
       layout:
         state.layout === "default" &&
@@ -38,11 +36,14 @@ export const defaultApplication: ShellApplication = {
   },
   extensions: (state, save) => [
     textWorkbench,
-    agentExtension(restoreAgents(state.agents), (agents, options) =>
-      save({ agents }, options),
-    ),
+    // Agents moved from the shell snapshot to agents.local's own state.
+    agentExtension({
+      legacy: state.agents,
+      retireLegacy: () => save({ agents: undefined }),
+    }),
     agentUI(),
   ],
+  grants: { "agents.local": ["state.read", "state.write"] },
   start: ["transform.upper", "agents.local", "ui.agents"],
 };
 

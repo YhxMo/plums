@@ -34,7 +34,7 @@
 
 `agents.local` 是扩展层业务提供者，以 `agents@1` 公开快照、订阅、角色与会话操作；`ui.agents`（`src/agents/`）通过 `ctx.use` 消费，再用 `ctx.view` 注册默认界面；服务契约在 `modules/agents/contract.ts`。角色卡解析和文本执行位于扩展模块。`src/application.ts` 组合默认应用：调用业务模块的恢复函数，接线内置扩展与默认启用集合，并保留旧布局的兼容规则；`src/shell/runtime.ts` 的 `bootShell(application)` 编排通用配置解析、安装和组合恢复，`persistence.ts` 串行保存不透明快照字段。通用 Host、ExtensionContext、外壳、扩展管理与 Rust 桥接不读取 Agent 数据格式，也不展示 Agent 关联。公开提供者说明用于呈现实际来源、版本与执行范围，外部提供者无需模仿内置实现。
 
-默认组合使用本地文本服务；[DeepSeek 协议扩展](DEEPSEEK.md)已提供可替换服务的隔离接线，生产传输、秘密读取/注入、发送授权与真实调用按 M2.3 继续，MCP 客户端待实现。外部视图启用后优先选中，工作台、画布和默认 Agent 界面可独立替换；最小启用集合、精确版本与配置快照已实现。复杂多提供者政策、组合升级事务和长期会话存储待实现。角色/会话与外观暂共同存于 `host.shell` 小快照，业务格式归扩展管理。
+默认组合使用本地文本服务；[DeepSeek 协议扩展](DEEPSEEK.md)已提供可替换服务的隔离接线，生产传输、秘密读取/注入、发送授权与真实调用按 M2.3 继续，MCP 客户端待实现。外部视图启用后优先选中，工作台、画布和默认 Agent 界面可独立替换；最小启用集合、精确版本与配置快照已实现。复杂多提供者政策、组合升级事务和长期会话存储待实现。`agents.local` 通过自身 `ctx.platform("state.*")` 存于 `extension.agents.local`（`{ version: 1, agents }`），由组合根预授权；旧版 `host.shell.agents` 在首次启动时迁移一次，成功后由组合根移除该字段，移除失败下次启动重试。Agent 数据损坏只让 `agents.local` 进入失败态并在启动提示中列出，外壳、扩展管理与其他扩展照常运行，原数据不覆盖。
 
 建议保留可信授权与安全提示边界，不允许扩展通过公开 API 隐藏必要授权或伪造授权结果。呈现层是否能防止伪装须由实际隔离与 UI 方案证明；同环境可信代码可能仿造界面，不能把这项建议写成已有安全保证。
 
@@ -63,7 +63,7 @@
 
 `src/shell/useAsyncAction.ts` 共用忙碌、错误与通知状态。Agent 将 AbortError 显示为停止通知，外壳 `useOperations` 保留 `errorMessage` 错误映射；共用 Hook 不改变两者的反馈语义。
 
-Runtime 的 initial 只作外观、布局、恢复诊断和扩展状态的启动初值；运行中不再读取它作为扩展当前快照。catalog 仍是供加载与诊断消费的稳定目录引用。扩展状态队列串行覆盖整个读／改／保存过程，避免并发动作使用同一旧数组或配置表；persistence 继续串行所有 host.shell 写入和 revision，包括 Agent、页面与外观。两个队列各自持有单向依赖，扩展动作通过稳定 save 进入 persistence。
+Runtime 的 initial 只作外观、布局、恢复诊断和扩展状态的启动初值；运行中不再读取它作为扩展当前快照。catalog 仍是供加载与诊断消费的稳定目录引用。扩展状态队列串行覆盖整个读／改／保存过程，避免并发动作使用同一旧数组或配置表；persistence 继续串行所有 host.shell 写入和 revision，包括页面与外观；Agent 由其扩展自行串行保存。两个队列各自持有单向依赖，扩展动作通过稳定 save 进入 persistence。
 
 状态只发布已确认的结果，写入拒绝时无需撤回乐观值；未知回执仍由 persistence 锁住后续写入。最终卸载失败时保留实时 imports，同时发布已经确认的 composition 裁剪；路径保存成功后安装失败也保留已确认路径。生命周期、模块目录和扩展数据的原语义保持。
 

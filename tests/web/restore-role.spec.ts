@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { manage } from "./helpers";
 
 function state(role: unknown) {
   return JSON.stringify({
@@ -38,7 +39,7 @@ function state(role: unknown) {
   });
 }
 
-test("invalid saved role blocks boot without replacing persisted bytes", async ({
+test("invalid saved role fails only the Agent provider and keeps persisted bytes", async ({
   page,
 }) => {
   const original = state(["user"]);
@@ -47,12 +48,47 @@ test("invalid saved role blocks boot without replacing persisted bytes", async (
       localStorage.setItem("plums:m1:host.shell", raw);
   }, original);
   await page.goto("/");
-  await expect(page.getByRole("alert")).toContainText("会话配置损坏");
-  await page.getByRole("button", { name: "重新加载", exact: true }).click();
-  await expect(page.getByRole("alert")).toContainText("会话配置损坏");
+  const alert = page.getByRole("alert").filter({ hasText: "扩展启动失败" });
+  await expect(alert).toContainText("agents.local");
+  await expect(alert).toContainText("会话配置损坏");
+  await manage(page);
+  await expect(
+    page
+      .locator("#extension-manager article")
+      .filter({ hasText: "本地 Agent 提供者" }),
+  ).toContainText("会话配置损坏");
   expect(
-    await page.evaluate(() => localStorage.getItem("plums:m1:host.shell")),
-  ).toBe(original);
+    await page.evaluate(() => [
+      localStorage.getItem("plums:m1:host.shell"),
+      localStorage.getItem("plums:m1:extension.agents.local"),
+    ]),
+  ).toEqual([original, null]);
+});
+
+test("legacy shell roles move to the Agent provider's own state once", async ({
+  page,
+}) => {
+  await page.addInitScript((raw) => {
+    if (!localStorage.getItem("plums:m1:host.shell"))
+      localStorage.setItem("plums:m1:host.shell", raw);
+  }, state("user"));
+  await page.goto("/");
+  await expect(
+    page.getByRole("button", { name: "与 RestoreRole 交互", exact: true }),
+  ).toBeVisible();
+  const stored = () =>
+    page.evaluate(() => ({
+      shell: JSON.parse(localStorage.getItem("plums:m1:host.shell")!).value,
+      own: JSON.parse(localStorage.getItem("plums:m1:extension.agents.local")!),
+    }));
+  const first = await stored();
+  expect(first.shell).not.toHaveProperty("agents");
+  expect(first.own.value.agents[0].name).toBe("RestoreRole");
+  await page.reload();
+  await expect(
+    page.getByRole("button", { name: "与 RestoreRole 交互", exact: true }),
+  ).toBeVisible();
+  expect((await stored()).own.revision).toBe(first.own.revision);
 });
 
 test("valid saved roles restore with correct attribution after reload", async ({

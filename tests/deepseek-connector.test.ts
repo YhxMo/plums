@@ -3,6 +3,7 @@ import connector from "../extensions/connectors/deepseek.js";
 import upper from "../extensions/services/upper.js";
 import { Host } from "../modules/extension-host/host";
 import { agentExtension } from "../modules/agents/provider";
+import type { Platform, StoredState } from "../modules/sdk";
 import type { AgentProvider } from "../modules/agents/contract";
 import type { Transformer } from "../extensions/contracts";
 import {
@@ -43,11 +44,30 @@ function fixture(
     dispatch,
   );
   const call = vi.spyOn(platform, "call");
-  const host = new Host(platform);
+  // Agents keep their own state; credentials stay on the fake credential path.
+  const states = new Map<string, StoredState>();
+  const host = new Host({
+    kind: "browser",
+    available: (name) => name.startsWith("state.") || platform.available(name),
+    grant: (owner, capabilities) =>
+      platform.grant(
+        owner,
+        capabilities.filter((name) => !name.startsWith("state.")),
+      ),
+    async call(owner, name, payload, signal) {
+      if (name === "state.read") return states.get(owner) ?? null;
+      if (name !== "state.write")
+        return platform.call(owner, name, payload, signal);
+      const { revision, value } = payload as StoredState;
+      const next = { revision: revision + 1, value };
+      states.set(owner, next);
+      return next;
+    },
+  } satisfies Platform);
   let service: Transformer;
   let agents: AgentProvider;
   host.install(connector, configuration);
-  host.install(agentExtension([], async () => {}));
+  host.install(agentExtension());
   host.install({
     manifest: {
       id: "consumer.text",
@@ -76,6 +96,7 @@ function fixture(
     },
     async enable() {
       await host.grant(id, ["credential.request"]);
+      await host.grant("agents.local", ["state.read", "state.write"]);
       await host.start(id);
       await host.start("agents.local");
       await host.start("consumer.text");

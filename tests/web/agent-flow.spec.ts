@@ -642,8 +642,8 @@ test("service reply boundary rejects without losing draft and valid output survi
   expect(
     await page.evaluate(
       () =>
-        JSON.parse(localStorage.getItem("plums:m1:host.shell")!).value.agents[0]
-          .sessions[0].messages.length,
+        JSON.parse(localStorage.getItem("plums:m1:extension.agents.local")!)
+          .value.agents[0].sessions[0].messages.length,
     ),
   ).toBe(0);
   await input.fill("boundary");

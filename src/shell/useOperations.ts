@@ -5,6 +5,7 @@ import { useAsyncAction } from "../components/useAsyncAction";
 /** Combine boot-time failure classes so one does not hide the others. */
 export function initialErrorFor(initial: {
   compositionErrors: string[];
+  startErrors?: string[];
   platformErrors: string[];
   failedImports: Record<string, string>;
 }) {
@@ -12,6 +13,10 @@ export function initialErrorFor(initial: {
   if (initial.compositionErrors.length)
     parts.push(
       `组合未完整恢复：${initial.compositionErrors.join("；")}。原配置已保留。`,
+    );
+  if (initial.startErrors?.length)
+    parts.push(
+      `扩展启动失败：${initial.startErrors.join("；")}。可在扩展管理查看。`,
     );
   if (initial.platformErrors.length)
     parts.push(`${initial.platformErrors.join("；")}。请重新加载应用后重试。`);
