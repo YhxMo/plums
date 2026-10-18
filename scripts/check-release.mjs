@@ -22,6 +22,19 @@ for (const file of readdirSync(join(dist, "assets")).filter((name) =>
     if (source.includes(marker))
       problems.push(`assets/${file} contains ${marker}`);
 }
+// Imported files load from Blob URLs; nothing else may widen the policy.
+const policy =
+  "default-src 'self'; script-src 'self' blob:; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src ipc: http://ipc.localhost 'self'; object-src 'none'; base-uri 'self'";
+const tauri = JSON.parse(
+  readFileSync(
+    new URL("../src-tauri/tauri.conf.json", import.meta.url),
+    "utf8",
+  ),
+);
+if (tauri.app.security.csp !== policy)
+  problems.push(
+    "src-tauri/tauri.conf.json: CSP differs from the reviewed policy",
+  );
 if (problems.length) {
   console.error(problems.join("\n"));
   process.exit(1);

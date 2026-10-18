@@ -1,0 +1,38 @@
+.warning {
+  border-left: 3px solid var(--accent);
+  padding: 6px 10px;
+  background: var(--accent-soft);
+}
+.drop {
+  display: grid;
+  gap: 6px;
+  padding: 14px;
+  border: 1px dashed var(--border);
+  border-radius: var(--radius);
+}
+.dragging {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+.path {
+  margin-top: 18px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+}
+.path h3 {
+  font-size: 13px;
+  margin: 0 0 4px;
+}
+.summary {
+  display: grid;
+  grid-template-columns: 88px 1fr;
+  gap: 6px 12px;
+  margin: 0 0 12px;
+}
+.summary dt {
+  color: var(--muted);
+}
+.summary dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}

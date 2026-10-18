@@ -1,6 +1,7 @@
 import type { ExtensionCardModel, ExtensionRowActions } from "./controllers";
 import { capabilityLabel } from "../../shell/messages";
 import styles from "./ExtensionManager.module.css";
+import { sourceLabel } from "../../../modules/shell/file-import";
 
 export function ExtensionActions({
   extension,
@@ -43,7 +44,7 @@ export function ExtensionActions({
         <summary>扩展详情</summary>
         <dl>
           <dt>模块位置</dt>
-          <dd>{entry.url}</dd>
+          <dd>{sourceLabel(entry.url)}</dd>
           <dt>能力</dt>
           <dd>
             {capabilities.length

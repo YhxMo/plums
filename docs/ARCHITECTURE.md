@@ -67,6 +67,8 @@ Runtime 的 initial 只作外观、布局、恢复诊断和扩展状态的启动
 
 状态只发布已确认的结果，写入拒绝时无需撤回乐观值；未知回执仍由 persistence 锁住后续写入。最终卸载失败时保留实时 imports，同时发布已经确认的 composition 裁剪；路径保存成功后安装失败也保留已确认路径。生命周期、模块目录和扩展数据的原语义保持。
 
+从文件导入的单文件扩展（[file-import.ts](../modules/shell/file-import.ts)）：源码按 SHA-256 存入 `host.shell` 的 `x-<哈希前 48 位>` 分片（存储后不超过 60 KiB），imports 记录 `imported:sha256:<hex>` 代替模块路径，启动时读取分片、核对哈希后以 Blob URL 加载；缺失或不符时进入失败导入列表，记录保留。先写源码分片再写 imports，imports 确定未提交时删除新分片。同 ID 再次导入为替换：先停用并撤销授权，imports 提交后才换下宿主记录并删除旧分片，替换后保持停用。内置扩展 ID 不能被文件覆盖。卸载或移除失败导入后尽力删除分片，删除失败只留下无引用分片。原生 CSP 的 `script-src` 为此只增加 `blob:`，`check:release` 校验策略未再放宽；凭据绑定的来源即该 `imported:` 标识，替换后的新代码须重新绑定。
+
 外壳订阅当前视图的 `chrome`，由视图发布标题和默认详情状态。自定义侧栏依次匹配当前实体的扩展所有者、当前工作区所有者，再使用工作区默认详情；同类贡献按 priority 和 ID 确定顺序。自定义侧栏出现时关闭默认 inline 详情；移动端默认详情可用 dialog 呈现，转为桌面后参与互斥。
 
 SDK 的 `errors.ts` 与零依赖 `validation.ts` 提供错误码和字段路径，扩展/主题/组合 ID 规则（`identifier`）与同源判断（`sameOrigin`）只在 `validation.ts` 定义；通用中文错误由外壳 `messages.ts` 映射，业务数据损坏的具体原因由提供者通过 `ContractError.message` 传递，外壳补充数据保留提示而不解析业务字段名。Host 保持字符串诊断接口，由外壳在构造时注入错误格式化回调，在配置、生命周期和清理错误转为字符串前映射；等待原因以结构化 `inspect().wait`（`configuration`/`capability-unavailable`/`permission`/`dependency`/`cycle`）给出，诊断与界面文案只读该结构，`error` 中的英文文本仅供开发日志。已有 Host 调用者继续使用原默认开发诊断。Host 按职责拆分：`definition.ts` 声明校验与加载，`scope.ts` 单次激活的资源作用域，`registry.ts` 服务、视图、主题与事件登记，`context.ts` 构造扩展 `ctx`，`lifecycle.ts` 宿主错误、超时与等待原因，`host.ts` 只保留安装、授权、启停与协调；`host.ts` 不再转发 `loadExtension`。

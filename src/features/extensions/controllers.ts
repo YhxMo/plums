@@ -45,7 +45,13 @@ export type ExtensionListController = Pick<
 >;
 export type ExtensionDialogController = Pick<
   Management["dialogs"],
-  "dialog" | "close" | "install" | "uninstall" | "configure"
+  | "dialog"
+  | "close"
+  | "install"
+  | "preview"
+  | "importFile"
+  | "uninstall"
+  | "configure"
 >;
 export type ExtensionRowActions = Pick<
   Management["list"]["actions"],

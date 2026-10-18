@@ -7,6 +7,14 @@ import { loadExtension } from "../extension-host/definition";
 import { sameOrigin } from "../sdk/validation";
 import { extensionOwner } from "../sdk";
 import type { ConfigurationValue } from "../sdk/configuration";
+import type { ExtensionDefinition } from "../sdk";
+import {
+  isFileImport,
+  loadExtensionSource,
+  type ExtensionFile,
+  type LoadSource,
+  type SourceStore,
+} from "./file-import";
 
 export type ExtensionSavePatch = {
   imports?: ImportedExtension[];
@@ -60,18 +68,83 @@ export async function installExtension(
   return entry;
 }
 
+const notCommitted = (error: unknown) =>
+  (error as { outcome?: string } | null)?.outcome === "not-committed";
+
+/**
+ * Installs a file the user imported, or replaces an earlier import with the
+ * same ID. The source is stored before the shell record that references it;
+ * a replaced extension is stopped and its grants revoked first, and stays
+ * disabled until the user enables and authorizes the new code.
+ */
+export async function importExtensionFile(
+  host: Pick<Host, "ids" | "install" | "stop" | "grant" | "uninstall">,
+  state: Pick<
+    ExtensionState,
+    "imports" | "catalog" | "configurations" | "save"
+  >,
+  file: ExtensionFile,
+  definition: ExtensionDefinition,
+  sources: SourceStore,
+) {
+  const id = definition.manifest.id;
+  const previous = state.imports.find((entry) => entry.id === id);
+  if (!previous && host.ids().includes(id))
+    throw Error("此 ID 属于内置扩展，不能用导入的文件替换。");
+  await sources.write(file);
+  if (previous) {
+    await host.stop(id);
+    await host.grant(id, []);
+  }
+  const entry: ImportedExtension = { id, url: file.url, label: id };
+  const imports = [...state.imports.filter((saved) => saved.id !== id), entry];
+  try {
+    await state.save({ imports });
+  } catch (error) {
+    if (notCommitted(error) && previous?.url !== file.url)
+      await sources.remove(file.url);
+    throw error;
+  }
+  state.imports = imports;
+  if (previous) await host.uninstall(id);
+  host.install(definition, state.configurations[id]);
+  const index = state.catalog.findIndex((saved) => saved.id === id);
+  if (index === -1) state.catalog.push(entry);
+  else state.catalog[index] = entry;
+  if (previous && isFileImport(previous.url) && previous.url !== file.url)
+    await sources.remove(previous.url);
+  return { entry, replaced: !!previous };
+}
+
+export type ImportLoaders = {
+  load?: Loader;
+  sources?: SourceStore;
+  loadSource?: LoadSource;
+};
+
 export async function retryImport(
   host: Pick<Host, "install">,
   state: Pick<ExtensionState, "imports" | "catalog" | "configurations">,
   id: string,
   baseUrl: string,
   retry: number,
-  load: Loader = loadExtension,
+  {
+    load = loadExtension,
+    sources,
+    loadSource = loadExtensionSource,
+  }: ImportLoaders = {},
 ) {
   const entry = state.imports.find((item) => item.id === id)!;
-  const target = new URL(entry.url, baseUrl);
-  target.searchParams.set("_retry", String(retry));
-  host.install(await load(target.href, id), state.configurations[id]);
+  let definition: ExtensionDefinition;
+  if (isFileImport(entry.url)) {
+    if (!sources) throw Error("导入的扩展文件暂不可读取。");
+    definition = await loadSource(await sources.read(entry.url), id);
+  } else {
+    const target = new URL(entry.url, baseUrl);
+    target.searchParams.set("_retry", String(retry));
+    definition = await load(target.href, id);
+  }
+  host.install(definition, state.configurations[id]);
   state.catalog.push(entry);
   return entry;
 }
@@ -104,11 +177,14 @@ export async function uninstallExtension(
   state: RemovalState & Pick<ExtensionState, "catalog">,
   id: string,
   prepareUninstall: PrepareUninstall,
+  sources?: SourceStore,
 ) {
+  const removed = state.imports.find((entry) => entry.id === id);
   const imports = await uninstallImport(host, id, state.imports, (next) =>
     saveRemovedImport(host, state, id, next, prepareUninstall),
   );
   state.imports = imports;
+  if (removed && isFileImport(removed.url)) await sources?.remove(removed.url);
   const index = state.catalog.findIndex((entry) => entry.id === id);
   if (index !== -1) state.catalog.splice(index, 1);
   return imports;
@@ -119,10 +195,13 @@ export async function removeFailedImport(
   state: RemovalState,
   id: string,
   prepareUninstall: PrepareUninstall,
+  sources?: SourceStore,
 ) {
+  const removed = state.imports.find((entry) => entry.id === id);
   const imports = state.imports.filter((entry) => entry.id !== id);
   await saveRemovedImport(host, state, id, imports, prepareUninstall);
   state.imports = imports;
+  if (removed && isFileImport(removed.url)) await sources?.remove(removed.url);
   return imports;
 }
 

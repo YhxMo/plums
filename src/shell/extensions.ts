@@ -1,6 +1,12 @@
 import { Host } from "../../modules/extension-host/host";
 import { loadExtension } from "../../modules/extension-host/definition";
 import type { ImportedExtension } from "../../modules/shell/uninstall";
+import {
+  isFileImport,
+  loadExtensionSource,
+  type LoadSource,
+  type SourceStore,
+} from "../../modules/shell/file-import";
 import { errorMessage } from "./messages";
 
 const readCatalog = async (path: string): Promise<ImportedExtension[]> => {
@@ -30,6 +36,10 @@ export async function installImports(
   imports: ImportedExtension[],
   configurations: Record<string, unknown>,
   catalog: ImportedExtension[],
+  {
+    sources,
+    loadSource = loadExtensionSource,
+  }: { sources: SourceStore; loadSource?: LoadSource },
 ): Promise<{
   catalog: ImportedExtension[];
   failedImports: Record<string, string>;
@@ -38,7 +48,12 @@ export async function installImports(
   for (const entry of imports) {
     try {
       host.install(
-        await loadExtension(new URL(entry.url, location.href).href, entry.id),
+        isFileImport(entry.url)
+          ? await loadSource(await sources.read(entry.url), entry.id)
+          : await loadExtension(
+              new URL(entry.url, location.href).href,
+              entry.id,
+            ),
         configurations[entry.id],
       );
       catalog.push(entry);

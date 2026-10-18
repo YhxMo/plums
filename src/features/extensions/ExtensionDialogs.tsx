@@ -23,6 +23,8 @@ export function ExtensionDialogs({
         source={dialog?.source ?? null}
         onClose={close}
         onInstall={controller.install}
+        onPreview={controller.preview}
+        onImport={controller.importFile}
       />
       {dialog?.kind === "configure" && (
         <ConfigurationDialog

@@ -6,7 +6,13 @@ import {
   uninstallExtension,
   saveComposition,
   configureExtension,
+  importExtensionFile,
 } from "../../../modules/shell/extension-actions";
+import {
+  loadExtensionSource,
+  readExtensionFile,
+} from "../../../modules/shell/file-import";
+import type { ImportPreview } from "./InstallDialog";
 import { waitingNotice } from "./enable-feedback";
 import type { ConfigurationValue } from "../../../modules/sdk/configuration";
 import type { Runtime } from "../../shell/runtime";
@@ -135,14 +141,22 @@ export function useExtensionManager(
         retry: (id: string) =>
           operate(async () => {
             await run((draft) =>
-              retryImport(host, draft, id, location.href, Date.now()),
+              retryImport(host, draft, id, location.href, Date.now(), {
+                sources: runtime.sources,
+              }),
             );
             clearFailure(id);
           }),
         removeFailure: (id: string) =>
           operate(async () => {
             await run((draft) =>
-              removeFailedImport(host, draft, id, prepareUninstall),
+              removeFailedImport(
+                host,
+                draft,
+                id,
+                prepareUninstall,
+                runtime.sources,
+              ),
             );
             clearFailure(id);
           }),
@@ -172,10 +186,44 @@ export function useExtensionManager(
             "模块路径已保存。请检查来源与能力，再启用扩展；下次启动会重新加载模块。",
           );
         }),
+      /** Runs the file's code to read its manifest; nothing is saved yet. */
+      preview: async (file: Blob) => {
+        let preview: ImportPreview | undefined;
+        await operate(async () => {
+          const read = await readExtensionFile(file);
+          const definition = await loadExtensionSource(read.source);
+          const id = definition.manifest.id;
+          const replacing = value.imports.some((entry) => entry.id === id);
+          if (!replacing && host.ids().includes(id))
+            throw Error("此 ID 属于内置扩展，不能用导入的文件替换。");
+          preview = { file: read, definition, replacing };
+        });
+        return preview;
+      },
+      importFile: ({ file, definition }: ImportPreview) =>
+        operate(async () => {
+          const { entry, replaced } = await run((draft) =>
+            importExtensionFile(host, draft, file, definition, runtime.sources),
+          );
+          clearFailure(entry.id);
+          setSelectedId(entry.id);
+          close();
+          setNotice(
+            replaced
+              ? "已替换为新版本。请重新启用并确认权限；扩展数据已保留。"
+              : "扩展已导入。请检查来源与能力，再启用扩展。",
+          );
+        }),
       uninstall: (id: string) =>
         operate(async () => {
           await run((draft) =>
-            uninstallExtension(host, draft, id, prepareUninstall),
+            uninstallExtension(
+              host,
+              draft,
+              id,
+              prepareUninstall,
+              runtime.sources,
+            ),
           );
           removed.current = true;
           close();

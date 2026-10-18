@@ -3,6 +3,7 @@ import { capabilityLabel, translateStatus } from "../../shell/messages";
 import styles from "../../shell/dialogs.module.css";
 import managerStyles from "./ExtensionManager.module.css";
 import { CredentialBindings } from "./CredentialBindings";
+import { sourceLabel } from "../../../modules/shell/file-import";
 export function ExtensionDetails({
   host,
   access,
@@ -34,7 +35,7 @@ export function ExtensionDetails({
         <h4>服务与权限概览</h4>
         <dl className={styles.detailMetaGrid}>
           <dt>模块位置</dt>
-          <dd>{activeSelectedExt.url}</dd>
+          <dd>{sourceLabel(activeSelectedExt.url)}</dd>
           <dt>所需服务</dt>
           <dd>
             {Object.entries(extManifest.requires ?? {})

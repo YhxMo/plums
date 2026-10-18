@@ -11,11 +11,14 @@ import {
 } from "./persisted-state";
 import { createPersistence, createShellBridge } from "./persistence";
 import { loadCatalog, installCatalog, installImports } from "./extensions";
+import { sourceStore, type SourceStore } from "../../modules/shell/file-import";
 
 export type Runtime = Readonly<{
   host: Host;
   adapter: PlatformAdapter;
   catalog: ImportedExtension[];
+  /** Sources of extensions imported from files, in the shell's own state. */
+  sources: SourceStore;
   events: EventTarget;
   initial: Readonly<
     Pick<
@@ -99,11 +102,15 @@ export async function bootShell(
   );
   const { imports, configurations, composition } = preferences;
   await installCatalog(host, catalog, configurations);
+  const sources = sourceStore((capability, payload) =>
+    adapter.call("host.shell", capability, payload),
+  );
   const { failedImports } = await installImports(
     host,
     imports,
     configurations,
     catalog,
+    { sources },
   );
   const { save, current } = createPersistence(
     adapter,
@@ -139,6 +146,7 @@ export async function bootShell(
     host,
     adapter,
     catalog: [...catalog, ...application.catalog],
+    sources,
     initial: {
       layout: preferences.layout,
       theme: preferences.theme,

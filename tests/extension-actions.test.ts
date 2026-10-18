@@ -149,7 +149,7 @@ it("retry loads a fresh URL with the saved configuration and keeps the durable p
   const { host, state, load } = setup();
   state.imports = [entry];
   state.configurations[id] = { version: 1, values: { step: 3 } };
-  await retryImport(host, state, id, "https://app.test/", 123, load);
+  await retryImport(host, state, id, "https://app.test/", 123, { load });
   expect(load).toHaveBeenCalledWith(
     "https://app.test/sample.js?_retry=123",
     id,

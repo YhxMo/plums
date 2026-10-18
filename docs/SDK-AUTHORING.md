@@ -28,7 +28,7 @@
 
 | 操作 | 当前保证与失败行为 |
 | --- | --- |
-| loadExtension(url, expectedId) | 加载默认导出、校验 ID 与 API；同源限制由应用安装入口执行，此函数不是网络安全策略 |
+| loadExtension(url, expectedId) | 加载默认导出、校验 ID 与 API；同源限制由应用安装入口执行，此函数不是网络安全策略。从文件导入走 `loadExtensionSource`（Blob URL），见[架构](ARCHITECTURE.md) |
 | install(definition) | 校验后只登记 disabled，不激活；重复 ID 拒绝，不能用它覆盖升级 |
 | grant(id, capabilities) / start(id) | 仅授予已声明能力；启动等待缺失依赖/授权/平台能力，激活失败有诊断 |
 | stop(id) | 取消任务并释放服务、监听、视图；依赖者等待；失败保留诊断且要求重启 |
