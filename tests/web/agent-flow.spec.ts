@@ -295,9 +295,8 @@ test("imports persist and an external agent provider drives the default UI", asy
   await page.getByRole("button", { name: "发送", exact: true }).click();
   await expect(page.getByRole("log")).toContainText("外部：contract");
   await sidebarToggle(page).click();
-  await expect(
-    page.getByRole("complementary", { name: "Agent 详情" }),
-  ).toContainText("external.agents · 2.1.0");
+  const chip = page.getByRole("button", { name: "查看扩展 独立提供者" });
+  await expect(chip).toHaveAttribute("title", "external.agents");
 });
 
 test("unavailable saved import retains startup and offers removal and retry", async ({

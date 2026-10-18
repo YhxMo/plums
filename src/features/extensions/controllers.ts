@@ -21,11 +21,14 @@ export type ExtensionCardModel = {
   entry: ImportedExtension;
   manifest: ReturnType<Host["manifest"]>;
   state: ReturnType<Host["inspect"]>;
+  users: ReturnType<Host["users"]>;
   selected: boolean;
   imported: boolean;
 };
 export type ExtensionDetailsProps = {
-  host: Pick<Host, "inspect" | "manifest">;
+  host: Pick<Host, "inspect" | "manifest" | "users">;
+  /** Shown inside the selected card on narrow screens. */
+  inline?: boolean;
   access: CredentialAccess;
   entry: ImportedExtension;
   operations: CredentialOperations;

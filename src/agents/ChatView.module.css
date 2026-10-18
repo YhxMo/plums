@@ -34,18 +34,11 @@
   min-height: 0;
 }
 .conversationIntro {
+  max-width: 480px;
+  margin: 4px auto 28px;
   text-align: center;
-  margin-bottom: 24px;
-}
-.conversationIntro > span {
-  font-size: 11px;
-  color: var(--muted);
-  border: 1px solid var(--border);
-  padding: 4px 10px;
-  border-radius: 20px;
-}
-.conversationIntro p {
   font-size: 12px;
+  line-height: 1.6;
   color: var(--muted);
   white-space: pre-wrap;
   overflow-wrap: anywhere;
@@ -71,20 +64,14 @@
 .message {
   max-width: 88%;
   width: fit-content;
-  margin: 0 0 16px;
-}
-.message > span {
-  font-size: 11px;
-  color: var(--muted);
-  display: block;
-  margin: 0 0 4px 4px;
+  margin: 0 0 10px;
 }
 .message > p {
   margin: 0;
-  padding: 10px 14px;
+  padding: 9px 14px;
   border: 1px solid var(--border);
   background: var(--card);
-  border-radius: 4px 12px 12px 12px;
+  border-radius: 16px 16px 16px 6px;
   white-space: pre-wrap;
   overflow-wrap: anywhere;
   font-size: 14px;
@@ -93,18 +80,44 @@
 .userMessage {
   margin-left: auto;
 }
-.userMessage > span {
-  text-align: right;
-  margin-right: 4px;
-}
 .userMessage > p {
-  background: var(--subtle);
-  border-color: var(--border);
-  border-radius: 12px 4px 12px 12px;
+  background: var(--accent-soft);
+  border-color: transparent;
+  border-radius: 16px 16px 6px 16px;
+}
+/* Consecutive turns from one side sit closer together. */
+.message:not(.userMessage) + .userMessage,
+.userMessage + .message:not(.userMessage) {
+  margin-top: 18px;
+}
+.message > p.typing {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--muted);
+  font-size: 13px;
+  border-color: transparent;
+  background: none;
+  padding-left: 4px;
+}
+.typing > span {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--accent);
+  animation: pulse 1.2s ease-in-out infinite;
+}
+@keyframes pulse {
+  50% {
+    opacity: 0.25;
+  }
 }
 .composer {
   margin: 0 max(24px, calc((100% - 720px) / 2)) 16px;
-  padding: 10px 12px 8px;
+  padding: 8px 8px 8px 14px;
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
   border: 1px solid var(--border);
   border-radius: 14px;
   background: var(--card);
@@ -115,36 +128,34 @@
 }
 .composer:focus-within {
   border-color: var(--accent);
+  box-shadow:
+    0 0 0 3px var(--accent-soft),
+    0 2px 10px var(--shadow);
 }
 .composer textarea {
-  padding: 2px 4px 6px;
-  min-height: 44px;
+  padding: 2px 4px;
+  min-height: 24px;
   max-height: 180px;
+  overflow-y: auto;
   border: 0;
-  resize: vertical;
   border-radius: 0;
   background: none;
   outline: none;
+  box-shadow: none;
   line-height: 1.5;
   font-size: 14px;
 }
-.composer textarea:focus-visible {
-  outline: none;
-}
 .composerBottom {
   display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  gap: 10px;
+  flex-shrink: 0;
 }
 .composerBottom button {
-  display: flex;
-  align-items: center;
-  gap: 6px;
+  display: grid;
+  place-items: center;
+  width: 32px;
   min-height: 32px;
-  padding: 4px 12px;
-  font-size: 12px;
-  border-radius: 999px;
+  padding: 0;
+  border-radius: 50%;
 }
 .mobileOnly {
   display: none !important;
@@ -180,17 +191,19 @@
   }
   .message > p {
     font-size: 15px;
-    padding: 12px 16px;
+    padding: 10px 14px;
   }
   .composer {
-    margin: 0 12px 16px;
-    padding: 12px;
-    border-radius: 16px;
+    margin: 0 12px 12px;
+    padding: 6px 6px 6px 12px;
+    border-radius: 22px;
   }
   .composerBottom button {
-    min-height: 44px;
+    width: 40px;
+    min-height: 40px;
   }
   .composer textarea {
-    min-height: 48px;
+    padding: 8px 0;
+    font-size: 16px;
   }
 }

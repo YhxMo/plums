@@ -1,4 +1,4 @@
-import { manage, legacyEntry, chooseLayout } from "./helpers";
+import { manage, legacyEntry, chooseLayout, extensionDetail } from "./helpers";
 import { readFileSync } from "node:fs";
 import { test, expect } from "@playwright/test";
 import { catalog } from "../fixtures/dependency-chain.js";
@@ -60,7 +60,9 @@ for (const failCleanup of [false, true]) {
     await expect(owner).toContainText("清理未完成");
     await expect(middle).toContainText(failCleanup ? "清理未完成" : "等待条件");
     await expect(leaf).toContainText("等待条件");
-    await expect(leaf).toContainText("0 项资源 · 0 个在途任务");
+    await expect(await extensionDetail(page, leaf)).toContainText(
+      "0 项资源 · 0 个在途任务",
+    );
     await expect(
       page.getByRole("button", { name: "启用 combo.provider", exact: true }),
     ).toBeDisabled();
@@ -68,7 +70,10 @@ for (const failCleanup of [false, true]) {
       await expect(
         page.getByRole("button", { name: "启用 combo.middle", exact: true }),
       ).toBeDisabled();
-    else await expect(middle).toContainText("0 项资源 · 0 个在途任务");
+    else
+      await expect(await extensionDetail(page, middle)).toContainText(
+        "0 项资源 · 0 个在途任务",
+      );
     await page.getByRole("button", { name: "返回工作区", exact: true }).click();
     await chooseLayout(page, "combo-controls");
     await page.getByRole("button", { name: "发送组合事件" }).click();

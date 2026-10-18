@@ -57,8 +57,10 @@ export function agentUI(): ExtensionDefinition {
             <AgentWorkspace
               api={agents}
               chrome={chrome}
-              onExtensions={() => {
-                void ctx.shell.open("extensions");
+              onExtensions={(id) => {
+                void (id
+                  ? ctx.shell.open("extensions", id)
+                  : ctx.shell.open("extensions"));
               }}
             />,
             true,

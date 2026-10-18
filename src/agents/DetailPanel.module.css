@@ -142,9 +142,35 @@
 .sessionRow svg {
   flex-shrink: 0;
 }
-.source code {
-  font-size: 10px;
-  color: var(--muted);
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 28px;
+  max-width: 100%;
+  padding: 3px 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--card);
+  color: var(--text);
+  font-size: 12px;
+  font-weight: 500;
+  text-align: left;
+}
+.chip svg {
+  color: var(--accent-text);
+}
+.chip:hover:not(:disabled) {
+  background: var(--accent-soft);
+  border-color: var(--accent);
 }
 @media (min-width: 768px) and (max-width: 1100px) {
   .detailHost {
@@ -181,8 +207,10 @@
   .detailScroll p {
     font-size: 14px;
   }
-  .source code {
-    font-size: 12px;
+  .chip {
+    min-height: 40px;
+    padding: 6px 12px;
+    font-size: 14px;
   }
 }
 

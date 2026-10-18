@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useLayoutEffect, useRef } from "react";
 import type { Agent, AgentProviderInfo } from "../../modules/agents/contract";
 import { Avatar } from "./AgentList";
 import { Icon } from "../components/Icon";
@@ -24,6 +24,14 @@ export function ChatView({
 }) {
   const session = agent.sessions.find((s) => s.id === agent.currentSessionId)!;
   const bottom = useRef<HTMLDivElement>(null);
+  const input = useRef<HTMLTextAreaElement>(null);
+  // Grow with the draft up to the CSS max-height, then scroll.
+  useLayoutEffect(() => {
+    const element = input.current;
+    if (!element) return;
+    element.style.height = "auto";
+    element.style.height = `${element.scrollHeight}px`;
+  }, [draft]);
   useEffect(() => {
     bottom.current?.scrollIntoView({ block: "end" });
   }, [session.id, session.messages.length, agent.status, agent.pending]);
@@ -58,10 +66,9 @@ export function ChatView({
         </button>
       </header>
       <div className={s.messages} role="log" aria-label="会话消息">
-        <div className={s.conversationIntro}>
-          <span>{provider.label}</span>
-          <p>{agent.description}</p>
-        </div>
+        {agent.description && (
+          <p className={s.conversationIntro}>{agent.description}</p>
+        )}
         {!session.messages.length && (
           <div className={s.chatWelcome}>
             <Avatar agent={agent} size="large" />
@@ -74,20 +81,24 @@ export function ChatView({
             key={m.id}
             className={`${s.message} ${m.role === "user" ? s.userMessage : ""}`}
           >
-            <span>{m.role === "user" ? "你" : agent.name}</span>
+            <span className="sr-only">
+              {m.role === "user" ? "你" : agent.name}：
+            </span>
             <p>{m.text}</p>
           </div>
         ))}
         {agent.pending?.sessionId === session.id && (
           <div className={`${s.message} ${s.userMessage}`}>
-            <span>你</span>
+            <span className="sr-only">你：</span>
             <p>{agent.pending.text}</p>
           </div>
         )}
         {agent.status === "busy" && (
           <div className={s.message}>
-            <span>{agent.name}</span>
-            <p role="status">正在处理并保存…</p>
+            <p role="status" className={s.typing}>
+              <span aria-hidden="true" />
+              {agent.name} 正在回复…
+            </p>
           </div>
         )}
         <div ref={bottom} />
@@ -103,10 +114,11 @@ export function ChatView({
           消息
         </label>
         <textarea
+          ref={input}
           id="message-input"
           aria-label="消息"
           placeholder={`发送给 ${agent.name}…`}
-          rows={2}
+          rows={1}
           maxLength={8000}
           value={draft}
           onChange={(e) => onDraft(e.target.value)}
@@ -127,14 +139,21 @@ export function ChatView({
             <button
               type="button"
               className="secondary"
+              aria-label={agent.canCancel === false ? "正在保存…" : "停止处理"}
+              title={agent.canCancel === false ? "正在保存…" : "停止处理"}
               onClick={onCancel}
               disabled={agent.canCancel === false}
             >
-              {agent.canCancel === false ? "正在保存…" : "停止处理"}
+              <Icon name="stop" size={16} />
             </button>
           ) : (
-            <button type="submit" disabled={!draft.trim()}>
-              <Icon name="send" size={17} /> 发送
+            <button
+              type="submit"
+              aria-label="发送"
+              title="发送"
+              disabled={!draft.trim()}
+            >
+              <Icon name="arrowUp" size={18} />
             </button>
           )}
         </div>

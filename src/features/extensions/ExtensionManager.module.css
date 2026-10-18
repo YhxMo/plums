@@ -62,47 +62,76 @@
   align-items: center;
 }
 .inspectorHeading h2 {
-  font-size: 15px;
-  margin: 2px 0;
+  font-size: 17px;
+  margin: 0;
+}
+.count {
+  font-size: 12px;
+  color: var(--muted);
+  padding: 1px 7px;
+  border-radius: 999px;
+  background: var(--subtle);
 }
 .inspectorHeading button {
-  padding: 5px 10px;
+  padding: 5px 12px;
   font-size: 12px;
 }
-.managerHint {
-  color: var(--muted);
-  font-size: 12px;
-  margin: 8px 0 14px;
+.extensions {
+  margin-top: 4px;
 }
 .extensions article {
-  padding: 12px;
+  padding: 12px 14px;
   margin-bottom: 8px;
-  background: var(--sidebar-bg);
-  border: 1px solid var(--sidebar-border);
+  background: var(--card);
+  border: 1px solid var(--border);
   border-radius: var(--radius);
   transition:
-    background 0.14s ease,
-    border-color 0.14s ease;
+    border-color 0.14s ease,
+    box-shadow 0.14s ease;
 }
 .extensionItem {
   cursor: pointer;
 }
 .extensionItem:hover {
-  background: var(--sidebar-hover);
+  border-color: var(--control-border);
 }
 .extensionItemSelected {
-  background: var(--sidebar-active) !important;
-  border-color: var(--control-border) !important;
+  border-color: var(--accent) !important;
+  box-shadow: 0 0 0 3px var(--accent-soft);
 }
 .extensionTitle {
   display: flex;
-  align-items: baseline;
+  align-items: center;
   justify-content: space-between;
   gap: 8px;
 }
-.extensionTitle strong {
+.extensionTitle strong,
+.cardName {
   font-size: 13px;
   font-weight: 600;
+}
+.cardName {
+  min-height: 0;
+  padding: 0;
+  border: 0;
+  background: none !important;
+  color: var(--text);
+  text-align: left;
+}
+.cardMeta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 10px;
+  margin: 4px 0 10px;
+  font-size: 12px;
+  color: var(--muted);
+}
+.extensions .cardMeta code {
+  display: inline;
+  margin: 0;
+}
+.cardMeta span::before {
+  content: "· ";
 }
 .status {
   font-size: 12px;
@@ -126,44 +155,42 @@
   color: var(--muted);
   font-size: 12px;
 }
-.resourceCount {
-  font-size: 12px;
-  color: var(--muted);
-  margin: 8px 0;
-}
 .extensionActions {
   display: flex;
   flex-wrap: wrap;
-  align-items: flex-start;
+  align-items: center;
   gap: 8px;
 }
 .extensionActions > button {
-  padding: 5px 10px;
+  min-height: 28px;
+  padding: 3px 10px;
   font-size: 12px;
-  background: var(--surface);
-  border-color: var(--control-border);
 }
-.extensionActions details {
-  flex: 1 1 100%;
-  order: 1;
-  font-size: 13px;
+.toggle {
+  margin-left: auto;
 }
-.extensionActions dl {
+.inlineDetail {
+  margin-top: 12px;
+  cursor: default;
+}
+.inlineDetail > section:first-of-type {
+  margin-top: 0;
+}
+.userChips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
   margin: 0;
-  padding: 12px;
-  background: var(--surface);
+  padding: 0;
+  list-style: none;
+}
+.userChips li {
+  padding: 3px 10px;
   border-radius: 8px;
-  overflow-wrap: anywhere;
-}
-.extensionActions dt {
-  color: var(--muted);
+  background: var(--accent-soft);
+  color: var(--text);
   font-size: 12px;
-}
-.extensionActions dd {
-  margin: 2px 0 12px;
-}
-.extensionActions dd:last-child {
-  margin-bottom: 0;
+  overflow-wrap: anywhere;
 }
 .diagnostics {
   border-top: 1px solid var(--border);
@@ -292,8 +319,26 @@
   .managerScroll {
     padding: 0 20px 24px;
   }
+  .inspectorHeading {
+    flex-wrap: wrap;
+    gap: 14px;
+  }
+  .managerGlobalActions {
+    width: 100%;
+  }
+  .managerGlobalActions button {
+    flex: 1;
+  }
   .inspectorHeading button {
     font-size: 14px;
+  }
+  .extensionActions > button {
+    min-height: 40px;
+    padding: 6px 14px;
+    font-size: 14px;
+  }
+  .extensions article {
+    padding: 14px 16px;
   }
   .welcome {
     margin: 36px auto 48px;

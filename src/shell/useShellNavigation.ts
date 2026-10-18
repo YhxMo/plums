@@ -29,9 +29,11 @@ export function useShellNavigation(runtime: Runtime) {
   }, [manager.open]);
   useEffect(() => {
     const open = (event: Event) => {
-      const action = (event as CustomEvent<string>).detail;
+      const { action, target } = (
+        event as CustomEvent<{ action: string; target?: string }>
+      ).detail;
       if (action === "settings") setDialog("settings");
-      else openManager(action === "diagnostics");
+      else openManager(action === "diagnostics", target);
     };
     runtime.events.addEventListener("shell", open);
     return () => runtime.events.removeEventListener("shell", open);

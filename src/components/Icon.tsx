@@ -4,6 +4,8 @@ export function Icon({ name, size = 20 }: { name: string; size?: number }) {
     back: <path d="m14 6-6 6 6 6" />,
     arrowLeft: <path d="M19 12H5m0 0 6-6m-6 6 6 6" />,
     arrow: <path d="m9 5 7 7-7 7" />,
+    arrowUp: <path d="M12 19V5m0 0-6 6m6-6 6 6" />,
+    stop: <rect x="7" y="7" width="10" height="10" rx="2" />,
     more: (
       <>
         <circle cx="5" cy="12" r="1" />

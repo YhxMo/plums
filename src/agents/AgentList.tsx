@@ -65,6 +65,7 @@ export function AgentList({
         <button
           className="icon-button"
           aria-label="添加"
+          title="添加 Agent"
           onClick={(e) => onAdd(e.currentTarget)}
         >
           <Icon name="plus" />
@@ -140,11 +141,9 @@ export function AgentList({
                     ?.messages.at(-1)?.text || a.description}
                 </span>
               </span>
-              <span
-                className={s.statusDot}
-                data-busy={a.status === "busy"}
-                aria-label={a.status === "busy" ? "运行中" : "空闲"}
-              />
+              {a.status === "busy" && (
+                <span className={s.statusDot} aria-label="运行中" />
+              )}
             </button>
             <button
               className={`icon-button ${s.rowMore}`}
@@ -253,9 +252,6 @@ export function AgentList({
           </p>
         )}
       </div>
-      <button className={s.addButton} onClick={(e) => onAdd(e.currentTarget)}>
-        <Icon name="plus" size={18} /> 添加
-      </button>
     </aside>
   );
 }

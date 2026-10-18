@@ -27,7 +27,8 @@ export function AgentWorkspace({
 }: {
   api: AgentProvider;
   chrome: WorkspaceChromeController;
-  onExtensions: () => void;
+  /** Opens extension management, selecting `id` when given. */
+  onExtensions: (id?: string) => void;
 }) {
   const subscribe = useCallback(
     (listener: () => void) => api.subscribe(listener),
@@ -137,6 +138,10 @@ export function AgentWorkspace({
       onDeleteSession={(id, source) =>
         open({ action: "deleteSession", agent, session: id }, source)
       }
+      onOpenExtension={(id) => {
+        setDetail(false);
+        onExtensions(id);
+      }}
     />
   );
   return (
@@ -164,7 +169,7 @@ export function AgentWorkspace({
             hasAgents={agents.length > 0}
             onImport={(source) => open("import", source)}
             onAdd={(source) => open("create", source)}
-            onExtensions={onExtensions}
+            onExtensions={() => onExtensions()}
           />
         ) : (
           <ChatView
@@ -224,7 +229,7 @@ export function AgentWorkspace({
         onRemoved={(id) => {
           if (selected === id) setSelected(null);
         }}
-        onExtensions={onExtensions}
+        onExtensions={() => onExtensions()}
       />
     </div>
   );

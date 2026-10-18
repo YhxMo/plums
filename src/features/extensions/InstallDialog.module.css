@@ -1,27 +1,68 @@
 .warning {
-  border-left: 3px solid var(--accent);
-  padding: 6px 10px;
-  background: var(--accent-soft);
+  margin: 0 0 14px;
+  font-size: 12px;
+  line-height: 1.65;
+  color: var(--muted);
+}
+.warning strong {
+  color: var(--accent-text);
+  font-weight: 600;
 }
 .drop {
   display: grid;
-  gap: 6px;
-  padding: 14px;
-  border: 1px dashed var(--border);
-  border-radius: var(--radius);
+  justify-items: center;
+  gap: 10px;
+  padding: 26px 16px;
+  border: 1.5px dashed var(--control-border);
+  border-radius: 12px;
+  color: var(--accent-text);
+  transition:
+    border-color 0.14s ease,
+    background 0.14s ease;
 }
 .dragging {
   border-color: var(--accent);
   background: var(--accent-soft);
 }
-.path {
-  margin-top: 18px;
-  padding-top: 12px;
-  border-top: 1px solid var(--border);
+.pick {
+  display: inline-flex;
+  align-items: center;
+  min-height: 34px;
+  padding: 6px 14px;
+  border-radius: 8px;
+  background: var(--accent);
+  color: var(--accent-ink);
+  font-weight: 500;
+  cursor: pointer;
 }
-.path h3 {
-  font-size: 13px;
-  margin: 0 0 4px;
+.pick:hover {
+  background: var(--accent-hover);
+}
+.pick:focus-within {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+.pick[data-disabled="true"] {
+  opacity: 0.48;
+  cursor: not-allowed;
+}
+.dropHint {
+  font-size: 12px;
+  color: var(--muted);
+}
+@media (hover: none) {
+  .dropHint {
+    display: none;
+  }
+}
+.path {
+  margin-top: 16px;
+}
+.path summary {
+  font-size: 12px;
+}
+.path form {
+  padding-top: 4px;
 }
 .summary {
   display: grid;

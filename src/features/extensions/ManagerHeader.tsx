@@ -20,23 +20,19 @@ export function ManagerHeader({
           >
             <Icon name="arrowLeft" size={18} />
           </button>
-          <div>
-            <span className="eyebrow">本地扩展 · {controller.count}</span>
-            <h2 ref={controller.heading} tabIndex={-1}>
-              扩展与状态
-            </h2>
-          </div>
+          <h2 ref={controller.heading} tabIndex={-1}>
+            扩展与状态
+          </h2>
+          <span className={styles.count}>{controller.count}</span>
         </div>
         <div className={styles.managerGlobalActions}>
-          <button
-            className="secondary"
-            onClick={(event) => controller.install(event.currentTarget)}
-          >
+          <button onClick={(event) => controller.install(event.currentTarget)}>
             安装扩展
           </button>
           <button
             className="secondary"
             disabled={controller.busy}
+            title="记录现在启用的扩展、版本与外观，下次打开应用时恢复"
             onClick={() => void controller.save()}
           >
             保存当前组合

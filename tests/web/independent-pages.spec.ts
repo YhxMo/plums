@@ -1,5 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
-import { manage } from "./helpers";
+import { manage, extensionDetail } from "./helpers";
 
 const nodeId = "example.local-text-node";
 const pageId = "example.local-proof-pages";
@@ -201,7 +201,9 @@ test("independent contributions stop, restore, and recover a missing persisted r
   await page
     .getByRole("button", { name: `停用 ${pageId}`, exact: true })
     .click();
-  await expect(card(page, pageId)).toContainText("0 项资源 · 0 个在途任务");
+  await expect(await extensionDetail(page, card(page, pageId))).toContainText(
+    "0 项资源 · 0 个在途任务",
+  );
   await workspace(page);
   await expect(
     nav(page).getByRole("button", { name: "交稿检查", exact: true }),
@@ -227,8 +229,12 @@ test("independent contributions stop, restore, and recover a missing persisted r
       .getByRole("button", { name: `停用 ${nodeId}`, exact: true })
       .click();
     await expect(card(page, pageId)).toContainText("等待条件");
-    await expect(card(page, pageId)).toContainText("0 项资源 · 0 个在途任务");
-    await expect(card(page, nodeId)).toContainText("0 项资源 · 0 个在途任务");
+    await expect(await extensionDetail(page, card(page, pageId))).toContainText(
+      "0 项资源 · 0 个在途任务",
+    );
+    await expect(await extensionDetail(page, card(page, nodeId))).toContainText(
+      "0 项资源 · 0 个在途任务",
+    );
     await workspace(page);
     await expect(
       nav(page).getByRole("button", { name: "交稿检查", exact: true }),

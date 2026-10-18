@@ -7,6 +7,7 @@ import {
   sourceLabel,
   type ExtensionFile,
 } from "../../../modules/shell/file-import";
+import { Icon } from "../../components/Icon";
 import styles from "./InstallDialog.module.css";
 
 export type ImportPreview = {
@@ -101,7 +102,8 @@ export function InstallDialog({
           <>
             <p>导入下载或自己编写的扩展文件（单个 .js 文件）。</p>
             <p className={styles.warning} role="note">
-              只导入你信任来源的文件。扩展与应用在同一环境中运行：选择文件后其代码就会执行，并可使用你之后授予的权限。
+              <strong>只导入你信任来源的文件。</strong>
+              扩展与应用在同一环境中运行：选择文件后其代码就会执行，并可使用你之后授予的权限。
             </p>
             <div
               className={`${styles.drop} ${dragging ? styles.dragging : ""}`}
@@ -116,10 +118,12 @@ export function InstallDialog({
                 if (!busy) void choose(event.dataTransfer.files[0]);
               }}
             >
-              <label className="field">
+              <Icon name="puzzle" size={26} />
+              <label className={styles.pick} data-disabled={busy}>
                 选择扩展文件
                 <input
                   type="file"
+                  className="sr-only"
                   accept=".js,.mjs,text/javascript"
                   disabled={busy}
                   onChange={(event) => {
@@ -130,39 +134,43 @@ export function InstallDialog({
                   }}
                 />
               </label>
-              <span className="muted">也可以把文件拖到这里</span>
+              <span className={styles.dropHint}>也可以把文件拖到这里</span>
             </div>
-            <form
-              id="install-path"
-              className={styles.path}
-              onSubmit={(e) => {
-                e.preventDefault();
-                void onInstall(moduleId, moduleUrl);
-              }}
-            >
-              <h3>开发者：按模块路径安装</h3>
-              <p className="muted">
-                加载随应用提供或开发服务器上的同源 ESM 模块；路径保存在本地。
-              </p>
-              <label className="field">
-                扩展 ID
-                <input
-                  value={moduleId}
-                  onChange={(e) => setModuleId(e.target.value)}
-                  required
-                  placeholder="example.extension"
-                />
-              </label>
-              <label className="field">
-                模块路径
-                <input
-                  value={moduleUrl}
-                  onChange={(e) => setModuleUrl(e.target.value)}
-                  required
-                  placeholder="/extensions/example.js"
-                />
-              </label>
-            </form>
+            {/* Open by default only in development builds. */}
+            <details className={styles.path} open={import.meta.env.DEV}>
+              <summary>开发者：按模块路径安装</summary>
+              <form
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  void onInstall(moduleId, moduleUrl);
+                }}
+              >
+                <p className="muted">
+                  加载随应用提供或开发服务器上的同源 ESM 模块；路径保存在本地。
+                </p>
+                <label className="field">
+                  扩展 ID
+                  <input
+                    value={moduleId}
+                    onChange={(e) => setModuleId(e.target.value)}
+                    required
+                    placeholder="example.extension"
+                  />
+                </label>
+                <label className="field">
+                  模块路径
+                  <input
+                    value={moduleUrl}
+                    onChange={(e) => setModuleUrl(e.target.value)}
+                    required
+                    placeholder="/extensions/example.js"
+                  />
+                </label>
+                <button className="secondary" disabled={busy}>
+                  加载模块
+                </button>
+              </form>
+            </details>
           </>
         )}
         {error && (
@@ -193,19 +201,14 @@ export function InstallDialog({
             </button>
           </>
         ) : (
-          <>
-            <button
-              type="button"
-              className="secondary"
-              disabled={busy}
-              onClick={close}
-            >
-              取消
-            </button>
-            <button form="install-path" disabled={busy}>
-              加载模块
-            </button>
-          </>
+          <button
+            type="button"
+            className="secondary"
+            disabled={busy}
+            onClick={close}
+          >
+            取消
+          </button>
         )}
       </footer>
     </Dialog>

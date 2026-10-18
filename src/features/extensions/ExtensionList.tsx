@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import type { ExtensionListController } from "./controllers";
 import { extensionOwner } from "../../../modules/sdk";
 import { SelectedDocuments } from "./SelectedDocuments";
@@ -7,8 +8,10 @@ import styles from "./ExtensionManager.module.css";
 
 export function ExtensionList({
   controller,
+  selectedDetail,
 }: {
   controller: ExtensionListController;
+  selectedDetail?: ReactNode;
 }) {
   const { actions, busy } = controller;
   return (
@@ -49,6 +52,7 @@ export function ExtensionList({
               enabled={row.state.status === "active"}
             />
           )}
+          {row.selected && selectedDetail}
         </ExtensionCard>
       ))}
     </div>

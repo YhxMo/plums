@@ -1,4 +1,4 @@
-import { manage, legacyEntry, chooseLayout } from "./helpers";
+import { manage, legacyEntry, chooseLayout, extensionDetail } from "./helpers";
 import { test, expect } from "@playwright/test";
 
 test("cancel returns to the initiating control even when activation does not focus it", async ({
@@ -38,8 +38,9 @@ test("authorization can be cancelled and restores keyboard focus", async ({
   await manage(page);
   const workbench = page.locator("article").filter({ hasText: "文本工作台" });
   await expect(workbench).toContainText("已停用");
-  await workbench.getByText("扩展详情", { exact: true }).click();
-  await expect(workbench).toContainText("/services/workbench.js");
+  await expect(await extensionDetail(page, workbench)).toContainText(
+    "/services/workbench.js",
+  );
   await workbench
     .getByRole("button", { name: "启用 workbench", exact: true })
     .click();
@@ -79,7 +80,9 @@ for (const width of [375, 1280]) {
     await workbench
       .getByRole("button", { name: "停用 workbench", exact: true })
       .click();
-    await expect(workbench).toContainText("0 项资源 · 0 个在途任务");
+    await expect(await extensionDetail(page, workbench)).toContainText(
+      "0 项资源 · 0 个在途任务",
+    );
     await workbench
       .getByRole("button", { name: "启用 workbench", exact: true })
       .click();
@@ -202,12 +205,12 @@ test("dismissible fallback notice, independent extension manager page and topbar
     .locator("#extension-manager article")
     .filter({ hasText: "本地 Agent 提供者" })
     .click();
-  // The generic manager shows extension facts, never Agent business data.
+  // Agent names arrive only through the extension's published users.
   const detail = page.getByRole("region", { name: "所选扩展详情" });
   await expect(detail).toContainText("agents.local");
-  await expect(page.locator("#extension-manager")).not.toContainText(
-    "代码助手",
-  );
+  await expect(
+    detail.getByRole("listitem").filter({ hasText: "代码助手" }),
+  ).toBeVisible();
   await page.getByRole("button", { name: "返回工作区", exact: true }).click();
   await expect(page.locator("[data-workspace]")).toBeVisible();
 });

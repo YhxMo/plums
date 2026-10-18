@@ -216,13 +216,12 @@ export function AgentDialogs({
                   />
                   允许多个会话
                 </label>
-                <div className={s.localInfo}>
-                  <Icon name="puzzle" />
-                  <div>
-                    <strong>{api.info.label}</strong>
-                    <p>{api.info.description}</p>
-                  </div>
-                </div>
+                <p className={s.localInfo}>
+                  <Icon name="puzzle" size={15} />
+                  <span>
+                    <strong>回复来源</strong> {api.info.description}
+                  </span>
+                </p>
               </>
             )}
             {error && (

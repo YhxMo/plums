@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { useMediaQuery } from "../../components/useMediaQuery";
 import type { ExtensionManagerController } from "./controllers";
 import { ManagerHeader } from "./ManagerHeader";
 import { ExtensionList } from "./ExtensionList";
@@ -15,6 +16,17 @@ export function ExtensionManager({
   diagnostics: ReactNode;
 }) {
   const { detail } = controller;
+  // One column: details open inside the selected card instead of below the list.
+  const narrow = useMediaQuery("(max-width: 1020px)");
+  const details = detail.entry && (
+    <ExtensionDetails
+      host={detail.host}
+      access={detail.access}
+      entry={detail.entry}
+      operations={detail.operations}
+      inline={narrow}
+    />
+  );
   return (
     <>
       <aside
@@ -27,30 +39,20 @@ export function ExtensionManager({
         <div className={styles.managerScroll}>
           <div className={styles.managerPage}>
             <div className={styles.managerMaster}>
-              <p className={styles.managerHint}>
-                检查模块与所需能力；停用后保留已保存的数据。保存当前组合会记录启用集合、扩展版本与当前外观，权限和扩展业务数据分别管理。
-              </p>
-              <ExtensionList controller={controller.list} />
+              <ExtensionList
+                controller={controller.list}
+                selectedDetail={narrow ? details : undefined}
+              />
             </div>
-            <section
-              className={styles.managerDetailPane}
-              aria-label="所选扩展详情"
-            >
-              {detail.entry && (
-                <ExtensionDetails
-                  host={detail.host}
-                  access={detail.access}
-                  entry={detail.entry}
-                  operations={detail.operations}
-                />
-              )}
+            <div className={styles.managerDetailPane}>
+              {!narrow && details}
               {diagnostics}
               <RetainedCredentialBindings
                 access={detail.access}
                 operations={detail.operations}
                 installed={controller.list.installed}
               />
-            </section>
+            </div>
           </div>
         </div>
       </aside>

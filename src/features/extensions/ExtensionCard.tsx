@@ -10,34 +10,48 @@ export function ExtensionCard({
 }: {
   extension: Pick<
     ExtensionCardModel,
-    "entry" | "manifest" | "state" | "selected"
+    "entry" | "manifest" | "state" | "selected" | "users"
   >;
   onSelect(): void;
   children: ReactNode;
 }) {
-  const { entry, manifest, state, selected: isSelected } = extension;
+  const { entry, manifest, state, users, selected: isSelected } = extension;
   const { id } = entry;
   return (
     <article
       key={id}
+      data-extension-id={id}
       className={`${styles.extensionItem} ${isSelected ? styles.extensionItemSelected : ""}`}
       onClick={onSelect}
     >
       <div className={styles.extensionTitle}>
-        <strong>{entry.label}</strong>
+        <button
+          type="button"
+          className={styles.cardName}
+          aria-pressed={isSelected}
+          onClick={onSelect}
+        >
+          {entry.label}
+        </button>
         <span
           className={`${styles.status} ${state.status === "active" ? styles.active : ""}`}
         >
           {translateStatus(state.status)}
         </span>
       </div>
-      <code>
-        {id} · {manifest.version}
-      </code>
-      {state.error && <p className="error">{stateMessage(state)}</p>}
-      <p className={styles.resourceCount}>
-        {state.resources} 项资源 · {state.tasks} 个在途任务
+      <p className={styles.cardMeta}>
+        <code>
+          {id} · {manifest.version}
+        </code>
+        {users.map((group) =>
+          group.users.length ? (
+            <span key={group.owner}>
+              {group.users.length} 个 {group.kind} 在使用
+            </span>
+          ) : null,
+        )}
       </p>
+      {state.error && <p className="error">{stateMessage(state)}</p>}
       {children}
       {state.status === "cleanup-failed" && (
         <p className="error">请重新启动应用以恢复此扩展。</p>

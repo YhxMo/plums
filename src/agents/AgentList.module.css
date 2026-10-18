@@ -46,6 +46,8 @@
 }
 .search:focus-within {
   border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+  background: var(--card);
 }
 .search input {
   background: none;
@@ -55,6 +57,7 @@
   font-size: 13px;
   padding: 7px 0;
   outline: 0;
+  box-shadow: none;
 }
 .listScroll {
   flex: 1;
@@ -188,21 +191,29 @@
   text-overflow: ellipsis;
 }
 .statusDot {
-  width: 5px;
-  height: 5px;
+  width: 7px;
+  height: 7px;
   border-radius: 50%;
-  background: var(--muted);
+  background: var(--running);
   flex-shrink: 0;
   margin-left: auto;
-}
-.statusDot[data-busy="true"] {
-  background: var(--running);
 }
 .rowMore {
   width: 28px !important;
   min-height: 28px !important;
   padding: 0 !important;
   margin-right: 3px;
+}
+/* With a pointer, row actions appear on hover or keyboard focus. */
+@media (hover: hover) {
+  .rowMore {
+    opacity: 0;
+  }
+  .agentRow:hover .rowMore,
+  .agentRow:focus-within .rowMore,
+  .rowMore[aria-expanded="true"] {
+    opacity: 1;
+  }
 }
 .agentMenu {
   position: absolute;
@@ -233,13 +244,6 @@
 }
 .agentMenu button:hover {
   background: var(--subtle);
-}
-.addButton {
-  margin: 10px 12px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
 }
 .listHint {
   margin: 12px 14px;
@@ -311,7 +315,8 @@
     grid-template-columns: repeat(4, minmax(0, 1fr));
   }
   .agentRow {
-    margin: 12px 0;
+    margin: 4px 0;
+    border-radius: 12px;
   }
   .rowMore {
     width: 44px !important;
@@ -325,8 +330,5 @@
   }
   .agentCopy > span {
     font-size: 13px;
-  }
-  .addButton {
-    margin: 12px 20px 20px;
   }
 }

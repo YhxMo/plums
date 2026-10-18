@@ -22,7 +22,6 @@ export function EmptyState({
     <main className={s.empty}>
       <div className={s.welcome}>
         <img src="/brand/plums.png" alt="" />
-        <span className="eyebrow">从这里开始</span>
         <h1>欢迎使用 Plums</h1>
         <p>
           添加你的第一个 Agent，

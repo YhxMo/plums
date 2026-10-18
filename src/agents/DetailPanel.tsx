@@ -9,6 +9,7 @@ export function DetailPanel({
   onPin,
   onSession,
   onDeleteSession,
+  onOpenExtension,
 }: {
   agent: Agent;
   provider: AgentProviderInfo;
@@ -16,7 +17,12 @@ export function DetailPanel({
   onPin: () => void;
   onSession: (action: "create" | "select", id?: string) => void;
   onDeleteSession: (id: string, source: HTMLElement) => void;
+  onOpenExtension: (id: string) => void;
 }) {
+  // Providers predating `extensions` are shown as the one extension they are.
+  const extensions = provider.extensions ?? [
+    { id: agent.extensionId, label: provider.label },
+  ];
   return (
     <aside className={s.details} aria-label="Agent 详情">
       <header>
@@ -29,16 +35,38 @@ export function DetailPanel({
         <div className={s.profile}>
           <Avatar agent={agent} size="large" />
           <h2>{agent.name}</h2>
-          <span>{provider.label}</span>
+          <span>{agent.status === "busy" ? "正在回复" : "空闲"}</span>
           <button className="secondary" onClick={onPin}>
             <Icon name="star" size={16} />
             {agent.pinned ? "取消特别关注" : "设为特别关注"}
           </button>
         </div>
-        <section>
-          <h3>角色说明</h3>
-          <p>{agent.description}</p>
-        </section>
+        {agent.description && (
+          <section>
+            <h3>角色说明</h3>
+            <p>{agent.description}</p>
+          </section>
+        )}
+        {extensions.length > 0 && (
+          <section>
+            <h3>使用的扩展</h3>
+            <ul className={s.chips}>
+              {extensions.map((extension) => (
+                <li key={extension.id}>
+                  <button
+                    className={s.chip}
+                    title={extension.id}
+                    aria-label={`查看扩展 ${extension.label}`}
+                    onClick={() => onOpenExtension(extension.id)}
+                  >
+                    <Icon name="puzzle" size={14} />
+                    {extension.label}
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </section>
+        )}
         <section>
           <h3>实际可用能力</h3>
           {agent.capabilities.map((c) => (
@@ -85,14 +113,6 @@ export function DetailPanel({
             {agent.status === "busy" && <p>停止处理后可管理会话。</p>}
           </section>
         )}
-        <section className={s.source}>
-          <h3>来源与版本</h3>
-          <p>{provider.label}</p>
-          <code>
-            {agent.extensionId} · {provider.version}
-          </code>
-          <p>运行状态：{agent.status === "busy" ? "运行中" : "空闲"}</p>
-        </section>
       </div>
     </aside>
   );

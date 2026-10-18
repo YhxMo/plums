@@ -1,7 +1,5 @@
 import type { ExtensionCardModel, ExtensionRowActions } from "./controllers";
-import { capabilityLabel } from "../../shell/messages";
 import styles from "./ExtensionManager.module.css";
-import { sourceLabel } from "../../../modules/shell/file-import";
 
 export function ExtensionActions({
   extension,
@@ -17,7 +15,6 @@ export function ExtensionActions({
 }) {
   const { entry, manifest, state, imported } = extension;
   const { id } = entry;
-  const capabilities = manifest.capabilities ?? [];
   return (
     <div className={styles.extensionActions}>
       {manifest.configuration && (
@@ -40,33 +37,8 @@ export function ExtensionActions({
           卸载（保留数据）
         </button>
       )}
-      <details>
-        <summary>扩展详情</summary>
-        <dl>
-          <dt>模块位置</dt>
-          <dd>{sourceLabel(entry.url)}</dd>
-          <dt>能力</dt>
-          <dd>
-            {capabilities.length
-              ? capabilities.map(capabilityLabel).join("、")
-              : "无需原生能力"}
-          </dd>
-          <dt>依赖服务</dt>
-          <dd>
-            {Object.entries(manifest.requires ?? {})
-              .map(([name, version]) => `${name}@${version}`)
-              .join("、") || "无"}
-          </dd>
-          <dt>提供服务</dt>
-          <dd>
-            {Object.entries(manifest.provides ?? {})
-              .map(([name, version]) => `${name}@${version}`)
-              .join("、") || "无"}
-          </dd>
-        </dl>
-      </details>
       <button
-        className="secondary"
+        className={`secondary ${styles.toggle}`}
         aria-label={`${state.status === "active" ? "停用" : "启用"} ${id}`}
         disabled={
           busy ||

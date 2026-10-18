@@ -9,14 +9,19 @@ export function ExtensionDetails({
   access,
   entry: activeSelectedExt,
   operations,
+  inline,
 }: ExtensionDetailsProps) {
   const extId = activeSelectedExt.id;
   const extState = host.inspect(extId);
   const extManifest = host.manifest(extId);
   const extCaps = extManifest.capabilities ?? [];
+  const users = host.users(extId).filter((group) => group.users.length);
   return (
-    <div className={styles.detailCard}>
-      <header className={styles.detailCardHeader}>
+    <section
+      aria-label="所选扩展详情"
+      className={inline ? managerStyles.inlineDetail : styles.detailCard}
+    >
+      <header className={styles.detailCardHeader} hidden={inline}>
         <div>
           <div className={managerStyles.extensionTitle}>
             <h3>{activeSelectedExt.label}</h3>
@@ -31,6 +36,16 @@ export function ExtensionDetails({
           </code>
         </div>
       </header>
+      {users.map((group) => (
+        <section className={styles.detailSection} key={group.owner}>
+          <h4>使用中的 {group.kind}</h4>
+          <ul className={managerStyles.userChips}>
+            {group.users.map((user) => (
+              <li key={user.id}>{user.label}</li>
+            ))}
+          </ul>
+        </section>
+      ))}
       <section className={styles.detailSection}>
         <h4>服务与权限概览</h4>
         <dl className={styles.detailMetaGrid}>
@@ -54,6 +69,10 @@ export function ExtensionDetails({
               ? extCaps.map(capabilityLabel).join("、")
               : "无需原生能力"}
           </dd>
+          <dt>运行资源</dt>
+          <dd>
+            {extState.resources} 项资源 · {extState.tasks} 个在途任务
+          </dd>
         </dl>
       </section>
       <CredentialBindings
@@ -65,6 +84,6 @@ export function ExtensionDetails({
         version={extManifest.version}
         declarations={extManifest.credentialBindings ?? {}}
       />
-    </div>
+    </section>
   );
 }

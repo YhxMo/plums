@@ -1,4 +1,4 @@
-import { expect, type Page } from "@playwright/test";
+import { expect, type Locator, type Page } from "@playwright/test";
 export async function manage(page: Page, diagnostics = false) {
   const manager = page.getByRole("heading", { name: "扩展与状态" });
   if (!(await manager.isVisible())) {
@@ -53,4 +53,10 @@ export function firstSessionMessageCount(page: Page) {
     );
     return shard ? JSON.parse(shard).value.messages.length : 0;
   });
+}
+
+/** Selects an extension's card and returns the details shown for it. */
+export async function extensionDetail(page: Page, card: Locator) {
+  await card.click({ position: { x: 6, y: 6 } });
+  return page.getByRole("region", { name: "所选扩展详情" });
 }

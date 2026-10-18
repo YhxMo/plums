@@ -43,10 +43,16 @@ export function useExtensionManager(
   const heading = useRef<HTMLHeadingElement>(null);
   const removed = useRef(false);
   useEffect(() => {
-    if (manager.open) {
-      if (manager.targetId) setSelectedId(manager.targetId);
-      heading.current?.focus();
-    }
+    if (!manager.open) return;
+    const target = manager.targetId;
+    if (target) setSelectedId(target);
+    heading.current?.focus();
+    if (target)
+      requestAnimationFrame(() =>
+        document
+          .querySelector(`[data-extension-id="${CSS.escape(target)}"]`)
+          ?.scrollIntoView({ block: "nearest" }),
+      );
   }, [manager.open, manager.targetId]);
   useEffect(() => {
     if (!dialog && removed.current) {
@@ -83,6 +89,7 @@ export function useExtensionManager(
     entry,
     manifest: host.manifest(entry.id),
     state: host.inspect(entry.id),
+    users: host.users(entry.id),
     selected: selected?.id === entry.id,
     imported: value.imports.some((item) => item.id === entry.id),
   }));
