@@ -154,6 +154,7 @@ export interface NativeCommands {
     response: null;
     error:
       | "invalid-owner"
+      | "invalid-key"
       | "unknown-capability"
       | "grant-lock"
       | "grant-unavailable"
@@ -179,6 +180,7 @@ export interface NativeCommands {
     error: {
       code:
         | "invalid-owner"
+        | "invalid-key"
         | "unknown-capability"
         | "grant-lock"
         | "grant-unavailable"

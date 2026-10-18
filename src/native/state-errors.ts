@@ -4,6 +4,7 @@ import type { NativeCommands } from "./contract.generated";
 export type StateErrorCode = NativeCommands["platform_call"]["error"]["code"];
 const copy: Record<StateErrorCode, string> = {
   "invalid-owner": "状态所属者无效。",
+  "invalid-key": "状态分片名无效，未保存。",
   "unknown-capability": "平台能力不支持。",
   "permission-denied": "平台操作未获授权。",
   "grant-unavailable": "授权更新失败，请重新启动应用。",

@@ -4,9 +4,9 @@ use std::{
     time::{SystemTime, UNIX_EPOCH},
 };
 static FIXTURE_SEQUENCE: AtomicU64 = AtomicU64::new(0);
-struct Fixture(PathBuf);
+pub(super) struct Fixture(pub(super) PathBuf);
 impl Fixture {
-    fn new() -> Self {
+    pub(super) fn new() -> Self {
         let root = std::env::temp_dir().join(format!(
             "plums-test-{}-{}-{}",
             std::process::id(),
@@ -19,7 +19,7 @@ impl Fixture {
         fs::create_dir(&root).unwrap();
         Self(root)
     }
-    fn broker(&self) -> Broker {
+    pub(super) fn broker(&self) -> Broker {
         let broker = Broker::new(self.0.clone());
         broker
             .grant(

@@ -14,6 +14,7 @@ wire_enum! {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
 pub enum StateErrorCode {
     InvalidOwner => "invalid-owner",
+    InvalidKey => "invalid-key",
     UnknownCapability => "unknown-capability",
     GrantLock => "grant-lock",
     GrantUnavailable => "grant-unavailable",
@@ -112,8 +113,25 @@ impl Broker {
             .insert(owner.into(), capabilities.into_iter().collect());
         Ok(())
     }
-    fn read_unlocked(&self, owner: &str) -> Result<Option<Document>, StateErrorCode> {
-        let path = self.root.join(format!("{owner}.json"));
+    /// File stem for an owner's main document or one of its keyed documents.
+    /// `+` never occurs in owners or keys, so stems cannot collide.
+    fn stem(owner: &str, payload: &Value) -> Result<String, StateErrorCode> {
+        match payload.get("key") {
+            None | Some(Value::Null) => Ok(owner.into()),
+            Some(Value::String(key))
+                if (1..=64).contains(&key.len())
+                    && key.starts_with(|c: char| c.is_ascii_lowercase() || c.is_ascii_digit())
+                    && key
+                        .bytes()
+                        .all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == b'-') =>
+            {
+                Ok(format!("{owner}+{key}"))
+            }
+            Some(_) => Err(StateErrorCode::InvalidKey),
+        }
+    }
+    fn read_unlocked(&self, stem: &str) -> Result<Option<Document>, StateErrorCode> {
+        let path = self.root.join(format!("{stem}.json"));
         match fs::metadata(&path).and_then(|meta| {
             if meta.len() > 65536 {
                 return Ok(None);
@@ -154,26 +172,36 @@ impl Broker {
             return Err(StateErrorCode::PermissionDenied);
         }
         let _guard = self.io.lock().map_err(|_| StateErrorCode::StateLock)?;
+        let stem = || Self::stem(owner, &payload);
         match capability {
             "platform.info" => Ok(
                 serde_json::json!({ "os": std::env::consts::OS, "arch": std::env::consts::ARCH, "storage": "isolated-experiment" }),
             ),
-            "state.read" => serde_json::to_value(self.read_unlocked(owner)?)
+            "state.read" => serde_json::to_value(self.read_unlocked(&stem()?)?)
                 .map_err(|_| StateErrorCode::Serialization),
             "state.write" => {
+                let stem = stem()?;
                 let expected = payload
                     .get("revision")
                     .and_then(Value::as_u64)
                     .ok_or(StateErrorCode::MissingRevision)?;
-                let value = payload.get("value").ok_or(StateErrorCode::MissingValue)?;
                 let current = self
-                    .read_unlocked(owner)?
+                    .read_unlocked(&stem)?
                     .map_or(0, |document| document.revision);
-                if current >= 9_007_199_254_740_991 {
-                    return Err(StateErrorCode::RevisionLimit);
-                }
                 if expected != current {
                     return Err(StateErrorCode::RevisionConflict);
+                }
+                if payload.get("remove") == Some(&Value::Bool(true)) {
+                    if current > 0 {
+                        fs::remove_file(self.root.join(format!("{stem}.json")))
+                            .map_err(|_| StateErrorCode::StateWrite)?;
+                        sync_directory(&self.root)?;
+                    }
+                    return Ok(Value::Null);
+                }
+                let value = payload.get("value").ok_or(StateErrorCode::MissingValue)?;
+                if current >= 9_007_199_254_740_991 {
+                    return Err(StateErrorCode::RevisionLimit);
                 }
                 let revision = current
                     .checked_add(1)
@@ -189,7 +217,7 @@ impl Broker {
                     return Err(StateErrorCode::StateTooLarge);
                 }
                 fs::create_dir_all(&self.root).map_err(|_| StateErrorCode::StateDirectory)?;
-                commit(&self.root, owner, &bytes)?;
+                commit(&self.root, &stem, &bytes)?;
                 serde_json::to_value(document).map_err(|_| StateErrorCode::Serialization)
             }
             _ => Err(StateErrorCode::UnknownCapability),
@@ -197,13 +225,13 @@ impl Broker {
     }
 }
 
-/// Writes `{owner}.json` through a temporary file unique to this write, so an
+/// Writes `{stem}.json` through a temporary file unique to this write, so an
 /// interrupted write cannot block later ones and concurrent writers never
 /// commit each other's file. The directory is synced so the rename survives
 /// power loss.
-fn commit(root: &Path, owner: &str, bytes: &[u8]) -> Result<(), StateErrorCode> {
-    let path = root.join(format!("{owner}.json"));
-    let temporary = root.join(format!("{owner}.{}.pending", uuid::Uuid::new_v4()));
+fn commit(root: &Path, stem: &str, bytes: &[u8]) -> Result<(), StateErrorCode> {
+    let path = root.join(format!("{stem}.json"));
+    let temporary = root.join(format!("{stem}.{}.pending", uuid::Uuid::new_v4()));
     let mut file = OpenOptions::new()
         .write(true)
         .create_new(true)
@@ -232,6 +260,9 @@ fn sync_directory(_root: &Path) -> Result<(), StateErrorCode> {
     Ok(())
 }
 
+#[cfg(test)]
+#[path = "storage_keyed_tests.rs"]
+mod keyed_tests;
 #[cfg(test)]
 #[path = "storage_tests.rs"]
 mod tests;

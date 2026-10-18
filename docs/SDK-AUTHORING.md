@@ -115,7 +115,7 @@ export default {
 
 ## 状态、取消与演进
 
-能力通过 manifest 声明并经授权后用 ctx.platform 调用。`state.read` 返回 null 或 `{revision, value}`；`state.write` 使用 `{revision, value}` 并返回提交回执。作用域为 `extension.<id>`，同 ID 重装保留原数据；未知 schema/修订冲突/超过 64 KiB 拒绝，不自动清空。不要在样板中存储凭据。业务状态结构和迁移由扩展明确设计，宿主不解析其业务对象。
+能力通过 manifest 声明并经授权后用 ctx.platform 调用。`state.read` 返回 null 或 `{revision, value}`；`state.write` 使用 `{revision, value}` 并返回提交回执。作用域为 `extension.<id>`，同 ID 重装保留原数据；未知 schema/修订冲突/超过 64 KiB 拒绝，不自动清空。两者都可带 `key`（`[a-z0-9][a-z0-9-]{0,63}`）读写同一作用域下的独立分片，每个分片有自己的修订号与 64 KiB 上限；`state.write` 传 `{key, revision, remove: true}` 在修订号匹配时删除该分片（不存在且修订号为 0 时为空操作）。宿主不提供分片枚举，扩展自行在主文档中记录分片名。不要在样板中存储凭据。业务状态结构和迁移由扩展明确设计，宿主不解析其业务对象。
 
 ctx.task 跟踪异步任务，使用传入 signal 合作式取消；ctx.onDispose 管理其他资源。挂载函数返回自己的清理函数，视图关闭也会调用它。平台调用可以传操作信号；原生派发写入后不可取消，成功回执表示提交，未知回执先重新读取再决定恢复，不盲目重试。
 

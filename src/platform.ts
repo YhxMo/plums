@@ -19,6 +19,15 @@ function validOwner(owner: string) {
     throw stateRejection("invalid-owner");
 }
 
+/** Same key rule as the native Broker; `+` separates owner and key. */
+function storageKey(owner: string, payload: unknown) {
+  const key = (payload as { key?: unknown } | null | undefined)?.key;
+  if (key === undefined || key === null) return `plums:m1:${owner}`;
+  if (typeof key !== "string" || !/^[a-z0-9][a-z0-9-]{0,63}$/.test(key))
+    throw stateRejection("invalid-key");
+  return `plums:m1:${owner}+${key}`;
+}
+
 function browserState(raw: string | null): StoredState | null {
   if (raw === null) return null;
   if (new TextEncoder().encode(raw).length > 65536)
@@ -157,21 +166,29 @@ export class PlatformAdapter implements Platform {
         storage: "browser-localStorage",
       };
     try {
-      const key = `plums:m1:${owner}`;
+      const key = storageKey(owner, payload);
       const saved = browserState(localStorage.getItem(key));
       if (capability === "state.read") return saved;
-      const update = payload as StoredState | null;
+      const update = payload as (StoredState & { remove?: unknown }) | null;
       if (
         !update ||
         typeof update !== "object" ||
         !Number.isSafeInteger(update.revision) ||
-        update.revision < 0 ||
-        !Object.hasOwn(update, "value") ||
-        ["undefined", "function", "symbol"].includes(typeof update.value)
+        update.revision < 0
       )
         throw stateRejection("missing-revision");
       if (update.revision !== (saved?.revision ?? 0))
         throw stateRejection("revision-conflict");
+      if (update.remove === true) {
+        signal?.throwIfAborted();
+        if (saved) localStorage.removeItem(key);
+        return null;
+      }
+      if (
+        !Object.hasOwn(update, "value") ||
+        ["undefined", "function", "symbol"].includes(typeof update.value)
+      )
+        throw stateRejection("missing-value");
       if (!Number.isSafeInteger(update.revision + 1))
         throw stateRejection("revision-limit");
       const document = {
