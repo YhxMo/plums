@@ -70,36 +70,40 @@ export function SettingsMenu({
               ["diagnostics", "code", "诊断工具"],
               ["about", "info", "关于 Plums"],
             ] as const
-          ).map(([action, icon, label]) => (
-            <Fragment key={action}>
-              <button
-                role="menuitem"
-                onClick={() => {
-                  setOpen(false);
-                  trigger.current?.focus();
-                  onChoose(action);
-                }}
-              >
-                <Icon name={icon} size={18} />
-                {label}
-              </button>
-              {action === "extensions" &&
-                views.map((view) => (
-                  <button
-                    key={view.id}
-                    role="menuitem"
-                    onClick={() => {
-                      setOpen(false);
-                      trigger.current?.focus();
-                      onView?.(view);
-                    }}
-                  >
-                    <Icon name="card" size={18} />
-                    {view.label}
-                  </button>
-                ))}
-            </Fragment>
-          ))}
+          )
+            .filter(
+              ([action]) => import.meta.env.DEV || action !== "diagnostics",
+            )
+            .map(([action, icon, label]) => (
+              <Fragment key={action}>
+                <button
+                  role="menuitem"
+                  onClick={() => {
+                    setOpen(false);
+                    trigger.current?.focus();
+                    onChoose(action);
+                  }}
+                >
+                  <Icon name={icon} size={18} />
+                  {label}
+                </button>
+                {action === "extensions" &&
+                  views.map((view) => (
+                    <button
+                      key={view.id}
+                      role="menuitem"
+                      onClick={() => {
+                        setOpen(false);
+                        trigger.current?.focus();
+                        onView?.(view);
+                      }}
+                    >
+                      <Icon name="card" size={18} />
+                      {view.label}
+                    </button>
+                  ))}
+              </Fragment>
+            ))}
         </div>
       )}
     </div>

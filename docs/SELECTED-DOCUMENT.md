@@ -4,7 +4,7 @@
 
 ## 用户路径与所有权
 
-启用文档样板并确认 `document.read` 后，在扩展管理中选择单个或多个文档。宿主在系统选择之前显示申请者、只读用途、64 KiB 上限与会话期限。扩展的“文档只读样板”界面刷新列表后读取；管理入口可撤销单个或全部。默认业务不自动读取文件。
+文档样板只在开发构建的目录中（`extensions/catalog.dev.json`），发布包不含；用户可自行导入同类扩展。启用文档样板并确认 `document.read` 后，在扩展管理中选择单个或多个文档。宿主在系统选择之前显示申请者、只读用途、64 KiB 上限与会话期限。扩展的“文档只读样板”界面刷新列表后读取；管理入口可撤销单个或全部。默认业务不自动读取文件。
 
 `PlatformAdapter.initializeDocuments()` 先探测原生支持，成功后 `available("document.read")` 才为真。探测失败（IPC 异常）不等同于平台不支持：`available` 保持 false 以避免授予未证实的能力，同时宿主记录初始化错误并在启动提示与文档区域显示原因和重新加载指引；只有探测明确返回 false 才显示平台不支持。宿主的 `selectDocuments(owner,multiple,signal?)`、`documents(owner)`、`revokeDocument(owner,handle?)` 管理句柄；选择入口不在扩展 ctx 上。扩展经 `ctx.platform("document.read",{action:"list"})` 列举自己的 `{handle,name}`，以 `{handle,maxBytes}` 读取。调用需声明和授予 document.read。没有真实路径、URI、文件写入或目录能力。
 

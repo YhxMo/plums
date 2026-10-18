@@ -75,18 +75,20 @@ export function Workbench({ runtime }: { runtime: Runtime }) {
         <ExtensionManager
           controller={management}
           diagnostics={
-            <DiagnosticsPanel
-              open={navigation.manager.diagnostics}
-              onToggle={navigation.setDiagnostics}
-            >
-              <DiagnosticActions
-                runtime={runtime}
-                operations={operations}
-                workspace={workspace}
-                authorization={authorization}
-                experiments={experiments}
-              />
-            </DiagnosticsPanel>
+            import.meta.env.DEV && (
+              <DiagnosticsPanel
+                open={navigation.manager.diagnostics}
+                onToggle={navigation.setDiagnostics}
+              >
+                <DiagnosticActions
+                  runtime={runtime}
+                  operations={operations}
+                  workspace={workspace}
+                  authorization={authorization}
+                  experiments={experiments}
+                />
+              </DiagnosticsPanel>
+            )
           }
         />
       </div>

@@ -31,19 +31,6 @@
     }
   },
   {
-    "id": "ui.broken",
-    "url": "/ui/broken.js",
-    "label": "故障布局实验",
-    "views": {
-      "broken": "故障布局实验"
-    }
-  },
-  {
-    "id": "sample.documents",
-    "url": "/samples/documents.js",
-    "label": "文档只读样板"
-  },
-  {
     "id": "connector.deepseek",
     "url": "/connectors/deepseek.js",
     "label": "DeepSeek 模型连接"

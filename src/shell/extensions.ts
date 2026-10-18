@@ -3,10 +3,16 @@ import { loadExtension } from "../../modules/extension-host/definition";
 import type { ImportedExtension } from "../../modules/shell/uninstall";
 import { errorMessage } from "./messages";
 
-export async function loadCatalog(): Promise<ImportedExtension[]> {
-  const response = await fetch("/catalog.json");
+const readCatalog = async (path: string): Promise<ImportedExtension[]> => {
+  const response = await fetch(path);
   if (!response.ok) throw new Error("扩展目录读取失败");
   return response.json();
+};
+/** Development builds add fault and sample extensions; releases never ship them. */
+export async function loadCatalog(): Promise<ImportedExtension[]> {
+  const catalog = await readCatalog("/catalog.json");
+  if (!import.meta.env.DEV) return catalog;
+  return [...catalog, ...(await readCatalog("/catalog.dev.json"))];
 }
 export async function installCatalog(
   host: Host,
