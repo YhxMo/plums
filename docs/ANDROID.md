@@ -19,7 +19,7 @@ npm run android:build
 
 Rust 编译输出固定到本项目 `.cache/android/target/`。Tauri 的 Android 构建会生成带包名和工程路径的 Kotlin 文件，这部分输出必须归属当前工作副本；不同工程共用旧 `target` 曾导致缺少 `TauriActivity`。YHX 工具链及下载缓存仍可复用。
 
-桌面环境中的 `PLUMS_M1_DATA_DIR` 在 Android 子进程中移除。设备通过应用自己的数据目录保存状态。调试签名首次构建时生成于 `.cache/android/debug.keystore`，后续复用；生成 Gradle 文件只通过环境变量引用它。密钥和机器路径均不进入版本控制。
+桌面环境中的 `PLUMS_DATA_DIR` 在 Android 子进程中移除。设备通过应用自己的数据目录保存状态。调试签名首次构建时生成于 `.cache/android/debug.keystore`，后续复用；生成 Gradle 文件只通过环境变量引用它。密钥和机器路径均不进入版本控制。
 
 ## 维护适配源码，按需生成工程
 

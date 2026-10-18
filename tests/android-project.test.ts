@@ -34,7 +34,10 @@ class MainActivity : TauriActivity() {
 }
 `;
   const files = {
-    "src-tauri/tauri.conf.json": '{"identifier":"dev.plums.plums"}',
+    "src-tauri/tauri.conf.json":
+      '{"identifier":"dev.plums.plums","productName":"Plums"}',
+    "src-tauri/gen/android/app/src/main/res/values/strings.xml":
+      '<resources>\n    <string name="app_name">"Plums M1"</string>\n    <string name="main_activity_title">"Plums M1"</string>\n</resources>\n',
     "native/android/MainActivity.kt": adapted,
     "native/android/AppearancePlugin.kt": readFileSync(
       new URL("../native/android/AppearancePlugin.kt", import.meta.url),
@@ -152,6 +155,19 @@ test("preparation refreshes launcher assets in an already generated project", ()
       "utf8",
     ),
   ).toBe("current icon");
+});
+
+test("preparation keeps the launcher label in step with the product name", () => {
+  const { root } = fixture();
+  prepareAndroid(root, "/toolchain");
+  const strings = readFileSync(
+    join(root, "src-tauri/gen/android/app/src/main/res/values/strings.xml"),
+    "utf8",
+  );
+  expect(strings).toContain('<string name="app_name">"Plums"</string>');
+  expect(strings).toContain(
+    '<string name="main_activity_title">"Plums"</string>',
+  );
 });
 
 test("missing icon sources fail before generated templates are changed", () => {

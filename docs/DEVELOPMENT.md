@@ -87,7 +87,7 @@ Mac使用 `npm run release:mac` 统一构建普通debug包、本地临时签名�
 
 - 确认没有构建或应用占用后，可删除 Rust 的 `build/deps/incremental/.fingerprint/examples`、Android Gradle 的 `build/.gradle/.kotlin`、`dist/`、图标生成暂存和测试报告。后续构建按原命令重新生成，首次原生编译会更慢。
 - 保留 `node_modules/`、Cargo/npm 下载缓存、Android 生成工程源码及 `.cache/android/debug.keystore`，避免无谓重装、丢失本地更新签名或破坏 JNI 链接。
-- 开发命令把 `PLUMS_M1_DATA_DIR` 指向 `.dev-data/` 以隔离数据；该变量只在 debug 构建（含 Mac 本地预览包）生效，release 构建始终使用平台数据目录。桌面版单实例：数据目录相同或不同，第二次启动都只聚焦已运行的窗口，因此开发进程与已打开的预览包不能同时运行。
+- 开发命令把 `PLUMS_DATA_DIR` 指向 `.dev-data/` 以隔离数据；该变量只在 debug 构建（含 Mac 本地预览包）生效，release 构建始终使用平台数据目录。桌面版单实例：数据目录相同或不同，第二次启动都只聚焦已运行的窗口，因此开发进程与已打开的预览包不能同时运行。
 - `release/`、独立受验候选、源码差异/清单、被引用的日志/截图、`.cache/archive/`、`.dev-data/`、隔离模拟器数据与 `goal.md` 不属于构建垃圾。历史记录只移出当前入口并更新引用，不删除原有失败或未验证范围。
 
 当前操作和版本从README、HANDOFF及RESULTS查阅。阶段历史与失败证据保持原件；入口文档不复制多轮PID、临时脚本路径和交付时间线。项目清单、链接及隐私模式通过check:project检查，原始日志／截图继续忽略。

@@ -47,7 +47,7 @@ try {
         ".cache/android/debug.keystore",
       ),
     };
-    delete env.PLUMS_M1_DATA_DIR;
+    delete env.PLUMS_DATA_DIR;
     const cli = ["node_modules/@tauri-apps/cli/tauri.js", "android"];
     if (action === "init") {
       if (existsSync(join(root, "src-tauri/gen/android")))

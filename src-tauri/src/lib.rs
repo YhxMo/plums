@@ -117,7 +117,7 @@ fn command_handler() -> impl Fn(tauri::ipc::Invoke<tauri::Wry>) -> bool + Send +
 /// release build always uses the platform data directory.
 fn data_dir_override() -> Option<std::path::PathBuf> {
     #[cfg(debug_assertions)]
-    return std::env::var_os("PLUMS_M1_DATA_DIR").map(std::path::PathBuf::from);
+    return std::env::var_os("PLUMS_DATA_DIR").map(std::path::PathBuf::from);
     #[cfg(not(debug_assertions))]
     None
 }
@@ -184,7 +184,7 @@ pub fn run() {
             Ok(())
         })
         .run(tauri::generate_context!())
-        .expect("Plums M1 runtime failed");
+        .expect("Plums runtime failed");
 }
 
 #[cfg(test)]

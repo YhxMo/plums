@@ -10,6 +10,6 @@ export function projectEnvironment() {
       ? `${cargoBin}${delimiter}${process.env.PATH ?? ""}`
       : process.env.PATH,
     CARGO_HOME: process.env.CARGO_HOME ?? resolve(".cache/cargo"),
-    PLUMS_M1_DATA_DIR: resolve(".dev-data"),
+    PLUMS_DATA_DIR: resolve(".dev-data"),
   };
 }

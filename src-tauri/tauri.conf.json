@@ -1,6 +1,6 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "Plums M1",
+  "productName": "Plums",
   "version": "0.0.4",
   "identifier": "dev.plums.plums",
   "build": {

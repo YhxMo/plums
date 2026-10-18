@@ -214,6 +214,22 @@ export function prepareAndroid(root, toolsRoot) {
     preparedWrapper += `\ndistributionSha256Sum=${checksum}\n`;
   edits.set(wrapper, preparedWrapper);
 
+  // The generated project keeps the name from its first initialization.
+  const strings = join(generated, "app/src/main/res/values/strings.xml");
+  if (config.productName && existsSync(strings)) {
+    const label = config.productName
+      .replaceAll("&", "&amp;")
+      .replaceAll("<", "&lt;")
+      .replaceAll('"', '\\"');
+    edits.set(
+      strings,
+      readFileSync(strings, "utf8").replace(
+        /(<string name="(?:app_name|main_activity_title)">)"[^"]*"(<\/string>)/g,
+        (_, open, close) => `${open}"${label}"${close}`,
+      ),
+    );
+  }
+
   const icons = join(root, "src-tauri/icons/android");
   for (const density of readdirSync(icons))
     for (const name of readdirSync(join(icons, density)))
