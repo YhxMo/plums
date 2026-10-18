@@ -1,6 +1,7 @@
 use crate::ipc::{ipc_command, wire_enum, wire_object};
 mod appearance;
 mod credential_bindings;
+mod credential_secrets;
 mod credential_types;
 mod credentials;
 mod credentials_native;

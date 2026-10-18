@@ -1,8 +1,9 @@
 //! Native management entry points. API keys never enter a WebView command or response.
 use crate::credential_bindings::{Bindings, Declaration, Failure, KeyResult, Route, Status, View};
+use crate::credential_secrets::{delete_all, retire};
 #[cfg(target_os = "android")]
 pub use crate::credentials_native::AndroidCredentials;
-use crate::credentials_native::{delete_key, key_exists, prompt, store_key};
+use crate::credentials_native::{key_exists, prompt, store_key};
 use crate::ipc::{ipc_command, wire_enum};
 use serde::Serialize;
 use tauri::Manager;
@@ -84,10 +85,14 @@ pub async fn credential_configure(
         let _ = bindings.finish_key(ticket, KeyResult::Unknown);
         return Response::Unknown;
     };
-    let result = store_key(app, &ticket.view, reference).await;
+    let result = store_key(app.clone(), &ticket.view, reference).await;
+    let view = ticket.view.clone();
     match bindings.finish_key(ticket, result) {
         Ok(()) => match result {
-            KeyResult::Stored => Response::Saved,
+            KeyResult::Stored => {
+                retire(app, &bindings, &view.owner, &view.alias, view.revision).await;
+                Response::Saved
+            }
             KeyResult::Cancelled => Response::Cancelled,
             KeyResult::Rejected => Response::Rejected {
                 reason: "invalid-key",
@@ -218,12 +223,7 @@ pub async fn credential_delete(
         let _ = bindings.cancel_action(&ticket);
         return response(Err(error));
     }
-    let mut removed = true;
-    for reference in &ticket.references {
-        if delete_key(app.clone(), reference).await.is_err() {
-            removed = false;
-        }
-    }
+    let removed = delete_all(app, &ticket.references).await.len() == ticket.references.len();
     response(bindings.finish_delete(ticket, removed))
 }
 }

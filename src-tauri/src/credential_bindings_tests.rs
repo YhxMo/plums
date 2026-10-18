@@ -277,3 +277,41 @@ fn unsafe_headers_urls_and_proxy_policies_are_rejected_before_persistence() {
     assert!(Route::from_input("https://proxy.invalid:8443").is_ok());
     assert!(Route::from_input("").is_ok());
 }
+#[test]
+fn re_entry_retires_old_references_until_their_deletion_is_confirmed() {
+    let fixture = Fixture::new();
+    let store = fixture.store();
+    ready(&store);
+    let first = begin(&store, 1).unwrap();
+    let old = first.references.clone();
+    store.finish_key(first, KeyResult::Stored).unwrap();
+    let second = begin(&store, 2).unwrap();
+    let newest = second.reference.clone().unwrap();
+    store.finish_key(second, KeyResult::Stored).unwrap();
+    let cleanup = store.begin_action(OWNER, "text", 3).unwrap();
+    let retired = cleanup.retired();
+    assert_eq!(retired.len(), 2);
+    assert!(!retired.contains(&newest));
+    assert!(old.iter().all(|reference| retired.contains(reference)));
+    // Only confirmed deletions leave the record; the rest are retried later.
+    store
+        .finish_retire(cleanup, vec![retired[0].clone()])
+        .unwrap();
+    let next = fixture.store().begin_action(OWNER, "text", 3).unwrap();
+    assert_eq!(next.retired(), vec![retired[1].clone()]);
+    assert_eq!(next.reference.as_deref(), Some(newest.as_str()));
+    assert_eq!(next.view.status, Status::Ready);
+    assert_eq!(next.view.revision, 3);
+}
+#[test]
+fn retirement_cleanup_never_drops_the_current_reference() {
+    let fixture = Fixture::new();
+    let store = fixture.store();
+    ready(&store);
+    let cleanup = store.begin_action(OWNER, "text", 1).unwrap();
+    let current = cleanup.reference.clone().unwrap();
+    assert!(cleanup.retired().is_empty());
+    store.finish_retire(cleanup, vec![current.clone()]).unwrap();
+    let next = store.begin_action(OWNER, "text", 1).unwrap();
+    assert_eq!(next.reference, Some(current));
+}

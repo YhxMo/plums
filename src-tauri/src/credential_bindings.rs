@@ -13,8 +13,10 @@ const MAX_BYTES: usize = 65536;
 const MAX_REFERENCES: usize = 8;
 pub type Failure = &'static str;
 
+pub(crate) use crate::credential_types::text;
 #[cfg(test)]
 use crate::credential_types::Authentication;
+use crate::credential_types::{alias, owner};
 pub use crate::credential_types::{Declaration, Route, Status, View};
 #[derive(Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
@@ -57,6 +59,16 @@ pub struct Ticket {
     pub reference: Option<String>,
     pub references: Vec<String>,
 }
+impl Ticket {
+    /// References replaced by a later re-entry; their secrets may still exist.
+    pub fn retired(&self) -> Vec<String> {
+        self.references
+            .iter()
+            .filter(|reference| Some(*reference) != self.reference.as_ref())
+            .cloned()
+            .collect()
+    }
+}
 #[derive(Clone, Copy, Debug)]
 pub enum KeyResult {
     Stored,
@@ -64,27 +76,6 @@ pub enum KeyResult {
     Rejected,
     Unavailable,
     Unknown,
-}
-pub fn owner(value: &str) -> bool {
-    value.starts_with("extension.")
-        && value.len() <= 74
-        && value.len() > 10
-        && !value.contains("..")
-        && value.as_bytes()[10].is_ascii_lowercase()
-        && value
-            .bytes()
-            .all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || matches!(c, b'.' | b'-'))
-}
-fn alias(value: &str) -> bool {
-    !value.is_empty()
-        && value.len() <= 32
-        && value.as_bytes()[0].is_ascii_lowercase()
-        && value
-            .bytes()
-            .all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == b'-')
-}
-pub(crate) fn text(value: &str, limit: usize) -> bool {
-    !value.trim().is_empty() && value.len() <= limit && !value.chars().any(char::is_control)
 }
 impl Saved {
     fn validate(&self) -> Result<(), Failure> {
@@ -344,6 +335,18 @@ impl Bindings {
         binding.reference = None;
         binding.retired.clear();
         binding.view.status = Status::Disabled;
+        inner.save(next)
+    }
+    /// Forget retired references whose secrets were confirmed deleted. The
+    /// current reference is never dropped, and the view revision is unchanged.
+    pub fn finish_retire(&self, ticket: Ticket, deleted: Vec<String>) -> Result<(), Failure> {
+        let mut inner = self.0.lock().map_err(|_| "unknown")?;
+        let active = inner.take(&ticket)?;
+        let mut next = inner.saved.clone();
+        let binding = next.bindings.get_mut(&active.key).ok_or("unknown")?;
+        binding
+            .retired
+            .retain(|reference| !deleted.contains(reference));
         inner.save(next)
     }
     pub fn finish_reconcile(

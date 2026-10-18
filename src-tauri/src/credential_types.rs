@@ -1,5 +1,5 @@
 //! Non-secret credential wire data and policy validation.
-use crate::credential_bindings::{text, Failure};
+use crate::credential_bindings::Failure;
 use crate::ipc::{wire_enum, wire_object};
 use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, HashSet};
@@ -159,4 +159,25 @@ impl Route {
         route.validate()?;
         Ok(route)
     }
+}
+pub(crate) fn owner(value: &str) -> bool {
+    value.starts_with("extension.")
+        && value.len() <= 74
+        && value.len() > 10
+        && !value.contains("..")
+        && value.as_bytes()[10].is_ascii_lowercase()
+        && value
+            .bytes()
+            .all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || matches!(c, b'.' | b'-'))
+}
+pub(crate) fn alias(value: &str) -> bool {
+    !value.is_empty()
+        && value.len() <= 32
+        && value.as_bytes()[0].is_ascii_lowercase()
+        && value
+            .bytes()
+            .all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == b'-')
+}
+pub(crate) fn text(value: &str, limit: usize) -> bool {
+    !value.trim().is_empty() && value.len() <= limit && !value.chars().any(char::is_control)
 }
