@@ -74,11 +74,20 @@ test("a layout choice during a pending theme write keeps the new theme", async (
       invoke: async (
         command: string,
         args: {
+          owner?: string;
           capability?: string;
-          payload?: Saved;
+          payload?: Saved & { key?: string };
         },
       ) => {
         if (command !== "platform_call") return undefined;
+        // Only the shell's main document is modelled; other owners start empty.
+        if (args.owner !== "host.shell" || args.payload?.key)
+          return args.capability === "state.write"
+            ? {
+                revision: args.payload!.revision + 1,
+                value: args.payload!.value,
+              }
+            : null;
         if (args.capability === "state.read") return w.__writes.saved;
         if (args.capability !== "state.write") return undefined;
         if (w.__writes.hold) {
