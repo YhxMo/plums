@@ -6,18 +6,33 @@ import type { Agent, AgentProvider } from "../modules/agents/contract";
 
 const owner = "extension.agents.local";
 
+type Update = StoredState & { key?: string; remove?: boolean };
+const bytes = (value: unknown) =>
+  new TextEncoder().encode(JSON.stringify(value)).length;
 function memoryPlatform(initial: Record<string, StoredState> = {}) {
   const states = new Map(Object.entries(structuredClone(initial)));
   const grants = new Map<string, Set<string>>();
-  const write = vi.fn(async (key: string, update: StoredState) => {
+  const slot = (owner: string, key?: string) =>
+    key ? `${owner}+${key}` : owner;
+  const write = vi.fn(async (owner: string, update: Update) => {
+    const key = slot(owner, update.key);
     if (update.revision !== (states.get(key)?.revision ?? 0))
       throw Object.assign(new Error("revision conflict"), {
         outcome: "not-committed",
       });
+    if (update.remove) {
+      states.delete(key);
+      return null;
+    }
     const next = {
       revision: update.revision + 1,
       value: structuredClone(update.value),
     };
+    if (bytes(next) > 65_536)
+      throw Object.assign(new Error("状态超过 64 KiB 实验上限，未保存。"), {
+        code: "state-too-large",
+        outcome: "not-committed",
+      });
     states.set(key, next);
     return next;
   });
@@ -29,8 +44,11 @@ function memoryPlatform(initial: Record<string, StoredState> = {}) {
     },
     call: async (key, capability, payload) => {
       if (!grants.get(key)?.has(capability)) throw new Error("denied");
-      if (capability === "state.read") return states.get(key) ?? null;
-      return write(key, payload as StoredState);
+      if (capability === "state.read")
+        return (
+          states.get(slot(key, (payload as Update | undefined)?.key)) ?? null
+        );
+      return write(key, payload as Update);
     },
   };
   return { platform, states, write };
@@ -92,17 +110,116 @@ function legacyAgent(): Agent {
   };
 }
 
-it("stores Agents in its own state namespace, not the shell snapshot", async () => {
+type Index = {
+  version: 2;
+  agents: { sessions: { id: string; shard: string; messages?: unknown }[] }[];
+};
+const index = (states: Map<string, StoredState>) =>
+  states.get(owner)!.value as Index;
+const shard = (states: Map<string, StoredState>, key: string) =>
+  states.get(`${owner}+${key}`)?.value as
+    { version: 1; messages: { text: string }[] } | undefined;
+
+it("stores an index plus one shard per session in its own namespace", async () => {
   const { platform, states } = memoryPlatform();
   const host = await start(platform);
   const agent = await provider(host).create({ name: "新角色" });
   await provider(host).send(agent.id, "你好");
-  expect([...states.keys()]).toEqual([owner]);
-  const saved = states.get(owner)!.value as { version: 1; agents: Agent[] };
-  expect(saved.version).toBe(1);
-  expect(saved.agents[0].sessions[0].messages.map((m) => m.text)).toEqual([
+  const saved = index(states);
+  expect(saved.version).toBe(2);
+  const session = saved.agents[0].sessions[0];
+  expect(session).not.toHaveProperty("messages");
+  expect(session.shard).toMatch(/^s-[0-9a-f-]{36}$/);
+  expect(shard(states, session.shard)!.messages.map((m) => m.text)).toEqual([
     "你好",
     "回复：你好",
+  ]);
+  expect([...states.keys()].sort()).toEqual([
+    owner,
+    `${owner}+${session.shard}`,
+  ]);
+});
+
+it("saves more than 64 KiB in total across sessions and restores it", async () => {
+  const { platform, states } = memoryPlatform();
+  const host = await start(platform);
+  const agent = await provider(host).create({
+    name: "长对话",
+    multiSession: true,
+  });
+  const text = "长".repeat(8_000);
+  for (let i = 0; i < 4; i++) {
+    if (i) await provider(host).session(agent.id, "create");
+    await provider(host).send(agent.id, text);
+  }
+  const total = [...states.values()].reduce(
+    (sum, state) => sum + bytes(state),
+    0,
+  );
+  expect(total).toBeGreaterThan(65_536);
+  const restarted = await start(platform);
+  const sessions = provider(restarted).list()[0].sessions;
+  expect(sessions).toHaveLength(4);
+  for (const session of sessions)
+    expect(session.messages.map((m) => m.text)).toEqual([
+      text,
+      `回复：${text}`,
+    ]);
+});
+
+it("writes only the changed shard and removes a deleted session's shard", async () => {
+  const { platform, states, write } = memoryPlatform();
+  const host = await start(platform);
+  const agent = await provider(host).create({
+    name: "多会话",
+    multiSession: true,
+  });
+  await provider(host).send(agent.id, "一");
+  const first = provider(host).list()[0].currentSessionId;
+  await provider(host).session(agent.id, "create");
+  await provider(host).send(agent.id, "二");
+  write.mockClear();
+  await provider(host).send(agent.id, "三");
+  const keys = write.mock.calls.map(([, update]) => update.key);
+  const [other, current] = index(states).agents[0].sessions;
+  // The index is rewritten only if its metadata (e.g. lastMessageAt) changed.
+  expect(keys[0]).toBe(current.shard);
+  expect(keys).not.toContain(other.shard);
+  const removed = index(states).agents[0].sessions[0].shard;
+  await provider(host).session(agent.id, "delete", first);
+  expect(states.has(`${owner}+${removed}`)).toBe(false);
+  expect(index(states).agents[0].sessions).toHaveLength(1);
+});
+
+it("rejects one oversized session without losing the others", async () => {
+  const { platform, states, write } = memoryPlatform();
+  const host = await start(platform);
+  const agent = await provider(host).create({ name: "边界" });
+  await provider(host).send(agent.id, "保留");
+  const before = structuredClone(Object.fromEntries(states));
+  write.mockRejectedValueOnce(
+    Object.assign(new Error("状态超过 64 KiB 实验上限，未保存。"), {
+      code: "state-too-large",
+      outcome: "not-committed",
+    }),
+  );
+  await expect(provider(host).send(agent.id, "大")).rejects.toThrow("64 KiB");
+  expect(Object.fromEntries(states)).toEqual(before);
+  await provider(host).send(agent.id, "之后");
+  expect(provider(host).list()[0].sessions[0].messages).toHaveLength(4);
+});
+
+it("upgrades a version 1 document in place into shards", async () => {
+  const { platform, states } = memoryPlatform({
+    [owner]: { revision: 3, value: { version: 1, agents: [legacyAgent()] } },
+  });
+  const host = await start(platform);
+  expect(provider(host).list()[0].sessions[0].messages).toHaveLength(2);
+  const session = index(states).agents[0].sessions[0];
+  expect(states.get(owner)!.revision).toBe(4);
+  expect(shard(states, session.shard)!.messages.map((m) => m.text)).toEqual([
+    "你好",
+    "旧回复",
   ]);
 });
 
@@ -114,15 +231,15 @@ it("migrates legacy shell Agents once, then retires the legacy field", async () 
     retireLegacy,
   });
   expect(host.inspect("agents.local").status).toBe("active");
-  const saved = states.get(owner)!.value as { agents: Agent[] };
-  expect(saved.agents[0]).toMatchObject({ name: "旧角色", status: "idle" });
-  expect(saved.agents[0]).not.toHaveProperty("canCancel");
+  const saved = index(states).agents[0] as unknown as Agent;
+  expect(saved).toMatchObject({ name: "旧角色", status: "idle" });
+  expect(saved).not.toHaveProperty("canCancel");
   expect(provider(host).list()[0].sessions[0].messages).toHaveLength(2);
   expect(retireLegacy).toHaveBeenCalledOnce();
 });
 
 it("prefers already migrated state and still retires a leftover legacy field", async () => {
-  const current = { version: 1, agents: [] };
+  const current = { version: 2, agents: [] };
   const { platform, write } = memoryPlatform({
     [owner]: { revision: 3, value: current },
   });
@@ -159,6 +276,31 @@ it.each([
     "own state version",
     {},
     { [owner]: { revision: 2, value: { version: 9 } } },
+  ],
+  [
+    "session shard",
+    {},
+    {
+      [owner]: {
+        revision: 2,
+        value: {
+          version: 2,
+          agents: [
+            {
+              ...legacyAgent(),
+              sessions: [
+                {
+                  ...legacyAgent().sessions[0],
+                  messages: undefined,
+                  shard: "s-1",
+                },
+              ],
+            },
+          ],
+        },
+      },
+      [`${owner}+s-1`]: { revision: 1, value: { version: 1, messages: "x" } },
+    },
   ],
 ])(
   "corrupt %s fails only the Agent provider and keeps the data",

@@ -42,3 +42,15 @@ export async function chooseLayout(page: Page, id: string) {
   await button.click();
   await expect(dialog).not.toBeVisible();
 }
+/** Messages saved for the first Agent's first session (they live in its shard). */
+export function firstSessionMessageCount(page: Page) {
+  return page.evaluate(() => {
+    const owner = "plums:m1:extension.agents.local";
+    const index = JSON.parse(localStorage.getItem(owner)!).value;
+    // A shard is written only once the session has messages.
+    const shard = localStorage.getItem(
+      `${owner}+${index.agents[0].sessions[0].shard}`,
+    );
+    return shard ? JSON.parse(shard).value.messages.length : 0;
+  });
+}

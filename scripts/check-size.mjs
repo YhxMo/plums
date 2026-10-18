@@ -18,7 +18,7 @@ export const sizeLimits = {
   "tests/abort-reentrancy.test.ts": 441,
   "tests/documents/probe.ts": 648,
   "tests/navigation/probe.ts": 424,
-  "tests/web/agent-flow.spec.ts": 696,
+  "tests/web/agent-flow.spec.ts": 690,
 };
 
 export function checkSize(root = ".") {

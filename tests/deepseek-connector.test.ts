@@ -55,12 +55,19 @@ function fixture(
         capabilities.filter((name) => !name.startsWith("state.")),
       ),
     async call(owner, name, payload, signal) {
-      if (name === "state.read") return states.get(owner) ?? null;
+      const { key, remove, revision, value } = (payload ?? {}) as Partial<
+        StoredState & { key: string; remove: boolean }
+      >;
+      const slot = key ? `${owner}+${key}` : owner;
+      if (name === "state.read") return states.get(slot) ?? null;
       if (name !== "state.write")
         return platform.call(owner, name, payload, signal);
-      const { revision, value } = payload as StoredState;
-      const next = { revision: revision + 1, value };
-      states.set(owner, next);
+      if (remove) {
+        states.delete(slot);
+        return null;
+      }
+      const next = { revision: revision! + 1, value };
+      states.set(slot, next);
       return next;
     },
   } satisfies Platform);

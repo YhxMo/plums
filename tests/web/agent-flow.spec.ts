@@ -1,5 +1,5 @@
 import { readFileSync } from "node:fs";
-import { manage } from "./helpers";
+import { firstSessionMessageCount, manage } from "./helpers";
 import { expect, test, type Page } from "@playwright/test";
 const sidebarToggle = (page: Page) =>
   page.getByRole("button", { name: "展开或收起右侧栏", exact: true });
@@ -639,13 +639,7 @@ test("service reply boundary rejects without losing draft and valid output survi
   await page.getByRole("button", { name: "发送", exact: true }).click();
   await expect(page.getByRole("alert")).toContainText("本次结果未保存");
   await expect(input).toHaveValue("oversized");
-  expect(
-    await page.evaluate(
-      () =>
-        JSON.parse(localStorage.getItem("plums:m1:extension.agents.local")!)
-          .value.agents[0].sessions[0].messages.length,
-    ),
-  ).toBe(0);
+  expect(await firstSessionMessageCount(page)).toBe(0);
   await input.fill("boundary");
   await page.getByRole("button", { name: "发送", exact: true }).click();
   await expect(input).toHaveValue("");
