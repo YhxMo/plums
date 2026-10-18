@@ -55,6 +55,7 @@ export default {
 | 保存数据 | 声明 `capabilities: ["state.read", "state.write"]`，见下方示例 | [状态规则](SDK-AUTHORING.md#状态取消与演进) |
 | 让用户调整设置 | `manifest.configuration` 声明字段，`ctx.configuration` 读取；用户在扩展管理中修改 | [配置契约](EXTENSION-CONFIGURATION.md) |
 | 连接真实模型 | 声明 `credentialBindings` 和 `capabilities: ["credential.request"]`，用 `ctx.platform("credential.request", { version: 1, binding, body })` 发请求；API Key 由用户在扩展详情中录入，扩展拿不到密钥 | [DeepSeek 连接器](../extensions/connectors/deepseek.js)、[请求契约](CREDENTIAL-REQUEST.md) |
+| 让扩展管理显示谁在用 | `ctx.shell.publishUsers("Agent", [{ id, label }])`；停用时自动清除 | [页面契约](PAGES.md#让扩展使用宿主入口) |
 | 使用别的扩展提供的服务 | `requires: { "服务名": 版本 }`，`ctx.use("服务名")` | [事件样板](../extensions/examples/events.js) |
 
 **界面**：`id` 在所有扩展中唯一，用你的扩展 ID 即可。默认（`presentation: "workspace"`）在 应用菜单 → 应用设置 →「界面布局」中选「使用 + label」后占据整个工作区，取代 Agent 界面；`"dialog"` 出现在应用菜单中，`"sidebar"` 出现在右侧栏。`root` 是一个空容器，应用的字体、颜色和按钮样式会作用于其中的普通元素。

@@ -52,15 +52,20 @@ export function createPersistence(
 export function createShellBridge(
   persistence: ReturnType<typeof createPersistence>,
   events: EventTarget,
+  /** Installed extensions; imports are added to this list in place. */
+  entries: readonly { id: string; label: string }[] = [],
 ): ShellBridge {
   let pages =
     persistence.current().pages ??
     (Object.create(null) as Record<string, string>);
   let pageQueue: Promise<void> = Promise.resolve();
   return {
-    open: async (action) => {
-      events.dispatchEvent(new CustomEvent("shell", { detail: action }));
+    open: async (action, _owner, target) => {
+      events.dispatchEvent(
+        new CustomEvent("shell", { detail: { action, target } }),
+      );
     },
+    label: (id) => entries.find((entry) => entry.id === id)?.label ?? id,
     readPage: (key) => pages[key],
     savePage: (key, route) => {
       const work = pageQueue.then(async () => {

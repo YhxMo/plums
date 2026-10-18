@@ -1,3 +1,4 @@
+import type { Named } from "../sdk";
 /** Experimental `agents@1` service contract owned by the Agent extension, not the SDK. */
 export type Session = {
   id: string;
@@ -32,6 +33,8 @@ export type AgentProviderInfo = {
   label: string;
   version: string;
   description: string;
+  /** Extensions the replies rely on, this provider first; added after agents@1 shipped. */
+  extensions?: readonly Named[];
 };
 export interface AgentProvider {
   readonly info: AgentProviderInfo;

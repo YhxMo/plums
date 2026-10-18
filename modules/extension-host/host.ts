@@ -156,9 +156,9 @@ export class Host {
       tasks: record.scope?.tasks.size ?? 0,
     };
   }
-  serviceNames() {
-    return [...this.registry.services.keys()];
-  }
+  readonly serviceNames = () => [...this.registry.services.keys()];
+  /** Users published by active extensions that rely on `id`. */
+  readonly users = (id: string) => this.registry.usersOf(id);
   peekService<T>(name: string, version = 1): T | undefined {
     const entry = this.registry.services.get(name);
     if (

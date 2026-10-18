@@ -25,18 +25,40 @@ export function createContext(
 ): ExtensionContext {
   const { registry, platform } = host;
   const own = (dispose: () => void | Promise<void>) => scope.own(dispose);
+  // Providers are active before their dependents, so their lists exist.
+  const dependencies = [
+    ...new Set([
+      id,
+      ...Object.keys(manifest.requires ?? {}).flatMap(
+        (name) =>
+          registry.dependencies.get(registry.services.get(name)?.owner ?? "") ??
+          [],
+      ),
+    ]),
+  ];
+  // Read only while this extension is active: as a provider during a
+  // dependent's activation, or through users, which are cleared on stop.
+  registry.dependencies.set(id, dependencies);
+  const label = (owner: string) => host.shell()?.label?.(owner) ?? owner;
   return {
     id,
     signal: scope.controller.signal,
     configuration,
     shell: {
-      open: async (action) => {
+      open: async (action, target) => {
         scope.assertOpen();
         if (!["extensions", "settings", "diagnostics"].includes(action))
           throw hostError("Unknown shell action");
+        if (
+          target !== undefined &&
+          (action !== "extensions" || typeof target !== "string")
+        )
+          throw hostError("Invalid shell target");
         const bridge = host.shell();
         if (!bridge) throw hostError("Shell controls unavailable");
-        await bridge.open(action, id);
+        await (target === undefined
+          ? bridge.open(action, id)
+          : bridge.open(action, id, target));
       },
       readPage: (viewId) => {
         scope.assertOpen();
@@ -47,6 +69,38 @@ export function createContext(
         const bridge = host.shell();
         if (!bridge) throw hostError("Shell controls unavailable");
         await bridge.savePage(`${id}/${viewId}`, route);
+      },
+      dependencies: () => {
+        scope.assertOpen();
+        return dependencies.map((owner) => ({
+          id: owner,
+          label: label(owner),
+        }));
+      },
+      publishUsers: (kind, users) => {
+        scope.assertOpen();
+        if (
+          typeof kind !== "string" ||
+          !Array.isArray(users) ||
+          users.some(
+            (user) =>
+              typeof user?.id !== "string" || typeof user.label !== "string",
+          )
+        )
+          throw hostError("Invalid users");
+        const next = {
+          kind,
+          users: users.map(({ id, label }) => ({ id, label })),
+        };
+        if (JSON.stringify(registry.users.get(id)) === JSON.stringify(next))
+          return;
+        if (!registry.users.has(id))
+          own(() => {
+            registry.users.delete(id);
+            host.changed();
+          });
+        registry.users.set(id, next);
+        host.changed();
       },
     },
     use: <T>(name: string) => {

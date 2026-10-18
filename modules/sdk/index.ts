@@ -65,16 +65,25 @@ export interface View {
 }
 
 export type ShellAction = "extensions" | "settings" | "diagnostics";
+/** Something shown to the user by name, such as an extension or an Agent. */
+export type Named = { id: string; label: string };
 export interface ShellBridge {
-  open(action: ShellAction, owner: string): Promise<void>;
+  open(action: ShellAction, owner: string, target?: string): Promise<void>;
   readPage(key: string): string | undefined;
   savePage(key: string, route: string): Promise<void>;
+  /** The name the user knows an extension by; the ID when omitted. */
+  label?(id: string): string;
 }
 export interface ShellAccess {
-  open(action: ShellAction): Promise<void>;
+  /** `target` selects one extension in `"extensions"`. */
+  open(action: ShellAction, target?: string): Promise<void>;
   /** Returns undefined for no preference or no connected shell bridge; writes reject instead. */
   readPage(viewId: string): string | undefined;
   savePage(viewId: string, route: string): Promise<void>;
+  /** This extension, then the active extensions providing its required services, transitively; fixed for one activation. */
+  dependencies(): Named[];
+  /** Replaces what this extension serves, e.g. its Agents; management lists them under every extension in `dependencies()`. Cleared on stop. */
+  publishUsers(kind: string, users: Named[]): void;
 }
 export interface ExtensionContext {
   readonly id: string;

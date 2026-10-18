@@ -154,3 +154,25 @@ it("serializes page patches, publishes after save and retains the preceding rout
   await bridge.savePage("owner/one", "retry");
   expect(bridge.readPage("owner/one")).toBe("retry");
 });
+it("names extensions as listed and forwards a management target", async () => {
+  const runtime = await boot();
+  const events = new EventTarget();
+  const entries = [{ id: "a.b", url: "/a.js", label: "甲" }];
+  const bridge = createShellBridge(
+    createPersistence(runtime.adapter, parsePersistedState({ version: 1 }), 7),
+    events,
+    entries,
+  );
+  entries.push({ id: "c.d", url: "/c.js", label: "乙" });
+  expect([
+    bridge.label!("a.b"),
+    bridge.label!("c.d"),
+    bridge.label!("x"),
+  ]).toEqual(["甲", "乙", "x"]);
+  const seen = vi.fn();
+  events.addEventListener("shell", (event) =>
+    seen((event as CustomEvent).detail),
+  );
+  await bridge.open("extensions", "owner", "a.b");
+  expect(seen).toHaveBeenCalledWith({ action: "extensions", target: "a.b" });
+});

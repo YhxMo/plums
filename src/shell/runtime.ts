@@ -118,7 +118,8 @@ export async function bootShell(
     saved?.revision ?? 0,
   );
   const events = new EventTarget();
-  host.connectShell(createShellBridge({ save, current }, events));
+  const entries = [...catalog, ...application.catalog];
+  host.connectShell(createShellBridge({ save, current }, events, entries));
   for (const extension of application.extensions(preferences, save))
     host.install(extension, configurations[extension.manifest.id]);
   for (const [id, capabilities] of Object.entries(application.grants ?? {}))
@@ -145,7 +146,7 @@ export async function bootShell(
   return {
     host,
     adapter,
-    catalog: [...catalog, ...application.catalog],
+    catalog: entries,
     sources,
     initial: {
       layout: preferences.layout,

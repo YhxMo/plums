@@ -39,7 +39,18 @@ export function agentExtension(
         (agents, save) => state.save(agents, save),
         (text, signal) => ctx.task(() => transformer.transform(text, signal)),
         transformer,
+        ctx.shell.dependencies(),
       );
+      // Management lists these Agents under every extension the replies use.
+      const publish = () => {
+        if (ctx.signal.aborted) return;
+        ctx.shell.publishUsers(
+          "Agent",
+          store.list().map((agent) => ({ id: agent.id, label: agent.name })),
+        );
+      };
+      publish();
+      ctx.onDispose(store.subscribe(publish));
       ctx.provide("agents", 1, store);
       ctx.onDispose(() => store.close());
     },

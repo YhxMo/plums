@@ -63,7 +63,7 @@ const close = host.mountView(viewId, root); // () => void | Promise<void>
 
 ## 页面与公开宿主入口
 
-扩展可通过 `ctx.shell.open("extensions" | "settings" | "diagnostics")` 请求呈现宿主入口；这不授予权限或直接管理其他扩展。`View.presentation` 可选声明 workspace/dialog/sidebar，外壳按声明装配主视图、菜单和上下文侧栏，旧视图默认 workspace。动态页面、导航保存、嵌套贡献、焦点与清理见 [页面契约和文本处理工作台](PAGES.md)。
+扩展可通过 `ctx.shell.open("extensions" | "settings" | "diagnostics")` 请求呈现宿主入口，`open("extensions", id)` 选中指定扩展；这不授予权限或直接管理其他扩展。`ctx.shell.dependencies()` 列出本扩展所依赖的已启用扩展，`ctx.shell.publishUsers(kind, users)` 让扩展管理显示谁在使用这条依赖链，规则见页面契约。`View.presentation` 可选声明 workspace/dialog/sidebar，外壳按声明装配主视图、菜单和上下文侧栏，旧视图默认 workspace。动态页面、导航保存、嵌套贡献、焦点与清理见 [页面契约和文本处理工作台](PAGES.md)。
 
 从扩展管理启用内置公开样板 `ui.workbench-board` 并确认状态权限，可体验“处理项→编辑执行→结果详情”的非聊天界面。作者可通过普通服务 `text-workbench.pages@1` 登记自己的页面，无需改内核；冻结后的内部独立作者已通过同源安装接入 [交稿检查页面](LOCAL-PROOF.md)，受验范围见专项证据。
 

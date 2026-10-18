@@ -1,4 +1,5 @@
 import { ContractError } from "../sdk/errors";
+import type { Named } from "../sdk";
 import type {
   Agent,
   AgentConfig,
@@ -119,12 +120,14 @@ export class AgentStore implements AgentProvider {
     private reply: (text: string, signal: AbortSignal) => Promise<string>,
     /** The text service that writes replies; described to the user. */
     source: { name: string; description?: string } = { name: "文本服务" },
+    extensions: readonly Named[] = [],
   ) {
     this.agents = initial;
     this.info = {
       label: "内置本地 Agent 提供者",
       version: "0.0.4",
       description: source.description ?? `回复由「${source.name}」生成。`,
+      extensions,
     };
   }
   list = () => this.agents;
