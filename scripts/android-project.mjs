@@ -5,6 +5,7 @@ import {
   readFileSync,
   writeFileSync,
 } from "node:fs";
+import { createHash } from "node:crypto";
 import { dirname, join } from "node:path";
 import { pathToFileURL } from "node:url";
 
@@ -68,6 +69,18 @@ org.gradle.daemon=false
 org.gradle.workers.max=4
 `;
 
+/**
+ * SHA-256 of earlier committed templates (package dev.plums.plums) that may be replaced.
+ * @type {Record<string, Set<string>>}
+ */
+const previousTemplates = {
+  Credentials: new Set([
+    // 0e5d114: prompt failures reported as cancelled.
+    "e59629add7a0c82ca54085ff7d47cd66df92677ef106a3f348be44c4ddec6e58",
+    // 135c149: before bound requests.
+    "b1f134a606380b32065e35750e559d85f6047038bd1d8c8d06c37c1d329f015d",
+  ]),
+};
 /** Validate every edit before writing any generated file.
  * @param {string} root @param {string} toolsRoot */
 export function prepareAndroid(root, toolsRoot) {
@@ -117,20 +130,14 @@ export function prepareAndroid(root, toolsRoot) {
           .replace('"#181818"', '"#1c1917"')
           .replace('"#fafafa"', '"#f7f4ef"'),
       );
-    if (name === "Credentials")
-      accepted.push(
-        source
-          .replace("import android.util.Log\n", "")
-          .replace(
-            'catch (_: Exception) { finish(response("unavailable")) }',
-            'catch (_: Exception) { finish(response("unknown")) }',
-          )
-          .replace(
-            '      } catch (error: Exception) {\n        input.text.clear()\n        if (!hadSecureFlag) activity.window.clearFlags(WindowManager.LayoutParams.FLAG_SECURE)\n        Log.w("PlumsCredentials", "credential prompt failed: ${error.javaClass.simpleName}")\n        finish("unavailable")\n      }',
-            '      } catch (_: Exception) {\n        input.text.clear()\n        if (!hadSecureFlag) activity.window.clearFlags(WindowManager.LayoutParams.FLAG_SECURE)\n        finish("cancelled")\n      }',
-          ),
-      );
-    if (existsSync(path) && !accepted.includes(readFileSync(path, "utf8")))
+    const existing = existsSync(path) ? readFileSync(path, "utf8") : null;
+    if (
+      existing !== null &&
+      !accepted.includes(existing) &&
+      !previousTemplates[name]?.has(
+        createHash("sha256").update(existing).digest("hex"),
+      )
+    )
       throw new Error(`${name} plugin changed; review before adapting`);
     edits.set(path, source);
   }

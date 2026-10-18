@@ -5,7 +5,7 @@ import {
   writeFileSync,
   rmSync,
 } from "node:fs";
-import { createHash } from "node:crypto";
+import { execFileSync } from "node:child_process";
 import { tmpdir } from "node:os";
 import { join, dirname } from "node:path";
 import { afterEach, expect, test } from "vitest";
@@ -219,7 +219,7 @@ test("preparation upgrades the known previous light system-bar color", () => {
   expect(readFileSync(plugin, "utf8")).toBe(current);
 });
 
-test("preparation upgrades the known previous credential prompt failure status", () => {
+test("preparation replaces only known earlier credential plugin templates", () => {
   const { root, activity } = fixture();
   const plugin = join(
     root,
@@ -229,24 +229,20 @@ test("preparation upgrades the known previous credential prompt failure status",
     join(root, "native/android/CredentialsPlugin.kt"),
     "utf8",
   ).replace("{{PACKAGE}}", "dev.plums.plums");
-  const previous = current
-    .replace("import android.util.Log\n", "")
-    .replace(
-      'catch (_: Exception) { finish(response("unavailable")) }',
-      'catch (_: Exception) { finish(response("unknown")) }',
-    )
-    .replace(
-      '      } catch (error: Exception) {\n        input.text.clear()\n        if (!hadSecureFlag) activity.window.clearFlags(WindowManager.LayoutParams.FLAG_SECURE)\n        Log.w("PlumsCredentials", "credential prompt failed: ${error.javaClass.simpleName}")\n        finish("unavailable")\n      }',
-      '      } catch (_: Exception) {\n        input.text.clear()\n        if (!hadSecureFlag) activity.window.clearFlags(WindowManager.LayoutParams.FLAG_SECURE)\n        finish("cancelled")\n      }',
-    );
-  // SHA-256 of 0e5d114's actual template with package dev.plums.plums.
-  // This independently pins the historical input even if both transforms drift.
-  expect(createHash("sha256").update(previous).digest("hex")).toBe(
-    "e59629add7a0c82ca54085ff7d47cd66df92677ef106a3f348be44c4ddec6e58",
+  for (const commit of ["0e5d114", "135c149"]) {
+    const previous = execFileSync(
+      "git",
+      ["show", `${commit}:native/android/CredentialsPlugin.kt`],
+      { cwd: process.cwd(), encoding: "utf8" },
+    ).replace("{{PACKAGE}}", "dev.plums.plums");
+    writeFileSync(plugin, previous);
+    prepareAndroid(root, "/toolchain");
+    expect(readFileSync(plugin, "utf8")).toBe(current);
+  }
+  writeFileSync(plugin, current.replace("30, TimeUnit", "60, TimeUnit"));
+  expect(() => prepareAndroid(root, "/toolchain")).toThrow(
+    "Credentials plugin changed",
   );
-  writeFileSync(plugin, previous);
-  prepareAndroid(root, "/toolchain");
-  expect(readFileSync(plugin, "utf8")).toBe(current);
 });
 
 test("document picker requests only temporary read access and bounded worker reads", () => {

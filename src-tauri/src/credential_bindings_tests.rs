@@ -1,4 +1,5 @@
 use super::*;
+use crate::credential_types::Authentication;
 const OWNER: &str = "extension.connector.test";
 struct Fixture(PathBuf);
 impl Fixture {
@@ -314,4 +315,22 @@ fn retirement_cleanup_never_drops_the_current_reference() {
     store.finish_retire(cleanup, vec![current.clone()]).unwrap();
     let next = store.begin_action(OWNER, "text", 1).unwrap();
     assert_eq!(next.reference, Some(current));
+}
+#[test]
+fn requests_resolve_only_ready_bindings_outside_management_actions() {
+    let fixture = Fixture::new();
+    let store = fixture.store();
+    assert_eq!(store.resolve(OWNER, "text").err(), Some("missing"));
+    let pending = begin(&store, 0).unwrap();
+    assert_eq!(store.resolve(OWNER, "text").err(), Some("busy"));
+    let reference = pending.reference.clone().unwrap();
+    store.finish_key(pending, KeyResult::Stored).unwrap();
+    let (view, resolved) = store.resolve(OWNER, "text").unwrap();
+    assert_eq!((view.revision, resolved), (1, reference));
+    assert_eq!(
+        store.resolve("extension.other", "text").err(),
+        Some("missing")
+    );
+    store.retain_disabled(OWNER).unwrap();
+    assert_eq!(store.resolve(OWNER, "text").err(), Some("not-ready"));
 }

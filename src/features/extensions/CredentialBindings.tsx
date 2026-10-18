@@ -105,7 +105,7 @@ export function CredentialBindings({
         <>
           <p>
             API Key
-            在原生面板录入。默认直连，可单独设置网络代理；保存连接不会发送请求。
+            在原生面板录入，保存连接不会发送请求。首次发送前会在原生面板请你确认；当前版本只通过直连发送，设置了网络代理的连接会拒绝发送。
           </p>
           {aliases.map((alias) => {
             const item = items.find((item) => item.alias === alias);
@@ -129,7 +129,7 @@ export function CredentialBindings({
                   <p>
                     {item.route.type === "direct"
                       ? "网络：直连"
-                      : `网络代理：${item.route.url}`}
+                      : `网络代理：${item.route.url}（当前版本不支持经代理发送）`}
                   </p>
                 )}
                 <div className={styles.actions}>

@@ -87,13 +87,17 @@ export class PlatformAdapter implements Platform {
     validOwner(owner);
     return this.documentAccess.revoke(owner, handle);
   }
-  release(owner: string) {
-    return this.grants.get(owner)?.has("document.read")
-      ? this.revokeDocument(owner)
-      : Promise.resolve();
+  async release(owner: string) {
+    const granted = this.grants.get(owner);
+    await Promise.all([
+      granted?.has("document.read") && this.revokeDocument(owner),
+      granted?.has("credential.request") && this.credentials.release(owner),
+    ]);
   }
   available(capability: string) {
     if (capability === "document.read") return this.documentAccess.supported;
+    if (capability === "credential.request")
+      return this.kind === "native" && this.credentials.supported;
     return ["state.read", "state.write", "platform.info"].includes(capability);
   }
   async grant(owner: string, capabilities: string[]) {
@@ -127,6 +131,8 @@ export class PlatformAdapter implements Platform {
         return this.documentAccess.list(owner);
       return this.documentAccess.read(owner, payload, signal);
     }
+    if (capability === "credential.request")
+      return this.credentials.request(owner, payload, signal);
     if (this.failWrites && capability === "state.write")
       throw platformRejection("注入的写入故障：原数据保持不变");
     if (this.kind === "native") {

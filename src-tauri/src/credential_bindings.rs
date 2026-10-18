@@ -13,10 +13,7 @@ const MAX_BYTES: usize = 65536;
 const MAX_REFERENCES: usize = 8;
 pub type Failure = &'static str;
 
-pub(crate) use crate::credential_types::text;
-#[cfg(test)]
-use crate::credential_types::Authentication;
-use crate::credential_types::{alias, owner};
+use crate::credential_types::{alias, owner, text};
 pub use crate::credential_types::{Declaration, Route, Status, View};
 #[derive(Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
@@ -449,6 +446,8 @@ fn persist(root: &Path, bytes: &[u8]) -> std::io::Result<()> {
     std::fs::File::open(root)?.sync_all()
 }
 
+#[path = "credential_resolve.rs"]
+mod resolve;
 #[cfg(test)]
 #[path = "credential_bindings_tests.rs"]
 mod tests;

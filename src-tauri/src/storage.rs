@@ -98,6 +98,7 @@ impl Broker {
                 "state.write",
                 "platform.info",
                 "document.read",
+                "credential.request",
             ]
             .contains(&cap.as_str())
         }) {
@@ -112,6 +113,13 @@ impl Broker {
             .map_err(|_| StateErrorCode::GrantLock)?
             .insert(owner.into(), capabilities.into_iter().collect());
         Ok(())
+    }
+    pub fn allows(&self, owner: &str, capability: &str) -> bool {
+        self.grants.lock().is_ok_and(|grants| {
+            grants
+                .get(owner)
+                .is_some_and(|caps| caps.contains(capability))
+        })
     }
     /// File stem for an owner's main document or one of its keyed documents.
     /// `+` never occurs in owners or keys, so stems cannot collide.

@@ -103,6 +103,17 @@ export interface NativeCommands {
       | { status: "unknown" };
     error: never;
   };
+  credential_request: {
+    args: { owner: string; id: string; binding: string; body: string };
+    response: { status: number; body: string };
+    error: { code: string; outcome: string };
+  };
+  credential_abort: {
+    args: { owner: string; id: string };
+    response: null;
+    error: never;
+  };
+  credential_release: { args: { owner: string }; response: null; error: never };
   document_supported: {
     args: Record<string, never>;
     response: boolean;

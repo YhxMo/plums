@@ -1,6 +1,10 @@
 import { invokeNative } from "./native/invoke";
 import type { NativeCommands } from "./native/contract.generated";
-import type { CredentialBindingDeclaration } from "../modules/sdk";
+import type {
+  CredentialBindingDeclaration,
+  CredentialFailureOutcome,
+  CredentialResponse,
+} from "../modules/sdk";
 
 export type CredentialBinding =
   NativeCommands["credential_list"]["response"][number];
@@ -12,6 +16,31 @@ type Mutation =
   | "credential_route"
   | "credential_reconcile"
   | "credential_delete";
+
+const reasons: Record<string, string> = {
+  denied: "扩展没有凭据请求权限。",
+  busy: "该扩展已有请求在进行或连接正在修改，请稍后再试。",
+  missing: "连接尚未配置，请在扩展管理中录入 API Key。",
+  "not-ready": "连接未就绪，请在扩展管理中录入或核对 API Key。",
+  "not-confirmed": "已取消发送，请求未发出。",
+  "proxy-unsupported": "当前版本只支持直连，请把连接方式改为直连。",
+  "secret-unavailable": "无法读取系统中保存的 API Key，请重新录入。",
+  "invalid-request": "请求格式无效或超过 4096 字节，未发送。",
+  stale: "连接或授权已变化，本次结果未交付。",
+  timeout: "请求超时，远端结果未确认。",
+  redirect: "服务返回了跳转，已拒绝跟随，远端结果未确认。",
+  "response-too-large": "响应超过 8192 字节，远端结果未确认。",
+  "response-encoding": "响应不是有效的 UTF-8 文本，远端结果未确认。",
+};
+function requestFailure(code: string, outcome: CredentialFailureOutcome) {
+  const fallback =
+    outcome === "unknown" ? "请求结果未确认，不会自动重试。" : "请求未发送。";
+  return Object.assign(new Error(reasons[code] ?? fallback), {
+    code,
+    outcome,
+  });
+}
+const bytes = (value: string) => new TextEncoder().encode(value).length;
 
 /** Host management only. This entry never accepts or returns an API key. */
 export class CredentialAccess {
@@ -53,6 +82,7 @@ export class CredentialAccess {
   }
   async prepareUninstall(owner: string, declared: boolean) {
     if (!this.supported || (!declared && !this.owners.has(owner))) return;
+    await this.release(owner);
     const result = await this.run("credential_retain", { owner });
     if (result.status === "rejected")
       throw Error(
@@ -82,13 +112,64 @@ export class CredentialAccess {
       revision,
     });
   }
+  /** Sends through the owner's binding; the key is injected natively. */
+  async request(
+    owner: string,
+    payload: unknown,
+    signal?: AbortSignal,
+  ): Promise<CredentialResponse> {
+    const { version, binding, body } = (payload ?? {}) as Record<
+      string,
+      unknown
+    >;
+    if (
+      !payload ||
+      typeof payload !== "object" ||
+      Object.keys(payload).sort().join() !== "binding,body,version" ||
+      version !== 1 ||
+      typeof binding !== "string" ||
+      typeof body !== "string" ||
+      bytes(body) > 4096
+    )
+      throw requestFailure("invalid-request", "not-dispatched");
+    if (signal?.aborted) throw requestFailure("cancelled", "not-dispatched");
+    const id = crypto.randomUUID();
+    const abort = () =>
+      void invokeNative("credential_abort", { owner, id }).catch(() => {});
+    signal?.addEventListener("abort", abort, { once: true });
+    try {
+      return await invokeNative("credential_request", {
+        owner,
+        id,
+        binding,
+        body,
+      });
+    } catch (error) {
+      const { code, outcome } = (error ?? {}) as Record<string, unknown>;
+      if (
+        typeof code === "string" &&
+        (outcome === "not-dispatched" || outcome === "unknown")
+      )
+        throw requestFailure(code, outcome);
+      throw requestFailure("transport", "unknown");
+    } finally {
+      signal?.removeEventListener("abort", abort);
+    }
+  }
+  /** Ends the owner's send confirmations and any request in flight. */
+  async release(owner: string) {
+    if (this.supported)
+      await invokeNative("credential_release", { owner }).catch(() => {});
+  }
   route(owner: string, alias: string, revision: number) {
     return this.run("credential_route", { owner, alias, revision });
   }
   reconcile(owner: string, alias: string, revision: number) {
     return this.run("credential_reconcile", { owner, alias, revision });
   }
-  delete(owner: string, alias: string, revision: number) {
+  async delete(owner: string, alias: string, revision: number) {
+    // Revocation stops the request in flight before the key is removed.
+    await this.release(owner);
     return this.run("credential_delete", { owner, alias, revision });
   }
   private async run<K extends Mutation>(

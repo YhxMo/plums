@@ -1,7 +1,9 @@
 use crate::ipc::{ipc_command, wire_enum, wire_object};
 mod appearance;
 mod credential_bindings;
+mod credential_request;
 mod credential_secrets;
+mod credential_transport;
 mod credential_types;
 mod credentials;
 mod credentials_native;
@@ -21,8 +23,11 @@ fn platform_grant(
     capabilities: Vec<String>,
     state: tauri::State<'_, Broker>,
     documents: tauri::State<'_, documents::Documents>,
+    requests: tauri::State<'_, credential_request::Requests>,
 ) -> Result<(), storage::StateErrorCode> {
     Broker::validate_grant(&owner, &capabilities)?;
+    // Any grant change ends send confirmations and the request in flight.
+    requests.release(&owner);
     documents
         .grant_with(
             &owner,
@@ -75,6 +80,9 @@ macro_rules! native_commands {
             credentials::credential_route,
             credentials::credential_reconcile,
             credentials::credential_delete,
+            credential_request::credential_request,
+            credential_request::credential_abort,
+            credential_request::credential_release,
             documents::document_supported,
             documents::document_select,
             documents::document_list,
@@ -195,6 +203,7 @@ pub fn run() {
             broker.sweep(std::time::Duration::from_secs(3600));
             app.manage(broker);
             app.manage(documents::Documents::default());
+            app.manage(credential_request::Requests::default());
             Ok(())
         })
         .run(tauri::generate_context!())

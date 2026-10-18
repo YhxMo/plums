@@ -164,12 +164,9 @@ test("connector key entry uses native metadata and recovers an unknown save", as
     w.__credentialPayloads = [];
     let records: unknown[] = [];
     let entries = 0;
-    const imported = {
-      id: "connector.deepseek",
-      label: "DeepSeek 测试",
-      url: "/connectors/deepseek.js",
-    };
-    let saved = { revision: 1, value: { version: 1, imports: [imported] } };
+    // The connector ships in the built-in catalog; nothing is imported.
+    const source = "/connectors/deepseek.js";
+    let saved = { revision: 1, value: { version: 1, imports: [] } };
     w.__TAURI_INTERNALS__ = {
       invoke: async (
         command: string,
@@ -192,7 +189,7 @@ test("connector key entry uses native metadata and recovers an unknown save", as
               owner: args.owner,
               alias: args.alias,
               declaration: args.declaration,
-              source: imported.url,
+              source,
               version: "0.1.0",
               revision: 1,
               status: "pending",
@@ -221,7 +218,7 @@ test("connector key entry uses native metadata and recovers an unknown save", as
   });
   await page.goto("/");
   await manage(page);
-  await page.getByText("DeepSeek 测试", { exact: true }).click();
+  await page.getByText("DeepSeek 模型连接", { exact: true }).click();
   const binding = page.getByRole("region", { name: "连接与凭据", exact: true });
   await binding
     .getByRole("button", { name: "录入 API Key", exact: true })

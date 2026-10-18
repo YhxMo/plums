@@ -108,7 +108,11 @@ it("disables retained binding metadata before removing an installed source", asy
 it("keeps the installed source if binding disable receipt is unknown", async () => {
   const access = new CredentialAccess();
   await access.initialize(true);
-  invoke.mockRejectedValueOnce(Error("synthetic sensitive failure"));
+  invoke.mockImplementation(async (command: string) => {
+    if (command === "credential_retain")
+      throw Error("synthetic sensitive failure");
+    return null;
+  });
   await expect(access.prepareUninstall(record.owner, true)).rejects.toThrow(
     "安装路径仍保留",
   );

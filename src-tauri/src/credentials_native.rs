@@ -5,7 +5,7 @@ use crate::credential_bindings::{Failure, KeyResult, View};
 use tauri::Manager;
 
 #[cfg(target_os = "macos")]
-fn key_valid(bytes: &[u8]) -> bool {
+pub(crate) fn key_valid(bytes: &[u8]) -> bool {
     !bytes.is_empty() && bytes.len() <= 4096 && bytes.iter().all(|c| (33..=126).contains(c))
 }
 fn context(view: &View) -> String {
@@ -58,28 +58,8 @@ pub(crate) async fn store_key(app: tauri::AppHandle, view: &View, reference: &st
 }
 #[cfg(target_os = "macos")]
 pub(crate) async fn key_exists(app: tauri::AppHandle, reference: &str) -> Result<bool, Failure> {
-    let service = format!("{}.credentials.v1", app.config().identifier);
-    let reference = reference.to_owned();
-    tauri::async_runtime::spawn_blocking(move || {
-        use security_framework::passwords::{generic_password, PasswordOptions};
-        let mut options = PasswordOptions::new_generic_password(&service, &reference);
-        options.set_access_synchronized(Some(false));
-        match generic_password(options) {
-            Ok(mut bytes) => {
-                let valid = key_valid(&bytes);
-                bytes.fill(0);
-                if valid {
-                    Ok(true)
-                } else {
-                    Err("invalid-key")
-                }
-            }
-            Err(error) if error.code() == -25300 => Ok(false),
-            Err(_) => Err("unknown"),
-        }
-    })
-    .await
-    .map_err(|_| "unknown")?
+    let key = crate::credential_transport::read_key(&app, reference).await?;
+    Ok(key.map(|mut bytes| bytes.fill(0)).is_some())
 }
 #[cfg(target_os = "macos")]
 pub(crate) async fn delete_key(app: tauri::AppHandle, reference: &str) -> Result<(), Failure> {
@@ -161,7 +141,7 @@ pub(crate) async fn prompt(
 #[cfg(target_os = "android")]
 pub struct AndroidCredentials(pub tauri::plugin::PluginHandle<tauri::Wry>);
 #[cfg(target_os = "android")]
-async fn mobile(
+pub(crate) async fn mobile(
     app: tauri::AppHandle,
     command: &str,
     args: serde_json::Value,

@@ -33,7 +33,8 @@ fn feature_contract_matches_the_registered_command_set() {
     let output = ipc_typescript();
     #[cfg(not(feature = "native-transport-experiment"))]
     {
-        assert_eq!(output.matches(": { args:").count(), 17);
+        assert_eq!(output.matches(": { args:").count(), 20);
+        assert!(output.contains("credential_request: { args: { owner: string; id: string; binding: string; body: string }"));
         assert!(output.contains("platform_call:"));
         assert!(!output.contains("probe_info:"));
     }

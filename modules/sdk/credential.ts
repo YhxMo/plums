@@ -1,4 +1,4 @@
-/** Experimental wire proposal only. Production adapters do not expose this capability. */
+/** Experimental: the Mac and Android apps send through a user-confirmed binding; browsers do not provide it. */
 export interface CredentialRequest {
   version: 1;
   /** Non-secret alias resolved within the calling extension's platform owner. */

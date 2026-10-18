@@ -42,5 +42,10 @@
     "id": "sample.documents",
     "url": "/samples/documents.js",
     "label": "文档只读样板"
+  },
+  {
+    "id": "connector.deepseek",
+    "url": "/connectors/deepseek.js",
+    "label": "DeepSeek 模型连接"
   }
 ]
