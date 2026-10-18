@@ -5,32 +5,6 @@
     "label": "大写转换服务"
   },
   {
-    "id": "transform.reverse",
-    "url": "/services/reverse.js",
-    "label": "逆序转换服务"
-  },
-  {
-    "id": "workbench",
-    "url": "/services/workbench.js",
-    "label": "文本工作台"
-  },
-  {
-    "id": "ui.default",
-    "url": "/ui/default.js",
-    "label": "默认工作台布局",
-    "views": {
-      "default": "工作台"
-    }
-  },
-  {
-    "id": "ui.board",
-    "url": "/ui/board.js",
-    "label": "画布布局",
-    "views": {
-      "board": "画布"
-    }
-  },
-  {
     "id": "connector.deepseek",
     "url": "/connectors/deepseek.js",
     "label": "DeepSeek 模型连接"

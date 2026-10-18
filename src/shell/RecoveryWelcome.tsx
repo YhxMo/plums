@@ -14,11 +14,19 @@ export function RecoveryWelcome({
     <main className={managerStyles.welcome}>
       <img className={styles.welcomeMark} src="/brand/plums.png" alt="" />
       <span className="eyebrow">你的本地工作空间</span>
-      <h1>{started ? "扩展正在等待条件。" : "从一个可替换的界面开始。"}</h1>
+      <h1>
+        {started
+          ? "扩展正在等待条件。"
+          : available
+            ? "从一个可替换的界面开始。"
+            : "当前没有可显示的界面。"}
+      </h1>
       <p>
         {started
           ? "查看扩展状态以恢复依赖，或重新启用默认组合。已保存的数据会在恢复时读取。"
-          : "服务处理输入，布局呈现结果。先查看扩展，再授权启动你的第一个组合。"}
+          : available
+            ? "服务处理输入，布局呈现结果。先查看扩展，再授权启动你的第一个组合。"
+            : "在扩展管理中启用一个界面扩展，例如默认 Agent 界面。已保存的数据会在恢复时读取。"}
       </p>
       <ol className={managerStyles.steps}>
         <li>

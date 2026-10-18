@@ -8,7 +8,9 @@ export const developmentOnly = [
   "contracts.d.ts",
   "examples",
   "samples",
-  "ui/broken.js",
+  "services/reverse.js",
+  "services/workbench.js",
+  "ui",
 ];
 export default defineConfig({
   publicDir: "extensions",

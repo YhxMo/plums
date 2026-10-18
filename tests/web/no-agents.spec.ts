@@ -57,7 +57,7 @@ for (const width of [375, 1180]) {
     await page.getByRole("button", { name: "停用 notes", exact: true }).click();
     await page.getByRole("button", { name: "返回工作区", exact: true }).click();
     await expect(
-      page.getByRole("heading", { name: "从一个可替换的界面开始。" }),
+      page.getByRole("heading", { name: "当前没有可显示的界面。" }),
     ).toBeVisible();
     await expect(
       page.getByRole("button", { name: "授予实验能力并启动", exact: true }),
