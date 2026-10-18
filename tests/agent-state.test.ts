@@ -273,6 +273,11 @@ it.each([
     { [owner]: { revision: 2, value: { version: 1, agents: [{ id: 1 }] } } },
   ],
   [
+    "own state without its Agent list",
+    {},
+    { [owner]: { revision: 2, value: { version: 1 } } },
+  ],
+  [
     "own state version",
     {},
     { [owner]: { revision: 2, value: { version: 9 } } },
@@ -329,6 +334,23 @@ it("refuses further writes after an unknown write receipt", async () => {
     "重新加载",
   );
   expect(write).toHaveBeenCalledOnce();
+});
+
+it("refuses further writes when the index fails after a shard was committed", async () => {
+  const { platform, write } = memoryPlatform();
+  const host = await start(platform);
+  const agent = await provider(host).create({ name: "一" });
+  write
+    .mockImplementationOnce(write.getMockImplementation()!)
+    .mockRejectedValueOnce(
+      Object.assign(new Error("index rejected"), { outcome: "not-committed" }),
+    );
+  await expect(provider(host).send(agent.id, "你好")).rejects.toThrow(
+    "index rejected",
+  );
+  await expect(provider(host).create({ name: "二" })).rejects.toThrow(
+    "重新加载",
+  );
 });
 
 it("allows a retry after a write that was definitely not committed", async () => {

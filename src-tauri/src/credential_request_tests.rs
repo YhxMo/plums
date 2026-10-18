@@ -41,12 +41,21 @@ fn abort_cancels_only_the_matching_request_even_before_it_registers() {
 #[test]
 fn confirmation_is_per_revision_and_release_forgets_it_and_cancels() {
     let requests = Requests::default();
-    requests.confirm(&view(1));
+    let slot = requests.reserve(OWNER, "a").unwrap();
+    assert!(requests.confirm(&view(1), &slot));
     assert!(requests.confirmed(&view(1)));
     assert!(!requests.confirmed(&view(2)));
-    let slot = requests.reserve(OWNER, "a").unwrap();
     requests.release(OWNER);
     assert!(slot.cancelled());
+    assert!(!requests.confirmed(&view(1)));
+}
+#[test]
+fn a_confirmation_answered_after_release_is_not_remembered() {
+    let requests = Requests::default();
+    let slot = requests.reserve(OWNER, "a").unwrap();
+    // The panel is still open when the grant changes.
+    requests.release(OWNER);
+    assert!(!requests.confirm(&view(1), &slot));
     assert!(!requests.confirmed(&view(1)));
 }
 #[test]

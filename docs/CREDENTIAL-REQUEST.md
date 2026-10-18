@@ -42,7 +42,7 @@
 ## 验证
 
 - `src-tauri/src/credential_transport_tests.rs`：用回环 HTTP 服务验证注入头、4xx 透传、3xx 不访问跳转目标、声明/流式超限、静默服务超时、生产客户端拒绝明文 HTTP、UTF-8/状态校验。
-- `src-tauri/src/credential_request_tests.rs`：每 owner 单请求、按 ID 取消（含先于注册到达的取消）、确认按修订生效、`release` 清除确认并取消在途。`credential_bindings_tests.rs` 覆盖只解析就绪绑定、管理操作进行中为 busy。
+- `src-tauri/src/credential_request_tests.rs`：每 owner 单请求、按 ID 取消（含先于注册到达的取消）、确认按修订生效、`release` 清除确认并取消在途，确认面板打开期间被释放的请求即使随后获确认也不记入缓存。`credential_bindings_tests.rs` 覆盖只解析就绪绑定、管理操作进行中为 busy。
 - `tests/native-credential-request.test.ts`：适配器可用性、载荷校验零原生调用、outcome 保留、取消转发与停用释放。
 - `tests/fixtures/credential-platform.ts` 的 FakeCredentialPlatform 仍是连接器协议测试用的参考模型，不是原生实现。
 

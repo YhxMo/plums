@@ -124,8 +124,15 @@ impl Requests {
     pub fn confirmed(&self, view: &View) -> bool {
         self.lock().confirmed.contains(&key(view))
     }
-    pub fn confirm(&self, view: &View) {
-        self.lock().confirmed.insert(key(view));
+    /// Remember the user's consent unless the request was cancelled or
+    /// released while the panel was open; checked under the release lock.
+    pub fn confirm(&self, view: &View, slot: &Slot) -> bool {
+        let mut inner = self.lock();
+        if slot.cancelled() {
+            return false;
+        }
+        inner.confirmed.insert(key(view));
+        true
     }
 }
 fn key(view: &View) -> (String, String, u64) {
@@ -163,7 +170,8 @@ async fn dispatch(
     }
     if !requests.confirmed(&view) {
         match prompt(app.clone(), "允许发送请求", &consent(&view), None, false).await {
-            Ok(Some(_)) => requests.confirm(&view),
+            Ok(Some(_)) if requests.confirm(&view, &slot) => {}
+            Ok(Some(_)) => return Err(Refused("cancelled")),
             Ok(None) => return Err(Refused("not-confirmed")),
             Err(_) => return Err(Refused("unavailable")),
         }

@@ -45,7 +45,8 @@ export class AgentState {
     this.revisions.set("", saved.revision);
     const doc = saved.value;
     if (record(doc) && doc.version === 1) {
-      const agents = restoreAgents(doc.agents ?? []);
+      if (!Array.isArray(doc.agents)) throw corrupt();
+      const agents = restoreAgents(doc.agents);
       await this.save(agents);
       return agents;
     }
@@ -107,6 +108,7 @@ export class AgentState {
     options?.onCommit?.();
     // Only the first dispatch may be cancelled; later writes finish the commit.
     let signal = options?.signal;
+    let committed = false;
     try {
       for (const { key, value, json } of writes) {
         const receipt = (await this.call(
@@ -121,11 +123,14 @@ export class AgentState {
         signal = undefined;
         this.revisions.set(key, receipt.revision);
         this.written.set(key, json);
+        committed = true;
       }
     } catch (error) {
+      // A failure after an earlier write committed leaves a partial save.
       if (
-        !(error instanceof Error && error.name === "AbortError") &&
-        (error as { outcome?: string }).outcome !== "not-committed"
+        committed ||
+        (!(error instanceof Error && error.name === "AbortError") &&
+          (error as { outcome?: string }).outcome !== "not-committed")
       )
         this.uncertain = true;
       throw error;
