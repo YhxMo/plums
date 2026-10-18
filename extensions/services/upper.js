@@ -10,6 +10,7 @@ export default {
     /** @type {import('../contracts').Transformer} */
     const service = {
       name: "Uppercase",
+      description: "本地示例：把输入转为大写，不连接语言模型。",
       async transform(input, signal) {
         signal.throwIfAborted();
         await new Promise((resolve, reject) => {

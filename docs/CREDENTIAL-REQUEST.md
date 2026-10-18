@@ -46,7 +46,7 @@
 - `tests/native-credential-request.test.ts`：适配器可用性、载荷校验零原生调用、outcome 保留、取消转发与停用释放。
 - `tests/fixtures/credential-platform.ts` 的 FakeCredentialPlatform 仍是连接器协议测试用的参考模型，不是原生实现。
 
-未验证：真实系统证书链与 DeepSeek 官方 API 的实际调用；普通包中 Keychain/Keystore 读取；Android 传输的单元测试（Kotlin 仅编译通过）；WebView 存储与日志的无密钥检查。真实调用由账户所有者在原生面板录入密钥，每端一次、`max_tokens` ≤ 256、不自动重试。
+已验证（Mac）：账户所有者在 debug 包中完成一次真实调用，系统证书校验、Keychain 读取与首次发送确认实际生效；应用数据与 WebView 存储扫描无密钥。未验证：Android 的真实调用与 Keystore 读取；Android 传输的单元测试（Kotlin 仅编译通过）；WebView 存储与日志的无密钥检查。真实调用由账户所有者在原生面板录入密钥，每端一次、`max_tokens` ≤ 256、不自动重试。
 
 ## 后续加固
 

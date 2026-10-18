@@ -321,12 +321,16 @@ it("rejects fractional output budgets before publishing a service", async () => 
 it("returns to the local provider with saved Agent messages intact", async () => {
   const f = fixture();
   await f.enable();
+  // The Agent footer tells the user where messages go.
+  expect(f.agents.info.description).toContain("api.deepseek.com");
   const agent = await f.agents.create({ name: "switch" });
   await f.agents.send(agent.id, "remote test");
   const oldService = f.service;
   await f.host.stop(id);
   f.host.install(upper);
   await f.host.start("transform.upper");
+  expect(f.agents.info.description).toContain("不连接语言模型");
+  expect(f.agents.info.description).not.toContain("deepseek");
   await f.agents.send(agent.id, "local only");
   expect(f.agents.list()[0].sessions[0].messages.at(-1)?.text).toBe(
     "LOCAL ONLY",

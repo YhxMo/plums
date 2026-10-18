@@ -38,6 +38,7 @@ export function agentExtension(
         initial,
         (agents, save) => state.save(agents, save),
         (text, signal) => ctx.task(() => transformer.transform(text, signal)),
+        transformer,
       );
       ctx.provide("agents", 1, store);
       ctx.onDispose(() => store.close());

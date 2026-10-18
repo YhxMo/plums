@@ -1,5 +1,11 @@
 import { ContractError } from "../sdk/errors";
-import type { Agent, AgentConfig, AgentProvider, Session } from "./contract";
+import type {
+  Agent,
+  AgentConfig,
+  AgentProvider,
+  AgentProviderInfo,
+  Session,
+} from "./contract";
 
 const id = () => crypto.randomUUID();
 const newSession = (): Session => ({
@@ -98,11 +104,7 @@ export function restoreAgents(value: unknown): Agent[] {
 /** Extension-owned model; writes publish only after a successful receipt. */
 export type SaveOptions = { signal?: AbortSignal; onCommit?: () => void };
 export class AgentStore implements AgentProvider {
-  readonly info = {
-    label: "内置本地 Agent 提供者",
-    version: "0.0.4",
-    description: "本地示例，仅文本处理，尚未连接语言模型。",
-  };
+  readonly info: AgentProviderInfo;
   private agents: Agent[];
   private listeners = new Set<() => void>();
   private running = new Map<string, AbortController>();
@@ -114,8 +116,15 @@ export class AgentStore implements AgentProvider {
     initial: Agent[],
     private persist: (agents: Agent[], options?: SaveOptions) => Promise<void>,
     private reply: (text: string, signal: AbortSignal) => Promise<string>,
+    /** The text service that writes replies; described to the user. */
+    source: { name: string; description?: string } = { name: "文本服务" },
   ) {
     this.agents = initial;
+    this.info = {
+      label: "内置本地 Agent 提供者",
+      version: "0.0.4",
+      description: source.description ?? `回复由「${source.name}」生成。`,
+    };
   }
   list = () => this.agents;
   subscribe = (listener: () => void) => {

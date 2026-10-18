@@ -51,6 +51,7 @@ export default {
     /** @type {import('../contracts').Transformer} */
     const service = {
       name: `DeepSeek · ${model}`,
+      description: `DeepSeek（${model}）：每条消息只把当前输入发送到 api.deepseek.com，历史与角色说明留在本机。`,
       async transform(input, signal) {
         signal.throwIfAborted();
         if (typeof input !== "string" || !input.trim())

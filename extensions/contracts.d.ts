@@ -15,6 +15,8 @@ export interface WorkbenchSnapshot {
 }
 export interface Transformer {
   name: string;
+  /** Plain-language note for users: what produces replies and where text goes. */
+  description?: string;
   transform(input: string, signal: AbortSignal): Promise<string>;
 }
 export interface Workbench {

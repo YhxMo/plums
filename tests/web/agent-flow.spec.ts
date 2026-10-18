@@ -153,7 +153,7 @@ test("role card file import, validation and truthful local capabilities", async 
   await expect(
     page
       .getByRole("log")
-      .getByText("本地示例，仅文本处理，尚未连接语言模型。", {
+      .getByText("本地示例：把输入转为大写，不连接语言模型。", {
         exact: false,
       }),
   ).toBeVisible();
