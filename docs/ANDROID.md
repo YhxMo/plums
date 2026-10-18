@@ -40,7 +40,7 @@ Rust 编译输出固定到本项目 `.cache/android/target/`。Tauri 的 Android
 
 模板变更会报出需要复核的具体对象；所有检查通过后才写入。准备操作可重复执行。生成工程仍按 `/src-tauri/gen/` 忽略，重新初始化后会重新准备，不提交生成物或机器路径。生成目录中的本地 Gradle URL 仅适用于对应工具链位置，不能把整个生成目录作为可移植工程分发；新工作副本从上述入口生成。
 
-替换 `src-tauri/icons/source.png` 后执行 `npm run icons`，再执行 `npm run android:build`。图标生成入口复用项目锁定 CLI；只将 Mac、Android 与 Web 所需资源接入源码，iOS 工作继续暂缓。
+替换 `src-tauri/icons/source.png` 后执行 `npm run icons`，再执行 `npm run android:build`。图标生成入口复用项目锁定 CLI；只将 Mac、Android 与 Web 所需资源接入源码，iOS 工作继续暂缓。Android 自适应图标的前景层不沿用 Mac 圆角底板：脚本只取橙色标记、去掉底板与阴影，按画布 46% 居中，保证落在启动器遮罩必显示的 66dp 安全区内；背景层为白色。旧版启动器（API 24–25）仍使用完整底板图标。
 
 ## 已验证条件与边界
 
@@ -55,5 +55,7 @@ API36 ARM64 普通包的 IME、管理返回、嵌套弹窗、菜单、工作区�
 ### 构建和设备
 
 本流程固定 npm/Cargo 锁文件，构建参数为 `android build --debug --target aarch64 --apk -- --locked`。现有环境为 macOS arm64、JDK 21、NDK 28.2、Gradle 9.6.1、AGP 9.3.1、compile/target SDK 37；实际运行使用 API 36 ARM64 AOSP 模拟器。版本与当前产物的运行结果见证据。
+
+触摸：全局 `touch-action: manipulation` 免去双击缩放等待，并关闭 WebView 默认点击高亮，按钮以自身的按下状态反馈。
 
 准备操作测试覆盖幂等性、两种构建回调、图标刷新、缺少图标源时不部分写入，以及未知模板/签名/分发/外观插件的拒绝；编译、签名、安装、真实 WebView、系统栏和键盘仍以原生运行分别验收。清单 minSdk 24 不是最低支持版本已验收的声明。真机、其他 ABI、手势导航、其他系统/WebView 以及长期后台仍未验证；iOS 继续暂缓，M2 整体尚未退出。
