@@ -12,7 +12,7 @@
 | M1 风险实验与最小契约 | [阶段依赖与退出条件](spec/total.md#阶段依赖与退出条件)、[实验与限制](M1-EXPERIMENTS.md#阶段边界与记录) |
 | M2 小内核与公开 SDK | [当前阶段](spec/milestone.md)、[阶段内的能力依赖](spec/total.md#阶段内的能力依赖)、[M2 退出清单](spec/M2-EXIT-CHECKLIST.md) |
 | M2.0 重新基线 | [当前阶段](spec/milestone.md) |
-| M2.0 后的工程前置 | [当前阶段](spec/milestone.md#m20-后的工程前置) |
+| 真实路径优先（R1–R5） | [当前阶段](spec/milestone.md#工作包) |
 | M2.1 契约闭合 | [M2 子门禁](spec/total.md#m2-子门禁) |
 | M2.2 作者与 UI 开放 | [M2 子门禁](spec/total.md#m2-子门禁) |
 | M2.3 平台能力切片 | [当前阶段](spec/milestone.md) |
