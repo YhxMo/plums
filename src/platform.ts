@@ -2,7 +2,11 @@ import { DocumentAccess } from "./documents";
 import { CredentialAccess } from "./credentials";
 import { isTauri } from "@tauri-apps/api/core";
 import { invokeNative } from "./native/invoke";
-import { isStateErrorCode, stateRejection } from "./native/state-errors";
+import {
+  isStateErrorCode,
+  stateRejection,
+  stateUncertain,
+} from "./native/state-errors";
 import {
   platformRejection,
   type Platform,
@@ -131,6 +135,8 @@ export class PlatformAdapter implements Platform {
           isStateErrorCode(failure.code)
         )
           throw stateRejection(failure.code);
+        if (failure?.outcome === "unknown" && isStateErrorCode(failure.code))
+          throw stateUncertain(failure.code);
         if (capability === "state.write")
           throw Object.assign(new Error("Native write receipt unavailable"), {
             outcome: "unknown" as const,

@@ -38,7 +38,7 @@ struct PlatformFailure, rename_all = "camelCase" { code: storage::StateErrorCode
 }
 wire_enum! {
 #[derive(Serialize)]
-enum CommitOutcome { NotCommitted => "not-committed" }
+enum CommitOutcome { NotCommitted => "not-committed", Unknown => "unknown" }
 }
 
 ipc_command! {
@@ -52,7 +52,12 @@ fn platform_call(
         .call(&owner, &capability, payload.unwrap_or(Value::Null))
         .map_err(|code| PlatformFailure {
             code,
-            outcome: CommitOutcome::NotCommitted,
+            // Only a failed directory sync happens after the file was replaced.
+            outcome: if code == storage::StateErrorCode::StateSync {
+                CommitOutcome::Unknown
+            } else {
+                CommitOutcome::NotCommitted
+            },
         })
 }
 }
@@ -167,7 +172,9 @@ pub fn run() {
                 .map(std::path::PathBuf::from)
                 .unwrap_or(app.path().app_data_dir()?.join("data"));
             app.manage(credential_bindings::Bindings::new(root.clone()));
-            app.manage(Broker::new(root));
+            let broker = Broker::new(root);
+            broker.sweep(std::time::Duration::from_secs(3600));
+            app.manage(broker);
             app.manage(documents::Documents::default());
             Ok(())
         })

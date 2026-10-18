@@ -22,7 +22,10 @@ impl Fixture {
     fn broker(&self) -> Broker {
         let broker = Broker::new(self.0.clone());
         broker
-            .grant("sample", vec!["state.read".into(), "state.write".into()])
+            .grant(
+                "extension.sample",
+                vec!["state.read".into(), "state.write".into()],
+            )
             .unwrap();
         broker
     }
@@ -37,18 +40,22 @@ fn round_trip_and_restart_preserve_revision() {
     let fixture = Fixture::new();
     let broker = fixture.broker();
     assert_eq!(
-        broker.call("sample", "state.read", Value::Null).unwrap(),
+        broker
+            .call("extension.sample", "state.read", Value::Null)
+            .unwrap(),
         Value::Null
     );
     broker
         .call(
-            "sample",
+            "extension.sample",
             "state.write",
             serde_json::json!({"revision":0,"value":{"text":"first"}}),
         )
         .unwrap();
     let restarted = fixture.broker();
-    let saved = restarted.call("sample", "state.read", Value::Null).unwrap();
+    let saved = restarted
+        .call("extension.sample", "state.read", Value::Null)
+        .unwrap();
     assert_eq!(saved["value"]["text"], "first");
     assert_eq!(saved["revision"], 1);
 }
@@ -59,35 +66,39 @@ fn denied_and_revoked_calls_do_not_write() {
     assert!(
         broker
             .call(
-                "sample",
+                "extension.sample",
                 "state.write",
                 serde_json::json!({"revision":0,"value":1})
             )
             .unwrap_err()
             == StateErrorCode::PermissionDenied
     );
-    broker.grant("sample", vec!["state.write".into()]).unwrap();
-    broker.grant("sample", vec![]).unwrap();
+    broker
+        .grant("extension.sample", vec!["state.write".into()])
+        .unwrap();
+    broker.grant("extension.sample", vec![]).unwrap();
     assert!(broker
         .call(
-            "sample",
+            "extension.sample",
             "state.write",
             serde_json::json!({"revision":0,"value":1})
         )
         .is_err());
-    assert!(!fixture.0.join("sample.json").exists());
+    assert!(!fixture.0.join("extension.sample.json").exists());
 }
 #[test]
 fn corrupt_and_future_schema_files_are_not_overwritten() {
     let fixture = Fixture::new();
     let broker = fixture.broker();
-    let path = fixture.0.join("sample.json");
+    let path = fixture.0.join("extension.sample.json");
     for original in ["{broken", "{\"schema\":99,\"revision\":1,\"value\":4}"] {
         fs::write(&path, original).unwrap();
-        assert!(broker.call("sample", "state.read", Value::Null).is_err());
+        assert!(broker
+            .call("extension.sample", "state.read", Value::Null)
+            .is_err());
         assert!(broker
             .call(
-                "sample",
+                "extension.sample",
                 "state.write",
                 serde_json::json!({"revision":0,"value":"lost"})
             )
@@ -101,7 +112,7 @@ fn stale_revision_and_failed_temporary_file_preserve_prior_state() {
     let broker = fixture.broker();
     broker
         .call(
-            "sample",
+            "extension.sample",
             "state.write",
             serde_json::json!({"revision":0,"value":"saved"}),
         )
@@ -109,7 +120,7 @@ fn stale_revision_and_failed_temporary_file_preserve_prior_state() {
     assert!(
         broker
             .call(
-                "sample",
+                "extension.sample",
                 "state.write",
                 serde_json::json!({"revision":0,"value":"stale"})
             )
@@ -126,7 +137,7 @@ fn stale_revision_and_failed_temporary_file_preserve_prior_state() {
         let enforced = fs::write(fixture.0.join("probe"), "").is_err();
         let failed = enforced.then(|| {
             broker.call(
-                "sample",
+                "extension.sample",
                 "state.write",
                 serde_json::json!({"revision":1,"value":"failed"}),
             )
@@ -137,7 +148,9 @@ fn stale_revision_and_failed_temporary_file_preserve_prior_state() {
         }
     }
     assert_eq!(
-        broker.call("sample", "state.read", Value::Null).unwrap()["value"],
+        broker
+            .call("extension.sample", "state.read", Value::Null)
+            .unwrap()["value"],
         "saved"
     );
 }
@@ -145,17 +158,19 @@ fn stale_revision_and_failed_temporary_file_preserve_prior_state() {
 fn interrupted_temporary_file_does_not_block_later_writes() {
     let fixture = Fixture::new();
     let broker = fixture.broker();
-    let leftover = fixture.0.join("sample.pending");
+    let leftover = fixture.0.join("extension.sample.pending");
     fs::write(&leftover, "partial").unwrap();
     broker
         .call(
-            "sample",
+            "extension.sample",
             "state.write",
             serde_json::json!({"revision":0,"value":"saved"}),
         )
         .unwrap();
     assert_eq!(
-        broker.call("sample", "state.read", Value::Null).unwrap()["value"],
+        broker
+            .call("extension.sample", "state.read", Value::Null)
+            .unwrap()["value"],
         "saved"
     );
     // Another writer's file is never adopted or removed.
@@ -164,13 +179,13 @@ fn interrupted_temporary_file_does_not_block_later_writes() {
 #[test]
 fn failed_commit_removes_only_its_own_temporary_file() {
     let fixture = Fixture::new();
-    let foreign = fixture.0.join("sample.other.pending");
+    let foreign = fixture.0.join("extension.sample.other.pending");
     fs::write(&foreign, "other writer").unwrap();
     // A non-empty directory at the target makes the final rename fail.
-    fs::create_dir(fixture.0.join("sample.json")).unwrap();
-    fs::write(fixture.0.join("sample.json").join("keep"), "").unwrap();
+    fs::create_dir(fixture.0.join("extension.sample.json")).unwrap();
+    fs::write(fixture.0.join("extension.sample.json").join("keep"), "").unwrap();
     assert_eq!(
-        commit(&fixture.0, "sample", b"{}").unwrap_err(),
+        commit(&fixture.0, "extension.sample", b"{}").unwrap_err(),
         StateErrorCode::StateWrite
     );
     let pending: Vec<_> = fs::read_dir(&fixture.0)
@@ -178,7 +193,7 @@ fn failed_commit_removes_only_its_own_temporary_file() {
         .map(|entry| entry.unwrap().file_name().to_string_lossy().into_owned())
         .filter(|name| name.ends_with(".pending"))
         .collect();
-    assert_eq!(pending, ["sample.other.pending"]);
+    assert_eq!(pending, ["extension.sample.other.pending"]);
     assert_eq!(fs::read_to_string(&foreign).unwrap(), "other writer");
 }
 #[test]
@@ -186,7 +201,9 @@ fn rejects_path_escape_and_cross_owner_access() {
     let fixture = Fixture::new();
     let broker = fixture.broker();
     assert!(broker.grant("../escape", vec![]).is_err());
-    assert!(broker.call("other", "state.read", Value::Null).is_err());
+    assert!(broker
+        .call("extension.other", "state.read", Value::Null)
+        .is_err());
 }
 #[test]
 fn two_authorized_namespaces_do_not_share_state() {
@@ -229,4 +246,72 @@ fn two_authorized_namespaces_do_not_share_state() {
             .unwrap()["value"],
         "extension"
     );
+}
+#[test]
+fn only_shell_and_extension_namespaces_are_owners() {
+    let fixture = Fixture::new();
+    let broker = Broker::new(fixture.0.clone());
+    let caps = || vec!["state.read".to_string(), "state.write".to_string()];
+    for reserved in [
+        "credential-bindings",
+        "sample",
+        "host.other",
+        "extension.",
+        "extension.1a",
+    ] {
+        assert_eq!(
+            broker.grant(reserved, caps()).unwrap_err(),
+            StateErrorCode::InvalidOwner,
+            "{reserved}"
+        );
+    }
+    fs::write(fixture.0.join("credential-bindings.json"), "secret refs").unwrap();
+    assert_eq!(
+        broker
+            .call("credential-bindings", "state.read", Value::Null)
+            .unwrap_err(),
+        StateErrorCode::InvalidOwner
+    );
+    for owner in ["host.shell", "extension.a", "extension.agents.local"] {
+        broker.grant(owner, caps()).unwrap();
+    }
+}
+#[test]
+fn oversized_file_is_refused_before_reading_it() {
+    let fixture = Fixture::new();
+    let broker = fixture.broker();
+    // A sparse 4 GiB file would exhaust memory if read before the size check.
+    fs::File::create(fixture.0.join("extension.sample.json"))
+        .unwrap()
+        .set_len(4 << 30)
+        .unwrap();
+    assert_eq!(
+        broker
+            .call("extension.sample", "state.read", Value::Null)
+            .unwrap_err(),
+        StateErrorCode::StateTooLarge
+    );
+}
+#[test]
+fn sweep_removes_only_old_temporary_files() {
+    let fixture = Fixture::new();
+    let old = fixture.0.join("extension.sample.abandoned.pending");
+    let fresh = fixture.0.join("extension.sample.writing.pending");
+    let saved = fixture.0.join("extension.sample.json");
+    for path in [&old, &fresh, &saved] {
+        fs::write(path, "x").unwrap();
+    }
+    let past = SystemTime::now() - std::time::Duration::from_secs(7200);
+    for path in [&old, &saved] {
+        fs::File::options()
+            .write(true)
+            .open(path)
+            .unwrap()
+            .set_modified(past)
+            .unwrap();
+    }
+    Broker::new(fixture.0.clone()).sweep(std::time::Duration::from_secs(3600));
+    assert!(!old.exists());
+    assert!(fresh.exists());
+    assert!(saved.exists());
 }

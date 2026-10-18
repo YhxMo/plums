@@ -7,6 +7,7 @@ use std::{
     io::Write,
     path::{Path, PathBuf},
     sync::Mutex,
+    time::{Duration, SystemTime},
 };
 
 wire_enum! {
@@ -28,6 +29,7 @@ pub enum StateErrorCode {
     StateDirectory => "state-directory",
     StateTemporary => "state-temporary",
     StateWrite => "state-write",
+    StateSync => "state-sync",
     PermissionDenied => "permission-denied",
     Serialization => "serialization",
 }
@@ -54,17 +56,38 @@ impl Broker {
             io: Mutex::new(()),
         }
     }
+    /// Owners are the shell or `extension.<id>`, so no owner can name a file
+    /// that another native store keeps in the same directory.
     fn owner(owner: &str) -> Result<(), StateErrorCode> {
-        if owner.is_empty()
-            || owner.len() > 96
-            || !owner
-                .bytes()
-                .all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == b'-' || c == b'.')
-            || owner.contains("..")
-        {
-            return Err(StateErrorCode::InvalidOwner);
+        let valid_id = |id: &str| {
+            id.len() <= 64
+                && id.starts_with(|c: char| c.is_ascii_lowercase())
+                && id
+                    .bytes()
+                    .all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == b'-' || c == b'.')
+                && !id.contains("..")
+        };
+        if owner == "host.shell" || owner.strip_prefix("extension.").is_some_and(valid_id) {
+            return Ok(());
         }
-        Ok(())
+        Err(StateErrorCode::InvalidOwner)
+    }
+    /// Remove temporary files abandoned by an interrupted write. Run at startup,
+    /// before any write, with an age margin in case another process still writes.
+    pub fn sweep(&self, older_than: Duration) {
+        let Ok(entries) = fs::read_dir(&self.root) else {
+            return;
+        };
+        let cutoff = SystemTime::now().checked_sub(older_than);
+        for entry in entries.flatten() {
+            let stale = entry
+                .metadata()
+                .and_then(|meta| meta.modified())
+                .is_ok_and(|modified| cutoff.is_some_and(|cutoff| modified < cutoff));
+            if stale && entry.file_name().to_string_lossy().ends_with(".pending") {
+                let _ = fs::remove_file(entry.path());
+            }
+        }
     }
     pub fn validate_grant(owner: &str, capabilities: &[String]) -> Result<(), StateErrorCode> {
         Self::owner(owner)?;
@@ -91,8 +114,14 @@ impl Broker {
     }
     fn read_unlocked(&self, owner: &str) -> Result<Option<Document>, StateErrorCode> {
         let path = self.root.join(format!("{owner}.json"));
-        match fs::read(&path) {
-            Ok(bytes) => {
+        match fs::metadata(&path).and_then(|meta| {
+            if meta.len() > 65536 {
+                return Ok(None);
+            }
+            fs::read(&path).map(Some)
+        }) {
+            Ok(None) => Err(StateErrorCode::StateTooLarge),
+            Ok(Some(bytes)) => {
                 if bytes.len() > 65536 {
                     return Err(StateErrorCode::StateTooLarge);
                 }
@@ -170,7 +199,8 @@ impl Broker {
 
 /// Writes `{owner}.json` through a temporary file unique to this write, so an
 /// interrupted write cannot block later ones and concurrent writers never
-/// commit each other's file.
+/// commit each other's file. The directory is synced so the rename survives
+/// power loss.
 fn commit(root: &Path, owner: &str, bytes: &[u8]) -> Result<(), StateErrorCode> {
     let path = root.join(format!("{owner}.json"));
     let temporary = root.join(format!("{owner}.{}.pending", uuid::Uuid::new_v4()));
@@ -187,6 +217,18 @@ fn commit(root: &Path, owner: &str, bytes: &[u8]) -> Result<(), StateErrorCode> 
         let _ = fs::remove_file(&temporary);
         return Err(StateErrorCode::StateWrite);
     }
+    sync_directory(root)
+}
+
+#[cfg(unix)]
+fn sync_directory(root: &Path) -> Result<(), StateErrorCode> {
+    // The file is already in place; a failed directory sync leaves durability unknown.
+    fs::File::open(root)
+        .and_then(|directory| directory.sync_all())
+        .map_err(|_| StateErrorCode::StateSync)
+}
+#[cfg(not(unix))]
+fn sync_directory(_root: &Path) -> Result<(), StateErrorCode> {
     Ok(())
 }
 

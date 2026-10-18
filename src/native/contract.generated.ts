@@ -169,6 +169,7 @@ export interface NativeCommands {
       | "state-directory"
       | "state-temporary"
       | "state-write"
+      | "state-sync"
       | "permission-denied"
       | "serialization";
   };
@@ -193,9 +194,10 @@ export interface NativeCommands {
         | "state-directory"
         | "state-temporary"
         | "state-write"
+        | "state-sync"
         | "permission-denied"
         | "serialization";
-      outcome: "not-committed";
+      outcome: "not-committed" | "unknown";
     };
   };
   shell_set_theme: {

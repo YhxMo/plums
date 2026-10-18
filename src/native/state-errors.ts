@@ -20,6 +20,7 @@ const copy: Record<StateErrorCode, string> = {
   "state-directory": "状态目录不可用，原数据已保留。",
   "state-temporary": "状态临时文件不可用，原数据已保留。",
   "state-write": "状态写入失败，原数据已保留。",
+  "state-sync": "状态已写入但未确认落盘，请重新加载应用后再修改。",
   serialization: "状态序列化失败，原数据已保留。",
 };
 export function isStateErrorCode(code: unknown): code is StateErrorCode {
@@ -27,4 +28,11 @@ export function isStateErrorCode(code: unknown): code is StateErrorCode {
 }
 export function stateRejection(code: StateErrorCode) {
   return Object.assign(platformRejection(copy[code]), { code });
+}
+/** A native write that may already be on disk; callers must not retry blindly. */
+export function stateUncertain(code: StateErrorCode) {
+  return Object.assign(new Error(copy[code]), {
+    code,
+    outcome: "unknown" as const,
+  });
 }
