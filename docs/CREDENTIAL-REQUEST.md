@@ -1,6 +1,6 @@
 # 凭据代用请求契约
 
-状态：当前有效（2026-10-18 核实）；R4 最小安全集已在 Mac（Rust）与 Android（Kotlin）实现并通过单元测试与两端编译，生产 `PlatformAdapter` 在原生应用中提供 `credential.request`。Mac debug 包已完成一次真实调用；Android 真实调用尚未执行，见[当前阶段](spec/milestone.md)。
+状态：当前有效（2026-10-18 核实）；R4 最小安全集已在 Mac（Rust）与 Android（Kotlin）实现并通过单元测试与两端编译，生产 `PlatformAdapter` 在原生应用中提供 `credential.request`。Mac debug 包与 Android 模拟器各完成一次真实调用，见[当前阶段](spec/milestone.md)。
 
 本契约是凭据请求、授权、失败边界的唯一详细来源；路线与当前任务见[整体计划](spec/total.md)与[当前阶段](spec/milestone.md)。绑定记录与密钥录入见[通用绑定与原生凭据管理](CREDENTIAL-BINDINGS.md)。
 
@@ -46,7 +46,7 @@
 - `tests/native-credential-request.test.ts`：适配器可用性、载荷校验零原生调用、outcome 保留、取消转发与停用释放。
 - `tests/fixtures/credential-platform.ts` 的 FakeCredentialPlatform 仍是连接器协议测试用的参考模型，不是原生实现。
 
-已验证（Mac）：账户所有者在 debug 包中完成一次真实调用，系统证书校验、Keychain 读取与首次发送确认实际生效；应用数据与 WebView 存储扫描无密钥。未验证：Android 的真实调用与 Keystore 读取；Android 传输的单元测试（Kotlin 仅编译通过）；统一日志在扫描时段无该进程条目，日志无密钥未被正面证明。真实调用由账户所有者在原生面板录入密钥，每端一次、`max_tokens` ≤ 256、不自动重试。
+已验证（Mac）：账户所有者在 debug 包中完成一次真实调用，系统证书校验、Keychain 读取与首次发送确认实际生效；应用数据与 WebView 存储扫描无密钥。已验证（Android 模拟器）：账户所有者完成一次真实调用，Keystore 解密与首次发送确认实际生效。未验证：Android 应用数据与 logcat 的无密钥扫描；Android 传输的单元测试（Kotlin 仅编译通过）；统一日志在扫描时段无该进程条目，日志无密钥未被正面证明。真实调用由账户所有者在原生面板录入密钥，每端一次、`max_tokens` ≤ 256、不自动重试。
 
 ## 后续加固
 

@@ -688,3 +688,19 @@ for (const width of [375, 1180]) {
     await expect(fallback).toBeFocused();
   });
 }
+test("a sent message appears at once and the input clears before the reply", async ({
+  page,
+}) => {
+  await page.goto("/");
+  await add(page, "即时助手", false);
+  const input = page.getByRole("textbox", { name: "消息", exact: true });
+  await input.fill("show me now");
+  await page.getByRole("button", { name: "发送", exact: true }).click();
+  const log = page.getByRole("log");
+  await expect(log.getByText("show me now", { exact: true })).toBeVisible();
+  await expect(input).toHaveValue("");
+  await expect(log.getByRole("status")).toBeVisible();
+  await expect(log.getByText("SHOW ME NOW", { exact: true })).toBeVisible();
+  await expect(log.getByRole("status")).toHaveCount(0);
+  await expect(log.getByText("show me now", { exact: true })).toHaveCount(1);
+});

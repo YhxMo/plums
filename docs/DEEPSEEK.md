@@ -2,7 +2,7 @@
 
 [源码](../extensions/connectors/deepseek.js) · [凭据请求契约](CREDENTIAL-REQUEST.md) · [本地证据](../evidence/DEEPSEEK-LOCAL-2026-10-17.md)
 
-状态：当前有效（2026-10-18 核实）；协议扩展、隔离测试与两端原生传输已实现，扩展已进入默认目录（安装但不启动、不授权）；Mac 真实调用已完成，Android 待执行。
+状态：当前有效（2026-10-18 核实）；协议扩展、隔离测试与两端原生传输已实现，扩展已进入默认目录（安装但不启动、不授权）；Mac 与 Android 模拟器真实调用均已完成。
 
 需要为现有 Agent 替换文本处理服务时，本扩展提供 `text.transform@1`，通过连接器自己的凭据绑定提交 DeepSeek Chat Completions 载荷。Mac 与 Android 应用中的 `PlatformAdapter` 已提供 `credential.request`。使用路径：在扩展管理中停用当前文本处理服务、授权 DeepSeek 的凭据请求、在原生面板录入 API Key，再启用本扩展；首次发送时原生面板请求确认。浏览器预览不提供该能力。
 
@@ -34,6 +34,6 @@
 
 执行 `npm test -- tests/deepseek-connector.test.ts` 可运行协议和公开 Host/Agent 接线测试；`npm test` 为全单元回归，`npm run build` 检查类型及随包模块。测试使用 `.invalid` 目标和固定假凭据，没有真实账户、系统秘密或外部模型请求。
 
-原生传输、首次发送确认和取消已实现，见[凭据请求契约](CREDENTIAL-REQUEST.md)。Agent 底部说明由当前文本服务的 `description` 提供，启用本扩展时显示文本发往 api.deepseek.com。剩余：Android 模拟器一次真实调用，以及共享工作台消费者反映实际文本外发。真实调用验收前，本地通过不能关闭当前阶段。
+原生传输、首次发送确认和取消已实现，见[凭据请求契约](CREDENTIAL-REQUEST.md)。空会话的欢迎说明由当前文本服务的 `description` 提供，启用本扩展时显示文本发往 api.deepseek.com。剩余：共享工作台消费者反映实际文本外发。
 
 协议依据为 2026-10-17 查阅的 [DeepSeek 官方入门](https://api-docs.deepseek.com/)、[Chat Completions](https://api-docs.deepseek.com/api/create-chat-completion/)及[思考模式](https://api-docs.deepseek.com/guides/thinking_mode/)。首版选择非思考、非流式和较小输出，以验证完整的输入输出及取消路径；后续协议演进仍归扩展维护。

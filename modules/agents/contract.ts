@@ -15,6 +15,8 @@ export type Agent = {
   status: "online" | "idle" | "busy";
   pinned: boolean;
   canCancel?: boolean;
+  /** Text being sent and not yet saved with its reply; never persisted. */
+  pending?: { sessionId: string; text: string };
   extensionId: string;
   capabilities: string[];
   sessions: Session[];

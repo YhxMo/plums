@@ -134,12 +134,8 @@
 .composerBottom {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: flex-end;
   gap: 10px;
-}
-.composerBottom > span {
-  font-size: 11px;
-  color: var(--muted);
 }
 .composerBottom button {
   display: flex;
@@ -190,10 +186,6 @@
     margin: 0 12px 16px;
     padding: 12px;
     border-radius: 16px;
-  }
-  .composerBottom > span {
-    font-size: 10px;
-    max-width: 160px;
   }
   .composerBottom button {
     min-height: 44px;

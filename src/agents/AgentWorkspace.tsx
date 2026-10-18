@@ -180,9 +180,16 @@ export function AgentWorkspace({
             onCancel={() => api.cancel(agent.id)}
             onSend={() => {
               const input = drafts[key] ?? "";
+              // The sent text shows as a pending bubble; a failed send puts it
+              // back unless the user has started a new draft.
+              setDrafts((d) => ({ ...d, [key]: "" }));
               void act(async () => {
-                await api.send(agent.id, input);
-                setDrafts((d) => (d[key] === input ? { ...d, [key]: "" } : d));
+                try {
+                  await api.send(agent.id, input);
+                } catch (error) {
+                  setDrafts((d) => (d[key] ? d : { ...d, [key]: input }));
+                  throw error;
+                }
               });
             }}
           />

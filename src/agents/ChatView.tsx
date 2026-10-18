@@ -26,7 +26,7 @@ export function ChatView({
   const bottom = useRef<HTMLDivElement>(null);
   useEffect(() => {
     bottom.current?.scrollIntoView({ block: "end" });
-  }, [session.id, session.messages.length, agent.status]);
+  }, [session.id, session.messages.length, agent.status, agent.pending]);
   return (
     <section className={s.chat} aria-label={`${agent.name} 的会话`}>
       <header className={s.chatHeader}>
@@ -78,6 +78,12 @@ export function ChatView({
             <p>{m.text}</p>
           </div>
         ))}
+        {agent.pending?.sessionId === session.id && (
+          <div className={`${s.message} ${s.userMessage}`}>
+            <span>你</span>
+            <p>{agent.pending.text}</p>
+          </div>
+        )}
         {agent.status === "busy" && (
           <div className={s.message}>
             <span>{agent.name}</span>
@@ -117,7 +123,6 @@ export function ChatView({
           }}
         />
         <div className={s.composerBottom}>
-          <span>{provider.description}</span>
           {agent.status === "busy" ? (
             <button
               type="button"

@@ -217,3 +217,44 @@ for (const [label, invalid] of [
     expect(store.list()[0].status).toBe("idle");
   });
 }
+
+it("shows the sent text at once, persists it only with the reply and drops it on failure", async () => {
+  const saved: unknown[] = [];
+  let answer = deferred();
+  let fail = false;
+  const store = new AgentStore(
+    [],
+    async (agents) => {
+      saved.push(structuredClone(agents));
+    },
+    async (text) => {
+      await answer.promise;
+      if (fail) throw new Error("service failed");
+      return text.toUpperCase();
+    },
+  );
+  const a = await store.create({ name: "quick" });
+  const session = a.currentSessionId;
+  const sent = store.send(a.id, "hello");
+  expect(store.list()[0].pending).toEqual({
+    sessionId: session,
+    text: "hello",
+  });
+  expect(store.list()[0].sessions[0].messages).toEqual([]);
+  answer.resolve();
+  await sent;
+  expect(store.list()[0].pending).toBeUndefined();
+  expect(store.list()[0].sessions[0].messages.map((m) => m.text)).toEqual([
+    "hello",
+    "HELLO",
+  ]);
+  answer = deferred();
+  fail = true;
+  const failed = store.send(a.id, "lost");
+  expect(store.list()[0].pending?.text).toBe("lost");
+  answer.resolve();
+  await expect(failed).rejects.toThrow("service failed");
+  expect(store.list()[0].pending).toBeUndefined();
+  expect(store.list()[0].sessions[0].messages).toHaveLength(2);
+  expect(JSON.stringify(saved)).not.toContain(`"pending"`);
+});

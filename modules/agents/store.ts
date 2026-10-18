@@ -95,7 +95,7 @@ export function restoreAgents(value: unknown): Agent[] {
         "当前会话不存在",
       );
   }
-  return structuredClone(value).map(({ canCancel, ...a }) => ({
+  return structuredClone(value).map(({ canCancel, pending, ...a }) => ({
     ...a,
     status: "idle",
   }));
@@ -108,6 +108,7 @@ export class AgentStore implements AgentProvider {
   private agents: Agent[];
   private listeners = new Set<() => void>();
   private running = new Map<string, AbortController>();
+  private pending = new Map<string, { sessionId: string; text: string }>();
   private structural = new Set<string>();
   private committing = new Set<string>();
   private queue: Promise<unknown> = Promise.resolve();
@@ -139,6 +140,7 @@ export class AgentStore implements AgentProvider {
       status:
         this.running.has(a.id) || this.structural.has(a.id) ? "busy" : "idle",
       canCancel: this.running.has(a.id) && !this.committing.has(a.id),
+      pending: this.pending.get(a.id),
     }));
     this.listeners.forEach((l) => l());
   }
@@ -149,10 +151,12 @@ export class AgentStore implements AgentProvider {
     const next = this.queue.then(async () => {
       if (this.closed) throw new Error("Agent 扩展已停用，请重新启用。");
       options?.signal?.throwIfAborted();
-      const draft = structuredClone(this.agents).map(({ canCancel, ...a }) => ({
-        ...a,
-        status: "idle" as const,
-      }));
+      const draft = structuredClone(this.agents).map(
+        ({ canCancel, pending, ...a }) => ({
+          ...a,
+          status: "idle" as const,
+        }),
+      );
       const result = mutate(draft);
       await this.persist(draft, options);
       this.agents = draft;
@@ -270,6 +274,7 @@ export class AgentStore implements AgentProvider {
     const sessionId = a.currentSessionId;
     const controller = new AbortController();
     this.running.set(agentId, controller);
+    this.pending.set(agentId, { sessionId, text: input });
     this.emit();
     try {
       const output = await this.reply(input, controller.signal);
@@ -303,6 +308,7 @@ export class AgentStore implements AgentProvider {
     } finally {
       this.committing.delete(agentId);
       this.running.delete(agentId);
+      this.pending.delete(agentId);
       this.emit();
     }
   }
