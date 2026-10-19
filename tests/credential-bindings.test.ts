@@ -1,5 +1,8 @@
 import { expect, it } from "vitest";
-import { validateCredentialBindings } from "../modules/sdk/credential-bindings";
+import {
+  validateCredentialBindings,
+  validateCredentialProtocols,
+} from "../modules/sdk/credential-bindings";
 
 const binding = () => ({
   text: {
@@ -55,4 +58,38 @@ it("requires a credential capability and validates aliases", () => {
     ]),
   ).toThrow();
   expect(() => validateCredentialBindings(undefined, [])).not.toThrow();
+});
+
+it("accepts protocol templates without a target only with credential.connect", () => {
+  const { target: _target, ...openai } = binding().text;
+  const anthropic = {
+    ...openai,
+    headers: { "anthropic-version": "2023-06-01" },
+    authentication: { type: "header", name: "x-api-key" },
+  };
+  const both = ["credential.request", "credential.connect"];
+  expect(() =>
+    validateCredentialProtocols({ "openai-chat": openai, anthropic }, both),
+  ).not.toThrow();
+  expect(() =>
+    validateCredentialProtocols({ openai }, ["credential.request"]),
+  ).toThrow();
+  expect(() =>
+    validateCredentialProtocols({ openai }, ["credential.connect"]),
+  ).toThrow();
+  expect(() =>
+    validateCredentialProtocols({ openai: binding().text }, both),
+  ).toThrow();
+  expect(() =>
+    validateCredentialProtocols(
+      { openai: { ...openai, headers: { Authorization: "x" } } },
+      both,
+    ),
+  ).toThrow();
+  expect(() =>
+    validateCredentialProtocols(
+      Object.fromEntries(["a", "b", "c", "d", "e"].map((n) => [n, openai])),
+      both,
+    ),
+  ).toThrow();
 });

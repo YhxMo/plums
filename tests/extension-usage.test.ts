@@ -42,7 +42,7 @@ async function chain(connect = true) {
   return { host, contexts };
 }
 
-test("open can target one extension in management only", async () => {
+test("open can target one extension in management or one dialog view", async () => {
   const open = vi.fn(async () => {});
   const host = new Host(platform());
   host.connectShell(bridge(open));
@@ -63,6 +63,13 @@ test("open can target one extension in management only", async () => {
   await expect(ctx.shell.open("settings", "transform.upper")).rejects.toThrow(
     "Invalid shell target",
   );
+  await ctx.shell.open("view", "model-connections");
+  expect(open).toHaveBeenLastCalledWith(
+    "view",
+    "third.party",
+    "model-connections",
+  );
+  await expect(ctx.shell.open("view")).rejects.toThrow("Invalid shell target");
 });
 
 test("dependencies list the extension and its providers, transitively", async () => {

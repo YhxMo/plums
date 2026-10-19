@@ -2,7 +2,10 @@ import type { ExtensionDefinition } from "../sdk";
 import { ContractError } from "../sdk/errors";
 import { array, identifier, object, string } from "../sdk/validation";
 import { validateConfigurationDeclaration } from "../sdk/configuration";
-import { validateCredentialBindings } from "../sdk/credential-bindings";
+import {
+  validateCredentialBindings,
+  validateCredentialProtocols,
+} from "../sdk/credential-bindings";
 
 export function validateDefinition(
   value: unknown,
@@ -87,6 +90,10 @@ export function validateDefinition(
     );
   validateCredentialBindings(
     manifest.credentialBindings,
+    manifest.capabilities,
+  );
+  validateCredentialProtocols(
+    manifest.credentialProtocols,
     manifest.capabilities,
   );
 }

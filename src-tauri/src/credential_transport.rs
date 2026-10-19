@@ -4,7 +4,7 @@ use crate::credential_bindings::{Failure, View};
 use crate::ipc::wire_object;
 use serde::Serialize;
 
-pub const MAX_REQUEST: usize = 4096;
+pub const MAX_REQUEST: usize = 65536;
 pub const MAX_RESPONSE: usize = 8192;
 
 /// Where a request stopped: before any network I/O, or after it may have

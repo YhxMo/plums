@@ -14,7 +14,7 @@
 
 ## 让扩展使用宿主入口
 
-`ctx.shell.open("extensions" | "settings" | "diagnostics")` 打开宿主界面；它不授予权限，也不直接启停其他扩展。`open("extensions", id)` 在扩展管理中选中该扩展，其他入口传目标会被拒绝。宿主通过 `Host.connectShell(bridge)` 接入自己的呈现与保存逻辑；未接入时 `open`/`savePage` 明确拒绝，`readPage` 返回 undefined（等同无偏好）。已停用的上下文不能再打开入口或写入页面偏好。
+`ctx.shell.open("extensions" | "settings" | "diagnostics")` 打开宿主界面；它不授予权限，也不直接启停其他扩展。`open("extensions", id)` 在扩展管理中选中该扩展；`open("view", viewId)` 打开某个扩展贡献的 dialog 视图（例如从 Agent 详情打开模型连接页）；其他入口传目标会被拒绝。宿主通过 `Host.connectShell(bridge)` 接入自己的呈现与保存逻辑；未接入时 `open`/`savePage` 明确拒绝，`readPage` 返回 undefined（等同无偏好）。已停用的上下文不能再打开入口或写入页面偏好。
 
 `ctx.shell.dependencies()` 返回本扩展及（递归）经 `ctx.use` 绑定的提供者，形如 `{ id, label }`，本扩展在首位；名称由外壳桥提供，未接入时为 ID。`ctx.providers` 取得的列表不算入依赖链。`ctx.shell.publishUsers(kind, users, toggle?)` 公布本扩展服务的对象（例如 `"Agent"` 与各 Agent 的 `{ id, label }`），整体替换上次公布，相同内容不触发刷新，停用时清除。每个对象可用 `uses` 列出它实际使用的提供者 ID；扩展管理把它列在依赖链或 `uses` 中每个扩展的详情里。`toggle` 形如 `{ service, set(userId, extensionId, on) }`，`service` 须在 requires 中：该服务的已启用提供者详情页列出全部对象，`uses` 含该扩展的为开启（实心），其余为关闭（虚线），点按后宿主校验并调用 `set`，由扩展自行保存选择；停用仍有使用者的扩展前，外壳确认并列出这些使用者。宿主只按依赖链、`uses` 与服务转交，不理解 kind 或 users 的业务含义。
 

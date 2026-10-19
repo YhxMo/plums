@@ -33,6 +33,8 @@ export function useShellNavigation(runtime: Runtime) {
         event as CustomEvent<{ action: string; target?: string }>
       ).detail;
       if (action === "settings") setDialog("settings");
+      else if (action === "view" && target)
+        setDialog({ id: target, label: "" });
       else openManager(action === "diagnostics", target);
     };
     runtime.events.addEventListener("shell", open);

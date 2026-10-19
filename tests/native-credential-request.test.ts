@@ -49,7 +49,7 @@ it("rejects malformed or oversized payloads before reaching native code", async 
     { ...request, version: 2 },
     { ...request, binding: 1 },
     { ...request, target: "https://elsewhere.invalid" },
-    { ...request, body: "字".repeat(1366) },
+    { ...request, body: "字".repeat(21846) },
   ])
     await expect(
       adapter.call(owner, "credential.request", payload),

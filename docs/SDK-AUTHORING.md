@@ -63,7 +63,7 @@ const close = host.mountView(viewId, root); // () => void | Promise<void>
 
 ## 页面与公开宿主入口
 
-扩展可通过 `ctx.shell.open("extensions" | "settings" | "diagnostics")` 请求呈现宿主入口，`open("extensions", id)` 选中指定扩展；这不授予权限或直接管理其他扩展。`ctx.shell.dependencies()` 列出本扩展及经 `ctx.use` 绑定的提供者，`ctx.shell.publishUsers(kind, users, toggle?)` 让扩展管理显示谁在使用哪个扩展，并可提供按使用者开关某个提供者的操作，规则见页面契约。`View.presentation` 可选声明 workspace/dialog/sidebar，外壳按声明装配主视图、菜单和上下文侧栏，旧视图默认 workspace。动态页面、导航保存、嵌套贡献、焦点与清理见 [页面契约和文本处理工作台](PAGES.md)。
+扩展可通过 `ctx.shell.open("extensions" | "settings" | "diagnostics")` 请求呈现宿主入口，`open("extensions", id)` 选中指定扩展，`open("view", viewId)` 打开某个 dialog 视图；这不授予权限或直接管理其他扩展。`ctx.shell.dependencies()` 列出本扩展及经 `ctx.use` 绑定的提供者，`ctx.shell.publishUsers(kind, users, toggle?)` 让扩展管理显示谁在使用哪个扩展，并可提供按使用者开关某个提供者的操作，规则见页面契约。`View.presentation` 可选声明 workspace/dialog/sidebar，外壳按声明装配主视图、菜单和上下文侧栏，旧视图默认 workspace。动态页面、导航保存、嵌套贡献、焦点与清理见 [页面契约和文本处理工作台](PAGES.md)。
 
 开发构建中，从扩展管理启用内置公开样板 `ui.workbench-board` 并确认状态权限，可体验“处理项→编辑执行→结果详情”的非聊天界面。作者可通过普通服务 `text-workbench.pages@1` 登记自己的页面，无需改内核；冻结后的内部独立作者已通过同源安装接入 [交稿检查页面](LOCAL-PROOF.md)，受验范围见专项证据。
 
@@ -141,7 +141,7 @@ ctx.task 跟踪异步任务，使用传入 signal 合作式取消；ctx.onDispos
 
 [DeepSeek 协议扩展](DEEPSEEK.md)是当前的实际服务实现入口：`connector.deepseek` / `/connectors/deepseek.js`，提供 `text.transform@1`。JSON 载荷、模型配置、完整回复解析和错误脱敏留在扩展；本地测试通过现有 Agent 消费者验证，不直接调用 fetch 或读取密钥。它在默认目录中，但不自动启用；浏览器预览中保持等待。
 
-可选 `manifest.credentialBindings` 声明非秘密连接建议，沿用现有扩展安装与管理入口；声明不创建绑定或授予请求权限。[通用绑定与原生录入](CREDENTIAL-BINDINGS.md)说明每绑定媒体类型、固定头、秘密注入、显式代理配置及取消/未知/卸载清理状态。既有扩展可继续不声明该字段。
+可选 `manifest.credentialBindings` 声明非秘密连接建议，沿用现有扩展安装与管理入口；声明不创建绑定或授予请求权限。[通用绑定与原生录入](CREDENTIAL-BINDINGS.md)说明每绑定媒体类型、固定头、秘密注入、显式代理配置及取消/未知/卸载清理状态。既有扩展可继续不声明该字段。需要让用户自建多条连接（例如多个模型服务）的扩展改为声明 `credentialProtocols` 协议模板并申请 `credential.connect`，见[扩展自建连接](CREDENTIAL-BINDINGS.md#扩展自建连接)。
 
 [可选单跳状态迁移助手](STATE-MIGRATION.md)已提供公开 SDK 入口与独立样板：扩展定义业务转换，助手用一次修订号提交保留旧快照；当前不自动迁移默认业务，也不提供通用包升级事务或自动回退。
 

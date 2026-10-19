@@ -60,7 +60,8 @@ export function errorMessage(error: unknown): string {
     return hostMessage(error.message) ?? defaults["host.invalid"];
   if (code === "extension.invalid") {
     if (detail.startsWith("configuration")) return "扩展配置无效。";
-    if (detail.startsWith("credentialBindings")) return "凭据绑定声明无效。";
+    if (/^credential(?:Bindings|Protocols)/.test(detail))
+      return "凭据绑定声明无效。";
     if (detail.startsWith("theme")) return "主题声明无效。";
     return reason;
   }
@@ -103,6 +104,8 @@ export const capabilityLabel = (capability: string) =>
     "platform.info": "查看平台信息",
     "document.read": "只读访问本次选择的文档（最多64 KiB）",
     "credential.request": "通过已授权连接发送请求",
+    "credential.connect":
+      "新建和管理自己的连接（地址与密钥须你在原生面板确认）",
   })[capability] ?? capability;
 export const translateStatus = (status: string) =>
   ({

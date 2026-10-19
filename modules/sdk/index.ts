@@ -1,8 +1,12 @@
 import type { Theme } from "./theme";
 import type { WorkspaceChrome } from "./workspace-chrome";
-import type { CredentialBindingDeclaration } from "./credential-bindings";
+import type {
+  CredentialBindingDeclaration,
+  CredentialProtocol,
+} from "./credential-bindings";
 export type {
   CredentialBindingDeclaration,
+  CredentialProtocol,
   NetworkRoute,
 } from "./credential-bindings";
 export { createWorkspaceChrome } from "./workspace-chrome";
@@ -38,6 +42,8 @@ export interface Manifest {
   configuration?: ConfigurationDeclaration;
   /** Host-reviewed connection suggestions; never contain secrets or imply authorization. */
   credentialBindings?: Record<string, CredentialBindingDeclaration>;
+  /** Connection templates the user completes with a target; requires `credential.connect`. */
+  credentialProtocols?: Record<string, CredentialProtocol>;
 }
 
 export interface Platform {
@@ -70,7 +76,7 @@ export interface View {
   mount(root: HTMLElement): () => void | Promise<void>;
 }
 
-export type ShellAction = "extensions" | "settings" | "diagnostics";
+export type ShellAction = "extensions" | "settings" | "diagnostics" | "view";
 /** Something shown to the user by name, such as an extension or an Agent. */
 export type Named = { id: string; label: string };
 /** A user of an extension; `uses` names providers it relies on beyond the publisher's `dependencies()`. */
@@ -91,7 +97,7 @@ export interface ShellBridge {
   label?(id: string): string;
 }
 export interface ShellAccess {
-  /** `target` selects one extension in `"extensions"`. */
+  /** `target` selects one extension in `"extensions"`; `"view"` opens the dialog view with that id. */
   open(action: ShellAction, target?: string): Promise<void>;
   /** Returns undefined for no preference or no connected shell bridge; writes reject instead. */
   readPage(viewId: string): string | undefined;
@@ -154,6 +160,9 @@ export type {
   CredentialRequest,
   CredentialResponse,
   CredentialFailureOutcome,
+  CredentialConnection,
+  CredentialConnectRequest,
+  CredentialConnectResult,
 } from "./credential";
 export { migrateState, restorePreviousState } from "./state-migration";
 export type {

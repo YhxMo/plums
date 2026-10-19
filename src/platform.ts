@@ -96,7 +96,10 @@ export class PlatformAdapter implements Platform {
   }
   available(capability: string) {
     if (capability === "document.read") return this.documentAccess.supported;
-    if (capability === "credential.request")
+    if (
+      capability === "credential.request" ||
+      capability === "credential.connect"
+    )
       return this.kind === "native" && this.credentials.supported;
     return ["state.read", "state.write", "platform.info"].includes(capability);
   }
@@ -133,6 +136,8 @@ export class PlatformAdapter implements Platform {
     }
     if (capability === "credential.request")
       return this.credentials.request(owner, payload, signal);
+    if (capability === "credential.connect")
+      return this.credentials.connect(owner, payload);
     if (this.failWrites && capability === "state.write")
       throw platformRejection("注入的写入故障：原数据保持不变");
     if (this.kind === "native") {

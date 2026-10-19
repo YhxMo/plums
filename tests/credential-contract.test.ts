@@ -47,7 +47,7 @@ describe("credential delegation contract reference model", () => {
     { ...request, version: 2 },
     { ...request, binding: "missing" },
     { ...request, body: 9 },
-    { ...request, body: "梅".repeat(1366) },
+    { ...request, body: "梅".repeat(21846) },
     null,
   ])(
     "rejects invalid or overbroad request before dispatch: %j",
@@ -208,7 +208,7 @@ it("allows exact byte boundaries and returns HTTP errors without retry", async (
     return { status: 429, body: "x".repeat(8192) };
   });
   expect(
-    await p.call(owner, capability, { ...request, body: "x".repeat(4096) }),
+    await p.call(owner, capability, { ...request, body: "x".repeat(65536) }),
   ).toEqual({ status: 429, body: "x".repeat(8192) });
   expect(calls).toBe(1);
 });

@@ -25,6 +25,7 @@ export function CredentialBindings({
   source,
   version,
   declarations,
+  managed = false,
 }: {
   access: CredentialAccess;
   operations: CredentialOperations;
@@ -32,6 +33,8 @@ export function CredentialBindings({
   source: string;
   version: string;
   declarations: Record<string, CredentialBindingDeclaration>;
+  /** The extension makes its own connections from protocol templates. */
+  managed?: boolean;
 }) {
   const [items, setItems] = useState<CredentialBinding[]>([]);
   const [status, setStatus] = useState("");
@@ -78,7 +81,7 @@ export function CredentialBindings({
         });
       }
     });
-  if (!Object.keys(declarations).length && !items.length && !status)
+  if (!Object.keys(declarations).length && !items.length && !status && !managed)
     return null;
   const aliases = [
     ...new Set([
@@ -110,14 +113,20 @@ export function CredentialBindings({
           {aliases.map((alias) => {
             const item = items.find((item) => item.alias === alias);
             const declaration = declarations[alias];
+            // Made by the extension from a protocol template; it re-enters keys itself.
+            const own = managed && !declaration && /^c-/.test(alias);
             const revision = item?.revision ?? 0;
             const disabled = operations.busy || unavailable;
             return (
               <div key={alias}>
                 <strong>{declaration?.label ?? item!.declaration.label}</strong>
                 <p>{item?.declaration.target ?? declaration!.target}</p>
-                {!declaration && (
-                  <p>此扩展当前不使用该连接，可核对或删除已保存的凭据。</p>
+                {own ? (
+                  <p>由扩展新建，在它的连接页面中修改或重新录入密钥。</p>
+                ) : (
+                  !declaration && (
+                    <p>此扩展当前不使用该连接，可核对或删除已保存的凭据。</p>
+                  )
                 )}
                 <p>
                   {item ? stateLabel[item.status] : "尚未录入凭据"}
@@ -161,7 +170,7 @@ export function CredentialBindings({
                   )}
                   {item && (
                     <>
-                      {declaration && (
+                      {(declaration || own) && (
                         <button
                           className="secondary"
                           disabled={

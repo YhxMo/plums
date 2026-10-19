@@ -221,7 +221,7 @@ class CredentialsPlugin(private val activity: Activity) : Plugin(activity) {
 
   /**
    * POST to the bound HTTPS target only: no redirects, no system proxy, no
-   * transparent gzip; 10 s connect, 30 s total, 4096-byte request, 8192-byte response.
+   * transparent gzip; 10 s connect, 30 s total, 65536-byte request, 8192-byte response.
    */
   @Command
   fun request(invoke: Invoke) {
@@ -231,7 +231,7 @@ class CredentialsPlugin(private val activity: Activity) : Plugin(activity) {
     val body = args.body.toByteArray(Charsets.UTF_8)
     if (!valid(args.reference) || args.id.isEmpty() || args.id.length > 64 || url == null ||
       url.protocol != "https" || url.userInfo != null || url.query != null || url.ref != null ||
-      (url.port != -1 && url.port != 443) || body.size > 4096) {
+      (url.port != -1 && url.port != 443) || body.size > 65536) {
       fail("not-dispatched", "invalid-request"); return
     }
     Thread {

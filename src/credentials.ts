@@ -2,9 +2,13 @@ import { invokeNative } from "./native/invoke";
 import type { NativeCommands } from "./native/contract.generated";
 import type {
   CredentialBindingDeclaration,
+  CredentialConnectResult,
+  CredentialConnection,
   CredentialFailureOutcome,
+  CredentialProtocol,
   CredentialResponse,
 } from "../modules/sdk";
+import { validateCredentialTarget } from "../modules/sdk/credential-bindings";
 
 export type CredentialBinding =
   NativeCommands["credential_list"]["response"][number];
@@ -25,7 +29,7 @@ const reasons: Record<string, string> = {
   "not-confirmed": "已取消发送，请求未发出。",
   "proxy-unsupported": "当前版本只支持直连，请把连接方式改为直连。",
   "secret-unavailable": "无法读取系统中保存的 API Key，请重新录入。",
-  "invalid-request": "请求格式无效或超过 4096 字节，未发送。",
+  "invalid-request": "请求格式无效或超过 64 KiB，未发送。",
   stale: "连接或授权已变化，本次结果未交付。",
   timeout: "请求超时，远端结果未确认。",
   redirect: "服务返回了跳转，已拒绝跟随，远端结果未确认。",
@@ -41,12 +45,40 @@ function requestFailure(code: string, outcome: CredentialFailureOutcome) {
   });
 }
 const bytes = (value: string) => new TextEncoder().encode(value).length;
+/** Request body cap, matching the native transports. */
+export const MAX_REQUEST = 65536;
+/** Connections an extension made itself; static manifest aliases never match. */
+const connectionAlias = /^c-[a-z0-9]{8}$/;
+const MAX_CONNECTIONS = 16;
+/** What the host knows about an owner that manages its own connections. */
+export type ConnectionOwner = {
+  source: string;
+  version: string;
+  protocols: Record<string, CredentialProtocol>;
+};
+const sameTemplate = (
+  declaration: CredentialBindingDeclaration,
+  template: CredentialProtocol,
+) =>
+  declaration.contentType === template.contentType &&
+  JSON.stringify(declaration.authentication) ===
+    JSON.stringify(template.authentication) &&
+  JSON.stringify(Object.entries(declaration.headers).sort()) ===
+    JSON.stringify(Object.entries(template.headers).sort());
+function connectFailure(message: string) {
+  return Object.assign(new Error(message), {
+    code: "invalid-request",
+    outcome: "not-dispatched" as const,
+  });
+}
 
 /** Host management only. This entry never accepts or returns an API key. */
 export class CredentialAccess {
   supported = false;
   initializationError: string | null = null;
   private readonly owners = new Set<string>();
+  /** Set by the composition root; owners without protocols cannot connect. */
+  describe: (owner: string) => ConnectionOwner | undefined = () => undefined;
   async initialize(native: boolean) {
     if (!native) return;
     try {
@@ -112,6 +144,86 @@ export class CredentialAccess {
       revision,
     });
   }
+  /**
+   * `credential.connect`: an extension lists, saves or removes connections
+   * built from its protocol templates. Saving opens the native key panel,
+   * which shows the target the user typed; the extension never sees a key.
+   */
+  async connect(
+    owner: string,
+    payload: unknown,
+  ): Promise<CredentialConnection[] | CredentialConnectResult> {
+    const known = this.describe(owner);
+    const request = (payload ?? {}) as Record<string, unknown>;
+    if (!known || typeof payload !== "object" || Array.isArray(payload))
+      throw connectFailure("连接参数无效。");
+    const items = (await this.list(owner)).filter((item) =>
+      connectionAlias.test(item.alias),
+    );
+    if (request.action === "list" && Object.keys(request).length === 1)
+      return items.map(({ alias, declaration, status }) => ({
+        alias,
+        protocol: Object.keys(known.protocols).find((name) =>
+          sameTemplate(declaration, known.protocols[name]),
+        ),
+        label: declaration.label,
+        target: declaration.target,
+        status,
+      }));
+    const { action, alias, protocol, label, target } = request;
+    const existing = items.find((item) => item.alias === alias);
+    if (
+      action === "remove" &&
+      Object.keys(request).sort().join() === "action,alias" &&
+      existing
+    ) {
+      const result = await this.delete(
+        owner,
+        existing.alias,
+        existing.revision,
+      );
+      return { alias: existing.alias, ...result };
+    }
+    const template =
+      typeof protocol === "string" && Object.hasOwn(known.protocols, protocol)
+        ? known.protocols[protocol]
+        : undefined;
+    if (
+      action !== "save" ||
+      Object.keys(request).some(
+        (key) =>
+          !["action", "alias", "protocol", "label", "target"].includes(key),
+      ) ||
+      !template ||
+      typeof label !== "string" ||
+      !label.trim() ||
+      label.length > 80 ||
+      // eslint-disable-next-line no-control-regex -- rejecting control characters is the point
+      /[\u0000-\u001f\u007f]/.test(label) ||
+      (alias !== undefined && !existing) ||
+      (alias === undefined && items.length >= MAX_CONNECTIONS)
+    )
+      throw connectFailure("连接参数无效。");
+    try {
+      validateCredentialTarget(target);
+    } catch {
+      throw connectFailure(
+        "服务地址须是 https:// 开头、不带端口与查询参数的完整地址。",
+      );
+    }
+    const name =
+      existing?.alias ??
+      `c-${crypto.randomUUID().replaceAll("-", "").slice(0, 8)}`;
+    const result = await this.configure(
+      owner,
+      name,
+      known.source,
+      known.version,
+      { ...template, label, target: target as string },
+      existing?.revision ?? 0,
+    );
+    return { alias: name, ...result };
+  }
   /** Sends through the owner's binding; the key is injected natively. */
   async request(
     owner: string,
@@ -129,7 +241,7 @@ export class CredentialAccess {
       version !== 1 ||
       typeof binding !== "string" ||
       typeof body !== "string" ||
-      bytes(body) > 4096
+      bytes(body) > MAX_REQUEST
     )
       throw requestFailure("invalid-request", "not-dispatched");
     if (signal?.aborted) throw requestFailure("cancelled", "not-dispatched");

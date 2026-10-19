@@ -48,11 +48,13 @@ export function createContext(
     shell: {
       open: async (action, target) => {
         scope.assertOpen();
-        if (!["extensions", "settings", "diagnostics"].includes(action))
+        if (!["extensions", "settings", "diagnostics", "view"].includes(action))
           throw hostError("Unknown shell action");
         if (
-          target !== undefined &&
-          (action !== "extensions" || typeof target !== "string")
+          (action === "view" && typeof target !== "string") ||
+          (target !== undefined &&
+            (!["extensions", "view"].includes(action) ||
+              typeof target !== "string"))
         )
           throw hostError("Invalid shell target");
         const bridge = host.shell();

@@ -25,7 +25,10 @@ export function ShellDialogs({
       (view) => view.presentation === "dialog" && view.id === settings.id,
     );
     return (
-      <Dialog title={settings.label} onClose={() => setSettings(null)}>
+      <Dialog
+        title={view?.label ?? settings.label}
+        onClose={() => setSettings(null)}
+      >
         {view ? (
           <ExtensionView
             host={host}

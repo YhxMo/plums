@@ -120,6 +120,17 @@ export async function bootShell(
   const events = new EventTarget();
   const entries = [...catalog, ...application.catalog];
   host.connectShell(createShellBridge({ save, current }, events, entries));
+  // Connections an extension makes itself are recorded under its current source.
+  adapter.credentials.describe = (owner) => {
+    const id = owner.replace(/^extension\./, "");
+    const protocols = host.ids().includes(id)
+      ? host.manifest(id).credentialProtocols
+      : undefined;
+    const entry = entries.find((item) => item.id === id);
+    return protocols && entry
+      ? { source: entry.url, version: host.manifest(id).version, protocols }
+      : undefined;
+  };
   for (const extension of application.extensions(preferences, save))
     host.install(extension, configurations[extension.manifest.id]);
   for (const [id, capabilities] of Object.entries(application.grants ?? {}))

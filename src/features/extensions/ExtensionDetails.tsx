@@ -112,6 +112,7 @@ export function ExtensionDetails({
         source={activeSelectedExt.url}
         version={extManifest.version}
         declarations={extManifest.credentialBindings ?? {}}
+        managed={!!extManifest.credentialProtocols}
       />
     </section>
   );

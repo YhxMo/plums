@@ -99,6 +99,7 @@ impl Broker {
                 "platform.info",
                 "document.read",
                 "credential.request",
+                "credential.connect",
             ]
             .contains(&cap.as_str())
         }) {
