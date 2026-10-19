@@ -1,3 +1,4 @@
+import { validateDefinition } from "../modules/extension-host/definition";
 import { readFileSync } from "node:fs";
 import { expect, it } from "vitest";
 import { ContractError } from "../modules/sdk/errors";
@@ -46,4 +47,26 @@ it("defines the id and origin rules in one place", () => {
       );
     });
   expect(offenders).toEqual([]);
+});
+
+it("accepts a short display name and a plain-text description", () => {
+  const manifest = (fields: object) => ({
+    manifest: { id: "a", version: "1", apiVersion: 1, ...fields },
+    activate() {},
+  });
+  expect(() =>
+    validateDefinition(
+      manifest({ name: "回声", description: "把你的话说回来。" }),
+    ),
+  ).not.toThrow();
+  for (const fields of [
+    { name: "" },
+    { name: "名".repeat(41) },
+    { name: 1 },
+    { description: "说".repeat(501) },
+    { description: ["x"] },
+  ])
+    expect(() => validateDefinition(manifest(fields))).toThrow(
+      "Invalid extension name or description",
+    );
 });

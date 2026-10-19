@@ -8,6 +8,8 @@ export default {
     id: "connector.deepseek",
     version: "0.1.0",
     apiVersion: 1,
+    description:
+      "把 Agent 的每条消息发送到 DeepSeek 官方 API 生成回复。需要你自己的 API Key，在下方「连接与凭据」中录入；历史与角色说明留在本机。",
     capabilities: ["credential.request"],
     provides: { "text.transform": 1 },
     credentialBindings: {

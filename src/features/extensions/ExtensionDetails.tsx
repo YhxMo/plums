@@ -38,6 +38,10 @@ export function ExtensionDetails({
           </code>
         </div>
       </header>
+      {extManifest.description && (
+        // Author text from the manifest; React renders it as plain text.
+        <p className={styles.detailDescription}>{extManifest.description}</p>
+      )}
       {users.map((group) => (
         <section className={styles.detailSection} key={group.owner}>
           <h4>

@@ -26,6 +26,10 @@ export interface Manifest {
   id: string;
   version: string;
   apiVersion: 1;
+  /** Display name shown in place of the ID, 1–40 characters. */
+  name?: string;
+  /** Plain-text description for extension management, at most 500 characters; never rendered as markup. */
+  description?: string;
   requires?: Record<string, number>;
   /** Services used when some extension provides them; the extension starts and stays active without them. */
   optional?: Record<string, number>;

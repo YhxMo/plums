@@ -78,3 +78,6 @@
   margin: 0;
   overflow-wrap: anywhere;
 }
+.summary .description {
+  white-space: pre-line;
+}

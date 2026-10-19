@@ -85,6 +85,22 @@ it("writes the source before the shell record and installs only after both", asy
   expect(host.inspect(id).status).toBe("disabled");
 });
 
+it("lists an import under its manifest name", async () => {
+  const { host, state, sources } = setup();
+  const read = await readExtensionFile(file("export default 'n';"));
+  const named = definition();
+  named.manifest.name = "回声";
+  const { entry } = await importExtensionFile(
+    host,
+    state,
+    read,
+    named,
+    sources,
+    async () => {},
+  );
+  expect(entry.label).toBe("回声");
+});
+
 it("refuses to shadow a built-in extension", async () => {
   const { host, state, sources, states } = setup();
   const builtIn = { id, url: "/services/echo.js", label: "内置" };

@@ -55,7 +55,7 @@ export async function installExtension(
   const entry: ImportedExtension = {
     id: input.id,
     url: target.pathname + target.search,
-    label: input.id,
+    label: definition.manifest.name ?? input.id,
   };
   const imports = [
     ...state.imports.filter((saved) => saved.id !== input.id),
@@ -105,7 +105,11 @@ export async function importExtensionFile(
     await host.stop(id);
     await host.grant(id, []);
   }
-  const entry: ImportedExtension = { id, url: file.url, label: id };
+  const entry: ImportedExtension = {
+    id,
+    url: file.url,
+    label: definition.manifest.name ?? id,
+  };
   const imports = [...state.imports.filter((saved) => saved.id !== id), entry];
   if (previous)
     try {

@@ -23,8 +23,20 @@ function PreviewDetails({ file, definition, replacing }: ImportPreview) {
   return (
     <>
       <dl className={styles.summary} aria-label="导入内容">
+        {manifest.name && (
+          <>
+            <dt>名称</dt>
+            <dd>{manifest.name}</dd>
+          </>
+        )}
         <dt>扩展 ID</dt>
         <dd>{manifest.id}</dd>
+        {manifest.description && (
+          <>
+            <dt>说明</dt>
+            <dd className={styles.description}>{manifest.description}</dd>
+          </>
+        )}
         <dt>版本</dt>
         <dd>{manifest.version}</dd>
         <dt>提供服务</dt>

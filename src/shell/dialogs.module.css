@@ -19,6 +19,12 @@
   padding-top: 14px;
   border-top: 1px solid var(--border);
 }
+/* Author-written plain text; keeps its line breaks. */
+.detailDescription {
+  margin: 12px 0 0;
+  white-space: pre-line;
+  overflow-wrap: anywhere;
+}
 .detailSection h4 {
   font-size: 13px;
   margin: 0 0 10px;

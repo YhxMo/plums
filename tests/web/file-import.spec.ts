@@ -57,10 +57,16 @@ test("an imported file drives the Agent and stays installed after reload", async
   const dialog = await importFile(page, "starter.js", starter);
   const summary = dialog.getByRole("definition");
   await expect(dialog).toContainText("starter.text-service");
+  await expect(dialog).toContainText("起步文本服务");
+  await expect(dialog).toContainText("统计字数后回显你的消息");
   await expect(dialog).toContainText("text.transform@1");
   await expect(summary.filter({ hasText: "本地导入的文件 · " })).toBeVisible();
   await dialog.getByRole("button", { name: "导入", exact: true }).click();
   await expect(page.getByRole("status")).toContainText("扩展已导入");
+  await page.getByRole("button", { name: "起步文本服务", exact: true }).click();
+  await expect(
+    page.getByRole("region", { name: "所选扩展详情" }),
+  ).toContainText("统计字数后回显你的消息，不联网、不保存数据。");
   await useService(page, "starter.text-service");
   await addAgent(page);
   await send(page, "你好");

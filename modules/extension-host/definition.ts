@@ -32,6 +32,17 @@ export function validateDefinition(
   });
   if (manifest.apiVersion !== 1)
     throw new ContractError("extension.invalid", "manifest.id", identity.label);
+  for (const [field, max] of [
+    ["name", 40],
+    ["description", 500],
+  ] as const)
+    if (manifest[field] !== undefined)
+      string(manifest[field], "extension.invalid", {
+        path: `manifest.${field}`,
+        label: "Invalid extension name or description",
+        min: 1,
+        max,
+      });
   for (const [name, declarations] of Object.entries({
     requires: manifest.requires,
     optional: manifest.optional,
