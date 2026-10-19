@@ -11,7 +11,6 @@ const openai: Endpoint = {
   model: "m",
   maxTokens: 100,
   context: 128_000,
-  turns: 10,
 };
 const anthropic: Endpoint = { ...openai, protocol: "anthropic-messages" };
 const history = [
@@ -54,16 +53,32 @@ it("puts instructions in Anthropic's system field", () => {
   ).toEqual({
     model: "m",
     max_tokens: 100,
-    system: "简洁回答。",
+    // Marked for Anthropic's prompt cache: the next request repeats it all.
+    system: [
+      {
+        type: "text",
+        text: "简洁回答。",
+        cache_control: { type: "ephemeral" },
+      },
+    ],
     messages: [
       { role: "user", content: "我是 nanan" },
       { role: "assistant", content: "你好 nanan" },
-      { role: "user", content: "我是谁？" },
+      {
+        role: "user",
+        content: [
+          {
+            type: "text",
+            text: "我是谁？",
+            cache_control: { type: "ephemeral" },
+          },
+        ],
+      },
     ],
   });
 });
 
-it("keeps the newest turns, always starting with the user", () => {
+it("sends the whole conversation, always starting with the user", () => {
   const long = [
     { role: "agent" as const, text: "orphan" },
     ...["a", "b", "c"].flatMap((text) => [
@@ -71,15 +86,13 @@ it("keeps the newest turns, always starting with the user", () => {
       { role: "agent" as const, text: text.toUpperCase() },
     ]),
   ];
-  const sent = (turns: number | null) =>
+  expect(
     (
-      parse(requestBody({ ...openai, turns }, { history: long, input: "d" }))
-        .messages as { content: string }[]
-    ).map((message) => message.content);
-  expect(sent(2)).toEqual(["b", "B", "c", "C", "d"]);
-  expect(sent(10)).toEqual(["a", "A", "b", "B", "c", "C", "d"]);
-  expect(sent(0)).toEqual(["d"]);
-  expect(sent(null)).toEqual(["a", "A", "b", "B", "c", "C", "d"]);
+      parse(requestBody(openai, { history: long, input: "d" })).messages as {
+        content: string;
+      }[]
+    ).map((message) => message.content),
+  ).toEqual(["a", "A", "b", "B", "c", "C", "d"]);
 });
 
 it("estimates CJK at a token a character and other text at a token per few characters", () => {
@@ -94,11 +107,51 @@ it("drops whole old turns to fit the context window, leaving room for the reply"
     { role: "user" as const, text: text + "字".repeat(900) },
     { role: "agent" as const, text: text + "答".repeat(900) },
   ]);
-  const endpoint = { ...openai, context: 5000, maxTokens: 1000, turns: null };
+  const endpoint = { ...openai, context: 5000, maxTokens: 1000 };
   const body = requestBody(endpoint, { history: long, input: "e" });
   expect(estimateTokens(body)).toBeLessThanOrEqual(5000 - 1000);
   const messages = parse(body).messages as { role: string; content: string }[];
-  expect(messages.map((m) => m.content[0])).toEqual(["c", "c", "d", "d", "e"]);
+  // Each trim makes room for several turns more, not just this one.
+  expect(messages.map((m) => m.content[0])).toEqual(["d", "d", "e"]);
+});
+
+it("sends only the input when no earlier turn fits", () => {
+  const huge = [
+    { role: "user" as const, text: "字".repeat(6000) },
+    { role: "agent" as const, text: "好" },
+  ];
+  const endpoint = { ...openai, context: 5000, maxTokens: 1000 };
+  expect(
+    parse(requestBody(endpoint, { history: huge, input: "e" })).messages,
+  ).toEqual([{ role: "user", content: "e" }]);
+});
+
+it("trims only now and then as a conversation grows, keeping the cached prefix", () => {
+  const endpoint = { ...openai, context: 20_000, maxTokens: 1000 };
+  const history: { role: "user" | "agent"; text: string }[] = [];
+  let previous: unknown[] = [];
+  let trims = 0;
+  for (let i = 0; i < 60; i++) {
+    const input = `${i}` + "问".repeat(300);
+    const body = requestBody(endpoint, { history, input });
+    expect(estimateTokens(body)).toBeLessThanOrEqual(20_000 - 1000);
+    const messages = parse(body).messages as unknown[];
+    const sent = messages.slice(0, -1);
+    // Unless trimmed, this request repeats the last one and its reply.
+    if (JSON.stringify(sent) !== JSON.stringify(previous)) trims++;
+    history.push(
+      { role: "user", text: input },
+      { role: "agent", text: `${i}` + "答".repeat(300) },
+    );
+    previous = [
+      ...sent,
+      { role: "user", content: input },
+      { role: "assistant", content: history.at(-1)!.text },
+    ];
+  }
+  // About 30 turns fit; trimming one turn at a time would miss on every request after that.
+  expect(trims).toBeGreaterThan(0);
+  expect(trims).toBeLessThanOrEqual(5);
 });
 
 it("carries a conversation of several MB within a 1M context", () => {
@@ -107,14 +160,11 @@ it("carries a conversation of several MB within a 1M context", () => {
     { role: "agent" as const, text: `${i}` + "答".repeat(4000) },
   ]).flat();
   const request = { history: long, input: "总结" };
-  const all = requestBody(
-    { ...openai, context: 1_000_000, turns: null },
-    request,
-  );
+  const all = requestBody({ ...openai, context: 1_000_000 }, request);
   expect(new TextEncoder().encode(all).length).toBeGreaterThan(2 * 1024 * 1024);
   expect((parse(all).messages as unknown[]).length).toBe(201);
   // The same conversation keeps only its newest turns within 128K.
-  const small = requestBody({ ...openai, turns: null }, request);
+  const small = requestBody(openai, request);
   expect(estimateTokens(small)).toBeLessThanOrEqual(128_000 - 100);
   const kept = parse(small).messages as { content: string }[];
   expect(kept.length).toBeLessThan(40);
@@ -130,7 +180,7 @@ it("drops whole old turns to stay under the byte limit", () => {
   const body = requestBody(openai, { history: long, input: "d" }, 20000);
   expect(new TextEncoder().encode(body).length).toBeLessThanOrEqual(20000);
   const messages = parse(body).messages as { role: string; content: string }[];
-  expect(messages[0]).toEqual({ role: "user", content: "b" + big });
+  expect(messages[0]).toEqual({ role: "user", content: "c" + big });
   expect(messages.at(-1)).toEqual({ role: "user", content: "d" });
 });
 

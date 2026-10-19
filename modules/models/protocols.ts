@@ -14,13 +14,20 @@ export type Endpoint = {
   maxTokens: number;
   /** The model's context window in tokens, reply included. */
   context: number;
-  /** Earlier turns sent along; 0 sends only the input, null all that fit. */
-  turns: number | null;
   extra?: Record<string, unknown>;
 };
 
 /** Request body cap shared with the platform's `credential.request`. */
 export const REQUEST_LIMIT = 8 * 1024 * 1024;
+/**
+ * History may fill this share of the budget; past it, the oldest turns go
+ * until it fills `REFILL`. Trimming in steps keeps the sent prefix the same
+ * for many requests, so the service's prompt cache keeps hitting.
+ */
+const HIGH = 0.9;
+const REFILL = 0.6;
+/** Anthropic caches up to marked blocks; OpenAI-compatible services cache prefixes on their own. */
+const cache = { type: "ephemeral" };
 
 /** 1000000 → "1M", 128000 → "128K". */
 export const tokenLabel = (tokens: number) =>
@@ -70,18 +77,26 @@ const message = ({ role, text }: Turn) => ({
 });
 
 function body(endpoint: Endpoint, request: ChatInput, history: Turn[]) {
-  const messages = [
-    ...history,
-    { role: "user" as const, text: request.input },
-  ].map(message);
   const instructions = request.instructions?.trim();
   if (endpoint.protocol === "anthropic-messages")
     return JSON.stringify({
       ...endpoint.extra,
       model: endpoint.model,
       max_tokens: endpoint.maxTokens,
-      ...(instructions && { system: instructions }),
-      messages,
+      // The system prompt, and the conversation through this input, which
+      // the next request repeats as its prefix.
+      ...(instructions && {
+        system: [{ type: "text", text: instructions, cache_control: cache }],
+      }),
+      messages: [
+        ...history.map(message),
+        {
+          role: "user",
+          content: [
+            { type: "text", text: request.input, cache_control: cache },
+          ],
+        },
+      ],
     });
   return JSON.stringify({
     ...endpoint.extra,
@@ -90,15 +105,17 @@ function body(endpoint: Endpoint, request: ChatInput, history: Turn[]) {
     stream: false,
     messages: [
       ...(instructions ? [{ role: "system", content: instructions }] : []),
-      ...messages,
+      ...[...history, { role: "user" as const, text: request.input }].map(
+        message,
+      ),
     ],
   });
 }
 
 /**
- * The request body: the newest whole turns that fit both the context window,
- * less the reply's room, and the byte cap, at most `turns` of them. Too large
- * even without history is refused unsent.
+ * The request body: the whole conversation while it fits the context window,
+ * less the reply's room, and the byte cap; past that, the oldest whole turns
+ * are trimmed in steps. Too large even without history is refused unsent.
  */
 export function requestBody(
   endpoint: Endpoint,
@@ -107,8 +124,8 @@ export function requestBody(
 ) {
   const budget = endpoint.context - endpoint.maxTokens;
   const bare = body(endpoint, request, []);
-  let size = bytes(bare);
-  let tokens = estimateTokens(bare);
+  const size = bytes(bare);
+  const tokens = estimateTokens(bare);
   if (size > limit)
     throw failure(
       "这条消息连同角色说明超过请求大小上限（8 MiB），未发送；请缩短后再试。",
@@ -121,27 +138,40 @@ export function requestBody(
     );
   const { history } = request;
   const starts = turnStarts(history);
-  const allowed = endpoint.turns ?? starts.length;
-  let first = history.length;
   // Each kept message adds its own JSON and one comma to the body.
-  for (
-    let turn = starts.length - 1;
-    turn >= 0 && starts.length - turn <= allowed;
-    turn--
-  ) {
-    let more = 0;
-    let moreTokens = 0;
-    for (let i = starts[turn]; i < first; i++) {
+  const turns = starts.map((start, index) => {
+    const turn = { start, size: 0, tokens: 0 };
+    for (let i = start; i < (starts[index + 1] ?? history.length); i++) {
       const json = `${JSON.stringify(message(history[i]))},`;
-      more += bytes(json);
-      moreTokens += estimateTokens(json);
+      turn.size += bytes(json);
+      turn.tokens += estimateTokens(json);
     }
-    if (size + more > limit || tokens + moreTokens > budget) break;
-    size += more;
-    tokens += moreTokens;
-    first = starts[turn];
+    return turn;
+  });
+  // Replays the conversation's growth, so the first kept turn depends only on
+  // earlier turns and moves only when a step is trimmed.
+  let first = 0;
+  let kept = { size: 0, tokens: 0 };
+  const drop = () => {
+    kept = {
+      size: kept.size - turns[first].size,
+      tokens: kept.tokens - turns[first].tokens,
+    };
+    first++;
+  };
+  const over = (share: number) =>
+    kept.size > limit * share || kept.tokens > budget * share;
+  for (const turn of turns) {
+    kept = { size: kept.size + turn.size, tokens: kept.tokens + turn.tokens };
+    if (over(HIGH)) while (over(REFILL)) drop();
   }
-  return body(endpoint, request, history.slice(first));
+  // Long instructions or input may still need more room.
+  while (kept.size + size > limit || kept.tokens + tokens > budget) drop();
+  return body(
+    endpoint,
+    request,
+    history.slice(turns[first]?.start ?? history.length),
+  );
 }
 
 function openaiText(parsed: unknown) {

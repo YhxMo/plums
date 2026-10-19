@@ -20,7 +20,6 @@ const deepseek: ProviderDraft = {
   models: ["user-model-a", "user-model-b"],
   maxTokens: 1024,
   context: 128_000,
-  turns: 10,
 };
 const deepseekTarget = "https://api.deepseek.com/chat/completions";
 const claude: ProviderDraft = {
@@ -33,7 +32,6 @@ const claude: ProviderDraft = {
   models: ["user-claude"],
   maxTokens: 512,
   context: 1_000_000,
-  turns: 2,
 };
 const completion = (content: string) => ({
   status: 200,
@@ -274,7 +272,14 @@ it("keeps providers apart and uses each one's protocol", async () => {
   expect(body(send)).toEqual({
     model: "user-claude",
     max_tokens: 512,
-    messages: [{ role: "user", content: "hi" }],
+    messages: [
+      {
+        role: "user",
+        content: [
+          { type: "text", text: "hi", cache_control: { type: "ephemeral" } },
+        ],
+      },
+    ],
   });
 });
 
@@ -283,14 +288,14 @@ it("asks for the key only when the address changes or the user asks", async () =
   await api.save(deepseek);
   const { id } = api.list()[0];
   await api.save(
-    { ...deepseek, name: "主力", models: ["user-model-c"], turns: 4 },
+    { ...deepseek, name: "主力", models: ["user-model-c"], maxTokens: 4000 },
     id,
   );
   expect(panel).toHaveBeenCalledTimes(1);
   expect(api.list()[0]).toMatchObject({
     name: "主力",
     models: ["user-model-c"],
-    turns: 4,
+    maxTokens: 4000,
   });
   await api.save(
     { ...api.list()[0], base: "https://proxy.example/v1/chat/completions/" },
@@ -392,8 +397,6 @@ it.each([
   [{ models: ["a", "a"] }, "重复"],
   [{ models: Array.from({ length: 33 }, (_, i) => `m${i}`) }, "最多"],
   [{ maxTokens: 0 }, "最大输出"],
-  [{ turns: 1001 }, "上下文轮数"],
-  [{ turns: 1.5 }, "上下文轮数"],
   [{ context: 8000 }, "上下文窗口"],
   [{ context: 3_000_000 }, "上下文窗口"],
 ])("rejects %j before opening the panel", async (patch, message) => {
@@ -512,6 +515,8 @@ it("upgrades version 2 records, which kept the full address", async () => {
     { preset: "custom", base: "https://gateway.example" },
   ]);
   expect(api.list()[0]).not.toHaveProperty("target");
+  // Earlier versions limited turns; the whole conversation is sent now.
+  expect(api.list()[0]).not.toHaveProperty("turns");
   expect(api.list().map(({ context }) => context)).toEqual([128_000, 128_000]);
   expect(states.get(owner)?.value).toBe(saved);
 });
@@ -558,13 +563,8 @@ it("sends a whole long conversation to a 1M-context provider, and less to a 128K
   const big = (await api.save({
     ...deepseek,
     context: 1_000_000,
-    turns: null,
   })) as string;
-  const small = (await api.save({
-    ...deepseek,
-    name: "小",
-    turns: null,
-  })) as string;
+  const small = (await api.save({ ...deepseek, name: "小" })) as string;
   const history = Array.from({ length: 100 }, (_, i) => [
     { role: "user" as const, text: `${i}` + "问".repeat(4000) },
     { role: "agent" as const, text: `${i}` + "答".repeat(4000) },

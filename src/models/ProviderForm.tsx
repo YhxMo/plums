@@ -30,7 +30,6 @@ export function fromPreset(
     models: [],
     maxTokens: 1024,
     context: preset.context,
-    turns: null,
   };
 }
 const draftOf = (provider: ProviderView): ProviderDraft => ({
@@ -43,7 +42,6 @@ const draftOf = (provider: ProviderView): ProviderDraft => ({
   models: provider.models,
   maxTokens: provider.maxTokens,
   context: provider.context,
-  turns: provider.turns,
 });
 
 /** Model names of one provider: type to add, or pick from the fetched list. */
@@ -372,46 +370,24 @@ export function ProviderForm({
           />
           <span className={s.hint}>
             按服务商文档填这些模型能接收的总 token 数，例如 Claude 为
-            1M。对话超出时自动丢弃最早的轮次；发送的历史越长，每次费用越高。
+            1M。每次发送整段对话，服务商会缓存重复的部分；接近上限时一次丢弃较早的一批轮次。
           </span>
         </div>
       </section>
 
       <details className={s.advanced}>
         <summary>高级选项</summary>
-        <div className={s.pair}>
-          <label className="field">
-            最大输出 token
-            <input
-              type="number"
-              min={limits.maxTokens[0]}
-              max={limits.maxTokens[1]}
-              value={draft.maxTokens}
-              disabled={busy}
-              onChange={(e) => set({ maxTokens: e.target.valueAsNumber })}
-            />
-          </label>
-          <label className="field">
-            上下文轮数
-            <input
-              type="number"
-              min={limits.turns[0]}
-              max={limits.turns[1]}
-              value={draft.turns ?? ""}
-              placeholder="全部"
-              disabled={busy}
-              onChange={(e) =>
-                set({
-                  turns: e.target.value === "" ? null : e.target.valueAsNumber,
-                })
-              }
-            />
-          </label>
-        </div>
-        <p className={s.hint}>
-          上下文轮数是每次随消息一起发送的最近几轮对话：留空发送上下文窗口装得下的全部，0
-          只发当前这一句。
-        </p>
+        <label className="field">
+          最大输出 token
+          <input
+            type="number"
+            min={limits.maxTokens[0]}
+            max={limits.maxTokens[1]}
+            value={draft.maxTokens}
+            disabled={busy}
+            onChange={(e) => set({ maxTokens: e.target.valueAsNumber })}
+          />
+        </label>
       </details>
 
       {error && (

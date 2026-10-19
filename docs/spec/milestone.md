@@ -42,6 +42,11 @@ DNS 公网固定、OS 证书吊销联网边界、显式代理传输、授权世�
 - 7b 作者入门：[AUTHOR-QUICKSTART](../AUTHOR-QUICKSTART.md) 与起步模板。
 - 7c 内部预演：一个只读公开文档的新会话写出文本服务与带状态的笔记界面，两者经真实导入路径运行通过。卡点已修入入门文档（写入修订号与回执、界面规则、返回值限制、重启后需保存组合）；仍待产品决定的是导入扩展重启后默认停用、带权限扩展每次启动须重新确认；manifest 已可写显示名称 `name` 与纯文本说明 `description`。
 - 7d 前清理：发布包只保留 `agents.local`、`ui.agents` 与 DeepSeek 连接；大写服务与文本处理工作台移入开发构建。内核新增可选服务依赖 `optional`，Agent 在没有文本服务时照常启动并提示启用。
-- 模型连接（2026-10-19）：`connector.models` 取代 `connector.deepseek`，支持 OpenAI 兼容与 Anthropic 协议、多个服务商及用户自填的模型、按 Agent 选模型并发送会话历史与角色说明，见[模型连接](../MODELS.md)；长期记忆 `memory@1` 在其后。
+- 模型连接（2026-10-19）：`connector.models` 取代 `connector.deepseek`，支持 OpenAI 兼容与 Anthropic 协议、多个服务商及用户自填的模型、按 Agent 选模型并发送会话历史与角色说明，见[模型连接](../MODELS.md)；长期记忆 `memory@1` 在其后。2026-10-19 起支持 1M 上下文：每个服务商可选上下文窗口（Anthropic 预设 1M），请求上限 8 MiB、总计 10 分钟，会话消息分页存储；与一般 Agent 一样发送完整历史，不再设上下文轮数，按服务商提示缓存设计（Anthropic 加缓存标记，超出窗口时分批丢弃最早轮次以保持前缀稳定）。
+- 模型连接后续（已排定，按序）：
+  1. 上下文窗口自动填写：「获取模型列表」时读取服务商返回的窗口（Anthropic `/v1/models` 的 `max_input_tokens`、OpenRouter 的 `context_length` 等），并允许每个模型有自己的窗口；没有返回的服务保留按服务商手选。
+  2. 对话压缩扩展：接近上下文窗口时把较早轮次总结为摘要随请求发送，取代直接丢弃；作为可替换扩展经公开契约接入，连接器只负责在预算内组装。
+  3. 长期记忆 `memory@1` 与内置基础记忆扩展：跨会话事实，每个 Agent 自选启用。
+  4. 缓存用量可见：读取响应中的缓存命中 token（Anthropic `cache_read_input_tokens`、OpenAI `prompt_tokens_details.cached_tokens`），在 Agent 或模型连接中显示，便于判断费用。
 - 7d 所有者试用：待进行；Mac 上导入一个使用凭据绑定的连接器并真实调用一次。
 - 7e 收尾：`evidence/AUTHOR-TRIAL-<日期>.md`，按 M2.1 契约缺口 / M2.2 作者与 UI 缺口 / 文档问题归类，排定下一批工作。

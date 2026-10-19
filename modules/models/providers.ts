@@ -26,8 +26,6 @@ export type ModelProvider = {
   maxTokens: number;
   /** The models' context window in tokens; history is trimmed to fit it. */
   context: number;
-  /** Earlier turns sent with each message; 0 sends only the input, null all that fit. */
-  turns: number | null;
 };
 export type ProviderDraft = Omit<ModelProvider, "id" | "alias">;
 export type ProviderStatus =
@@ -46,7 +44,6 @@ export const MAX_MODELS = 32;
 export const limits = {
   maxTokens: [1, 8192],
   context: [16_000, 2_000_000],
-  turns: [0, 1000],
 } as const;
 /** Chat model id offered to Agents: provider id, then the model name. */
 export const modelId = (provider: string, model: string) =>
@@ -103,8 +100,6 @@ export function draftProblem(draft: ProviderDraft) {
     return `最大输出须为 ${limits.maxTokens.join("–")} 的整数。`;
   if (!integer(draft.context, limits.context))
     return `上下文窗口须为 ${limits.context.join("–")} 的整数（token）。`;
-  if (draft.turns !== null && !integer(draft.turns, limits.turns))
-    return `上下文轮数须为 ${limits.turns.join("–")} 的整数，或留空表示全部。`;
   return undefined;
 }
 
@@ -142,6 +137,11 @@ function restore(value: unknown): ModelProvider[] {
     let entry = raw;
     if (record(entry) && value.version === 2) entry = fromVersion2(entry);
     if (record(entry) && value.version !== 4) entry = fromVersion3(entry);
+    // Earlier records limited the turns sent; the whole conversation goes now.
+    if (record(entry)) {
+      const { turns: _turns, ...current } = entry;
+      entry = current;
+    }
     if (
       !record(entry) ||
       typeof entry.id !== "string" ||
