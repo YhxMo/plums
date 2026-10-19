@@ -41,7 +41,7 @@ export default {
 2. 点「选择扩展文件」，或在电脑上把文件拖进对话框。Android 上，先把文件放到设备里，例如「下载」目录。
 3. 核对 ID、服务、权限和来源，点「导入」。扩展导入后是停用的，列表中按 ID 显示。
 4. 在列表中启用你的扩展。声明了权限的扩展会弹出确认，点「授权并启动」。多个文本服务可以同时启用，并按 Agent 单独开关：新建的 Agent 默认只开启最早启用的那个；要让某个 Agent 使用你的扩展，在 Agent 详情的「组成扩展」里打开它的开关，或在扩展管理中选中你的扩展，点按详情里的 Agent 气泡。同一 Agent 开启多个文本服务时，回复按开启先后依次经过它们。
-5. 点「返回工作区」，选择或添加一个 Agent，发一条消息。
+5. 点「返回工作区」，选择或添加一个 Agent，发一条消息。应用本身不带文本服务；没有启用任何文本服务时，Agent 会提示先去扩展管理启用一个。
 6. 想让扩展在下次打开应用时仍然启用，在扩展管理中点「保存当前组合」。不保存的话，重启后扩展仍在列表里、数据也保留，但处于停用状态。声明了权限的扩展每次启动都要重新确认。
 
 改完代码后，再次导入同一个文件，按「替换」即可。旧版本会先停用，你的扩展数据会保留；替换后需要重新启用、确认权限，并再次保存组合；导入后加载失败的扩展，也用这种方式修好后重新导入。
@@ -50,13 +50,13 @@ export default {
 
 | 想做的事 | 怎么写 | 参考 |
 | --- | --- | --- |
-| 给 Agent 提供回复 | `provides: { "text.transform": 1 }`，`ctx.provide` 一个含 `name`、`description`、`transform(input, signal)` 的对象 | 起步模板、[大写服务](../extensions/services/upper.js)、[接口](../extensions/contracts.d.ts) |
+| 给 Agent 提供回复 | `provides: { "text.transform": 1 }`，`ctx.provide` 一个含 `name`、`description`、`transform(input, signal)` 的对象 | 起步模板、[大写服务](../extensions/services/upper.js)（仅开发构建）、[接口](../extensions/contracts.d.ts) |
 | 添加一个界面 | `ctx.view(...)`，见下方示例 | [界面契约](VIEW-TREE.md) |
 | 保存数据 | 声明 `capabilities: ["state.read", "state.write"]`，见下方示例 | [状态规则](SDK-AUTHORING.md#状态取消与演进) |
 | 让用户调整设置 | `manifest.configuration` 声明字段，`ctx.configuration` 读取；用户在扩展管理中修改 | [配置契约](EXTENSION-CONFIGURATION.md) |
 | 连接真实模型 | 声明 `credentialBindings` 和 `capabilities: ["credential.request"]`，用 `ctx.platform("credential.request", { version: 1, binding, body })` 发请求；API Key 由用户在扩展详情中录入，扩展拿不到密钥 | [DeepSeek 连接器](../extensions/connectors/deepseek.js)、[请求契约](CREDENTIAL-REQUEST.md) |
 | 让扩展管理显示谁在用 | `ctx.shell.publishUsers("Agent", [{ id, label, uses }], toggle)`；停用时自动清除 | [页面契约](PAGES.md#让扩展使用宿主入口) |
-| 使用别的扩展提供的服务 | `requires: { "服务名": 版本 }`，`ctx.use("服务名")` 取一个，`ctx.providers("服务名")` 列出全部 | [事件样板](../extensions/examples/events.js) |
+| 使用别的扩展提供的服务 | `requires: { "服务名": 版本 }`，`ctx.use("服务名")` 取一个，`ctx.providers("服务名")` 列出全部；没有提供者也要能启用时改用 `optional: { "服务名": 版本 }`，只能用 `ctx.providers` | [事件样板](../extensions/examples/events.js) |
 
 **界面**：`id` 在所有扩展中唯一，用你的扩展 ID 即可。默认（`presentation: "workspace"`）在 应用菜单 → 应用设置 →「界面布局」中选「使用 + label」后占据整个工作区，取代 Agent 界面；`"dialog"` 出现在应用菜单中，`"sidebar"` 出现在右侧栏。`root` 是一个空容器，应用的字体、颜色和按钮样式会作用于其中的普通元素。
 

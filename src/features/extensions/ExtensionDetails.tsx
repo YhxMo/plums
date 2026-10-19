@@ -5,6 +5,7 @@ import managerStyles from "./ExtensionManager.module.css";
 import { CredentialBindings } from "./CredentialBindings";
 import { sourceLabel } from "../../../modules/shell/file-import";
 import { Icon } from "../../components/Icon";
+import { serviceList } from "./services";
 export function ExtensionDetails({
   host,
   access,
@@ -84,17 +85,9 @@ export function ExtensionDetails({
           <dt>模块位置</dt>
           <dd>{sourceLabel(activeSelectedExt.url)}</dd>
           <dt>所需服务</dt>
-          <dd>
-            {Object.entries(extManifest.requires ?? {})
-              .map(([name, version]) => `${name}@${version}`)
-              .join("、") || "无"}
-          </dd>
+          <dd>{serviceList(extManifest.requires, extManifest.optional)}</dd>
           <dt>提供服务</dt>
-          <dd>
-            {Object.entries(extManifest.provides ?? {})
-              .map(([name, version]) => `${name}@${version}`)
-              .join("、") || "无"}
-          </dd>
+          <dd>{serviceList(extManifest.provides)}</dd>
           <dt>系统权限</dt>
           <dd>
             {extCaps.length

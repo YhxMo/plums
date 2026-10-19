@@ -8,8 +8,7 @@ export const developmentOnly = [
   "contracts.d.ts",
   "examples",
   "samples",
-  "services/reverse.js",
-  "services/workbench.js",
+  "services",
   "ui",
 ];
 export default defineConfig({

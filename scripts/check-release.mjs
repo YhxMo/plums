@@ -13,7 +13,13 @@ const catalog = JSON.parse(readFileSync(join(dist, "catalog.json"), "utf8"));
 for (const entry of catalog)
   if (!existsSync(join(dist, entry.url)))
     problems.push(`${entry.id}: ${entry.url} missing`);
-const markers = ["注入存储写入失败", "诊断与实验", "/catalog.dev.json"];
+const markers = [
+  "注入存储写入失败",
+  "诊断与实验",
+  "/catalog.dev.json",
+  // The built-in text workbench is development-only.
+  "文本处理工作台",
+];
 for (const file of readdirSync(join(dist, "assets")).filter((name) =>
   name.endsWith(".js"),
 )) {

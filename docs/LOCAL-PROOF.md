@@ -2,13 +2,13 @@
 
 [页面契约](PAGES.md) · [SDK 作者入口](SDK-AUTHORING.md) · [接入证据](../evidence/INDEPENDENT-PAGES-2026-10-16.md)
 
-状态：当前有效（2026-10-17 核实）；样板页面经公开契约接入，随普通包分发，不进入默认启用集合。
+状态：当前有效（2026-10-19 核实）；样板页面经公开契约接入，只随开发构建提供，不进入默认启用集合。
 
 交稿检查用于粘贴自己的文本、查看字数和格式提示，再手动核对交稿清单。它由两份可信 ESM 扩展组成，通过工作台公开的页面服务接入，不加入默认启用集合。
 
 ## 从普通入口安装
 
-从源码执行 `npm run dev` 或 `npm run build`，四份 `extensions/examples/local-*.js` 会作为同源静态资源提供。当前普通 release 包也包含这四份资源，仍须从普通安装入口启用。
+从源码执行 `npm run dev` 或 `npm run build`，四份 `extensions/examples/local-*.js` 会作为同源静态资源提供。发布包不含这些资源和它依赖的文本处理工作台。
 
 1. 应用菜单 → 扩展管理，启用 `ui.workbench-board`，确认其隔离状态读写权限。
 2. 点击“安装扩展”，填写 ID `example.local-text-node` 和模块路径 `/examples/local-text-node.js`，加载后启用。

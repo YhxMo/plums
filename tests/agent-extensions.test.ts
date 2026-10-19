@@ -134,7 +134,25 @@ it("a stopped extension is skipped and returns when started again", async () => 
   expect(last(agent.id)).toBe("乙：甲：二");
   await host.stop("transform.b");
   await host.stop("transform.a");
-  expect(host.inspect("agents.local").status).toBe("waiting");
+  // Text services are optional: Agents stay available without any.
+  expect(host.inspect("agents.local").status).toBe("active");
+  await expect(agents().send(agent.id, "三")).rejects.toThrow("扩展管理");
+});
+
+it("Agents start without any text service and use the first one enabled later", async () => {
+  const host = new Host(memoryPlatform().platform);
+  host.install(service("transform.a", "甲"));
+  host.install(agentExtension());
+  await host.grant("agents.local", ["state.read", "state.write"]);
+  await host.start("agents.local");
+  const agents = () => host.peekService<AgentProvider>("agents", 1)!;
+  expect(host.inspect("agents.local").status).toBe("active");
+  expect(agents().info.description).toContain("扩展管理");
+  const agent = await agents().create({ name: "先建" });
+  await expect(agents().send(agent.id, "早")).rejects.toThrow("扩展管理");
+  await host.start("transform.a");
+  await agents().send(agent.id, "好");
+  expect(agents().list()[0].sessions[0].messages.at(-1)?.text).toBe("甲：好");
 });
 
 it("saved Agents without a list use the first service; a list must hold IDs", () => {

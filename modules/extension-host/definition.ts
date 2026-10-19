@@ -34,6 +34,7 @@ export function validateDefinition(
     throw new ContractError("extension.invalid", "manifest.id", identity.label);
   for (const [name, declarations] of Object.entries({
     requires: manifest.requires,
+    optional: manifest.optional,
     provides: manifest.provides,
   })) {
     if (declarations !== undefined)
@@ -53,6 +54,16 @@ export function validateDefinition(
         "Invalid service contract version",
       );
   }
+  if (
+    Object.keys(manifest.optional ?? {}).some(
+      (name) => manifest.requires?.[name],
+    )
+  )
+    throw new ContractError(
+      "extension.invalid",
+      "manifest.optional",
+      "Invalid service declarations",
+    );
   if (manifest.capabilities)
     array(manifest.capabilities, "extension.invalid", undefined, {
       path: "manifest.capabilities",

@@ -14,7 +14,9 @@ for (const width of [375, 1180]) {
         body: 'export { boot } from "/tests/fixtures/no-agents.ts";',
       }),
     );
-    await page.route("**/catalog.json", (route) => route.fulfill({ json: [] }));
+    await page.route("**/catalog*.json", (route) =>
+      route.fulfill({ json: [] }),
+    );
     await page.addInitScript(() => {
       if (!localStorage.getItem("plums:m1:host.shell"))
         localStorage.setItem(

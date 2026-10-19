@@ -1,10 +1,5 @@
 [
   {
-    "id": "transform.upper",
-    "url": "/services/upper.js",
-    "label": "大写转换服务"
-  },
-  {
     "id": "connector.deepseek",
     "url": "/connectors/deepseek.js",
     "label": "DeepSeek 模型连接"

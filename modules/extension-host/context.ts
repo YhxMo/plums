@@ -32,9 +32,11 @@ export function createContext(
   const { registry, platform } = host;
   const own = (dispose: () => void | Promise<void>) => scope.own(dispose);
   const label = (owner: string) => host.shell()?.label?.(owner) ?? owner;
+  const declared = (name: string) =>
+    manifest.requires?.[name] ?? manifest.optional?.[name];
   const required = (name: string) => {
     scope.assertOpen();
-    const version = manifest.requires?.[name];
+    const version = declared(name);
     if (!version)
       throw hostError(`Service not declared or unavailable: ${name}`);
     return { version, live: registry.providers(name, version, host.active) };
@@ -78,7 +80,7 @@ export function createContext(
       },
       publishUsers: (kind, users, toggle) => {
         scope.assertOpen();
-        const version = toggle && manifest.requires?.[toggle.service];
+        const version = toggle && declared(toggle.service);
         if (
           typeof kind !== "string" ||
           !Array.isArray(users) ||

@@ -8,6 +8,7 @@ import {
   type ExtensionFile,
 } from "../../../modules/shell/file-import";
 import { Icon } from "../../components/Icon";
+import { serviceList } from "./services";
 import styles from "./InstallDialog.module.css";
 
 export type ImportPreview = {
@@ -15,10 +16,6 @@ export type ImportPreview = {
   definition: ExtensionDefinition;
   replacing: boolean;
 };
-const services = (declared?: Record<string, number>) =>
-  Object.entries(declared ?? {})
-    .map(([name, version]) => `${name}@${version}`)
-    .join("、") || "无";
 
 function PreviewDetails({ file, definition, replacing }: ImportPreview) {
   const { manifest } = definition;
@@ -31,9 +28,9 @@ function PreviewDetails({ file, definition, replacing }: ImportPreview) {
         <dt>版本</dt>
         <dd>{manifest.version}</dd>
         <dt>提供服务</dt>
-        <dd>{services(manifest.provides)}</dd>
+        <dd>{serviceList(manifest.provides)}</dd>
         <dt>所需服务</dt>
-        <dd>{services(manifest.requires)}</dd>
+        <dd>{serviceList(manifest.requires, manifest.optional)}</dd>
         <dt>系统权限</dt>
         <dd>
           {manifest.capabilities?.length

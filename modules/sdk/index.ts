@@ -27,6 +27,8 @@ export interface Manifest {
   version: string;
   apiVersion: 1;
   requires?: Record<string, number>;
+  /** Services used when some extension provides them; the extension starts and stays active without them. */
+  optional?: Record<string, number>;
   provides?: Record<string, number>;
   capabilities?: string[];
   configuration?: ConfigurationDeclaration;
@@ -69,7 +71,7 @@ export type ShellAction = "extensions" | "settings" | "diagnostics";
 export type Named = { id: string; label: string };
 /** A user of an extension; `uses` names providers it relies on beyond the publisher's `dependencies()`. */
 export type User = Named & { uses?: string[] };
-/** Lets management switch an active provider of `service`, which the publisher requires, on or off for one user. */
+/** Lets management switch an active provider of `service`, which the publisher requires or optionally uses, on or off for one user. */
 export type UserToggle = {
   service: string;
   set(userId: string, extensionId: string, on: boolean): Promise<void>;

@@ -198,3 +198,48 @@ test("a consumer closes at once when all its providers fail together", async () 
   expect(host.inspect("c").status).toBe("stopping");
   await host.stop("base").catch(() => {});
 });
+
+test("an optional service never holds a consumer back", async () => {
+  const host = new Host(platform());
+  const contexts: Record<string, ExtensionContext> = {};
+  const changes = vi.fn();
+  host.install({
+    manifest: { id: "c", version: "1", apiVersion: 1, optional: { s: 1 } },
+    activate(ctx) {
+      contexts.c = ctx;
+      ctx.providers("s", (next) => changes(next.map(({ id }) => id)));
+    },
+  });
+  host.install({
+    manifest: { id: "p", version: "1", apiVersion: 1, provides: { s: 1 } },
+    activate(ctx) {
+      ctx.provide("s", 1, {});
+    },
+  });
+  await host.start("c");
+  expect(host.inspect("c").status).toBe("active");
+  expect(contexts.c.providers("s")).toEqual([]);
+  await host.start("p");
+  expect(changes).toHaveBeenLastCalledWith(["p"]);
+  const set = vi.fn(async () => {});
+  contexts.c.shell.publishUsers("用户", [{ id: "1", label: "一" }], {
+    service: "s",
+    set,
+  });
+  expect(host.users("p")[0].toggle).toBe(true);
+  await host.stop("p");
+  expect(changes).toHaveBeenLastCalledWith([]);
+  expect(host.inspect("c").status).toBe("active");
+});
+
+test("optional services are declared like required ones, never both", () => {
+  const host = new Host(platform());
+  const install = (manifest: object) => () =>
+    host.install({
+      manifest: { id: "bad", version: "1", apiVersion: 1, ...manifest },
+      activate() {},
+    });
+  expect(install({ optional: { s: 0 } })).toThrow();
+  expect(install({ optional: "s" })).toThrow();
+  expect(install({ requires: { s: 1 }, optional: { s: 1 } })).toThrow();
+});

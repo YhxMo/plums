@@ -4,7 +4,7 @@
 
 状态：当前有效（2026-10-18 核实）；协议扩展、隔离测试与两端原生传输已实现，扩展已进入默认目录（安装但不启动、不授权）；Mac 与 Android 模拟器真实调用均已完成。
 
-需要为现有 Agent 替换文本处理服务时，本扩展提供 `text.transform@1`，通过连接器自己的凭据绑定提交 DeepSeek Chat Completions 载荷。Mac 与 Android 应用中的 `PlatformAdapter` 已提供 `credential.request`。使用路径：在扩展管理中停用当前文本处理服务、授权 DeepSeek 的凭据请求、在原生面板录入 API Key，再启用本扩展；首次发送时原生面板请求确认。浏览器预览不提供该能力。
+需要为现有 Agent 替换文本处理服务时，本扩展提供 `text.transform@1`，通过连接器自己的凭据绑定提交 DeepSeek Chat Completions 载荷。Mac 与 Android 应用中的 `PlatformAdapter` 已提供 `credential.request`。使用路径：在扩展管理中授权 DeepSeek 的凭据请求、在原生面板录入 API Key，再启用本扩展；首次发送时原生面板请求确认。浏览器预览不提供该能力。
 
 ## 模块与配置
 
@@ -18,7 +18,7 @@
 | model | 普通字符串配置，默认 `deepseek-flash`（2026-10-18 核对官方文档为当前可用名称），非空、无首尾空白，最长 80 字符；模型选择属于扩展配置而非平台契约 |
 | maxTokens | 普通数值配置，默认 256，仅接受 1–512 的整数 |
 
-模型和预算通过已有声明配置编辑，不能在配置中填写 URL、认证头或密钥。停用旧 `text.transform` 提供者后才可启用新提供者，重复提供者继续拒绝；缺少平台能力或授权时保持 `waiting`。
+模型和预算通过已有声明配置编辑，不能在配置中填写 URL、认证头或密钥。它可与其他 `text.transform` 提供者同时启用，各 Agent 在详情中单独开关；缺少平台能力或授权时保持 `waiting`。
 
 ## 单次调用与失败行为
 

@@ -1,5 +1,10 @@
 [
   {
+    "id": "transform.upper",
+    "url": "/services/upper.js",
+    "label": "大写转换服务"
+  },
+  {
     "id": "transform.reverse",
     "url": "/services/reverse.js",
     "label": "逆序转换服务"

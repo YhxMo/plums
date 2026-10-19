@@ -3,6 +3,9 @@ import { textWorkbench } from "../modules/text-workbench/extension";
 import { agentUI } from "./agents/extension";
 import { bootShell, type ShellApplication } from "./shell/runtime";
 
+/** Development and tests also get the text workbench and the upper-case service. */
+const development = import.meta.env.DEV;
+
 /** Default application composition; the shell does not interpret business state. */
 export const defaultApplication: ShellApplication = {
   catalog: [
@@ -13,12 +16,16 @@ export const defaultApplication: ShellApplication = {
       label: "默认 Agent 界面",
       views: { agents: "Agent 界面" },
     },
-    {
-      id: "ui.workbench-board",
-      url: "内置公开契约样板",
-      label: "文本处理工作台",
-      views: { "text-workbench": "文本处理工作台" },
-    },
+    ...(development
+      ? [
+          {
+            id: "ui.workbench-board",
+            url: "内置公开契约样板",
+            label: "文本处理工作台",
+            views: { "text-workbench": "文本处理工作台" },
+          },
+        ]
+      : []),
   ],
   restore(state) {
     return {
@@ -35,7 +42,7 @@ export const defaultApplication: ShellApplication = {
     };
   },
   extensions: (state, save) => [
-    textWorkbench,
+    ...(development ? [textWorkbench] : []),
     // Agents moved from the shell snapshot to agents.local's own state.
     agentExtension({
       legacy: state.agents,
@@ -44,7 +51,11 @@ export const defaultApplication: ShellApplication = {
     agentUI(),
   ],
   grants: { "agents.local": ["state.read", "state.write"] },
-  start: ["transform.upper", "agents.local", "ui.agents"],
+  start: [
+    ...(development ? ["transform.upper"] : []),
+    "agents.local",
+    "ui.agents",
+  ],
 };
 
 export const boot = () => bootShell(defaultApplication);

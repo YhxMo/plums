@@ -27,7 +27,8 @@ export function DetailPanel({
   onPin: () => void;
   onSession: (action: "create" | "select", id?: string) => void;
   onDeleteSession: (id: string, source: HTMLElement) => void;
-  onOpenExtension: (id: string) => void;
+  /** Opens extension management, selecting `id` when given. */
+  onOpenExtension: (id?: string) => void;
 }) {
   // Providers predating `extensions` are shown as the one extension they are.
   const base = provider.extensions ?? [
@@ -90,7 +91,20 @@ export function DetailPanel({
             {base.map((extension) => row(extension))}
             {choices?.map((choice) => row(choice, enabled.includes(choice.id)))}
           </ul>
-          {choices && (
+          {choices?.length === 0 && (
+            <>
+              <p className={s.detailNote}>
+                还没有可用的扩展。在扩展管理中启用一个模型连接后，可在这里开启。
+              </p>
+              <button
+                className={`secondary ${s.noteAction}`}
+                onClick={() => onOpenExtension()}
+              >
+                在扩展管理中启用
+              </button>
+            </>
+          )}
+          {!!choices?.length && (
             <p className={s.detailNote}>
               {enabled.length === 0
                 ? "尚未开启任何扩展，此 Agent 暂时无法回复。"

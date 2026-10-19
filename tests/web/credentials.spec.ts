@@ -218,7 +218,9 @@ test("connector key entry uses native metadata and recovers an unknown save", as
   });
   await page.goto("/");
   await manage(page);
-  await page.getByText("DeepSeek 模型连接", { exact: true }).click();
+  await page
+    .getByRole("button", { name: "DeepSeek 模型连接", exact: true })
+    .click();
   const binding = page.getByRole("region", { name: "连接与凭据", exact: true });
   await binding
     .getByRole("button", { name: "录入 API Key", exact: true })

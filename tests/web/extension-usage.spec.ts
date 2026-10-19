@@ -128,3 +128,37 @@ test("an Agent's details switch each text extension on or off", async ({
   await reverse.click();
   await expect(details).toContainText("此 Agent 暂时无法回复");
 });
+
+test("with no text service, an Agent's details say so and open extension management", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1280, height: 860 });
+  await page.goto("/");
+  await manage(page);
+  await page
+    .getByRole("button", { name: "停用 transform.upper", exact: true })
+    .click();
+  await page.getByRole("button", { name: "返回工作区", exact: true }).click();
+  await addAgent(page, "空白");
+  await page
+    .getByRole("button", { name: "展开或收起右侧栏", exact: true })
+    .click();
+  await expect(
+    page.getByText(
+      "还没有可用的扩展。在扩展管理中启用一个模型连接后，可在这里开启。",
+    ),
+  ).toBeVisible();
+  await page
+    .getByRole("button", { name: "在扩展管理中启用", exact: true })
+    .click();
+  await expect(
+    page.getByRole("heading", { name: "扩展与状态", exact: true }),
+  ).toBeVisible();
+  await page
+    .getByRole("button", { name: "启用 transform.upper", exact: true })
+    .click();
+  await page.getByRole("button", { name: "返回工作区", exact: true }).click();
+  await page.getByRole("textbox", { name: "消息", exact: true }).fill("ok");
+  await page.getByRole("button", { name: "发送", exact: true }).click();
+  await expect(page.getByRole("log")).toContainText("OK");
+});

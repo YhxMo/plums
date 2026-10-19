@@ -140,7 +140,7 @@ export class AgentStore implements AgentProvider {
       version: "0.0.4",
       description:
         this.extensionChoices()[0]?.description ??
-        "没有可用的回复来源，请启用文本服务。",
+        "还没有可用的扩展，请在扩展管理中启用一个模型连接。",
       extensions: this.extensions,
     };
   }
@@ -215,7 +215,10 @@ export class AgentStore implements AgentProvider {
       status: "idle",
       pinned: false,
       extensionId: "agents.local",
-      extensions: enabledExtensions({}, this.extensionChoices()),
+      // Without any service yet, the first one enabled later is used.
+      ...(this.extensionChoices().length && {
+        extensions: enabledExtensions({}, this.extensionChoices()),
+      }),
       capabilities: ["本地文本处理", "保存会话"],
       multiSession: clean.multiSession ?? false,
       sessions: [session],

@@ -4,6 +4,8 @@ import { AgentStore, restoreAgents } from "./store";
 import { enabledExtensions } from "./contract";
 import { AgentState } from "./sharded-state";
 
+const NONE_AVAILABLE = "还没有可用的扩展，请先在扩展管理中启用一个模型连接。";
+
 /**
  * Agents live in this extension's own `state.*` namespace as an index plus one
  * shard per session. `legacy` is the pre-namespace `host.shell.agents` field;
@@ -18,7 +20,8 @@ export function agentExtension(
       id: "agents.local",
       apiVersion: 1,
       version: "0.0.4",
-      requires: { "text.transform": 1 },
+      // Agents open without any text service and say how to enable one.
+      optional: { "text.transform": 1 },
       provides: { agents: 1 },
       capabilities: ["state.read", "state.write"],
     },
@@ -52,6 +55,7 @@ export function agentExtension(
         initial,
         (agents, save) => state.save(agents, save),
         (text, signal, extensions) => {
+          if (!transformers.length) throw new Error(NONE_AVAILABLE);
           if (!extensions.length)
             throw new Error(
               "此 Agent 没有开启的扩展，请在 Agent 详情中开启至少一个。",

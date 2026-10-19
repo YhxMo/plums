@@ -93,6 +93,9 @@
   font-size: 11px !important;
   margin-top: 12px;
 }
+.noteAction {
+  margin-top: 10px;
+}
 .sessionHeading {
   display: flex;
   align-items: center;
