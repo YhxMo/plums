@@ -58,6 +58,7 @@ it("sends the conversation so far and the role description to the Agent's model"
     {
       provider: "chat.a",
       providerLabel: "chat.a",
+      group: "chat.a",
       id: "m1",
       label: "M1",
       description: "chat.a 的 m1",
@@ -65,6 +66,7 @@ it("sends the conversation so far and the role description to the Agent's model"
     {
       provider: "chat.a",
       providerLabel: "chat.a",
+      group: "chat.a",
       id: "m2",
       label: "M2",
       description: "chat.a 的 m2",

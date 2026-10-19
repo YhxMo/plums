@@ -6,14 +6,23 @@
   flex-direction: column;
   gap: 8px;
 }
-.list li {
+.list > li {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px 12px;
+  border: 1px solid var(--control-border);
+  border-radius: 8px;
+}
+.list > li > p {
+  margin: 0;
+  font-size: 13px;
+}
+.header {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  padding: 10px 12px;
-  border: 1px solid var(--control-border);
-  border-radius: 8px;
 }
 .summary {
   display: flex;
@@ -24,6 +33,50 @@
 }
 .summary span {
   overflow-wrap: anywhere;
+}
+.modelRows,
+.models ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.modelRows li,
+.models li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 4px 0;
+  border-top: 1px solid var(--control-border);
+  font-size: 13px;
+}
+.models li span {
+  overflow-wrap: anywhere;
+}
+.models {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 0 0 12px;
+  padding: 0;
+  border: 0;
+}
+.models legend {
+  padding: 0;
+  margin-bottom: 6px;
+  font-size: 13px;
+}
+.models .addModel {
+  flex-direction: row;
+  gap: 8px;
+  margin: 0;
+}
+.addModel input {
+  flex: 1;
+  min-width: 0;
 }
 .actions {
   display: flex;
@@ -37,7 +90,8 @@
   gap: 12px;
 }
 @media (max-width: 520px) {
-  .list li {
+  .header,
+  .models .addModel {
     flex-direction: column;
     align-items: stretch;
   }

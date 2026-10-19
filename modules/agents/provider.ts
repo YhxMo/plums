@@ -51,11 +51,16 @@ export function agentExtension(
       ctx.onDispose(() => unwatch.forEach((stop) => stop()));
       const models = () =>
         chats.flatMap(({ id, label, value }) =>
-          value.models().map((model) => ({
-            provider: id,
-            providerLabel: label,
-            ...model,
-          })),
+          value
+            .models()
+            .map(({ id: model, label: name, description, group }) => ({
+              provider: id,
+              providerLabel: label,
+              group: group ?? label,
+              id: model,
+              label: name,
+              description,
+            })),
         );
       const sources = () =>
         transformers.map(({ id, label, value }) => ({

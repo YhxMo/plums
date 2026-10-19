@@ -1,6 +1,6 @@
 import type { ExtensionDefinition } from "../sdk";
 import type { ChatService } from "../../extensions/contracts";
-import { ConnectionStore, presetOf } from "./connections";
+import { ProviderStore, modelId, presetOf } from "./providers";
 import { presets, protocols } from "./presets";
 import { failure, readReply, requestBody, type Turn } from "./protocols";
 
@@ -8,12 +8,12 @@ export const MODEL_PAGE = "model-connections";
 
 /** What the connection page works with; the page itself is supplied by the app. */
 export type ModelConnectionsApi = Pick<
-  ConnectionStore,
+  ProviderStore,
   "list" | "subscribe" | "save" | "remove" | "refresh"
 > & {
   readonly presets: typeof presets;
-  /** Sends one short message through the connection and returns the reply. */
-  test(id: string, signal: AbortSignal): Promise<string>;
+  /** Sends one short message to one model of a provider and returns the reply. */
+  test(provider: string, model: string, signal: AbortSignal): Promise<string>;
 };
 type MountPage = (
   container: HTMLElement,
@@ -31,9 +31,10 @@ const turns = (value: unknown): value is Turn[] =>
   );
 
 /**
- * Built-in model connector: the user's connections to model services over
- * the OpenAI-compatible and Anthropic protocols, offered to Agents as
- * `chat@1`. Keys and targets stay behind credential connections.
+ * Built-in model connector: the user's model providers over the
+ * OpenAI-compatible and Anthropic protocols, each with the model names the
+ * user added, offered to Agents as `chat@1`. Keys and targets stay behind
+ * credential connections.
  */
 export function modelConnector({
   mountPage,
@@ -46,7 +47,7 @@ export function modelConnector({
       version: "0.1.0",
       apiVersion: 1,
       description:
-        "连接你自己的模型服务（DeepSeek、OpenAI、Anthropic、Kimi、通义、智谱、OpenRouter 或任何兼容接口），供各个 Agent 选用。密钥只保存在系统凭据库；对话会发送到你选的服务。",
+        "添加你自己的模型服务商（DeepSeek、OpenAI、Anthropic、Kimi、通义、智谱、OpenRouter 或任何兼容接口）和它的模型，供各个 Agent 选用。密钥只保存在系统凭据库；对话会发送到你选的服务。",
       capabilities: [
         "state.read",
         "state.write",
@@ -57,20 +58,21 @@ export function modelConnector({
       credentialProtocols: protocols,
     },
     async activate(ctx) {
-      const store = new ConnectionStore((capability, payload) =>
+      const store = new ProviderStore((capability, payload) =>
         ctx.platform(capability, payload),
       );
       await store.load();
       const reply: ChatService["reply"] = async (request, signal) => {
         signal.throwIfAborted();
         const { model, instructions, history, input } = request ?? {};
-        const connection =
-          typeof model === "string" ? store.find(model) : undefined;
-        if (!connection)
+        const chosen =
+          typeof model === "string" ? store.resolve(model) : undefined;
+        if (!chosen)
           throw failure(
-            "所选模型连接已删除，请在 Agent 详情中重新选择模型。",
+            "所选模型已从模型连接中删除，请在 Agent 详情中重新选择模型。",
             "not-dispatched",
           );
+        const { provider } = chosen;
         if (
           typeof input !== "string" ||
           !input.trim() ||
@@ -78,14 +80,13 @@ export function modelConnector({
           (instructions !== undefined && typeof instructions !== "string")
         )
           throw failure("对话内容格式无效，未发送。", "not-dispatched");
-        const preset = presetOf(connection);
+        const preset = presetOf(provider);
         const body = requestBody(
           {
-            ...connection,
+            ...provider,
+            model: chosen.model,
             extra:
-              preset?.protocol === connection.protocol
-                ? preset.extra
-                : undefined,
+              preset?.protocol === provider.protocol ? preset.extra : undefined,
           },
           { instructions, history, input },
         );
@@ -96,18 +97,18 @@ export function modelConnector({
           try {
             response = await ctx.platform(
               "credential.request",
-              { version: 1, binding: connection.alias, body },
+              { version: 1, binding: provider.alias, body },
               combined,
             );
           } catch (error) {
             const outcome = (error as { outcome?: string })?.outcome;
             if (outcome === "not-dispatched" || outcome === "not-committed")
               throw failure(
-                `「${connection.name}」请求未发送：${(error as Error).message}`,
+                `「${provider.name}」请求未发送：${(error as Error).message}`,
                 outcome,
               );
             throw failure(
-              `「${connection.name}」请求结果未确认；重试可能产生重复调用或计费。`,
+              `「${provider.name}」请求结果未确认；重试可能产生重复调用或计费。`,
               "unknown",
             );
           }
@@ -116,15 +117,20 @@ export function modelConnector({
               "请求已取消；远端结果未确认，重试可能产生重复调用或计费。",
               "unknown",
             );
-          return readReply(connection.protocol, response);
+          return readReply(provider.protocol, response);
         });
       };
       const models = () =>
-        store.list().map(({ id, name, model, preset, status }) => ({
-          id,
-          label: name,
-          description: `${presets.find((p) => p.id === preset)?.label ?? "自定义"} · ${model}${status === "ready" ? "" : "（需要录入密钥）"}`,
-        }));
+        store.list().flatMap((provider) => {
+          const label = presetOf(provider)?.label ?? "自定义";
+          const description = `${provider.name === label ? label : `${provider.name} · ${label}`}${provider.status === "ready" ? "" : "（需要录入密钥）"}`;
+          return provider.models.map((model) => ({
+            id: modelId(provider.id, model),
+            label: model,
+            group: provider.name,
+            description,
+          }));
+        });
       const service: ChatService = {
         name: "模型连接",
         models,
@@ -139,9 +145,13 @@ export function modelConnector({
         save: (draft, id, rekey) => store.save(draft, id, rekey),
         remove: (id) => store.remove(id),
         refresh: () => store.refresh(),
-        test: (id, signal) =>
+        test: (provider, model, signal) =>
           reply(
-            { model: id, history: [], input: "请只回复四个字：连接成功" },
+            {
+              model: modelId(provider, model),
+              history: [],
+              input: "请只回复四个字：连接成功",
+            },
             signal,
           ),
       };

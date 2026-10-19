@@ -42,6 +42,6 @@ DNS 公网固定、OS 证书吊销联网边界、显式代理传输、授权世�
 - 7b 作者入门：[AUTHOR-QUICKSTART](../AUTHOR-QUICKSTART.md) 与起步模板。
 - 7c 内部预演：一个只读公开文档的新会话写出文本服务与带状态的笔记界面，两者经真实导入路径运行通过。卡点已修入入门文档（写入修订号与回执、界面规则、返回值限制、重启后需保存组合）；仍待产品决定的是导入扩展重启后默认停用、带权限扩展每次启动须重新确认；manifest 已可写显示名称 `name` 与纯文本说明 `description`。
 - 7d 前清理：发布包只保留 `agents.local`、`ui.agents` 与 DeepSeek 连接；大写服务与文本处理工作台移入开发构建。内核新增可选服务依赖 `optional`，Agent 在没有文本服务时照常启动并提示启用。
-- 模型连接（2026-10-19）：`connector.models` 取代 `connector.deepseek`，支持 OpenAI 兼容与 Anthropic 协议、多条连接、按 Agent 选模型并发送会话历史与角色说明，见[模型连接](../MODELS.md)；长期记忆 `memory@1` 在其后。
+- 模型连接（2026-10-19）：`connector.models` 取代 `connector.deepseek`，支持 OpenAI 兼容与 Anthropic 协议、多个服务商及用户自填的模型、按 Agent 选模型并发送会话历史与角色说明，见[模型连接](../MODELS.md)；长期记忆 `memory@1` 在其后。
 - 7d 所有者试用：待进行；Mac 上导入一个使用凭据绑定的连接器并真实调用一次。
 - 7e 收尾：`evidence/AUTHOR-TRIAL-<日期>.md`，按 M2.1 契约缺口 / M2.2 作者与 UI 缺口 / 文档问题归类，排定下一批工作。

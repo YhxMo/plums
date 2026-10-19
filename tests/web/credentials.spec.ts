@@ -266,7 +266,7 @@ test("connector key entry uses native metadata and recovers an unknown save", as
   await expect(binding.locator("input")).toHaveCount(0);
 });
 
-test("the model connection page builds a connection from a template and the user's address", async ({
+test("the model connection page adds a provider from a template and the user's own models", async ({
   page,
 }) => {
   await page.addInitScript(() => {
@@ -327,7 +327,7 @@ test("the model connection page builds a connection from a template and the user
   await page.getByRole("button", { name: "应用菜单", exact: true }).click();
   await page.getByRole("menuitem", { name: "模型连接", exact: true }).click();
   const dialog = page.getByRole("dialog", { name: "模型连接" });
-  await dialog.getByRole("button", { name: "新建连接", exact: true }).click();
+  await dialog.getByRole("button", { name: "添加服务商", exact: true }).click();
   await dialog
     .getByRole("combobox", { name: "服务商", exact: true })
     .selectOption({ label: "自定义（Anthropic 兼容）" });
@@ -335,16 +335,32 @@ test("the model connection page builds a connection from a template and the user
   await dialog
     .getByRole("textbox", { name: "服务地址", exact: true })
     .fill("https://gateway.invalid/v1/messages");
+  const modelName = dialog.getByRole("textbox", {
+    name: "模型名",
+    exact: true,
+  });
+  await modelName.fill("model-one");
+  await modelName.press("Enter");
+  await modelName.fill("model-two");
+  await dialog.getByRole("button", { name: "添加模型", exact: true }).click();
   await dialog
-    .getByRole("textbox", { name: "模型", exact: true })
-    .fill("claude-test");
+    .getByRole("button", { name: "移除 model-one", exact: true })
+    .click();
+  await modelName.fill("model-three");
+  await modelName.press("Enter");
   await dialog
     .getByRole("button", { name: "保存并录入密钥", exact: true })
     .click();
-  await expect(dialog.getByRole("list", { name: "模型连接" })).toContainText(
-    "网关",
-  );
-  await expect(dialog).toContainText("claude-test · 可用");
+  const provider = dialog
+    .getByRole("list", { name: "服务商" })
+    .getByRole("listitem", { name: "网关" });
+  await expect(provider).toContainText("自定义（Anthropic 兼容） · 可用");
+  await expect(
+    provider.getByRole("list", { name: "网关 的模型" }).getByRole("listitem"),
+  ).toHaveText(["model-two测试", "model-three测试"]);
+  await expect(
+    provider.getByRole("button", { name: "测试 model-two", exact: true }),
+  ).toBeEnabled();
   const [configured] = await page.evaluate(
     () =>
       (window as unknown as { __configured: Array<Record<string, unknown>> })

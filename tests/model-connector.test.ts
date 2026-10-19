@@ -5,26 +5,26 @@ import {
   modelConnector,
   type ModelConnectionsApi,
 } from "../modules/models/extension";
-import type { ConnectionDraft } from "../modules/models/connections";
+import type { ProviderDraft } from "../modules/models/providers";
 import type { ChatService } from "../extensions/contracts";
 import type { Platform, StoredState } from "../modules/sdk";
 
 const owner = "extension.connector.models";
-const deepseek: ConnectionDraft = {
+const deepseek: ProviderDraft = {
   name: "DeepSeek",
   preset: "deepseek",
   protocol: "openai-chat",
   target: "https://api.deepseek.com/chat/completions",
-  model: "deepseek-flash",
+  models: ["user-model-a", "user-model-b"],
   maxTokens: 1024,
   turns: 10,
 };
-const claude: ConnectionDraft = {
+const claude: ProviderDraft = {
   name: "Claude",
   preset: "custom-anthropic",
   protocol: "anthropic-messages",
   target: "https://gateway.example/v1/messages",
-  model: "claude-sonnet-5-5",
+  models: ["user-claude"],
   maxTokens: 512,
   turns: 2,
 };
@@ -155,7 +155,7 @@ const signal = () => new AbortController().signal;
 const body = (send: ReturnType<typeof vi.fn>, call = 0) =>
   JSON.parse(send.mock.calls[call][2] as string) as Record<string, unknown>;
 
-it("adds a connection through the native panel and offers it as a chat model", async () => {
+it("adds a provider through the native panel and offers each of its models", async () => {
   const { api, chat, panel, send, states } = await fixture();
   expect(await api.save(deepseek)).toBe(true);
   expect(panel).toHaveBeenCalledWith({
@@ -164,27 +164,29 @@ it("adds a connection through the native panel and offers it as a chat model", a
     label: "DeepSeek",
     target: deepseek.target,
   });
-  const [connection] = api.list();
-  expect(connection).toMatchObject({
+  const [provider] = api.list();
+  expect(provider).toMatchObject({
     ...deepseek,
     alias: "c-00000000",
     status: "ready",
   });
+  expect(provider.id).toMatch(/^p-[a-z0-9]{8}$/);
   expect(states.get(owner)?.value).toEqual({
-    version: 1,
-    connections: [{ ...deepseek, id: connection.id, alias: "c-00000000" }],
+    version: 2,
+    providers: [{ ...deepseek, id: provider.id, alias: "c-00000000" }],
   });
-  expect(chat().models()).toEqual([
-    {
-      id: connection.id,
-      label: "DeepSeek",
-      description: "DeepSeek · deepseek-flash",
-    },
-  ]);
+  expect(chat().models()).toEqual(
+    deepseek.models.map((model) => ({
+      id: `${provider.id}/${model}`,
+      label: model,
+      group: "DeepSeek",
+      description: "DeepSeek",
+    })),
+  );
   await expect(
     chat().reply(
       {
-        model: connection.id,
+        model: `${provider.id}/user-model-b`,
         instructions: "简洁回答。",
         history: [
           { role: "user", text: "我是 nanan" },
@@ -200,7 +202,7 @@ it("adds a connection through the native panel and offers it as a chat model", a
     deepseek.target,
   ]);
   expect(body(send)).toMatchObject({
-    model: "deepseek-flash",
+    model: "user-model-b",
     thinking: { type: "disabled" },
     messages: [
       { role: "system", content: "简洁回答。" },
@@ -211,7 +213,7 @@ it("adds a connection through the native panel and offers it as a chat model", a
   });
 });
 
-it("keeps connections apart and uses each one's protocol", async () => {
+it("keeps providers apart and uses each one's protocol", async () => {
   const { api, chat, send } = await fixture();
   await api.save(deepseek);
   await api.save(claude);
@@ -225,10 +227,13 @@ it("keeps connections apart and uses each one's protocol", async () => {
       content: [{ type: "text", text: "好" }],
     }),
   });
-  await chat().reply({ model: second.id, history: [], input: "hi" }, signal());
+  await chat().reply(
+    { model: `${second.id}/user-claude`, history: [], input: "hi" },
+    signal(),
+  );
   expect(send.mock.calls[0].slice(0, 2)).toEqual(["c-00000001", claude.target]);
   expect(body(send)).toEqual({
-    model: "claude-sonnet-5-5",
+    model: "user-claude",
     max_tokens: 512,
     messages: [{ role: "user", content: "hi" }],
   });
@@ -239,13 +244,13 @@ it("asks for the key only when the address changes or the user asks", async () =
   await api.save(deepseek);
   const { id } = api.list()[0];
   await api.save(
-    { ...deepseek, name: "主力", model: "deepseek-pro", turns: 4 },
+    { ...deepseek, name: "主力", models: ["user-model-c"], turns: 4 },
     id,
   );
   expect(panel).toHaveBeenCalledTimes(1);
   expect(api.list()[0]).toMatchObject({
     name: "主力",
-    model: "deepseek-pro",
+    models: ["user-model-c"],
     turns: 4,
   });
   await api.save(
@@ -286,7 +291,10 @@ it.each([
   [{ name: "" }, "名称"],
   [{ target: "http://api.example/v1" }, "https://"],
   [{ target: "https://api.example:8443/v1" }, "https://"],
-  [{ model: "" }, "模型名"],
+  [{ models: [""] }, "模型名"],
+  [{ models: [" a"] }, "模型名"],
+  [{ models: ["a", "a"] }, "重复"],
+  [{ models: Array.from({ length: 33 }, (_, i) => `m${i}`) }, "最多"],
   [{ maxTokens: 0 }, "最大输出"],
   [{ turns: 51 }, "上下文轮数"],
 ])("rejects %j before opening the panel", async (patch, message) => {
@@ -300,9 +308,15 @@ it("refuses unknown models and malformed requests without sending", async () => 
   await api.save(deepseek);
   const { id } = api.list()[0];
   for (const request of [
-    { model: "m-missing0", history: [], input: "hi" },
-    { model: id, history: [{ role: "system", text: "x" }], input: "hi" },
-    { model: id, history: [], input: " " },
+    { model: "p-missing0/user-model-a", history: [], input: "hi" },
+    { model: `${id}/removed-model`, history: [], input: "hi" },
+    { model: id, history: [], input: "hi" },
+    {
+      model: `${id}/user-model-a`,
+      history: [{ role: "system", text: "x" }],
+      input: "hi",
+    },
+    { model: `${id}/user-model-a`, history: [], input: " " },
   ])
     await expect(
       chat().reply(request as Parameters<ChatService["reply"]>[0], signal()),
@@ -318,7 +332,7 @@ it("reports an unconfirmed transport failure as possibly sent", async () => {
   );
   await expect(
     chat().reply(
-      { model: api.list()[0].id, history: [], input: "hi" },
+      { model: `${api.list()[0].id}/user-model-a`, history: [], input: "hi" },
       signal(),
     ),
   ).rejects.toMatchObject({
@@ -335,8 +349,32 @@ it("waits where keys cannot be stored, such as the browser preview", async () =>
 });
 
 it("fails on corrupt records and leaves them as they were", async () => {
-  const saved = { version: 1, connections: [{ id: "bad" }] };
+  const saved = { version: 2, providers: [{ id: "bad" }] };
   const { host, states } = await fixture({ saved });
   expect(host.inspect("connector.models").status).not.toBe("active");
   expect(states.get(owner)?.value).toBe(saved);
+});
+
+it("keeps a provider without models and offers nothing until one is added", async () => {
+  const { api, chat, panel } = await fixture();
+  expect(await api.save({ ...deepseek, models: [] })).toBe(true);
+  expect(chat().models()).toEqual([]);
+  const { id } = api.list()[0];
+  await api.save({ ...deepseek, models: ["added-later"] }, id);
+  expect(panel).toHaveBeenCalledTimes(1);
+  expect(
+    chat()
+      .models()
+      .map((model) => model.id),
+  ).toEqual([`${id}/added-later`]);
+});
+
+it("tests one model of a provider", async () => {
+  const { api, send } = await fixture();
+  await api.save(deepseek);
+  const { id } = api.list()[0];
+  await expect(api.test(id, "user-model-b", signal())).resolves.toBe(
+    "你是 nanan。",
+  );
+  expect(body(send)).toMatchObject({ model: "user-model-b" });
 });

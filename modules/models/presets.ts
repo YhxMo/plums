@@ -23,8 +23,6 @@ export type Preset = {
   protocol: Protocol;
   /** Empty for a custom service; the user types the address. */
   target: string;
-  /** A suggestion; services rename models, so the user can change it. */
-  model: string;
   /** Fixed body fields this service needs. */
   extra?: Record<string, unknown>;
 };
@@ -35,7 +33,6 @@ export const presets: readonly Preset[] = [
     label: "DeepSeek",
     protocol: "openai-chat",
     target: "https://api.deepseek.com/chat/completions",
-    model: "deepseek-flash",
     extra: { thinking: { type: "disabled" } },
   },
   {
@@ -43,21 +40,18 @@ export const presets: readonly Preset[] = [
     label: "OpenAI",
     protocol: "openai-chat",
     target: "https://api.openai.com/v1/chat/completions",
-    model: "gpt-5-mini",
   },
   {
     id: "anthropic",
     label: "Anthropic",
     protocol: "anthropic-messages",
     target: "https://api.anthropic.com/v1/messages",
-    model: "claude-sonnet-5-5",
   },
   {
     id: "kimi",
     label: "Kimi（月之暗面）",
     protocol: "openai-chat",
     target: "https://api.moonshot.cn/v1/chat/completions",
-    model: "kimi-latest",
   },
   {
     id: "qwen",
@@ -65,34 +59,29 @@ export const presets: readonly Preset[] = [
     protocol: "openai-chat",
     target:
       "https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions",
-    model: "qwen-plus",
   },
   {
     id: "zhipu",
     label: "智谱 GLM",
     protocol: "openai-chat",
     target: "https://open.bigmodel.cn/api/paas/v4/chat/completions",
-    model: "glm-4.6",
   },
   {
     id: "openrouter",
     label: "OpenRouter",
     protocol: "openai-chat",
     target: "https://openrouter.ai/api/v1/chat/completions",
-    model: "openrouter/auto",
   },
   {
     id: "custom-openai",
     label: "自定义（OpenAI 兼容）",
     protocol: "openai-chat",
     target: "",
-    model: "",
   },
   {
     id: "custom-anthropic",
     label: "自定义（Anthropic 兼容）",
     protocol: "anthropic-messages",
     target: "",
-    model: "",
   },
 ];

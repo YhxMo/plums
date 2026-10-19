@@ -146,7 +146,7 @@ test("each Agent picks its own model and the model receives the conversation so 
   });
   await toggleDetails.click();
   await expect(
-    page.getByText("还没有模型连接，添加一个后即可选择。"),
+    page.getByText("还没有可选的模型：添加服务商和它的模型后即可选择。"),
   ).toBeVisible();
   // The browser preview cannot hold keys, so the connector page is unavailable.
   await page.getByRole("button", { name: "添加模型连接", exact: true }).click();

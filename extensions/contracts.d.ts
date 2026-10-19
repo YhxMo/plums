@@ -31,6 +31,8 @@ export interface ChatModel {
   label: string;
   /** Plain-language note: which service and model, and whether it is ready. */
   description: string;
+  /** Heading the model is listed under, such as its service; defaults to the provider name. */
+  group?: string;
 }
 export interface ChatTurn {
   role: "user" | "agent";

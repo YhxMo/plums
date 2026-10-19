@@ -124,13 +124,19 @@ export function DetailPanel({
               >
                 <option value="">未选择</option>
                 {missing && <option value={current}>已不可用的模型</option>}
-                {models.map((m) => (
-                  <option
-                    key={key({ provider: m.provider, model: m.id })}
-                    value={key({ provider: m.provider, model: m.id })}
-                  >
-                    {m.label}
-                  </option>
+                {[...new Set(models.map((m) => m.group))].map((group) => (
+                  <optgroup key={group} label={group}>
+                    {models
+                      .filter((m) => m.group === group)
+                      .map((m) => (
+                        <option
+                          key={key({ provider: m.provider, model: m.id })}
+                          value={key({ provider: m.provider, model: m.id })}
+                        >
+                          {m.label}
+                        </option>
+                      ))}
+                  </optgroup>
                 ))}
               </select>
             </label>
@@ -143,7 +149,7 @@ export function DetailPanel({
                   )?.description ??
                   (models.length
                     ? "选择一个模型后此 Agent 才能回复；最近的对话与角色说明会发送给它。"
-                    : "还没有模型连接，添加一个后即可选择。"))}
+                    : "还没有可选的模型：添加服务商和它的模型后即可选择。"))}
             </p>
             {onModels && (
               <button

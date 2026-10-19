@@ -2,14 +2,15 @@ import { useCallback, useState, useSyncExternalStore } from "react";
 import type { ModelConnectionsApi } from "../../modules/models/extension";
 import {
   limits,
-  type ConnectionDraft,
-  type ConnectionStatus,
-  type ConnectionView,
-} from "../../modules/models/connections";
+  MAX_MODELS,
+  type ProviderDraft,
+  type ProviderStatus,
+  type ProviderView,
+} from "../../modules/models/providers";
 import { useAsyncAction } from "../components/useAsyncAction";
 import s from "./ModelConnections.module.css";
 
-const statusLabel: Record<ConnectionStatus, string> = {
+const statusLabel: Record<ProviderStatus, string> = {
   ready: "可用",
   pending: "待核对",
   disabled: "已停用",
@@ -17,62 +18,143 @@ const statusLabel: Record<ConnectionStatus, string> = {
   missing: "需要录入密钥",
 };
 
-function fromPreset(api: ModelConnectionsApi, id: string): ConnectionDraft {
+function fromPreset(api: ModelConnectionsApi, id: string): ProviderDraft {
   const preset = api.presets.find((p) => p.id === id) ?? api.presets[0];
   return {
     name: preset.target ? preset.label : "",
     preset: preset.id,
     protocol: preset.protocol,
     target: preset.target,
-    model: preset.model,
+    models: [],
     maxTokens: 1024,
     turns: 10,
   };
 }
 
-/** The user's model connections: add, edit, re-key, test and delete. */
+/** Model names of one provider: add by typing, remove one by one. */
+function ModelList({
+  models,
+  disabled,
+  onChange,
+}: {
+  models: string[];
+  disabled: boolean;
+  onChange: (models: string[]) => void;
+}) {
+  const [name, setName] = useState("");
+  const value = name.trim();
+  const add = () => {
+    if (!value || models.includes(value)) return;
+    onChange([...models, value]);
+    setName("");
+  };
+  return (
+    <fieldset className={s.models}>
+      <legend>模型</legend>
+      {models.length > 0 && (
+        <ul aria-label="已添加的模型">
+          {models.map((model) => (
+            <li key={model}>
+              <span>{model}</span>
+              <button
+                type="button"
+                className="secondary"
+                aria-label={`移除 ${model}`}
+                disabled={disabled}
+                onClick={() => onChange(models.filter((m) => m !== model))}
+              >
+                移除
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+      <div className={`field ${s.addModel}`}>
+        <input
+          aria-label="模型名"
+          value={name}
+          maxLength={120}
+          disabled={disabled || models.length >= MAX_MODELS}
+          placeholder="按服务商文档填写模型名"
+          onChange={(e) => setName(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key !== "Enter") return;
+            e.preventDefault();
+            add();
+          }}
+        />
+        <button
+          type="button"
+          className="secondary"
+          disabled={disabled || !value || models.includes(value)}
+          onClick={add}
+        >
+          添加模型
+        </button>
+      </div>
+    </fieldset>
+  );
+}
+
+/** The user's model providers and their models: add, edit, re-key, test, delete. */
 export function ModelConnections({ api }: { api: ModelConnectionsApi }) {
   const subscribe = useCallback(
     (listener: () => void) => api.subscribe(listener),
     [api],
   );
-  const connections = useSyncExternalStore(subscribe, () => api.list());
-  // `null` lists; `""` is a new connection; otherwise the id being edited.
+  const providers = useSyncExternalStore(subscribe, () => api.list());
+  // `null` lists; `""` is a new provider; otherwise the id being edited.
   const [editing, setEditing] = useState<string | null>(null);
-  const [draft, setDraft] = useState<ConnectionDraft>(() =>
+  const [draft, setDraft] = useState<ProviderDraft>(() =>
     fromPreset(api, api.presets[0].id),
   );
   const [results, setResults] = useState<Record<string, string>>({});
   const { busy, error, notice, setNotice, run } = useAsyncAction();
 
-  function edit(connection?: ConnectionView) {
-    setEditing(connection?.id ?? "");
+  function edit(provider?: ProviderView) {
+    setEditing(provider?.id ?? "");
     setDraft(
-      connection
+      provider
         ? {
-            name: connection.name,
-            preset: connection.preset,
-            protocol: connection.protocol,
-            target: connection.target,
-            model: connection.model,
-            maxTokens: connection.maxTokens,
-            turns: connection.turns,
+            name: provider.name,
+            preset: provider.preset,
+            protocol: provider.protocol,
+            target: provider.target,
+            models: provider.models,
+            maxTokens: provider.maxTokens,
+            turns: provider.turns,
           }
         : fromPreset(api, api.presets[0].id),
     );
   }
-  const set = (patch: Partial<ConnectionDraft>) =>
+  const set = (patch: Partial<ProviderDraft>) =>
     setDraft((current) => ({ ...current, ...patch }));
   const save = (rekey = false) =>
     run(async () => {
       const saved = await api.save(draft, editing || undefined, rekey);
       if (!saved) return setNotice("已取消，未保存密钥。");
       setEditing(null);
-      setNotice("模型连接已保存。");
+      setNotice("已保存。");
+    });
+  const test = (provider: ProviderView, model: string) =>
+    run(async () => {
+      const key = `${provider.id}/${model}`;
+      setResults((r) => ({ ...r, [key]: "正在测试…" }));
+      try {
+        const reply = await api.test(
+          provider.id,
+          model,
+          AbortSignal.timeout(60_000),
+        );
+        setResults((r) => ({ ...r, [key]: `回复：${reply.slice(0, 60)}` }));
+      } catch (reason) {
+        setResults((r) => ({ ...r, [key]: "" }));
+        throw reason;
+      }
     });
 
   if (editing !== null) {
-    const current = connections.find((c) => c.id === editing);
+    const current = providers.find((p) => p.id === editing);
     const custom = !api.presets.find((p) => p.id === draft.preset)?.target;
     return (
       <form
@@ -84,14 +166,19 @@ export function ModelConnections({ api }: { api: ModelConnectionsApi }) {
       >
         <p>
           保存时会打开系统面板，请核对服务地址并录入 API
-          Key；之后只改名称、模型或预算不需要再录入。
+          Key；之后增删模型、改名称或预算不需要再录入。
         </p>
         <label className="field">
           服务商
           <select
             value={draft.preset}
             disabled={busy || !!current}
-            onChange={(e) => setDraft(fromPreset(api, e.target.value))}
+            onChange={(e) =>
+              setDraft({
+                ...fromPreset(api, e.target.value),
+                models: draft.models,
+              })
+            }
           >
             {api.presets.map((preset) => (
               <option key={preset.id} value={preset.id}>
@@ -121,16 +208,11 @@ export function ModelConnections({ api }: { api: ModelConnectionsApi }) {
             onChange={(e) => set({ target: e.target.value.trim() })}
           />
         </label>
-        <label className="field">
-          模型
-          <input
-            value={draft.model}
-            maxLength={120}
-            required
-            disabled={busy}
-            onChange={(e) => set({ model: e.target.value.trim() })}
-          />
-        </label>
+        <ModelList
+          models={draft.models}
+          disabled={busy}
+          onChange={(models) => set({ models })}
+        />
         <div className={s.pair}>
           <label className="field">
             最大输出 token
@@ -193,75 +275,75 @@ export function ModelConnections({ api }: { api: ModelConnectionsApi }) {
   return (
     <div className="dialog-content">
       <p>
-        为 Agent 准备可用的模型。每条连接是一个服务地址、一个模型和你自己的 API
-        Key；在 Agent 详情里为每个 Agent 选择使用哪一条。
+        先添加服务商（地址与你自己的 API Key），再添加它提供的模型名；在 Agent
+        详情里为每个 Agent 选择模型。
       </p>
-      {connections.length === 0 ? (
-        <p className="muted">还没有模型连接。</p>
+      {providers.length === 0 ? (
+        <p className="muted">还没有服务商。</p>
       ) : (
-        <ul className={s.list} aria-label="模型连接">
-          {connections.map((connection) => (
-            <li key={connection.id}>
-              <div className={s.summary}>
-                <strong>{connection.name}</strong>
-                <span className="muted">
-                  {api.presets.find((p) => p.id === connection.preset)?.label ??
-                    "自定义"}{" "}
-                  · {connection.model} · {statusLabel[connection.status]}
-                </span>
-                {results[connection.id] && (
-                  <span role="status">{results[connection.id]}</span>
-                )}
+        <ul className={s.list} aria-label="服务商">
+          {providers.map((provider) => (
+            <li key={provider.id} aria-label={provider.name}>
+              <div className={s.header}>
+                <div className={s.summary}>
+                  <strong>{provider.name}</strong>
+                  <span className="muted">
+                    {api.presets.find((p) => p.id === provider.preset)?.label ??
+                      "自定义"}{" "}
+                    · {statusLabel[provider.status]}
+                  </span>
+                </div>
+                <div className={s.actions}>
+                  <button
+                    className="secondary"
+                    disabled={busy}
+                    onClick={() => edit(provider)}
+                  >
+                    编辑
+                  </button>
+                  <button
+                    className="secondary"
+                    disabled={busy}
+                    onClick={() =>
+                      void run(async () => {
+                        if (!(await api.remove(provider.id)))
+                          return setNotice("已取消删除。");
+                        setNotice("已删除。");
+                      })
+                    }
+                  >
+                    删除
+                  </button>
+                </div>
               </div>
-              <div className={s.actions}>
-                <button
-                  className="secondary"
-                  disabled={busy}
-                  onClick={() => edit(connection)}
+              {provider.models.length === 0 ? (
+                <p className="muted">还没有模型，点「编辑」添加。</p>
+              ) : (
+                <ul
+                  className={s.modelRows}
+                  aria-label={`${provider.name} 的模型`}
                 >
-                  编辑
-                </button>
-                <button
-                  className="secondary"
-                  disabled={busy || connection.status !== "ready"}
-                  onClick={() =>
-                    void run(async () => {
-                      setResults((r) => ({
-                        ...r,
-                        [connection.id]: "正在测试…",
-                      }));
-                      try {
-                        const reply = await api.test(
-                          connection.id,
-                          AbortSignal.timeout(60_000),
-                        );
-                        setResults((r) => ({
-                          ...r,
-                          [connection.id]: `回复：${reply.slice(0, 60)}`,
-                        }));
-                      } catch (reason) {
-                        setResults((r) => ({ ...r, [connection.id]: "" }));
-                        throw reason;
-                      }
-                    })
-                  }
-                >
-                  测试
-                </button>
-                <button
-                  className="secondary"
-                  disabled={busy}
-                  onClick={() =>
-                    void run(async () => {
-                      if (!(await api.remove(connection.id)))
-                        return setNotice("已取消删除。");
-                      setNotice("已删除。");
-                    })
-                  }
-                >
-                  删除
-                </button>
-              </div>
+                  {provider.models.map((model) => {
+                    const result = results[`${provider.id}/${model}`];
+                    return (
+                      <li key={model}>
+                        <span className={s.summary}>
+                          <span>{model}</span>
+                          {result && <span role="status">{result}</span>}
+                        </span>
+                        <button
+                          className="secondary"
+                          aria-label={`测试 ${model}`}
+                          disabled={busy || provider.status !== "ready"}
+                          onClick={() => void test(provider, model)}
+                        >
+                          测试
+                        </button>
+                      </li>
+                    );
+                  })}
+                </ul>
+              )}
             </li>
           ))}
         </ul>
@@ -273,7 +355,7 @@ export function ModelConnections({ api }: { api: ModelConnectionsApi }) {
       )}
       {notice && <p role="status">{notice}</p>}
       <button disabled={busy} onClick={() => edit()}>
-        新建连接
+        添加服务商
       </button>
     </div>
   );

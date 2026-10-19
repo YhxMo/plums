@@ -39,6 +39,8 @@ export type AgentModel = { provider: string; model: string };
 export type ModelChoice = {
   provider: string;
   providerLabel: string;
+  /** Heading in the picker, such as the service the model belongs to. */
+  group: string;
   id: string;
   label: string;
   description: string;
