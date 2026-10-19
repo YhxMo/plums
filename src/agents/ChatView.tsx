@@ -11,6 +11,7 @@ import type {
   AgentProviderInfo,
   Message,
 } from "../../modules/agents/contract";
+import { MAX_TEXT } from "../../modules/agents/store";
 import { Avatar } from "./AgentList";
 import { Icon } from "../components/Icon";
 import { MessageRow, type MessageAction } from "./MessageRow";
@@ -198,7 +199,7 @@ export function ChatView({
           aria-label="消息"
           placeholder={`发送给 ${agent.name}…`}
           rows={1}
-          maxLength={8000}
+          maxLength={MAX_TEXT}
           value={draft}
           onChange={(e) => onDraft(e.target.value)}
           onKeyDown={(e) => {

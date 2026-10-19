@@ -408,6 +408,11 @@ for (const width of [375, 1180])
     });
     await modelName.fill("model-three");
     await modelName.press("Enter");
+    const context = dialog.getByRole("combobox", { name: "上下文窗口" });
+    await expect(context).toHaveText("128K");
+    await context.click();
+    await dialog.getByRole("option", { name: "1M", exact: true }).click();
+    await expect(context).toHaveText("1M");
     expect(
       await page.evaluate(
         () => document.documentElement.scrollWidth <= innerWidth,
@@ -421,7 +426,7 @@ for (const width of [375, 1180])
       .getByRole("list", { name: "服务商" })
       .getByRole("listitem", { name: "网关" });
     await expect(provider).toContainText("可用");
-    await expect(provider).toContainText("自定义 · 公司账号");
+    await expect(provider).toContainText("自定义 · 上下文 1M · 公司账号");
     await expect(
       provider.getByRole("list", { name: "网关 的模型" }).getByRole("listitem"),
     ).toHaveText(["model-two测试", "model-three测试"]);

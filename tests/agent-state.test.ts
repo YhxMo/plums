@@ -37,33 +37,73 @@ async function start(
 const provider = (host: Host) => host.peekService<AgentProvider>("agents", 1)!;
 
 type Index = {
-  version: 2;
-  agents: { sessions: { id: string; shard: string; messages?: unknown }[] }[];
+  version: 3;
+  agents: { sessions: { id: string; pages: string[]; messages?: unknown }[] }[];
 };
 const index = (states: Map<string, StoredState>) =>
   states.get(owner)!.value as Index;
-const shard = (states: Map<string, StoredState>, key: string) =>
-  states.get(`${owner}+${key}`)?.value as
-    { version: 1; messages: { text: string }[] } | undefined;
+/** A session's messages as stored: its pages' text joined in order. */
+const stored = (states: Map<string, StoredState>, pages: string[]) =>
+  JSON.parse(
+    pages
+      .map(
+        (key) =>
+          (states.get(`${owner}+${key}`)!.value as { part: string }).part,
+      )
+      .join(""),
+  ) as { text: string }[];
 
-it("stores an index plus one shard per session in its own namespace", async () => {
+it("stores an index plus each session's pages in its own namespace", async () => {
   const { platform, states } = memoryPlatform();
   const host = await start(platform);
   const agent = await provider(host).create({ name: "新角色" });
   await provider(host).send(agent.id, "你好");
   const saved = index(states);
-  expect(saved.version).toBe(2);
+  expect(saved.version).toBe(3);
   const session = saved.agents[0].sessions[0];
   expect(session).not.toHaveProperty("messages");
-  expect(session.shard).toMatch(/^s-[0-9a-f-]{36}$/);
-  expect(shard(states, session.shard)!.messages.map((m) => m.text)).toEqual([
+  expect(session.pages).toHaveLength(1);
+  expect(session.pages[0]).toMatch(/^p-[0-9a-f]{16}$/);
+  expect(states.get(`${owner}+${session.pages[0]}`)!.value).toMatchObject({
+    version: 2,
+  });
+  expect(stored(states, session.pages).map((m) => m.text)).toEqual([
     "你好",
     "回复：你好",
   ]);
   expect([...states.keys()].sort()).toEqual([
     owner,
-    `${owner}+${session.shard}`,
+    `${owner}+${session.pages[0]}`,
   ]);
+});
+
+it("keeps a conversation of several MB in 64 KiB pages, rewriting only its tail", async () => {
+  const { platform, states, write } = memoryPlatform();
+  const host = await start(platform);
+  const agent = await provider(host).create({ name: "长上下文" });
+  const text = (i: number) => `${i}` + "长".repeat(200_000);
+  for (let i = 0; i < 3; i++) await provider(host).send(agent.id, text(i));
+  const before = index(states).agents[0].sessions[0].pages;
+  write.mockClear();
+  await provider(host).send(agent.id, text(3));
+  const pages = index(states).agents[0].sessions[0].pages;
+  // Every page but the old last one is kept; only new pages and the index are written.
+  expect(pages.slice(0, before.length - 1)).toEqual(before.slice(0, -1));
+  expect(write.mock.calls.length).toBeLessThan(
+    pages.length - before.length + 4,
+  );
+  const total = pages.reduce(
+    (sum, key) => sum + bytes(states.get(`${owner}+${key}`)),
+    0,
+  );
+  expect(total).toBeGreaterThan(4 * 1024 * 1024);
+  expect(states.has(`${owner}+${before.at(-1)}`)).toBe(false);
+  const restarted = await start(platform);
+  expect(
+    provider(restarted)
+      .list()[0]
+      .sessions[0].messages.map((m) => m.text),
+  ).toEqual([0, 1, 2, 3].flatMap((i) => [text(i), `回复：${text(i)}`]));
 });
 
 it("saves more than 64 KiB in total across sessions and restores it", async () => {
@@ -93,7 +133,7 @@ it("saves more than 64 KiB in total across sessions and restores it", async () =
     ]);
 });
 
-it("writes only the changed shard and removes a deleted session's shard", async () => {
+it("writes only the changed session and removes a deleted session's pages", async () => {
   const { platform, states, write } = memoryPlatform();
   const host = await start(platform);
   const agent = await provider(host).create({
@@ -108,16 +148,15 @@ it("writes only the changed shard and removes a deleted session's shard", async 
   await provider(host).send(agent.id, "三");
   const keys = write.mock.calls.map(([, update]) => update.key);
   const [other, current] = index(states).agents[0].sessions;
-  // The index is rewritten only if its metadata (e.g. lastMessageAt) changed.
-  expect(keys[0]).toBe(current.shard);
-  expect(keys).not.toContain(other.shard);
-  const removed = index(states).agents[0].sessions[0].shard;
+  expect(keys[0]).toBe(current.pages[0]);
+  expect(keys).not.toContain(other.pages[0]);
+  const removed = index(states).agents[0].sessions[0].pages[0];
   await provider(host).session(agent.id, "delete", first);
   expect(states.has(`${owner}+${removed}`)).toBe(false);
   expect(index(states).agents[0].sessions).toHaveLength(1);
 });
 
-it("rejects one oversized session without losing the others", async () => {
+it("a refused page write leaves everything stored as it was", async () => {
   const { platform, states, write } = memoryPlatform();
   const host = await start(platform);
   const agent = await provider(host).create({ name: "边界" });
@@ -135,7 +174,7 @@ it("rejects one oversized session without losing the others", async () => {
   expect(provider(host).list()[0].sessions[0].messages).toHaveLength(4);
 });
 
-it("upgrades a version 1 document in place into shards", async () => {
+it("upgrades a version 1 document in place into pages", async () => {
   const { platform, states } = memoryPlatform({
     [owner]: { revision: 3, value: { version: 1, agents: [legacyAgent()] } },
   });
@@ -143,10 +182,39 @@ it("upgrades a version 1 document in place into shards", async () => {
   expect(provider(host).list()[0].sessions[0].messages).toHaveLength(2);
   const session = index(states).agents[0].sessions[0];
   expect(states.get(owner)!.revision).toBe(4);
-  expect(shard(states, session.shard)!.messages.map((m) => m.text)).toEqual([
+  expect(stored(states, session.pages).map((m) => m.text)).toEqual([
     "你好",
     "旧回复",
   ]);
+});
+
+it("reads version 2 shards and moves them into pages on the next save", async () => {
+  const { sessions, ...agent } = legacyAgent();
+  const { messages, ...meta } = sessions[0];
+  const { platform, states, write } = memoryPlatform({
+    [owner]: {
+      revision: 3,
+      value: {
+        version: 2,
+        agents: [{ ...agent, sessions: [{ ...meta, shard: "s-old" }] }],
+      },
+    },
+    [`${owner}+s-old`]: { revision: 1, value: { version: 1, messages } },
+  });
+  const host = await start(platform);
+  expect(write).not.toHaveBeenCalled();
+  const agentId = provider(host).list()[0].id;
+  expect(provider(host).list()[0].sessions[0].messages).toHaveLength(2);
+  await provider(host).send(agentId, "新");
+  const session = index(states).agents[0].sessions[0];
+  expect(index(states).version).toBe(3);
+  expect(stored(states, session.pages).map((m) => m.text)).toEqual([
+    "你好",
+    "旧回复",
+    "新",
+    "回复：新",
+  ]);
+  expect(states.has(`${owner}+s-old`)).toBe(false);
 });
 
 it("migrates legacy shell Agents once, then retires the legacy field", async () => {
@@ -209,6 +277,34 @@ it.each([
     { [owner]: { revision: 2, value: { version: 9 } } },
   ],
   [
+    "session page",
+    {},
+    {
+      [owner]: {
+        revision: 2,
+        value: {
+          version: 3,
+          agents: [
+            {
+              ...legacyAgent(),
+              sessions: [
+                {
+                  ...legacyAgent().sessions[0],
+                  messages: undefined,
+                  pages: ["p-0000000000000001", "p-0000000000000002"],
+                },
+              ],
+            },
+          ],
+        },
+      },
+      [`${owner}+p-0000000000000001`]: {
+        revision: 1,
+        value: { version: 2, part: '[{"id":"m1",' },
+      },
+    },
+  ],
+  [
     "session shard",
     {},
     {
@@ -262,23 +358,41 @@ it("refuses further writes after an unknown write receipt", async () => {
   expect(write).toHaveBeenCalledOnce();
 });
 
-it("refuses further writes when the index fails after a shard was committed", async () => {
-  const { platform, write } = memoryPlatform();
+it("a refused index write leaves the conversation as it was and allows a retry", async () => {
+  const { platform, states, write } = memoryPlatform();
   const host = await start(platform);
   const agent = await provider(host).create({ name: "一" });
+  const before = structuredClone(Object.fromEntries(states));
   write
     .mockImplementationOnce(write.getMockImplementation()!)
     .mockRejectedValueOnce(
       Object.assign(new Error("index rejected"), { outcome: "not-committed" }),
     );
-  // The shard holding the message is stored, so this is not "not saved".
+  // New pages are invisible until the index names them, and are cleared up.
   await expect(provider(host).send(agent.id, "你好")).rejects.toMatchObject({
-    message: expect.stringContaining("回执未确认"),
-    outcome: "unknown",
+    message: "index rejected",
   });
-  await expect(provider(host).create({ name: "二" })).rejects.toThrow(
-    "重新加载",
+  expect(Object.fromEntries(states)).toEqual(before);
+  await provider(host).send(agent.id, "再试");
+  expect(
+    provider(host)
+      .list()[0]
+      .sessions[0].messages.map((m) => m.text),
+  ).toEqual(["再试", "回复：再试"]);
+});
+
+it("an unconfirmed page write fails only that save", async () => {
+  const { platform, write } = memoryPlatform();
+  const host = await start(platform);
+  const agent = await provider(host).create({ name: "一" });
+  write.mockRejectedValueOnce(
+    Object.assign(new Error("receipt lost"), { outcome: "unknown" }),
   );
+  await expect(provider(host).send(agent.id, "你好")).rejects.toMatchObject({
+    outcome: "not-committed",
+  });
+  await provider(host).send(agent.id, "再试");
+  expect(provider(host).list()[0].sessions[0].messages).toHaveLength(2);
 });
 
 it("allows a retry after a write that was definitely not committed", async () => {

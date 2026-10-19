@@ -46,6 +46,8 @@ export function parseRoleCard(raw: string): AgentConfig {
 }
 /** Longest `chat@1` model id an Agent keeps; longer ones are not offered. */
 export const MAX_MODEL_ID = 256;
+/** Longest message, sent or received: room for a document in a 1M-token context. */
+export const MAX_TEXT = 1_000_000;
 export function restoreAgents(value: unknown): Agent[] {
   if (value === undefined) return [];
   if (!Array.isArray(value))
@@ -92,7 +94,7 @@ export function restoreAgents(value: unknown): Agent[] {
             object(m) &&
             text(m.id) &&
             (m.role === "user" || m.role === "agent") &&
-            text(m.text, 32000) &&
+            text(m.text, MAX_TEXT) &&
             (m.at === undefined || Number.isFinite(m.at)),
         )
       )
@@ -346,8 +348,8 @@ export class AgentStore implements AgentProvider {
     });
   }
   async send(agentId: string, input: string) {
-    if (!input.trim() || input.length > 8000)
-      throw new Error("请输入 1–8000 个字符。");
+    if (!input.trim() || input.length > MAX_TEXT)
+      throw new Error(`请输入 1–${MAX_TEXT} 个字符。`);
     if (
       this.closed ||
       this.running.has(agentId) ||
@@ -375,9 +377,9 @@ export class AgentStore implements AgentProvider {
         { model: a.model, instructions: a.description, history },
       );
       controller.signal.throwIfAborted();
-      if (!text(output, 32000))
+      if (!text(output, MAX_TEXT))
         throw new Error(
-          "文本服务必须返回不超过 32000 个字符的文本；本次结果未保存。",
+          `文本服务必须返回不超过 ${MAX_TEXT} 个字符的文本；本次结果未保存。`,
         );
       await this.change(
         (agents) => {

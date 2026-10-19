@@ -8,7 +8,7 @@ export type CredentialRequest =
       version: 1;
       /** Non-secret alias resolved within the calling extension's platform owner. */
       binding: string;
-      /** UTF-8 text, at most 65536 bytes; target/method/headers are platform-owned. */
+      /** UTF-8 text, at most 8 MiB; target/method/headers are platform-owned. */
       body: string;
     }
   | {

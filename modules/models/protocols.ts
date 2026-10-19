@@ -12,13 +12,40 @@ export type Endpoint = {
   protocol: Protocol;
   model: string;
   maxTokens: number;
-  /** Earlier user turns sent along; 0 sends only the input. */
-  turns: number;
+  /** The model's context window in tokens, reply included. */
+  context: number;
+  /** Earlier turns sent along; 0 sends only the input, null all that fit. */
+  turns: number | null;
   extra?: Record<string, unknown>;
 };
 
 /** Request body cap shared with the platform's `credential.request`. */
-export const REQUEST_LIMIT = 65536;
+export const REQUEST_LIMIT = 8 * 1024 * 1024;
+
+/** 1000000 → "1M", 128000 → "128K". */
+export const tokenLabel = (tokens: number) =>
+  tokens % 1_000_000 === 0
+    ? `${tokens / 1_000_000}M`
+    : tokens % 1000 === 0
+      ? `${tokens / 1000}K`
+      : String(tokens);
+
+/**
+ * A deliberately high token count, so a request stays inside the window:
+ * one per non-ASCII character (CJK runs about one or fewer) and one per 2.5
+ * ASCII characters (English runs about three to four).
+ */
+export function estimateTokens(text: string) {
+  let ascii = 0;
+  let other = 0;
+  for (let i = 0; i < text.length; i++) {
+    const code = text.charCodeAt(i);
+    if (code < 128) ascii++;
+    // The second half of a surrogate pair belongs to the same character.
+    else if (code < 0xdc00 || code > 0xdfff) other++;
+  }
+  return Math.ceil(ascii / 2.5) + other;
+}
 
 export function failure(
   message: string,
@@ -37,13 +64,16 @@ function turnStarts(history: readonly Turn[]) {
   );
 }
 
+const message = ({ role, text }: Turn) => ({
+  role: role === "agent" ? "assistant" : "user",
+  content: text,
+});
+
 function body(endpoint: Endpoint, request: ChatInput, history: Turn[]) {
-  const messages = [...history, { role: "user", text: request.input }].map(
-    ({ role, text }) => ({
-      role: role === "agent" ? "assistant" : "user",
-      content: text,
-    }),
-  );
+  const messages = [
+    ...history,
+    { role: "user" as const, text: request.input },
+  ].map(message);
   const instructions = request.instructions?.trim();
   if (endpoint.protocol === "anthropic-messages")
     return JSON.stringify({
@@ -66,28 +96,52 @@ function body(endpoint: Endpoint, request: ChatInput, history: Turn[]) {
 }
 
 /**
- * The request body: the newest `turns` turns, then whole old turns dropped
- * until it fits `limit`. Too large even without history is refused unsent.
+ * The request body: the newest whole turns that fit both the context window,
+ * less the reply's room, and the byte cap, at most `turns` of them. Too large
+ * even without history is refused unsent.
  */
 export function requestBody(
   endpoint: Endpoint,
   request: ChatInput,
   limit = REQUEST_LIMIT,
 ) {
-  const starts = turnStarts(request.history);
-  let first =
-    endpoint.turns > 0
-      ? Math.max(0, starts.length - endpoint.turns)
-      : starts.length;
-  for (; first <= starts.length; first++) {
-    const kept = request.history.slice(starts[first] ?? request.history.length);
-    const text = body(endpoint, request, kept);
-    if (bytes(text) <= limit) return text;
+  const budget = endpoint.context - endpoint.maxTokens;
+  const bare = body(endpoint, request, []);
+  let size = bytes(bare);
+  let tokens = estimateTokens(bare);
+  if (size > limit)
+    throw failure(
+      "这条消息连同角色说明超过请求大小上限（8 MiB），未发送；请缩短后再试。",
+      "not-dispatched",
+    );
+  if (tokens > budget)
+    throw failure(
+      `这条消息连同角色说明约 ${tokenLabel(Math.ceil(tokens / 1000) * 1000)} token，超出上下文窗口（${tokenLabel(endpoint.context)}，其中 ${endpoint.maxTokens} 留给回复），未发送；请缩短，或在模型连接中调大上下文窗口。`,
+      "not-dispatched",
+    );
+  const { history } = request;
+  const starts = turnStarts(history);
+  const allowed = endpoint.turns ?? starts.length;
+  let first = history.length;
+  // Each kept message adds its own JSON and one comma to the body.
+  for (
+    let turn = starts.length - 1;
+    turn >= 0 && starts.length - turn <= allowed;
+    turn--
+  ) {
+    let more = 0;
+    let moreTokens = 0;
+    for (let i = starts[turn]; i < first; i++) {
+      const json = `${JSON.stringify(message(history[i]))},`;
+      more += bytes(json);
+      moreTokens += estimateTokens(json);
+    }
+    if (size + more > limit || tokens + moreTokens > budget) break;
+    size += more;
+    tokens += moreTokens;
+    first = starts[turn];
   }
-  throw failure(
-    "这条消息连同角色说明超过 64 KiB，未发送；请缩短后再试。",
-    "not-dispatched",
-  );
+  return body(endpoint, request, history.slice(first));
 }
 
 function openaiText(parsed: unknown) {

@@ -29,7 +29,7 @@ const reasons: Record<string, string> = {
   "not-confirmed": "已取消发送，请求未发出。",
   "proxy-unsupported": "当前版本只支持直连，请把连接方式改为直连。",
   "secret-unavailable": "无法读取系统中保存的 API Key，请重新录入。",
-  "invalid-request": "请求格式无效或超过 64 KiB，未发送。",
+  "invalid-request": "请求格式无效或超过 8 MiB，未发送。",
   stale: "连接或授权已变化，本次结果未交付。",
   timeout: "请求超时，远端结果未确认。",
   redirect: "服务返回了跳转，已拒绝跟随，远端结果未确认。",
@@ -45,8 +45,8 @@ function requestFailure(code: string, outcome: CredentialFailureOutcome) {
   });
 }
 const bytes = (value: string) => new TextEncoder().encode(value).length;
-/** Request body cap, matching the native transports. */
-export const MAX_REQUEST = 65536;
+/** Request body cap, matching the native transports: room for a 1M-token context. */
+export const MAX_REQUEST = 8 * 1024 * 1024;
 /** A read on the bound site: plain absolute path, no query; Rust checks it again. */
 const sitePath = /^(?:\/(?!\.\.?(?:\/|$))[A-Za-z0-9._~-]+)+$/;
 /** Connections an extension made itself; static manifest aliases never match. */

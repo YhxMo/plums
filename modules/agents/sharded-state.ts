@@ -1,6 +1,6 @@
 import { ContractError } from "../sdk/errors";
 import type { StoredState } from "../sdk";
-import type { Agent, Message, Session } from "./contract";
+import type { Agent, Session } from "./contract";
 import { restoreAgents, type SaveOptions } from "./store";
 
 type Call = (
@@ -8,34 +8,79 @@ type Call = (
   payload?: unknown,
   signal?: AbortSignal,
 ) => Promise<unknown>;
-type SessionEntry = Omit<Session, "messages"> & { shard: string };
+type SessionEntry = Omit<Session, "messages"> & { pages: string[] };
 type AgentEntry = Omit<Agent, "sessions"> & { sessions: SessionEntry[] };
-/** Main document: Agents and session metadata; messages live in shards. */
-export type AgentIndex = { version: 2; agents: AgentEntry[] };
-type Shard = { version: 1; messages: Message[] };
+/** Main document: Agents, session metadata and the keys of each session's pages. */
+export type AgentIndex = { version: 3; agents: AgentEntry[] };
+type Page = { version: 2; part: string };
+/** A session as last committed: its messages' JSON, split into pages. */
+type Stored = { json: string; parts: string[]; keys: string[] };
+
+/**
+ * UTF-8 bytes a page's text may take once stored as a JSON string, leaving
+ * room for the envelope under the platform's 64 KiB document cap.
+ */
+const PAGE_BYTES = 60_000;
+
+/**
+ * Splits a session's JSON into page texts. Each cut depends only on the text
+ * before it, so appending messages rewrites the last page and adds new ones.
+ */
+export function paginate(json: string) {
+  const parts: string[] = [];
+  let start = 0;
+  let size = 0;
+  for (let i = 0; i < json.length;) {
+    const code = json.codePointAt(i)!;
+    const cost =
+      code === 0x22 || code === 0x5c
+        ? 2
+        : code < 0x80
+          ? 1
+          : code < 0x800
+            ? 2
+            : code < 0x10000
+              ? 3
+              : 4;
+    if (size + cost > PAGE_BYTES) {
+      parts.push(json.slice(start, i));
+      start = i;
+      size = 0;
+    }
+    size += cost;
+    i += code > 0xffff ? 2 : 1;
+  }
+  parts.push(json.slice(start));
+  return parts;
+}
 
 const corrupt = () =>
   new ContractError("state.corrupt", "agents", "Agent 配置损坏");
 const record = (value: unknown): value is Record<string, unknown> =>
   !!value && typeof value === "object" && !Array.isArray(value);
+const outcome = (error: unknown) => (error as { outcome?: string })?.outcome;
 
 /**
- * Agent persistence over keyed `state.*`: one index plus one shard per session,
- * so each 64 KiB cap applies to a single conversation, not to all of them.
- * Shards are written before the index that references them and removed after
- * it stops referencing them; a failed removal only leaves an unreferenced shard.
+ * Agent persistence over keyed `state.*`: one index plus each session's pages,
+ * so a conversation can grow to many MB while every document stays under
+ * 64 KiB. Pages are written under new keys before the index that names them,
+ * so the index write alone commits a save; pages it no longer names are
+ * removed after it, and a failed save removes the pages it wrote.
  */
 export class AgentState {
   /** Committed revision per key; `""` is the index. */
   private revisions = new Map<string, number>();
-  /** Last committed JSON per key, to skip unchanged shards. */
-  private written = new Map<string, string>();
-  /** Shard key per `${agentId}\n${sessionId}`. */
-  private shards = new Map<string, string>();
+  /** Last committed index JSON, to skip an unchanged index. */
+  private written = "";
+  /** Committed pages per `${agentId}\n${sessionId}`. */
+  private stored = new Map<string, Stored>();
+  /** Version 2 shards, removed once a version 3 index is committed. */
+  private legacy: string[] = [];
   private uncertain = false;
   constructor(
     private readonly call: Call,
-    private readonly newShard = () => `s-${crypto.randomUUID()}`,
+    private readonly newPage = () =>
+      `p-${crypto.randomUUID().replaceAll("-", "").slice(0, 16)}`,
   ) {}
 
   /** Stored Agents, or null when this extension has saved nothing yet. */
@@ -50,35 +95,70 @@ export class AgentState {
       await this.save(agents);
       return agents;
     }
-    if (!record(doc) || doc.version !== 2 || !Array.isArray(doc.agents))
+    if (
+      !record(doc) ||
+      (doc.version !== 2 && doc.version !== 3) ||
+      !Array.isArray(doc.agents)
+    )
       throw corrupt();
     const agents: unknown[] = [];
     for (const entry of doc.agents as unknown[]) {
       if (!record(entry) || !Array.isArray(entry.sessions)) throw corrupt();
       const sessions: unknown[] = [];
       for (const session of entry.sessions as unknown[]) {
-        if (!record(session) || typeof session.shard !== "string")
-          throw corrupt();
-        const { shard, ...meta } = session;
-        const stored = (await this.call("state.read", {
-          key: shard,
-        })) as StoredState | null;
-        let messages: unknown = [];
-        if (stored) {
-          const value = stored.value;
-          if (!record(value) || value.version !== 1) throw corrupt();
-          messages = value.messages;
-          this.revisions.set(shard, stored.revision);
-          this.written.set(shard, JSON.stringify(messages));
-        }
-        this.shards.set(`${String(entry.id)}\n${String(meta.id)}`, shard);
+        if (!record(session)) throw corrupt();
+        const { shard, pages, ...meta } = session;
+        const messages =
+          doc.version === 2
+            ? await this.readShard(shard)
+            : await this.readPages(
+                `${String(entry.id)}\n${String(meta.id)}`,
+                pages,
+              );
         sessions.push({ ...meta, messages });
       }
       agents.push({ ...entry, sessions });
     }
     const restored = restoreAgents(agents);
-    this.written.set("", JSON.stringify(this.index(restored)));
+    if (doc.version === 3) this.written = JSON.stringify(this.index(restored));
     return restored;
+  }
+  private async read(key: string) {
+    const stored = (await this.call("state.read", {
+      key,
+    })) as StoredState | null;
+    if (stored) this.revisions.set(key, stored.revision);
+    return stored?.value;
+  }
+  private async readShard(key: unknown) {
+    if (typeof key !== "string") throw corrupt();
+    const value = await this.read(key);
+    if (value === undefined) return [];
+    if (!record(value) || value.version !== 1) throw corrupt();
+    this.legacy.push(key);
+    return value.messages;
+  }
+  private async readPages(slot: string, keys: unknown) {
+    if (!Array.isArray(keys) || !keys.every((key) => typeof key === "string"))
+      throw corrupt();
+    const parts: string[] = [];
+    for (const key of keys) {
+      const value = await this.read(key);
+      if (
+        !record(value) ||
+        value.version !== 2 ||
+        typeof value.part !== "string"
+      )
+        throw corrupt();
+      parts.push(value.part);
+    }
+    const json = parts.join("");
+    this.stored.set(slot, { json, parts, keys });
+    try {
+      return json ? JSON.parse(json) : [];
+    } catch {
+      throw corrupt();
+    }
   }
 
   /** Why saving would fail now, if it would. */
@@ -91,80 +171,103 @@ export class AgentState {
     options?.signal?.throwIfAborted();
     const blocked = this.blocked();
     if (blocked) throw Error(blocked);
-    const live = new Set<string>();
-    const writes: { key: string; value: unknown; json: string }[] = [];
+    const next = new Map<string, Stored>();
+    const pages: { key: string; part: string }[] = [];
     for (const agent of agents)
       for (const { id, messages } of agent.sessions) {
         const slot = `${agent.id}\n${id}`;
-        let shard = this.shards.get(slot);
-        if (!shard) this.shards.set(slot, (shard = this.newShard()));
-        live.add(slot);
-        const json = JSON.stringify(messages);
-        if ((this.written.get(shard) ?? "[]") !== json)
-          writes.push({
-            key: shard,
-            value: { version: 1, messages } satisfies Shard,
-            json,
-          });
+        const json = messages.length ? JSON.stringify(messages) : "";
+        const old = this.stored.get(slot);
+        if (old?.json === json) {
+          next.set(slot, old);
+          continue;
+        }
+        const parts = json ? paginate(json) : [];
+        const keys = parts.map((part, i) => {
+          if (old?.parts[i] === part) return old.keys[i];
+          const key = this.newPage();
+          pages.push({ key, part });
+          return key;
+        });
+        next.set(slot, { json, parts, keys });
       }
-    const index = this.index(agents);
+    const index = this.index(agents, next);
     const json = JSON.stringify(index);
-    if (this.written.get("") !== json)
-      writes.push({ key: "", value: index, json });
+    if (json === this.written) return;
     options?.onCommit?.();
-    // Only the first dispatch may be cancelled; later writes finish the commit.
-    let signal = options?.signal;
-    let committed = false;
+    const signal = options?.signal;
+    const written: string[] = [];
     try {
-      for (const { key, value, json } of writes) {
-        const receipt = (await this.call(
+      for (const { key, part } of pages) {
+        written.push(key);
+        let receipt: StoredState;
+        try {
+          receipt = (await this.call(
+            "state.write",
+            { key, revision: 0, value: { version: 2, part } satisfies Page },
+            signal,
+          )) as StoredState;
+        } catch (error) {
+          // The page may exist, but nothing names it: the save did not happen.
+          if (outcome(error) !== "unknown") throw error;
+          throw Object.assign(
+            new Error((error as Error).message, { cause: error }),
+            { outcome: "not-committed" },
+          );
+        }
+        this.revisions.set(key, receipt.revision);
+      }
+      let receipt: StoredState;
+      try {
+        receipt = (await this.call(
           "state.write",
-          {
-            ...(key && { key }),
-            revision: this.revisions.get(key) ?? 0,
-            value,
-          },
+          { revision: this.revisions.get("") ?? 0, value: index },
           signal,
         )) as StoredState;
-        signal = undefined;
-        this.revisions.set(key, receipt.revision);
-        this.written.set(key, json);
-        committed = true;
+      } catch (error) {
+        if (
+          !(error instanceof Error && error.name === "AbortError") &&
+          outcome(error) !== "not-committed"
+        )
+          this.uncertain = true;
+        throw error;
       }
+      this.revisions.set("", receipt.revision);
     } catch (error) {
-      if (
-        committed ||
-        (!(error instanceof Error && error.name === "AbortError") &&
-          (error as { outcome?: string }).outcome !== "not-committed")
-      )
-        this.uncertain = true;
-      // An earlier write committed: part of this save is stored.
-      if (committed)
-        throw Object.assign(new Error(this.blocked(), { cause: error }), {
-          outcome: "unknown",
-        });
+      // An index that may name the new pages keeps them.
+      if (!this.uncertain) await this.discard(written);
       throw error;
     }
-    for (const [slot, shard] of [...this.shards]) {
-      if (live.has(slot)) continue;
-      this.shards.delete(slot);
-      const revision = this.revisions.get(shard) ?? 0;
-      this.revisions.delete(shard);
-      this.written.delete(shard);
-      await this.call("state.write", { key: shard, revision, remove: true })
-        // An unreferenced shard is inert; never fail a committed change for it.
-        .catch(() => {});
+    this.written = json;
+    const live = new Set([...next.values()].flatMap(({ keys }) => keys));
+    const gone = [...this.stored.values()]
+      .flatMap(({ keys }) => keys)
+      .filter((key) => !live.has(key));
+    this.stored = next;
+    await this.discard([...gone, ...this.legacy.splice(0)]);
+  }
+  /** Removes unreferenced documents; one left behind is inert. */
+  private async discard(keys: string[]) {
+    for (const key of keys) {
+      const revision = this.revisions.get(key) ?? 1;
+      this.revisions.delete(key);
+      await this.call("state.write", { key, revision, remove: true }).catch(
+        () => {},
+      );
     }
   }
 
-  private index(agents: Agent[]): AgentIndex {
+  private index(
+    agents: Agent[],
+    stored: Map<string, Stored> = this.stored,
+  ): AgentIndex {
     return {
-      version: 2,
+      version: 3,
       agents: agents.map(({ sessions, ...agent }) => ({
         ...agent,
         sessions: sessions.map(({ messages: _messages, ...session }) => ({
           ...session,
-          shard: this.shards.get(`${agent.id}\n${session.id}`)!,
+          pages: stored.get(`${agent.id}\n${session.id}`)?.keys ?? [],
         })),
       })),
     };

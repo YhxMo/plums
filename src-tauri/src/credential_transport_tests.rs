@@ -188,6 +188,16 @@ fn oversized_responses_stop_with_declared_or_streamed_length() {
         exact
     );
 }
+// A 1M-token conversation is a few MB, and a reply to it can take minutes.
+const _: () = assert!(MAX_REQUEST >= 8 << 20);
+const _: () = assert!(desktop::TOTAL.as_secs() >= 600);
+#[test]
+fn a_body_at_the_request_cap_is_sent_whole() {
+    let body = "c".repeat(MAX_REQUEST);
+    let (url, seen) = serve(vec![reply("200 OK", "", "ok")]);
+    run(&url, desktop::TOTAL, bearer(), &body).unwrap();
+    assert!(seen.lock().unwrap()[0].ends_with(&body));
+}
 #[test]
 fn a_silent_server_times_out_as_unknown() {
     let (url, seen) = serve(vec![None]);

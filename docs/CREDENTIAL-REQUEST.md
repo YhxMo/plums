@@ -10,7 +10,7 @@
 
 扩展 manifest 声明 `capabilities: ['credential.request']`，并由宿主授权。激活后调用 `ctx.platform('credential.request', { version: 1, binding: 'text', body }, signal?)` 发送；或 `{ version: 1, binding, method: 'GET', path: '/v1/models' }` 读取同一站点的另一路径（如模型列表）。类型 `CredentialRequest`、`CredentialResponse`、`CredentialFailureOutcome` 由 SDK 导出；`platform` 返回 unknown，作者按契约校验响应。
 
-- 发送只接受 version/binding/body 三个字段；body UTF-8 不超过 65536 字节（64 KiB，足够带上多轮对话）。读取只接受 version/binding/method/path，`method` 固定 `GET`，`path` 是以 `/` 开头、最多 256 字符、每段只含字母数字与 `-._~` 的路径（不得有空段、`.`、`..`、查询或片段），原生层用绑定目标的协议与主机拼出地址并再校验一次。不得传 owner、URL、头或原始凭据。调用者身份由 Host 转为 `extension.<id>`，绑定只在该 owner 内解析。
+- 发送只接受 version/binding/body 三个字段；body UTF-8 不超过 8 MiB（足够容纳 1M token 的上下文）。读取只接受 version/binding/method/path，`method` 固定 `GET`，`path` 是以 `/` 开头、最多 256 字符、每段只含字母数字与 `-._~` 的路径（不得有空段、`.`、`..`、查询或片段），原生层用绑定目标的协议与主机拼出地址并再校验一次。不得传 owner、URL、头或原始凭据。调用者身份由 Host 转为 `extension.<id>`，绑定只在该 owner 内解析。
 - 成功响应为 `{ status, body }`：状态 200–599 且排除 3xx，正文为合法 UTF-8 且不超过 2 MiB（容得下服务商的模型列表）。HTTP 4xx/5xx 交给扩展解释，不自动重试。不返回响应头或凭据；远端正文仍可能回显秘密，目标须可信。
 - 失败为带 `code` 与 `outcome` 的 Error，`outcome` 为 `not-dispatched`（可证明未开始网络 I/O）或 `unknown`（可能已到达远端）。浏览器预览不提供此能力，扩展保持 `waiting`。
 
@@ -22,7 +22,7 @@
 | 传输 | Mac：`reqwest =0.13.5` + rustls，证书由 `rustls-platform-verifier` 交给系统校验，仅 HTTPS。Android：`HttpsURLConnection`，系统默认信任 |
 | 目标 | 发送只 POST 到绑定保存的精确 HTTPS URL；读取只 GET 同一协议与主机下的受限路径，不带正文与 Content-Type；扩展不能改写主机、头或认证 |
 | 网络 | 不跟随重定向（3xx 报 unknown `redirect`）；不用系统/环境代理；不发 cookie；不隐式解压（Android 显式 `Accept-Encoding: identity`）。保存了代理路由的绑定拒绝发送（`proxy-unsupported`） |
-| 时限与限额 | 连接 10 秒、总计 30 秒；请求 65536 字节、响应 2 MiB（声明长度或累计读取超限即停止）；每个 owner 同时 1 个请求，否则 `busy` |
+| 时限与限额 | 连接 10 秒、总计 10 分钟（长上下文或长回复要等几分钟，可随时取消）；请求 8 MiB、响应 2 MiB（声明长度或累计读取超限即停止）；每个 owner 同时 1 个请求，否则 `busy` |
 | 首次发送确认 | 每个绑定修订第一次发送前，原生面板展示扩展、来源、目标、POST、内容类型与认证头名，并说明同一站点的读取（如模型列表）也包含在内，用户确认后同一修订不再询问，确认随绑定记录保存、重启后仍有效。取消即 `not-confirmed`。修改网络配置、重新录入密钥、撤销、卸载或替换扩展会提升修订，使确认失效；保存确认失败时只在本次运行内有效 |
 | 取消与撤销 | WebView 取消通过请求 ID 通知原生中断连接；授权变更、停用（`release`）、删除或卸载前的禁用会取消在途请求。发送前与交付前都重新检查授权和绑定修订，变化则不交付（`stale`） |
 

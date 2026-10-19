@@ -642,7 +642,7 @@ test("service reply boundary rejects without losing draft and valid output survi
       .getByRole("log")
       .evaluate((el) =>
         [...el.querySelectorAll("p")].some(
-          (p) => p.textContent === "x".repeat(32000),
+          (p) => p.textContent === "x".repeat(1_000_000),
         ),
       ),
   ).toBe(true);

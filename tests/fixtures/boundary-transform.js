@@ -11,7 +11,7 @@ export default {
       name: "boundary fixture",
       /** @param {string} input */
       async transform(input) {
-        return "x".repeat(input === "oversized" ? 32001 : 32000);
+        return "x".repeat(input === "oversized" ? 1_000_001 : 1_000_000);
       },
     });
   },

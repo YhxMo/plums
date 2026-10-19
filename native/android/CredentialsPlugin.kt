@@ -53,6 +53,7 @@ class CredentialPromptArgs {
 }
 
 /** Room for a provider's model list as well as a reply; matches Rust. */
+private const val MAX_REQUEST = 8 * 1024 * 1024
 private const val MAX_RESPONSE = 2 * 1024 * 1024
 
 @InvokeArg
@@ -226,8 +227,8 @@ class CredentialsPlugin(private val activity: Activity) : Plugin(activity) {
 
   /**
    * POST to the bound HTTPS target, or GET a path Rust checked is on its site:
-   * no redirects, no system proxy, no transparent gzip; 10 s connect, 30 s
-   * total, 65536-byte request, 2 MiB response.
+   * no redirects, no system proxy, no transparent gzip; 10 s connect, 10 min
+   * total, 8 MiB request, 2 MiB response.
    */
   @Command
   fun request(invoke: Invoke) {
@@ -237,7 +238,7 @@ class CredentialsPlugin(private val activity: Activity) : Plugin(activity) {
     val body = args.body.toByteArray(Charsets.UTF_8)
     if (!valid(args.reference) || args.id.isEmpty() || args.id.length > 64 || url == null ||
       url.protocol != "https" || url.userInfo != null || url.query != null || url.ref != null ||
-      (url.port != -1 && url.port != 443) || body.size > 65536 ||
+      (url.port != -1 && url.port != 443) || body.size > MAX_REQUEST ||
       args.method !in setOf("POST", "GET") || (args.method == "GET" && body.isNotEmpty())) {
       fail("not-dispatched", "invalid-request"); return
     }
@@ -255,7 +256,7 @@ class CredentialsPlugin(private val activity: Activity) : Plugin(activity) {
           instanceFollowRedirects = false
           useCaches = false
           connectTimeout = 10_000
-          readTimeout = 30_000
+          readTimeout = 600_000
           requestMethod = args.method
           if (args.method == "POST") {
             doOutput = true
@@ -269,7 +270,7 @@ class CredentialsPlugin(private val activity: Activity) : Plugin(activity) {
         connection = open
         active[args.id] = open
         if (cancelled.remove(args.id)) { fail("not-dispatched", "cancelled"); return@Thread }
-        val deadline = watchdog.schedule(Runnable { timedOut.set(true); open.disconnect() }, 30, TimeUnit.SECONDS)
+        val deadline = watchdog.schedule(Runnable { timedOut.set(true); open.disconnect() }, 600, TimeUnit.SECONDS)
         try {
           dispatched = true
           if (args.method == "POST") open.outputStream.use { it.write(body) }

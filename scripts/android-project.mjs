@@ -83,6 +83,8 @@ const previousTemplates = {
     "90bf5a0de6c9ad8b56162d2df63409e7b888ad31227bbfc241bf9b33a4fd842f",
     // 45a03dc: 8192-byte response, POST only.
     "98635e13fc5f026f1752502e9ac07f19ff5fa0179e6626573add1e81be865610",
+    // e06aeb7: 64 KiB request, 30 s total.
+    "855ba65873f58ce845b6890bc69784eb7c39ee094491af520705eae2a42c3c0d",
   ]),
 };
 /** Validate every edit before writing any generated file.

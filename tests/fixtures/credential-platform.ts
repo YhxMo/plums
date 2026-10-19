@@ -94,7 +94,7 @@ export class FakeCredentialPlatform implements Platform {
       version !== 1 ||
       typeof bindingId !== "string" ||
       typeof body !== "string" ||
-      bytes(body) > 65536
+      bytes(body) > 8 * 1024 * 1024
     )
       throw failure("not-dispatched");
     const binding = this.bindings.find(

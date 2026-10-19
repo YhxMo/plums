@@ -6,6 +6,8 @@ const { PlatformAdapter } = await import("../src/platform");
 
 const owner = "extension.connector.models";
 const request = { version: 1, binding: "text", body: "{}" };
+/** A 1M-token conversation is a few MB; the cap leaves room for it. */
+const MiB8 = 8 * 1024 * 1024;
 const calls = (name: string) =>
   invoke.mock.calls.filter(([command]) => command === name);
 
@@ -40,6 +42,13 @@ it("sends the alias and body with a fresh request id and returns the reply", asy
   expect(args).toMatchObject({ owner, binding: "text", body: "{}" });
   expect(args.id).toMatch(/^[0-9a-f-]{36}$/);
   expect(Object.keys(args).sort()).toEqual(["binding", "body", "id", "owner"]);
+});
+
+it("passes a body of exactly 8 MiB to native code", async () => {
+  const adapter = await ready();
+  const body = "x".repeat(MiB8);
+  await adapter.call(owner, "credential.request", { ...request, body });
+  expect(calls("credential_request")[0][1].body).toBe(body);
 });
 
 it("reads a plain path on the bound site with GET and no body", async () => {
@@ -93,7 +102,7 @@ it("rejects malformed or oversized payloads before reaching native code", async 
     { ...request, version: 2 },
     { ...request, binding: 1 },
     { ...request, target: "https://elsewhere.invalid" },
-    { ...request, body: "字".repeat(21846) },
+    { ...request, body: "字".repeat(MiB8 / 3 + 1) },
   ])
     await expect(
       adapter.call(owner, "credential.request", payload),

@@ -1,7 +1,8 @@
 import { useId, useState } from "react";
 import type { ModelConnectionsApi } from "../../modules/models/extension";
 import { chatTarget, normalizeBase } from "../../modules/models/addresses";
-import { CUSTOM } from "../../modules/models/presets";
+import { contextChoices, CUSTOM } from "../../modules/models/presets";
+import { tokenLabel } from "../../modules/models/protocols";
 import {
   limits,
   MAX_MODELS,
@@ -28,7 +29,8 @@ export function fromPreset(
     base: preset.base,
     models: [],
     maxTokens: 1024,
-    turns: 10,
+    context: preset.context,
+    turns: null,
   };
 }
 const draftOf = (provider: ProviderView): ProviderDraft => ({
@@ -40,6 +42,7 @@ const draftOf = (provider: ProviderView): ProviderDraft => ({
   base: provider.base,
   models: provider.models,
   maxTokens: provider.maxTokens,
+  context: provider.context,
   turns: provider.turns,
 });
 
@@ -353,6 +356,25 @@ export function ProviderForm({
           disabled={busy}
           onChange={(models) => set({ models })}
         />
+        <div className="field">
+          <span aria-hidden>上下文窗口</span>
+          <Select
+            label="上下文窗口"
+            value={String(draft.context)}
+            disabled={busy}
+            options={[...new Set<number>([...contextChoices, draft.context])]
+              .sort((a, b) => a - b)
+              .map((tokens) => ({
+                value: String(tokens),
+                label: tokenLabel(tokens),
+              }))}
+            onChange={(value) => set({ context: Number(value) })}
+          />
+          <span className={s.hint}>
+            按服务商文档填这些模型能接收的总 token 数，例如 Claude 为
+            1M。对话超出时自动丢弃最早的轮次；发送的历史越长，每次费用越高。
+          </span>
+        </div>
       </section>
 
       <details className={s.advanced}>
@@ -375,15 +397,20 @@ export function ProviderForm({
               type="number"
               min={limits.turns[0]}
               max={limits.turns[1]}
-              value={draft.turns}
+              value={draft.turns ?? ""}
+              placeholder="全部"
               disabled={busy}
-              onChange={(e) => set({ turns: e.target.valueAsNumber })}
+              onChange={(e) =>
+                set({
+                  turns: e.target.value === "" ? null : e.target.valueAsNumber,
+                })
+              }
             />
           </label>
         </div>
         <p className={s.hint}>
-          上下文轮数是每次随消息一起发送的最近几轮对话，0
-          表示只发当前这一句；总量超过 64 KiB 时自动丢弃最早的轮次。
+          上下文轮数是每次随消息一起发送的最近几轮对话：留空发送上下文窗口装得下的全部，0
+          只发当前这一句。
         </p>
       </details>
 

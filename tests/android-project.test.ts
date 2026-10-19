@@ -245,7 +245,13 @@ test("preparation replaces only known earlier credential plugin templates", () =
     join(root, "native/android/CredentialsPlugin.kt"),
     "utf8",
   ).replace("{{PACKAGE}}", "dev.plums.plums");
-  for (const commit of ["0e5d114", "135c149", "4657f25", "45a03dc"]) {
+  for (const commit of [
+    "0e5d114",
+    "135c149",
+    "4657f25",
+    "45a03dc",
+    "e06aeb7",
+  ]) {
     const previous = execFileSync(
       "git",
       ["show", `${commit}:native/android/CredentialsPlugin.kt`],
@@ -255,7 +261,7 @@ test("preparation replaces only known earlier credential plugin templates", () =
     prepareAndroid(root, "/toolchain");
     expect(readFileSync(plugin, "utf8")).toBe(current);
   }
-  writeFileSync(plugin, current.replace("30, TimeUnit", "60, TimeUnit"));
+  writeFileSync(plugin, current.replace("600, TimeUnit", "60, TimeUnit"));
   expect(() => prepareAndroid(root, "/toolchain")).toThrow(
     "Credentials plugin changed",
   );

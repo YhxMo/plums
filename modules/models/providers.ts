@@ -24,8 +24,10 @@ export type ModelProvider = {
   /** Model names exactly as the service expects them; may be empty. */
   models: string[];
   maxTokens: number;
-  /** Earlier user turns sent with each message; 0 sends only the input. */
-  turns: number;
+  /** The models' context window in tokens; history is trimmed to fit it. */
+  context: number;
+  /** Earlier turns sent with each message; 0 sends only the input, null all that fit. */
+  turns: number | null;
 };
 export type ProviderDraft = Omit<ModelProvider, "id" | "alias">;
 export type ProviderStatus =
@@ -41,7 +43,11 @@ export type ProviderView = ModelProvider & { status: ProviderStatus };
 
 export const MAX_PROVIDERS = 16;
 export const MAX_MODELS = 32;
-export const limits = { maxTokens: [1, 8192], turns: [0, 50] } as const;
+export const limits = {
+  maxTokens: [1, 8192],
+  context: [16_000, 2_000_000],
+  turns: [0, 1000],
+} as const;
 /** Chat model id offered to Agents: provider id, then the model name. */
 export const modelId = (provider: string, model: string) =>
   `${provider}/${model}`;
@@ -95,13 +101,15 @@ export function draftProblem(draft: ProviderDraft) {
   if (new Set(draft.models).size !== draft.models.length) return "模型名重复。";
   if (!integer(draft.maxTokens, limits.maxTokens))
     return `最大输出须为 ${limits.maxTokens.join("–")} 的整数。`;
-  if (!integer(draft.turns, limits.turns))
-    return `上下文轮数须为 ${limits.turns.join("–")} 的整数。`;
+  if (!integer(draft.context, limits.context))
+    return `上下文窗口须为 ${limits.context.join("–")} 的整数（token）。`;
+  if (draft.turns !== null && !integer(draft.turns, limits.turns))
+    return `上下文轮数须为 ${limits.turns.join("–")} 的整数，或留空表示全部。`;
   return undefined;
 }
 
 /** Version 2 kept the full chat address and one preset per custom format. */
-function upgrade({ target, ...entry }: Record<string, unknown>) {
+function fromVersion2({ target, ...entry }: Record<string, unknown>) {
   return {
     ...entry,
     notes: "",
@@ -113,17 +121,27 @@ function upgrade({ target, ...entry }: Record<string, unknown>) {
         : undefined,
   };
 }
+/** Version 3 had no context window; its preset's is the best guess. */
+const fromVersion3 = (entry: Record<string, unknown>) => ({
+  ...entry,
+  context: (
+    presets.find((preset) => preset.id === entry.preset) ??
+    presets.find((preset) => preset.id === CUSTOM)!
+  ).context,
+});
 
 function restore(value: unknown): ModelProvider[] {
   if (
     !record(value) ||
-    (value.version !== 3 && value.version !== 2) ||
+    ![2, 3, 4].includes(value.version as number) ||
     !Array.isArray(value.providers)
   )
     throw corrupt();
   const seen = new Set<string>();
   return value.providers.map((raw: unknown) => {
-    const entry = record(raw) && value.version === 2 ? upgrade(raw) : raw;
+    let entry = raw;
+    if (record(entry) && value.version === 2) entry = fromVersion2(entry);
+    if (record(entry) && value.version !== 4) entry = fromVersion3(entry);
     if (
       !record(entry) ||
       typeof entry.id !== "string" ||
@@ -222,7 +240,7 @@ export class ProviderStore {
   private async write(next: ModelProvider[]) {
     const receipt = (await this.call("state.write", {
       revision: this.revision,
-      value: { version: 3, providers: next },
+      value: { version: 4, providers: next },
     })) as StoredState;
     this.revision = receipt.revision;
     this.providers = next;

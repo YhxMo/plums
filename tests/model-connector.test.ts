@@ -19,6 +19,7 @@ const deepseek: ProviderDraft = {
   base: "https://api.deepseek.com",
   models: ["user-model-a", "user-model-b"],
   maxTokens: 1024,
+  context: 128_000,
   turns: 10,
 };
 const deepseekTarget = "https://api.deepseek.com/chat/completions";
@@ -31,6 +32,7 @@ const claude: ProviderDraft = {
   base: "https://gateway.example",
   models: ["user-claude"],
   maxTokens: 512,
+  context: 1_000_000,
   turns: 2,
 };
 const completion = (content: string) => ({
@@ -206,7 +208,7 @@ it("adds a provider through the native panel and offers each of its models", asy
   });
   expect(provider.id).toMatch(/^p-[a-z0-9]{8}$/);
   expect(states.get(owner)?.value).toEqual({
-    version: 3,
+    version: 4,
     providers: [{ ...deepseek, id: provider.id, alias: "c-00000000" }],
   });
   expect(chat().models()).toEqual(
@@ -390,7 +392,10 @@ it.each([
   [{ models: ["a", "a"] }, "重复"],
   [{ models: Array.from({ length: 33 }, (_, i) => `m${i}`) }, "最多"],
   [{ maxTokens: 0 }, "最大输出"],
-  [{ turns: 51 }, "上下文轮数"],
+  [{ turns: 1001 }, "上下文轮数"],
+  [{ turns: 1.5 }, "上下文轮数"],
+  [{ context: 8000 }, "上下文窗口"],
+  [{ context: 3_000_000 }, "上下文窗口"],
 ])("rejects %j before opening the panel", async (patch, message) => {
   const { api, panel } = await fixture();
   await expect(api.save({ ...deepseek, ...patch })).rejects.toThrow(message);
@@ -507,7 +512,73 @@ it("upgrades version 2 records, which kept the full address", async () => {
     { preset: "custom", base: "https://gateway.example" },
   ]);
   expect(api.list()[0]).not.toHaveProperty("target");
+  expect(api.list().map(({ context }) => context)).toEqual([128_000, 128_000]);
   expect(states.get(owner)?.value).toBe(saved);
+});
+
+it("gives version 3 records their preset's context window", async () => {
+  const entry = {
+    alias: "c-00000000",
+    notes: "",
+    website: "",
+    models: ["m"],
+    maxTokens: 1024,
+    turns: 10,
+  };
+  const saved = {
+    version: 3,
+    providers: [
+      {
+        ...entry,
+        id: "p-aaaaaaaa",
+        name: "Claude",
+        preset: "anthropic",
+        protocol: "anthropic-messages",
+        base: "https://api.anthropic.com",
+      },
+      {
+        ...entry,
+        id: "p-bbbbbbbb",
+        name: "网关",
+        preset: "custom",
+        protocol: "openai-chat",
+        base: "https://gateway.example/v1",
+      },
+    ],
+  };
+  const { api, states } = await fixture({ saved });
+  expect(api.list().map(({ context }) => context)).toEqual([
+    1_000_000, 128_000,
+  ]);
+  expect(states.get(owner)?.value).toBe(saved);
+});
+
+it("sends a whole long conversation to a 1M-context provider, and less to a 128K one", async () => {
+  const { api, chat, send } = await fixture();
+  const big = (await api.save({
+    ...deepseek,
+    context: 1_000_000,
+    turns: null,
+  })) as string;
+  const small = (await api.save({
+    ...deepseek,
+    name: "小",
+    turns: null,
+  })) as string;
+  const history = Array.from({ length: 100 }, (_, i) => [
+    { role: "user" as const, text: `${i}` + "问".repeat(4000) },
+    { role: "agent" as const, text: `${i}` + "答".repeat(4000) },
+  ]).flat();
+  for (const id of [big, small])
+    await chat().reply(
+      { model: `${id}/user-model-a`, history, input: "总结" },
+      signal(),
+    );
+  const [whole, trimmed] = [0, 1].map(
+    (call) => (body(send, call).messages as unknown[]).length,
+  );
+  expect(whole).toBe(201);
+  expect(trimmed).toBeLessThan(40);
 });
 
 it("fetches a provider's model list from the first path that has one", async () => {

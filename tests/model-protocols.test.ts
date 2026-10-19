@@ -1,5 +1,6 @@
 import { expect, it } from "vitest";
 import {
+  estimateTokens,
   readReply,
   requestBody,
   type Endpoint,
@@ -9,6 +10,7 @@ const openai: Endpoint = {
   protocol: "openai-chat",
   model: "m",
   maxTokens: 100,
+  context: 128_000,
   turns: 10,
 };
 const anthropic: Endpoint = { ...openai, protocol: "anthropic-messages" };
@@ -69,7 +71,7 @@ it("keeps the newest turns, always starting with the user", () => {
       { role: "agent" as const, text: text.toUpperCase() },
     ]),
   ];
-  const sent = (turns: number) =>
+  const sent = (turns: number | null) =>
     (
       parse(requestBody({ ...openai, turns }, { history: long, input: "d" }))
         .messages as { content: string }[]
@@ -77,6 +79,46 @@ it("keeps the newest turns, always starting with the user", () => {
   expect(sent(2)).toEqual(["b", "B", "c", "C", "d"]);
   expect(sent(10)).toEqual(["a", "A", "b", "B", "c", "C", "d"]);
   expect(sent(0)).toEqual(["d"]);
+  expect(sent(null)).toEqual(["a", "A", "b", "B", "c", "C", "d"]);
+});
+
+it("estimates CJK at a token a character and other text at a token per few characters", () => {
+  expect(estimateTokens("字".repeat(1000))).toBe(1000);
+  const english = estimateTokens("x".repeat(1000));
+  expect(english).toBeGreaterThanOrEqual(1000 / 4);
+  expect(english).toBeLessThan(1000);
+});
+
+it("drops whole old turns to fit the context window, leaving room for the reply", () => {
+  const long = ["a", "b", "c", "d"].flatMap((text) => [
+    { role: "user" as const, text: text + "字".repeat(900) },
+    { role: "agent" as const, text: text + "答".repeat(900) },
+  ]);
+  const endpoint = { ...openai, context: 5000, maxTokens: 1000, turns: null };
+  const body = requestBody(endpoint, { history: long, input: "e" });
+  expect(estimateTokens(body)).toBeLessThanOrEqual(5000 - 1000);
+  const messages = parse(body).messages as { role: string; content: string }[];
+  expect(messages.map((m) => m.content[0])).toEqual(["c", "c", "d", "d", "e"]);
+});
+
+it("carries a conversation of several MB within a 1M context", () => {
+  const long = Array.from({ length: 100 }, (_, i) => [
+    { role: "user" as const, text: `${i}` + "问".repeat(4000) },
+    { role: "agent" as const, text: `${i}` + "答".repeat(4000) },
+  ]).flat();
+  const request = { history: long, input: "总结" };
+  const all = requestBody(
+    { ...openai, context: 1_000_000, turns: null },
+    request,
+  );
+  expect(new TextEncoder().encode(all).length).toBeGreaterThan(2 * 1024 * 1024);
+  expect((parse(all).messages as unknown[]).length).toBe(201);
+  // The same conversation keeps only its newest turns within 128K.
+  const small = requestBody({ ...openai, turns: null }, request);
+  expect(estimateTokens(small)).toBeLessThanOrEqual(128_000 - 100);
+  const kept = parse(small).messages as { content: string }[];
+  expect(kept.length).toBeLessThan(40);
+  expect(kept.at(-2)!.content.startsWith("99")).toBe(true);
 });
 
 it("drops whole old turns to stay under the byte limit", () => {
@@ -92,9 +134,17 @@ it("drops whole old turns to stay under the byte limit", () => {
   expect(messages.at(-1)).toEqual({ role: "user", content: "d" });
 });
 
-it("refuses before sending when the input alone is too large", () => {
+it("refuses before sending when the input alone exceeds the window or the byte cap", () => {
   expect(() =>
-    requestBody(openai, { history, input: "字".repeat(30000) }),
+    requestBody(openai, { history, input: "字".repeat(130_000) }),
+  ).toThrow(
+    expect.objectContaining({
+      outcome: "not-dispatched",
+      message: expect.stringContaining("上下文窗口"),
+    }),
+  );
+  expect(() =>
+    requestBody(openai, { history, input: "x".repeat(2000) }, 1000),
   ).toThrow(expect.objectContaining({ outcome: "not-dispatched" }));
 });
 

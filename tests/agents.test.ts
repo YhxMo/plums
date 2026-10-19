@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   AgentStore,
+  MAX_TEXT,
   parseRoleCard,
   restoreAgents,
 } from "../modules/agents/store";
@@ -167,26 +168,27 @@ it("reserves session changes until saved so sending cannot use the old session",
   expect(store.list()[0].description).toBe("updated role");
 });
 
-it("round trips a maximum length service reply below the snapshot capacity", async () => {
+it("round trips a maximum length input and service reply, room for a 1M-token context", async () => {
+  expect(MAX_TEXT).toBeGreaterThanOrEqual(1_000_000);
   let saved: unknown;
   const store = new AgentStore(
     [],
     async (agents) => {
       saved = structuredClone(agents);
     },
-    async () => "x".repeat(32000),
+    async () => "x".repeat(MAX_TEXT),
   );
   const a = await store.create({ name: "boundary" });
-  await store.send(a.id, "short");
-  expect(new TextEncoder().encode(JSON.stringify(saved)).length).toBeLessThan(
-    65536,
+  await expect(store.send(a.id, "y".repeat(MAX_TEXT + 1))).rejects.toThrow(
+    "个字符",
   );
-  expect(restoreAgents(saved)[0].sessions[0].messages[1].text.length).toBe(
-    32000,
-  );
+  await store.send(a.id, "y".repeat(MAX_TEXT));
+  expect(
+    restoreAgents(saved)[0].sessions[0].messages.map((m) => m.text.length),
+  ).toEqual([MAX_TEXT, MAX_TEXT]);
 });
 for (const [label, invalid] of [
-  ["oversized", "x".repeat(32001)],
+  ["oversized", "x".repeat(MAX_TEXT + 1)],
   ["non-string", 42],
   ["missing", undefined],
 ] as const) {

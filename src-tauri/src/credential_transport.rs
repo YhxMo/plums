@@ -4,7 +4,8 @@ use crate::credential_bindings::{Failure, View};
 use crate::ipc::wire_object;
 use serde::Serialize;
 
-pub const MAX_REQUEST: usize = 65536;
+/// Room for a 1M-token conversation, which is a few MB of text.
+pub const MAX_REQUEST: usize = 8 * 1024 * 1024;
 /// Room for a provider's model list as well as a reply.
 pub const MAX_RESPONSE: usize = 2 * 1024 * 1024;
 
@@ -43,7 +44,8 @@ pub(crate) mod desktop {
     use std::time::Duration;
 
     pub const CONNECT: Duration = Duration::from_secs(10);
-    pub const TOTAL: Duration = Duration::from_secs(30);
+    /// A long context or reply can take minutes; the caller may cancel sooner.
+    pub const TOTAL: Duration = Duration::from_secs(600);
 
     /// No redirects, no system or environment proxy, no cookies, no implicit
     /// decompression; certificates are checked by the operating system.

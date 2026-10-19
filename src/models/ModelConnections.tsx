@@ -4,6 +4,7 @@ import type {
   ProviderStatus,
   ProviderView,
 } from "../../modules/models/providers";
+import { tokenLabel } from "../../modules/models/protocols";
 import { useAsyncAction } from "../components/useAsyncAction";
 import { ProviderForm } from "./ProviderForm";
 import s from "./ModelConnections.module.css";
@@ -81,6 +82,7 @@ export function ModelConnections({ api }: { api: ModelConnectionsApi }) {
                   <span className={s.meta}>
                     {api.presets.find((p) => p.id === provider.preset)?.label ??
                       "自定义"}
+                    {` · 上下文 ${tokenLabel(provider.context)}`}
                     {provider.notes && ` · ${provider.notes}`}
                   </span>
                   <span className={`${s.meta} ${s.url}`}>{provider.base}</span>
