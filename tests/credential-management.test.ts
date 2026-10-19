@@ -51,16 +51,17 @@ it("keeps an empty probe failure observable", async () => {
   expect(access.initializationError).toBe("初始化探测失败");
   expect(access.supported).toBe(false);
 });
-it("opens native key entry using non-secret binding metadata only", async () => {
+it("passes the typed key to native storage with the binding metadata", async () => {
   const access = new CredentialAccess();
   await access.initialize(true);
-  await access.configure(
+  const result = await access.configure(
     record.owner,
     record.alias,
     record.source,
     record.version,
     record.declaration,
     1,
+    "sk-synthetic",
   );
   expect(invoke.mock.calls.at(-1)).toEqual([
     "credential_configure",
@@ -71,9 +72,11 @@ it("opens native key entry using non-secret binding metadata only", async () => 
       version: "1",
       declaration: record.declaration,
       revision: 1,
+      key: "sk-synthetic",
     },
   ]);
-  expect(Object.keys(invoke.mock.calls.at(-1)![1])).not.toContain("key");
+  // The key goes in once; nothing returned carries it.
+  expect(JSON.stringify(result)).not.toContain("sk-synthetic");
 });
 it("keeps native management visible when metadata loading fails", async () => {
   invoke.mockImplementation(async (command: string) => {

@@ -39,6 +39,8 @@ export function CredentialBindings({
   const [items, setItems] = useState<CredentialBinding[]>([]);
   const [status, setStatus] = useState("");
   const [unavailable, setUnavailable] = useState(false);
+  /** Keys being typed, by alias; cleared once submitted. */
+  const [keys, setKeys] = useState<Record<string, string>>({});
   const owner = extensionOwner(id);
   useEffect(() => {
     let live = true;
@@ -63,7 +65,7 @@ export function CredentialBindings({
   const run = (
     trigger: HTMLElement,
     operation: () => Promise<CredentialManagementResponse>,
-    success = "连接记录已更新。发送请求须另行授权。",
+    success = "连接记录已更新。",
   ) =>
     void operations.operate(async () => {
       const result = await operation();
@@ -108,7 +110,7 @@ export function CredentialBindings({
         <>
           <p>
             API Key
-            在原生面板录入，保存连接不会发送请求。首次发送前会在原生面板请你确认；当前版本只通过直连发送，设置了网络代理的连接会拒绝发送。
+            只保存在本机，用于向下方地址发送请求，保存后不再显示；保存本身不发送请求。当前版本只通过直连发送，设置了网络代理的连接会拒绝发送。
           </p>
           {aliases.map((alias) => {
             const item = items.find((item) => item.alias === alias);
@@ -141,33 +143,70 @@ export function CredentialBindings({
                       : `网络代理：${item.route.url}（当前版本不支持经代理发送）`}
                   </p>
                 )}
-                <div className={styles.actions}>
-                  {declaration && (
-                    <button
-                      className="secondary"
+                {declaration && (
+                  <form
+                    className={styles.actions}
+                    onSubmit={(event) => {
+                      event.preventDefault();
+                      const key = keys[alias]?.trim();
+                      if (!key) return;
+                      setKeys((value) => ({ ...value, [alias]: "" }));
+                      // Focus returns to the emptied key field.
+                      const field = event.currentTarget.querySelector("input")!;
+                      run(field, () =>
+                        access.configure(
+                          owner,
+                          alias,
+                          source,
+                          version,
+                          declaration,
+                          revision,
+                          key,
+                        ),
+                      );
+                    }}
+                  >
+                    <input
+                      type="password"
+                      aria-label={`${declaration.label} 的 API Key`}
+                      value={keys[alias] ?? ""}
+                      maxLength={4096}
+                      autoComplete="off"
+                      spellCheck={false}
+                      placeholder={
+                        item?.status === "ready"
+                          ? "已保存，填写新的 Key 替换"
+                          : "粘贴 API Key"
+                      }
                       disabled={
                         disabled ||
                         item?.status === "pending" ||
                         item?.status === "delete-pending"
                       }
-                      onClick={(event) =>
-                        run(event.currentTarget, () =>
-                          access.configure(
-                            owner,
-                            alias,
-                            source,
-                            version,
-                            declaration,
-                            revision,
-                          ),
-                        )
+                      onChange={(event) =>
+                        setKeys((value) => ({
+                          ...value,
+                          [alias]: event.target.value,
+                        }))
+                      }
+                    />
+                    <button
+                      type="submit"
+                      className="secondary"
+                      disabled={
+                        disabled ||
+                        !keys[alias]?.trim() ||
+                        item?.status === "pending" ||
+                        item?.status === "delete-pending"
                       }
                     >
                       {item?.status === "ready"
-                        ? "重新录入凭据"
-                        : "录入 API Key"}
+                        ? "更换 API Key"
+                        : "保存 API Key"}
                     </button>
-                  )}
+                  </form>
+                )}
+                <div className={styles.actions}>
                   {item && (
                     <>
                       {(declaration || own) && (

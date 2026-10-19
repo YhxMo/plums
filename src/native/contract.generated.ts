@@ -68,6 +68,7 @@ export interface NativeCommands {
         authentication: { type: "bearer" } | { type: "header"; name: string };
       };
       revision: number;
+      key: string;
     };
     response:
       | { status: "saved" }

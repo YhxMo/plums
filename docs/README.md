@@ -37,7 +37,7 @@
 | [ANDROID](ANDROID.md) | 构建 Android 与维护系统栏/键盘 Insets 模板 |
 | [MODELS](MODELS.md) | 模型连接器、`chat@1` 与 Agent 的上下文发送 |
 | [CREDENTIAL-REQUEST](CREDENTIAL-REQUEST.md) | 实现或核对凭据代用请求与生产接入契约 |
-| [CREDENTIAL-BINDINGS](CREDENTIAL-BINDINGS.md) | 配置模型连接、代理与原生凭据录入 |
+| [CREDENTIAL-BINDINGS](CREDENTIAL-BINDINGS.md) | 配置模型连接、代理与 API Key 的填写与存储 |
 
 ## 流程、计划与验收
 

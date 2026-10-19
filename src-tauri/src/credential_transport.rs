@@ -129,38 +129,6 @@ pub(crate) mod desktop {
     }
 }
 
-/// The stored key, `None` when the item does not exist.
-#[cfg(target_os = "macos")]
-pub(crate) async fn read_key(
-    app: &tauri::AppHandle,
-    reference: &str,
-) -> Result<Option<Vec<u8>>, Failure> {
-    use crate::credential_secrets::{recall, remember};
-    use security_framework::passwords::{generic_password, PasswordOptions};
-    if let Some(bytes) = recall(reference) {
-        return Ok(Some(bytes));
-    }
-    let service = format!("{}.credentials.v1", app.config().identifier);
-    let reference = reference.to_owned();
-    tauri::async_runtime::spawn_blocking(move || {
-        let mut options = PasswordOptions::new_generic_password(&service, &reference);
-        options.set_access_synchronized(Some(false));
-        match generic_password(options) {
-            Ok(mut bytes) if !crate::credentials_native::key_valid(&bytes) => {
-                bytes.fill(0);
-                Err("invalid-key")
-            }
-            Ok(bytes) => {
-                remember(&reference, &bytes);
-                Ok(Some(bytes))
-            }
-            Err(error) if error.code() == -25300 => Ok(None),
-            Err(_) => Err("unknown"),
-        }
-    })
-    .await
-    .map_err(|_| "unknown")?
-}
 /// POSTs `body` to the bound target, or GETs `target` (a read on the same
 /// site) when there is no body.
 #[cfg(target_os = "macos")]
@@ -172,7 +140,7 @@ pub async fn send(
     target: &str,
     body: Option<String>,
 ) -> Result<Reply, Fault> {
-    let mut secret = match read_key(app, reference).await {
+    let mut secret = match crate::credentials_native::read_key(app, reference).await {
         Ok(Some(secret)) => secret,
         _ => return Err(Fault::NotDispatched("secret-unavailable")),
     };

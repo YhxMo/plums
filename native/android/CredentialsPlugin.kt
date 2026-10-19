@@ -2,17 +2,12 @@ package {{PACKAGE}}
 
 import android.app.Activity
 import android.app.AlertDialog
-import android.os.Build
 import android.security.keystore.KeyGenParameterSpec
 import android.security.keystore.KeyProperties
 import android.text.InputFilter
 import android.text.InputType
-import android.text.method.PasswordTransformationMethod
 import android.util.AtomicFile
 import android.util.Base64
-import android.util.Log
-import android.view.View
-import android.view.WindowManager
 import android.widget.EditText
 import app.tauri.annotation.Command
 import app.tauri.annotation.InvokeArg
@@ -42,7 +37,8 @@ import javax.crypto.spec.GCMParameterSpec
 @InvokeArg
 class CredentialArgs {
   var reference: String = ""
-  var description: String = ""
+  /** Only for `store`; never returned. */
+  var key: String = ""
 }
 
 @InvokeArg
@@ -74,7 +70,7 @@ class CredentialCancelArgs {
   var id: String = ""
 }
 
-/** Native input, app-owned vault and bound requests. The raw key never leaves this plugin. */
+/** App-owned vault, native confirmations and bound requests. A key enters only through `store` and is never returned. */
 @TauriPlugin
 class CredentialsPlugin(private val activity: Activity) : Plugin(activity) {
   private val active = ConcurrentHashMap<String, HttpsURLConnection>()
@@ -90,104 +86,58 @@ class CredentialsPlugin(private val activity: Activity) : Plugin(activity) {
   private fun keyValid(bytes: ByteArray) = bytes.isNotEmpty() && bytes.size <= 4096 && bytes.all { it.toInt() in 33..126 }
   private fun aad(reference: String) = alias(reference).toByteArray(Charsets.UTF_8)
 
+  /** Saves the key the user typed in the app; called once per new reference. */
   @Command
   fun store(invoke: Invoke) {
     val args = invoke.parseArgs(CredentialArgs::class.java)
-    if (!valid(args.reference) || args.description.length > 6000) {
+    val bytes = args.key.toByteArray(Charsets.UTF_8)
+    args.key = ""
+    if (!valid(args.reference) || !keyValid(bytes)) {
+      bytes.fill(0)
       invoke.resolve(response("rejected"))
       return
     }
-    activity.runOnUiThread {
-      val input = EditText(activity).apply {
-        inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_PASSWORD or InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS
-        filters = arrayOf(InputFilter.LengthFilter(4096))
-        hint = "API Key"
-        isSingleLine = true
-        transformationMethod = PasswordTransformationMethod.getInstance()
-        isSaveEnabled = false
-        if (Build.VERSION.SDK_INT >= 26) importantForAutofill = View.IMPORTANT_FOR_AUTOFILL_NO_EXCLUDE_DESCENDANTS
-      }
-      val complete = AtomicBoolean(false)
-      val hadSecureFlag = activity.window.attributes.flags and WindowManager.LayoutParams.FLAG_SECURE != 0
-      activity.window.addFlags(WindowManager.LayoutParams.FLAG_SECURE)
-      fun finish(status: String) {
-        if (complete.compareAndSet(false, true)) invoke.resolve(response(status))
-      }
+    Thread {
+      var status = "unknown"
       try {
-        val dialog = AlertDialog.Builder(activity)
-          .setTitle("录入 API Key")
-          .setMessage(args.description)
-          .setView(input)
-          .setNegativeButton("取消") { _, _ -> finish("cancelled") }
-          .setPositiveButton("保存") { _, _ ->
-            val bytes = input.text.toString().toByteArray(Charsets.UTF_8)
-            input.text.clear()
-            if (!keyValid(bytes)) {
-              bytes.fill(0)
-              finish("rejected")
-            } else {
-              // The dismissal callback must not report cancellation while storage is in flight.
-              complete.set(true)
-              Thread {
-                var status = "unknown"
-                try {
-                  val vault = store()
-                  val path = file(args.reference)
-                  if (path.exists() || vault.containsAlias(alias(args.reference))) throw IllegalStateException()
-                  val generator = KeyGenerator.getInstance(KeyProperties.KEY_ALGORITHM_AES, "AndroidKeyStore")
-                  generator.init(KeyGenParameterSpec.Builder(alias(args.reference), KeyProperties.PURPOSE_ENCRYPT or KeyProperties.PURPOSE_DECRYPT)
-                    .setBlockModes(KeyProperties.BLOCK_MODE_GCM)
-                    .setEncryptionPaddings(KeyProperties.ENCRYPTION_PADDING_NONE)
-                    .setKeySize(256)
-                    .setRandomizedEncryptionRequired(true)
-                    .build())
-                  val key = generator.generateKey()
-                  val cipher = Cipher.getInstance("AES/GCM/NoPadding")
-                  cipher.init(Cipher.ENCRYPT_MODE, key)
-                  cipher.updateAAD(aad(args.reference))
-                  val ciphertext = cipher.doFinal(bytes)
-                  val document = JSONObject()
-                    .put("schema", 1)
-                    .put("iv", Base64.encodeToString(cipher.iv, Base64.NO_WRAP))
-                    .put("ciphertext", Base64.encodeToString(ciphertext, Base64.NO_WRAP))
-                    .toString().toByteArray(Charsets.UTF_8)
-                  if (!path.parentFile!!.isDirectory && !path.parentFile!!.mkdirs()) throw IllegalStateException()
-                  val atomic = AtomicFile(path)
-                  val output = atomic.startWrite()
-                  try {
-                    output.write(document)
-                    atomic.finishWrite(output)
-                  } catch (error: Exception) {
-                    atomic.failWrite(output)
-                    throw error
-                  }
-                  status = "stored"
-                } catch (_: Exception) {
-                  // Key creation or ciphertext commit may have happened; Rust retains pending metadata.
-                } finally {
-                  bytes.fill(0)
-                  invoke.resolve(response(status))
-                }
-              }.start()
-            }
-          }
-          .create()
-        dialog.setOnCancelListener { finish("cancelled") }
-        dialog.setOnDismissListener {
-          input.text.clear()
-          if (!hadSecureFlag) activity.window.clearFlags(WindowManager.LayoutParams.FLAG_SECURE)
-          finish("cancelled")
+        val vault = store()
+        val path = file(args.reference)
+        if (path.exists() || vault.containsAlias(alias(args.reference))) throw IllegalStateException()
+        val generator = KeyGenerator.getInstance(KeyProperties.KEY_ALGORITHM_AES, "AndroidKeyStore")
+        generator.init(KeyGenParameterSpec.Builder(alias(args.reference), KeyProperties.PURPOSE_ENCRYPT or KeyProperties.PURPOSE_DECRYPT)
+          .setBlockModes(KeyProperties.BLOCK_MODE_GCM)
+          .setEncryptionPaddings(KeyProperties.ENCRYPTION_PADDING_NONE)
+          .setKeySize(256)
+          .setRandomizedEncryptionRequired(true)
+          .build())
+        val key = generator.generateKey()
+        val cipher = Cipher.getInstance("AES/GCM/NoPadding")
+        cipher.init(Cipher.ENCRYPT_MODE, key)
+        cipher.updateAAD(aad(args.reference))
+        val ciphertext = cipher.doFinal(bytes)
+        val document = JSONObject()
+          .put("schema", 1)
+          .put("iv", Base64.encodeToString(cipher.iv, Base64.NO_WRAP))
+          .put("ciphertext", Base64.encodeToString(ciphertext, Base64.NO_WRAP))
+          .toString().toByteArray(Charsets.UTF_8)
+        if (!path.parentFile!!.isDirectory && !path.parentFile!!.mkdirs()) throw IllegalStateException()
+        val atomic = AtomicFile(path)
+        val output = atomic.startWrite()
+        try {
+          output.write(document)
+          atomic.finishWrite(output)
+        } catch (error: Exception) {
+          atomic.failWrite(output)
+          throw error
         }
-        dialog.window?.addFlags(WindowManager.LayoutParams.FLAG_SECURE)
-        dialog.show()
-        input.requestFocus()
-      } catch (error: Exception) {
-        input.text.clear()
-        if (!hadSecureFlag) activity.window.clearFlags(WindowManager.LayoutParams.FLAG_SECURE)
-        Log.w("PlumsCredentials", "credential prompt failed: ${error.javaClass.simpleName}")
-        finish("unavailable")
+        status = "stored"
+      } catch (_: Exception) {
+        // Key creation or ciphertext commit may have happened; Rust retains pending metadata.
+      } finally {
+        bytes.fill(0)
+        invoke.resolve(response(status))
       }
-    }
+    }.start()
   }
 
   /** The stored key, null when absent; throws when the entry is damaged. Callers zero it. */

@@ -251,6 +251,7 @@ test("preparation replaces only known earlier credential plugin templates", () =
     "4657f25",
     "45a03dc",
     "e06aeb7",
+    "6fc58eb",
   ]) {
     const previous = execFileSync(
       "git",

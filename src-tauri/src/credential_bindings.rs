@@ -71,7 +71,6 @@ impl Ticket {
 #[derive(Clone, Copy, Debug)]
 pub enum KeyResult {
     Stored,
-    Cancelled,
     Rejected,
     Unavailable,
     Unknown,
@@ -228,13 +227,13 @@ impl Bindings {
         let mut next = inner.saved.clone();
         match result {
             KeyResult::Stored => {
-                next.bindings
-                    .get_mut(&active.key)
-                    .ok_or("unknown")?
-                    .view
-                    .status = Status::Ready
+                // The key was typed into a form showing the target: that is
+                // the user's consent to send there.
+                let binding = next.bindings.get_mut(&active.key).ok_or("unknown")?;
+                binding.view.status = Status::Ready;
+                binding.consented = Some(binding.view.revision);
             }
-            KeyResult::Cancelled | KeyResult::Rejected | KeyResult::Unavailable => {
+            KeyResult::Rejected | KeyResult::Unavailable => {
                 if let Some(mut previous) = active.previous {
                     previous.view.revision = ticket.view.revision + 1;
                     next.bindings.insert(active.key, previous);
@@ -341,6 +340,10 @@ impl Bindings {
             Status::Disabled
         };
         binding.view.revision += 1;
+        // Pending only follows a key the user typed in; found, it stands as saved.
+        if exists {
+            binding.consented = Some(binding.view.revision);
+        }
         inner.save(next)
     }
 }
@@ -389,7 +392,7 @@ impl Inner {
         if bytes.len() > MAX_BYTES {
             return Err("resource-limit");
         }
-        if persist(&self.root, &bytes).is_err() {
+        if persist(&self.root, "credential-bindings.json", &bytes).is_err() {
             self.faulted = true;
             return Err("unknown");
         }
@@ -397,12 +400,10 @@ impl Inner {
         Ok(())
     }
 }
-fn persist(root: &Path, bytes: &[u8]) -> std::io::Result<()> {
+/// Replaces `root/name` atomically with a file only this user can read.
+pub(crate) fn persist(root: &Path, name: &str, bytes: &[u8]) -> std::io::Result<()> {
     fs::create_dir_all(root)?;
-    let pending = root.join(format!(
-        "credential-bindings.{}.pending",
-        uuid::Uuid::new_v4()
-    ));
+    let pending = root.join(format!("{name}.{}.pending", uuid::Uuid::new_v4()));
     let mut options = OpenOptions::new();
     options.write(true).create_new(true);
     #[cfg(unix)]
@@ -414,7 +415,7 @@ fn persist(root: &Path, bytes: &[u8]) -> std::io::Result<()> {
     let written = file
         .write_all(bytes)
         .and_then(|_| file.sync_all())
-        .and_then(|_| fs::rename(&pending, root.join("credential-bindings.json")));
+        .and_then(|_| fs::rename(&pending, root.join(name)));
     if let Err(error) = written {
         let _ = fs::remove_file(&pending);
         return Err(error);

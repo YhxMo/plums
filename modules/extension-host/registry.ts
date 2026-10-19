@@ -78,10 +78,17 @@ export class Registry {
     visit(id);
     return [...seen];
   }
-  /** Users of active extensions that rely on `id`; with `toggle`, `id` can be switched on for `others` and off for users that name it in `uses`. */
+  /**
+   * Users of active extensions that rely on `id`, or that `id` is built on
+   * (as an interface takes the extension whose users it presents); with
+   * `toggle`, `id` can be switched on for `others` and off for users that
+   * name it in `uses`.
+   */
   usersOf(id: string, active: Active) {
     return [...this.users].flatMap(([owner, { kind, users, toggle }]) => {
-      const relies = this.chain(owner).includes(id);
+      const relies =
+        this.chain(owner).includes(id) ||
+        (active(id) && this.chain(id).includes(owner));
       const using = (user: User) =>
         relies || !!user.uses?.some((used) => this.chain(used).includes(id));
       const offered =

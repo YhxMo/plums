@@ -53,6 +53,7 @@ it("builds a new connection from the template and the user's target", async () =
   const adapter = await ready();
   const result = (await connect(adapter, {
     action: "save",
+    key: "sk-synthetic",
     protocol: "openai",
     label: "Kimi",
     target: "https://api.moonshot.cn/v1/chat/completions",
@@ -71,7 +72,10 @@ it("builds a new connection from the template and the user's target", async () =
       target: "https://api.moonshot.cn/v1/chat/completions",
     },
     revision: 0,
+    // Write-only: passed to native storage, never part of a result.
+    key: "sk-synthetic",
   });
+  expect(JSON.stringify(result)).not.toContain("sk-synthetic");
 });
 
 it("lists only its own connections with the protocol they match", async () => {
@@ -96,6 +100,7 @@ it("re-enters an existing connection at its revision and removes it", async () =
   const adapter = await ready();
   await connect(adapter, {
     action: "save",
+    key: "sk-synthetic",
     alias: "c-abcdefgh",
     protocol: "openai",
     label: "DeepSeek",
@@ -115,36 +120,42 @@ it("re-enters an existing connection at its revision and removes it", async () =
 it.each([
   {
     action: "save",
+    key: "sk-synthetic",
     protocol: "missing",
     label: "x",
     target: "https://a.example/",
   },
   {
     action: "save",
+    key: "sk-synthetic",
     protocol: "openai",
     label: "x",
     target: "http://a.example/",
   },
   {
     action: "save",
+    key: "sk-synthetic",
     protocol: "openai",
     label: "x",
     target: "https://a.example:8443/",
   },
   {
     action: "save",
+    key: "sk-synthetic",
     protocol: "openai",
     label: "x",
     target: "https://a.example/?k=1",
   },
   {
     action: "save",
+    key: "sk-synthetic",
     protocol: "openai",
     label: "",
     target: "https://a.example/",
   },
   {
     action: "save",
+    key: "sk-synthetic",
     protocol: "openai",
     label: "x",
     target: "https://a.example/",
@@ -152,7 +163,21 @@ it.each([
   },
   {
     action: "save",
+    key: "sk-synthetic",
     alias: "c-unknown1",
+    protocol: "openai",
+    label: "x",
+    target: "https://a.example/",
+  },
+  {
+    action: "save",
+    protocol: "openai",
+    label: "x",
+    target: "https://a.example/",
+  },
+  {
+    action: "save",
+    key: 1,
     protocol: "openai",
     label: "x",
     target: "https://a.example/",
@@ -160,7 +185,7 @@ it.each([
   { action: "remove", alias: "text" },
   { action: "list", extra: 1 },
   null,
-])("rejects %j without opening a native panel", async (payload) => {
+])("rejects %j without saving anything", async (payload) => {
   const adapter = await ready();
   await expect(connect(adapter, payload)).rejects.toMatchObject({
     code: "invalid-request",

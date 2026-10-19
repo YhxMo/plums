@@ -23,7 +23,8 @@ export type ModelProvider = {
   base: string;
   /** Model names exactly as the service expects them; may be empty. */
   models: string[];
-  maxTokens: number;
+  /** Longest reply in tokens; null leaves it to the service. */
+  maxTokens: number | null;
   /** The models' context window in tokens; history is trimmed to fit it. */
   context: number;
 };
@@ -42,7 +43,7 @@ export type ProviderView = ModelProvider & { status: ProviderStatus };
 export const MAX_PROVIDERS = 16;
 export const MAX_MODELS = 32;
 export const limits = {
-  maxTokens: [1, 8192],
+  maxTokens: [1, 128_000],
   context: [16_000, 2_000_000],
 } as const;
 /** Chat model id offered to Agents: provider id, then the model name. */
@@ -96,10 +97,12 @@ export function draftProblem(draft: ProviderDraft) {
   )
     return "模型名须为 1–120 个字符，不含首尾空格。";
   if (new Set(draft.models).size !== draft.models.length) return "模型名重复。";
-  if (!integer(draft.maxTokens, limits.maxTokens))
-    return `最大输出须为 ${limits.maxTokens.join("–")} 的整数。`;
+  if (draft.maxTokens !== null && !integer(draft.maxTokens, limits.maxTokens))
+    return `最大输出须为 ${limits.maxTokens.join("–")} 的整数，或留空由服务决定。`;
   if (!integer(draft.context, limits.context))
     return `上下文窗口须为 ${limits.context.join("–")} 的整数（token）。`;
+  if (draft.maxTokens !== null && draft.maxTokens >= draft.context)
+    return "最大输出须小于上下文窗口。";
   return undefined;
 }
 
@@ -125,23 +128,31 @@ const fromVersion3 = (entry: Record<string, unknown>) => ({
   ).context,
 });
 
+/**
+ * Version 4 limited the turns sent, and its form defaulted to 1024 output
+ * tokens; now the whole conversation goes and the service sets the length.
+ */
+function fromVersion4({ turns: _turns, ...entry }: Record<string, unknown>) {
+  return {
+    ...entry,
+    maxTokens: entry.maxTokens === 1024 ? null : entry.maxTokens,
+  };
+}
+
 function restore(value: unknown): ModelProvider[] {
   if (
     !record(value) ||
-    ![2, 3, 4].includes(value.version as number) ||
+    ![2, 3, 4, 5].includes(value.version as number) ||
     !Array.isArray(value.providers)
   )
     throw corrupt();
+  const version = value.version as number;
   const seen = new Set<string>();
   return value.providers.map((raw: unknown) => {
     let entry = raw;
-    if (record(entry) && value.version === 2) entry = fromVersion2(entry);
-    if (record(entry) && value.version !== 4) entry = fromVersion3(entry);
-    // Earlier records limited the turns sent; the whole conversation goes now.
-    if (record(entry)) {
-      const { turns: _turns, ...current } = entry;
-      entry = current;
-    }
+    if (record(entry) && version === 2) entry = fromVersion2(entry);
+    if (record(entry) && version < 4) entry = fromVersion3(entry);
+    if (record(entry) && version < 5) entry = fromVersion4(entry);
     if (
       !record(entry) ||
       typeof entry.id !== "string" ||
@@ -165,12 +176,15 @@ function restore(value: unknown): ModelProvider[] {
   });
 }
 
+/** What native storage accepts: printable ASCII without spaces. */
+const validKey = (key: string) => /^[\x21-\x7e]{1,4096}$/.test(key);
+
 const newId = () => `p-${crypto.randomUUID().replaceAll("-", "").slice(0, 8)}`;
 
 /**
- * The user's model providers: records in this extension's state, keys and
- * targets in credential connections the user confirmed natively. Corrupt
- * state fails the extension and is kept as is.
+ * The user's model providers: records in this extension's state; keys and
+ * targets in credential connections, where the key is stored natively and
+ * never read back. Corrupt state fails the extension and is kept as is.
  */
 export class ProviderStore {
   private providers: ModelProvider[] = [];
@@ -240,40 +254,39 @@ export class ProviderStore {
   private async write(next: ModelProvider[]) {
     const receipt = (await this.call("state.write", {
       revision: this.revision,
-      value: { version: 4, providers: next },
+      value: { version: 5, providers: next },
     })) as StoredState;
     this.revision = receipt.revision;
     this.providers = next;
   }
-  /** Opens the native panel for target and key; resolves false when cancelled. */
-  private async connect(draft: ProviderDraft, alias?: string) {
+  /** Saves the key for the draft's target, under `alias` when given. */
+  private async connect(draft: ProviderDraft, key: string, alias?: string) {
     const result = (await this.call("credential.connect", {
       action: "save",
       ...(alias && { alias }),
       protocol: draft.protocol,
       label: draft.name,
       target: chatTarget(draft.protocol, draft.base),
+      key,
     })) as Result;
-    if (result.status === "cancelled") return undefined;
-    if (result.status === "rejected")
-      throw new Error(`密钥未保存：${result.reason ?? "平台拒绝了请求"}。`);
+    if (result.status === "rejected" || result.status === "cancelled")
+      throw new Error(
+        `密钥未保存：${result.reason === "invalid-key" ? "API Key 格式无效" : (result.reason ?? "平台拒绝了请求")}。`,
+      );
     // "unknown" may have saved it; the refreshed status shows which.
     return result.alias;
   }
   /**
-   * Adds or changes a provider and returns its id, or false when the user
-   * cancelled the panel. A new one, a changed address or protocol, or
-   * `rekey` asks the user for the key; other edits, models included, only
-   * save the record.
+   * Adds or changes a provider and returns its id. A new one, or a changed
+   * address or protocol, needs `key`; given for an existing one, it replaces
+   * the saved key. Other edits, models included, only save the record.
    */
-  async save(
-    input: ProviderDraft,
-    id?: string,
-    rekey = false,
-  ): Promise<string | false> {
+  async save(input: ProviderDraft, id?: string, key?: string): Promise<string> {
     const draft = { ...input, base: normalizeBase(input.protocol, input.base) };
     const problem = draftProblem(draft);
     if (problem) throw new Error(problem);
+    if (key && !validKey(key))
+      throw new Error("API Key 须为 1–4096 个字符，不含空格与中文。");
     const existing = id === undefined ? undefined : this.find(id);
     if (id !== undefined && !existing) throw new Error("该服务商已被删除。");
     if (!existing && this.providers.length >= MAX_PROVIDERS)
@@ -282,18 +295,19 @@ export class ProviderStore {
     let alias = existing?.alias;
     if (
       !existing ||
-      rekey ||
       status === "missing" ||
       status === "changed" ||
       existing.base !== draft.base ||
       existing.protocol !== draft.protocol
     ) {
+      if (!key) throw new Error("请填写 API Key。");
+    }
+    if (key)
       alias = await this.connect(
         draft,
+        key,
         status === "missing" ? undefined : alias,
       );
-      if (!alias) return false;
-    }
     const next = {
       ...draft,
       models: [...draft.models],

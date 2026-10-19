@@ -1,6 +1,7 @@
-//! Native management entry points. API keys never enter a WebView command or response.
+//! Native management entry points. An API key enters only `credential_configure`,
+//! typed by the user in the app; no response ever carries one.
 use crate::credential_bindings::{Bindings, Declaration, Failure, KeyResult, Route, Status, View};
-use crate::credential_secrets::{delete_all, retire};
+use crate::credential_secrets::{delete_all, key_valid, retire};
 #[cfg(target_os = "android")]
 pub use crate::credentials_native::AndroidCredentials;
 use crate::credentials_native::{key_exists, prompt, store_key};
@@ -72,9 +73,15 @@ pub async fn credential_configure(
     version: String,
     declaration: Declaration,
     revision: u64,
+    key: String,
 ) -> Response {
     if !credential_supported() {
         return unavailable();
+    }
+    if !key_valid(key.as_bytes()) {
+        return Response::Rejected {
+            reason: "invalid-key",
+        };
     }
     let bindings = app.state::<Bindings>().inner().clone();
     let ticket = match bindings.begin_key(owner, alias, source, version, declaration, revision) {
@@ -85,7 +92,7 @@ pub async fn credential_configure(
         let _ = bindings.finish_key(ticket, KeyResult::Unknown);
         return Response::Unknown;
     };
-    let result = store_key(app.clone(), &ticket.view, reference).await;
+    let result = store_key(app.clone(), reference, key).await;
     let view = ticket.view.clone();
     match bindings.finish_key(ticket, result) {
         Ok(()) => match result {
@@ -93,7 +100,6 @@ pub async fn credential_configure(
                 retire(app, &bindings, &view.owner, &view.alias, view.revision).await;
                 Response::Saved
             }
-            KeyResult::Cancelled => Response::Cancelled,
             KeyResult::Rejected => Response::Rejected {
                 reason: "invalid-key",
             },
@@ -131,7 +137,6 @@ pub async fn credential_route(
             ticket.view.declaration.label, ticket.view.declaration.target
         ),
         Some(current.into()),
-        false,
     )
     .await;
     match result {
@@ -201,11 +206,10 @@ pub async fn credential_delete(
         app.clone(),
         "撤销并删除凭据",
         &format!(
-            "{}\n{}\n\n将禁用此连接，并删除此绑定持有的系统凭据。",
+            "{}\n{}\n\n将禁用此连接，并删除此绑定保存的 API Key。",
             ticket.view.declaration.label, ticket.view.declaration.target
         ),
         None,
-        false,
     )
     .await
     {

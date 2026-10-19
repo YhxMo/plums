@@ -60,12 +60,8 @@ fn records_keep_policies_without_keys_and_restart_is_not_a_vault_check() {
     );
 }
 #[test]
-fn prewrite_cancel_rejection_or_unavailability_restores_previous_binding() {
-    for result in [
-        KeyResult::Cancelled,
-        KeyResult::Rejected,
-        KeyResult::Unavailable,
-    ] {
+fn prewrite_rejection_or_unavailability_restores_previous_binding() {
+    for result in [KeyResult::Rejected, KeyResult::Unavailable] {
         let fixture = Fixture::new();
         let store = fixture.store();
         let ticket = begin(&store, 0).unwrap();
@@ -152,23 +148,25 @@ fn explicit_proxy_changes_revision_and_keeps_target_unchanged() {
     ));
 }
 #[test]
-fn send_consent_survives_restart_and_lapses_when_the_binding_changes() {
+fn saving_a_key_grants_send_consent_until_the_binding_changes() {
     let fixture = Fixture::new();
     let store = fixture.store();
+    // The user typed the key into a form that showed the target.
     ready(&store);
-    let (view, _) = store.resolve(OWNER, "text").unwrap();
-    assert!(!store.consented(&view));
-    store.consent(&view).unwrap();
     let restarted = fixture.store();
-    assert!(restarted.consented(&restarted.resolve(OWNER, "text").unwrap().0));
-    // Re-entering the key is a new revision and needs a new consent.
-    let ticket = begin(&restarted, view.revision).unwrap();
-    restarted.finish_key(ticket, KeyResult::Stored).unwrap();
+    let (view, _) = restarted.resolve(OWNER, "text").unwrap();
+    assert!(restarted.consented(&view));
+    // A route change is a new revision and asks again.
+    let ticket = restarted
+        .begin_action(OWNER, "text", view.revision)
+        .unwrap();
+    restarted.finish_route(ticket, Route::Direct).unwrap();
     let (changed, _) = restarted.resolve(OWNER, "text").unwrap();
     assert!(!restarted.consented(&changed));
     assert_eq!(restarted.consent(&view), Err("stale"));
-    // Disabling the owner's bindings (uninstall or replacement) lapses it too.
     restarted.consent(&changed).unwrap();
+    assert!(fixture.store().consented(&changed));
+    // Disabling the owner's bindings (uninstall or replacement) lapses it too.
     restarted.retain_disabled(OWNER).unwrap();
     assert!(!restarted.consented(&restarted.list(OWNER).unwrap()[0]));
 }

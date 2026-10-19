@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { manage } from "./helpers";
+import { addAgent, manage } from "./helpers";
 
 const extensionId = "sample.credential-test";
 const declaration = {
@@ -111,7 +111,7 @@ for (const width of [375, 1180]) {
         binding.getByRole("button", { name: "撤销并删除凭据", exact: true }),
       ).toBeEnabled();
       await expect(
-        binding.getByRole("button", { name: "录入 API Key", exact: true }),
+        binding.getByRole("button", { name: "保存 API Key", exact: true }),
       ).toHaveCount(0);
       const cleanup = binding.getByRole("button", {
         name: "撤销并删除凭据",
@@ -151,7 +151,7 @@ for (const width of [375, 1180]) {
   }
 }
 
-test("connector key entry uses native metadata and recovers an unknown save", async ({
+test("connector key entry saves the typed key natively and recovers an unknown save", async ({
   page,
 }) => {
   // A connector with a fixed manifest binding, imported like an author's file.
@@ -232,24 +232,28 @@ test("connector key entry uses native metadata and recovers an unknown save", as
   await manage(page);
   await page.getByText("测试连接器", { exact: true }).click();
   const binding = page.getByRole("region", { name: "连接与凭据", exact: true });
-  await binding
-    .getByRole("button", { name: "录入 API Key", exact: true })
-    .click();
+  const key = binding.getByLabel(`${declaration.label} 的 API Key`);
+  const submit = binding.getByRole("button", {
+    name: "保存 API Key",
+    exact: true,
+  });
+  await expect(key).toHaveAttribute("type", "password");
+  await expect(submit).toBeDisabled();
+  await key.fill("sk-test-key");
+  await submit.click();
   await expect(binding).toContainText("保存结果待核对");
-  await expect(
-    binding.getByRole("button", { name: "录入 API Key", exact: true }),
-  ).toBeDisabled();
+  await expect(key).toHaveValue("");
+  await expect(key).toBeDisabled();
   await binding
     .getByRole("button", { name: "核对保存状态", exact: true })
     .click();
   await expect(binding).toContainText("凭据已保存，连接尚未验证");
-  const reenter = binding.getByRole("button", {
-    name: "重新录入凭据",
-    exact: true,
-  });
-  await reenter.click();
+  await key.fill("sk-other-key");
+  await binding
+    .getByRole("button", { name: "更换 API Key", exact: true })
+    .click();
   await expect(binding).toContainText("已取消，保留原连接记录");
-  await expect(reenter).toBeFocused();
+  await expect(key).toBeFocused();
   const payloads = await page.evaluate(
     () =>
       (window as unknown as { __credentialPayloads: object[] })
@@ -258,12 +262,16 @@ test("connector key entry uses native metadata and recovers an unknown save", as
   expect(Object.keys(payloads[0]).sort()).toEqual([
     "alias",
     "declaration",
+    "key",
     "owner",
     "revision",
     "source",
     "version",
   ]);
-  await expect(binding.locator("input")).toHaveCount(0);
+  expect(payloads).toMatchObject([
+    { key: "sk-test-key" },
+    { key: "sk-other-key" },
+  ]);
 });
 
 for (const width of [375, 1180])
@@ -283,6 +291,8 @@ for (const width of [375, 1180])
       w.__requests = [];
       let records: Array<Record<string, unknown>> = [];
       const states = new Map<string, { revision: number; value: unknown }>();
+      (w as unknown as { __states: () => string }).__states = () =>
+        JSON.stringify([...states]);
       w.__TAURI_INTERNALS__ = {
         invoke: async (command: string, args: Record<string, unknown>) => {
           if (command === "credential_supported") return true;
@@ -385,9 +395,16 @@ for (const width of [375, 1180])
     await expect(dialog).toContainText(
       "对话请求发往 https://gateway.invalid/v1/messages",
     );
-    await dialog
-      .getByRole("button", { name: "获取模型列表", exact: true })
-      .click();
+    const fetchModels = dialog.getByRole("button", {
+      name: "获取模型列表",
+      exact: true,
+    });
+    await fetchModels.click();
+    await expect(dialog.getByRole("alert")).toHaveText("请填写 API Key。");
+    const key = dialog.getByLabel("API Key", { exact: true });
+    await expect(key).toHaveAttribute("type", "password");
+    await key.fill(" sk-test-key ");
+    await fetchModels.click();
     const picker = dialog.getByRole("group", { name: "服务提供的模型" });
     await expect(picker.getByRole("checkbox")).toHaveCount(3);
     await picker.getByRole("checkbox", { name: "model-one" }).check();
@@ -445,6 +462,7 @@ for (const width of [375, 1180])
       owner: "extension.connector.models",
       source: "内置模型连接器",
       revision: 0,
+      key: "sk-test-key",
       declaration: {
         label: "网关",
         target: "https://gateway.invalid/v1/messages",
@@ -460,4 +478,26 @@ for (const width of [375, 1180])
         path: "/v1/models",
       }),
     ]);
+    // The key went only to native storage, not into the extension's records.
+    expect(
+      await page.evaluate(() =>
+        (window as unknown as { __states: () => string }).__states(),
+      ),
+    ).not.toContain("sk-test-key");
+    // Editing shows that a key is saved, without showing it.
+    await provider.getByRole("button", { name: "编辑 网关" }).click();
+    await expect(dialog.getByLabel("API Key", { exact: true })).toHaveValue("");
+    await expect(dialog).toContainText("已保存");
+    await dialog.getByRole("button", { name: "返回", exact: true }).click();
+    // A new Agent takes the first model; management lists it as a user of
+    // the connector as well as of the Agent provider.
+    await page.keyboard.press("Escape");
+    await expect(dialog).toBeHidden();
+    await addAgent(page, "模型助手");
+    await manage(page);
+    // The connector and the Agent interface both list the Agent.
+    for (const id of ["connector.models", "ui.agents"])
+      await expect(
+        page.locator(`article[data-extension-id="${id}"]`),
+      ).toContainText("个 Agent 在使用");
   });

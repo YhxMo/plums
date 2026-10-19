@@ -85,6 +85,8 @@ const previousTemplates = {
     "98635e13fc5f026f1752502e9ac07f19ff5fa0179e6626573add1e81be865610",
     // e06aeb7: 64 KiB request, 30 s total.
     "855ba65873f58ce845b6890bc69784eb7c39ee094491af520705eae2a42c3c0d",
+    // 6fc58eb: 8 MiB request, key typed in a native dialog.
+    "45b5d08536d1d8102089b836d41e9ff91527953ad70df327270546d9b8ceb07e",
   ]),
 };
 /** Validate every edit before writing any generated file.

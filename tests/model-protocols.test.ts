@@ -19,6 +19,27 @@ const history = [
 ];
 const parse = (body: string) => JSON.parse(body) as Record<string, unknown>;
 
+it("leaves the reply length to OpenAI-compatible services unless one is set", () => {
+  const request = { history: [], input: "hi" };
+  const open = { ...openai, maxTokens: null };
+  expect(parse(requestBody(open, request))).not.toHaveProperty("max_tokens");
+  // Anthropic requires one: a share of the window, at most 32K.
+  const claude = { ...anthropic, maxTokens: null };
+  expect(
+    parse(requestBody({ ...claude, context: 1_000_000 }, request)).max_tokens,
+  ).toBe(32_000);
+  expect(
+    parse(requestBody({ ...claude, context: 64_000 }, request)).max_tokens,
+  ).toBe(16_000);
+  // The unset reply still keeps its room in the window.
+  expect(() =>
+    requestBody(
+      { ...open, context: 64_000 },
+      { history: [], input: "字".repeat(50_000) },
+    ),
+  ).toThrow("留给回复");
+});
+
 it("sends instructions, history and input as OpenAI chat messages", () => {
   expect(
     parse(

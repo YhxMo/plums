@@ -11,7 +11,8 @@ export type ChatInput = {
 export type Endpoint = {
   protocol: Protocol;
   model: string;
-  maxTokens: number;
+  /** Longest reply; null leaves it to the service where the protocol allows. */
+  maxTokens: number | null;
   /** The model's context window in tokens, reply included. */
   context: number;
   extra?: Record<string, unknown>;
@@ -28,6 +29,10 @@ const HIGH = 0.9;
 const REFILL = 0.6;
 /** Anthropic caches up to marked blocks; OpenAI-compatible services cache prefixes on their own. */
 const cache = { type: "ephemeral" };
+
+/** Tokens kept free for the reply: the set maximum, else a share of the window. */
+export const replyRoom = ({ maxTokens, context }: Endpoint) =>
+  maxTokens ?? Math.min(32_000, Math.floor(context / 4));
 
 /** 1000000 → "1M", 128000 → "128K". */
 export const tokenLabel = (tokens: number) =>
@@ -82,7 +87,8 @@ function body(endpoint: Endpoint, request: ChatInput, history: Turn[]) {
     return JSON.stringify({
       ...endpoint.extra,
       model: endpoint.model,
-      max_tokens: endpoint.maxTokens,
+      // Required by Messages.
+      max_tokens: replyRoom(endpoint),
       // The system prompt, and the conversation through this input, which
       // the next request repeats as its prefix.
       ...(instructions && {
@@ -101,7 +107,7 @@ function body(endpoint: Endpoint, request: ChatInput, history: Turn[]) {
   return JSON.stringify({
     ...endpoint.extra,
     model: endpoint.model,
-    max_tokens: endpoint.maxTokens,
+    ...(endpoint.maxTokens !== null && { max_tokens: endpoint.maxTokens }),
     stream: false,
     messages: [
       ...(instructions ? [{ role: "system", content: instructions }] : []),
@@ -122,7 +128,8 @@ export function requestBody(
   request: ChatInput,
   limit = REQUEST_LIMIT,
 ) {
-  const budget = endpoint.context - endpoint.maxTokens;
+  const room = replyRoom(endpoint);
+  const budget = endpoint.context - room;
   const bare = body(endpoint, request, []);
   const size = bytes(bare);
   const tokens = estimateTokens(bare);
@@ -133,7 +140,7 @@ export function requestBody(
     );
   if (tokens > budget)
     throw failure(
-      `这条消息连同角色说明约 ${tokenLabel(Math.ceil(tokens / 1000) * 1000)} token，超出上下文窗口（${tokenLabel(endpoint.context)}，其中 ${endpoint.maxTokens} 留给回复），未发送；请缩短，或在模型连接中调大上下文窗口。`,
+      `这条消息连同角色说明约 ${tokenLabel(Math.ceil(tokens / 1000) * 1000)} token，超出上下文窗口（${tokenLabel(endpoint.context)}，其中 ${tokenLabel(room)} 留给回复），未发送；请缩短，或在模型连接中调大上下文窗口。`,
       "not-dispatched",
     );
   const { history } = request;

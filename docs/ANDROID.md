@@ -25,7 +25,7 @@ Rust 编译输出固定到本项目 `.cache/android/target/`。Tauri 的 Android
 
 [MainActivity.kt](../native/android/MainActivity.kt) 是受版本控制的系统栏适配源码；`{{PACKAGE}}` 从 Tauri 的 `identifier` 生成。它在内容根节点合并 system bars、display cutout 和 IME 的 Insets，并请求初次应用，使 WebView 避开系统栏，键盘出现时缩小可用视口。[AppearancePlugin.kt](../native/android/AppearancePlugin.kt) 通过 Tauri 原生插件同步深浅模式的根背景和系统栏图标亮度，关闭导航栏的额外对比遮罩；Insets 的计算仍由 MainActivity 负责。
 
-[CredentialsPlugin.kt](../native/android/CredentialsPlugin.kt)提供原生 API Key 输入、Android Keystore AES-GCM 与 noBackup 密文存储；命令只返回状态，不向 WebView 交付密钥。源码由同一准备流程生成，未知既有插件代码会拒绝覆盖；实际秘密操作与网络请求的验证范围见[凭据管理](CREDENTIAL-BINDINGS.md)。录入对话框构建或显示失败按 `unavailable` 返回并恢复旧记录、记录 logcat 异常类名；已开始写入后的线程内失败仍按 unknown，均不伪装为用户取消，也不记录秘密。
+[CredentialsPlugin.kt](../native/android/CredentialsPlugin.kt)接收应用内填写的 API Key，以 Android Keystore AES-GCM 加密后写入 noBackup 文件；命令只返回状态，不向 WebView 交付密钥。源码由同一准备流程生成，未知既有插件代码会拒绝覆盖；实际秘密操作与网络请求的验证范围见[凭据管理](CREDENTIAL-BINDINGS.md)。写入线程内的失败按 unknown，不记录秘密。
 
 [scripts/android-project.mjs](../scripts/android-project.mjs) 在写入前核对所有目标：
 

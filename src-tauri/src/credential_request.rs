@@ -178,7 +178,7 @@ async fn dispatch(
         view.declaration.read_target(path).map_err(Refused)?;
     }
     if !requests.confirmed(&view) && !bindings.consented(&view) {
-        match prompt(app.clone(), "允许发送请求", &consent(&view), None, false).await {
+        match prompt(app.clone(), "允许发送请求", &consent(&view), None).await {
             Ok(Some(_)) if requests.confirm(&view, &slot) => {
                 // Unsaved consent still holds for this run.
                 let _ = bindings.consent(&view);

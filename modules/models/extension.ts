@@ -79,7 +79,7 @@ export function modelConnector({
           : status === "changed"
             ? "的请求地址未确认，请在模型连接中重新保存。"
             : status === "missing"
-              ? "还没有录入 API Key，请在模型连接中录入。"
+              ? "还没有填写 API Key，请在模型连接中填写。"
               : "的连接待核对或已停用，请在模型连接中处理。";
       };
       const reply: ChatService["reply"] = async (request, signal) => {
@@ -168,7 +168,7 @@ export function modelConnector({
             }
             if (response.status === 401 || response.status === 403)
               throw new Error(
-                `服务拒绝了 API Key（HTTP ${response.status}），请核对后重新录入密钥。`,
+                `服务拒绝了 API Key（HTTP ${response.status}），请核对后重新填写。`,
               );
             const names =
               response.status < 300 ? readModelList(response.body) : [];
@@ -186,7 +186,7 @@ export function modelConnector({
       const models = () =>
         store.list().flatMap((provider) => {
           const label = presetOf(provider)?.label ?? "自定义";
-          const description = `${provider.name === label ? label : `${provider.name} · ${label}`}${provider.status === "ready" ? "" : "（需要录入密钥）"}`;
+          const description = `${provider.name === label ? label : `${provider.name} · ${label}`}${provider.status === "ready" ? "" : "（需要填写 API Key）"}`;
           return provider.models.map((model) => ({
             id: modelId(provider.id, model),
             label: model,
@@ -207,7 +207,7 @@ export function modelConnector({
         fetchModels,
         list: () => store.list(),
         subscribe: (listener) => store.subscribe(listener),
-        save: (draft, id, rekey) => store.save(draft, id, rekey),
+        save: (draft, id, key) => store.save(draft, id, key),
         remove: (id) => store.remove(id),
         refresh: () => store.refresh(),
         test: (provider, model, signal) =>

@@ -176,6 +176,8 @@ pub fn run() {
             let root =
                 data_dir_override().unwrap_or(app.path().app_data_dir()?.join("data"));
             app.manage(credential_bindings::Bindings::new(root.clone()));
+            #[cfg(not(target_os = "android"))]
+            app.manage(credential_secrets::Vault::new(root.clone()));
             let broker = Broker::new(root);
             broker.sweep(std::time::Duration::from_secs(3600));
             app.manage(broker);

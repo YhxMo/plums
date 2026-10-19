@@ -152,10 +152,6 @@
 .section > .hint {
   margin-bottom: 10px;
 }
-.label {
-  font-size: 12px;
-  font-weight: 500;
-}
 .readonly {
   margin: 0 0 14px;
   font-size: 13px;
@@ -169,26 +165,6 @@
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 0 12px;
-}
-.key {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  margin-bottom: 14px;
-  padding: 10px 12px;
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  background: var(--surface);
-}
-.keyText {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  min-width: 0;
-}
-.key button {
-  flex: none;
 }
 .chips {
   list-style: none;
@@ -298,8 +274,7 @@
   .pair {
     grid-template-columns: 1fr;
   }
-  .header,
-  .key {
+  .header {
     flex-direction: column;
     align-items: stretch;
   }

@@ -28,7 +28,7 @@ export function fromPreset(
     protocol: preset.protocol,
     base: preset.base,
     models: [],
-    maxTokens: 1024,
+    maxTokens: null,
     context: preset.context,
   };
 }
@@ -112,7 +112,7 @@ function ModelList({
 /**
  * Add or edit one provider, with the fields cc-switch asks for: preset, name,
  * notes, website, API format, base URL, key, models, and advanced budgets.
- * The key itself is entered only in the native panel.
+ * The key is write-only: saved natively, never shown again.
  */
 export function ProviderForm({
   api,
@@ -133,7 +133,8 @@ export function ProviderForm({
     provider ? draftOf(provider) : fromPreset(api, api.presets[0].id),
   );
   const [fetched, setFetched] = useState<string[] | null>(null);
-  const { busy, error, notice, setNotice, run } = useAsyncAction();
+  const [key, setKey] = useState("");
+  const { busy, error, notice, run } = useAsyncAction();
   const set = (patch: Partial<ProviderDraft>) =>
     setDraft((value) => ({ ...value, ...patch }));
   const preset = api.presets.find((p) => p.id === draft.preset);
@@ -142,7 +143,7 @@ export function ProviderForm({
   const target = /^https:\/\/[^/?#:@\s]+/.test(base)
     ? chatTarget(draft.protocol, base)
     : "";
-  // A new key is asked for when any of these change.
+  // A key must be typed when any of these change.
   const needsKey =
     !current ||
     current.status === "missing" ||
@@ -150,18 +151,19 @@ export function ProviderForm({
     current.base !== base ||
     current.protocol !== draft.protocol;
 
-  const save = (rekey = false) =>
+  const typed = key.trim() || undefined;
+  const save = () =>
     run(async () => {
-      const saved = await api.save(draft, current?.id, rekey);
-      if (!saved) return setNotice("已取消，未保存密钥。");
+      await api.save(draft, current?.id, typed);
+      setKey("");
       onDone("已保存。");
     });
   const fetchModels = () =>
     run(async () => {
       let saved = current?.id;
-      if (needsKey || current?.status !== "ready") {
-        saved = (await api.save(draft, saved)) || undefined;
-        if (!saved) return setNotice("已取消，未保存密钥。");
+      if (needsKey || typed || current?.status !== "ready") {
+        saved = await api.save(draft, saved, typed);
+        setKey("");
         setId(saved);
         set({ base });
       }
@@ -169,14 +171,14 @@ export function ProviderForm({
     });
 
   const keyState = !current
-    ? "保存时在系统面板中录入；密钥只存于系统凭据库。"
+    ? "只保存在本机，用于向上面的地址发送请求，之后不再显示。"
     : needsKey
       ? current.status === "missing"
-        ? "没有找到已保存的密钥，保存时重新录入。"
-        : "地址或格式已改，保存时需要重新录入。"
+        ? "没有找到已保存的 API Key，请重新填写。"
+        : "地址或格式已改，请重新填写 API Key。"
       : current.status === "ready"
-        ? "已录入，保存在系统凭据库。"
-        : "待核对，可重新录入。";
+        ? "已保存。留空保持不变，填写新的 Key 则替换。"
+        : "待核对，可重新填写。";
   return (
     <form
       className={`dialog-content ${s.form}`}
@@ -292,28 +294,30 @@ export function ProviderForm({
               : "填写服务商文档中的 Base URL；粘贴完整地址也可以。"}
           </span>
         </div>
-        <div className={s.key} role="group" aria-labelledby={`${ids}-key`}>
-          <div className={s.keyText}>
-            <span id={`${ids}-key`} className={s.label}>
-              API Key
-            </span>
-            <span className={s.hint}>{keyState}</span>
+        <div className="field">
+          <label htmlFor={`${ids}-key`}>API Key</label>
+          <input
+            id={`${ids}-key`}
+            aria-describedby={`${ids}-key-state`}
+            type="password"
+            value={key}
+            maxLength={4096}
+            required={needsKey}
+            disabled={busy}
+            autoComplete="off"
+            spellCheck={false}
+            placeholder={needsKey ? "粘贴 API Key" : "已保存，留空保持不变"}
+            onChange={(e) => setKey(e.target.value)}
+          />
+          <span id={`${ids}-key-state`} className={s.hint}>
+            {keyState}
             {preset?.keyUrl && (
-              <span className={s.hint}>
-                在 <span className={s.url}>{preset.keyUrl}</span> 创建
-              </span>
+              <>
+                {" "}
+                在 <span className={s.url}>{preset.keyUrl}</span> 创建。
+              </>
             )}
-          </div>
-          {current && !needsKey && (
-            <button
-              type="button"
-              className="secondary"
-              disabled={busy}
-              onClick={() => void save(true)}
-            >
-              重新录入密钥
-            </button>
-          )}
+          </span>
         </div>
       </section>
 
@@ -336,7 +340,7 @@ export function ProviderForm({
           </button>
         </div>
         {needsKey && (
-          <p className={s.hint}>获取前会先保存，并在系统面板中录入 API Key。</p>
+          <p className={s.hint}>获取前会先用上面的 API Key 保存此服务商。</p>
         )}
         {fetched && (
           <ModelPicker
@@ -383,11 +387,20 @@ export function ProviderForm({
             type="number"
             min={limits.maxTokens[0]}
             max={limits.maxTokens[1]}
-            value={draft.maxTokens}
+            value={draft.maxTokens ?? ""}
+            placeholder="由服务决定"
             disabled={busy}
-            onChange={(e) => set({ maxTokens: e.target.valueAsNumber })}
+            onChange={(e) =>
+              set({
+                maxTokens:
+                  e.target.value === "" ? null : e.target.valueAsNumber,
+              })
+            }
           />
         </label>
+        <p className={s.hint}>
+          一般留空。Anthropic 格式必须填写时按上下文窗口留出（最多 32K）。
+        </p>
       </details>
 
       {error && (
@@ -406,7 +419,7 @@ export function ProviderForm({
           返回
         </button>
         <button type="submit" disabled={busy}>
-          {busy ? "请稍候…" : needsKey ? "保存并录入密钥" : "保存"}
+          {busy ? "请稍候…" : "保存"}
         </button>
       </div>
     </form>

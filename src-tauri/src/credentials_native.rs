@@ -1,82 +1,50 @@
 //! Platform secret storage and native panels. Kept separate from the Tauri
 //! command layer so each file stays reviewable.
-use crate::credential_bindings::{Failure, KeyResult, View};
+use crate::credential_bindings::{Failure, KeyResult};
 #[cfg(target_os = "android")]
 use tauri::Manager;
 
 #[cfg(target_os = "macos")]
-pub(crate) fn key_valid(bytes: &[u8]) -> bool {
-    !bytes.is_empty() && bytes.len() <= 4096 && bytes.iter().all(|c| (33..=126).contains(c))
-}
-fn context(view: &View) -> String {
-    let headers = view
-        .declaration
-        .headers
-        .iter()
-        .map(|(key, value)| format!("{key}: {value}"))
-        .collect::<Vec<_>>()
-        .join("\n");
-    format!("{}\n{}\n扩展：{} / {}\n来源：{} · {}\nPOST · {}\n认证：{}\n{}\n\nAPI Key 仅保存到系统凭据存储。此操作不发送请求。", view.declaration.label, view.declaration.target, view.owner, view.alias, view.source, view.version, view.declaration.content_type, view.declaration.authentication.name(), headers)
-}
-
-#[cfg(target_os = "macos")]
-pub(crate) async fn store_key(app: tauri::AppHandle, view: &View, reference: &str) -> KeyResult {
-    use security_framework::passwords::{set_generic_password_options, PasswordOptions};
-    let mut bytes = match prompt(
-        app.clone(),
-        "录入 API Key",
-        &context(view),
-        Some(String::new()),
-        true,
-    )
-    .await
-    {
-        Ok(Some(value)) => value.into_bytes(),
-        Ok(None) => return KeyResult::Cancelled,
-        Err("unavailable") => return KeyResult::Unavailable,
-        Err(_) => return KeyResult::Unknown,
-    };
-    if !key_valid(&bytes) {
-        bytes.fill(0);
-        return KeyResult::Rejected;
-    }
-    let service = format!("{}.credentials.v1", app.config().identifier);
-    let reference = reference.to_owned();
+fn vault<T: Send + 'static>(
+    app: tauri::AppHandle,
+    run: impl FnOnce(&crate::credential_secrets::Vault) -> T + Send + 'static,
+) -> impl std::future::Future<Output = Result<T, tauri::Error>> {
+    use tauri::Manager;
     tauri::async_runtime::spawn_blocking(move || {
-        let mut options = PasswordOptions::new_generic_password(&service, &reference);
-        options.set_access_synchronized(Some(false));
-        let result = set_generic_password_options(&bytes, options);
-        bytes.fill(0);
-        if result.is_ok() {
-            KeyResult::Stored
-        } else {
-            KeyResult::Unknown
-        }
+        run(&app.state::<crate::credential_secrets::Vault>())
     })
-    .await
-    .unwrap_or(KeyResult::Unknown)
+}
+#[cfg(target_os = "macos")]
+pub(crate) async fn store_key(app: tauri::AppHandle, reference: &str, key: String) -> KeyResult {
+    let reference = reference.to_owned();
+    match vault(app, move |vault| vault.put(&reference, &key)).await {
+        Ok(Ok(())) => KeyResult::Stored,
+        Ok(Err("invalid-key")) => KeyResult::Rejected,
+        // Nothing replaced the file: the key is certainly not saved.
+        Ok(Err("unavailable" | "corrupt" | "resource-limit")) => KeyResult::Unavailable,
+        _ => KeyResult::Unknown,
+    }
+}
+#[cfg(target_os = "macos")]
+pub(crate) async fn read_key(
+    app: &tauri::AppHandle,
+    reference: &str,
+) -> Result<Option<Vec<u8>>, Failure> {
+    let reference = reference.to_owned();
+    vault(app.clone(), move |vault| vault.get(&reference))
+        .await
+        .map_err(|_| "unknown")?
 }
 #[cfg(target_os = "macos")]
 pub(crate) async fn key_exists(app: tauri::AppHandle, reference: &str) -> Result<bool, Failure> {
-    let key = crate::credential_transport::read_key(&app, reference).await?;
-    Ok(key.map(|mut bytes| bytes.fill(0)).is_some())
+    Ok(read_key(&app, reference).await?.is_some())
 }
 #[cfg(target_os = "macos")]
 pub(crate) async fn delete_key(app: tauri::AppHandle, reference: &str) -> Result<(), Failure> {
-    let service = format!("{}.credentials.v1", app.config().identifier);
     let reference = reference.to_owned();
-    tauri::async_runtime::spawn_blocking(move || {
-        use security_framework::passwords::{delete_generic_password_options, PasswordOptions};
-        let mut options = PasswordOptions::new_generic_password(&service, &reference);
-        options.set_access_synchronized(Some(false));
-        match delete_generic_password_options(options) {
-            Ok(()) => Ok(()),
-            Err(error) if error.code() == -25300 => Ok(()),
-            Err(_) => Err("unknown"),
-        }
-    })
-    .await
-    .map_err(|_| "unknown")?
+    vault(app, move |vault| vault.remove(&reference))
+        .await
+        .map_err(|_| "unknown")?
 }
 #[cfg(target_os = "macos")]
 pub(crate) async fn prompt(
@@ -84,10 +52,9 @@ pub(crate) async fn prompt(
     title: &str,
     description: &str,
     input: Option<String>,
-    secure: bool,
 ) -> Result<Option<String>, Failure> {
     use objc2::{MainThreadMarker, MainThreadOnly};
-    use objc2_app_kit::{NSAlert, NSAlertFirstButtonReturn, NSSecureTextField, NSTextField};
+    use objc2_app_kit::{NSAlert, NSAlertFirstButtonReturn, NSTextField};
     use objc2_foundation::{NSPoint, NSRect, NSSize, NSString};
     let (send, receive) = std::sync::mpsc::sync_channel(1);
     let title = title.to_owned();
@@ -104,18 +71,11 @@ pub(crate) async fn prompt(
                 .setKeyEquivalent(&NSString::from_str("\u{1b}"));
             let field = input.map(|value| {
                 let frame = NSRect::new(NSPoint::new(0.0, 0.0), NSSize::new(360.0, 28.0));
-                let field: objc2::rc::Retained<NSTextField> = if secure {
-                    NSSecureTextField::initWithFrame(NSSecureTextField::alloc(marker), frame)
-                        .into_super()
-                } else {
-                    NSTextField::initWithFrame(NSTextField::alloc(marker), frame)
-                };
+                let field = NSTextField::initWithFrame(NSTextField::alloc(marker), frame);
                 field.setStringValue(&NSString::from_str(&value));
-                field.setPlaceholderString(Some(&NSString::from_str(if secure {
-                    "API Key"
-                } else {
-                    "留空直连，或 http://127.0.0.1:7890"
-                })));
+                field.setPlaceholderString(Some(&NSString::from_str(
+                    "留空直连，或 http://127.0.0.1:7890",
+                )));
                 panel.setAccessoryView(Some(&field));
                 panel.window().setInitialFirstResponder(Some(&field));
                 field
@@ -153,11 +113,11 @@ pub(crate) async fn mobile(
         .map_err(|_| "unknown")
 }
 #[cfg(target_os = "android")]
-pub(crate) async fn store_key(app: tauri::AppHandle, view: &View, reference: &str) -> KeyResult {
+pub(crate) async fn store_key(app: tauri::AppHandle, reference: &str, key: String) -> KeyResult {
     let result = mobile(
         app,
         "store",
-        serde_json::json!({ "reference": reference, "description": context(view) }),
+        serde_json::json!({ "reference": reference, "key": key }),
     )
     .await;
     match result
@@ -166,7 +126,6 @@ pub(crate) async fn store_key(app: tauri::AppHandle, view: &View, reference: &st
         .and_then(|value| value["status"].as_str())
     {
         Some("stored") => KeyResult::Stored,
-        Some("cancelled") => KeyResult::Cancelled,
         Some("rejected") => KeyResult::Rejected,
         Some("unavailable") => KeyResult::Unavailable,
         _ => KeyResult::Unknown,
@@ -201,7 +160,6 @@ pub(crate) async fn prompt(
     title: &str,
     description: &str,
     input: Option<String>,
-    _secure: bool,
 ) -> Result<Option<String>, Failure> {
     let result = mobile(
         app,
@@ -220,7 +178,7 @@ pub(crate) async fn prompt(
     }
 }
 #[cfg(not(any(target_os = "macos", target_os = "android")))]
-pub(crate) async fn store_key(_app: tauri::AppHandle, _view: &View, _reference: &str) -> KeyResult {
+pub(crate) async fn store_key(_app: tauri::AppHandle, _reference: &str, _key: String) -> KeyResult {
     KeyResult::Rejected
 }
 #[cfg(not(any(target_os = "macos", target_os = "android")))]
@@ -237,7 +195,6 @@ pub(crate) async fn prompt(
     _title: &str,
     _description: &str,
     _input: Option<String>,
-    _secure: bool,
 ) -> Result<Option<String>, Failure> {
     Err("unavailable")
 }

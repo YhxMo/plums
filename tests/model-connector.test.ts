@@ -18,9 +18,10 @@ const deepseek: ProviderDraft = {
   protocol: "openai-chat",
   base: "https://api.deepseek.com",
   models: ["user-model-a", "user-model-b"],
-  maxTokens: 1024,
+  maxTokens: null,
   context: 128_000,
 };
+const KEY = "sk-synthetic";
 const deepseekTarget = "https://api.deepseek.com/chat/completions";
 const claude: ProviderDraft = {
   name: "Claude",
@@ -51,7 +52,7 @@ afterEach(async () => {
   for (const close of cleanups.splice(0).reverse()) await close();
 });
 
-/** Test-only platform: keyed state, native connection panel and transport. */
+/** Test-only platform: keyed state, native connection connect and transport. */
 async function fixture({
   credentials = true,
   saved,
@@ -62,7 +63,7 @@ async function fixture({
     string,
     { target: string; protocol: string; label: string }
   >();
-  const panel = vi.fn(async (_request: Record<string, unknown>) => "saved");
+  const connect = vi.fn(async (_request: Record<string, unknown>) => "saved");
   const send = vi.fn(async (_alias: string, _target: string, _body: string) =>
     completion("你是 nanan。"),
   );
@@ -101,7 +102,7 @@ async function fixture({
             ...item,
             status: "ready",
           }));
-        const status = await panel(request);
+        const status = await connect(request);
         if (status !== "saved") return { alias: request.alias ?? "", status };
         if (request.action === "remove") {
           connections.delete(request.alias as string);
@@ -175,7 +176,7 @@ async function fixture({
     host,
     api,
     chat: () => chat,
-    panel,
+    connect,
     send,
     read,
     states,
@@ -188,14 +189,15 @@ const signal = () => new AbortController().signal;
 const body = (send: ReturnType<typeof vi.fn>, call = 0) =>
   JSON.parse(send.mock.calls[call][2] as string) as Record<string, unknown>;
 
-it("adds a provider through the native panel and offers each of its models", async () => {
-  const { api, chat, panel, send, states } = await fixture();
-  const id = await api.save(deepseek);
-  expect(panel).toHaveBeenCalledWith({
+it("adds a provider with the key typed in the form and offers each of its models", async () => {
+  const { api, chat, connect, send, states } = await fixture();
+  const id = await api.save(deepseek, undefined, KEY);
+  expect(connect).toHaveBeenCalledWith({
     action: "save",
     protocol: "openai-chat",
     label: "DeepSeek",
     target: deepseekTarget,
+    key: KEY,
   });
   const [provider] = api.list();
   expect(provider.id).toBe(id);
@@ -206,7 +208,7 @@ it("adds a provider through the native panel and offers each of its models", asy
   });
   expect(provider.id).toMatch(/^p-[a-z0-9]{8}$/);
   expect(states.get(owner)?.value).toEqual({
-    version: 4,
+    version: 5,
     providers: [{ ...deepseek, id: provider.id, alias: "c-00000000" }],
   });
   expect(chat().models()).toEqual(
@@ -249,8 +251,8 @@ it("adds a provider through the native panel and offers each of its models", asy
 
 it("keeps providers apart and uses each one's protocol", async () => {
   const { api, chat, send } = await fixture();
-  await api.save(deepseek);
-  await api.save(claude);
+  await api.save(deepseek, undefined, KEY);
+  await api.save(claude, undefined, KEY);
   const [, second] = api.list();
   send.mockResolvedValueOnce({
     status: 200,
@@ -283,42 +285,47 @@ it("keeps providers apart and uses each one's protocol", async () => {
   });
 });
 
-it("asks for the key only when the address changes or the user asks", async () => {
-  const { api, panel } = await fixture();
-  await api.save(deepseek);
+it("needs the key only when the address changes, or to replace it", async () => {
+  const { api, connect } = await fixture();
+  await api.save(deepseek, undefined, KEY);
   const { id } = api.list()[0];
   await api.save(
     { ...deepseek, name: "主力", models: ["user-model-c"], maxTokens: 4000 },
     id,
   );
-  expect(panel).toHaveBeenCalledTimes(1);
+  expect(connect).toHaveBeenCalledTimes(1);
   expect(api.list()[0]).toMatchObject({
     name: "主力",
     models: ["user-model-c"],
     maxTokens: 4000,
   });
-  await api.save(
-    { ...api.list()[0], base: "https://proxy.example/v1/chat/completions/" },
-    id,
-  );
-  expect(panel).toHaveBeenLastCalledWith(
+  const moved = {
+    ...api.list()[0],
+    base: "https://proxy.example/v1/chat/completions/",
+  };
+  await expect(api.save(moved, id)).rejects.toThrow("请填写 API Key");
+  await api.save(moved, id, KEY);
+  expect(connect).toHaveBeenLastCalledWith(
     expect.objectContaining({
       alias: "c-00000000",
       target: "https://proxy.example/v1/chat/completions",
     }),
   );
-  await api.save(api.list()[0], id, true);
-  expect(panel).toHaveBeenCalledTimes(3);
+  await api.save(api.list()[0], id, "sk-replaced");
+  expect(connect).toHaveBeenCalledTimes(3);
+  expect(connect).toHaveBeenLastCalledWith(
+    expect.objectContaining({ alias: "c-00000000", key: "sk-replaced" }),
+  );
 });
 
 it("never sends to an address whose record failed to save", async () => {
-  const { api, chat, panel, send, failNextWrite } = await fixture();
-  await api.save(deepseek);
+  const { api, chat, connect, send, failNextWrite } = await fixture();
+  await api.save(deepseek, undefined, KEY);
   const { id, alias } = api.list()[0];
   failNextWrite();
-  // The panel confirms the new address natively, then the record write fails.
+  // The key is saved for the new address, then the record write fails.
   await expect(
-    api.save({ ...deepseek, base: "https://proxy.example/v1" }, id),
+    api.save({ ...deepseek, base: "https://proxy.example/v1" }, id, KEY),
   ).rejects.toThrow("磁盘已满");
   expect(api.list()[0]).toMatchObject({
     base: "https://api.deepseek.com",
@@ -332,9 +339,10 @@ it("never sends to an address whose record failed to save", async () => {
   ).rejects.toMatchObject({ outcome: "not-dispatched" });
   await expect(api.fetchModels(id, signal())).rejects.toThrow();
   expect(send).not.toHaveBeenCalled();
-  // Saving again confirms the shown address under the same connection.
-  await api.save(api.list()[0], id);
-  expect(panel).toHaveBeenLastCalledWith(
+  // Saving again with the key binds the shown address to the same connection.
+  await expect(api.save(api.list()[0], id)).rejects.toThrow("API Key");
+  await api.save(api.list()[0], id, KEY);
+  expect(connect).toHaveBeenLastCalledWith(
     expect.objectContaining({ alias, target: deepseekTarget }),
   );
   expect(api.list()[0].status).toBe("ready");
@@ -342,7 +350,7 @@ it("never sends to an address whose record failed to save", async () => {
 
 it("does not keep showing or using a stale ready state when re-reading keys fails", async () => {
   const { api, chat, send, failLists } = await fixture();
-  await api.save(deepseek);
+  await api.save(deepseek, undefined, KEY);
   const { id } = api.list()[0];
   failLists(1);
   await expect(api.refresh()).rejects.toThrow("连接记录不可用");
@@ -364,19 +372,33 @@ it("does not keep showing or using a stale ready state when re-reading keys fail
   expect(api.list()[0].status).toBe("ready");
 });
 
-it("saves nothing when the user cancels the panel", async () => {
-  const { api, panel, states } = await fixture();
-  panel.mockResolvedValueOnce("cancelled");
-  expect(await api.save(deepseek)).toBe(false);
+it.each([
+  [undefined, "请填写 API Key"],
+  ["", "请填写 API Key"],
+  ["sk has space", "API Key 须为"],
+  ["k".repeat(4097), "API Key 须为"],
+])("saves nothing for a new provider with key %j", async (key, message) => {
+  const { api, connect, states } = await fixture();
+  await expect(api.save(deepseek, undefined, key)).rejects.toThrow(message);
+  expect(connect).not.toHaveBeenCalled();
+  expect(states.has(owner)).toBe(false);
+});
+
+it("saves nothing when the platform refuses the key", async () => {
+  const { api, connect, states } = await fixture();
+  connect.mockResolvedValueOnce("rejected");
+  await expect(api.save(deepseek, undefined, KEY)).rejects.toThrow(
+    "密钥未保存",
+  );
   expect(api.list()).toEqual([]);
   expect(states.has(owner)).toBe(false);
 });
 
 it("deletes the key before the record, and keeps both when cancelled", async () => {
-  const { api, panel, connections } = await fixture();
-  await api.save(deepseek);
+  const { api, connect, connections } = await fixture();
+  await api.save(deepseek, undefined, KEY);
   const { id } = api.list()[0];
-  panel.mockResolvedValueOnce("cancelled");
+  connect.mockResolvedValueOnce("cancelled");
   expect(await api.remove(id)).toBe(false);
   expect(api.list()).toHaveLength(1);
   expect(await api.remove(id)).toBe(true);
@@ -397,17 +419,21 @@ it.each([
   [{ models: ["a", "a"] }, "重复"],
   [{ models: Array.from({ length: 33 }, (_, i) => `m${i}`) }, "最多"],
   [{ maxTokens: 0 }, "最大输出"],
+  [{ maxTokens: 200_000 }, "最大输出"],
+  [{ maxTokens: 128_000 }, "小于上下文窗口"],
   [{ context: 8000 }, "上下文窗口"],
   [{ context: 3_000_000 }, "上下文窗口"],
-])("rejects %j before opening the panel", async (patch, message) => {
-  const { api, panel } = await fixture();
-  await expect(api.save({ ...deepseek, ...patch })).rejects.toThrow(message);
-  expect(panel).not.toHaveBeenCalled();
+])("rejects %j before saving the key", async (patch, message) => {
+  const { api, connect } = await fixture();
+  await expect(
+    api.save({ ...deepseek, ...patch }, undefined, KEY),
+  ).rejects.toThrow(message);
+  expect(connect).not.toHaveBeenCalled();
 });
 
 it("refuses unknown models and malformed requests without sending", async () => {
   const { api, chat, send } = await fixture();
-  await api.save(deepseek);
+  await api.save(deepseek, undefined, KEY);
   const { id } = api.list()[0];
   for (const request of [
     { model: "p-missing0/user-model-a", history: [], input: "hi" },
@@ -428,7 +454,7 @@ it("refuses unknown models and malformed requests without sending", async () => 
 
 it("reports an unconfirmed transport failure as possibly sent", async () => {
   const { api, chat, send } = await fixture();
-  await api.save(deepseek);
+  await api.save(deepseek, undefined, KEY);
   send.mockRejectedValueOnce(
     Object.assign(new Error("x"), { outcome: "unknown" }),
   );
@@ -458,12 +484,14 @@ it("fails on corrupt records and leaves them as they were", async () => {
 });
 
 it("keeps a provider without models and offers nothing until one is added", async () => {
-  const { api, chat, panel } = await fixture();
-  expect(await api.save({ ...deepseek, models: [] })).toMatch(/^p-/);
+  const { api, chat, connect } = await fixture();
+  expect(await api.save({ ...deepseek, models: [] }, undefined, KEY)).toMatch(
+    /^p-/,
+  );
   expect(chat().models()).toEqual([]);
   const { id } = api.list()[0];
   await api.save({ ...deepseek, models: ["added-later"] }, id);
-  expect(panel).toHaveBeenCalledTimes(1);
+  expect(connect).toHaveBeenCalledTimes(1);
   expect(
     chat()
       .models()
@@ -473,7 +501,7 @@ it("keeps a provider without models and offers nothing until one is added", asyn
 
 it("tests one model of a provider", async () => {
   const { api, send } = await fixture();
-  await api.save(deepseek);
+  await api.save(deepseek, undefined, KEY);
   const { id } = api.list()[0];
   await expect(api.test(id, "user-model-b", signal())).resolves.toBe(
     "你是 nanan。",
@@ -518,6 +546,8 @@ it("upgrades version 2 records, which kept the full address", async () => {
   // Earlier versions limited turns; the whole conversation is sent now.
   expect(api.list()[0]).not.toHaveProperty("turns");
   expect(api.list().map(({ context }) => context)).toEqual([128_000, 128_000]);
+  // 1024 was the form's old default, not a choice: the service decides now.
+  expect(api.list().map(({ maxTokens }) => maxTokens)).toEqual([null, null]);
   expect(states.get(owner)?.value).toBe(saved);
 });
 
@@ -560,11 +590,16 @@ it("gives version 3 records their preset's context window", async () => {
 
 it("sends a whole long conversation to a 1M-context provider, and less to a 128K one", async () => {
   const { api, chat, send } = await fixture();
-  const big = (await api.save({
-    ...deepseek,
-    context: 1_000_000,
-  })) as string;
-  const small = (await api.save({ ...deepseek, name: "小" })) as string;
+  const big = (await api.save(
+    { ...deepseek, context: 1_000_000 },
+    undefined,
+    KEY,
+  )) as string;
+  const small = (await api.save(
+    { ...deepseek, name: "小" },
+    undefined,
+    KEY,
+  )) as string;
   const history = Array.from({ length: 100 }, (_, i) => [
     { role: "user" as const, text: `${i}` + "问".repeat(4000) },
     { role: "agent" as const, text: `${i}` + "答".repeat(4000) },
@@ -583,7 +618,11 @@ it("sends a whole long conversation to a 1M-context provider, and less to a 128K
 
 it("fetches a provider's model list from the first path that has one", async () => {
   const { api, read } = await fixture();
-  const id = (await api.save({ ...deepseek, models: [] })) as string;
+  const id = (await api.save(
+    { ...deepseek, models: [] },
+    undefined,
+    KEY,
+  )) as string;
   read.mockResolvedValueOnce({ status: 404, body: "not found" });
   read.mockResolvedValueOnce({
     status: 200,
@@ -603,7 +642,7 @@ it("fetches a provider's model list from the first path that has one", async () 
 
 it("explains a refused key or a service without a model list", async () => {
   const { api, read } = await fixture();
-  const id = (await api.save(deepseek)) as string;
+  const id = (await api.save(deepseek, undefined, KEY)) as string;
   read.mockResolvedValueOnce({ status: 401, body: "bad key" });
   await expect(api.fetchModels(id, signal())).rejects.toThrow("API Key");
   expect(read).toHaveBeenCalledTimes(1);
@@ -616,11 +655,11 @@ it("explains a refused key or a service without a model list", async () => {
   await expect(api.fetchModels(id, signal())).rejects.toThrow("已取消发送");
 });
 
-it("asks for the key before fetching models of a provider without one", async () => {
+it("needs the key again before fetching models of a provider without one", async () => {
   const { api, read, connections } = await fixture();
-  const id = (await api.save(deepseek)) as string;
+  const id = (await api.save(deepseek, undefined, KEY)) as string;
   connections.clear();
   await api.refresh();
-  await expect(api.fetchModels(id, signal())).rejects.toThrow("录入");
+  await expect(api.fetchModels(id, signal())).rejects.toThrow("填写");
   expect(read).not.toHaveBeenCalled();
 });

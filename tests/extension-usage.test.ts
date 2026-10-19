@@ -116,3 +116,23 @@ test("published users appear under every extension the publisher relies on", asy
   expect(host.users("c")).toEqual([]);
   expect(() => contexts.c.shell.dependencies()).toThrow("Extension stopped");
 });
+
+test("users also appear under an extension built on the publisher, such as its interface", async () => {
+  const { host, contexts } = await chain();
+  // a's users are presented by b and c, which took a (directly or through b).
+  contexts.a.shell.publishUsers("Agent", [{ id: "1", label: "写作助手" }]);
+  for (const id of ["a", "b", "c"])
+    expect(host.users(id)).toEqual([
+      {
+        owner: "a",
+        kind: "Agent",
+        users: [{ id: "1", label: "写作助手" }],
+        others: [],
+        toggle: false,
+      },
+    ]);
+  expect(host.users("d")).toEqual([]);
+  await host.stop("c");
+  expect(host.users("c")).toEqual([]);
+  expect(host.users("b")).toHaveLength(1);
+});

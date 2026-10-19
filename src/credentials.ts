@@ -24,11 +24,11 @@ type Mutation =
 const reasons: Record<string, string> = {
   denied: "扩展没有凭据请求权限。",
   busy: "该扩展已有请求在进行或连接正在修改，请稍后再试。",
-  missing: "连接尚未配置，请在扩展管理中录入 API Key。",
-  "not-ready": "连接未就绪，请在扩展管理中录入或核对 API Key。",
+  missing: "连接尚未配置，请填写 API Key。",
+  "not-ready": "连接未就绪，请重新填写 API Key。",
   "not-confirmed": "已取消发送，请求未发出。",
   "proxy-unsupported": "当前版本只支持直连，请把连接方式改为直连。",
-  "secret-unavailable": "无法读取系统中保存的 API Key，请重新录入。",
+  "secret-unavailable": "找不到已保存的 API Key，请重新填写。",
   "invalid-request": "请求格式无效或超过 8 MiB，未发送。",
   stale: "连接或授权已变化，本次结果未交付。",
   timeout: "请求超时，远端结果未确认。",
@@ -74,7 +74,10 @@ function connectFailure(message: string) {
   });
 }
 
-/** Host management only. This entry never accepts or returns an API key. */
+/**
+ * Host management only. An API key the user typed is passed in once to be
+ * saved natively; nothing here returns one.
+ */
 export class CredentialAccess {
   supported = false;
   initializationError: string | null = null;
@@ -136,6 +139,7 @@ export class CredentialAccess {
     version: string,
     declaration: CredentialBindingDeclaration,
     revision: number,
+    key: string,
   ) {
     return this.run("credential_configure", {
       owner,
@@ -144,12 +148,14 @@ export class CredentialAccess {
       version,
       declaration,
       revision,
+      key,
     });
   }
   /**
    * `credential.connect`: an extension lists, saves or removes connections
-   * built from its protocol templates. Saving opens the native key panel,
-   * which shows the target the user typed; the extension never sees a key.
+   * built from its protocol templates. Saving takes the key the user typed
+   * in the extension's form with the target shown beside it; the key is
+   * stored natively and no result or list carries it.
    */
   async connect(
     owner: string,
@@ -172,7 +178,7 @@ export class CredentialAccess {
         target: declaration.target,
         status,
       }));
-    const { action, alias, protocol, label, target } = request;
+    const { action, alias, protocol, label, target, key } = request;
     const existing = items.find((item) => item.alias === alias);
     if (
       action === "remove" &&
@@ -194,9 +200,13 @@ export class CredentialAccess {
       action !== "save" ||
       Object.keys(request).some(
         (key) =>
-          !["action", "alias", "protocol", "label", "target"].includes(key),
+          !["action", "alias", "protocol", "label", "target", "key"].includes(
+            key,
+          ),
       ) ||
       !template ||
+      typeof key !== "string" ||
+      key.length > 4096 ||
       typeof label !== "string" ||
       !label.trim() ||
       label.length > 80 ||
@@ -223,6 +233,7 @@ export class CredentialAccess {
       known.version,
       { ...template, label, target: target as string },
       existing?.revision ?? 0,
+      key,
     );
     return { alias: name, ...result };
   }

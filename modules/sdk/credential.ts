@@ -34,7 +34,10 @@ export interface CredentialConnection {
   target: string;
   status: "pending" | "ready" | "disabled" | "delete-pending";
 }
-/** Payload of `credential.connect`. `save` and `remove` ask the user in a native panel. */
+/**
+ * Payload of `credential.connect`. `save` stores the key the user typed with
+ * the target shown; `remove` asks for confirmation in a native panel.
+ */
 export type CredentialConnectRequest =
   | { action: "list" }
   | {
@@ -44,6 +47,8 @@ export type CredentialConnectRequest =
       protocol: string;
       label: string;
       target: string;
+      /** Write-only: 1–4096 printable ASCII characters, never returned. */
+      key: string;
     }
   | { action: "remove"; alias: string };
 export type CredentialConnectResult = {
