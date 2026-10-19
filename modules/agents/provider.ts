@@ -1,6 +1,7 @@
 import type { ExtensionDefinition } from "../sdk";
 import type { Transformer } from "../../extensions/contracts";
 import { AgentStore, restoreAgents } from "./store";
+import { replySourceOf } from "./contract";
 import { AgentState } from "./sharded-state";
 
 /**
@@ -22,7 +23,20 @@ export function agentExtension(
       capabilities: ["state.read", "state.write"],
     },
     async activate(ctx) {
-      const transformer = ctx.use<Transformer>("text.transform");
+      // Every active text service can write replies; each Agent picks one.
+      let transformers = ctx.providers<Transformer>(
+        "text.transform",
+        (next) => {
+          transformers = next;
+          store.sourcesChanged();
+        },
+      );
+      const sources = () =>
+        transformers.map(({ id, label, value }) => ({
+          id,
+          label,
+          description: value.description ?? `回复由「${value.name}」生成。`,
+        }));
       const state = new AgentState((capability, payload, signal) =>
         ctx.platform(capability, payload, signal),
       );
@@ -37,16 +51,34 @@ export function agentExtension(
       const store = new AgentStore(
         initial,
         (agents, save) => state.save(agents, save),
-        (text, signal) => ctx.task(() => transformer.transform(text, signal)),
-        transformer,
+        (text, signal, source) => {
+          const chosen = replySourceOf({ replySource: source }, sources());
+          const transformer = transformers.find(({ id }) => id === chosen?.id);
+          if (!transformer)
+            throw new Error("没有可用的回复来源，请启用文本服务。");
+          return ctx.task(() => transformer.value.transform(text, signal));
+        },
+        sources,
         ctx.shell.dependencies(),
       );
-      // Management lists these Agents under every extension the replies use.
+      // Management lists each Agent under the service writing its replies
+      // and can move it onto another one.
       const publish = () => {
         if (ctx.signal.aborted) return;
         ctx.shell.publishUsers(
           "Agent",
-          store.list().map((agent) => ({ id: agent.id, label: agent.name })),
+          store.list().map((agent) => ({
+            id: agent.id,
+            label: agent.name,
+            uses: [replySourceOf(agent, sources())?.id].filter(
+              (id): id is string => !!id,
+            ),
+          })),
+          {
+            service: "text.transform",
+            to: (agentId, extensionId) =>
+              store.setReplySource(agentId, extensionId),
+          },
         );
       };
       publish();

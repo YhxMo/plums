@@ -172,6 +172,11 @@
   background: var(--accent-soft);
   border-color: var(--accent);
 }
+.chip[aria-checked="true"] {
+  background: var(--accent-soft);
+  border-color: var(--accent);
+  color: var(--accent-text);
+}
 @media (min-width: 768px) and (max-width: 1100px) {
   .detailHost {
     position: absolute;

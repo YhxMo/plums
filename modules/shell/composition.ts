@@ -36,7 +36,6 @@ export function readComposition(value: unknown): Composition | undefined {
 type CompositionHost = Pick<Host, "ids" | "manifest" | "inspect">;
 function issues(host: CompositionHost, composition: Composition): string[] {
   const errors: string[] = [];
-  const providers = new Map<string, string>();
   for (const entry of composition.enabled) {
     if (!host.ids().includes(entry.id)) {
       errors.push(`缺失扩展 ${entry.id}`);
@@ -47,12 +46,6 @@ function issues(host: CompositionHost, composition: Composition): string[] {
       errors.push(
         `扩展版本不符 ${entry.id}：需要 ${entry.version}，实际 ${manifest.version}`,
       );
-    for (const name of Object.keys(manifest.provides ?? {})) {
-      const previous = providers.get(name);
-      if (previous)
-        errors.push(`服务 ${name} 的提供者冲突：${previous}、${entry.id}`);
-      providers.set(name, entry.id);
-    }
   }
   return errors;
 }

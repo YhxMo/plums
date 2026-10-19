@@ -1,0 +1,142 @@
+import { expect, test, vi } from "vitest";
+import { Host } from "../modules/extension-host/host";
+import type { ExtensionContext } from "../modules/sdk";
+
+const platform = () => ({
+  kind: "browser" as const,
+  available: () => true,
+  grant: async () => {},
+  call: async () => null,
+});
+
+/** a and b provide s@1, old provides s@2; `live` lists providers, `bound` uses one. */
+async function setup() {
+  const host = new Host(platform());
+  const contexts: Record<string, ExtensionContext> = {};
+  const provider = (id: string, version = 1) =>
+    host.install({
+      manifest: { id, version: "1", apiVersion: 1, provides: { s: version } },
+      activate(ctx) {
+        ctx.provide("s", version, { from: id });
+      },
+    });
+  const consumer = (id: string) =>
+    host.install({
+      manifest: { id, version: "1", apiVersion: 1, requires: { s: 1 } },
+      activate(ctx) {
+        contexts[id] = ctx;
+      },
+    });
+  provider("a");
+  provider("b");
+  provider("old", 2);
+  consumer("live");
+  consumer("bound");
+  for (const id of ["a", "b", "old", "live", "bound"]) await host.start(id);
+  return { host, contexts };
+}
+
+test("several extensions provide one service at the same time", async () => {
+  const { host, contexts } = await setup();
+  expect(host.inspect("b").status).toBe("active");
+  expect(contexts.bound.use("s")).toEqual({ from: "a" });
+  expect(
+    contexts.live.providers("s").map(({ id, value }) => [id, value]),
+  ).toEqual([
+    ["a", { from: "a" }],
+    ["b", { from: "b" }],
+  ]);
+  expect(host.serviceNames()).toEqual(["s"]);
+});
+
+test("an extension still cannot provide one service twice", async () => {
+  const host = new Host(platform());
+  host.install({
+    manifest: { id: "twice", version: "1", apiVersion: 1, provides: { s: 1 } },
+    activate(ctx) {
+      ctx.provide("s", 1, 1);
+      ctx.provide("s", 1, 2);
+    },
+  });
+  await expect(host.start("twice")).rejects.toThrow("already provided");
+});
+
+test("provider lists stay live and consumers outlive all but the last provider", async () => {
+  const { host, contexts } = await setup();
+  const changes = vi.fn();
+  contexts.live.providers("s", (providers) =>
+    changes(providers.map(({ id }) => id)),
+  );
+  contexts.bound.use("s");
+  await host.stop("b");
+  expect(changes).toHaveBeenLastCalledWith(["a"]);
+  expect(host.inspect("live").status).toBe("active");
+  expect(host.inspect("bound").status).toBe("active");
+  await host.start("b");
+  expect(changes).toHaveBeenLastCalledWith(["a", "b"]);
+  const calls = changes.mock.calls.length;
+  host.install({
+    manifest: { id: "other", version: "1", apiVersion: 1 },
+    activate() {},
+  });
+  await host.start("other");
+  expect(changes).toHaveBeenCalledTimes(calls);
+  // The provider taken with use() restarts its consumer, which picks the next one.
+  await host.stop("a");
+  expect(host.inspect("live").status).toBe("active");
+  expect(host.inspect("bound").status).toBe("active");
+  expect(contexts.bound.use("s")).toEqual({ from: "b" });
+  await host.stop("b");
+  expect(host.inspect("live").status).toBe("waiting");
+  expect(host.inspect("bound").status).toBe("waiting");
+});
+
+test("dependencies follow the providers taken with use()", async () => {
+  const { contexts } = await setup();
+  expect(contexts.live.shell.dependencies().map(({ id }) => id)).toEqual([
+    "live",
+  ]);
+  contexts.bound.use("s");
+  expect(contexts.bound.shell.dependencies().map(({ id }) => id)).toEqual([
+    "bound",
+    "a",
+  ]);
+});
+
+test("users name the providers they use and can be assigned to another", async () => {
+  const { host, contexts } = await setup();
+  const to = vi.fn(async () => {});
+  const users = [
+    { id: "1", label: "写作助手", uses: ["a"] },
+    { id: "2", label: "代码助手", uses: ["b"] },
+  ];
+  contexts.live.shell.publishUsers("Agent", users);
+  expect(host.users("a")).toEqual([
+    {
+      owner: "live",
+      kind: "Agent",
+      users: [{ id: "1", label: "写作助手" }],
+      others: [],
+    },
+  ]);
+  expect(host.users("live")[0].users).toHaveLength(2);
+  contexts.live.shell.publishUsers("Agent", users, { service: "s", to });
+  expect(host.users("a")[0].others).toEqual([{ id: "2", label: "代码助手" }]);
+  // Users of `a` move to the next live provider when it stops.
+  expect(host.users("a")[0].fallback).toBe("b");
+  // Assignment only offers providers of the service the publisher requires.
+  expect(host.users("old")).toEqual([]);
+  await host.assign("live", "2", "a");
+  expect(to).toHaveBeenCalledWith("2", "a");
+  await expect(host.assign("live", "2", "old")).rejects.toThrow(
+    "Invalid assignment",
+  );
+  expect(() =>
+    contexts.live.shell.publishUsers("Agent", users, { service: "x", to }),
+  ).toThrow("Invalid users");
+  await host.stop("live");
+  expect(host.users("a")).toEqual([]);
+  await expect(host.assign("live", "2", "a")).rejects.toThrow(
+    "Invalid assignment",
+  );
+});

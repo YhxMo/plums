@@ -1,4 +1,9 @@
-import type { Agent, AgentProviderInfo } from "../../modules/agents/contract";
+import {
+  replySourceOf,
+  type Agent,
+  type AgentProviderInfo,
+  type ReplySource,
+} from "../../modules/agents/contract";
 import { Avatar } from "./AgentList";
 import { Icon } from "../components/Icon";
 import s from "./DetailPanel.module.css";
@@ -10,9 +15,14 @@ export function DetailPanel({
   onSession,
   onDeleteSession,
   onOpenExtension,
+  sources = [],
+  onReplySource,
 }: {
   agent: Agent;
   provider: AgentProviderInfo;
+  /** Absent for providers that do not let each Agent choose. */
+  sources?: readonly ReplySource[];
+  onReplySource?: (extensionId: string) => void;
   onClose: () => void;
   onPin: () => void;
   onSession: (action: "create" | "select", id?: string) => void;
@@ -20,9 +30,13 @@ export function DetailPanel({
   onOpenExtension: (id: string) => void;
 }) {
   // Providers predating `extensions` are shown as the one extension they are.
-  const extensions = provider.extensions ?? [
-    { id: agent.extensionId, label: provider.label },
-  ];
+  const source = replySourceOf(agent, sources);
+  const extensions = [
+    ...(provider.extensions ?? [
+      { id: agent.extensionId, label: provider.label },
+    ]),
+    ...(source ? [source] : []),
+  ].filter((entry, i, all) => all.findIndex((e) => e.id === entry.id) === i);
   return (
     <aside className={s.details} aria-label="Agent 详情">
       <header>
@@ -65,6 +79,36 @@ export function DetailPanel({
                 </li>
               ))}
             </ul>
+          </section>
+        )}
+        {onReplySource && sources.length > 0 && (
+          <section>
+            <h3 id="reply-source-heading">回复来源</h3>
+            <div
+              className={s.chips}
+              role="radiogroup"
+              aria-labelledby="reply-source-heading"
+            >
+              {sources.map((entry) => (
+                <button
+                  key={entry.id}
+                  role="radio"
+                  aria-checked={entry.id === source?.id}
+                  className={s.chip}
+                  title={entry.id}
+                  onClick={() => {
+                    if (entry.id !== source?.id) onReplySource(entry.id);
+                  }}
+                >
+                  {entry.label}
+                </button>
+              ))}
+            </div>
+            <p className={s.detailNote}>
+              {agent.replySource && agent.replySource !== source?.id
+                ? `所选扩展未启用，暂由「${source?.label}」回复。`
+                : source?.description}
+            </p>
           </section>
         )}
         <section>

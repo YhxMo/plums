@@ -232,7 +232,7 @@ it("credential preparation failure prevents saved-path removal", async () => {
   expect(state.imports).toEqual([entry]);
 });
 
-it("conflicting desired providers cannot replace the saved composition", async () => {
+it("several providers of one service are saved together", async () => {
   const { host, state } = setup();
   const previous = state.composition;
   for (const name of ["one", "two"])
@@ -248,10 +248,12 @@ it("conflicting desired providers cannot replace the saved composition", async (
       },
     });
   await host.start("one");
-  await expect(host.start("two")).rejects.toThrow();
-  await expect(saveComposition(host, state, "agents")).rejects.toThrow("冲突");
-  expect(state.save).not.toHaveBeenCalled();
-  expect(state.composition).toBe(previous);
+  await host.start("two");
+  await saveComposition(host, state, "agents");
+  expect(state.composition).not.toBe(previous);
+  expect(state.composition?.enabled.map(({ id }) => id)).toEqual(
+    expect.arrayContaining(["one", "two"]),
+  );
 });
 
 it("composition failure retains the previous snapshot and success saves only composition and layout", async () => {

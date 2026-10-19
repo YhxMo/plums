@@ -5,6 +5,7 @@ import type {
   AgentConfig,
   AgentProvider,
   AgentProviderInfo,
+  ReplySource,
   Session,
 } from "./contract";
 
@@ -56,6 +57,7 @@ export function restoreAgents(value: unknown): Agent[] {
       typeof a.pinned !== "boolean" ||
       typeof a.multiSession !== "boolean" ||
       !text(a.extensionId) ||
+      (a.replySource !== undefined && !text(a.replySource)) ||
       !Array.isArray(a.capabilities) ||
       !a.capabilities.every((c) => text(c)) ||
       !Array.isArray(a.sessions) ||
@@ -106,7 +108,6 @@ export function restoreAgents(value: unknown): Agent[] {
 /** Extension-owned model; writes publish only after a successful receipt. */
 export type SaveOptions = { signal?: AbortSignal; onCommit?: () => void };
 export class AgentStore implements AgentProvider {
-  readonly info: AgentProviderInfo;
   private agents: Agent[];
   private listeners = new Set<() => void>();
   private running = new Map<string, AbortController>();
@@ -118,18 +119,37 @@ export class AgentStore implements AgentProvider {
   constructor(
     initial: Agent[],
     private persist: (agents: Agent[], options?: SaveOptions) => Promise<void>,
-    private reply: (text: string, signal: AbortSignal) => Promise<string>,
-    /** The text service that writes replies; described to the user. */
-    source: { name: string; description?: string } = { name: "文本服务" },
-    extensions: readonly Named[] = [],
+    /** Writes a reply with the chosen source, or the first one available. */
+    private reply: (
+      text: string,
+      signal: AbortSignal,
+      source?: string,
+    ) => Promise<string>,
+    /** Extensions that can write replies, the default first. */
+    private sources: () => readonly ReplySource[] = () => [],
+    private extensions: readonly Named[] = [],
   ) {
     this.agents = initial;
-    this.info = {
+  }
+  get info(): AgentProviderInfo {
+    return {
       label: "内置本地 Agent 提供者",
       version: "0.0.4",
-      description: source.description ?? `回复由「${source.name}」生成。`,
-      extensions,
+      description:
+        this.sources()[0]?.description ??
+        "没有可用的回复来源，请启用文本服务。",
+      extensions: this.extensions,
     };
+  }
+  replySources = () => this.sources();
+  /** Re-renders Agents after reply sources start or stop. */
+  sourcesChanged = () => this.emit();
+  setReplySource(agentId: string, extensionId: string) {
+    if (!this.sources().some((source) => source.id === extensionId))
+      return Promise.reject(new Error("回复来源不可用，请先启用该扩展。"));
+    return this.change((agents) => {
+      this.find(agents, agentId).replySource = extensionId;
+    });
   }
   list = () => this.agents;
   subscribe = (listener: () => void) => {
@@ -186,6 +206,7 @@ export class AgentStore implements AgentProvider {
       status: "idle",
       pinned: false,
       extensionId: "agents.local",
+      replySource: this.sources()[0]?.id,
       capabilities: ["本地文本处理", "保存会话"],
       multiSession: clean.multiSession ?? false,
       sessions: [session],
@@ -282,7 +303,7 @@ export class AgentStore implements AgentProvider {
     this.pending.set(agentId, { sessionId, text: input });
     this.emit();
     try {
-      const output = await this.reply(input, controller.signal);
+      const output = await this.reply(input, controller.signal, a.replySource);
       controller.signal.throwIfAborted();
       if (!text(output, 32000))
         throw new Error(

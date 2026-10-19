@@ -16,7 +16,7 @@
 
 `ctx.shell.open("extensions" | "settings" | "diagnostics")` 打开宿主界面；它不授予权限，也不直接启停其他扩展。`open("extensions", id)` 在扩展管理中选中该扩展，其他入口传目标会被拒绝。宿主通过 `Host.connectShell(bridge)` 接入自己的呈现与保存逻辑；未接入时 `open`/`savePage` 明确拒绝，`readPage` 返回 undefined（等同无偏好）。已停用的上下文不能再打开入口或写入页面偏好。
 
-`ctx.shell.dependencies()` 返回本扩展及（递归）为其 requires 提供服务的已启用扩展，形如 `{ id, label }`，本扩展在首位；名称由外壳桥提供，未接入时为 ID。依赖链在一次激活内不变：提供者变化时依赖方会重启。`ctx.shell.publishUsers(kind, users)` 公布本扩展服务的对象（例如 `"Agent"` 与各 Agent 的 `{ id, label }`），整体替换上次公布，相同内容不触发刷新，停用时清除；扩展管理把它列在依赖链中每个扩展的详情里。宿主只按依赖链转交，不理解 kind 或 users 的业务含义。
+`ctx.shell.dependencies()` 返回本扩展及（递归）经 `ctx.use` 绑定的提供者，形如 `{ id, label }`，本扩展在首位；名称由外壳桥提供，未接入时为 ID。`ctx.providers` 取得的列表不算入依赖链。`ctx.shell.publishUsers(kind, users, assign?)` 公布本扩展服务的对象（例如 `"Agent"` 与各 Agent 的 `{ id, label }`），整体替换上次公布，相同内容不触发刷新，停用时清除。每个对象可用 `uses` 列出它实际使用的提供者 ID；扩展管理把它列在依赖链或 `uses` 中每个扩展的详情里。`assign` 形如 `{ service, to(userId, extensionId) }`，`service` 须在 requires 中：详情页把未使用该扩展的对象显示为可点按的虚线气泡，点按后宿主调用 `to`，由扩展自行保存选择；停用仍有使用者的扩展前，外壳确认并说明它们将改用的下一个提供者或暂时无法使用。宿主只按依赖链、`uses` 与服务转交，不理解 kind 或 users 的业务含义。
 
 `ctx.shell.readPage(viewId)` 读取页面偏好，`savePage(viewId, route)` 在宿主状态保存成功后完成。Host 自动以扩展 ID 与 viewId 组成键，业务内容仍由扩展另存。没有偏好返回 undefined；旧配置不需要增加 pages 字段。坏页面偏好结构拒绝启动并保留数据。并发写入沿用宿主串行保存与未知回执锁定。未连接宿主桥时 `readPage` 同样返回 undefined（等同无偏好），`open`/`savePage` 显式拒绝；接线错误须通过后两者暴露，不能把 undefined 当作“偏好为空”推断宿主已接线。
 

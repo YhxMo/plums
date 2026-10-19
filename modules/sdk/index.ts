@@ -67,6 +67,15 @@ export interface View {
 export type ShellAction = "extensions" | "settings" | "diagnostics";
 /** Something shown to the user by name, such as an extension or an Agent. */
 export type Named = { id: string; label: string };
+/** A user of an extension; `uses` names providers it relies on beyond the publisher's `dependencies()`. */
+export type User = Named & { uses?: string[] };
+/** Lets management move a user onto another active provider of `service`, which the publisher requires. */
+export type Assignment = {
+  service: string;
+  to(userId: string, extensionId: string): Promise<void>;
+};
+/** One active provider of a service, named for the user. */
+export type Provider<T> = Named & { value: T };
 export interface ShellBridge {
   open(action: ShellAction, owner: string, target?: string): Promise<void>;
   readPage(key: string): string | undefined;
@@ -80,17 +89,23 @@ export interface ShellAccess {
   /** Returns undefined for no preference or no connected shell bridge; writes reject instead. */
   readPage(viewId: string): string | undefined;
   savePage(viewId: string, route: string): Promise<void>;
-  /** This extension, then the active extensions providing its required services, transitively; fixed for one activation. */
+  /** This extension, then the providers it took with `use()`, transitively. */
   dependencies(): Named[];
-  /** Replaces what this extension serves, e.g. its Agents; management lists them under every extension in `dependencies()`. Cleared on stop. */
-  publishUsers(kind: string, users: Named[]): void;
+  /** Replaces what this extension serves, e.g. its Agents; management lists them under every extension in `dependencies()` and their `uses`. Cleared on stop. */
+  publishUsers(kind: string, users: User[], assign?: Assignment): void;
 }
 export interface ExtensionContext {
   readonly id: string;
   readonly signal: AbortSignal;
   readonly configuration: Readonly<Record<string, ConfigurationValue>>;
   readonly shell: ShellAccess;
+  /** The oldest active provider of a required service; this extension restarts when that provider stops. */
   use<T>(name: string): T;
+  /** Every active provider of a required service, oldest first; `onChange` gets the new list after one starts or stops. This extension keeps running while one remains. */
+  providers<T>(
+    name: string,
+    onChange?: (providers: Provider<T>[]) => void,
+  ): Provider<T>[];
   provide<T>(name: string, version: number, service: T): void;
   onDispose(dispose: () => void | Promise<void>): void;
   on(topic: string, handler: (data: unknown) => void): void;

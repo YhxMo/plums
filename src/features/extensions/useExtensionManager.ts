@@ -22,7 +22,11 @@ import type { ManagementInputs, ExtensionCardModel } from "./controllers";
 
 type ManagementDialog =
   | { kind: "install"; source: HTMLElement }
-  | { kind: "configure" | "uninstall"; id: string; source: HTMLElement }
+  | {
+      kind: "configure" | "uninstall" | "stop";
+      id: string;
+      source: HTMLElement;
+    }
   | null;
 
 export function useExtensionManager(
@@ -78,7 +82,7 @@ export function useExtensionManager(
   const prepareUninstall = (owner: string, declared: boolean) =>
     runtime.adapter.credentials.prepareUninstall(owner, declared);
   function open(
-    kind: "configure" | "uninstall",
+    kind: "configure" | "uninstall" | "stop",
     id: string,
     source: HTMLElement,
   ) {
@@ -128,8 +132,11 @@ export function useExtensionManager(
         ) => {
           const id = row.entry.id;
           const capabilities = row.manifest.capabilities ?? [];
-          if (row.state.status === "active") void operate(() => host.stop(id));
-          else if (capabilities.length)
+          if (row.state.status === "active") {
+            if (host.users(id).some((group) => group.users.length))
+              open("stop", id, source);
+            else void operate(() => host.stop(id));
+          } else if (capabilities.length)
             authorization.requestAuthorization(
               [id],
               async () => {
@@ -178,6 +185,8 @@ export function useExtensionManager(
     dialogs: {
       dialog,
       close,
+      label: (id: string) =>
+        catalog.find((entry) => entry.id === id)?.label ?? id,
       install: (id: string, url: string) =>
         operate(async () => {
           await run((draft) =>
@@ -220,6 +229,11 @@ export function useExtensionManager(
               ? "已替换为新版本。请重新启用并确认权限；扩展数据已保留。"
               : "扩展已导入。请检查来源与能力，再启用扩展。",
           );
+        }),
+      stop: (id: string) =>
+        operate(async () => {
+          await host.stop(id);
+          close();
         }),
       uninstall: (id: string) =>
         operate(async () => {

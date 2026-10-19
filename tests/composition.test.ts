@@ -76,10 +76,6 @@ it("preflights missing, changed and conflicting providers before any activation"
   for (const enabled of [
     [{ id: "missing", version: "1" }],
     [{ id: "two", version: "2" }],
-    [
-      { id: "one", version: "1" },
-      { id: "two", version: "1" },
-    ],
   ]) {
     const host = setup();
     expect(
@@ -88,11 +84,14 @@ it("preflights missing, changed and conflicting providers before any activation"
     expect(host.ids().some((id) => host.inspect(id).desired)).toBe(false);
   }
 });
-it("refuses capturing conflicting desired providers", async () => {
+it("restores and captures several providers of one service", async () => {
   const host = setup();
-  await host.start("one");
-  await expect(host.start("two")).rejects.toThrow("Service already provided");
-  expect(() => captureComposition(host)).toThrow();
+  const enabled = [
+    { id: "one", version: "1" },
+    { id: "two", version: "1" },
+  ];
+  expect(await restoreComposition(host, { schema: 1, enabled })).toEqual([]);
+  expect(captureComposition(host).enabled).toEqual(enabled);
 });
 it("reports activation failure while restoring other items and refuses a failed snapshot", async () => {
   const host = setup();

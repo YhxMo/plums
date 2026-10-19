@@ -29,6 +29,7 @@ async function chain(connect = true) {
       manifest: { id, version: "1", apiVersion: 1, requires, provides },
       activate(ctx) {
         contexts[id] = ctx;
+        for (const name of Object.keys(requires ?? {})) ctx.use(name);
         for (const name of Object.keys(provides ?? {}))
           ctx.provide(name, 1, {});
       },
@@ -86,7 +87,9 @@ test("published users appear under every extension the publisher relies on", asy
   const users = [{ id: "1", label: "写作助手" }];
   contexts.c.shell.publishUsers("Agent", users);
   users.push({ id: "2", label: "改动不应泄漏" });
-  const expected = [{ owner: "c", kind: "Agent", users: [users[0]] }];
+  const expected = [
+    { owner: "c", kind: "Agent", users: [users[0]], others: [] },
+  ];
   for (const id of ["a", "b", "c"]) expect(host.users(id)).toEqual(expected);
   expect(host.users("d")).toEqual([]);
   const before = host.snapshot();

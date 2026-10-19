@@ -369,22 +369,3 @@ it("allows a retry after a write that was definitely not committed", async () =>
       .map((agent) => agent.name),
   ).toEqual(["二"]);
 });
-
-it("names the extensions it relies on and publishes its Agents as users", async () => {
-  const { platform } = memoryPlatform();
-  const host = await start(platform);
-  expect(provider(host).info.extensions).toEqual([
-    { id: "agents.local", label: "agents.local" },
-    { id: "transform.test", label: "transform.test" },
-  ]);
-  expect(host.users("transform.test")).toEqual([
-    { owner: "agents.local", kind: "Agent", users: [] },
-  ]);
-  const agent = await provider(host).create({ name: "写作助手" });
-  await provider(host).update(agent.id, { name: "改名" });
-  expect(host.users("transform.test")[0].users).toEqual([
-    { id: agent.id, label: "改名" },
-  ]);
-  await host.stop("agents.local");
-  expect(host.users("transform.test")).toEqual([]);
-});

@@ -60,6 +60,7 @@ export class Host {
   };
   readonly snapshot = () => this.sequence;
   private changed() {
+    this.registry.notify(this.active);
     this.sequence++;
     for (const listener of this.subscribers) listener();
   }
@@ -157,18 +158,16 @@ export class Host {
     };
   }
   readonly serviceNames = () => [...this.registry.services.keys()];
-  /** Users published by active extensions that rely on `id`. */
-  readonly users = (id: string) => this.registry.usersOf(id);
+  /** Users of active extensions that rely on `id`, and those `assign` could move onto it. */
+  readonly users = (id: string) => this.registry.usersOf(id, this.active);
+  /** Moves a published user onto `extensionId`, which must be in its `others`. */
+  readonly assign = (owner: string, userId: string, extensionId: string) =>
+    this.registry.assign(owner, userId, extensionId, this.active);
   peekService<T>(name: string, version = 1): T | undefined {
-    const entry = this.registry.services.get(name);
-    if (
-      !entry ||
-      entry.version !== version ||
-      this.record(entry.owner).status !== "active"
-    )
-      return undefined;
-    return entry.value as T;
+    return this.registry.providers(name, version, this.active)[0]?.value as T;
   }
+  private readonly active = (owner: string) =>
+    this.record(owner).status === "active";
   themes() {
     return [...this.registry.themes.values()]
       .filter(
@@ -295,7 +294,7 @@ export class Host {
           entry.desired && entry.definition.manifest.provides?.[name],
       );
       if (
-        !this.registry.services.has(name) &&
+        !this.registry.services.get(name)?.length &&
         providers.some(([provider]) => this.cycle(provider, next))
       )
         return true;
@@ -314,11 +313,7 @@ export class Host {
         return { kind: "permission", capability };
     }
     for (const [service, version] of Object.entries(manifest.requires ?? {})) {
-      if (
-        this.registry.services.get(service)?.version !== version ||
-        this.record(this.registry.services.get(service)!.owner).status !==
-          "active"
-      )
+      if (!this.registry.providers(service, version, this.active).length)
         return this.cycle(id)
           ? { kind: "cycle" }
           : { kind: "dependency", service, version };
@@ -398,10 +393,13 @@ export class Host {
   private dependents(id: string) {
     return [...this.records]
       .filter(
-        ([, entry]) =>
+        ([consumer, entry]) =>
           ["active", "stopping", "cleanup-failed"].includes(entry.status) &&
-          Object.keys(entry.definition.manifest.requires ?? {}).some(
-            (name) => this.registry.services.get(name)?.owner === id,
+          this.registry.relies(
+            consumer,
+            entry.definition.manifest.requires ?? {},
+            id,
+            this.active,
           ),
       )
       .map(([dependent]) => dependent);

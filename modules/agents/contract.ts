@@ -25,6 +25,8 @@ export type Agent = {
   /** Text being sent and not yet saved with its reply; never persisted. */
   pending?: { sessionId: string; text: string };
   extensionId: string;
+  /** Extension chosen to write replies; the first reply source is used while it is absent or stopped. */
+  replySource?: string;
   capabilities: string[];
   sessions: Session[];
   multiSession: boolean;
@@ -35,6 +37,13 @@ export type AgentConfig = {
   description?: string;
   multiSession?: boolean;
 };
+/** An extension that can write replies, described for the user. */
+export type ReplySource = Named & { description: string };
+/** The source that writes this Agent's next reply. */
+export const replySourceOf = (
+  agent: Pick<Agent, "replySource">,
+  sources: readonly ReplySource[],
+) => sources.find((source) => source.id === agent.replySource) ?? sources[0];
 export type AgentProviderInfo = {
   label: string;
   version: string;
@@ -59,6 +68,10 @@ export interface AgentProvider {
   ): Promise<void>;
   send(id: string, text: string): Promise<void>;
   cancel(id: string): void;
+  /** Extensions that can write replies, the default first; added after agents@1 shipped. */
+  replySources?(): readonly ReplySource[];
+  /** Chooses which of `replySources()` writes this Agent's replies. */
+  setReplySource?(id: string, extensionId: string): Promise<void>;
   /** Deletes one saved message; added after agents@1 shipped, so optional. */
   removeMessage?(
     id: string,

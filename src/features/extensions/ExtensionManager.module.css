@@ -192,6 +192,36 @@
   font-size: 12px;
   overflow-wrap: anywhere;
 }
+/* Users that could move here: outlined until chosen. */
+.userChips li.assignable {
+  padding: 0;
+  background: none;
+}
+.assignable button {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-height: 0;
+  padding: 2px 10px 2px 8px;
+  border: 1px dashed var(--control-border);
+  border-radius: 8px;
+  background: none;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 400;
+}
+@media (hover: hover) {
+  .assignable button:hover:not(:disabled) {
+    border-style: solid;
+    border-color: var(--accent);
+    color: var(--text);
+  }
+}
+.assignHint {
+  margin: 10px 0 6px;
+  color: var(--muted);
+  font-size: 12px;
+}
 .diagnostics {
   border-top: 1px solid var(--border);
   margin-top: 8px;
@@ -309,6 +339,11 @@
   }
 }
 @media (max-width: 767px) {
+  .assignable button {
+    min-height: 40px;
+    padding: 6px 12px;
+    font-size: 14px;
+  }
   .inspector {
     width: 100%;
     border-left: 0;

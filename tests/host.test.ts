@@ -229,7 +229,7 @@ describe("M1 extension lifecycle contract", () => {
     expect(calls).toBe(2);
   });
 
-  it("rejects incompatible service versions and duplicate providers", async () => {
+  it("rejects incompatible service versions and accepts a second provider", async () => {
     const host = new Host(platform());
     host.install(definition("consumer", () => {}, { requires: { value: 2 } }));
     await host.start("consumer");
@@ -245,7 +245,9 @@ describe("M1 extension lifecycle contract", () => {
         provides: { value: 1 },
       }),
     );
-    await expect(host.start("two")).rejects.toThrow("already provided");
+    await host.start("two");
+    expect(host.inspect("two").status).toBe("active");
+    expect(host.inspect("consumer").status).toBe("waiting");
   });
 
   it("mounts framework-independent views and releases the mounted instance once", async () => {

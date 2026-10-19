@@ -622,11 +622,12 @@ test("service reply boundary rejects without losing draft and valid output survi
     .fill("/boundary-transform.js");
   await page.getByRole("button", { name: "加载模块", exact: true }).click();
   await page
-    .getByRole("button", { name: "停用 transform.upper", exact: true })
-    .click();
-  await page
     .getByRole("button", { name: "启用 transform.boundary", exact: true })
     .click();
+  await page
+    .getByRole("button", { name: "停用 transform.upper", exact: true })
+    .click();
+  await page.getByRole("button", { name: "停用", exact: true }).click();
   await page.getByRole("button", { name: "返回工作区", exact: true }).click();
   await page
     .getByRole("button", { name: "与 Boundary 交互", exact: true })

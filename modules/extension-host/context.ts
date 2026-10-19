@@ -1,8 +1,14 @@
 import { hostError } from "./lifecycle";
-import type { Registry } from "./registry";
+import type { Registry, Service } from "./registry";
 import type { Scope } from "./scope";
 import { copyTheme } from "../sdk/theme";
-import type { ExtensionContext, Manifest, Platform, ShellBridge } from "../sdk";
+import type {
+  ExtensionContext,
+  Manifest,
+  Platform,
+  Provider,
+  ShellBridge,
+} from "../sdk";
 import { extensionOwner, platformRejection } from "../sdk";
 
 /** The Host facts an activation context may consult; everything else stays private. */
@@ -25,21 +31,14 @@ export function createContext(
 ): ExtensionContext {
   const { registry, platform } = host;
   const own = (dispose: () => void | Promise<void>) => scope.own(dispose);
-  // Providers are active before their dependents, so their lists exist.
-  const dependencies = [
-    ...new Set([
-      id,
-      ...Object.keys(manifest.requires ?? {}).flatMap(
-        (name) =>
-          registry.dependencies.get(registry.services.get(name)?.owner ?? "") ??
-          [],
-      ),
-    ]),
-  ];
-  // Read only while this extension is active: as a provider during a
-  // dependent's activation, or through users, which are cleared on stop.
-  registry.dependencies.set(id, dependencies);
   const label = (owner: string) => host.shell()?.label?.(owner) ?? owner;
+  const required = (name: string) => {
+    scope.assertOpen();
+    const version = manifest.requires?.[name];
+    if (!version)
+      throw hostError(`Service not declared or unavailable: ${name}`);
+    return { version, live: registry.providers(name, version, host.active) };
+  };
   return {
     id,
     signal: scope.controller.signal,
@@ -72,27 +71,47 @@ export function createContext(
       },
       dependencies: () => {
         scope.assertOpen();
-        return dependencies.map((owner) => ({
+        return registry.chain(id).map((owner) => ({
           id: owner,
           label: label(owner),
         }));
       },
-      publishUsers: (kind, users) => {
+      publishUsers: (kind, users, assign) => {
         scope.assertOpen();
+        const version = assign && manifest.requires?.[assign.service];
         if (
           typeof kind !== "string" ||
           !Array.isArray(users) ||
           users.some(
             (user) =>
-              typeof user?.id !== "string" || typeof user.label !== "string",
-          )
+              typeof user?.id !== "string" ||
+              typeof user.label !== "string" ||
+              (user.uses !== undefined &&
+                (!Array.isArray(user.uses) ||
+                  user.uses.some((used) => typeof used !== "string"))),
+          ) ||
+          (assign && (!version || typeof assign.to !== "function"))
         )
           throw hostError("Invalid users");
         const next = {
           kind,
-          users: users.map(({ id, label }) => ({ id, label })),
+          users: users.map(({ id, label, uses }) =>
+            uses ? { id, label, uses: [...uses] } : { id, label },
+          ),
+          ...(assign && {
+            assign: {
+              service: assign.service,
+              version: version!,
+              to: assign.to,
+            },
+          }),
         };
-        if (JSON.stringify(registry.users.get(id)) === JSON.stringify(next))
+        // Functions drop out of the comparison, so a changed `to` alone is kept.
+        const previous = registry.users.get(id);
+        if (
+          previous?.assign?.to === next.assign?.to &&
+          JSON.stringify(previous) === JSON.stringify(next)
+        )
           return;
         if (!registry.users.has(id))
           own(() => {
@@ -104,25 +123,62 @@ export function createContext(
       },
     },
     use: <T>(name: string) => {
-      scope.assertOpen();
-      const service = registry.services.get(name);
-      if (
-        !manifest.requires?.[name] ||
-        service?.version !== manifest.requires[name] ||
-        !host.active(service.owner)
-      )
+      const [service] = required(name).live;
+      if (!service)
         throw hostError(`Service not declared or unavailable: ${name}`);
+      let bound = registry.bindings.get(id);
+      if (!bound) {
+        bound = new Set();
+        registry.bindings.set(id, bound);
+        own(() => {
+          registry.bindings.delete(id);
+        });
+      }
+      bound.add(service.owner);
       return service.value as T;
+    },
+    providers: <T>(
+      name: string,
+      onChange?: (providers: Provider<T>[]) => void,
+    ) => {
+      const { version, live } = required(name);
+      const named = (services: Service[]) =>
+        services.map(({ owner, value }) => ({
+          id: owner,
+          label: label(owner),
+          value: value as T,
+        }));
+      if (onChange) {
+        const watcher = {
+          name,
+          version,
+          last: live.map((service) => service.owner).join("\n"),
+          listener: (services: Service[]) => {
+            if (scope.open) onChange(named(services));
+          },
+        };
+        registry.watchers.add(watcher);
+        own(() => {
+          registry.watchers.delete(watcher);
+        });
+      }
+      return named(live);
     },
     provide: (name, version, value) => {
       scope.assertOpen();
       if (manifest.provides?.[name] !== version)
         throw hostError(`Service not declared: ${name}`);
-      if (registry.services.has(name))
+      const services = registry.services.get(name) ?? [];
+      if (services.some((service) => service.owner === id))
         throw hostError(`Service already provided: ${name}`);
-      registry.services.set(name, { owner: id, version, value });
+      const service = { owner: id, version, value };
+      registry.services.set(name, [...services, service]);
       own(() => {
-        registry.services.delete(name);
+        const rest = (registry.services.get(name) ?? []).filter(
+          (entry) => entry !== service,
+        );
+        if (rest.length) registry.services.set(name, rest);
+        else registry.services.delete(name);
       });
     },
     onDispose: own,

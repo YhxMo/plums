@@ -3,6 +3,7 @@ import type { DialogFeedback } from "../../shell/controllers";
 import type { ExtensionDialogController } from "./controllers";
 import { InstallDialog } from "./InstallDialog";
 import { UninstallDialog } from "./UninstallDialog";
+import { StopDialog } from "./StopDialog";
 import { ConfigurationDialog } from "./ConfigurationDialog";
 
 export function ExtensionDialogs({
@@ -11,7 +12,7 @@ export function ExtensionDialogs({
   feedback,
 }: {
   controller: ExtensionDialogController;
-  host: Pick<Host, "manifest" | "configuration">;
+  host: Pick<Host, "manifest" | "configuration" | "users">;
   feedback: DialogFeedback;
 }) {
   const { dialog, close } = controller;
@@ -34,6 +35,17 @@ export function ExtensionDialogs({
           source={dialog.source}
           onClose={close}
           onSave={(values) => controller.configure(dialog.id, values)}
+        />
+      )}
+      {dialog?.kind === "stop" && (
+        <StopDialog
+          host={host}
+          name={controller.label}
+          feedback={feedback}
+          id={dialog.id}
+          source={dialog.source}
+          onClose={close}
+          onStop={() => controller.stop(dialog.id)}
         />
       )}
       {dialog?.kind === "uninstall" && (
