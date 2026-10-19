@@ -132,13 +132,17 @@ export class AgentState {
         committed = true;
       }
     } catch (error) {
-      // A failure after an earlier write committed leaves a partial save.
       if (
         committed ||
         (!(error instanceof Error && error.name === "AbortError") &&
           (error as { outcome?: string }).outcome !== "not-committed")
       )
         this.uncertain = true;
+      // An earlier write committed: part of this save is stored.
+      if (committed)
+        throw Object.assign(new Error(this.blocked(), { cause: error }), {
+          outcome: "unknown",
+        });
       throw error;
     }
     for (const [slot, shard] of [...this.shards]) {

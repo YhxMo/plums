@@ -361,7 +361,7 @@ it("restores the longest model id the model connector offers and refuses longer 
 
 it("does not ask the model while saving is blocked, so retries cost nothing", async () => {
   let asked = 0;
-  let blocked: string | undefined;
+  const lock: { reason?: string } = {};
   const store = new AgentStore(
     [],
     async () => {},
@@ -372,10 +372,10 @@ it("does not ask the model while saving is blocked, so retries cost nothing", as
     () => [],
     [],
     () => [],
-    () => blocked,
+    () => lock.reason,
   );
   const a = await store.create({ name: "锁定" });
-  blocked = "Agent 保存回执未确认，请重新加载应用后再修改。";
-  await expect(store.send(a.id, "你好")).rejects.toThrow(blocked);
+  lock.reason = "Agent 保存回执未确认，请重新加载应用后再修改。";
+  await expect(store.send(a.id, "你好")).rejects.toThrow(lock.reason);
   expect(asked).toBe(0);
 });

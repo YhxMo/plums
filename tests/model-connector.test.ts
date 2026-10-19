@@ -72,6 +72,7 @@ async function fixture({
   );
   let next = 0;
   let writeFailure: Error | undefined;
+  let listFailures = 0;
   const platform: Platform = {
     kind: credentials ? "native" : "browser",
     available: (name) => credentials || name.startsWith("state."),
@@ -92,6 +93,8 @@ async function fixture({
         return stored;
       }
       if (name === "credential.connect") {
+        if (request.action === "list" && listFailures-- > 0)
+          throw new Error("连接记录不可用");
         if (request.action === "list")
           return [...connections].map(([alias, item]) => ({
             alias,
@@ -178,6 +181,7 @@ async function fixture({
     states,
     connections,
     failNextWrite: () => void (writeFailure = new Error("磁盘已满")),
+    failLists: (count: number) => void (listFailures = count),
   };
 }
 const signal = () => new AbortController().signal;
@@ -326,6 +330,30 @@ it("never sends to an address whose record failed to save", async () => {
   expect(panel).toHaveBeenLastCalledWith(
     expect.objectContaining({ alias, target: deepseekTarget }),
   );
+  expect(api.list()[0].status).toBe("ready");
+});
+
+it("does not keep showing or using a stale ready state when re-reading keys fails", async () => {
+  const { api, chat, send, failLists } = await fixture();
+  await api.save(deepseek);
+  const { id } = api.list()[0];
+  failLists(1);
+  await expect(api.refresh()).rejects.toThrow("连接记录不可用");
+  expect(api.list()[0].status).toBe("pending");
+  // Each send re-reads the connection first and refuses when it cannot.
+  failLists(1);
+  await expect(
+    chat().reply(
+      { model: `${id}/user-model-a`, history: [], input: "hi" },
+      signal(),
+    ),
+  ).rejects.toMatchObject({ outcome: "not-dispatched" });
+  expect(send).not.toHaveBeenCalled();
+  await chat().reply(
+    { model: `${id}/user-model-a`, history: [], input: "hi" },
+    signal(),
+  );
+  expect(send).toHaveBeenCalledTimes(1);
   expect(api.list()[0].status).toBe("ready");
 });
 

@@ -156,7 +156,8 @@ const newId = () => `p-${crypto.randomUUID().replaceAll("-", "").slice(0, 8)}`;
  */
 export class ProviderStore {
   private providers: ModelProvider[] = [];
-  private credentials: CredentialConnection[] = [];
+  /** Undefined when the last re-read failed: every status is then unknown. */
+  private credentials: CredentialConnection[] | undefined = [];
   private revision = 0;
   private listeners = new Set<() => void>();
   private snapshot: ProviderView[] = [];
@@ -172,10 +173,16 @@ export class ProviderStore {
   }
   /** Re-reads which providers hold a key. */
   async refresh() {
-    this.credentials = (await this.call("credential.connect", {
-      action: "list",
-    })) as CredentialConnection[];
-    this.emit();
+    try {
+      this.credentials = (await this.call("credential.connect", {
+        action: "list",
+      })) as CredentialConnection[];
+    } catch (error) {
+      this.credentials = undefined;
+      throw error;
+    } finally {
+      this.emit();
+    }
   }
   list(): readonly ProviderView[] {
     return this.snapshot;
@@ -196,16 +203,18 @@ export class ProviderStore {
   }
   private emit() {
     this.snapshot = this.providers.map((provider) => {
-      const credential = this.credentials.find(
+      const credential = this.credentials?.find(
         (item) => item.alias === provider.alias,
       );
       return {
         ...provider,
-        status: !credential
-          ? "missing"
-          : credential.target !== chatTarget(provider.protocol, provider.base)
-            ? "changed"
-            : credential.status,
+        status: !this.credentials
+          ? "pending"
+          : !credential
+            ? "missing"
+            : credential.target !== chatTarget(provider.protocol, provider.base)
+              ? "changed"
+              : credential.status,
       };
     });
     for (const listener of this.listeners) listener();
@@ -288,7 +297,8 @@ export class ProviderStore {
   async remove(id: string) {
     const existing = this.find(id);
     if (!existing) return true;
-    if (this.credentials.some((item) => item.alias === existing.alias)) {
+    await this.refresh();
+    if (this.credentials!.some((item) => item.alias === existing.alias)) {
       const result = (await this.call("credential.connect", {
         action: "remove",
         alias: existing.alias,

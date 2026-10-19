@@ -271,9 +271,11 @@ it("refuses further writes when the index fails after a shard was committed", as
     .mockRejectedValueOnce(
       Object.assign(new Error("index rejected"), { outcome: "not-committed" }),
     );
-  await expect(provider(host).send(agent.id, "你好")).rejects.toThrow(
-    "index rejected",
-  );
+  // The shard holding the message is stored, so this is not "not saved".
+  await expect(provider(host).send(agent.id, "你好")).rejects.toMatchObject({
+    message: expect.stringContaining("回执未确认"),
+    outcome: "unknown",
+  });
   await expect(provider(host).create({ name: "二" })).rejects.toThrow(
     "重新加载",
   );

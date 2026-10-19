@@ -66,6 +66,22 @@ export function modelConnector({
         ctx.platform(capability, payload),
       );
       await store.load();
+      // Re-read the connection before each send: a stale view may be ready.
+      const sendProblem = async (id: string) => {
+        try {
+          await store.refresh();
+        } catch {
+          return "的连接记录暂不可读，未发送。";
+        }
+        const status = store.list().find((item) => item.id === id)?.status;
+        return status === "ready"
+          ? undefined
+          : status === "changed"
+            ? "的请求地址未确认，请在模型连接中重新保存。"
+            : status === "missing"
+              ? "还没有录入 API Key，请在模型连接中录入。"
+              : "的连接待核对或已停用，请在模型连接中处理。";
+      };
       const reply: ChatService["reply"] = async (request, signal) => {
         signal.throwIfAborted();
         const { model, instructions, history, input } = request ?? {};
@@ -77,14 +93,9 @@ export function modelConnector({
             "not-dispatched",
           );
         const { provider } = chosen;
-        if (
-          store.list().find((item) => item.id === provider.id)?.status ===
-          "changed"
-        )
-          throw failure(
-            `「${provider.name}」的请求地址未确认，请在模型连接中重新保存。`,
-            "not-dispatched",
-          );
+        const problem = await sendProblem(provider.id);
+        if (problem)
+          throw failure(`「${provider.name}」${problem}`, "not-dispatched");
         if (
           typeof input !== "string" ||
           !input.trim() ||
@@ -136,8 +147,8 @@ export function modelConnector({
       const fetchModels = async (id: string, signal: AbortSignal) => {
         const provider = store.list().find((item) => item.id === id);
         if (!provider) throw new Error("该服务商已被删除。");
-        if (provider.status !== "ready")
-          throw new Error("请先录入 API Key，再获取模型列表。");
+        const problem = await sendProblem(id);
+        if (problem) throw new Error(`「${provider.name}」${problem}`);
         return ctx.task(async (lifecycle) => {
           const combined = AbortSignal.any([signal, lifecycle]);
           let problem = "";
