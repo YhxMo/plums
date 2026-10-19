@@ -7,6 +7,7 @@ import {
   type ProviderStatus,
   type ProviderView,
 } from "../../modules/models/providers";
+import { Select } from "../components/Select";
 import { useAsyncAction } from "../components/useAsyncAction";
 import s from "./ModelConnections.module.css";
 
@@ -168,25 +169,21 @@ export function ModelConnections({ api }: { api: ModelConnectionsApi }) {
           保存时会打开系统面板，请核对服务地址并录入 API
           Key；之后增删模型、改名称或预算不需要再录入。
         </p>
-        <label className="field">
-          服务商
-          <select
+        <div className="field">
+          <span aria-hidden>服务商</span>
+          <Select
+            label="服务商"
             value={draft.preset}
             disabled={busy || !!current}
-            onChange={(e) =>
-              setDraft({
-                ...fromPreset(api, e.target.value),
-                models: draft.models,
-              })
+            options={api.presets.map((preset) => ({
+              value: preset.id,
+              label: preset.label,
+            }))}
+            onChange={(id) =>
+              setDraft({ ...fromPreset(api, id), models: draft.models })
             }
-          >
-            {api.presets.map((preset) => (
-              <option key={preset.id} value={preset.id}>
-                {preset.label}
-              </option>
-            ))}
-          </select>
-        </label>
+          />
+        </div>
         <label className="field">
           名称
           <input

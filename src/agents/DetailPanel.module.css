@@ -287,13 +287,3 @@
   flex: 1;
   min-height: 0;
 }
-.modelField select {
-  width: 100%;
-  min-height: 36px;
-  padding: 6px 10px;
-  border: 1px solid var(--control-border);
-  border-radius: 8px;
-  background: var(--card);
-  color: var(--text);
-  font-size: 13px;
-}

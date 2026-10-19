@@ -358,7 +358,6 @@ svg {
   margin-bottom: 14px;
 }
 .field input,
-.field select,
 .field textarea {
   width: 100%;
   padding: 7px 10px;

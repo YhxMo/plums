@@ -157,9 +157,17 @@ test("each Agent picks its own model and the model receives the conversation so 
     .click();
   await page.getByRole("button", { name: "返回工作区", exact: true }).click();
   await toggleDetails.click();
-  await page
-    .getByRole("combobox", { name: "甲 使用的模型", exact: true })
-    .selectOption({ label: "回显 B" });
+  const picker = page.getByRole("combobox", {
+    name: "甲 使用的模型",
+    exact: true,
+  });
+  await picker.click();
+  const choices = page.getByRole("listbox", { name: "甲 使用的模型" });
+  // Models are grouped under the provider that offers them.
+  await expect(choices.getByRole("group", { name: /回显模型/ })).toBeVisible();
+  await choices.getByRole("option", { name: /^回显 B/ }).click();
+  await expect(choices).toBeHidden();
+  await expect(picker).toHaveText(/回显 B/);
   const send = async (text: string) => {
     await page.getByRole("textbox", { name: "消息", exact: true }).fill(text);
     await page.getByRole("button", { name: "发送", exact: true }).click();

@@ -147,3 +147,22 @@ test("system Back dismisses menu, then authorization, without granting", async (
   await expect(page.getByRole("button", { name: "返回工作区" })).toBeHidden();
   expect(await back(page)).toBe(true);
 });
+
+test("system Back closes an open model picker before the details", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 375, height: 820 });
+  await page.goto("/");
+  await createAgent(page);
+  await page.getByRole("button", { name: "查看 Agent 详情" }).click();
+  const detail = page.getByRole("dialog", { name: "Agent 详情", exact: true });
+  const picker = detail.getByRole("combobox", {
+    name: "Back probe 使用的模型",
+    exact: true,
+  });
+  await picker.click();
+  await expect(detail.getByRole("listbox")).toBeVisible();
+  expect(await back(page)).toBe(false);
+  await expect(detail.getByRole("listbox")).toBeHidden();
+  await expect(detail).toBeVisible();
+});

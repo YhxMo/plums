@@ -13,7 +13,9 @@ function dismissLayer(event: Event) {
     focused && visible(focused)
       ? focused
       : [...document.querySelectorAll(layerSelector)].filter(visible).at(-1);
-  const menu = [...(dialog ?? document).querySelectorAll('[role="menu"]')]
+  const menu = [
+    ...(dialog ?? document).querySelectorAll('[role="menu"], [role="listbox"]'),
+  ]
     .filter(visible)
     .at(-1);
   if (menu) {

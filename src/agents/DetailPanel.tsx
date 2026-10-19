@@ -8,6 +8,7 @@ import {
 } from "../../modules/agents/contract";
 import { Avatar } from "./AgentList";
 import { Icon } from "../components/Icon";
+import { Select } from "../components/Select";
 import s from "./DetailPanel.module.css";
 export function DetailPanel({
   agent,
@@ -104,42 +105,33 @@ export function DetailPanel({
         {models && onModel && (
           <section>
             <h3>模型</h3>
-            <label className={s.modelField}>
-              <select
-                aria-label={`${agent.name} 使用的模型`}
-                value={current}
-                disabled={agent.status === "busy"}
-                onChange={(e) => {
-                  const choice = models.find(
-                    (m) =>
-                      key({ provider: m.provider, model: m.id }) ===
-                      e.target.value,
-                  );
-                  onModel(
-                    choice
-                      ? { provider: choice.provider, model: choice.id }
-                      : null,
-                  );
-                }}
-              >
-                <option value="">未选择</option>
-                {missing && <option value={current}>已不可用的模型</option>}
-                {[...new Set(models.map((m) => m.group))].map((group) => (
-                  <optgroup key={group} label={group}>
-                    {models
-                      .filter((m) => m.group === group)
-                      .map((m) => (
-                        <option
-                          key={key({ provider: m.provider, model: m.id })}
-                          value={key({ provider: m.provider, model: m.id })}
-                        >
-                          {m.label}
-                        </option>
-                      ))}
-                  </optgroup>
-                ))}
-              </select>
-            </label>
+            <Select
+              label={`${agent.name} 使用的模型`}
+              value={current}
+              disabled={agent.status === "busy"}
+              options={[
+                { value: "", label: "未选择" },
+                ...(missing
+                  ? [{ value: current, label: "已不可用的模型" }]
+                  : []),
+                ...models.map((m) => ({
+                  value: key({ provider: m.provider, model: m.id }),
+                  label: m.label,
+                  description: m.description,
+                  group: m.group,
+                })),
+              ]}
+              onChange={(value) => {
+                const choice = models.find(
+                  (m) => key({ provider: m.provider, model: m.id }) === value,
+                );
+                onModel(
+                  choice
+                    ? { provider: choice.provider, model: choice.id }
+                    : null,
+                );
+              }}
+            />
             <p className={s.detailNote}>
               {missing
                 ? "所选模型已删除或其连接已停用，请重新选择。"

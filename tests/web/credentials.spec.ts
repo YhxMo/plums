@@ -328,9 +328,23 @@ test("the model connection page adds a provider from a template and the user's o
   await page.getByRole("menuitem", { name: "模型连接", exact: true }).click();
   const dialog = page.getByRole("dialog", { name: "模型连接" });
   await dialog.getByRole("button", { name: "添加服务商", exact: true }).click();
-  await dialog
-    .getByRole("combobox", { name: "服务商", exact: true })
-    .selectOption({ label: "自定义（Anthropic 兼容）" });
+  const presets = dialog.getByRole("combobox", { name: "服务商", exact: true });
+  // Keyboard: open, Escape closes only the list, then choose with arrows.
+  await presets.focus();
+  await page.keyboard.press("ArrowDown");
+  const list = dialog.getByRole("listbox", { name: "服务商" });
+  await expect(list.getByRole("option", { selected: true })).toHaveText(
+    "DeepSeek",
+  );
+  await page.keyboard.press("Escape");
+  await expect(list).toBeHidden();
+  await expect(dialog).toBeVisible();
+  await expect(presets).toBeFocused();
+  await page.keyboard.press("Enter");
+  await page.keyboard.press("End");
+  await page.keyboard.press("Enter");
+  await expect(presets).toHaveText("自定义（Anthropic 兼容）");
+  await expect(presets).toBeFocused();
   await dialog.getByRole("textbox", { name: "名称", exact: true }).fill("网关");
   await dialog
     .getByRole("textbox", { name: "服务地址", exact: true })
