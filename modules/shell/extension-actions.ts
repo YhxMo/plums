@@ -68,45 +68,54 @@ export async function installExtension(
   return entry;
 }
 
+type RemovalHost = Pick<Host, "ids" | "manifest">;
+type RemovalState = Pick<ExtensionState, "imports" | "composition" | "save">;
+type PrepareUninstall = (owner: string, declared: boolean) => Promise<void>;
 const notCommitted = (error: unknown) =>
   (error as { outcome?: string } | null)?.outcome === "not-committed";
 
 /**
  * Installs a file the user imported, or replaces an earlier import with the
- * same ID. The source is stored before the shell record that references it;
- * a replaced extension is stopped and its grants revoked first, and stays
- * disabled until the user enables and authorizes the new code.
+ * same ID, including one whose code failed to load. The source is stored
+ * before the shell record that references it. A replaced extension is
+ * stopped, its grants revoked, its credential bindings disabled and its
+ * entry dropped from the saved composition first; it stays disabled until
+ * the user enables and authorizes the new code.
  */
 export async function importExtensionFile(
-  host: Pick<Host, "ids" | "install" | "stop" | "grant" | "uninstall">,
-  state: Pick<
-    ExtensionState,
-    "imports" | "catalog" | "configurations" | "save"
-  >,
+  host: RemovalHost & Pick<Host, "install" | "stop" | "grant" | "uninstall">,
+  state: RemovalState & Pick<ExtensionState, "catalog" | "configurations">,
   file: ExtensionFile,
   definition: ExtensionDefinition,
   sources: SourceStore,
+  prepareUninstall: PrepareUninstall,
 ) {
   const id = definition.manifest.id;
   const previous = state.imports.find((entry) => entry.id === id);
-  if (!previous && host.ids().includes(id))
+  const installed = host.ids().includes(id);
+  if (!previous && installed)
     throw Error("此 ID 属于内置扩展，不能用导入的文件替换。");
   await sources.write(file);
-  if (previous) {
+  if (previous && installed) {
     await host.stop(id);
     await host.grant(id, []);
   }
   const entry: ImportedExtension = { id, url: file.url, label: id };
   const imports = [...state.imports.filter((saved) => saved.id !== id), entry];
+  let saving = false;
   try {
-    await state.save({ imports });
+    if (previous)
+      await prepareUninstall(extensionOwner(id), declared(host, id));
+    saving = true;
+    if (previous) await saveWithout(state, id, imports);
+    else await state.save({ imports });
   } catch (error) {
-    if (notCommitted(error) && previous?.url !== file.url)
+    if ((!saving || notCommitted(error)) && previous?.url !== file.url)
       await sources.remove(file.url);
     throw error;
   }
   state.imports = imports;
-  if (previous) await host.uninstall(id);
+  if (previous && installed) await host.uninstall(id);
   host.install(definition, state.configurations[id]);
   const index = state.catalog.findIndex((saved) => saved.id === id);
   if (index === -1) state.catalog.push(entry);
@@ -149,9 +158,22 @@ export async function retryImport(
   return entry;
 }
 
-type RemovalHost = Pick<Host, "ids" | "manifest">;
-type RemovalState = Pick<ExtensionState, "imports" | "composition" | "save">;
-type PrepareUninstall = (owner: string, declared: boolean) => Promise<void>;
+const declared = (host: RemovalHost, id: string) =>
+  host.ids().includes(id) && !!host.manifest(id).credentialBindings;
+
+/** Saves `imports` with `id` dropped from the saved composition. */
+async function saveWithout(
+  state: RemovalState,
+  id: string,
+  imports: ImportedExtension[],
+) {
+  const composition = state.composition && {
+    ...state.composition,
+    enabled: state.composition.enabled.filter((entry) => entry.id !== id),
+  };
+  await state.save({ imports, ...(composition ? { composition } : {}) });
+  state.composition = composition;
+}
 
 async function saveRemovedImport(
   host: RemovalHost,
@@ -160,16 +182,8 @@ async function saveRemovedImport(
   imports: ImportedExtension[],
   prepareUninstall: PrepareUninstall,
 ) {
-  await prepareUninstall(
-    extensionOwner(id),
-    host.ids().includes(id) && !!host.manifest(id).credentialBindings,
-  );
-  const composition = state.composition && {
-    ...state.composition,
-    enabled: state.composition.enabled.filter((entry) => entry.id !== id),
-  };
-  await state.save({ imports, ...(composition ? { composition } : {}) });
-  state.composition = composition;
+  await prepareUninstall(extensionOwner(id), declared(host, id));
+  await saveWithout(state, id, imports);
 }
 
 export async function uninstallExtension(

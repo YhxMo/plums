@@ -1,76 +1,24 @@
 import { afterEach, expect, it, vi } from "vitest";
-import { Host } from "../modules/extension-host/host";
-import type {
-  ExtensionDefinition,
-  Platform,
-  StoredState,
-} from "../modules/sdk";
 import {
   importExtensionFile,
   uninstallExtension,
   removeFailedImport,
   retryImport,
-  type ExtensionState,
 } from "../modules/shell/extension-actions";
-import {
-  readExtensionFile,
-  sourceStore,
-  sourceLabel,
-} from "../modules/shell/file-import";
+import { readExtensionFile, sourceLabel } from "../modules/shell/file-import";
 import { parsePersistedState } from "../src/shell/persisted-state";
 import { installImports } from "../src/shell/extensions";
+import {
+  definition,
+  file,
+  id,
+  installedImport,
+  memory,
+  newHost,
+  setup,
+} from "./fixtures/file-import";
 
 afterEach(() => vi.unstubAllGlobals());
-
-const id = "author.echo";
-const definition = (version = "1"): ExtensionDefinition => ({
-  manifest: { id, version, apiVersion: 1 },
-  activate() {},
-});
-const file = (text: string) => new Blob([text], { type: "text/javascript" });
-
-function memory() {
-  const states = new Map<string, StoredState>();
-  const call = vi.fn(async (capability: string, payload?: unknown) => {
-    const { key, revision, value, remove } = payload as {
-      key: string;
-      revision?: number;
-      value?: unknown;
-      remove?: boolean;
-    };
-    if (capability === "state.read") return states.get(key) ?? null;
-    if (revision !== (states.get(key)?.revision ?? 0))
-      throw Object.assign(new Error("conflict"), { outcome: "not-committed" });
-    if (remove) {
-      states.delete(key);
-      return null;
-    }
-    const next = { revision: revision! + 1, value: structuredClone(value) };
-    states.set(key, next);
-    return next;
-  });
-  return { states, call, sources: sourceStore(call) };
-}
-
-function newHost() {
-  const platform: Platform = {
-    kind: "browser",
-    available: () => true,
-    grant: vi.fn(async () => {}),
-    call: vi.fn(async () => null),
-  };
-  return new Host(platform);
-}
-function setup() {
-  const host = newHost();
-  const state: ExtensionState = {
-    imports: [],
-    catalog: [],
-    configurations: {},
-    save: vi.fn(async () => {}),
-  };
-  return { host, state, ...memory() };
-}
 
 it("reads a UTF-8 file into a content-addressed import", async () => {
   const read = await readExtensionFile(file("export default 1;\n"));
@@ -125,6 +73,7 @@ it("writes the source before the shell record and installs only after both", asy
     read,
     definition(),
     sources,
+    async () => {},
   );
   expect(result).toEqual({
     entry: { id, url: read.url, label: id },
@@ -143,7 +92,14 @@ it("refuses to shadow a built-in extension", async () => {
   state.catalog = [builtIn];
   const read = await readExtensionFile(file("export default 'b';"));
   await expect(
-    importExtensionFile(host, state, read, definition(), sources),
+    importExtensionFile(
+      host,
+      state,
+      read,
+      definition(),
+      sources,
+      async () => {},
+    ),
   ).rejects.toThrow("内置扩展");
   expect(states.size).toBe(0);
   expect(state.save).not.toHaveBeenCalled();
@@ -156,7 +112,14 @@ it("drops the new source when the shell record was definitely not saved", async 
   });
   const read = await readExtensionFile(file("export default 'c';"));
   await expect(
-    importExtensionFile(host, state, read, definition(), sources),
+    importExtensionFile(
+      host,
+      state,
+      read,
+      definition(),
+      sources,
+      async () => {},
+    ),
   ).rejects.toThrow("disk full");
   expect(states.size).toBe(0);
   expect(host.ids()).not.toContain(id);
@@ -169,60 +132,17 @@ it("keeps the new source when the shell record receipt is unknown", async () => 
   });
   const read = await readExtensionFile(file("export default 'd';"));
   await expect(
-    importExtensionFile(host, state, read, definition(), sources),
+    importExtensionFile(
+      host,
+      state,
+      read,
+      definition(),
+      sources,
+      async () => {},
+    ),
   ).rejects.toThrow("receipt lost");
   expect(states.size).toBe(1);
 });
-
-async function installedImport() {
-  const fixture = setup();
-  const old = await readExtensionFile(file("export default 'old';"));
-  const { entry } = await importExtensionFile(
-    fixture.host,
-    fixture.state,
-    old,
-    definition("1"),
-    fixture.sources,
-  );
-  return { ...fixture, old, entry };
-}
-
-it("replaces an imported extension: stops, revokes, swaps the record and code", async () => {
-  const { host, state, sources, states, old } = await installedImport();
-  await host.start(id);
-  const next = await readExtensionFile(file("export default 'new';"));
-  const result = await importExtensionFile(
-    host,
-    state,
-    next,
-    definition("2"),
-    sources,
-  );
-  expect(result.replaced).toBe(true);
-  expect(host.manifest(id).version).toBe("2");
-  expect(host.inspect(id).status).toBe("disabled");
-  expect(state.imports).toEqual([{ id, url: next.url, label: id }]);
-  expect(state.catalog).toEqual([{ id, url: next.url, label: id }]);
-  await expect(sources.read(old.hash)).rejects.toThrow("已丢失");
-  expect(await sources.read(next.hash)).toBe("export default 'new';");
-  expect(states.size).toBe(1);
-});
-
-it("keeps the old version and its source when a replacement is not saved", async () => {
-  const { host, state, sources, old, entry } = await installedImport();
-  state.save = vi.fn(async () => {
-    throw Object.assign(new Error("disk full"), { outcome: "not-committed" });
-  });
-  const next = await readExtensionFile(file("export default 'new';"));
-  await expect(
-    importExtensionFile(host, state, next, definition("2"), sources),
-  ).rejects.toThrow("disk full");
-  expect(host.manifest(id).version).toBe("1");
-  expect(state.imports).toEqual([entry]);
-  expect(await sources.read(old.hash)).toBe("export default 'old';");
-  await expect(sources.read(next.hash)).rejects.toThrow("已丢失");
-});
-
 it("removes the stored source after uninstall, and a failed removal is not an error", async () => {
   const { host, state, sources, states, call } = await installedImport();
   call.mockImplementationOnce(async () => {

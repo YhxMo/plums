@@ -186,3 +186,36 @@ it("saved Agents without a list use the first service; a list must hold IDs", ()
     "Agent 配置损坏",
   );
 });
+
+it("a reply in flight is not saved when its extension stops meanwhile", async () => {
+  const { host, agents } = await setup();
+  let finish!: () => void;
+  host.install({
+    manifest: {
+      id: "transform.slow",
+      apiVersion: 1,
+      version: "1",
+      provides: { "text.transform": 1 },
+    },
+    activate(ctx) {
+      ctx.provide("text.transform", 1, {
+        name: "慢",
+        transform: (text: string) =>
+          new Promise<string>((resolve) => (finish = () => resolve(text))),
+      });
+    },
+  });
+  await host.start("transform.slow");
+  const agent = await agents().create({ name: "慢回复" });
+  await agents().setExtension!(agent.id, "transform.a", false);
+  await agents().setExtension!(agent.id, "transform.slow", true);
+  const sent = agents().send(agent.id, "你好");
+  await host.stop("transform.slow");
+  finish();
+  await expect(sent).rejects.toThrow("扩展已停用");
+  expect(
+    agents()
+      .list()
+      .find((a) => a.id === agent.id)!.sessions[0].messages,
+  ).toEqual([]);
+});

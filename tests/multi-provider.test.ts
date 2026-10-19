@@ -154,3 +154,47 @@ test("users name the providers they use and can be switched on or off per provid
     "Invalid toggle",
   );
 });
+
+test("a consumer closes at once when all its providers fail together", async () => {
+  const host = new Host(platform());
+  const contexts: Record<string, ExtensionContext> = {};
+  host.install({
+    manifest: { id: "base", version: "1", apiVersion: 1, provides: { b: 1 } },
+    activate(ctx) {
+      ctx.provide("b", 1, {});
+      ctx.view({
+        id: "base.view",
+        label: "base",
+        mount: () => () => {
+          throw new Error("unmount failed");
+        },
+      });
+    },
+  });
+  for (const id of ["p1", "p2"])
+    host.install({
+      manifest: {
+        id,
+        version: "1",
+        apiVersion: 1,
+        requires: { b: 1 },
+        provides: { s: 1 },
+      },
+      activate(ctx) {
+        ctx.provide("s", 1, { from: id });
+      },
+    });
+  host.install({
+    manifest: { id: "c", version: "1", apiVersion: 1, requires: { s: 1 } },
+    activate(ctx) {
+      contexts.c = ctx;
+    },
+  });
+  for (const id of ["base", "p1", "p2", "c"]) await host.start(id);
+  const close = host.mountView("base.view", {} as HTMLElement);
+  expect(close).toThrow("unmount failed");
+  // Both providers go down in the same failure, so the consumer's entry closes with them.
+  expect(contexts.c.signal.aborted).toBe(true);
+  expect(host.inspect("c").status).toBe("stopping");
+  await host.stop("base").catch(() => {});
+});

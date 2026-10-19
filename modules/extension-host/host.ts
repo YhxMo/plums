@@ -406,17 +406,16 @@ export class Host {
   }
   private invalidate(id: string) {
     const affected = new Set<string>();
+    // Marking each owner first lets a consumer whose providers all fail here count as dependent.
     const visit = (owner: string) => {
       if (affected.has(owner)) return;
       affected.add(owner);
+      const record = this.record(owner);
+      if (record.status === "active") record.status = "stopping";
       for (const dependent of this.dependents(owner)) visit(dependent);
     };
     visit(id);
-    for (const owner of affected) {
-      const record = this.record(owner);
-      if (record.status === "active") record.status = "stopping";
-      record.scope?.invalidate();
-    }
+    for (const owner of affected) this.record(owner).scope?.invalidate();
     for (const owner of affected) this.record(owner).scope?.controller.abort();
     this.changed();
   }

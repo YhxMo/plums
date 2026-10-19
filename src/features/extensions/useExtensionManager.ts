@@ -219,14 +219,21 @@ export function useExtensionManager(
       importFile: ({ file, definition }: ImportPreview) =>
         operate(async () => {
           const { entry, replaced } = await run((draft) =>
-            importExtensionFile(host, draft, file, definition, runtime.sources),
+            importExtensionFile(
+              host,
+              draft,
+              file,
+              definition,
+              runtime.sources,
+              prepareUninstall,
+            ),
           );
           clearFailure(entry.id);
           setSelectedId(entry.id);
           close();
           setNotice(
             replaced
-              ? "已替换为新版本。请重新启用并确认权限；扩展数据已保留。"
+              ? "已替换为新版本。请重新启用并确认权限；如有连接，需重新录入 API Key。扩展数据已保留。"
               : "扩展已导入。请检查来源与能力，再启用扩展。",
           );
         }),
