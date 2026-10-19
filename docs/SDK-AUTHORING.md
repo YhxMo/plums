@@ -129,7 +129,7 @@ ctx.task 跟踪异步任务，使用传入 signal 合作式取消；ctx.onDispos
 
 ## 组合保存与恢复
 
-外壳支持显式保存启用集合与精确扩展版本，下次启动恢复；权限须重新确认。提供者选择由集合确定，版本不符或缺失扩展保留原配置并显示诊断。配置所有权、部分恢复边界与卸载同步见 [组合契约](COMPOSITION.md)。
+外壳自动记录启用集合与按版本的授权，下次启动恢复；版本变化后权限须重新确认。提供者选择由集合确定，缺失的扩展跳过。配置所有权、部分恢复边界与卸载同步见 [组合契约](COMPOSITION.md)。
 
 ## 非敏感配置
 
@@ -155,6 +155,6 @@ ctx.task 跟踪异步任务，使用传入 signal 合作式取消；ctx.onDispos
 
 ## 公开主题样板
 
-[主题颜色契约](THEMES.md)提供 `ctx.theme(Theme)`、17个语义色与生命周期规则。两个独立作者样板 [海湾](../extensions/samples/theme-ocean.js)（`sample.theme-ocean` / `/samples/theme-ocean.js`）和 [墨夜](../extensions/samples/theme-ink.js)（`sample.theme-ink` / `/samples/theme-ink.js`）随源码构建，不自动加入目录或启用。按上述安装流程分别安装、启用，应用设置选择“使用 海湾”或“使用 墨夜”。无需平台权限。选择成功后可关闭设置；停用主题恢复内置外观，重新启用恢复已选主题。要在重启后同时恢复启用集合，另保存当前组合。旧普通release包不包含这些样板。
+[主题颜色契约](THEMES.md)提供 `ctx.theme(Theme)`、17个语义色与生命周期规则。两个独立作者样板 [海湾](../extensions/samples/theme-ocean.js)（`sample.theme-ocean` / `/samples/theme-ocean.js`）和 [墨夜](../extensions/samples/theme-ink.js)（`sample.theme-ink` / `/samples/theme-ink.js`）随源码构建，不自动加入目录或启用。按上述安装流程分别安装、启用，应用设置选择“使用 海湾”或“使用 墨夜”。无需平台权限。选择成功后可关闭设置；停用主题恢复内置外观，重新启用恢复已选主题。启用集合会自动保留到重启后。旧普通release包不包含这些样板。
 
 主题注册的颜色被复制；`Host.themes()` 返回带owner/generation的副本用于管理，重新贡献前应取出主题本身的四个字段。完整主题系统、导航和快捷键仍未稳定。

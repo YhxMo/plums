@@ -18,12 +18,12 @@
 
 | 项目 | 实现 |
 | --- | --- |
-| 秘密 | 只在原生层读取并注入一个请求头：Mac 从 Keychain 读取后构造头并清零缓冲；Android 在凭据插件内用 Keystore 解密。秘密不返回 WebView、不写日志或状态；HTTP 栈与 JVM 内部副本不承诺归零 |
+| 秘密 | 只在原生层读取并注入一个请求头：Mac 从 Keychain 读取后构造头并清零缓冲，读到或录入的密钥在本进程原生内存中保留一份，每次启动最多读一次 Keychain（系统访问提示随之最多一次；选「始终允许」后同一签名的应用不再提示，ad-hoc 签名的每次重新构建都算新应用）；删除凭据时清零移除；Android 在凭据插件内用 Keystore 解密。秘密不返回 WebView、不写日志或状态；HTTP 栈与 JVM 内部副本不承诺归零 |
 | 传输 | Mac：`reqwest =0.13.5` + rustls，证书由 `rustls-platform-verifier` 交给系统校验，仅 HTTPS。Android：`HttpsURLConnection`，系统默认信任 |
 | 目标 | 仅绑定保存的精确 HTTPS URL，方法 POST；扩展不能改写目标、头或认证 |
 | 网络 | 不跟随重定向（3xx 报 unknown `redirect`）；不用系统/环境代理；不发 cookie；不隐式解压（Android 显式 `Accept-Encoding: identity`）。保存了代理路由的绑定拒绝发送（`proxy-unsupported`） |
 | 时限与限额 | 连接 10 秒、总计 30 秒；请求 4096 字节、响应 8192 字节（声明长度或累计读取超限即停止）；每个 owner 同时 1 个请求，否则 `busy` |
-| 首次发送确认 | 每个绑定修订第一次发送前，原生面板展示扩展、来源、目标、POST、内容类型与认证头名，用户确认后本进程内同一修订不再询问。取消即 `not-confirmed`。授权变更、扩展停用、撤销或重新绑定使确认失效；重启后须重新确认 |
+| 首次发送确认 | 每个绑定修订第一次发送前，原生面板展示扩展、来源、目标、POST、内容类型与认证头名，用户确认后同一修订不再询问，确认随绑定记录保存、重启后仍有效。取消即 `not-confirmed`。修改网络配置、重新录入密钥、撤销、卸载或替换扩展会提升修订，使确认失效；保存确认失败时只在本次运行内有效 |
 | 取消与撤销 | WebView 取消通过请求 ID 通知原生中断连接；授权变更、停用（`release`）、删除或卸载前的禁用会取消在途请求。发送前与交付前都重新检查授权和绑定修订，变化则不交付（`stale`） |
 
 原生命令为 `credential_request`、`credential_abort`、`credential_release`；Android 由 `CredentialsPlugin` 的 `request`/`cancel` 执行同一政策。

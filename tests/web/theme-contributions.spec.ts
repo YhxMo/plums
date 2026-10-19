@@ -1,5 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
-import { manage } from "./helpers";
+import { manage, persisted } from "./helpers";
 async function settings(page: Page) {
   await page.getByRole("button", { name: "应用菜单", exact: true }).click();
   await page.getByRole("menuitem", { name: "应用设置", exact: true }).click();
@@ -43,9 +43,7 @@ for (const width of [320, 375, 768, 1440])
       ),
     ).toBe(true);
     await dialog.getByRole("button", { name: "关闭" }).click();
-    await page
-      .getByRole("button", { name: "保存当前组合", exact: true })
-      .click();
+    await persisted(page, "sample.theme-ink");
     await page.reload();
     await expect(page.locator("html")).toHaveAttribute(
       "data-theme-id",

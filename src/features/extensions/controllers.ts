@@ -13,7 +13,7 @@ export type ManagementInputs = {
     ShellOperations,
     "busy" | "error" | "operate" | "setError" | "setNotice"
   >;
-  workspace: Pick<Workspace, "selected" | "enableExtension">;
+  workspace: Pick<Workspace, "enableExtension">;
   navigation: Pick<ShellNavigation, "manager" | "closeManager">;
   authorization: Pick<Authorization, "requestAuthorization">;
 };
@@ -40,7 +40,7 @@ export type ExtensionManagerController = Pick<
 >;
 export type ManagerHeaderController = Pick<
   Management["header"],
-  "heading" | "count" | "busy" | "close" | "install" | "save"
+  "heading" | "count" | "close" | "install"
 >;
 export type ExtensionListController = Pick<
   Management["list"],

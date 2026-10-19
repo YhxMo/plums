@@ -2,18 +2,22 @@ import { ContractError } from "../sdk/errors";
 import { array, identifier, object, string } from "../sdk/validation";
 import type { Host } from "../extension-host/host";
 
+type Entry = { id: string; version: string };
+/** Capabilities the user granted; they apply only to the recorded version. */
+export type Grant = Entry & { capabilities: string[] };
 export type Composition = {
   schema: 1;
-  enabled: { id: string; version: string }[];
+  enabled: Entry[];
+  granted?: Grant[];
 };
-export function readComposition(value: unknown): Composition | undefined {
-  if (value === undefined) return undefined;
-  const candidate = object(value, "state.composition", { path: "composition" });
-  if (candidate.schema !== 1)
-    throw new ContractError("state.composition", "composition");
+function entries<T extends Entry>(
+  value: unknown,
+  path: string,
+  extra: (entry: Record<string, unknown>, path: string) => void = () => {},
+): T[] {
   const seen = new Set<string>();
-  array(
-    candidate.enabled,
+  return array(
+    value,
     "state.composition",
     (value, path) => {
       const entry = object(value, "state.composition", { path });
@@ -27,54 +31,84 @@ export function readComposition(value: unknown): Composition | undefined {
       if (seen.has(id))
         throw new ContractError("state.composition", `${path}.id`);
       seen.add(id);
-      return entry;
+      extra(entry, path);
+      return entry as T;
     },
-    { path: "composition.enabled" },
+    { path },
   );
+}
+export function readComposition(value: unknown): Composition | undefined {
+  if (value === undefined) return undefined;
+  const candidate = object(value, "state.composition", { path: "composition" });
+  if (candidate.schema !== 1)
+    throw new ContractError("state.composition", "composition");
+  entries(candidate.enabled, "composition.enabled");
+  if (candidate.granted !== undefined)
+    entries(candidate.granted, "composition.granted", (entry, path) =>
+      array(entry.capabilities, "state.composition", undefined, {
+        path: `${path}.capabilities`,
+      }).forEach((capability, index) =>
+        string(capability, "state.composition", {
+          path: `${path}.capabilities.${index}`,
+          min: 1,
+        }),
+      ),
+    );
   return candidate as Composition;
 }
-type CompositionHost = Pick<Host, "ids" | "manifest" | "inspect">;
-function issues(host: CompositionHost, composition: Composition): string[] {
-  const errors: string[] = [];
-  for (const entry of composition.enabled) {
-    if (!host.ids().includes(entry.id)) {
-      errors.push(`缺失扩展 ${entry.id}`);
-      continue;
-    }
-    const manifest = host.manifest(entry.id);
-    if (manifest.version !== entry.version)
-      errors.push(
-        `扩展版本不符 ${entry.id}：需要 ${entry.version}，实际 ${manifest.version}`,
-      );
-  }
-  return errors;
-}
-export function captureComposition(host: CompositionHost): Composition {
-  const composition: Composition = {
-    schema: 1,
-    enabled: host
-      .ids()
+type CompositionHost = Pick<Host, "ids" | "manifest" | "inspect" | "granted">;
+/**
+ * What is enabled and granted now. Saved entries of `pending` extensions,
+ * imports that did not load this time, keep their place until they do.
+ */
+export function captureComposition(
+  host: CompositionHost,
+  previous?: Composition,
+  pending: string[] = [],
+): Composition {
+  const installed = host.ids();
+  const kept = <T extends Entry>(list: T[] = []) =>
+    list.filter(({ id }) => !installed.includes(id) && pending.includes(id));
+  const version = (id: string) => host.manifest(id).version;
+  const enabled = [
+    ...kept(previous?.enabled),
+    ...installed
       .filter((id) => host.inspect(id).desired)
-      .map((id) => ({ id, version: host.manifest(id).version })),
-  };
-  const errors = issues(host, composition);
-  for (const { id } of composition.enabled) {
-    if (
-      ["failed", "cleanup-failed", "stopping"].includes(host.inspect(id).status)
-    )
-      errors.push(`扩展 ${id} 尚未恢复，不能保存组合`);
-  }
-  if (errors.length) throw Error(errors.join("；"));
-  return composition;
+      .map((id) => ({ id, version: version(id) })),
+  ];
+  const granted = [
+    ...kept(previous?.granted),
+    ...installed
+      .map((id) => ({
+        id,
+        version: version(id),
+        capabilities: host.granted(id),
+      }))
+      .filter(({ capabilities }) => capabilities.length),
+  ];
+  return { schema: 1, enabled, ...(granted.length ? { granted } : {}) };
 }
-/** Boot-only restoration: grants stay session-scoped; missing permissions remain waiting. */
+/**
+ * Boot-only restoration. Grants return only for the version they were given
+ * to; an extension that is no longer installed is skipped.
+ */
 export async function restoreComposition(
-  host: CompositionHost & Pick<Host, "start">,
+  host: CompositionHost & Pick<Host, "start" | "grant">,
   composition: Composition,
 ) {
-  const errors = issues(host, composition);
-  if (errors.length) return errors;
+  const errors: string[] = [];
+  const installed = host.ids();
+  for (const { id, version, capabilities } of composition.granted ?? []) {
+    if (!installed.includes(id) || host.manifest(id).version !== version)
+      continue;
+    try {
+      await host.grant(id, capabilities);
+    } catch (error) {
+      errors.push(`权限恢复失败 ${id}：${String(error)}`);
+    }
+  }
   for (const { id } of composition.enabled) {
+    if (!installed.includes(id)) continue;
     try {
       await host.start(id);
     } catch (error) {

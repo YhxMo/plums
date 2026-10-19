@@ -1,5 +1,5 @@
 //! `credential.request`: one bound request per owner, confirmed by the user once
-//! per binding revision in this process, cancellable from the WebView.
+//! per binding revision (remembered across restarts), cancellable from the WebView.
 use crate::credential_bindings::{Bindings, Failure, Route, View};
 use crate::credential_transport::{self as transport, Fault, Reply, MAX_REQUEST};
 use crate::credentials_native::prompt;
@@ -140,7 +140,7 @@ fn key(view: &View) -> (String, String, u64) {
 }
 fn consent(view: &View) -> String {
     let declaration = &view.declaration;
-    format!("{}\n{}\n扩展：{} / {}\n来源：{} · {}\nPOST · {} · 认证：{}\n\n允许该扩展通过此绑定把文本发送到上述地址？本次运行内同一绑定不再询问；修改绑定、停用扩展或重启应用后需重新确认。", declaration.label, declaration.target, view.owner, view.alias, view.source, view.version, declaration.content_type, declaration.authentication.name())
+    format!("{}\n{}\n扩展：{} / {}\n来源：{} · {}\nPOST · {} · 认证：{}\n\n允许该扩展通过此绑定把文本发送到上述地址？确认后同一绑定不再询问；修改绑定、重新录入密钥或替换扩展后需重新确认。", declaration.label, declaration.target, view.owner, view.alias, view.source, view.version, declaration.content_type, declaration.authentication.name())
 }
 
 async fn dispatch(
@@ -168,9 +168,12 @@ async fn dispatch(
     if view.route != Route::Direct {
         return Err(Refused("proxy-unsupported"));
     }
-    if !requests.confirmed(&view) {
+    if !requests.confirmed(&view) && !bindings.consented(&view) {
         match prompt(app.clone(), "允许发送请求", &consent(&view), None, false).await {
-            Ok(Some(_)) if requests.confirm(&view, &slot) => {}
+            Ok(Some(_)) if requests.confirm(&view, &slot) => {
+                // Unsaved consent still holds for this run.
+                let _ = bindings.consent(&view);
+            }
             Ok(Some(_)) => return Err(Refused("cancelled")),
             Ok(None) => return Err(Refused("not-confirmed")),
             Err(_) => return Err(Refused("unavailable")),

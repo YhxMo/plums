@@ -4,7 +4,7 @@ import {
   retryImport,
   removeFailedImport,
   uninstallExtension,
-  saveComposition,
+  persistComposition,
   configureExtension,
   importExtensionFile,
 } from "../../../modules/shell/extension-actions";
@@ -16,7 +16,7 @@ import type { ImportPreview } from "./InstallDialog";
 import { waitingNotice } from "./enable-feedback";
 import type { ConfigurationValue } from "../../../modules/sdk/configuration";
 import type { Runtime } from "../../shell/runtime";
-import { stateMessage } from "../../shell/messages";
+import { errorMessage, stateMessage } from "../../shell/messages";
 import { useExtensionState } from "../../shell/useExtensionState";
 import type { ManagementInputs, ExtensionCardModel } from "./controllers";
 
@@ -58,6 +58,20 @@ export function useExtensionManager(
           ?.scrollIntoView({ block: "nearest" }),
       );
   }, [manager.open, manager.targetId]);
+  // Enabling, stopping and granting are kept for the next start as they happen.
+  useEffect(() => {
+    let queued = false;
+    return host.subscribe(() => {
+      if (queued) return;
+      queued = true;
+      run((draft) => {
+        queued = false;
+        return persistComposition(host, draft);
+      }).catch((reason) =>
+        setError(`扩展启用状态未保存：${errorMessage(reason)}`),
+      );
+    });
+  }, [host, run, setError]);
   useEffect(() => {
     if (!dialog && removed.current) {
       removed.current = false;
@@ -103,16 +117,8 @@ export function useExtensionManager(
     header: {
       heading,
       count: catalog.length,
-      busy,
       close: closeManager,
       install: (source: HTMLElement) => setDialog({ kind: "install", source }),
-      save: () =>
-        operate(async () => {
-          await run((draft) =>
-            saveComposition(host, draft, workspace.selected),
-          );
-          setNotice("当前组合已保存，下次启动自动恢复；所需权限须重新确认。");
-        }),
     },
     list: {
       rows,
@@ -135,11 +141,12 @@ export function useExtensionManager(
         ) => {
           const id = row.entry.id;
           const capabilities = row.manifest.capabilities ?? [];
+          const granted = host.granted(id);
           if (row.state.status === "active") {
             if (row.users.some((group) => group.users.length))
               open("stop", id, source);
             else void operate(() => host.stop(id));
-          } else if (capabilities.length)
+          } else if (capabilities.some((cap) => !granted.includes(cap)))
             authorization.requestAuthorization(
               [id],
               async () => {

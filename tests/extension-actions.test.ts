@@ -6,7 +6,7 @@ import {
   retryImport,
   removeFailedImport,
   uninstallExtension,
-  saveComposition,
+  persistComposition,
   configureExtension,
   type ExtensionState,
 } from "../modules/shell/extension-actions";
@@ -249,28 +249,44 @@ it("several providers of one service are saved together", async () => {
     });
   await host.start("one");
   await host.start("two");
-  await saveComposition(host, state, "agents");
+  await persistComposition(host, state);
   expect(state.composition).not.toBe(previous);
   expect(state.composition?.enabled.map(({ id }) => id)).toEqual(
     expect.arrayContaining(["one", "two"]),
   );
 });
 
-it("composition failure retains the previous snapshot and success saves only composition and layout", async () => {
+it("composition failure retains the previous snapshot and an unchanged state is not written again", async () => {
   const { host, state } = installed();
+  state.composition = { schema: 1, enabled: [] };
   await host.start(id);
   const previous = state.composition;
   vi.mocked(state.save).mockRejectedValueOnce(Error("write failed"));
-  await expect(saveComposition(host, state, "agents")).rejects.toThrow(
-    "write failed",
-  );
+  await expect(persistComposition(host, state)).rejects.toThrow("write failed");
   expect(state.composition).toBe(previous);
-  await saveComposition(host, state, "agents");
+  await persistComposition(host, state);
   expect(state.save).toHaveBeenLastCalledWith({
     composition: { schema: 1, enabled: [{ id, version: "1" }] },
-    layout: "agents",
   });
   expect(state.composition).not.toBe(previous);
+  vi.mocked(state.save).mockClear();
+  await persistComposition(host, state);
+  expect(state.save).not.toHaveBeenCalled();
+});
+
+it("grants are recorded with the extension version", async () => {
+  const { host, state } = setup();
+  host.install({
+    manifest: { id, version: "1", apiVersion: 1, capabilities: ["state.read"] },
+    activate() {},
+  });
+  await host.grant(id, ["state.read"]);
+  await persistComposition(host, state);
+  expect(state.composition).toEqual({
+    schema: 1,
+    enabled: [],
+    granted: [{ id, version: "1", capabilities: ["state.read"] }],
+  });
 });
 
 it("configuration persistence failure leaves old preferences and a stopped extension", async () => {

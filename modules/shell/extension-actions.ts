@@ -20,7 +20,6 @@ export type ExtensionSavePatch = {
   imports?: ImportedExtension[];
   configurations?: Record<string, unknown>;
   composition?: Composition;
-  layout?: string;
 };
 
 export type ExtensionState = {
@@ -173,7 +172,7 @@ export async function retryImport(
 const declared = (host: RemovalHost, id: string) =>
   host.ids().includes(id) && !!host.manifest(id).credentialBindings;
 
-/** Saves `imports` with `id` dropped from the saved composition. */
+/** Saves `imports` with `id` and its grants dropped from the saved composition. */
 async function saveWithout(
   state: RemovalState,
   id: string,
@@ -182,6 +181,9 @@ async function saveWithout(
   const composition = state.composition && {
     ...state.composition,
     enabled: state.composition.enabled.filter((entry) => entry.id !== id),
+    ...(state.composition.granted && {
+      granted: state.composition.granted.filter((entry) => entry.id !== id),
+    }),
   };
   await state.save({ imports, ...(composition ? { composition } : {}) });
   state.composition = composition;
@@ -231,14 +233,22 @@ export async function removeFailedImport(
   return imports;
 }
 
-export async function saveComposition(
-  host: Pick<Host, "ids" | "inspect" | "manifest">,
-  state: Pick<ExtensionState, "save" | "composition">,
-  layout: string,
+/**
+ * Records the enabled set and grants after the user changes them, so the next
+ * start comes back the same way. Unchanged state is not written again.
+ */
+export async function persistComposition(
+  host: Parameters<typeof captureComposition>[0],
+  state: Pick<ExtensionState, "save" | "composition" | "imports">,
 ) {
-  const composition = captureComposition(host);
-  // Appearance owns theme fields; a composition save must not carry a stale copy.
-  await state.save({ composition, layout });
+  const composition = captureComposition(
+    host,
+    state.composition,
+    state.imports.map(({ id }) => id),
+  );
+  if (JSON.stringify(composition) === JSON.stringify(state.composition))
+    return state.composition;
+  await state.save({ composition });
   state.composition = composition;
   return composition;
 }

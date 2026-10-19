@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
 import { expect, test, type Page } from "@playwright/test";
-import { manage } from "./helpers";
+import { manage, persisted } from "./helpers";
 
 const starter = readFileSync("extensions/examples/starter-text-service.js");
 const service = (id: string, prefix: string) =>
@@ -50,7 +50,7 @@ async function addAgent(page: Page) {
     .click();
 }
 
-test("an imported file drives the Agent and stays installed after reload", async ({
+test("an imported file drives the Agent and stays enabled after reload", async ({
   page,
 }) => {
   await page.goto("/");
@@ -71,11 +71,12 @@ test("an imported file drives the Agent and stays installed after reload", async
   await addAgent(page);
   await send(page, "你好");
   await expect(page.getByRole("log")).toContainText("你写了 2 个字：你好");
+  await persisted(page, "starter.text-service");
   await page.reload();
   await manage(page);
   await expect(
     page.getByRole("button", {
-      name: "启用 starter.text-service",
+      name: "停用 starter.text-service",
       exact: true,
     }),
   ).toBeVisible();

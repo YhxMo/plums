@@ -152,6 +152,27 @@ fn explicit_proxy_changes_revision_and_keeps_target_unchanged() {
     ));
 }
 #[test]
+fn send_consent_survives_restart_and_lapses_when_the_binding_changes() {
+    let fixture = Fixture::new();
+    let store = fixture.store();
+    ready(&store);
+    let (view, _) = store.resolve(OWNER, "text").unwrap();
+    assert!(!store.consented(&view));
+    store.consent(&view).unwrap();
+    let restarted = fixture.store();
+    assert!(restarted.consented(&restarted.resolve(OWNER, "text").unwrap().0));
+    // Re-entering the key is a new revision and needs a new consent.
+    let ticket = begin(&restarted, view.revision).unwrap();
+    restarted.finish_key(ticket, KeyResult::Stored).unwrap();
+    let (changed, _) = restarted.resolve(OWNER, "text").unwrap();
+    assert!(!restarted.consented(&changed));
+    assert_eq!(restarted.consent(&view), Err("stale"));
+    // Disabling the owner's bindings (uninstall or replacement) lapses it too.
+    restarted.consent(&changed).unwrap();
+    restarted.retain_disabled(OWNER).unwrap();
+    assert!(!restarted.consented(&restarted.list(OWNER).unwrap()[0]));
+}
+#[test]
 fn stale_controls_cross_owner_and_concurrent_panels_cannot_replace_records() {
     let fixture = Fixture::new();
     let store = fixture.store();

@@ -29,14 +29,6 @@ export function ManagerHeader({
           <button onClick={(event) => controller.install(event.currentTarget)}>
             安装扩展
           </button>
-          <button
-            className="secondary"
-            disabled={controller.busy}
-            title="记录现在启用的扩展、版本与外观，下次打开应用时恢复"
-            onClick={() => void controller.save()}
-          >
-            保存当前组合
-          </button>
         </div>
       </div>
     </div>

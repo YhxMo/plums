@@ -2,7 +2,7 @@ import { useState } from "react";
 import { diagnoseLayoutFallback } from "../../modules/shell/diagnostics";
 import type { ShellFeedbackProps } from "./controllers";
 import { Icon } from "../components/Icon";
-import styles from "./dialogs.module.css";
+import { Toast } from "../components/Toast";
 import layoutStyles from "./layout.module.css";
 export function ShellFeedback({
   runtime,
@@ -64,22 +64,15 @@ export function ShellFeedback({
         </p>
       )}
       {(error || notice) && (
-        <div
-          className={`${styles.feedback} ${error ? styles.error : styles.notice}`}
-          role={error ? "alert" : "status"}
-        >
-          <span>{error || notice}</span>
-          <button
-            className="secondary"
-            aria-label="关闭提示"
-            onClick={() => {
-              setError("");
-              setNotice("");
-            }}
-          >
-            ×
-          </button>
-        </div>
+        <Toast
+          key={error || notice}
+          message={error || notice}
+          error={!!error}
+          onDone={() => {
+            setError("");
+            setNotice("");
+          }}
+        />
       )}
     </>
   );

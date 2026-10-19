@@ -46,6 +46,7 @@ vi.mock("../src/platform", () => ({
 vi.mock("../modules/extension-host/host", () => ({
   Host: class {
     install = runtimeFixture.install;
+    ids = () => [];
     grant = async () => {};
     start = runtimeFixture.start;
     connectShell = runtimeFixture.connectShell;

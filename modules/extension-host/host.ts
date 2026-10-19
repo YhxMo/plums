@@ -266,6 +266,8 @@ export class Host {
       await this.reconcile();
     });
   }
+  /** Capabilities currently granted to `id`. */
+  granted = (id: string) => [...(this.grants.get(id) ?? [])];
   grant(id: string, capabilities: string[]) {
     return this.serial(async () => {
       const record = this.record(id);

@@ -1,5 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
-import { manage, extensionDetail } from "./helpers";
+import { manage, extensionDetail, persisted } from "./helpers";
 
 const nodeId = "example.local-text-node";
 const pageId = "example.local-proof-pages";
@@ -179,15 +179,13 @@ test("independent contributions stop, restore, and recover a missing persisted r
   await nav(page)
     .getByRole("button", { name: "交稿清单 · A", exact: true })
     .click();
-  await manage(page);
-  await page.getByRole("button", { name: "保存当前组合", exact: true }).click();
-  await expect(
-    page.getByRole("status").filter({ hasText: "当前组合已保存" }),
-  ).toBeVisible();
+  await persisted(page, pageId);
   await page.reload();
+  // The board's permissions are remembered, so its dependents start again.
   await manage(page);
-  await expect(card(page, pageId)).toContainText("等待条件");
-  await enableBoard(page);
+  await expect(
+    page.getByRole("button", { name: `停用 ${pageId}`, exact: true }),
+  ).toBeVisible();
   await workspace(page);
   // Dynamic contributions were activation-local; the missing preference survives.
   await expect(
@@ -266,7 +264,8 @@ test("independent contributions stop, restore, and recover a missing persisted r
     page.getByRole("heading", { name: "欢迎使用 Plums" }),
   ).toBeVisible();
   await manage(page);
-  await enableBoard(page);
+  // The board keeps its grant, so enabling it again does not ask.
+  await enable(page, boardId);
   await workspace(page);
   await expect(
     nav(page).getByRole("button", { name: "交稿检查", exact: true }),

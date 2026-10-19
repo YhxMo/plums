@@ -1,5 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
-import { manage } from "./helpers";
+import { manage, persisted } from "./helpers";
 async function enable(page: Page) {
   await manage(page);
   await page
@@ -110,17 +110,9 @@ test("workbench save failure, cold detail restoration and lifecycle fallback", a
   await expect(
     page.getByRole("heading", { name: "结果详情", exact: true }),
   ).toBeVisible();
-  await manage(page);
-  await page.getByRole("button", { name: "保存当前组合", exact: true }).click();
-  await expect(
-    page.getByRole("status").filter({ hasText: "当前组合已保存" }),
-  ).toBeVisible();
+  await persisted(page, "ui.workbench-board");
   await page.reload();
-  // Permissions remain session scoped. Restoring a selected view never grants them.
-  await expect(
-    page.getByRole("status").filter({ hasText: "所选界面" }),
-  ).toBeVisible();
-  await enable(page);
+  // The enabled board and its permissions come back without asking again.
   await expect(
     page.getByRole("heading", { name: "结果详情", exact: true }),
   ).toBeVisible();

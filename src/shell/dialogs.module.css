@@ -43,37 +43,6 @@
   margin: 0;
   overflow-wrap: anywhere;
 }
-.feedback {
-  flex-shrink: 0;
-  padding: 8px 16px;
-  border-bottom: 1px solid;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-  font-size: 13px;
-  overflow-wrap: anywhere;
-}
-.feedback button {
-  padding: 0;
-  width: 30px;
-  min-height: 30px;
-  flex-shrink: 0;
-  border-color: transparent;
-  background: transparent;
-  color: inherit;
-  font-size: 18px;
-}
-.notice {
-  background: var(--card);
-  border-color: var(--border);
-  color: inherit;
-}
-.error {
-  background: var(--card);
-  border-color: var(--border);
-  color: var(--error);
-}
 .authorization {
   width: 480px;
   max-width: calc(100% - 32px);
@@ -121,12 +90,5 @@
   .dialogActions button {
     flex: 1;
     padding: 10px;
-  }
-  .feedback {
-    padding: 10px 20px;
-  }
-  .feedback button {
-    width: 36px;
-    min-height: 44px;
   }
 }

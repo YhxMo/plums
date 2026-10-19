@@ -12,7 +12,7 @@ import {
   configureExtension,
   installExtension,
   uninstallExtension,
-  saveComposition,
+  persistComposition,
 } from "../modules/shell/extension-actions";
 
 const runtimeFixture = { write: vi.fn() };
@@ -226,13 +226,15 @@ it("final uninstall failure retains live imports and the already-confirmed compo
 
 it("failed composition persistence retains the rendered snapshot", async () => {
   const { host, current, run, publish } = await setup();
+  host.install(definition("one"));
+  await host.start("one");
   const previous = current();
   runtimeFixture.write.mockRejectedValueOnce(
     Object.assign(Error("rejected"), { outcome: "not-committed" }),
   );
-  await expect(
-    run((draft) => saveComposition(host, draft, "agents")),
-  ).rejects.toThrow("rejected");
+  await expect(run((draft) => persistComposition(host, draft))).rejects.toThrow(
+    "rejected",
+  );
   expect(current()).toBe(previous);
   expect(publish).not.toHaveBeenCalled();
 });

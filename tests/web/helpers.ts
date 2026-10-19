@@ -97,3 +97,18 @@ export async function expectConversationTitle(
   await expect(header).toContainText(`· ${session}`);
   await expect(page.getByRole("banner")).not.toContainText(agent);
 }
+/** Waits until the enabled set recorded for the next start has `id` on or off. */
+export async function persisted(page: Page, id: string, enabled = true) {
+  await expect
+    .poll(() =>
+      page.evaluate((id) => {
+        const saved = JSON.parse(
+          localStorage.getItem("plums:m1:host.shell") ?? "null",
+        );
+        return (saved?.value?.composition?.enabled ?? []).some(
+          (entry: { id: string }) => entry.id === id,
+        );
+      }, id),
+    )
+    .toBe(enabled);
+}

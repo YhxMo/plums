@@ -287,13 +287,3 @@
   flex: 1;
   min-height: 0;
 }
-.detailFeedback {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 12px 20px;
-  background: var(--accent-soft);
-  color: var(--text);
-  font-size: 13px;
-  overflow-wrap: anywhere;
-}

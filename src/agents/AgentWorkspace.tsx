@@ -12,7 +12,7 @@ import { ChatView } from "./ChatView";
 import { DetailPanel } from "./DetailPanel";
 import { EmptyState } from "./EmptyState";
 import { Dialog } from "../components/Dialog";
-import { Icon } from "../components/Icon";
+import { Toast } from "../components/Toast";
 import { useMediaQuery } from "../components/useMediaQuery";
 import { useAgentModals } from "./useAgentModals";
 import { AgentDialogs } from "./AgentDialogs";
@@ -111,21 +111,17 @@ export function AgentWorkspace({
       void act(() => api.update(a.id, { pinned: !a.pinned }));
     else open({ action, agent: a }, source);
   }
-  const feedback = (className: string) =>
+  const feedback =
     (error || notice) && !modal ? (
-      <div className={className} role={error ? "alert" : "status"}>
-        {error || notice}
-        <button
-          className="icon-button"
-          aria-label="关闭提示"
-          onClick={() => {
-            setError("");
-            setNotice("");
-          }}
-        >
-          <Icon name="close" size={16} />
-        </button>
-      </div>
+      <Toast
+        key={error || notice}
+        message={error || notice}
+        error={!!error}
+        onDone={() => {
+          setError("");
+          setNotice("");
+        }}
+      />
     ) : null;
   const detailContent = agent && (
     <DetailPanel
@@ -159,7 +155,7 @@ export function AgentWorkspace({
       data-has-agents={agents.length > 0}
       data-detail={detail}
     >
-      {!(mobile && detail && agent) && feedback(s.sharedFeedback)}
+      {!(mobile && detail && agent) && feedback}
       <AgentList
         agents={agents}
         selected={selected}
@@ -228,7 +224,7 @@ export function AgentWorkspace({
             onClose={() => setDetail(false)}
           >
             <div className={detailStyles.mobileDetail}>
-              {feedback(detailStyles.detailFeedback)}
+              {feedback}
               {detailContent}
             </div>
           </Dialog>

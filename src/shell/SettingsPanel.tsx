@@ -68,7 +68,7 @@ export function SettingsPanel({
         </div>
       </div>
       <p className={s.hint}>
-        界面和主题来自已启用的扩展；想在下次打开时保持，请在扩展管理中保存当前组合。
+        界面和主题来自已启用的扩展；启用状态会自动保留到下次打开。
       </p>
       <h3>扩展与连接</h3>
       <div className={s.row}>

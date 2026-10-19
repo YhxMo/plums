@@ -21,6 +21,8 @@ struct Binding {
     view: View,
     reference: Option<String>,
     retired: Vec<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    consented: Option<u64>,
 }
 impl Binding {
     fn references(&self) -> Vec<String> {
@@ -139,37 +141,6 @@ impl Bindings {
             active: None,
         })))
     }
-    pub fn list(&self, identity: &str) -> Result<Vec<View>, Failure> {
-        if !owner(identity) {
-            return Err("invalid-request");
-        }
-        let inner = self.0.lock().map_err(|_| "unknown")?;
-        if inner.faulted {
-            return Err("unavailable");
-        }
-        Ok(inner
-            .saved
-            .bindings
-            .values()
-            .filter(|binding| binding.view.owner == identity)
-            .map(|binding| binding.view.clone())
-            .collect())
-    }
-    pub fn inventory(&self) -> Result<Vec<View>, Failure> {
-        let inner = self.0.lock().map_err(|_| "unknown")?;
-        if inner.faulted {
-            return Err("unavailable");
-        }
-        Ok(inner
-            .saved
-            .bindings
-            .values()
-            .filter(|binding| {
-                !binding.references().is_empty() || binding.view.status == Status::DeletePending
-            })
-            .map(|binding| binding.view.clone())
-            .collect())
-    }
     pub fn retain_disabled(&self, identity: &str) -> Result<(), Failure> {
         if !owner(identity) {
             return Err("invalid-request");
@@ -244,6 +215,7 @@ impl Bindings {
             },
             reference: Some(uuid::Uuid::new_v4().to_string()),
             retired,
+            consented: None,
         };
         let mut next = inner.saved.clone();
         next.bindings.insert(key.clone(), binding.clone());

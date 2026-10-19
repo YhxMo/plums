@@ -359,8 +359,7 @@ test("mobile list failures stay visible and rename cancel restores the operation
     .getByRole("menuitem", { name: "设为特别关注", exact: true })
     .click();
   await expect(page.getByRole("alert")).toContainText("注入的写入故障");
-  await expect(page.getByRole("alert")).toBeVisible();
-  await page.getByRole("button", { name: "关闭提示" }).click();
+  await expect(page.getByRole("alert")).toBeHidden({ timeout: 15000 });
   await trigger.click();
   await page.getByRole("menuitem", { name: "重命名", exact: true }).click();
   await page.keyboard.press("Escape");

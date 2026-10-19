@@ -72,7 +72,10 @@ export function errorMessage(error: unknown): string {
   }
   if (code === "state.imports" && detail === "imports")
     reason = "扩展路径配置损坏";
-  if (code === "state.composition" && detail.startsWith("composition.enabled."))
+  if (
+    code === "state.composition" &&
+    /^composition\.(enabled|granted)\./.test(detail)
+  )
     reason = "组合配置无效";
   return preservedMessage(reason);
 }

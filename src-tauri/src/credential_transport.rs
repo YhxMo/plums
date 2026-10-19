@@ -130,7 +130,11 @@ pub(crate) async fn read_key(
     app: &tauri::AppHandle,
     reference: &str,
 ) -> Result<Option<Vec<u8>>, Failure> {
+    use crate::credential_secrets::{recall, remember};
     use security_framework::passwords::{generic_password, PasswordOptions};
+    if let Some(bytes) = recall(reference) {
+        return Ok(Some(bytes));
+    }
     let service = format!("{}.credentials.v1", app.config().identifier);
     let reference = reference.to_owned();
     tauri::async_runtime::spawn_blocking(move || {
@@ -141,7 +145,10 @@ pub(crate) async fn read_key(
                 bytes.fill(0);
                 Err("invalid-key")
             }
-            Ok(bytes) => Ok(Some(bytes)),
+            Ok(bytes) => {
+                remember(&reference, &bytes);
+                Ok(Some(bytes))
+            }
             Err(error) if error.code() == -25300 => Ok(None),
             Err(_) => Err("unknown"),
         }

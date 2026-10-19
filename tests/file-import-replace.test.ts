@@ -136,3 +136,26 @@ it("keeps the old version and its source when a replacement is not saved", async
   expect(await sources.read(old.hash)).toBe("export default 'old';");
   await expect(sources.read(next.hash)).rejects.toThrow("已丢失");
 });
+
+it("drops the old version's saved enablement and grants", async () => {
+  const { host, state, sources } = await installedImport();
+  state.composition = {
+    schema: 1,
+    enabled: [{ id, version: "1" }],
+    granted: [{ id, version: "1", capabilities: ["state.read"] }],
+  };
+  const next = await readExtensionFile(file("export default 'new';"));
+  await importExtensionFile(
+    host,
+    state,
+    next,
+    definition("2"),
+    sources,
+    async () => {},
+  );
+  expect(state.save).toHaveBeenLastCalledWith(
+    expect.objectContaining({
+      composition: { schema: 1, enabled: [], granted: [] },
+    }),
+  );
+});

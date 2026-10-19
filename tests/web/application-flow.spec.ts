@@ -86,13 +86,11 @@ for (const width of [375, 1280]) {
     await expect(await extensionDetail(page, workbench)).toContainText(
       "0 项资源 · 0 个在途任务",
     );
+    // Already granted in this run, so it starts without asking again.
     await workbench
       .getByRole("button", { name: "启用 workbench", exact: true })
       .click();
-    await page
-      .getByRole("dialog")
-      .getByRole("button", { name: "授权并启动", exact: true })
-      .click();
+    await expect(page.getByRole("dialog")).toHaveCount(0);
     await expect(workbench).toContainText("运行中");
     await page.getByRole("button", { name: "返回工作区" }).click();
     await expect(page.locator("[data-output]")).toHaveText("FULL JOURNEY");
