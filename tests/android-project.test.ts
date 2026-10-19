@@ -245,7 +245,7 @@ test("preparation replaces only known earlier credential plugin templates", () =
     join(root, "native/android/CredentialsPlugin.kt"),
     "utf8",
   ).replace("{{PACKAGE}}", "dev.plums.plums");
-  for (const commit of ["0e5d114", "135c149"]) {
+  for (const commit of ["0e5d114", "135c149", "4657f25"]) {
     const previous = execFileSync(
       "git",
       ["show", `${commit}:native/android/CredentialsPlugin.kt`],
