@@ -1,5 +1,8 @@
 import { Host } from "../../modules/extension-host/host";
-import { restoreComposition } from "../../modules/shell/composition";
+import {
+  restoreComposition,
+  startNewDefaults,
+} from "../../modules/shell/composition";
 import type { ImportedExtension } from "../../modules/shell/uninstall";
 import type { ExtensionDefinition, StoredState } from "../../modules/sdk";
 import { PlatformAdapter } from "../platform";
@@ -142,16 +145,13 @@ export async function bootShell(
   const compositionErrors = composition
     ? await restoreComposition(host, composition)
     : [];
-  // One extension's failed activation must not block the shell.
-  const startErrors: string[] = [];
-  if (!composition)
-    for (const id of application.start) {
-      try {
-        await host.start(id);
-      } catch (error) {
-        startErrors.push(`${id}：${errorMessage(error)}`);
-      }
-    }
+  // Defaults start on a first boot and when an update adds one; one the user
+  // turned off stays off. One failed activation must not block the shell.
+  const { composition: started, errors: startErrors } = await startNewDefaults(
+    host,
+    composition ?? { schema: 1, enabled: [] },
+    application.start,
+  );
   const platformErrors = [
     adapter.documentsInitializationError &&
       `文档服务初始化失败：${adapter.documentsInitializationError}`,
@@ -169,7 +169,7 @@ export async function bootShell(
       themeId: preferences.themeId,
       imports,
       failedImports,
-      composition,
+      composition: started,
       compositionErrors,
       startErrors,
       platformErrors,

@@ -4,6 +4,7 @@ import {
   readComposition,
   captureComposition,
   restoreComposition,
+  startNewDefaults,
 } from "../modules/shell/composition";
 import type { Platform } from "../modules/sdk";
 function setup() {
@@ -53,6 +54,8 @@ it("rejects corrupt, duplicate and incompatible schema without changing input", 
       enabled: [],
       granted: [{ id: "one", version: "1", capabilities: [""] }],
     },
+    { schema: 1, enabled: [], offered: "one" },
+    { schema: 1, enabled: [], offered: ["One"] },
   ]) {
     const raw = JSON.stringify(value);
     expect(() => readComposition(value)).toThrow();
@@ -154,4 +157,32 @@ it("reports activation failure while restoring other items and keeps the failed 
     "two",
     "broken",
   ]);
+});
+
+it("starts a built-in default once when it is new to a saved composition", async () => {
+  const host = setup();
+  const saved = { schema: 1 as const, enabled: [], offered: ["one"] };
+  await restoreComposition(host, saved);
+  const { composition, errors } = await startNewDefaults(host, saved, [
+    "one",
+    "two",
+  ]);
+  expect(errors).toEqual([]);
+  // "one" was offered before and the user turned it off; it stays off.
+  expect(host.inspect("one").desired).toBe(false);
+  expect(host.inspect("two").status).toBe("active");
+  expect(composition.offered).toEqual(["one", "two"]);
+  const again = await startNewDefaults(host, composition, ["one", "two"]);
+  expect(again.composition).toBe(composition);
+  // The user's later choices keep the defaults they have seen.
+  await host.stop("two");
+  expect(captureComposition(host, composition)).toEqual({
+    schema: 1,
+    enabled: [],
+    offered: ["one", "two"],
+  });
+  const fresh = await startNewDefaults(host, { schema: 1, enabled: [] }, [
+    "one",
+  ]);
+  expect(fresh.composition.offered).toEqual(["one"]);
 });

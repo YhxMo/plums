@@ -105,11 +105,18 @@ test("broken layout recovers to the working default without losing management", 
     page.getByRole("button", { name: "应用菜单", exact: true }),
   ).toBeEnabled();
 });
+// The development build's defaults, already offered once and turned off.
+const defaults = [
+  "transform.upper",
+  "connector.models",
+  "agents.local",
+  "ui.agents",
+];
 test("a failed preferred layout keeps a non-empty selection instead of persisting an empty layout", async ({
   page,
 }) => {
   await page.goto("/");
-  await page.evaluate(() => {
+  await page.evaluate((defaults) => {
     localStorage.setItem(
       "plums:m1:host.shell",
       JSON.stringify({
@@ -124,11 +131,12 @@ test("a failed preferred layout keeps a non-empty selection instead of persistin
           composition: {
             schema: 1,
             enabled: [{ id: "ui.broken", version: "1.0.0" }],
+            offered: defaults,
           },
         },
       }),
     );
-  });
+  }, defaults);
   await page.reload();
   await expect(
     page.getByRole("alert").filter({ hasText: "布局不可用" }),
@@ -153,7 +161,7 @@ test("enabling a workspace with a missing dependency explains the wait in Chines
   page,
 }) => {
   await page.goto("/");
-  await page.evaluate(() => {
+  await page.evaluate((defaults) => {
     localStorage.setItem(
       "plums:m1:host.shell",
       JSON.stringify({
@@ -162,11 +170,11 @@ test("enabling a workspace with a missing dependency explains the wait in Chines
         value: {
           version: 1,
           agents: [],
-          composition: { schema: 1, enabled: [] },
+          composition: { schema: 1, enabled: [], offered: defaults },
         },
       }),
     );
-  });
+  }, defaults);
   await page.reload();
   await manage(page);
   await page

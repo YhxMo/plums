@@ -9,6 +9,8 @@ export type Composition = {
   schema: 1;
   enabled: Entry[];
   granted?: Grant[];
+  /** Built-in defaults already started once; a newer default starts on its first boot. */
+  offered?: string[];
 };
 function entries<T extends Entry>(
   value: unknown,
@@ -43,6 +45,14 @@ export function readComposition(value: unknown): Composition | undefined {
   if (candidate.schema !== 1)
     throw new ContractError("state.composition", "composition");
   entries(candidate.enabled, "composition.enabled");
+  if (candidate.offered !== undefined)
+    array(candidate.offered, "state.composition", undefined, {
+      path: "composition.offered",
+    }).forEach((id, index) =>
+      identifier(id, "state.composition", {
+        path: `composition.offered.${index}`,
+      }),
+    );
   if (candidate.granted !== undefined)
     entries(candidate.granted, "composition.granted", (entry, path) =>
       array(entry.capabilities, "state.composition", undefined, {
@@ -86,7 +96,48 @@ export function captureComposition(
       }))
       .filter(({ capabilities }) => capabilities.length),
   ];
-  return { schema: 1, enabled, ...(granted.length ? { granted } : {}) };
+  const offered = previous?.offered ?? [];
+  return {
+    schema: 1,
+    enabled,
+    ...(granted.length ? { granted } : {}),
+    ...(offered.length ? { offered } : {}),
+  };
+}
+/**
+ * Boot-only: starts `defaults` the saved composition has never offered, so a
+ * built-in added by an update is on without overriding earlier choices.
+ * Returns the same composition when nothing was new.
+ */
+export async function startNewDefaults(
+  host: Pick<Host, "start">,
+  composition: Composition,
+  defaults: string[],
+) {
+  const offered = composition.offered ?? [];
+  const fresh = defaults.filter(
+    (id) =>
+      !offered.includes(id) &&
+      !composition.enabled.some((entry) => entry.id === id),
+  );
+  const errors: string[] = [];
+  for (const id of fresh) {
+    try {
+      await host.start(id);
+    } catch (error) {
+      errors.push(
+        `${id}：${error instanceof Error ? error.message : String(error)}`,
+      );
+    }
+  }
+  const next = [...new Set([...offered, ...defaults])];
+  return {
+    composition:
+      next.length === offered.length
+        ? composition
+        : { ...composition, offered: next },
+    errors,
+  };
 }
 /**
  * Boot-only restoration. Grants return only for the version they were given
