@@ -60,3 +60,22 @@ export async function extensionDetail(page: Page, card: Locator) {
   await card.click({ position: { x: 6, y: 6 } });
   return page.getByRole("region", { name: "所选扩展详情" });
 }
+
+/** Phones name the conversation in the title bar; desktop in its own header. */
+export async function expectConversationTitle(
+  page: Page,
+  width: number,
+  agent: string,
+  session: string,
+) {
+  if (width < 768)
+    return expect(page.getByRole("banner")).toContainText(
+      `${agent} · ${session}`,
+    );
+  const header = page
+    .getByRole("region", { name: `${agent} 的会话` })
+    .locator("header");
+  await expect(header.getByRole("heading", { name: agent })).toBeVisible();
+  await expect(header).toContainText(`· ${session}`);
+  await expect(page.getByRole("banner")).not.toContainText(agent);
+}

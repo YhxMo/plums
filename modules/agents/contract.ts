@@ -7,7 +7,13 @@ export type Session = {
   lastMessageAt: number;
   messages: Message[];
 };
-export type Message = { id: string; role: "user" | "agent"; text: string };
+export type Message = {
+  id: string;
+  role: "user" | "agent";
+  text: string;
+  /** Send or reply time in ms; absent on messages saved before it was added. */
+  at?: number;
+};
 export type Agent = {
   id: string;
   name: string;
@@ -53,4 +59,10 @@ export interface AgentProvider {
   ): Promise<void>;
   send(id: string, text: string): Promise<void>;
   cancel(id: string): void;
+  /** Deletes one saved message; added after agents@1 shipped, so optional. */
+  removeMessage?(
+    id: string,
+    sessionId: string,
+    messageId: string,
+  ): Promise<void>;
 }

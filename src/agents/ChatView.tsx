@@ -1,7 +1,22 @@
-import { useEffect, useLayoutEffect, useRef } from "react";
-import type { Agent, AgentProviderInfo } from "../../modules/agents/contract";
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
+import type {
+  Agent,
+  AgentProviderInfo,
+  Message,
+} from "../../modules/agents/contract";
 import { Avatar } from "./AgentList";
 import { Icon } from "../components/Icon";
+import { MessageRow, type MessageAction } from "./MessageRow";
+import { MessageMenu } from "./MessageMenu";
+import { copyText } from "./clipboard";
+import { formatTime, TIME_GAP } from "./time";
 import s from "./ChatView.module.css";
 export function ChatView({
   agent,
@@ -12,6 +27,9 @@ export function ChatView({
   onDetail,
   onSend,
   onCancel,
+  onResend,
+  onDeleteMessage,
+  onError,
 }: {
   agent: Agent;
   provider: AgentProviderInfo;
@@ -21,10 +39,17 @@ export function ChatView({
   onDetail: (source: HTMLElement) => void;
   onSend: () => void;
   onCancel: () => void;
+  onResend: (text: string) => void;
+  /** Absent when the provider cannot delete single messages. */
+  onDeleteMessage?: (id: string) => void;
+  onError: (message: string) => void;
 }) {
   const session = agent.sessions.find((s) => s.id === agent.currentSessionId)!;
+  const busy = agent.status === "busy";
   const bottom = useRef<HTMLDivElement>(null);
   const input = useRef<HTMLTextAreaElement>(null);
+  const [menu, setMenu] = useState<{ id: string; x: number; y: number }>();
+  const [copied, setCopied] = useState<string>();
   // Grow with the draft up to the CSS max-height, then scroll.
   useLayoutEffect(() => {
     const element = input.current;
@@ -35,11 +60,71 @@ export function ChatView({
   useEffect(() => {
     bottom.current?.scrollIntoView({ block: "end" });
   }, [session.id, session.messages.length, agent.status, agent.pending]);
+  useEffect(() => {
+    if (!copied) return;
+    const timer = setTimeout(() => setCopied(undefined), 1500);
+    return () => clearTimeout(timer);
+  }, [copied]);
+  const closeMenu = useCallback(
+    (restore: boolean) => {
+      if (restore && menu)
+        document
+          .querySelector<HTMLElement>(
+            `[data-message-id="${CSS.escape(menu.id)}"] button`,
+          )
+          ?.focus();
+      setMenu(undefined);
+    },
+    [menu],
+  );
+  function act(action: MessageAction, message: Message) {
+    if (action === "copy")
+      copyText(message.text).then(
+        () => setCopied(message.id),
+        (error: Error) => onError(error.message),
+      );
+    else if (action === "resend") onResend(message.text);
+    else {
+      // The pressed button disappears with its message; keep focus nearby.
+      input.current?.focus();
+      onDeleteMessage?.(message.id);
+    }
+  }
+  const lines: ReactNode[] = [];
+  let last: number | undefined;
+  for (const m of session.messages) {
+    if (m.at !== undefined && (last === undefined || m.at - last > TIME_GAP))
+      lines.push(
+        <p className={s.timeDivider} key={`time-${m.id}`}>
+          <time dateTime={new Date(m.at).toISOString()}>
+            {formatTime(m.at)}
+          </time>
+        </p>,
+      );
+    if (m.at !== undefined) last = m.at;
+    lines.push(
+      <MessageRow
+        key={m.id}
+        agent={agent}
+        role={m.role}
+        text={m.text}
+        message={m}
+        busy={busy}
+        copied={copied === m.id}
+        menuOpen={menu?.id === m.id}
+        canDelete={!!onDeleteMessage}
+        onAction={act}
+        onMenu={(message, x, y) => setMenu({ id: message.id, x, y })}
+      />,
+    );
+  }
+  const menuMessage = menu && session.messages.find((m) => m.id === menu.id);
+  const saving = agent.canCancel === false;
   return (
     <section className={s.chat} aria-label={`${agent.name} 的会话`}>
       <header className={s.chatHeader}>
         <button
-          className="icon-button"
+          className={`icon-button ${s.mobileOnly}`}
           onClick={onBack}
           aria-label="返回 Agent 列表"
         >
@@ -49,11 +134,7 @@ export function ChatView({
         <div>
           <h1>{agent.name}</h1>
           <p>
-            {agent.status === "busy"
-              ? "正在处理…"
-              : agent.status === "online"
-                ? "在线"
-                : "空闲"}
+            {busy ? "正在处理…" : agent.status === "online" ? "在线" : "空闲"}
             {agent.multiSession ? ` · ${session.title}` : ""}
           </p>
         </div>
@@ -76,33 +157,31 @@ export function ChatView({
             <p>{provider.description}</p>
           </div>
         )}
-        {session.messages.map((m) => (
-          <div
-            key={m.id}
-            className={`${s.message} ${m.role === "user" ? s.userMessage : ""}`}
-          >
-            <span className="sr-only">
-              {m.role === "user" ? "你" : agent.name}：
-            </span>
-            <p>{m.text}</p>
-          </div>
-        ))}
+        {lines}
         {agent.pending?.sessionId === session.id && (
-          <div className={`${s.message} ${s.userMessage}`}>
-            <span className="sr-only">你：</span>
-            <p>{agent.pending.text}</p>
-          </div>
+          <MessageRow agent={agent} role="user" text={agent.pending.text} />
         )}
-        {agent.status === "busy" && (
-          <div className={s.message}>
-            <p role="status" className={s.typing}>
-              <span aria-hidden="true" />
-              {agent.name} 正在回复…
-            </p>
-          </div>
+        {busy && (
+          <MessageRow
+            agent={agent}
+            role="agent"
+            status
+            text={`${agent.name} 正在回复…`}
+          />
         )}
         <div ref={bottom} />
       </div>
+      {menu && menuMessage && (
+        <MessageMenu
+          message={menuMessage}
+          x={menu.x}
+          y={menu.y}
+          busy={busy}
+          canDelete={!!onDeleteMessage}
+          onAction={act}
+          onClose={closeMenu}
+        />
+      )}
       <form
         className={s.composer}
         onSubmit={(e) => {
@@ -130,25 +209,26 @@ export function ChatView({
               window.matchMedia("(min-width: 768px)").matches
             ) {
               e.preventDefault();
-              if (draft.trim() && agent.status !== "busy") onSend();
+              if (draft.trim() && !busy) onSend();
             }
           }}
         />
         <div className={s.composerBottom}>
-          {agent.status === "busy" ? (
+          {busy ? (
             <button
               type="button"
-              className="secondary"
-              aria-label={agent.canCancel === false ? "正在保存…" : "停止处理"}
-              title={agent.canCancel === false ? "正在保存…" : "停止处理"}
+              className={`secondary ${s.composerButton}`}
+              aria-label={saving ? "正在保存…" : "停止处理"}
+              title={saving ? "正在保存…" : "停止处理"}
               onClick={onCancel}
-              disabled={agent.canCancel === false}
+              disabled={saving}
             >
               <Icon name="stop" size={16} />
             </button>
           ) : (
             <button
               type="submit"
+              className={s.composerButton}
               aria-label="发送"
               title="发送"
               disabled={!draft.trim()}

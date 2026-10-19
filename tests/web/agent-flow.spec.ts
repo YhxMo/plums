@@ -1,5 +1,9 @@
 import { readFileSync } from "node:fs";
-import { firstSessionMessageCount, manage } from "./helpers";
+import {
+  expectConversationTitle,
+  firstSessionMessageCount,
+  manage,
+} from "./helpers";
 import { expect, test, type Page } from "@playwright/test";
 const sidebarToggle = (page: Page) =>
   page.getByRole("button", { name: "展开或收起右侧栏", exact: true });
@@ -74,17 +78,13 @@ for (const width of [375, 1440]) {
     await expect(page.locator("select")).toHaveCount(0);
     await expect(page.getByRole("tab")).toHaveCount(0);
     await add(page);
-    await expect(page.getByRole("banner")).toContainText(
-      "编程助手 · 未命名会话",
-    );
+    await expectConversationTitle(page, width, "编程助手", "未命名会话");
     await page
       .getByRole("textbox", { name: "消息", exact: true })
       .fill("hello agent");
     await page.getByRole("button", { name: "发送", exact: true }).click();
     await expect(page.getByRole("log")).toContainText("HELLO AGENT");
-    await expect(page.getByRole("banner")).toContainText(
-      "编程助手 · hello agent",
-    );
+    await expectConversationTitle(page, width, "编程助手", "hello agent");
     if (width === 375)
       await page.getByRole("button", { name: "查看 Agent 详情" }).click();
     else await sidebarToggle(page).click();
@@ -92,9 +92,7 @@ for (const width of [375, 1440]) {
       .getByRole("button", { name: "设为特别关注", exact: true })
       .click();
     await page.getByRole("button", { name: "新建会话", exact: true }).click();
-    await expect(page.getByRole("banner")).toContainText(
-      "编程助手 · 未命名会话",
-    );
+    await expectConversationTitle(page, width, "编程助手", "未命名会话");
     await expect(
       page.getByRole("button", { name: "未命名会话", exact: true }),
     ).toBeVisible();

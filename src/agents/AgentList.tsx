@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import type { Agent } from "../../modules/agents/contract";
 import { Icon } from "../components/Icon";
+import { formatTime } from "./time";
 import s from "./AgentList.module.css";
 import chatStyles from "./ChatView.module.css";
 import detailStyles from "./DetailPanel.module.css";
@@ -109,137 +110,145 @@ export function AgentList({
           </section>
         )}
         {agents.length > 0 && <h3 className={s.sectionLabel}>全部 Agent</h3>}
-        {shown.map((a) => (
-          <div
-            className={s.agentRow}
-            data-selected={selected === a.id}
-            key={a.id}
-            onContextMenu={(e) => {
-              e.preventDefault();
-              setMenu(a.id);
-            }}
-            onPointerDown={(e) => {
-              if (e.pointerType === "touch")
-                timer.current = setTimeout(() => setMenu(a.id), 550);
-            }}
-            onPointerUp={() => clearTimeout(timer.current)}
-            onPointerCancel={() => clearTimeout(timer.current)}
-            onPointerMove={() => clearTimeout(timer.current)}
-          >
-            <button
-              className={s.agentMain}
-              data-agent-id={a.id}
-              onClick={() => onSelect(a.id)}
-              aria-label={`与 ${a.name} 交互`}
+        {shown.map((a) => {
+          const session = a.sessions.find((x) => x.id === a.currentSessionId);
+          const lastAt = session?.messages.length
+            ? (session.messages.at(-1)?.at ?? session.lastMessageAt)
+            : undefined;
+          return (
+            <div
+              className={s.agentRow}
+              data-selected={selected === a.id}
+              key={a.id}
+              onContextMenu={(e) => {
+                e.preventDefault();
+                setMenu(a.id);
+              }}
+              onPointerDown={(e) => {
+                if (e.pointerType === "touch")
+                  timer.current = setTimeout(() => setMenu(a.id), 550);
+              }}
+              onPointerUp={() => clearTimeout(timer.current)}
+              onPointerCancel={() => clearTimeout(timer.current)}
+              onPointerMove={() => clearTimeout(timer.current)}
             >
-              <Avatar agent={a} />
-              <span className={s.agentCopy}>
-                <strong>{a.name}</strong>
-                <span>
-                  {a.sessions
-                    .find((x) => x.id === a.currentSessionId)
-                    ?.messages.at(-1)?.text || a.description}
-                </span>
-              </span>
-              {a.status === "busy" && (
-                <span className={s.statusDot} aria-label="运行中" />
-              )}
-            </button>
-            <button
-              className={`icon-button ${s.rowMore}`}
-              aria-label={`${a.name} 的操作`}
-              onClick={() => setMenu(menu === a.id ? null : a.id)}
-              aria-expanded={menu === a.id}
-            >
-              <Icon name="more" size={17} />
-            </button>
-            {menu === a.id && (
-              <div
-                className={s.agentMenu}
-                role="menu"
-                aria-label={`${a.name} 的操作菜单`}
-                onKeyDown={(e) => {
-                  if (e.key === "Escape") {
-                    setMenu(null);
-                    e.currentTarget.parentElement
-                      ?.querySelector<HTMLButtonElement>("[aria-expanded]")
-                      ?.focus();
-                  }
-                  if (e.key === "ArrowDown" || e.key === "ArrowUp") {
-                    e.preventDefault();
-                    const items = Array.from(
-                      e.currentTarget.querySelectorAll<HTMLButtonElement>(
-                        "[role=menuitem]",
-                      ),
-                    );
-                    const index = items.indexOf(
-                      document.activeElement as HTMLButtonElement,
-                    );
-                    items[
-                      (index +
-                        (e.key === "ArrowDown" ? 1 : -1) +
-                        items.length) %
-                        items.length
-                    ]?.focus();
-                  }
-                }}
+              <button
+                className={s.agentMain}
+                data-agent-id={a.id}
+                onClick={() => onSelect(a.id)}
+                aria-label={`与 ${a.name} 交互`}
               >
-                <button
-                  role="menuitem"
-                  onClick={(e) => {
-                    const source =
-                      e.currentTarget
-                        .closest("[role=menu]")
-                        ?.parentElement?.querySelector<HTMLButtonElement>(
-                          "[aria-expanded]",
-                        ) ?? null;
-                    source?.focus();
-                    onAction(a, "pin", source);
-                    setMenu(null);
+                <Avatar agent={a} />
+                <span className={s.agentCopy}>
+                  <span className={s.rowTop}>
+                    <strong>{a.name}</strong>
+                    <span className={s.rowTime}>
+                      {lastAt !== undefined &&
+                        formatTime(lastAt, undefined, true)}
+                    </span>
+                  </span>
+                  <span>{session?.messages.at(-1)?.text || a.description}</span>
+                </span>
+                {a.status === "busy" && (
+                  <span className={s.statusDot} aria-label="运行中" />
+                )}
+              </button>
+              <button
+                className={`icon-button ${s.rowMore}`}
+                aria-label={`${a.name} 的操作`}
+                onClick={() => setMenu(menu === a.id ? null : a.id)}
+                aria-expanded={menu === a.id}
+              >
+                <Icon name="more" size={17} />
+              </button>
+              {menu === a.id && (
+                <div
+                  className={s.agentMenu}
+                  role="menu"
+                  aria-label={`${a.name} 的操作菜单`}
+                  onKeyDown={(e) => {
+                    if (e.key === "Escape") {
+                      setMenu(null);
+                      e.currentTarget.parentElement
+                        ?.querySelector<HTMLButtonElement>("[aria-expanded]")
+                        ?.focus();
+                    }
+                    if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+                      e.preventDefault();
+                      const items = Array.from(
+                        e.currentTarget.querySelectorAll<HTMLButtonElement>(
+                          "[role=menuitem]",
+                        ),
+                      );
+                      const index = items.indexOf(
+                        document.activeElement as HTMLButtonElement,
+                      );
+                      items[
+                        (index +
+                          (e.key === "ArrowDown" ? 1 : -1) +
+                          items.length) %
+                          items.length
+                      ]?.focus();
+                    }
                   }}
                 >
-                  <Icon name="star" size={16} />
-                  {a.pinned ? "取消特别关注" : "设为特别关注"}
-                </button>
-                <button
-                  role="menuitem"
-                  onClick={(e) => {
-                    const source =
-                      e.currentTarget
-                        .closest("[role=menu]")
-                        ?.parentElement?.querySelector<HTMLButtonElement>(
-                          "[aria-expanded]",
-                        ) ?? null;
-                    source?.focus();
-                    onAction(a, "rename", source);
-                    setMenu(null);
-                  }}
-                >
-                  重命名
-                </button>
-                <button
-                  role="menuitem"
-                  onClick={(e) => {
-                    const source =
-                      e.currentTarget
-                        .closest("[role=menu]")
-                        ?.parentElement?.querySelector<HTMLButtonElement>(
-                          "[aria-expanded]",
-                        ) ?? null;
-                    source?.focus();
-                    onAction(a, "remove", source);
-                    setMenu(null);
-                  }}
-                >
-                  移除 Agent
-                </button>
-                <button role="menuitem" onClick={() => setMenu(null)}>
-                  关闭菜单
-                </button>
-              </div>
-            )}
-          </div>
-        ))}
+                  <button
+                    role="menuitem"
+                    onClick={(e) => {
+                      const source =
+                        e.currentTarget
+                          .closest("[role=menu]")
+                          ?.parentElement?.querySelector<HTMLButtonElement>(
+                            "[aria-expanded]",
+                          ) ?? null;
+                      source?.focus();
+                      onAction(a, "pin", source);
+                      setMenu(null);
+                    }}
+                  >
+                    <Icon name="star" size={16} />
+                    {a.pinned ? "取消特别关注" : "设为特别关注"}
+                  </button>
+                  <button
+                    role="menuitem"
+                    onClick={(e) => {
+                      const source =
+                        e.currentTarget
+                          .closest("[role=menu]")
+                          ?.parentElement?.querySelector<HTMLButtonElement>(
+                            "[aria-expanded]",
+                          ) ?? null;
+                      source?.focus();
+                      onAction(a, "rename", source);
+                      setMenu(null);
+                    }}
+                  >
+                    重命名
+                  </button>
+                  <button
+                    role="menuitem"
+                    onClick={(e) => {
+                      const source =
+                        e.currentTarget
+                          .closest("[role=menu]")
+                          ?.parentElement?.querySelector<HTMLButtonElement>(
+                            "[aria-expanded]",
+                          ) ?? null;
+                      source?.focus();
+                      onAction(a, "remove", source);
+                      setMenu(null);
+                    }}
+                  >
+                    移除 Agent
+                  </button>
+                  <button role="menuitem" onClick={() => setMenu(null)}>
+                    关闭菜单
+                  </button>
+                </div>
+              )}
+            </div>
+          );
+        })}
         {agents.length === 0 && (
           <p className={s.listHint}>添加后，Agent 会出现在这里。</p>
         )}

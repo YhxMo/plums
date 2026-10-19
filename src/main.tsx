@@ -1,6 +1,7 @@
 import { createRoot } from "react-dom/client";
 import { App } from "./App";
 import "./styles.css";
+import "./mobile-theme.css";
 import "./touch.css";
 
 document.documentElement.dataset.theme = matchMedia(

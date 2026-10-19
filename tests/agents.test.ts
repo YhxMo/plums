@@ -258,3 +258,71 @@ it("shows the sent text at once, persists it only with the reply and drops it on
   expect(store.list()[0].sessions[0].messages).toHaveLength(2);
   expect(JSON.stringify(saved)).not.toContain(`"pending"`);
 });
+
+it("stamps each saved message with its own time and restores older messages without one", async () => {
+  let saved: unknown;
+  let clock = 1_000;
+  const now = Date.now;
+  Date.now = () => clock;
+  try {
+    const store = new AgentStore(
+      [],
+      async (agents) => {
+        saved = structuredClone(agents);
+      },
+      async (text) => {
+        clock = 4_000;
+        return text.toUpperCase();
+      },
+    );
+    const a = await store.create({ name: "timed" });
+    await store.send(a.id, "hi");
+    const [sent, reply] = restoreAgents(saved)[0].sessions[0].messages;
+    expect([sent.at, reply.at]).toEqual([1_000, 4_000]);
+  } finally {
+    Date.now = now;
+  }
+  const legacy = structuredClone(saved) as {
+    sessions: { messages: { at?: unknown }[] }[];
+  }[];
+  delete legacy[0].sessions[0].messages[0].at;
+  expect(restoreAgents(legacy)[0].sessions[0].messages[0].at).toBeUndefined();
+  for (const bad of ["1000", Number.NaN, null]) {
+    legacy[0].sessions[0].messages[0].at = bad;
+    expect(() => restoreAgents(legacy)).toThrow("会话配置损坏");
+  }
+});
+
+it("removes one saved message, keeps the rest and refuses while a reply is running", async () => {
+  let saved: unknown;
+  const answer = deferred();
+  let hold = false;
+  const store = new AgentStore(
+    [],
+    async (agents) => {
+      saved = structuredClone(agents);
+    },
+    async (text) => {
+      if (hold) await answer.promise;
+      return text.toUpperCase();
+    },
+  );
+  const a = await store.create({ name: "tidy" });
+  await store.send(a.id, "one");
+  const session = store.list()[0].sessions[0];
+  await store.removeMessage(a.id, session.id, session.messages[0].id);
+  expect(
+    restoreAgents(saved)[0].sessions[0].messages.map((m) => m.text),
+  ).toEqual(["ONE"]);
+  await expect(
+    store.removeMessage(a.id, session.id, "missing"),
+  ).rejects.toThrow("消息不存在。");
+  hold = true;
+  const running = store.send(a.id, "two");
+  await expect(
+    store.removeMessage(a.id, session.id, session.messages[1].id),
+  ).rejects.toThrow("请等待回复完成或先停止当前任务，再删除消息。");
+  answer.resolve();
+  await running;
+  expect(store.list()[0].sessions[0].messages).toHaveLength(3);
+});

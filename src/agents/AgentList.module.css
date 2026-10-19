@@ -171,6 +171,7 @@
   background: transparent !important;
 }
 .agentCopy {
+  flex: 1;
   min-width: 0;
   display: flex;
   flex-direction: column;
@@ -183,7 +184,21 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.agentCopy > span {
+.rowTop {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  min-width: 0;
+}
+.rowTime {
+  flex-shrink: 0;
+  min-width: 28px;
+  font-size: 11px;
+  color: var(--muted);
+  text-align: right;
+}
+.agentCopy > span:last-child {
   font-size: 12px;
   color: var(--muted);
   white-space: nowrap;
@@ -213,6 +228,23 @@
   .agentRow:focus-within .rowMore,
   .rowMore[aria-expanded="true"] {
     opacity: 1;
+  }
+}
+/* On desktop the menu button takes the time's place instead of its own column. */
+@media (hover: hover) and (min-width: 768px) {
+  .agentMain {
+    padding-right: 10px;
+  }
+  .rowMore {
+    position: absolute;
+    top: 6px;
+    right: 6px;
+    margin: 0;
+  }
+  .agentRow:hover :is(.rowTime, .statusDot),
+  .agentRow:focus-within :is(.rowTime, .statusDot),
+  .agentRow:has([aria-expanded="true"]) :is(.rowTime, .statusDot) {
+    opacity: 0;
   }
 }
 .agentMenu {
@@ -328,7 +360,7 @@
   .agentCopy strong {
     font-size: 16px;
   }
-  .agentCopy > span {
+  .agentCopy > span:last-child {
     font-size: 13px;
   }
 }

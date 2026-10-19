@@ -79,7 +79,8 @@ export function restoreAgents(value: unknown): Agent[] {
             object(m) &&
             text(m.id) &&
             (m.role === "user" || m.role === "agent") &&
-            text(m.text, 32000),
+            text(m.text, 32000) &&
+            (m.at === undefined || Number.isFinite(m.at)),
         )
       )
         throw new ContractError(
@@ -275,6 +276,7 @@ export class AgentStore implements AgentProvider {
       throw new Error("Agent 暂不可运行。");
     const a = this.find(this.agents, agentId);
     const sessionId = a.currentSessionId;
+    const sentAt = Date.now();
     const controller = new AbortController();
     this.running.set(agentId, controller);
     this.pending.set(agentId, { sessionId, text: input });
@@ -293,11 +295,12 @@ export class AgentStore implements AgentProvider {
             (s) => s.id === sessionId,
           );
           if (!s) throw new Error("会话已被移除。");
+          const repliedAt = Date.now();
           s.messages.push(
-            { id: id(), role: "user", text: input },
-            { id: id(), role: "agent", text: output },
+            { id: id(), role: "user", text: input, at: sentAt },
+            { id: id(), role: "agent", text: output, at: repliedAt },
           );
-          s.lastMessageAt = Date.now();
+          s.lastMessageAt = repliedAt;
           if (s.messages.length === 2) s.title = input.slice(0, 24);
         },
         {
@@ -314,6 +317,20 @@ export class AgentStore implements AgentProvider {
       this.pending.delete(agentId);
       this.emit();
     }
+  }
+  removeMessage(agentId: string, sessionId: string, messageId: string) {
+    if (this.running.has(agentId) || this.structural.has(agentId))
+      return Promise.reject(
+        new Error("请等待回复完成或先停止当前任务，再删除消息。"),
+      );
+    return this.change((agents) => {
+      const s = this.find(agents, agentId).sessions.find(
+        (s) => s.id === sessionId,
+      );
+      const index = s?.messages.findIndex((m) => m.id === messageId) ?? -1;
+      if (!s || index < 0) throw new Error("消息不存在。");
+      s.messages.splice(index, 1);
+    });
   }
   cancel(agentId: string) {
     if (!this.committing.has(agentId)) this.running.get(agentId)?.abort();

@@ -81,7 +81,8 @@ export function AgentWorkspace({
           : agent.name
         : "";
     chrome.publish({
-      title,
+      // The desktop conversation names itself in its own header.
+      title: mobile ? title : "",
       back: mobile && agent ? returnToList : undefined,
       contextOwner: agent?.extensionId,
       sidebar: agents.length
@@ -197,6 +198,16 @@ export function AgentWorkspace({
                 }
               });
             }}
+            onResend={(text) => void act(() => api.send(agent.id, text))}
+            onDeleteMessage={
+              api.removeMessage
+                ? (id) =>
+                    void act(() =>
+                      api.removeMessage!(agent.id, agent.currentSessionId, id),
+                    )
+                : undefined
+            }
+            onError={setError}
           />
         )}
       </div>
