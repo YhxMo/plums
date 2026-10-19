@@ -145,6 +145,7 @@ export function ProviderForm({
   const needsKey =
     !current ||
     current.status === "missing" ||
+    current.status === "changed" ||
     current.base !== base ||
     current.protocol !== draft.protocol;
 

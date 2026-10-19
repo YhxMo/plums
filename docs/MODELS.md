@@ -12,7 +12,7 @@
 2. 基本信息：预设服务商（DeepSeek、OpenAI、Anthropic、Kimi、通义千问、智谱 GLM、OpenRouter 或「自定义」）、名称、备注（可选）、官网链接（可选）。
 3. 连接：请求地址填服务商文档里的 Base URL（预设已填好，可改；粘贴完整的 `…/chat/completions` 或 `…/v1/messages` 也会自动还原），下方显示对话请求实际发往的地址；「自定义」另选 API 格式（OpenAI Chat Completions / Anthropic Messages）。API Key 只在系统面板录入，表单显示录入状态与预设服务商创建密钥的地址。
 4. 模型：点「获取模型列表」，勾选服务列出的模型后「添加所选」；也可手动填写。新服务商或改了地址时，获取前会先保存并打开系统面板录入密钥；第一次读取同样需要在原生面板确认发送。
-5. 高级选项：最大输出 token 与上下文轮数。保存后增删模型、改名称、备注或预算不需要再录入；改地址、API 格式或点「重新录入密钥」会再次打开面板。
+5. 高级选项：最大输出 token 与上下文轮数。保存后增删模型、改名称、备注或预算不需要再录入；改地址、API 格式或点「重新录入密钥」会再次打开面板。面板确认了新地址而记录保存失败时，服务商显示「地址未确认」，不发送请求，再次保存即在同一连接上重新确认。
 6. 每个 Agent 在详情里选自己的模型（按服务商分组），不同 Agent 可用不同服务商或模型；新建 Agent 默认选第一个可用模型。列表中每个模型旁的「测试」发一条极短消息检查连通。
 
 浏览器预览不能保存密钥，连接器保持等待；开发构建另有不联网的 `chat.echo`（回显模型）用于检查按 Agent 选模型与上下文。
@@ -42,7 +42,7 @@ DeepSeek 预设额外附带 `thinking: { type: "disabled" }`，其他服务不�
 
 ## `chat@1`
 
-契约在 [`extensions/contracts.d.ts`](../extensions/contracts.d.ts)：`models()` 列出可选模型（`id`、`label`、`description`，可选 `group` 作为选择器中的分组标题，缺省为提供者名称），`subscribe` 通知列表变化，`reply({ model, instructions?, history, input }, signal)` 返回回复文本，失败带 `outcome`。第三方扩展可以提供自己的 `chat@1`，Agent 详情会一并列出。Agent 仍可开启 `text.transform` 扩展，对模型回复做后处理。
+契约在 [`extensions/contracts.d.ts`](../extensions/contracts.d.ts)：`models()` 列出可选模型（`id`、`label`、`description`，可选 `group` 作为选择器中的分组标题，缺省为提供者名称；`id` 至多 256 个字符，更长的不提供给 Agent），`subscribe` 通知列表变化，`reply({ model, instructions?, history, input }, signal)` 返回回复文本，失败带 `outcome`。第三方扩展可以提供自己的 `chat@1`，Agent 详情会一并列出。Agent 仍可开启 `text.transform` 扩展，对模型回复做后处理。
 
 ## 迁移与限制
 

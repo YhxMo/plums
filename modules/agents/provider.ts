@@ -1,6 +1,6 @@
 import type { ExtensionDefinition } from "../sdk";
 import type { ChatService, Transformer } from "../../extensions/contracts";
-import { AgentStore, restoreAgents } from "./store";
+import { AgentStore, MAX_MODEL_ID, restoreAgents } from "./store";
 import { enabledExtensions } from "./contract";
 import { AgentState } from "./sharded-state";
 
@@ -53,6 +53,7 @@ export function agentExtension(
         chats.flatMap(({ id, label, value }) =>
           value
             .models()
+            .filter(({ id: model }) => model.length <= MAX_MODEL_ID)
             .map(({ id: model, label: name, description, group }) => ({
               provider: id,
               providerLabel: label,
@@ -127,6 +128,7 @@ export function agentExtension(
         sources,
         ctx.shell.dependencies(),
         models,
+        () => state.blocked(),
       );
       watchModels();
       // Management lists each Agent under the services it has switched on

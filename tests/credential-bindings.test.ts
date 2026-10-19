@@ -57,6 +57,17 @@ it("requires a credential capability and validates aliases", () => {
       "credential.request",
     ]),
   ).toThrow();
+  // This shape names connections made at runtime, which deleting removes.
+  expect(() =>
+    validateCredentialBindings({ "c-abcdefgh": binding().text }, [
+      "credential.request",
+    ]),
+  ).toThrow();
+  expect(() =>
+    validateCredentialBindings({ "c-model": binding().text }, [
+      "credential.request",
+    ]),
+  ).not.toThrow();
   expect(() => validateCredentialBindings(undefined, [])).not.toThrow();
 });
 

@@ -71,6 +71,7 @@ async function fixture({
       ({ status: 404, body: "" }) as { status: number; body: string },
   );
   let next = 0;
+  let writeFailure: Error | undefined;
   const platform: Platform = {
     kind: credentials ? "native" : "browser",
     available: (name) => credentials || name.startsWith("state."),
@@ -80,6 +81,9 @@ async function fixture({
       const request = (payload ?? {}) as Record<string, unknown>;
       if (name === "state.read") return states.get(owner) ?? null;
       if (name === "state.write") {
+        const failure = writeFailure;
+        writeFailure = undefined;
+        if (failure) throw failure;
         const stored = {
           revision: (request.revision as number) + 1,
           value: request.value,
@@ -173,6 +177,7 @@ async function fixture({
     read,
     states,
     connections,
+    failNextWrite: () => void (writeFailure = new Error("磁盘已满")),
   };
 }
 const signal = () => new AbortController().signal;
@@ -293,6 +298,35 @@ it("asks for the key only when the address changes or the user asks", async () =
   );
   await api.save(api.list()[0], id, true);
   expect(panel).toHaveBeenCalledTimes(3);
+});
+
+it("never sends to an address whose record failed to save", async () => {
+  const { api, chat, panel, send, failNextWrite } = await fixture();
+  await api.save(deepseek);
+  const { id, alias } = api.list()[0];
+  failNextWrite();
+  // The panel confirms the new address natively, then the record write fails.
+  await expect(
+    api.save({ ...deepseek, base: "https://proxy.example/v1" }, id),
+  ).rejects.toThrow("磁盘已满");
+  expect(api.list()[0]).toMatchObject({
+    base: "https://api.deepseek.com",
+    status: "changed",
+  });
+  await expect(
+    chat().reply(
+      { model: `${id}/user-model-a`, history: [], input: "hi" },
+      signal(),
+    ),
+  ).rejects.toMatchObject({ outcome: "not-dispatched" });
+  await expect(api.fetchModels(id, signal())).rejects.toThrow();
+  expect(send).not.toHaveBeenCalled();
+  // Saving again confirms the shown address under the same connection.
+  await api.save(api.list()[0], id);
+  expect(panel).toHaveBeenLastCalledWith(
+    expect.objectContaining({ alias, target: deepseekTarget }),
+  );
+  expect(api.list()[0].status).toBe("ready");
 });
 
 it("saves nothing when the user cancels the panel", async () => {

@@ -27,6 +27,7 @@ export interface Workbench {
 }
 /** One model a `chat@1` provider offers; `id` is what `reply` takes. */
 export interface ChatModel {
+  /** At most 256 characters; Agents are not offered longer ids. */
   id: string;
   label: string;
   /** Plain-language note: which service and model, and whether it is ready. */

@@ -78,6 +78,14 @@ export function modelConnector({
           );
         const { provider } = chosen;
         if (
+          store.list().find((item) => item.id === provider.id)?.status ===
+          "changed"
+        )
+          throw failure(
+            `「${provider.name}」的请求地址未确认，请在模型连接中重新保存。`,
+            "not-dispatched",
+          );
+        if (
           typeof input !== "string" ||
           !input.trim() ||
           !turns(history) ||

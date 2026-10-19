@@ -174,6 +174,9 @@ function entries(
       pattern: /^[a-z][a-z0-9-]{0,31}$/,
       label: "Invalid credential binding alias",
     });
+    // Reserved for connections made at runtime (`credential.connect`).
+    if (/^c-[a-z0-9]{8}$/.test(name))
+      invalid(path, "Invalid credential binding alias");
     check(entry, path);
   }
 }

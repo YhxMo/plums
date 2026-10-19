@@ -81,10 +81,16 @@ export class AgentState {
     return restored;
   }
 
+  /** Why saving would fail now, if it would. */
+  blocked() {
+    return this.uncertain
+      ? "Agent 保存回执未确认，请重新加载应用后再修改。"
+      : undefined;
+  }
   async save(agents: Agent[], options?: SaveOptions) {
     options?.signal?.throwIfAborted();
-    if (this.uncertain)
-      throw Error("Agent 保存回执未确认，请重新加载应用后再修改。");
+    const blocked = this.blocked();
+    if (blocked) throw Error(blocked);
     const live = new Set<string>();
     const writes: { key: string; value: unknown; json: string }[] = [];
     for (const agent of agents)

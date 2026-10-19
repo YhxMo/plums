@@ -384,3 +384,32 @@ fn reads_stay_on_the_bound_site_with_a_plain_path() {
         assert_eq!(bound.read_target(path), Err("invalid-request"), "{path}");
     }
 }
+#[test]
+fn deleting_a_user_made_connection_frees_its_slot() {
+    let fixture = Fixture::new();
+    let store = fixture.store();
+    let connect = |revision| {
+        store.begin_key(
+            OWNER.into(),
+            "c-abcdefgh".into(),
+            "/connectors/test.js".into(),
+            "0.1.0".into(),
+            declaration(),
+            revision,
+        )
+    };
+    store
+        .finish_key(connect(0).unwrap(), KeyResult::Stored)
+        .unwrap();
+    let ticket = store.begin_action(OWNER, "c-abcdefgh", 1).unwrap();
+    store.disable(&ticket).unwrap();
+    store.finish_delete(ticket, true).unwrap();
+    // Gone, not disabled: it no longer counts toward any limit.
+    assert!(fixture.store().list(OWNER).unwrap().is_empty());
+    // A declared binding is kept disabled so its key can be entered again.
+    ready(&store);
+    let ticket = store.begin_action(OWNER, "text", 1).unwrap();
+    store.disable(&ticket).unwrap();
+    store.finish_delete(ticket, true).unwrap();
+    assert_eq!(store.list(OWNER).unwrap()[0].status, Status::Disabled);
+}

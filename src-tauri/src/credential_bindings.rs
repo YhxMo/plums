@@ -13,7 +13,7 @@ const MAX_BYTES: usize = 65536;
 const MAX_REFERENCES: usize = 8;
 pub type Failure = &'static str;
 
-use crate::credential_types::{alias, owner, text};
+use crate::credential_types::{alias, connection, owner, text};
 pub use crate::credential_types::{Declaration, Route, Status, View};
 #[derive(Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
@@ -304,6 +304,10 @@ impl Bindings {
         binding.reference = None;
         binding.retired.clear();
         binding.view.status = Status::Disabled;
+        // A deleted connection has nothing to re-enter; drop it to free its slot.
+        if connection(&binding.view.alias) {
+            next.bindings.remove(&active.key);
+        }
         inner.save(next)
     }
     /// Forget retired references whose secrets were confirmed deleted. The

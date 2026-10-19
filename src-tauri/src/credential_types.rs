@@ -190,6 +190,15 @@ pub(crate) fn owner(value: &str) -> bool {
             .bytes()
             .all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || matches!(c, b'.' | b'-'))
 }
+/// A connection an extension made at runtime (`c-` and eight characters)
+/// rather than declared in its manifest; manifests cannot use this shape.
+pub(crate) fn connection(value: &str) -> bool {
+    value.len() == 10
+        && value.starts_with("c-")
+        && value[2..]
+            .bytes()
+            .all(|c| c.is_ascii_lowercase() || c.is_ascii_digit())
+}
 pub(crate) fn alias(value: &str) -> bool {
     !value.is_empty()
         && value.len() <= 32

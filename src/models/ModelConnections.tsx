@@ -14,6 +14,7 @@ const statusLabel: Record<ProviderStatus, string> = {
   disabled: "已停用",
   "delete-pending": "删除待核对",
   missing: "需要录入密钥",
+  changed: "地址未确认",
 };
 
 /** The user's model providers and their models: add, edit, re-key, test, delete. */

@@ -31,7 +31,12 @@ export type ProviderDraft = Omit<ModelProvider, "id" | "alias">;
 export type ProviderStatus =
   | CredentialConnection["status"]
   /** No saved key for this provider; it has to be entered again. */
-  | "missing";
+  | "missing"
+  /**
+   * The confirmed address is not this record's, as when the record failed
+   * to save after the panel; nothing is sent until it is saved again.
+   */
+  | "changed";
 export type ProviderView = ModelProvider & { status: ProviderStatus };
 
 export const MAX_PROVIDERS = 16;
@@ -190,12 +195,19 @@ export class ProviderStore {
     return () => void this.listeners.delete(listener);
   }
   private emit() {
-    this.snapshot = this.providers.map((provider) => ({
-      ...provider,
-      status:
-        this.credentials.find((item) => item.alias === provider.alias)
-          ?.status ?? "missing",
-    }));
+    this.snapshot = this.providers.map((provider) => {
+      const credential = this.credentials.find(
+        (item) => item.alias === provider.alias,
+      );
+      return {
+        ...provider,
+        status: !credential
+          ? "missing"
+          : credential.target !== chatTarget(provider.protocol, provider.base)
+            ? "changed"
+            : credential.status,
+      };
+    });
     for (const listener of this.listeners) listener();
   }
   private async write(next: ModelProvider[]) {
@@ -245,6 +257,7 @@ export class ProviderStore {
       !existing ||
       rekey ||
       status === "missing" ||
+      status === "changed" ||
       existing.base !== draft.base ||
       existing.protocol !== draft.protocol
     ) {

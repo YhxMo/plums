@@ -44,6 +44,8 @@ export function parseRoleCard(raw: string): AgentConfig {
     multiSession: value.multiSession as boolean | undefined,
   };
 }
+/** Longest `chat@1` model id an Agent keeps; longer ones are not offered. */
+export const MAX_MODEL_ID = 256;
 export function restoreAgents(value: unknown): Agent[] {
   if (value === undefined) return [];
   if (!Array.isArray(value))
@@ -66,7 +68,7 @@ export function restoreAgents(value: unknown): Agent[] {
       (a.model !== undefined &&
         (!object(a.model) ||
           !text(a.model.provider, 64) ||
-          !text(a.model.model, 128))) ||
+          !text(a.model.model, MAX_MODEL_ID))) ||
       !Array.isArray(a.capabilities) ||
       !a.capabilities.every((c) => text(c)) ||
       !Array.isArray(a.sessions) ||
@@ -151,6 +153,8 @@ export class AgentStore implements AgentProvider {
     private extensions: readonly Named[] = [],
     /** Models an Agent can use, the default first. */
     readonly modelChoices: () => readonly ModelChoice[] = () => [],
+    /** Why saving cannot succeed now, checked before asking a model. */
+    private saveBlocked: () => string | undefined = () => undefined,
   ) {
     this.agents = initial;
   }
@@ -184,7 +188,8 @@ export class AgentStore implements AgentProvider {
   setModel(agentId: string, model: AgentModel | null) {
     if (
       model &&
-      !this.modelChoices().some((choice) => sameModel(choice, model))
+      (!text(model.model, MAX_MODEL_ID) ||
+        !this.modelChoices().some((choice) => sameModel(choice, model)))
     )
       return Promise.reject(new Error("模型不可用，请先在模型连接中添加它。"));
     return this.change((agents) => {
@@ -349,6 +354,9 @@ export class AgentStore implements AgentProvider {
       this.structural.has(agentId)
     )
       throw new Error("Agent 暂不可运行。");
+    // The reply could not be saved, and asking again may be billed again.
+    const blocked = this.saveBlocked();
+    if (blocked) throw new Error(blocked);
     const a = this.find(this.agents, agentId);
     const sessionId = a.currentSessionId;
     const history = a.sessions

@@ -326,3 +326,56 @@ it("removes one saved message, keeps the rest and refuses while a reply is runni
   await running;
   expect(store.list()[0].sessions[0].messages).toHaveLength(3);
 });
+
+it("restores the longest model id the model connector offers and refuses longer ones", async () => {
+  let saved: unknown;
+  // A provider id, "/", and a 120-character model name.
+  const longest = `p-abcdefgh/${"m".repeat(120)}`;
+  const tooLong = "m".repeat(257);
+  const choice = (id: string) => ({
+    provider: "connector.models",
+    providerLabel: "模型连接",
+    group: "服务",
+    id,
+    label: id,
+    description: "",
+  });
+  const store = new AgentStore(
+    [],
+    async (agents) => {
+      saved = structuredClone(agents);
+    },
+    async (text) => text,
+    () => [],
+    [],
+    () => [choice(longest), choice(tooLong)],
+  );
+  const a = await store.create({ name: "长模型名" });
+  await store.setModel(a.id, { provider: "connector.models", model: longest });
+  expect(restoreAgents(saved)[0].model?.model).toBe(longest);
+  await expect(
+    store.setModel(a.id, { provider: "connector.models", model: tooLong }),
+  ).rejects.toThrow();
+  expect(restoreAgents(saved)[0].model?.model).toBe(longest);
+});
+
+it("does not ask the model while saving is blocked, so retries cost nothing", async () => {
+  let asked = 0;
+  let blocked: string | undefined;
+  const store = new AgentStore(
+    [],
+    async () => {},
+    async (text) => {
+      asked++;
+      return text;
+    },
+    () => [],
+    [],
+    () => [],
+    () => blocked,
+  );
+  const a = await store.create({ name: "锁定" });
+  blocked = "Agent 保存回执未确认，请重新加载应用后再修改。";
+  await expect(store.send(a.id, "你好")).rejects.toThrow(blocked);
+  expect(asked).toBe(0);
+});
