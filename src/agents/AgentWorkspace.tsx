@@ -24,11 +24,14 @@ export function AgentWorkspace({
   api,
   chrome,
   onExtensions,
+  onModels,
 }: {
   api: AgentProvider;
   chrome: WorkspaceChromeController;
   /** Opens extension management, selecting `id` when given. */
   onExtensions: (id?: string) => void;
+  /** Opens the page where the user manages model connections. */
+  onModels?: () => void;
 }) {
   const subscribe = useCallback(
     (listener: () => void) => api.subscribe(listener),
@@ -140,6 +143,18 @@ export function AgentWorkspace({
         onExtensions(id);
       }}
       choices={api.extensionChoices?.()}
+      models={api.modelChoices?.()}
+      onModel={
+        api.setModel &&
+        ((model) => void act(() => api.setModel!(agent.id, model)))
+      }
+      onModels={
+        onModels &&
+        (() => {
+          setDetail(false);
+          onModels();
+        })
+      }
       onExtension={
         api.setExtension &&
         ((extensionId, on) =>

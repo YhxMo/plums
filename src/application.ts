@@ -1,6 +1,7 @@
 import { agentExtension } from "../modules/agents/provider";
 import { textWorkbench } from "../modules/text-workbench/extension";
 import { agentUI } from "./agents/extension";
+import { modelConnectorWithPage } from "./models/extension";
 import { bootShell, type ShellApplication } from "./shell/runtime";
 
 /** Development and tests also get the text workbench and the upper-case service. */
@@ -10,6 +11,12 @@ const development = import.meta.env.DEV;
 export const defaultApplication: ShellApplication = {
   catalog: [
     { id: "agents.local", url: "内置公开服务", label: "本地 Agent 提供者" },
+    {
+      id: "connector.models",
+      url: "内置模型连接器",
+      label: "模型连接",
+      views: { "model-connections": "模型连接" },
+    },
     {
       id: "ui.agents",
       url: "内置可替换界面",
@@ -49,10 +56,20 @@ export const defaultApplication: ShellApplication = {
       retireLegacy: () => save({ agents: undefined }),
     }),
     agentUI(),
+    modelConnectorWithPage(),
   ],
-  grants: { "agents.local": ["state.read", "state.write"] },
+  grants: {
+    "agents.local": ["state.read", "state.write"],
+    "connector.models": [
+      "state.read",
+      "state.write",
+      "credential.request",
+      "credential.connect",
+    ],
+  },
   start: [
     ...(development ? ["transform.upper"] : []),
+    "connector.models",
     "agents.local",
     "ui.agents",
   ],

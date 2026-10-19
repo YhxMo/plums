@@ -51,6 +51,22 @@ const layers = [
     ),
   ],
   [
+    /^modules\/models\//,
+    to(
+      sdk,
+      String.raw`modules\/models(?:\/|$)`,
+      String.raw`extensions\/contracts(?:\.d\.ts)?$`,
+    ),
+  ],
+  [
+    /^src\/models\//,
+    to(
+      sdk,
+      String.raw`modules\/models(?:\/|$)`,
+      String.raw`src\/(?:models|components)(?:\/|$)`,
+    ),
+  ],
+  [
     /^src\/agents\//,
     to(
       sdk,
@@ -81,6 +97,7 @@ const businessViewIds = new Set([
   "text-workbench",
   "broken",
   "role-settings",
+  "model-connections",
 ]);
 
 /** @param {Array<[string, string]>} entries */

@@ -1,7 +1,1 @@
-[
-  {
-    "id": "connector.deepseek",
-    "url": "/connectors/deepseek.js",
-    "label": "DeepSeek 模型连接"
-  }
-]
+[]

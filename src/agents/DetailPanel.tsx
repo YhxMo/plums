@@ -1,8 +1,10 @@
 import {
   enabledExtensions,
   type Agent,
+  type AgentModel,
   type AgentProviderInfo,
   type ExtensionChoice,
+  type ModelChoice,
 } from "../../modules/agents/contract";
 import { Avatar } from "./AgentList";
 import { Icon } from "../components/Icon";
@@ -17,12 +19,19 @@ export function DetailPanel({
   onOpenExtension,
   choices,
   onExtension,
+  models,
+  onModel,
+  onModels,
 }: {
   agent: Agent;
   provider: AgentProviderInfo;
   /** Absent for providers that do not let each Agent choose. */
   choices?: readonly ExtensionChoice[];
   onExtension?: (extensionId: string, on: boolean) => void;
+  /** Absent for providers without per-Agent models. */
+  models?: readonly ModelChoice[];
+  onModel?: (model: AgentModel | null) => void;
+  onModels?: () => void;
   onClose: () => void;
   onPin: () => void;
   onSession: (action: "create" | "select", id?: string) => void;
@@ -35,6 +44,13 @@ export function DetailPanel({
     { id: agent.extensionId, label: provider.label },
   ];
   const enabled = choices ? enabledExtensions(agent, choices) : [];
+  const key = (model: AgentModel) => `${model.provider}\n${model.model}`;
+  const current = agent.model ? key(agent.model) : "";
+  const missing =
+    !!agent.model &&
+    !models?.some(
+      (m) => key({ provider: m.provider, model: m.id }) === current,
+    );
   const label = (id: string) => choices?.find((c) => c.id === id)?.label;
   const row = (
     extension: { id: string; label: string; description?: string },
@@ -85,6 +101,60 @@ export function DetailPanel({
             <p>{agent.description}</p>
           </section>
         )}
+        {models && onModel && (
+          <section>
+            <h3>模型</h3>
+            <label className={s.modelField}>
+              <select
+                aria-label={`${agent.name} 使用的模型`}
+                value={current}
+                disabled={agent.status === "busy"}
+                onChange={(e) => {
+                  const choice = models.find(
+                    (m) =>
+                      key({ provider: m.provider, model: m.id }) ===
+                      e.target.value,
+                  );
+                  onModel(
+                    choice
+                      ? { provider: choice.provider, model: choice.id }
+                      : null,
+                  );
+                }}
+              >
+                <option value="">未选择</option>
+                {missing && <option value={current}>已不可用的模型</option>}
+                {models.map((m) => (
+                  <option
+                    key={key({ provider: m.provider, model: m.id })}
+                    value={key({ provider: m.provider, model: m.id })}
+                  >
+                    {m.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <p className={s.detailNote}>
+              {missing
+                ? "所选模型已删除或其连接已停用，请重新选择。"
+                : (models.find(
+                    (m) =>
+                      key({ provider: m.provider, model: m.id }) === current,
+                  )?.description ??
+                  (models.length
+                    ? "选择一个模型后此 Agent 才能回复；最近的对话与角色说明会发送给它。"
+                    : "还没有模型连接，添加一个后即可选择。"))}
+            </p>
+            {onModels && (
+              <button
+                className={`secondary ${s.noteAction}`}
+                onClick={onModels}
+              >
+                {models.length ? "管理模型连接" : "添加模型连接"}
+              </button>
+            )}
+          </section>
+        )}
         <section>
           <h3>组成扩展</h3>
           <ul className={s.extensionList}>
@@ -94,20 +164,16 @@ export function DetailPanel({
           {choices?.length === 0 && (
             <>
               <p className={s.detailNote}>
-                还没有可用的扩展。在扩展管理中启用一个模型连接后，可在这里开启。
+                没有可开启的文本扩展；回复只由上面选择的模型生成。
               </p>
-              <button
-                className={`secondary ${s.noteAction}`}
-                onClick={() => onOpenExtension()}
-              >
-                在扩展管理中启用
-              </button>
             </>
           )}
           {!!choices?.length && (
             <p className={s.detailNote}>
               {enabled.length === 0
-                ? "尚未开启任何扩展，此 Agent 暂时无法回复。"
+                ? agent.model
+                  ? "可开启文本扩展对模型回复做后处理。"
+                  : "尚未选择模型或开启扩展，此 Agent 暂时无法回复。"
                 : enabled.length > 1
                   ? `回复依次经过：${enabled.map(label).join(" → ")}`
                   : "开启的扩展处理此 Agent 的回复，可同时开启多个。"}

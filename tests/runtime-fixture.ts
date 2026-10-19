@@ -17,6 +17,12 @@ vi.mock("../src/agents/extension", () => ({
     activate() {},
   }),
 }));
+vi.mock("../src/models/extension", () => ({
+  modelConnectorWithPage: () => ({
+    manifest: { id: "connector.models", version: "1", apiVersion: 1 },
+    activate() {},
+  }),
+}));
 vi.mock("../src/platform", () => ({
   PlatformAdapter: class {
     kind = "browser";
@@ -31,6 +37,7 @@ vi.mock("../src/platform", () => ({
       return runtimeFixture.credentialsError;
     }
     initializeDocuments = async () => {};
+    available = (name: string) => name.startsWith("state.");
     grant = async () => {};
     call = async (
       _owner: string,

@@ -10,6 +10,11 @@
     "label": "逆序转换服务"
   },
   {
+    "id": "chat.echo",
+    "url": "/services/echo-chat.js",
+    "label": "回显模型（开发）"
+  },
+  {
     "id": "workbench",
     "url": "/services/workbench.js",
     "label": "文本工作台"

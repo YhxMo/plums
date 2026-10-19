@@ -4,7 +4,7 @@ const invoke = vi.hoisted(() => vi.fn());
 vi.mock("@tauri-apps/api/core", () => ({ invoke, isTauri: () => true }));
 const { PlatformAdapter } = await import("../src/platform");
 
-const owner = "extension.connector.deepseek";
+const owner = "extension.connector.models";
 const request = { version: 1, binding: "text", body: "{}" };
 const calls = (name: string) =>
   invoke.mock.calls.filter(([command]) => command === name);

@@ -133,8 +133,12 @@ export async function bootShell(
   };
   for (const extension of application.extensions(preferences, save))
     host.install(extension, configurations[extension.manifest.id]);
+  // Built-ins get only what this platform has (no keys in the browser preview).
   for (const [id, capabilities] of Object.entries(application.grants ?? {}))
-    await host.grant(id, capabilities);
+    await host.grant(
+      id,
+      capabilities.filter((name) => adapter.available(name)),
+    );
   const compositionErrors = composition
     ? await restoreComposition(host, composition)
     : [];

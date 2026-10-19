@@ -3,9 +3,11 @@ import type { Named } from "../sdk";
 import type {
   Agent,
   AgentConfig,
+  AgentModel,
   AgentProvider,
   AgentProviderInfo,
   ExtensionChoice,
+  ModelChoice,
   Session,
 } from "./contract";
 import { enabledExtensions } from "./contract";
@@ -61,6 +63,10 @@ export function restoreAgents(value: unknown): Agent[] {
       (a.extensions !== undefined &&
         (!Array.isArray(a.extensions) ||
           !a.extensions.every((e) => text(e)))) ||
+      (a.model !== undefined &&
+        (!object(a.model) ||
+          !text(a.model.provider, 64) ||
+          !text(a.model.model, 128))) ||
       !Array.isArray(a.capabilities) ||
       !a.capabilities.every((c) => text(c)) ||
       !Array.isArray(a.sessions) ||
@@ -110,6 +116,17 @@ export function restoreAgents(value: unknown): Agent[] {
 
 /** Extension-owned model; writes publish only after a successful receipt. */
 export type SaveOptions = { signal?: AbortSignal; onCommit?: () => void };
+/** What a reply may draw on besides the new text. */
+export type ReplyContext = {
+  model?: AgentModel;
+  /** The Agent's role description. */
+  instructions: string;
+  /** The current session's saved messages, oldest first. */
+  history: { role: "user" | "agent"; text: string }[];
+};
+const DEFAULT_DESCRIPTION = "简洁、友好地回答用户的问题。";
+const sameModel = (choice: ModelChoice, model: AgentModel) =>
+  choice.provider === model.provider && choice.id === model.model;
 export class AgentStore implements AgentProvider {
   private agents: Agent[];
   private listeners = new Set<() => void>();
@@ -122,15 +139,18 @@ export class AgentStore implements AgentProvider {
   constructor(
     initial: Agent[],
     private persist: (agents: Agent[], options?: SaveOptions) => Promise<void>,
-    /** Passes the text through these extensions in order. */
+    /** Asks the Agent's model, then passes the text through these extensions in order. */
     private reply: (
       text: string,
       signal: AbortSignal,
       extensions: string[],
+      context: ReplyContext,
     ) => Promise<string>,
     /** Extensions an Agent can switch on, the default first. */
     readonly extensionChoices: () => readonly ExtensionChoice[] = () => [],
     private extensions: readonly Named[] = [],
+    /** Models an Agent can use, the default first. */
+    readonly modelChoices: () => readonly ModelChoice[] = () => [],
   ) {
     this.agents = initial;
   }
@@ -138,9 +158,10 @@ export class AgentStore implements AgentProvider {
     return {
       label: "内置本地 Agent 提供者",
       version: "0.0.4",
-      description:
-        this.extensionChoices()[0]?.description ??
-        "还没有可用的扩展，请在扩展管理中启用一个模型连接。",
+      description: this.modelChoices().length
+        ? "回复由此 Agent 选择的模型生成；最近的对话与角色说明会一起发送到该模型服务。"
+        : (this.extensionChoices()[0]?.description ??
+          "还没有可用的模型，请在 Agent 详情中添加模型连接。"),
       extensions: this.extensions,
     };
   }
@@ -158,6 +179,22 @@ export class AgentStore implements AgentProvider {
         a.extensions ?? enabledExtensions(a, this.extensionChoices())
       ).filter((id) => id !== extensionId);
       a.extensions = on ? [...rest, extensionId] : rest;
+    });
+  }
+  setModel(agentId: string, model: AgentModel | null) {
+    if (
+      model &&
+      !this.modelChoices().some((choice) => sameModel(choice, model))
+    )
+      return Promise.reject(new Error("模型不可用，请先在模型连接中添加它。"));
+    return this.change((agents) => {
+      const a = this.find(agents, agentId);
+      if (!model) delete a.model;
+      else {
+        a.model = { provider: model.provider, model: model.model };
+        // With a model, text extensions become explicit post-processing.
+        a.extensions ??= [];
+      }
     });
   }
   list = () => this.agents;
@@ -207,18 +244,23 @@ export class AgentStore implements AgentProvider {
   async create(config: AgentConfig) {
     const clean = parseRoleCard(JSON.stringify(config));
     const session = newSession();
+    const [model] = this.modelChoices();
     const agent: Agent = {
       id: id(),
       name: clean.name,
-      description:
-        clean.description ?? "本地文本助手，使用已启用的文本转换服务。",
+      description: clean.description?.trim() || DEFAULT_DESCRIPTION,
       status: "idle",
       pinned: false,
       extensionId: "agents.local",
-      // Without any service yet, the first one enabled later is used.
-      ...(this.extensionChoices().length && {
-        extensions: enabledExtensions({}, this.extensionChoices()),
-      }),
+      ...(model
+        ? {
+            model: { provider: model.provider, model: model.id },
+            extensions: [],
+          }
+        : // Without any service yet, the first one enabled later is used.
+          this.extensionChoices().length && {
+            extensions: enabledExtensions({}, this.extensionChoices()),
+          }),
       capabilities: ["本地文本处理", "保存会话"],
       multiSession: clean.multiSession ?? false,
       sessions: [session],
@@ -309,6 +351,9 @@ export class AgentStore implements AgentProvider {
       throw new Error("Agent 暂不可运行。");
     const a = this.find(this.agents, agentId);
     const sessionId = a.currentSessionId;
+    const history = a.sessions
+      .find((s) => s.id === sessionId)!
+      .messages.map(({ role, text }) => ({ role, text }));
     const sentAt = Date.now();
     const controller = new AbortController();
     this.running.set(agentId, controller);
@@ -319,6 +364,7 @@ export class AgentStore implements AgentProvider {
         input,
         controller.signal,
         enabledExtensions(a, this.extensionChoices()),
+        { model: a.model, instructions: a.description, history },
       );
       controller.signal.throwIfAborted();
       if (!text(output, 32000))

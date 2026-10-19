@@ -154,6 +154,13 @@ for (const width of [375, 1180]) {
 test("connector key entry uses native metadata and recovers an unknown save", async ({
   page,
 }) => {
+  // A connector with a fixed manifest binding, imported like an author's file.
+  await page.route("**/test-connector.js", (route) =>
+    route.fulfill({
+      contentType: "text/javascript",
+      body: `export default { manifest: { id: "sample.connector", version: "0.1.0", apiVersion: 1, capabilities: ["credential.request"], credentialBindings: { text: ${JSON.stringify(declaration)} } }, activate() {} };`,
+    }),
+  );
   await page.addInitScript(() => {
     const w = window as unknown as {
       isTauri: boolean;
@@ -164,9 +171,14 @@ test("connector key entry uses native metadata and recovers an unknown save", as
     w.__credentialPayloads = [];
     let records: unknown[] = [];
     let entries = 0;
-    // The connector ships in the built-in catalog; nothing is imported.
-    const source = "/connectors/deepseek.js";
-    let saved = { revision: 1, value: { version: 1, imports: [] } };
+    const source = "/test-connector.js";
+    let saved = {
+      revision: 1,
+      value: {
+        version: 1,
+        imports: [{ id: "sample.connector", label: "测试连接器", url: source }],
+      },
+    };
     w.__TAURI_INTERNALS__ = {
       invoke: async (
         command: string,
@@ -218,9 +230,7 @@ test("connector key entry uses native metadata and recovers an unknown save", as
   });
   await page.goto("/");
   await manage(page);
-  await page
-    .getByRole("button", { name: "DeepSeek 模型连接", exact: true })
-    .click();
+  await page.getByText("测试连接器", { exact: true }).click();
   const binding = page.getByRole("region", { name: "连接与凭据", exact: true });
   await binding
     .getByRole("button", { name: "录入 API Key", exact: true })
@@ -254,4 +264,102 @@ test("connector key entry uses native metadata and recovers an unknown save", as
     "version",
   ]);
   await expect(binding.locator("input")).toHaveCount(0);
+});
+
+test("the model connection page builds a connection from a template and the user's address", async ({
+  page,
+}) => {
+  await page.addInitScript(() => {
+    const w = window as unknown as {
+      isTauri: boolean;
+      __TAURI_INTERNALS__: unknown;
+      __configured: Array<Record<string, unknown>>;
+    };
+    w.isTauri = true;
+    w.__configured = [];
+    let records: Array<Record<string, unknown>> = [];
+    const states = new Map<string, { revision: number; value: unknown }>();
+    w.__TAURI_INTERNALS__ = {
+      invoke: async (command: string, args: Record<string, unknown>) => {
+        if (command === "credential_supported") return true;
+        if (command === "credential_inventory") return records;
+        if (command === "credential_list")
+          return records.filter((record) => record.owner === args.owner);
+        if (command === "credential_configure") {
+          w.__configured.push(args);
+          records = [
+            ...records,
+            {
+              owner: args.owner,
+              alias: args.alias,
+              declaration: args.declaration,
+              source: args.source,
+              version: args.version,
+              revision: 1,
+              status: "ready",
+              route: { type: "direct" },
+            },
+          ];
+          return { status: "saved" };
+        }
+        if (command === "document_supported") return false;
+        if (command === "platform_call") {
+          const payload = (args.payload ?? {}) as {
+            key?: string;
+            revision: number;
+            value: unknown;
+          };
+          const slot = `${String(args.owner)}+${payload.key ?? ""}`;
+          if (args.capability === "state.read") return states.get(slot) ?? null;
+          if (args.capability === "state.write") {
+            const next = {
+              revision: payload.revision + 1,
+              value: payload.value,
+            };
+            states.set(slot, next);
+            return next;
+          }
+        }
+      },
+    };
+  });
+  await page.goto("/");
+  await page.getByRole("button", { name: "应用菜单", exact: true }).click();
+  await page.getByRole("menuitem", { name: "模型连接", exact: true }).click();
+  const dialog = page.getByRole("dialog", { name: "模型连接" });
+  await dialog.getByRole("button", { name: "新建连接", exact: true }).click();
+  await dialog
+    .getByRole("combobox", { name: "服务商", exact: true })
+    .selectOption({ label: "自定义（Anthropic 兼容）" });
+  await dialog.getByRole("textbox", { name: "名称", exact: true }).fill("网关");
+  await dialog
+    .getByRole("textbox", { name: "服务地址", exact: true })
+    .fill("https://gateway.invalid/v1/messages");
+  await dialog
+    .getByRole("textbox", { name: "模型", exact: true })
+    .fill("claude-test");
+  await dialog
+    .getByRole("button", { name: "保存并录入密钥", exact: true })
+    .click();
+  await expect(dialog.getByRole("list", { name: "模型连接" })).toContainText(
+    "网关",
+  );
+  await expect(dialog).toContainText("claude-test · 可用");
+  const [configured] = await page.evaluate(
+    () =>
+      (window as unknown as { __configured: Array<Record<string, unknown>> })
+        .__configured,
+  );
+  expect(configured).toMatchObject({
+    owner: "extension.connector.models",
+    source: "内置模型连接器",
+    revision: 0,
+    declaration: {
+      label: "网关",
+      target: "https://gateway.invalid/v1/messages",
+      headers: { "anthropic-version": "2023-06-01" },
+      authentication: { type: "header", name: "x-api-key" },
+    },
+  });
+  expect(configured.alias).toMatch(/^c-[a-z0-9]{8}$/);
 });

@@ -129,7 +129,7 @@ test("an Agent's details switch each text extension on or off", async ({
   await expect(details).toContainText("此 Agent 暂时无法回复");
 });
 
-test("with no text service, an Agent's details say so and open extension management", async ({
+test("each Agent picks its own model and the model receives the conversation so far", async ({
   page,
 }) => {
   await page.setViewportSize({ width: 1280, height: 860 });
@@ -139,26 +139,45 @@ test("with no text service, an Agent's details say so and open extension managem
     .getByRole("button", { name: "停用 transform.upper", exact: true })
     .click();
   await page.getByRole("button", { name: "返回工作区", exact: true }).click();
-  await addAgent(page, "空白");
-  await page
-    .getByRole("button", { name: "展开或收起右侧栏", exact: true })
-    .click();
+  await addAgent(page, "甲");
+  const toggleDetails = page.getByRole("button", {
+    name: "展开或收起右侧栏",
+    exact: true,
+  });
+  await toggleDetails.click();
   await expect(
-    page.getByText(
-      "还没有可用的扩展。在扩展管理中启用一个模型连接后，可在这里开启。",
-    ),
+    page.getByText("还没有模型连接，添加一个后即可选择。"),
   ).toBeVisible();
+  // The browser preview cannot hold keys, so the connector page is unavailable.
+  await page.getByRole("button", { name: "添加模型连接", exact: true }).click();
+  const dialog = page.getByRole("dialog", { name: "模型连接" });
+  await dialog.getByRole("button", { name: "查看扩展", exact: true }).click();
   await page
-    .getByRole("button", { name: "在扩展管理中启用", exact: true })
-    .click();
-  await expect(
-    page.getByRole("heading", { name: "扩展与状态", exact: true }),
-  ).toBeVisible();
-  await page
-    .getByRole("button", { name: "启用 transform.upper", exact: true })
+    .getByRole("button", { name: "启用 chat.echo", exact: true })
     .click();
   await page.getByRole("button", { name: "返回工作区", exact: true }).click();
-  await page.getByRole("textbox", { name: "消息", exact: true }).fill("ok");
-  await page.getByRole("button", { name: "发送", exact: true }).click();
-  await expect(page.getByRole("log")).toContainText("OK");
+  await toggleDetails.click();
+  await page
+    .getByRole("combobox", { name: "甲 使用的模型", exact: true })
+    .selectOption({ label: "回显 B" });
+  const send = async (text: string) => {
+    await page.getByRole("textbox", { name: "消息", exact: true }).fill(text);
+    await page.getByRole("button", { name: "发送", exact: true }).click();
+  };
+  await send("我是 nanan");
+  await send("我是谁？");
+  await expect(page.getByRole("log")).toContainText(
+    "echo-b｜第 2 轮｜说明：简洁、友好地回答用户的问题。｜最早：我是 nanan｜我是谁？",
+  );
+  // A new Agent starts on the first model, apart from 甲's choice.
+  await page.getByRole("button", { name: "添加", exact: true }).first().click();
+  await page
+    .getByRole("dialog", { name: "添加", exact: true })
+    .getByRole("button", { name: /^添加 Agent/ })
+    .click();
+  const add = page.getByRole("dialog", { name: "添加 Agent", exact: true });
+  await add.getByRole("textbox", { name: "名称", exact: true }).fill("乙");
+  await add.getByRole("button", { name: "添加", exact: true }).click();
+  await send("你好");
+  await expect(page.getByRole("log")).toContainText("echo-a｜第 1 轮");
 });

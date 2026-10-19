@@ -27,10 +27,21 @@ export type Agent = {
   extensionId: string;
   /** Text extensions switched on for this Agent; replies pass through them in this order. Absent means the first available one. */
   extensions?: string[];
+  /** The `chat@1` model that answers this Agent, by provider extension and model id. */
+  model?: AgentModel;
   capabilities: string[];
   sessions: Session[];
   multiSession: boolean;
   currentSessionId: string;
+};
+export type AgentModel = { provider: string; model: string };
+/** A model an Agent can use, from one `chat@1` provider. */
+export type ModelChoice = {
+  provider: string;
+  providerLabel: string;
+  id: string;
+  label: string;
+  description: string;
 };
 export type AgentConfig = {
   name: string;
@@ -75,6 +86,10 @@ export interface AgentProvider {
   extensionChoices?(): readonly ExtensionChoice[];
   /** Switches one of `extensionChoices()` on (appended last) or off for one Agent. */
   setExtension?(id: string, extensionId: string, on: boolean): Promise<void>;
+  /** Models any Agent can use; added after agents@1 shipped. */
+  modelChoices?(): readonly ModelChoice[];
+  /** Picks one of `modelChoices()` for an Agent, or none. */
+  setModel?(id: string, model: AgentModel | null): Promise<void>;
   /** Deletes one saved message; added after agents@1 shipped, so optional. */
   removeMessage?(
     id: string,

@@ -147,7 +147,7 @@ it("Agents start without any text service and use the first one enabled later", 
   await host.start("agents.local");
   const agents = () => host.peekService<AgentProvider>("agents", 1)!;
   expect(host.inspect("agents.local").status).toBe("active");
-  expect(agents().info.description).toContain("扩展管理");
+  expect(agents().info.description).toContain("添加模型连接");
   const agent = await agents().create({ name: "先建" });
   await expect(agents().send(agent.id, "早")).rejects.toThrow("扩展管理");
   await host.start("transform.a");

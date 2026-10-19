@@ -54,7 +54,7 @@ export default {
 | 添加一个界面 | `ctx.view(...)`，见下方示例 | [界面契约](VIEW-TREE.md) |
 | 保存数据 | 声明 `capabilities: ["state.read", "state.write"]`，见下方示例 | [状态规则](SDK-AUTHORING.md#状态取消与演进) |
 | 让用户调整设置 | `manifest.configuration` 声明字段，`ctx.configuration` 读取；用户在扩展管理中修改 | [配置契约](EXTENSION-CONFIGURATION.md) |
-| 连接真实模型 | 声明 `credentialBindings` 和 `capabilities: ["credential.request"]`，用 `ctx.platform("credential.request", { version: 1, binding, body })` 发请求；API Key 由用户在扩展详情中录入，扩展拿不到密钥 | [DeepSeek 连接器](../extensions/connectors/deepseek.js)、[请求契约](CREDENTIAL-REQUEST.md) |
+| 连接真实模型 | 声明 `credentialBindings` 和 `capabilities: ["credential.request"]`，用 `ctx.platform("credential.request", { version: 1, binding, body })` 发请求；API Key 由用户在扩展详情中录入，扩展拿不到密钥 | [请求契约](CREDENTIAL-REQUEST.md)；要让用户自建多条连接见[扩展自建连接](CREDENTIAL-BINDINGS.md#扩展自建连接)，提供可供 Agent 选择的模型实现 `chat@1`（[模型连接](MODELS.md#chat1)，开发示例 [echo-chat.js](../extensions/services/echo-chat.js)） |
 | 让扩展管理显示谁在用 | `ctx.shell.publishUsers("Agent", [{ id, label, uses }], toggle)`；停用时自动清除 | [页面契约](PAGES.md#让扩展使用宿主入口) |
 | 使用别的扩展提供的服务 | `requires: { "服务名": 版本 }`，`ctx.use("服务名")` 取一个，`ctx.providers("服务名")` 列出全部；没有提供者也要能启用时改用 `optional: { "服务名": 版本 }`，只能用 `ctx.providers` | [事件样板](../extensions/examples/events.js) |
 

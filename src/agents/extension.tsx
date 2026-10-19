@@ -62,6 +62,7 @@ export function agentUI(): ExtensionDefinition {
                   ? ctx.shell.open("extensions", id)
                   : ctx.shell.open("extensions"));
               }}
+              onModels={() => void ctx.shell.open("view", "model-connections")}
             />,
             true,
           );

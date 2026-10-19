@@ -139,7 +139,7 @@ ctx.task 跟踪异步任务，使用传入 signal 合作式取消；ctx.onDispos
 
 [凭据代用请求契约](CREDENTIAL-REQUEST.md)在 Mac 与 Android 应用中可用，浏览器预览不可用。绑定确定内容类型、固定头和认证注入，扩展只提交别名与序列化载荷，秘密留在原生侧；不在普通配置中保存秘密。
 
-[DeepSeek 协议扩展](DEEPSEEK.md)是当前的实际服务实现入口：`connector.deepseek` / `/connectors/deepseek.js`，提供 `text.transform@1`。JSON 载荷、模型配置、完整回复解析和错误脱敏留在扩展；本地测试通过现有 Agent 消费者验证，不直接调用 fetch 或读取密钥。它在默认目录中，但不自动启用；浏览器预览中保持等待。
+内置[模型连接器](MODELS.md)是当前的实际服务实现：`connector.models` 用 `credential.connect` 让用户自建连接，提供 `chat@1`；协议载荷、回复解析和错误脱敏留在扩展，不直接调用 fetch 或读取密钥。浏览器预览中保持等待。
 
 可选 `manifest.credentialBindings` 声明非秘密连接建议，沿用现有扩展安装与管理入口；声明不创建绑定或授予请求权限。[通用绑定与原生录入](CREDENTIAL-BINDINGS.md)说明每绑定媒体类型、固定头、秘密注入、显式代理配置及取消/未知/卸载清理状态。既有扩展可继续不声明该字段。需要让用户自建多条连接（例如多个模型服务）的扩展改为声明 `credentialProtocols` 协议模板并申请 `credential.connect`，见[扩展自建连接](CREDENTIAL-BINDINGS.md#扩展自建连接)。
 

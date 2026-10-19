@@ -34,7 +34,14 @@ export function useShellNavigation(runtime: Runtime) {
       ).detail;
       if (action === "settings") setDialog("settings");
       else if (action === "view" && target)
-        setDialog({ id: target, label: "" });
+        // The catalog names the view even while its extension is waiting.
+        setDialog({
+          id: target,
+          label:
+            runtime.catalog.find((entry) => entry.views?.[target])?.views?.[
+              target
+            ] ?? "",
+        });
       else openManager(action === "diagnostics", target);
     };
     runtime.events.addEventListener("shell", open);

@@ -25,3 +25,33 @@ export interface Workbench {
   run(input: string): Promise<void>;
   cancel(): void;
 }
+/** One model a `chat@1` provider offers; `id` is what `reply` takes. */
+export interface ChatModel {
+  id: string;
+  label: string;
+  /** Plain-language note: which service and model, and whether it is ready. */
+  description: string;
+}
+export interface ChatTurn {
+  role: "user" | "agent";
+  text: string;
+}
+/** `chat@1`: multi-turn replies from a model the user picked for an Agent. */
+export interface ChatService {
+  name: string;
+  models(): readonly ChatModel[];
+  subscribe(listener: () => void): () => void;
+  /**
+   * `history` is the conversation so far, oldest first; the provider may
+   * send only the newest part. Failures carry `outcome` like platform calls.
+   */
+  reply(
+    request: {
+      model: string;
+      instructions?: string;
+      history: readonly ChatTurn[];
+      input: string;
+    },
+    signal: AbortSignal,
+  ): Promise<string>;
+}
