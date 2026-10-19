@@ -1,6 +1,6 @@
 # 开发与审查流程
 
-[文档导航](README.md) · [验收矩阵](ACCEPTANCE.md) · [路线图](ROADMAP.md)
+[文档导航](README.md) · [验收矩阵](ACCEPTANCE.md) · [整体计划](spec/total.md)
 
 状态：当前有效（2026-10-18 核实）；工作规则见 [AGENTS](../AGENTS.md)，命令与门禁细节以此文为准，命令以 package.json 与实际配置为准。
 

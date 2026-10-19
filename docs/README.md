@@ -45,7 +45,6 @@
 | --- | --- |
 | [DEVELOPMENT](DEVELOPMENT.md) | 按验证入口、工作单、审查与交付流程工作 |
 | [ACCEPTANCE](ACCEPTANCE.md) | 选取 A1–A14 可证伪验收场景 |
-| [ROADMAP](ROADMAP.md) | 按阶段查找计划与验收入口（仅导航） |
 | [M1-EXPERIMENTS](M1-EXPERIMENTS.md) | 查 M1 决策、风险、回退方案与限制 |
 | [整体实现计划](spec/total.md) | 查整体路线、能力依赖与阶段退出条件 |
 | [当前阶段计划](spec/milestone.md) | 查正在执行的阶段、负责人、状态与退出条件 |

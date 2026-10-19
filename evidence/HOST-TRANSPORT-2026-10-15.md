@@ -4,7 +4,7 @@
 
 ## 实现与验证
 
-测试 Platform 只映射 Host 提供的 extension.probe.alpha/beta 到固定实验主体，接受 text/slow 别名，拒绝 owner/URL 等附加字段。独立作者只读取公开文档和 SDK 类型，未读取 Host、适配器或已有测试，编写了 [公开接口扩展](../tests/fixtures/author-echo-probe.mjs)；每次请求经 ctx.task 和 ctx.platform，服务及任务归生命周期管理。作者进行了语法检查，主执行者合入、类型检查并实际运行两端。这是独立代理接入，不是社区用户反馈。
+测试 Platform 只映射 Host 提供的 extension.probe.alpha/beta 到固定实验主体，接受 text/slow 别名，拒绝 owner/URL 等附加字段。独立作者只读取公开文档和 SDK 类型，未读取 Host、适配器或已有测试，编写了公开接口扩展 `tests/fixtures/author-echo-probe.mjs`（后续无测试引用，2026-10-19 清理移除，原件见 Git 历史）；每次请求经 ctx.task 和 ctx.platform，服务及任务归生命周期管理。作者进行了语法检查，主执行者合入、类型检查并实际运行两端。这是独立代理接入，不是社区用户反馈。
 
 | 检查 | 结果 |
 | --- | --- |

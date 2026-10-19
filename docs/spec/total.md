@@ -6,7 +6,7 @@
 
 ## 职责与基线
 
-本文维护完整能力路线、依赖、范围和阶段退出条件。执行任务、负责人及阻塞只在[当前阶段](milestone.md)维护；实际工程状态见[HANDOFF](../../HANDOFF.md)，验收定义见[ACCEPTANCE](../ACCEPTANCE.md)，已执行事实见[RESULTS](../../evidence/RESULTS.md)。[ROADMAP](../ROADMAP.md)只作阶段导航。
+本文维护完整能力路线、依赖、范围和阶段退出条件。执行任务、负责人及阻塞只在[当前阶段](milestone.md)维护；实际工程状态见[HANDOFF](../../HANDOFF.md)，验收定义见[ACCEPTANCE](../ACCEPTANCE.md)，已执行事实见[RESULTS](../../evidence/RESULTS.md)。
 
 完成阶段计划归入 `docs/spec/archive/<阶段>-<YYYY-MM-DD>.md`，保留结果与证据入口并登记[归档索引](archive/README.md)；未完成阶段不得归档。默认不加载全部历史，不以重建历史清单代替后续工作。
 
