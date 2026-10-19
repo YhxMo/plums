@@ -38,7 +38,8 @@
 .pick:hover {
   background: var(--accent-hover);
 }
-.pick:focus-within {
+/* After picking with a pointer the hidden input keeps focus; ring only for keys. */
+:root:not([data-input="pointer"]) .pick:has(input:focus-visible) {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
 }

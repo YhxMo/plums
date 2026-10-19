@@ -45,8 +45,7 @@
   color: var(--muted);
 }
 .search:focus-within {
-  border-color: var(--accent);
-  box-shadow: 0 0 0 3px var(--accent-soft);
+  border-color: var(--control-border);
   background: var(--card);
 }
 .search input {

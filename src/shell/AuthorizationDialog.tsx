@@ -10,7 +10,11 @@ export function useAuthorization() {
   const dialog = useRef<HTMLDialogElement>(null);
   const trigger = useRef<HTMLElement | null>(null);
   useEffect(() => {
-    if (authorization) dialog.current?.showModal();
+    if (!authorization) return;
+    dialog.current?.showModal();
+    // showModal focuses the first button, which paints a keyboard ring on
+    // "暂不授权" as if it were chosen; start at the title instead.
+    dialog.current?.querySelector<HTMLElement>("h2")?.focus();
   }, [authorization]);
   return {
     authorization,
@@ -55,10 +59,11 @@ export function AuthorizationDialog({
         const buttons = event.currentTarget.querySelectorAll("button");
         const first = buttons[0];
         const last = buttons[buttons.length - 1];
-        if (event.shiftKey && document.activeElement === first) {
+        const active = document.activeElement;
+        if (event.shiftKey && (active === first || active?.tagName === "H2")) {
           event.preventDefault();
           last?.focus();
-        } else if (!event.shiftKey && document.activeElement === last) {
+        } else if (!event.shiftKey && active === last) {
           event.preventDefault();
           first?.focus();
         }
@@ -71,7 +76,9 @@ export function AuthorizationDialog({
       {authorization && (
         <>
           <span className="eyebrow">应用内能力授权</span>
-          <h2 id="authorization-title">授权并启动扩展</h2>
+          <h2 id="authorization-title" tabIndex={-1}>
+            授权并启动扩展
+          </h2>
           <p>以下扩展请求使用列出的应用能力。</p>
           <div className={managerStyles.permissionList}>
             {authorization.ids.map((id) => (

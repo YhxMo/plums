@@ -129,6 +129,10 @@ textarea {
   border-color: var(--accent);
   box-shadow: 0 0 0 3px var(--accent-soft);
 }
+:root[data-input="pointer"]
+  :where(button, select, a, summary, input[type="checkbox"]):focus-visible {
+  outline: none;
+}
 /* Programmatic focus targets (headings) mark position for screen readers only. */
 [tabindex="-1"]:focus {
   outline: none;
