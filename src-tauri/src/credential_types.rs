@@ -137,6 +137,26 @@ impl Declaration {
         }
         Ok(())
     }
+    /// A read of another path on the bound site, such as a model list: same
+    /// scheme and host, a plain absolute path, no query.
+    pub fn read_target(&self, path: &str) -> Result<String, Failure> {
+        let plain = path.len() <= 256
+            && path.starts_with('/')
+            && path[1..].split('/').all(|segment| {
+                !segment.is_empty()
+                    && segment != "."
+                    && segment != ".."
+                    && segment
+                        .bytes()
+                        .all(|c| c.is_ascii_alphanumeric() || b"-._~".contains(&c))
+            });
+        let mut url = url::Url::parse(&self.target).map_err(|_| "invalid-request")?;
+        if !plain {
+            return Err("invalid-request");
+        }
+        url.set_path(path);
+        Ok(url.into())
+    }
 }
 impl Route {
     pub fn validate(&self) -> Result<(), Failure> {

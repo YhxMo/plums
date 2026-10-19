@@ -81,6 +81,8 @@ const previousTemplates = {
     "b1f134a606380b32065e35750e559d85f6047038bd1d8c8d06c37c1d329f015d",
     // 4657f25: 4096-byte request limit.
     "90bf5a0de6c9ad8b56162d2df63409e7b888ad31227bbfc241bf9b33a4fd842f",
+    // 45a03dc: 8192-byte response, POST only.
+    "98635e13fc5f026f1752502e9ac07f19ff5fa0179e6626573add1e81be865610",
   ]),
 };
 /** Validate every edit before writing any generated file.

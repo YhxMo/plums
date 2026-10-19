@@ -104,7 +104,13 @@ export interface NativeCommands {
     error: never;
   };
   credential_request: {
-    args: { owner: string; id: string; binding: string; body: string };
+    args: {
+      owner: string;
+      id: string;
+      binding: string;
+      body: string;
+      path?: string | null;
+    };
     response: { status: number; body: string };
     error: { code: string; outcome: string };
   };

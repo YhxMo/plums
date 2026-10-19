@@ -52,6 +52,9 @@ class CredentialPromptArgs {
   var input: String? = null
 }
 
+/** Room for a provider's model list as well as a reply; matches Rust. */
+private const val MAX_RESPONSE = 2 * 1024 * 1024
+
 @InvokeArg
 class CredentialRequestArgs {
   var id: String = ""
@@ -60,6 +63,8 @@ class CredentialRequestArgs {
   var contentType: String = ""
   var headers: Map<String, String> = emptyMap()
   var header: String? = null
+  /** POST sends `body`; GET reads `target` on the bound site with no body. */
+  var method: String = "POST"
   var body: String = ""
 }
 
@@ -220,8 +225,9 @@ class CredentialsPlugin(private val activity: Activity) : Plugin(activity) {
   }
 
   /**
-   * POST to the bound HTTPS target only: no redirects, no system proxy, no
-   * transparent gzip; 10 s connect, 30 s total, 65536-byte request, 8192-byte response.
+   * POST to the bound HTTPS target, or GET a path Rust checked is on its site:
+   * no redirects, no system proxy, no transparent gzip; 10 s connect, 30 s
+   * total, 65536-byte request, 2 MiB response.
    */
   @Command
   fun request(invoke: Invoke) {
@@ -231,7 +237,8 @@ class CredentialsPlugin(private val activity: Activity) : Plugin(activity) {
     val body = args.body.toByteArray(Charsets.UTF_8)
     if (!valid(args.reference) || args.id.isEmpty() || args.id.length > 64 || url == null ||
       url.protocol != "https" || url.userInfo != null || url.query != null || url.ref != null ||
-      (url.port != -1 && url.port != 443) || body.size > 65536) {
+      (url.port != -1 && url.port != 443) || body.size > 65536 ||
+      args.method !in setOf("POST", "GET") || (args.method == "GET" && body.isNotEmpty())) {
       fail("not-dispatched", "invalid-request"); return
     }
     Thread {
@@ -249,10 +256,12 @@ class CredentialsPlugin(private val activity: Activity) : Plugin(activity) {
           useCaches = false
           connectTimeout = 10_000
           readTimeout = 30_000
-          requestMethod = "POST"
-          doOutput = true
-          setFixedLengthStreamingMode(body.size)
-          setRequestProperty("Content-Type", args.contentType)
+          requestMethod = args.method
+          if (args.method == "POST") {
+            doOutput = true
+            setFixedLengthStreamingMode(body.size)
+            setRequestProperty("Content-Type", args.contentType)
+          }
           setRequestProperty("Accept-Encoding", "identity")
           for ((name, header) in args.headers) setRequestProperty(name, header)
           setRequestProperty(args.header ?: "Authorization", value)
@@ -263,17 +272,17 @@ class CredentialsPlugin(private val activity: Activity) : Plugin(activity) {
         val deadline = watchdog.schedule(Runnable { timedOut.set(true); open.disconnect() }, 30, TimeUnit.SECONDS)
         try {
           dispatched = true
-          open.outputStream.use { it.write(body) }
+          if (args.method == "POST") open.outputStream.use { it.write(body) }
           val status = open.responseCode
           if (status in 300..399) { fail("unknown", "redirect"); return@Thread }
-          if (open.contentLengthLong > 8192) { fail("unknown", "response-too-large"); return@Thread }
+          if (open.contentLengthLong > MAX_RESPONSE) { fail("unknown", "response-too-large"); return@Thread }
           val output = ByteArrayOutputStream()
           (if (status >= 400) open.errorStream else open.inputStream)?.use { stream ->
             val buffer = ByteArray(2048)
             while (true) {
               val read = stream.read(buffer)
               if (read < 0) break
-              if (output.size() + read > 8192) { fail("unknown", "response-too-large"); return@Thread }
+              if (output.size() + read > MAX_RESPONSE) { fail("unknown", "response-too-large"); return@Thread }
               output.write(buffer, 0, read)
             }
           }

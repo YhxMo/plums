@@ -1,6 +1,7 @@
 import { ContractError } from "../sdk/errors";
 import type { CredentialConnection, StoredState } from "../sdk";
-import { presets, type Preset } from "./presets";
+import { chatTarget, normalizeBase } from "./addresses";
+import { CUSTOM, presets, type Preset } from "./presets";
 import type { Protocol } from "./protocols";
 
 /**
@@ -12,9 +13,14 @@ export type ModelProvider = {
   /** Credential alias holding the target and key; replaced when re-made. */
   alias: string;
   name: string;
+  /** The user's own note, such as which account this is; may be empty. */
+  notes: string;
+  /** Home page for reference; may be empty. */
+  website: string;
   preset: string;
   protocol: Protocol;
-  target: string;
+  /** Base URL; chat requests go to `chatTarget(protocol, base)`. */
+  base: string;
   /** Model names exactly as the service expects them; may be empty. */
   models: string[];
   maxTokens: number;
@@ -46,14 +52,29 @@ const integer = (value: unknown, [min, max]: readonly [number, number]) =>
   (value as number) >= min &&
   (value as number) <= max;
 
+const plainText = (value: unknown, max: number) =>
+  typeof value === "string" &&
+  value.length <= max &&
+  // eslint-disable-next-line no-control-regex -- rejecting control characters is the point
+  !/[\u0000-\u001f\u007f]/.test(value);
+const httpsAddress = /^https:\/\/[^/?#:@\s]+(?:\/[^?#\s]*)?$/;
+
 /** Plain-language problem with a draft, or undefined when it can be saved. */
 export function draftProblem(draft: ProviderDraft) {
-  if (!draft.name.trim() || draft.name.length > 40)
+  if (!draft.name.trim() || !plainText(draft.name, 40))
     return "名称须为 1–40 个字符。";
-  if (!presets.some((preset) => preset.id === draft.preset))
-    return "请选择服务商。";
-  if (!/^https:\/\/[^/?#:@]+(?:\/[^?#]*)?$/.test(draft.target))
-    return "服务地址须是 https:// 开头、不带端口与查询参数的完整地址。";
+  if (!plainText(draft.notes, 80)) return "备注最多 80 个字符。";
+  if (
+    !plainText(draft.website, 200) ||
+    (draft.website && !/^https?:\/\/\S+$/.test(draft.website))
+  )
+    return "官网链接须以 http:// 或 https:// 开头。";
+  const preset = presets.find((item) => item.id === draft.preset);
+  if (!preset) return "请选择服务商。";
+  if (preset.id !== CUSTOM && preset.protocol !== draft.protocol)
+    return "API 格式与服务商不符。";
+  if (!httpsAddress.test(draft.base))
+    return "请求地址须是 https:// 开头、不带端口与查询参数的地址。";
   if (draft.models.length > MAX_MODELS)
     return `每个服务商最多添加 ${MAX_MODELS} 个模型。`;
   if (
@@ -74,11 +95,30 @@ export function draftProblem(draft: ProviderDraft) {
   return undefined;
 }
 
+/** Version 2 kept the full chat address and one preset per custom format. */
+function upgrade({ target, ...entry }: Record<string, unknown>) {
+  return {
+    ...entry,
+    notes: "",
+    website: "",
+    preset: String(entry.preset).startsWith("custom-") ? CUSTOM : entry.preset,
+    base:
+      typeof target === "string"
+        ? normalizeBase(entry.protocol as Protocol, target)
+        : undefined,
+  };
+}
+
 function restore(value: unknown): ModelProvider[] {
-  if (!record(value) || value.version !== 2 || !Array.isArray(value.providers))
+  if (
+    !record(value) ||
+    (value.version !== 3 && value.version !== 2) ||
+    !Array.isArray(value.providers)
+  )
     throw corrupt();
   const seen = new Set<string>();
-  return value.providers.map((entry: unknown) => {
+  return value.providers.map((raw: unknown) => {
+    const entry = record(raw) && value.version === 2 ? upgrade(raw) : raw;
     if (
       !record(entry) ||
       typeof entry.id !== "string" ||
@@ -89,7 +129,7 @@ function restore(value: unknown): ModelProvider[] {
       !["openai-chat", "anthropic-messages"].includes(
         entry.protocol as string,
       ) ||
-      [entry.name, entry.preset, entry.target].some(
+      [entry.name, entry.notes, entry.website, entry.preset, entry.base].some(
         (field) => typeof field !== "string",
       )
     )
@@ -97,7 +137,7 @@ function restore(value: unknown): ModelProvider[] {
     seen.add(entry.id);
     const provider = entry as ModelProvider;
     // A preset dropped from a later version leaves the record usable.
-    if (draftProblem({ ...provider, preset: presets[0].id })) throw corrupt();
+    if (draftProblem({ ...provider, preset: CUSTOM })) throw corrupt();
     return provider;
   });
 }
@@ -161,7 +201,7 @@ export class ProviderStore {
   private async write(next: ModelProvider[]) {
     const receipt = (await this.call("state.write", {
       revision: this.revision,
-      value: { version: 2, providers: next },
+      value: { version: 3, providers: next },
     })) as StoredState;
     this.revision = receipt.revision;
     this.providers = next;
@@ -173,7 +213,7 @@ export class ProviderStore {
       ...(alias && { alias }),
       protocol: draft.protocol,
       label: draft.name,
-      target: draft.target,
+      target: chatTarget(draft.protocol, draft.base),
     })) as Result;
     if (result.status === "cancelled") return undefined;
     if (result.status === "rejected")
@@ -182,11 +222,17 @@ export class ProviderStore {
     return result.alias;
   }
   /**
-   * Adds or changes a provider. A new one, a changed address or protocol, or
+   * Adds or changes a provider and returns its id, or false when the user
+   * cancelled the panel. A new one, a changed address or protocol, or
    * `rekey` asks the user for the key; other edits, models included, only
    * save the record.
    */
-  async save(draft: ProviderDraft, id?: string, rekey = false) {
+  async save(
+    input: ProviderDraft,
+    id?: string,
+    rekey = false,
+  ): Promise<string | false> {
+    const draft = { ...input, base: normalizeBase(input.protocol, input.base) };
     const problem = draftProblem(draft);
     if (problem) throw new Error(problem);
     const existing = id === undefined ? undefined : this.find(id);
@@ -199,7 +245,7 @@ export class ProviderStore {
       !existing ||
       rekey ||
       status === "missing" ||
-      existing.target !== draft.target ||
+      existing.base !== draft.base ||
       existing.protocol !== draft.protocol
     ) {
       alias = await this.connect(
@@ -223,7 +269,7 @@ export class ProviderStore {
     } finally {
       await this.refresh();
     }
-    return true;
+    return next.id;
   }
   /** Deletes the key natively, then the record; cancelling keeps both. */
   async remove(id: string) {

@@ -33,7 +33,7 @@ const reasons: Record<string, string> = {
   stale: "连接或授权已变化，本次结果未交付。",
   timeout: "请求超时，远端结果未确认。",
   redirect: "服务返回了跳转，已拒绝跟随，远端结果未确认。",
-  "response-too-large": "响应超过 8192 字节，远端结果未确认。",
+  "response-too-large": "响应超过 2 MiB，远端结果未确认。",
   "response-encoding": "响应不是有效的 UTF-8 文本，远端结果未确认。",
 };
 function requestFailure(code: string, outcome: CredentialFailureOutcome) {
@@ -47,6 +47,8 @@ function requestFailure(code: string, outcome: CredentialFailureOutcome) {
 const bytes = (value: string) => new TextEncoder().encode(value).length;
 /** Request body cap, matching the native transports. */
 export const MAX_REQUEST = 65536;
+/** A read on the bound site: plain absolute path, no query; Rust checks it again. */
+const sitePath = /^(?:\/(?!\.\.?(?:\/|$))[A-Za-z0-9._~-]+)+$/;
 /** Connections an extension made itself; static manifest aliases never match. */
 const connectionAlias = /^c-[a-z0-9]{8}$/;
 const MAX_CONNECTIONS = 16;
@@ -230,19 +232,25 @@ export class CredentialAccess {
     payload: unknown,
     signal?: AbortSignal,
   ): Promise<CredentialResponse> {
-    const { version, binding, body } = (payload ?? {}) as Record<
+    const { version, binding, body, method, path } = (payload ?? {}) as Record<
       string,
       unknown
     >;
-    if (
-      !payload ||
-      typeof payload !== "object" ||
-      Object.keys(payload).sort().join() !== "binding,body,version" ||
-      version !== 1 ||
-      typeof binding !== "string" ||
-      typeof body !== "string" ||
-      bytes(body) > MAX_REQUEST
-    )
+    const fields =
+      payload && typeof payload === "object"
+        ? Object.keys(payload).sort().join()
+        : "";
+    const send =
+      fields === "binding,body,version" &&
+      typeof body === "string" &&
+      bytes(body) <= MAX_REQUEST;
+    const read =
+      fields === "binding,method,path,version" &&
+      method === "GET" &&
+      typeof path === "string" &&
+      path.length <= 256 &&
+      sitePath.test(path);
+    if (version !== 1 || typeof binding !== "string" || !(send || read))
       throw requestFailure("invalid-request", "not-dispatched");
     if (signal?.aborted) throw requestFailure("cancelled", "not-dispatched");
     const id = crypto.randomUUID();
@@ -254,7 +262,9 @@ export class CredentialAccess {
         owner,
         id,
         binding,
-        body,
+        ...(read
+          ? { body: "", path: path as string }
+          : { body: body as string }),
       });
     } catch (error) {
       const { code, outcome } = (error ?? {}) as Record<string, unknown>;

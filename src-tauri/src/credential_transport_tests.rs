@@ -77,12 +77,12 @@ fn view(authentication: serde_json::Value) -> View {
     .unwrap()
 }
 fn run(url: &str, total: Duration, auth: serde_json::Value, body: &str) -> Result<Reply, Fault> {
-    let map = headers(&view(auth), b"synthetic-key").unwrap();
+    let map = headers(&view(auth), b"synthetic-key", true).unwrap();
     tauri::async_runtime::block_on(transmit(
         &client(false).unwrap(),
         url,
         map,
-        body.into(),
+        Some(body.into()),
         total,
     ))
 }
@@ -122,10 +122,31 @@ fn delivers_status_and_body_with_only_the_bound_headers() {
     assert!(!request.contains("cookie"));
 }
 #[test]
+fn a_read_sends_get_with_the_key_and_no_body() {
+    let (url, seen) = serve(vec![reply("200 OK", "", "{\"data\":[]}")]);
+    let map = headers(&view(bearer()), b"synthetic-key", false).unwrap();
+    let read = tauri::async_runtime::block_on(transmit(
+        &client(false).unwrap(),
+        &format!("{url}/v1/models"),
+        map,
+        None,
+        desktop::TOTAL,
+    ))
+    .unwrap();
+    assert_eq!(read.body, "{\"data\":[]}");
+    let request = seen.lock().unwrap()[0].to_lowercase();
+    assert!(request.starts_with("get /v1/models http/1.1"));
+    assert!(request.contains("authorization: bearer synthetic-key"));
+    assert!(request.contains("x-api-version: 1"));
+    assert!(!request.contains("content-type"));
+    assert!(!request.contains("content-length"));
+}
+#[test]
 fn custom_authentication_header_carries_the_raw_secret_marked_sensitive() {
     let map = headers(
         &view(serde_json::json!({"type": "header", "name": "x-api-key"})),
         b"synthetic-key",
+        true,
     )
     .unwrap();
     assert_eq!(map["x-api-key"], "synthetic-key");
@@ -147,6 +168,8 @@ fn redirects_are_rejected_without_visiting_the_location() {
     std::thread::sleep(Duration::from_millis(100));
     assert!(visited.lock().unwrap().is_empty());
 }
+// A provider's model list must fit.
+const _: () = assert!(MAX_RESPONSE >= 1 << 20);
 #[test]
 fn oversized_responses_stop_with_declared_or_streamed_length() {
     let large = "a".repeat(MAX_RESPONSE + 1);
@@ -177,12 +200,12 @@ fn a_silent_server_times_out_as_unknown() {
 #[test]
 fn production_client_never_sends_plain_http() {
     let (url, seen) = serve(vec![reply("200 OK", "", "ok")]);
-    let map = headers(&view(bearer()), b"synthetic-key").unwrap();
+    let map = headers(&view(bearer()), b"synthetic-key", true).unwrap();
     let result = tauri::async_runtime::block_on(transmit(
         &client(true).unwrap(),
         &url,
         map,
-        "x".into(),
+        Some("x".into()),
         desktop::TOTAL,
     ));
     assert_eq!(result, Err(Fault::Unknown("transport")));

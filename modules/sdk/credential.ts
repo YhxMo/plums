@@ -1,14 +1,26 @@
-/** Experimental: the Mac and Android apps send through a user-confirmed binding; browsers do not provide it. */
-export interface CredentialRequest {
-  version: 1;
-  /** Non-secret alias resolved within the calling extension's platform owner. */
-  binding: string;
-  /** UTF-8 text, at most 65536 bytes; target/method/headers are platform-owned. */
-  body: string;
-}
+/**
+ * Experimental: the Mac and Android apps send through a user-confirmed binding;
+ * browsers do not provide it. A request POSTs `body` to the bound target, or
+ * GETs another plain path on the same site (such as a model list).
+ */
+export type CredentialRequest =
+  | {
+      version: 1;
+      /** Non-secret alias resolved within the calling extension's platform owner. */
+      binding: string;
+      /** UTF-8 text, at most 65536 bytes; target/method/headers are platform-owned. */
+      body: string;
+    }
+  | {
+      version: 1;
+      binding: string;
+      method: "GET";
+      /** Absolute path on the target's host, at most 256 characters: letters, digits and `-._~` segments, no query. */
+      path: string;
+    };
 export interface CredentialResponse {
   status: number;
-  /** UTF-8 text, at most 8192 bytes. No separate credential field or response headers; remote text may echo secrets. */
+  /** UTF-8 text, at most 2 MiB. No separate credential field or response headers; remote text may echo secrets. */
   body: string;
 }
 /** Dispatched failures may already have remote effects; they are never auto-retried. */

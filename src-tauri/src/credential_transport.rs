@@ -1,11 +1,12 @@
-//! Fixed-target HTTPS for bound credential requests. The secret is read and
+//! HTTPS for bound credential requests: the fixed target, or a read on its site. The secret is read and
 //! injected into one header here; it never returns to the WebView or a log.
 use crate::credential_bindings::{Failure, View};
 use crate::ipc::wire_object;
 use serde::Serialize;
 
 pub const MAX_REQUEST: usize = 65536;
-pub const MAX_RESPONSE: usize = 8192;
+/// Room for a provider's model list as well as a reply.
+pub const MAX_RESPONSE: usize = 2 * 1024 * 1024;
 
 /// Where a request stopped: before any network I/O, or after it may have
 /// reached the remote service. Neither is retried automatically.
@@ -55,14 +56,17 @@ pub(crate) mod desktop {
             .timeout(TOTAL)
             .build()
     }
-    pub fn headers(view: &View, secret: &[u8]) -> Result<HeaderMap, Fault> {
+    /// `content` adds the bound content type; a read sends no body.
+    pub fn headers(view: &View, secret: &[u8], content: bool) -> Result<HeaderMap, Fault> {
         let invalid = || Fault::NotDispatched("invalid-policy");
         let declaration = &view.declaration;
         let mut map = HeaderMap::new();
-        map.insert(
-            CONTENT_TYPE,
-            HeaderValue::from_str(&declaration.content_type).map_err(|_| invalid())?,
-        );
+        if content {
+            map.insert(
+                CONTENT_TYPE,
+                HeaderValue::from_str(&declaration.content_type).map_err(|_| invalid())?,
+            );
+        }
         for (name, value) in &declaration.headers {
             map.insert(
                 HeaderName::from_bytes(name.as_bytes()).map_err(|_| invalid())?,
@@ -83,22 +87,21 @@ pub(crate) mod desktop {
         map.insert(name, value);
         Ok(map)
     }
+    /// POSTs `body`, or GETs when there is none.
     pub async fn transmit(
         client: &reqwest::Client,
         target: &str,
         headers: HeaderMap,
-        body: String,
+        body: Option<String>,
         total: Duration,
     ) -> Result<Reply, Fault> {
         let exchange = async {
             let failed = |_| Fault::Unknown("transport");
-            let mut response = client
-                .post(target)
-                .headers(headers)
-                .body(body)
-                .send()
-                .await
-                .map_err(failed)?;
+            let request = match body {
+                Some(body) => client.post(target).body(body),
+                None => client.get(target),
+            };
+            let mut response = request.headers(headers).send().await.map_err(failed)?;
             let status = response.status().as_u16();
             if (300..400).contains(&status) {
                 return Err(Fault::Unknown("redirect"));
@@ -156,30 +159,26 @@ pub(crate) async fn read_key(
     .await
     .map_err(|_| "unknown")?
 }
+/// POSTs `body` to the bound target, or GETs `target` (a read on the same
+/// site) when there is no body.
 #[cfg(target_os = "macos")]
 pub async fn send(
     app: &tauri::AppHandle,
     _id: &str,
     view: &View,
     reference: &str,
-    body: String,
+    target: &str,
+    body: Option<String>,
 ) -> Result<Reply, Fault> {
     let mut secret = match read_key(app, reference).await {
         Ok(Some(secret)) => secret,
         _ => return Err(Fault::NotDispatched("secret-unavailable")),
     };
-    let headers = desktop::headers(view, &secret);
+    let headers = desktop::headers(view, &secret, body.is_some());
     secret.fill(0);
     let client =
         desktop::client(true).map_err(|_| Fault::NotDispatched("transport-unavailable"))?;
-    desktop::transmit(
-        &client,
-        &view.declaration.target,
-        headers?,
-        body,
-        desktop::TOTAL,
-    )
-    .await
+    desktop::transmit(&client, target, headers?, body, desktop::TOTAL).await
 }
 /// Dropping the request future closes the connection on desktop.
 #[cfg(not(target_os = "android"))]
@@ -192,7 +191,8 @@ pub async fn send(
     id: &str,
     view: &View,
     reference: &str,
-    body: String,
+    target: &str,
+    body: Option<String>,
 ) -> Result<Reply, Fault> {
     use crate::credential_types::Authentication;
     let declaration = &view.declaration;
@@ -204,9 +204,10 @@ pub async fn send(
         app.clone(),
         "request",
         serde_json::json!({
-            "id": id, "reference": reference, "target": declaration.target,
+            "id": id, "reference": reference, "target": target,
+            "method": if body.is_some() { "POST" } else { "GET" },
             "contentType": declaration.content_type, "headers": declaration.headers,
-            "header": header, "body": body,
+            "header": header, "body": body.unwrap_or_default(),
         }),
     )
     .await
@@ -249,7 +250,8 @@ pub async fn send(
     _id: &str,
     _view: &View,
     _reference: &str,
-    _body: String,
+    _target: &str,
+    _body: Option<String>,
 ) -> Result<Reply, Fault> {
     Err(Fault::NotDispatched("unavailable"))
 }

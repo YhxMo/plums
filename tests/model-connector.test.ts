@@ -12,18 +12,23 @@ import type { Platform, StoredState } from "../modules/sdk";
 const owner = "extension.connector.models";
 const deepseek: ProviderDraft = {
   name: "DeepSeek",
+  notes: "",
+  website: "https://www.deepseek.com",
   preset: "deepseek",
   protocol: "openai-chat",
-  target: "https://api.deepseek.com/chat/completions",
+  base: "https://api.deepseek.com",
   models: ["user-model-a", "user-model-b"],
   maxTokens: 1024,
   turns: 10,
 };
+const deepseekTarget = "https://api.deepseek.com/chat/completions";
 const claude: ProviderDraft = {
   name: "Claude",
-  preset: "custom-anthropic",
+  notes: "公司网关",
+  website: "",
+  preset: "custom",
   protocol: "anthropic-messages",
-  target: "https://gateway.example/v1/messages",
+  base: "https://gateway.example",
   models: ["user-claude"],
   maxTokens: 512,
   turns: 2,
@@ -60,6 +65,10 @@ async function fixture({
   const panel = vi.fn(async (_request: Record<string, unknown>) => "saved");
   const send = vi.fn(async (_alias: string, _target: string, _body: string) =>
     completion("你是 nanan。"),
+  );
+  const read = vi.fn(
+    async (_alias: string, _target: string, _path: string) =>
+      ({ status: 404, body: "" }) as { status: number; body: string },
   );
   let next = 0;
   const platform: Platform = {
@@ -105,6 +114,12 @@ async function fixture({
           throw Object.assign(new Error("未就绪"), {
             outcome: "not-dispatched",
           });
+        if (request.method === "GET")
+          return read(
+            request.binding as string,
+            item.target,
+            request.path as string,
+          );
         return send(
           request.binding as string,
           item.target,
@@ -149,7 +164,16 @@ async function fixture({
     await host.start("consumer.chat");
     host.mountView(MODEL_PAGE, {} as HTMLElement);
   }
-  return { host, api, chat: () => chat, panel, send, states, connections };
+  return {
+    host,
+    api,
+    chat: () => chat,
+    panel,
+    send,
+    read,
+    states,
+    connections,
+  };
 }
 const signal = () => new AbortController().signal;
 const body = (send: ReturnType<typeof vi.fn>, call = 0) =>
@@ -157,14 +181,15 @@ const body = (send: ReturnType<typeof vi.fn>, call = 0) =>
 
 it("adds a provider through the native panel and offers each of its models", async () => {
   const { api, chat, panel, send, states } = await fixture();
-  expect(await api.save(deepseek)).toBe(true);
+  const id = await api.save(deepseek);
   expect(panel).toHaveBeenCalledWith({
     action: "save",
     protocol: "openai-chat",
     label: "DeepSeek",
-    target: deepseek.target,
+    target: deepseekTarget,
   });
   const [provider] = api.list();
+  expect(provider.id).toBe(id);
   expect(provider).toMatchObject({
     ...deepseek,
     alias: "c-00000000",
@@ -172,7 +197,7 @@ it("adds a provider through the native panel and offers each of its models", asy
   });
   expect(provider.id).toMatch(/^p-[a-z0-9]{8}$/);
   expect(states.get(owner)?.value).toEqual({
-    version: 2,
+    version: 3,
     providers: [{ ...deepseek, id: provider.id, alias: "c-00000000" }],
   });
   expect(chat().models()).toEqual(
@@ -199,7 +224,7 @@ it("adds a provider through the native panel and offers each of its models", asy
   ).resolves.toBe("你是 nanan。");
   expect(send.mock.calls[0].slice(0, 2)).toEqual([
     "c-00000000",
-    deepseek.target,
+    deepseekTarget,
   ]);
   expect(body(send)).toMatchObject({
     model: "user-model-b",
@@ -231,7 +256,10 @@ it("keeps providers apart and uses each one's protocol", async () => {
     { model: `${second.id}/user-claude`, history: [], input: "hi" },
     signal(),
   );
-  expect(send.mock.calls[0].slice(0, 2)).toEqual(["c-00000001", claude.target]);
+  expect(send.mock.calls[0].slice(0, 2)).toEqual([
+    "c-00000001",
+    "https://gateway.example/v1/messages",
+  ]);
   expect(body(send)).toEqual({
     model: "user-claude",
     max_tokens: 512,
@@ -254,7 +282,7 @@ it("asks for the key only when the address changes or the user asks", async () =
     turns: 4,
   });
   await api.save(
-    { ...api.list()[0], target: "https://proxy.example/v1/chat/completions" },
+    { ...api.list()[0], base: "https://proxy.example/v1/chat/completions/" },
     id,
   );
   expect(panel).toHaveBeenLastCalledWith(
@@ -289,8 +317,12 @@ it("deletes the key before the record, and keeps both when cancelled", async () 
 
 it.each([
   [{ name: "" }, "名称"],
-  [{ target: "http://api.example/v1" }, "https://"],
-  [{ target: "https://api.example:8443/v1" }, "https://"],
+  [{ base: "http://api.example/v1" }, "https://"],
+  [{ base: "https://api.example:8443/v1" }, "https://"],
+  [{ base: "https://api.example/v1?key=1" }, "https://"],
+  [{ protocol: "anthropic-messages" as const }, "API 格式"],
+  [{ notes: "x".repeat(81) }, "备注"],
+  [{ website: "javascript:alert(1)" }, "官网"],
   [{ models: [""] }, "模型名"],
   [{ models: [" a"] }, "模型名"],
   [{ models: ["a", "a"] }, "重复"],
@@ -349,7 +381,7 @@ it("waits where keys cannot be stored, such as the browser preview", async () =>
 });
 
 it("fails on corrupt records and leaves them as they were", async () => {
-  const saved = { version: 2, providers: [{ id: "bad" }] };
+  const saved = { version: 3, providers: [{ id: "bad" }] };
   const { host, states } = await fixture({ saved });
   expect(host.inspect("connector.models").status).not.toBe("active");
   expect(states.get(owner)?.value).toBe(saved);
@@ -357,7 +389,7 @@ it("fails on corrupt records and leaves them as they were", async () => {
 
 it("keeps a provider without models and offers nothing until one is added", async () => {
   const { api, chat, panel } = await fixture();
-  expect(await api.save({ ...deepseek, models: [] })).toBe(true);
+  expect(await api.save({ ...deepseek, models: [] })).toMatch(/^p-/);
   expect(chat().models()).toEqual([]);
   const { id } = api.list()[0];
   await api.save({ ...deepseek, models: ["added-later"] }, id);
@@ -377,4 +409,85 @@ it("tests one model of a provider", async () => {
     "你是 nanan。",
   );
   expect(body(send)).toMatchObject({ model: "user-model-b" });
+});
+
+it("upgrades version 2 records, which kept the full address", async () => {
+  const old = {
+    alias: "c-00000000",
+    models: ["m"],
+    maxTokens: 1024,
+    turns: 10,
+  };
+  const saved = {
+    version: 2,
+    providers: [
+      {
+        ...old,
+        id: "p-aaaaaaaa",
+        name: "DeepSeek",
+        preset: "deepseek",
+        protocol: "openai-chat",
+        target: "https://api.deepseek.com/chat/completions",
+      },
+      {
+        ...old,
+        id: "p-bbbbbbbb",
+        name: "网关",
+        preset: "custom-anthropic",
+        protocol: "anthropic-messages",
+        target: "https://gateway.example/v1/messages",
+      },
+    ],
+  };
+  const { api, states } = await fixture({ saved });
+  expect(api.list().map(({ preset, base }) => ({ preset, base }))).toEqual([
+    { preset: "deepseek", base: "https://api.deepseek.com" },
+    { preset: "custom", base: "https://gateway.example" },
+  ]);
+  expect(api.list()[0]).not.toHaveProperty("target");
+  expect(states.get(owner)?.value).toBe(saved);
+});
+
+it("fetches a provider's model list from the first path that has one", async () => {
+  const { api, read } = await fixture();
+  const id = (await api.save({ ...deepseek, models: [] })) as string;
+  read.mockResolvedValueOnce({ status: 404, body: "not found" });
+  read.mockResolvedValueOnce({
+    status: 200,
+    body: JSON.stringify({
+      data: [{ id: "deepseek-reasoner" }, { id: "deepseek-chat" }],
+    }),
+  });
+  await expect(api.fetchModels(id, signal())).resolves.toEqual([
+    "deepseek-chat",
+    "deepseek-reasoner",
+  ]);
+  expect(read.mock.calls).toEqual([
+    ["c-00000000", deepseekTarget, "/models"],
+    ["c-00000000", deepseekTarget, "/v1/models"],
+  ]);
+});
+
+it("explains a refused key or a service without a model list", async () => {
+  const { api, read } = await fixture();
+  const id = (await api.save(deepseek)) as string;
+  read.mockResolvedValueOnce({ status: 401, body: "bad key" });
+  await expect(api.fetchModels(id, signal())).rejects.toThrow("API Key");
+  expect(read).toHaveBeenCalledTimes(1);
+  await expect(api.fetchModels(id, signal())).rejects.toThrow("手动");
+  read.mockRejectedValueOnce(
+    Object.assign(new Error("已取消发送，请求未发出。"), {
+      outcome: "not-dispatched",
+    }),
+  );
+  await expect(api.fetchModels(id, signal())).rejects.toThrow("已取消发送");
+});
+
+it("asks for the key before fetching models of a provider without one", async () => {
+  const { api, read, connections } = await fixture();
+  const id = (await api.save(deepseek)) as string;
+  connections.clear();
+  await api.refresh();
+  await expect(api.fetchModels(id, signal())).rejects.toThrow("录入");
+  expect(read).not.toHaveBeenCalled();
 });

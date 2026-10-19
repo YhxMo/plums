@@ -1,7 +1,8 @@
-import type { ExtensionDefinition } from "../sdk";
+import type { CredentialResponse, ExtensionDefinition } from "../sdk";
 import type { ChatService } from "../../extensions/contracts";
 import { ProviderStore, modelId, presetOf } from "./providers";
-import { presets, protocols } from "./presets";
+import { modelListPaths, readModelList } from "./addresses";
+import { formats, presets, protocols } from "./presets";
 import { failure, readReply, requestBody, type Turn } from "./protocols";
 
 export const MODEL_PAGE = "model-connections";
@@ -12,8 +13,11 @@ export type ModelConnectionsApi = Pick<
   "list" | "subscribe" | "save" | "remove" | "refresh"
 > & {
   readonly presets: typeof presets;
+  readonly formats: typeof formats;
   /** Sends one short message to one model of a provider and returns the reply. */
   test(provider: string, model: string, signal: AbortSignal): Promise<string>;
+  /** Model names the provider's service lists, read with its saved key. */
+  fetchModels(provider: string, signal: AbortSignal): Promise<string[]>;
 };
 type MountPage = (
   container: HTMLElement,
@@ -120,6 +124,46 @@ export function modelConnector({
           return readReply(provider.protocol, response);
         });
       };
+      // Reads the list where cc-switch looks for it; only the key's site is reached.
+      const fetchModels = async (id: string, signal: AbortSignal) => {
+        const provider = store.list().find((item) => item.id === id);
+        if (!provider) throw new Error("该服务商已被删除。");
+        if (provider.status !== "ready")
+          throw new Error("请先录入 API Key，再获取模型列表。");
+        return ctx.task(async (lifecycle) => {
+          const combined = AbortSignal.any([signal, lifecycle]);
+          let problem = "";
+          for (const path of modelListPaths(provider.protocol, provider.base)) {
+            let response: CredentialResponse;
+            try {
+              response = (await ctx.platform(
+                "credential.request",
+                { version: 1, binding: provider.alias, method: "GET", path },
+                combined,
+              )) as CredentialResponse;
+            } catch (error) {
+              throw new Error(
+                `获取模型列表失败：${(error as Error).message || "请求未完成"}`,
+                { cause: error },
+              );
+            }
+            if (response.status === 401 || response.status === 403)
+              throw new Error(
+                `服务拒绝了 API Key（HTTP ${response.status}），请核对后重新录入密钥。`,
+              );
+            const names =
+              response.status < 300 ? readModelList(response.body) : [];
+            if (names.length) return names;
+            problem =
+              response.status < 300
+                ? "返回内容里没有模型"
+                : `HTTP ${response.status}`;
+          }
+          throw new Error(
+            `没有从该服务取到模型列表（${problem}），请按服务商文档手动填写模型名。`,
+          );
+        });
+      };
       const models = () =>
         store.list().flatMap((provider) => {
           const label = presetOf(provider)?.label ?? "自定义";
@@ -140,6 +184,8 @@ export function modelConnector({
       ctx.provide("chat", 1, service);
       const api: ModelConnectionsApi = {
         presets,
+        formats,
+        fetchModels,
         list: () => store.list(),
         subscribe: (listener) => store.subscribe(listener),
         save: (draft, id, rekey) => store.save(draft, id, rekey),

@@ -266,130 +266,193 @@ test("connector key entry uses native metadata and recovers an unknown save", as
   await expect(binding.locator("input")).toHaveCount(0);
 });
 
-test("the model connection page adds a provider from a template and the user's own models", async ({
-  page,
-}) => {
-  await page.addInitScript(() => {
-    const w = window as unknown as {
-      isTauri: boolean;
-      __TAURI_INTERNALS__: unknown;
-      __configured: Array<Record<string, unknown>>;
-    };
-    w.isTauri = true;
-    w.__configured = [];
-    let records: Array<Record<string, unknown>> = [];
-    const states = new Map<string, { revision: number; value: unknown }>();
-    w.__TAURI_INTERNALS__ = {
-      invoke: async (command: string, args: Record<string, unknown>) => {
-        if (command === "credential_supported") return true;
-        if (command === "credential_inventory") return records;
-        if (command === "credential_list")
-          return records.filter((record) => record.owner === args.owner);
-        if (command === "credential_configure") {
-          w.__configured.push(args);
-          records = [
-            ...records,
-            {
-              owner: args.owner,
-              alias: args.alias,
-              declaration: args.declaration,
-              source: args.source,
-              version: args.version,
-              revision: 1,
-              status: "ready",
-              route: { type: "direct" },
-            },
-          ];
-          return { status: "saved" };
-        }
-        if (command === "document_supported") return false;
-        if (command === "platform_call") {
-          const payload = (args.payload ?? {}) as {
-            key?: string;
-            revision: number;
-            value: unknown;
-          };
-          const slot = `${String(args.owner)}+${payload.key ?? ""}`;
-          if (args.capability === "state.read") return states.get(slot) ?? null;
-          if (args.capability === "state.write") {
-            const next = {
-              revision: payload.revision + 1,
-              value: payload.value,
-            };
-            states.set(slot, next);
-            return next;
+for (const width of [375, 1180])
+  test(`the model connection page adds a provider and picks models the service lists ${width}`, async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width, height: 800 });
+    await page.addInitScript(() => {
+      const w = window as unknown as {
+        isTauri: boolean;
+        __TAURI_INTERNALS__: unknown;
+        __configured: Array<Record<string, unknown>>;
+        __requests: Array<Record<string, unknown>>;
+      };
+      w.isTauri = true;
+      w.__configured = [];
+      w.__requests = [];
+      let records: Array<Record<string, unknown>> = [];
+      const states = new Map<string, { revision: number; value: unknown }>();
+      w.__TAURI_INTERNALS__ = {
+        invoke: async (command: string, args: Record<string, unknown>) => {
+          if (command === "credential_supported") return true;
+          if (command === "credential_inventory") return records;
+          if (command === "credential_list")
+            return records.filter((record) => record.owner === args.owner);
+          if (command === "credential_configure") {
+            w.__configured.push(args);
+            records = [
+              ...records,
+              {
+                owner: args.owner,
+                alias: args.alias,
+                declaration: args.declaration,
+                source: args.source,
+                version: args.version,
+                revision: 1,
+                status: "ready",
+                route: { type: "direct" },
+              },
+            ];
+            return { status: "saved" };
           }
-        }
+          if (command === "credential_request") {
+            w.__requests.push(args);
+            return {
+              status: 200,
+              body: JSON.stringify({
+                data: ["model-two", "model-one", "model-three"].map((id) => ({
+                  id,
+                })),
+              }),
+            };
+          }
+          if (command === "document_supported") return false;
+          if (command === "platform_call") {
+            const payload = (args.payload ?? {}) as {
+              key?: string;
+              revision: number;
+              value: unknown;
+            };
+            const slot = `${String(args.owner)}+${payload.key ?? ""}`;
+            if (args.capability === "state.read")
+              return states.get(slot) ?? null;
+            if (args.capability === "state.write") {
+              const next = {
+                revision: payload.revision + 1,
+                value: payload.value,
+              };
+              states.set(slot, next);
+              return next;
+            }
+          }
+        },
+      };
+    });
+    await page.goto("/");
+    await page.getByRole("button", { name: "应用菜单", exact: true }).click();
+    await page.getByRole("menuitem", { name: "模型连接", exact: true }).click();
+    const dialog = page.getByRole("dialog", { name: "模型连接" });
+    await dialog
+      .getByRole("button", { name: "添加服务商", exact: true })
+      .click();
+    const presets = dialog.getByRole("combobox", {
+      name: "服务商",
+      exact: true,
+    });
+    // Keyboard: open, Escape closes only the list, then choose with arrows.
+    await presets.focus();
+    await page.keyboard.press("ArrowDown");
+    const list = dialog.getByRole("listbox", { name: "服务商" });
+    await expect(list.getByRole("option", { selected: true })).toHaveText(
+      "DeepSeek",
+    );
+    await page.keyboard.press("Escape");
+    await expect(list).toBeHidden();
+    await expect(dialog).toBeVisible();
+    await expect(presets).toBeFocused();
+    await page.keyboard.press("Enter");
+    await page.keyboard.press("End");
+    await page.keyboard.press("Enter");
+    await expect(presets).toHaveText("自定义");
+    await expect(presets).toBeFocused();
+    await dialog.getByRole("combobox", { name: "API 格式" }).click();
+    await dialog.getByRole("option", { name: "Anthropic Messages" }).click();
+    await dialog
+      .getByRole("textbox", { name: "名称", exact: true })
+      .fill("网关");
+    await dialog
+      .getByRole("textbox", { name: "备注", exact: true })
+      .fill("公司账号");
+    const address = dialog.getByRole("textbox", {
+      name: "请求地址",
+      exact: true,
+    });
+    // A pasted full address keeps working; the chat address is shown.
+    await address.fill("https://gateway.invalid/v1/messages");
+    await address.blur();
+    await expect(address).toHaveValue("https://gateway.invalid");
+    await expect(dialog).toContainText(
+      "对话请求发往 https://gateway.invalid/v1/messages",
+    );
+    await dialog
+      .getByRole("button", { name: "获取模型列表", exact: true })
+      .click();
+    const picker = dialog.getByRole("group", { name: "服务提供的模型" });
+    await expect(picker.getByRole("checkbox")).toHaveCount(3);
+    await picker.getByRole("checkbox", { name: "model-one" }).check();
+    await picker.getByRole("checkbox", { name: "model-two" }).check();
+    await picker.getByRole("button", { name: "添加所选（2）" }).click();
+    await expect(picker).toBeHidden();
+    const added = dialog.getByRole("list", { name: "已添加的模型" });
+    await expect(added.getByRole("listitem")).toHaveText([
+      "model-one",
+      "model-two",
+    ]);
+    await dialog
+      .getByRole("button", { name: "移除 model-one", exact: true })
+      .click();
+    const modelName = dialog.getByRole("textbox", {
+      name: "模型名",
+      exact: true,
+    });
+    await modelName.fill("model-three");
+    await modelName.press("Enter");
+    expect(
+      await page.evaluate(
+        () => document.documentElement.scrollWidth <= innerWidth,
+      ),
+    ).toBe(true);
+    const box = (await dialog.boundingBox())!;
+    expect(box.x).toBeGreaterThanOrEqual(0);
+    expect(box.x + box.width).toBeLessThanOrEqual(width);
+    await dialog.getByRole("button", { name: "保存", exact: true }).click();
+    const provider = dialog
+      .getByRole("list", { name: "服务商" })
+      .getByRole("listitem", { name: "网关" });
+    await expect(provider).toContainText("可用");
+    await expect(provider).toContainText("自定义 · 公司账号");
+    await expect(
+      provider.getByRole("list", { name: "网关 的模型" }).getByRole("listitem"),
+    ).toHaveText(["model-two测试", "model-three测试"]);
+    await expect(
+      provider.getByRole("button", { name: "测试 model-two", exact: true }),
+    ).toBeEnabled();
+    const { configured, requests } = await page.evaluate(() => {
+      const w = window as unknown as {
+        __configured: Array<Record<string, unknown>>;
+        __requests: Array<Record<string, unknown>>;
+      };
+      return { configured: w.__configured, requests: w.__requests };
+    });
+    expect(configured).toHaveLength(1);
+    expect(configured[0]).toMatchObject({
+      owner: "extension.connector.models",
+      source: "内置模型连接器",
+      revision: 0,
+      declaration: {
+        label: "网关",
+        target: "https://gateway.invalid/v1/messages",
+        headers: { "anthropic-version": "2023-06-01" },
+        authentication: { type: "header", name: "x-api-key" },
       },
-    };
+    });
+    expect(configured[0].alias).toMatch(/^c-[a-z0-9]{8}$/);
+    expect(requests).toEqual([
+      expect.objectContaining({
+        binding: configured[0].alias,
+        body: "",
+        path: "/v1/models",
+      }),
+    ]);
   });
-  await page.goto("/");
-  await page.getByRole("button", { name: "应用菜单", exact: true }).click();
-  await page.getByRole("menuitem", { name: "模型连接", exact: true }).click();
-  const dialog = page.getByRole("dialog", { name: "模型连接" });
-  await dialog.getByRole("button", { name: "添加服务商", exact: true }).click();
-  const presets = dialog.getByRole("combobox", { name: "服务商", exact: true });
-  // Keyboard: open, Escape closes only the list, then choose with arrows.
-  await presets.focus();
-  await page.keyboard.press("ArrowDown");
-  const list = dialog.getByRole("listbox", { name: "服务商" });
-  await expect(list.getByRole("option", { selected: true })).toHaveText(
-    "DeepSeek",
-  );
-  await page.keyboard.press("Escape");
-  await expect(list).toBeHidden();
-  await expect(dialog).toBeVisible();
-  await expect(presets).toBeFocused();
-  await page.keyboard.press("Enter");
-  await page.keyboard.press("End");
-  await page.keyboard.press("Enter");
-  await expect(presets).toHaveText("自定义（Anthropic 兼容）");
-  await expect(presets).toBeFocused();
-  await dialog.getByRole("textbox", { name: "名称", exact: true }).fill("网关");
-  await dialog
-    .getByRole("textbox", { name: "服务地址", exact: true })
-    .fill("https://gateway.invalid/v1/messages");
-  const modelName = dialog.getByRole("textbox", {
-    name: "模型名",
-    exact: true,
-  });
-  await modelName.fill("model-one");
-  await modelName.press("Enter");
-  await modelName.fill("model-two");
-  await dialog.getByRole("button", { name: "添加模型", exact: true }).click();
-  await dialog
-    .getByRole("button", { name: "移除 model-one", exact: true })
-    .click();
-  await modelName.fill("model-three");
-  await modelName.press("Enter");
-  await dialog
-    .getByRole("button", { name: "保存并录入密钥", exact: true })
-    .click();
-  const provider = dialog
-    .getByRole("list", { name: "服务商" })
-    .getByRole("listitem", { name: "网关" });
-  await expect(provider).toContainText("自定义（Anthropic 兼容） · 可用");
-  await expect(
-    provider.getByRole("list", { name: "网关 的模型" }).getByRole("listitem"),
-  ).toHaveText(["model-two测试", "model-three测试"]);
-  await expect(
-    provider.getByRole("button", { name: "测试 model-two", exact: true }),
-  ).toBeEnabled();
-  const [configured] = await page.evaluate(
-    () =>
-      (window as unknown as { __configured: Array<Record<string, unknown>> })
-        .__configured,
-  );
-  expect(configured).toMatchObject({
-    owner: "extension.connector.models",
-    source: "内置模型连接器",
-    revision: 0,
-    declaration: {
-      label: "网关",
-      target: "https://gateway.invalid/v1/messages",
-      headers: { "anthropic-version": "2023-06-01" },
-      authentication: { type: "header", name: "x-api-key" },
-    },
-  });
-  expect(configured.alias).toMatch(/^c-[a-z0-9]{8}$/);
-});

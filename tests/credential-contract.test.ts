@@ -81,7 +81,7 @@ describe("credential delegation contract reference model", () => {
   });
   it.each([
     { status: 302, body: "redirect" },
-    { status: 200, body: "x".repeat(8193) },
+    { status: 200, body: "x".repeat(2 * 1024 * 1024 + 1) },
     { status: 99, body: "bad" },
   ])("does not deliver redirect or invalid response", async (response) => {
     const p = await setup(async () => response);
@@ -205,11 +205,11 @@ it("allows exact byte boundaries and returns HTTP errors without retry", async (
   let calls = 0;
   const p = await setup(async () => {
     calls++;
-    return { status: 429, body: "x".repeat(8192) };
+    return { status: 429, body: "x".repeat(2 * 1024 * 1024) };
   });
   expect(
     await p.call(owner, capability, { ...request, body: "x".repeat(65536) }),
-  ).toEqual({ status: 429, body: "x".repeat(8192) });
+  ).toEqual({ status: 429, body: "x".repeat(2 * 1024 * 1024) });
   expect(calls).toBe(1);
 });
 
@@ -230,7 +230,7 @@ it("delivers only the validated response scalar snapshot", async () => {
   const p = await setup(async () => ({
     status: 200,
     get body() {
-      return ++reads === 1 ? "hello" : "x".repeat(9000);
+      return ++reads === 1 ? "hello" : "x".repeat(2 * 1024 * 1024 + 1);
     },
   }));
   expect(await p.call(owner, capability, request)).toEqual({

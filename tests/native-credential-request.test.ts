@@ -42,6 +42,50 @@ it("sends the alias and body with a fresh request id and returns the reply", asy
   expect(Object.keys(args).sort()).toEqual(["binding", "body", "id", "owner"]);
 });
 
+it("reads a plain path on the bound site with GET and no body", async () => {
+  const adapter = await ready();
+  await adapter.call(owner, "credential.request", {
+    version: 1,
+    binding: "text",
+    method: "GET",
+    path: "/v1/models",
+  });
+  const [[, args]] = calls("credential_request");
+  expect(args).toMatchObject({
+    owner,
+    binding: "text",
+    body: "",
+    path: "/v1/models",
+  });
+  for (const path of [
+    "v1/models",
+    "//elsewhere.invalid/models",
+    "/v1/../models",
+    "/v1//models",
+    "/v1/models?x=1",
+    "/v1/%2e%2e",
+    `/${"a".repeat(256)}`,
+  ])
+    await expect(
+      adapter.call(owner, "credential.request", {
+        version: 1,
+        binding: "text",
+        method: "GET",
+        path,
+      }),
+    ).rejects.toMatchObject({ outcome: "not-dispatched" });
+  for (const payload of [
+    { ...request, method: "GET", path: "/v1/models" },
+    { ...request, method: "PUT" },
+    { ...request, method: "POST" },
+    { version: 1, binding: "text", path: "/v1/models" },
+  ])
+    await expect(
+      adapter.call(owner, "credential.request", payload),
+    ).rejects.toMatchObject({ outcome: "not-dispatched" });
+  expect(calls("credential_request")).toHaveLength(1);
+});
+
 it("rejects malformed or oversized payloads before reaching native code", async () => {
   const adapter = await ready();
   for (const payload of [

@@ -1,26 +1,36 @@
+/* Provider list */
+.empty {
+  margin: 0 0 14px;
+  padding: 18px;
+  border: 1px dashed var(--control-border);
+  border-radius: 8px;
+  color: var(--muted);
+  font-size: 13px;
+  text-align: center;
+}
 .list {
   list-style: none;
   margin: 0 0 14px;
   padding: 0;
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 10px;
 }
 .list > li {
   display: flex;
   flex-direction: column;
   gap: 8px;
-  padding: 10px 12px;
-  border: 1px solid var(--control-border);
-  border-radius: 8px;
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--card);
 }
 .list > li > p {
   margin: 0;
-  font-size: 13px;
 }
 .header {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
   gap: 12px;
 }
@@ -34,65 +44,282 @@
 .summary span {
   overflow-wrap: anywhere;
 }
-.modelRows,
-.models ul {
+.title {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 8px;
+}
+.meta {
+  color: var(--muted);
+  font-size: 12px;
+}
+.url {
+  font-family: ui-monospace, SFMono-Regular, monospace;
+  overflow-wrap: anywhere;
+}
+.status {
+  padding: 1px 8px;
+  border-radius: 999px;
+  background: var(--subtle);
+  color: var(--muted);
+  font-size: 12px;
+  white-space: nowrap;
+}
+.status[data-status="ready"] {
+  background: color-mix(in srgb, var(--running) 16%, transparent);
+  color: var(--running);
+}
+.status[data-status="missing"] {
+  background: var(--accent-soft);
+  color: var(--accent-text);
+}
+.modelRows {
   list-style: none;
   margin: 0;
   padding: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
 }
-.modelRows li,
-.models li {
+.modelRows li {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 12px;
+  min-height: 40px;
   padding: 4px 0;
-  border-top: 1px solid var(--control-border);
+  border-top: 1px solid var(--border);
   font-size: 13px;
 }
-.models li span {
-  overflow-wrap: anywhere;
-}
-.models {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  margin: 0 0 12px;
-  padding: 0;
-  border: 0;
-}
-.models legend {
-  padding: 0;
-  margin-bottom: 6px;
-  font-size: 13px;
-}
-.models .addModel {
-  flex-direction: row;
-  gap: 8px;
-  margin: 0;
-}
-.addModel input {
-  flex: 1;
-  min-width: 0;
+.modelRows button {
+  min-height: 28px;
+  padding: 3px 10px;
+  font-size: 12px;
 }
 .actions {
   display: flex;
-  flex-wrap: wrap;
-  justify-content: flex-end;
+  flex: none;
   gap: 8px;
+}
+.add {
+  width: 100%;
+}
+
+/* Provider form */
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding-bottom: 0;
+}
+.section {
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 12px;
+}
+.form h3 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 12px;
+}
+.count {
+  color: var(--muted);
+  font-weight: 400;
+  font-size: 12px;
+}
+.sectionHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+.sectionHeader h3 {
+  margin: 0;
+}
+.sectionHeader button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.hint {
+  margin: 0;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+.section > .hint {
+  margin-bottom: 10px;
+}
+.label {
+  font-size: 12px;
+  font-weight: 500;
+}
+.readonly {
+  margin: 0 0 14px;
+  font-size: 13px;
+  color: var(--muted);
+}
+.readonly strong {
+  color: var(--text);
+  font-weight: 500;
 }
 .pair {
   display: grid;
   grid-template-columns: 1fr 1fr;
+  gap: 0 12px;
+}
+.key {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
   gap: 12px;
+  margin-bottom: 14px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+}
+.keyText {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.key button {
+  flex: none;
+}
+.chips {
+  list-style: none;
+  margin: 0 0 10px;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.chips li {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  max-width: 100%;
+  padding: 2px 2px 2px 10px;
+  border: 1px solid var(--control-border);
+  border-radius: 999px;
+  font-size: 12px;
+}
+.chips li span {
+  overflow-wrap: anywhere;
+}
+.chips :global(.icon-button) {
+  flex: none;
+  width: 24px;
+  min-height: 24px;
+  height: 24px;
+  padding: 0;
+  border-radius: 999px;
+}
+.inline {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+.inline input,
+.filter {
+  flex: 1;
+  min-width: 0;
+  min-height: 36px;
+  padding: 7px 10px;
+  border: 1px solid var(--control-border);
+  border-radius: 8px;
+  background: var(--card);
+  color: var(--text);
+  font-size: 13px;
+}
+.inline button {
+  flex: none;
+}
+.picker {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 12px;
+  padding: 10px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface);
+}
+.pickerHeader {
+  font-size: 12px;
+  color: var(--muted);
+}
+.options {
+  list-style: none;
+  margin: 0;
+  padding: 0 4px;
+  max-height: 240px;
+  overflow-y: auto;
+}
+.options li {
+  min-width: 0;
+}
+.options :global(.check-field) span {
+  overflow-wrap: anywhere;
+}
+.options :global(.check-field) .hint {
+  margin-left: auto;
+  flex: none;
+}
+.footerInline {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+.advanced {
+  margin-bottom: 12px;
+}
+.advanced summary {
+  font-size: 13px;
+  margin-bottom: 8px;
+}
+/* The actions stay reachable while a long form scrolls. */
+.footer {
+  position: sticky;
+  bottom: 0;
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin: 0 -20px;
+  padding: 12px 20px 18px;
+  border-top: 1px solid var(--border);
+  background: var(--overlay);
 }
 @media (max-width: 520px) {
+  .pair {
+    grid-template-columns: 1fr;
+  }
   .header,
-  .models .addModel {
+  .key {
     flex-direction: column;
     align-items: stretch;
+  }
+  .actions button,
+  .footer button,
+  .footerInline button {
+    flex: 1;
+  }
+}
+@media (pointer: coarse) {
+  .inline input,
+  .filter {
+    min-height: 44px;
+  }
+  .chips :global(.icon-button) {
+    width: 36px;
+    height: 36px;
+    min-height: 36px;
+  }
+  .modelRows button {
+    min-height: 44px;
   }
 }

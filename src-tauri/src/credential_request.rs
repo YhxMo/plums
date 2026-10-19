@@ -1,4 +1,5 @@
-//! `credential.request`: one bound request per owner, confirmed by the user once
+//! `credential.request`: one bound request per owner (a POST to the target or
+//! a GET on the same site), confirmed by the user once
 //! per binding revision (remembered across restarts), cancellable from the WebView.
 use crate::credential_bindings::{Bindings, Failure, Route, View};
 use crate::credential_transport::{self as transport, Fault, Reply, MAX_REQUEST};
@@ -140,7 +141,7 @@ fn key(view: &View) -> (String, String, u64) {
 }
 fn consent(view: &View) -> String {
     let declaration = &view.declaration;
-    format!("{}\n{}\n扩展：{} / {}\n来源：{} · {}\nPOST · {} · 认证：{}\n\n允许该扩展通过此绑定把文本发送到上述地址？确认后同一绑定不再询问；修改绑定、重新录入密钥或替换扩展后需重新确认。", declaration.label, declaration.target, view.owner, view.alias, view.source, view.version, declaration.content_type, declaration.authentication.name())
+    format!("{}\n{}\n扩展：{} / {}\n来源：{} · {}\nPOST · {} · 认证：{}\n\n允许该扩展通过此绑定把文本发送到上述地址，并读取同一站点的信息（如模型列表）？确认后同一绑定不再询问；修改绑定、重新录入密钥或替换扩展后需重新确认。", declaration.label, declaration.target, view.owner, view.alias, view.source, view.version, declaration.content_type, declaration.authentication.name())
 }
 
 async fn dispatch(
@@ -149,12 +150,17 @@ async fn dispatch(
     id: &str,
     alias: &str,
     body: String,
+    path: Option<String>,
 ) -> Result<Reply, Fault> {
     use Fault::NotDispatched as Refused;
     if !crate::credentials::credential_supported() {
         return Err(Refused("unavailable"));
     }
-    if body.len() > MAX_REQUEST || id.is_empty() || id.len() > 64 {
+    if body.len() > MAX_REQUEST
+        || id.is_empty()
+        || id.len() > 64
+        || (path.is_some() && !body.is_empty())
+    {
         return Err(Refused("invalid-request"));
     }
     let allowed = || app.state::<Broker>().allows(owner, "credential.request");
@@ -167,6 +173,9 @@ async fn dispatch(
     let (view, _) = bindings.resolve(owner, alias).map_err(Refused)?;
     if view.route != Route::Direct {
         return Err(Refused("proxy-unsupported"));
+    }
+    if let Some(path) = &path {
+        view.declaration.read_target(path).map_err(Refused)?;
     }
     if !requests.confirmed(&view) && !bindings.consented(&view) {
         match prompt(app.clone(), "允许发送请求", &consent(&view), None, false).await {
@@ -187,8 +196,13 @@ async fn dispatch(
     if slot.cancelled() {
         return Err(Refused("cancelled"));
     }
+    let declaration = &current.declaration;
+    let (target, body) = match path {
+        Some(path) => (declaration.read_target(&path).map_err(Refused)?, None),
+        None => (declaration.target.clone(), Some(body)),
+    };
     let reply = tokio::select! {
-        result = transport::send(app, id, &current, &reference, body) => result,
+        result = transport::send(app, id, &current, &reference, &target, body) => result,
         _ = slot.until_cancelled() => {
             transport::cancel(app, id).await;
             Err(Fault::Unknown("cancelled"))
@@ -212,8 +226,9 @@ pub async fn credential_request(
     id: String,
     binding: String,
     body: String,
+    path: Option<String>,
 ) -> Result<Reply, RequestFailure> {
-    dispatch(&app, &owner, &id, &binding, body)
+    dispatch(&app, &owner, &id, &binding, body, path)
         .await
         .map_err(RequestFailure::from)
 }

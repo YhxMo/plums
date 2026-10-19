@@ -355,3 +355,32 @@ fn requests_resolve_only_ready_bindings_outside_management_actions() {
     store.retain_disabled(OWNER).unwrap();
     assert_eq!(store.resolve(OWNER, "text").err(), Some("not-ready"));
 }
+#[test]
+fn reads_stay_on_the_bound_site_with_a_plain_path() {
+    let mut bound = declaration();
+    bound.target = "https://model.invalid/compatible/v1/chat/completions".into();
+    assert_eq!(
+        bound.read_target("/compatible/v1/models").unwrap(),
+        "https://model.invalid/compatible/v1/models"
+    );
+    assert_eq!(
+        bound.read_target("/v1/models").unwrap(),
+        "https://model.invalid/v1/models"
+    );
+    for path in [
+        "",
+        "v1/models",
+        "//elsewhere.invalid/v1/models",
+        "/v1//models",
+        "/v1/../models",
+        "/v1/./models",
+        "/v1/models?limit=1",
+        "/v1/models#x",
+        "/v1/%2e%2e/models",
+        "/v1/models\\x",
+        "/v1/mo dels",
+        &format!("/{}", "a".repeat(256)),
+    ] {
+        assert_eq!(bound.read_target(path), Err("invalid-request"), "{path}");
+    }
+}

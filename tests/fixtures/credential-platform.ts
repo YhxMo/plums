@@ -85,7 +85,11 @@ export class FakeCredentialPlatform implements Platform {
       Object.keys(payload).sort().join(",") !== "binding,body,version"
     )
       throw failure("not-dispatched");
-    const { version, binding: bindingId, body } = payload as CredentialRequest;
+    const {
+      version,
+      binding: bindingId,
+      body,
+    } = payload as Extract<CredentialRequest, { body: string }>;
     if (
       version !== 1 ||
       typeof bindingId !== "string" ||
@@ -120,7 +124,7 @@ export class FakeCredentialPlatform implements Platform {
         status > 599 ||
         (status >= 300 && status < 400) ||
         typeof responseBody !== "string" ||
-        bytes(responseBody) > 8192
+        bytes(responseBody) > 2 * 1024 * 1024
       )
         throw failure("unknown");
       return { status, body: responseBody };
