@@ -27,24 +27,24 @@ function fixture(file: string, lines: number, finalNewline = true) {
 }
 
 it.each([true, false])(
-  "accepts 400 lines and rejects 401 with final newline %s",
+  "lists files past the review size and fails only past the ceiling, final newline %s",
   (newline) => {
-    expect(checkSize(fixture("src/new.ts", 400, newline)).failures).toBe(0);
-    const result = checkSize(fixture("src/new.ts", 401, newline));
+    const { review, ceiling } = sizeLimits;
+    expect(checkSize(fixture("src/new.ts", review, newline))).toEqual({
+      rows: [],
+      failures: 0,
+    });
+    expect(checkSize(fixture("src/new.ts", ceiling, newline))).toEqual({
+      rows: [`src/new.ts | ${ceiling}`],
+      failures: 0,
+    });
+    const result = checkSize(fixture("src/new.ts", ceiling + 1, newline));
     expect(result.failures).toBe(1);
-    expect(result.rows[0]).toContain("src/new.ts | 401 | 400 | -1");
-    expect(result.rows[0]).toContain("请拆分或说明理由");
+    expect(result.rows).toEqual([
+      `src/new.ts | ${ceiling + 1} | 超过上限，请拆分`,
+    ]);
   },
 );
-
-it("rejects growth beyond an existing cap and reports remaining allowance after shrinkage", () => {
-  const file = "src-tauri/src/documents.rs";
-  const limit = sizeLimits[file];
-  expect(checkSize(fixture(file, limit + 1)).failures).toBe(1);
-  expect(checkSize(fixture(file, limit - 1)).rows).toEqual([
-    `${file} | ${limit - 1} | ${limit} | 1`,
-  ]);
-});
 
 it("fails closed when no eligible boundary source is present", () => {
   expect(checkBoundaries([["tests/hardening.test.ts", "export {};"]])).toEqual([

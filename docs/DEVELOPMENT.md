@@ -18,7 +18,7 @@ ESLint 使用 flat config，对全部 JS/TS/TSX 启用推荐规则、typescript-
 
 完整门禁须在仓库根执行以覆盖所有源码与 SDK barrel；裁剪集合不能证明全仓边界。边界与 IPC 导入检查通过 `scripts/parse-sources.mjs` 使用 TypeScript 公开编译器 API 在内存中解析，不做类型解析或文件 I/O。普通 `npm run check:project` 仍只需 Node，检查清单、文档及隐私模式。
 
-`check:size` 扫描项目源码清单的 TS、TSX、JS、MJS、Rust、Kotlin 和 CSS，默认上限 400 行；已有超长文件使用 [固定清单](../scripts/check-size.mjs)。以物理行数计数，末尾换行不增加空行；减少文件规模后人工降低上限，不自动更新或提高。清单包含测试，生成输出沿用项目清单的排除规则。
+`check:size` 扫描项目源码清单的 TS、TSX、JS、MJS、Rust、Kotlin 和 CSS，以物理行数计数（末尾换行不增加空行），阈值见[脚本](../scripts/check-size.mjs)。超过 400 行的文件只列出提醒，改动时留意是否仍是单一职责；超过 800 行才失败。拆分以可维护性为准：按职责拆，不为凑行数把内聚的代码拆散或压缩写法。清单包含测试，生成输出沿用项目清单的排除规则。
 
 启动与声明校验复用 `modules/sdk/validation.ts` 和 `ContractError`：错误码表达类别，detail 保留字段路径，通用中文由 `src/shell/messages.ts` 映射；业务数据错误由提供者提供具体 message，外壳不按 Agent 等业务字段名翻译。已有开发调用需要英文诊断时，通过校验的 label／ContractError 的可选 message 保留原因；不要用裸错误码替代已对外提供的字符串诊断。Host 的配置、激活与清理错误在转为字符串前使用可选格式化回调，等待原因的既有前缀继续供诊断助手解析，界面显示时再映射。
 
