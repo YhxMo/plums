@@ -678,3 +678,32 @@ for (const width of [375, 1180]) {
     await expect(fallback).toBeFocused();
   });
 }
+
+test("a long conversation scrolls inside the log, never the whole workspace", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1000, height: 700 });
+  await page.goto("/");
+  await addAgent(page, "长对话");
+  const input = page.getByRole("textbox", { name: "消息", exact: true });
+  for (let i = 0; i < 6; i++) {
+    await input.fill(`第 ${i} 句 ${"内容 ".repeat(80)}`);
+    await input.press("Enter");
+    // Wait for the reply before the next turn.
+    await expect(
+      page.getByRole("log").getByText(new RegExp(`^第 ${i} 句`)),
+    ).toHaveCount(2);
+  }
+  // Hidden speaker labels are absolutely positioned. If their containing
+  // block sits outside the log, WebKit counts them as overflow of the shell,
+  // and wheel scrolling past the log's end slides the whole app up.
+  expect(
+    await page.evaluate(() =>
+      [...document.querySelectorAll<HTMLElement>("[role=log] .sr-only")]
+        .filter(
+          (label) => !label.closest("[role=log]")!.contains(label.offsetParent),
+        )
+        .map((label) => label.textContent),
+    ),
+  ).toEqual([]);
+});
