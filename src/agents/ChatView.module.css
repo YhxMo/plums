@@ -250,18 +250,14 @@
   padding: 0;
   border-radius: 50%;
 }
-.mobileOnly {
-  display: none !important;
+/* Hidden on desktop only; on phones each element keeps its own display. */
+@media (min-width: 768px) {
+  .mobileOnly {
+    display: none !important;
+  }
 }
 /* Phones keep a reading layout: replies as serif prose, the own turn in a bubble. */
 @media (max-width: 767px) {
-  .mobileOnly {
-    display: inline-flex !important;
-  }
-  /* Icon buttons stay grids so the icon keeps centred. */
-  .chatHeader > .mobileOnly {
-    display: inline-grid !important;
-  }
   .chatHeader {
     padding: 10px 16px 10px 4px;
     min-height: 76px;

@@ -1,4 +1,4 @@
-import { manage } from "./helpers";
+import { addAgent, manage } from "./helpers";
 import { expect, test } from "@playwright/test";
 
 for (const width of [375, 1280]) {
@@ -7,16 +7,7 @@ for (const width of [375, 1280]) {
   }) => {
     await page.setViewportSize({ width, height: 860 });
     await page.goto("/");
-    await page
-      .getByRole("button", { name: "从头添加 Agent", exact: true })
-      .click();
-    await page
-      .getByRole("textbox", { name: "名称", exact: true })
-      .fill("写作助手");
-    await page
-      .getByRole("dialog")
-      .getByRole("button", { name: "添加", exact: true })
-      .click();
+    await addAgent(page, "写作助手");
     await page
       .getByRole("button", {
         name: width < 768 ? "查看 Agent 详情" : "展开或收起右侧栏",
@@ -107,14 +98,7 @@ test("an Agent's details switch each text extension on or off", async ({
     .getByRole("button", { name: "启用 transform.reverse", exact: true })
     .click();
   await page.getByRole("button", { name: "返回工作区", exact: true }).click();
-  await page
-    .getByRole("button", { name: "从头添加 Agent", exact: true })
-    .click();
-  await page.getByRole("textbox", { name: "名称", exact: true }).fill("测试");
-  await page
-    .getByRole("dialog")
-    .getByRole("button", { name: "添加", exact: true })
-    .click();
+  await addAgent(page, "测试");
   await page
     .getByRole("button", { name: "展开或收起右侧栏", exact: true })
     .click();

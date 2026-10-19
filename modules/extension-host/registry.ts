@@ -2,7 +2,12 @@ import type { Theme } from "../sdk/theme";
 import type { Named, User, UserToggle, View } from "../sdk";
 import { hostError } from "./lifecycle";
 
-export type Service = { owner: string; version: number; value: unknown };
+export type Service = {
+  owner: string;
+  version: number;
+  value: unknown;
+  signal: AbortSignal;
+};
 export type RegisteredView = View & {
   owner: string;
   generation: number;

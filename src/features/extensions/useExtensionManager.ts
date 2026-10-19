@@ -127,13 +127,16 @@ export function useExtensionManager(
         uninstall: (id: string, source: HTMLElement) =>
           open("uninstall", id, source),
         toggle: (
-          row: Pick<ExtensionCardModel, "entry" | "manifest" | "state">,
+          row: Pick<
+            ExtensionCardModel,
+            "entry" | "manifest" | "state" | "users"
+          >,
           source: HTMLElement,
         ) => {
           const id = row.entry.id;
           const capabilities = row.manifest.capabilities ?? [];
           if (row.state.status === "active") {
-            if (host.users(id).some((group) => group.users.length))
+            if (row.users.some((group) => group.users.length))
               open("stop", id, source);
             else void operate(() => host.stop(id));
           } else if (capabilities.length)

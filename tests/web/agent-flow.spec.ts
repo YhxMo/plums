@@ -1,5 +1,6 @@
 import { readFileSync } from "node:fs";
 import {
+  addAgent,
   expectConversationTitle,
   firstSessionMessageCount,
   manage,
@@ -7,20 +8,11 @@ import {
 import { expect, test, type Page } from "@playwright/test";
 const sidebarToggle = (page: Page) =>
   page.getByRole("button", { name: "展开或收起右侧栏", exact: true });
-async function add(page: Page, name = "编程助手", multi = true) {
-  await page
-    .getByRole("button", { name: "从头添加 Agent", exact: true })
-    .click();
-  await page.getByRole("textbox", { name: "名称", exact: true }).fill(name);
-  await page
-    .getByRole("textbox", { name: "角色说明" })
-    .fill("帮助整理代码与文字；仅使用本地文本能力。");
-  if (multi) await page.getByLabel("允许多个会话").check();
-  await page
-    .getByRole("dialog")
-    .getByRole("button", { name: "添加", exact: true })
-    .click();
-}
+const add = (page: Page, name = "编程助手", multi = true) =>
+  addAgent(page, name, {
+    description: "帮助整理代码与文字；仅使用本地文本能力。",
+    multi,
+  });
 for (const width of [375, 1180]) {
   test(`welcome is reserved for zero Agents and existing Agent navigation survives reload at ${width}`, async ({
     page,

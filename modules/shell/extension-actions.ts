@@ -95,27 +95,35 @@ export async function importExtensionFile(
   const installed = host.ids().includes(id);
   if (!previous && installed)
     throw Error("此 ID 属于内置扩展，不能用导入的文件替换。");
+  const replacing = !!previous && installed;
   await sources.write(file);
-  if (previous && installed) {
+  // The new source goes again when no record referencing it was saved.
+  const discard = async () => {
+    if (previous?.url !== file.url) await sources.remove(file.url);
+  };
+  if (replacing) {
     await host.stop(id);
     await host.grant(id, []);
   }
   const entry: ImportedExtension = { id, url: file.url, label: id };
   const imports = [...state.imports.filter((saved) => saved.id !== id), entry];
-  let saving = false;
-  try {
-    if (previous)
+  if (previous)
+    try {
       await prepareUninstall(extensionOwner(id), declared(host, id));
-    saving = true;
-    if (previous) await saveWithout(state, id, imports);
-    else await state.save({ imports });
+    } catch (error) {
+      await discard();
+      throw error;
+    }
+  try {
+    await (previous
+      ? saveWithout(state, id, imports)
+      : state.save({ imports }));
   } catch (error) {
-    if ((!saving || notCommitted(error)) && previous?.url !== file.url)
-      await sources.remove(file.url);
+    if (notCommitted(error)) await discard();
     throw error;
   }
   state.imports = imports;
-  if (previous && installed) await host.uninstall(id);
+  if (replacing) await host.uninstall(id);
   host.install(definition, state.configurations[id]);
   const index = state.catalog.findIndex((saved) => saved.id === id);
   if (index === -1) state.catalog.push(entry);

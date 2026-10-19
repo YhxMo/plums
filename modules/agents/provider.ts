@@ -61,10 +61,12 @@ export function agentExtension(
             for (const id of extensions) {
               const transformer = transformers.find((t) => t.id === id);
               if (!transformer) throw new Error("扩展已停用，请重试。");
-              output = await transformer.value.transform(output, signal);
-              // A service stopped mid-reply leaves nothing to save; list
-              // entries are rebuilt on any change, so compare the service.
-              if (!transformers.some((t) => t.value === transformer.value))
+              // A service stopping mid-reply cancels the call and saves nothing.
+              output = await transformer.value.transform(
+                output,
+                AbortSignal.any([signal, transformer.signal]),
+              );
+              if (transformer.signal.aborted)
                 throw new Error("扩展已停用，本次结果未保存，请重试。");
               if (typeof output !== "string")
                 throw new Error("文本服务必须返回文本；本次结果未保存。");
@@ -76,21 +78,24 @@ export function agentExtension(
         ctx.shell.dependencies(),
       );
       // Management lists each Agent under the services it has switched on
-      // and can switch any of them on or off.
+      // and can switch any of them on or off. One toggle object lets the
+      // host skip republishing when nothing visible changed.
+      const toggle = {
+        service: "text.transform",
+        set: (agentId: string, extensionId: string, on: boolean) =>
+          store.setExtension(agentId, extensionId, on),
+      };
       const publish = () => {
         if (ctx.signal.aborted) return;
+        const choices = sources();
         ctx.shell.publishUsers(
           "Agent",
           store.list().map((agent) => ({
             id: agent.id,
             label: agent.name,
-            uses: enabledExtensions(agent, sources()),
+            uses: enabledExtensions(agent, choices),
           })),
-          {
-            service: "text.transform",
-            set: (agentId, extensionId, on) =>
-              store.setExtension(agentId, extensionId, on),
-          },
+          toggle,
         );
       };
       publish();

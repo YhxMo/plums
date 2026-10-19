@@ -1,5 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
-import { manage } from "./helpers";
+import { addAgent, manage } from "./helpers";
 
 async function install(page: Page, id: string) {
   await manage(page);
@@ -285,19 +285,13 @@ test("icon-only buttons keep their icon centred on phones and desktop", async ({
     );
   await page.setViewportSize({ width: 393, height: 852 });
   await page.goto("/");
-  await page
-    .getByRole("button", { name: "从头添加 Agent", exact: true })
-    .click();
-  await page.getByRole("textbox", { name: "名称", exact: true }).fill("手机");
-  await page
-    .getByRole("dialog")
-    .getByRole("button", { name: "添加", exact: true })
-    .click();
+  await addAgent(page, "手机");
   await expect(
     page.getByRole("button", { name: "查看 Agent 详情", exact: true }),
   ).toBeVisible();
   expect(await offCentre()).toEqual([]);
-  await page.setViewportSize({ width: 1280, height: 800 });
   await manage(page);
+  expect(await offCentre()).toEqual([]);
+  await page.setViewportSize({ width: 1280, height: 800 });
   expect(await offCentre()).toEqual([]);
 });

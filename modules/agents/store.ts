@@ -129,7 +129,7 @@ export class AgentStore implements AgentProvider {
       extensions: string[],
     ) => Promise<string>,
     /** Extensions an Agent can switch on, the default first. */
-    private sources: () => readonly ExtensionChoice[] = () => [],
+    readonly extensionChoices: () => readonly ExtensionChoice[] = () => [],
     private extensions: readonly Named[] = [],
   ) {
     this.agents = initial;
@@ -139,21 +139,23 @@ export class AgentStore implements AgentProvider {
       label: "内置本地 Agent 提供者",
       version: "0.0.4",
       description:
-        this.sources()[0]?.description ??
+        this.extensionChoices()[0]?.description ??
         "没有可用的回复来源，请启用文本服务。",
       extensions: this.extensions,
     };
   }
-  extensionChoices = () => this.sources();
   /** Re-renders Agents after their extensions start or stop. */
   sourcesChanged = () => this.emit();
   setExtension(agentId: string, extensionId: string, on: boolean) {
-    if (on && !this.sources().some((source) => source.id === extensionId))
+    if (
+      on &&
+      !this.extensionChoices().some((source) => source.id === extensionId)
+    )
       return Promise.reject(new Error("扩展未启用，请先在扩展管理中启用它。"));
     return this.change((agents) => {
       const a = this.find(agents, agentId);
       const rest = (
-        a.extensions ?? enabledExtensions(a, this.sources())
+        a.extensions ?? enabledExtensions(a, this.extensionChoices())
       ).filter((id) => id !== extensionId);
       a.extensions = on ? [...rest, extensionId] : rest;
     });
@@ -213,7 +215,7 @@ export class AgentStore implements AgentProvider {
       status: "idle",
       pinned: false,
       extensionId: "agents.local",
-      extensions: enabledExtensions({}, this.sources()),
+      extensions: enabledExtensions({}, this.extensionChoices()),
       capabilities: ["本地文本处理", "保存会话"],
       multiSession: clean.multiSession ?? false,
       sessions: [session],
@@ -313,7 +315,7 @@ export class AgentStore implements AgentProvider {
       const output = await this.reply(
         input,
         controller.signal,
-        enabledExtensions(a, this.sources()),
+        enabledExtensions(a, this.extensionChoices()),
       );
       controller.signal.throwIfAborted();
       if (!text(output, 32000))

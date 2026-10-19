@@ -75,7 +75,8 @@ export type UserToggle = {
   set(userId: string, extensionId: string, on: boolean): Promise<void>;
 };
 /** One active provider of a service, named for the user. */
-export type Provider<T> = Named & { value: T };
+/** `signal` aborts when this provider stops, e.g. to cancel a call in flight. */
+export type Provider<T> = Named & { value: T; signal: AbortSignal };
 export interface ShellBridge {
   open(action: ShellAction, owner: string, target?: string): Promise<void>;
   readPage(key: string): string | undefined;

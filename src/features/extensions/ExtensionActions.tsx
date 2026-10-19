@@ -8,7 +8,7 @@ export function ExtensionActions({
 }: {
   extension: Pick<
     ExtensionCardModel,
-    "entry" | "manifest" | "state" | "imported"
+    "entry" | "manifest" | "state" | "imported" | "users"
   >;
   actions: Pick<ExtensionRowActions, "configure" | "uninstall" | "toggle">;
   busy: boolean;

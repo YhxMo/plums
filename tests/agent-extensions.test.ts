@@ -1,35 +1,14 @@
 import { expect, it } from "vitest";
 import { Host } from "../modules/extension-host/host";
-import type {
-  ExtensionDefinition,
-  Platform,
-  StoredState,
-} from "../modules/sdk";
+import type { ExtensionDefinition } from "../modules/sdk";
 import { agentExtension } from "../modules/agents/provider";
+import { legacyAgent, memoryPlatform } from "./fixtures/agents";
 import { restoreAgents } from "../modules/agents/store";
 import {
   enabledExtensions,
   type AgentProvider,
 } from "../modules/agents/contract";
 
-function memoryPlatform(): Platform {
-  const states = new Map<string, StoredState>();
-  return {
-    kind: "browser",
-    available: () => true,
-    grant: async () => {},
-    async call(owner, capability, payload) {
-      const { key, revision, value } = (payload ?? {}) as Partial<
-        StoredState & { key: string }
-      >;
-      const slot = key ? `${owner}+${key}` : owner;
-      if (capability === "state.read") return states.get(slot) ?? null;
-      const next = { revision: (revision ?? 0) + 1, value };
-      states.set(slot, next);
-      return next;
-    },
-  };
-}
 const service = (id: string, prefix: string): ExtensionDefinition => ({
   manifest: {
     id,
@@ -47,7 +26,7 @@ const service = (id: string, prefix: string): ExtensionDefinition => ({
 });
 
 async function setup() {
-  const host = new Host(memoryPlatform());
+  const host = new Host(memoryPlatform().platform);
   host.install(service("transform.a", "甲"));
   host.install(service("transform.b", "乙"));
   host.install(agentExtension());
@@ -131,6 +110,15 @@ it("management lists every Agent under a service and switches each on or off", a
   ).toEqual([["transform.a", "transform.b"], []]);
 });
 
+it("sending a message does not republish the Agents to the host", async () => {
+  const { host, agents } = await setup();
+  const agent = await agents().create({ name: "安静" });
+  const before = host.snapshot();
+  await agents().send(agent.id, "你好");
+  // Only the reply task starting and ending changes the host.
+  expect(host.snapshot()).toBe(before + 2);
+});
+
 it("a stopped extension is skipped and returns when started again", async () => {
   const { host, agents, last } = await setup();
   const agent = await agents().create({ name: "测试" });
@@ -150,24 +138,7 @@ it("a stopped extension is skipped and returns when started again", async () => 
 });
 
 it("saved Agents without a list use the first service; a list must hold IDs", () => {
-  const session = {
-    id: "s",
-    title: "会话",
-    createdAt: 1,
-    lastMessageAt: 1,
-    messages: [],
-  };
-  const agent = {
-    id: "a",
-    name: "名",
-    description: "",
-    pinned: false,
-    multiSession: false,
-    extensionId: "agents.local",
-    capabilities: [],
-    sessions: [session],
-    currentSessionId: "s",
-  };
+  const agent = legacyAgent();
   const sources = [
     { id: "x", label: "X", description: "" },
     { id: "y", label: "Y", description: "" },

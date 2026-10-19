@@ -18,6 +18,24 @@ export async function manage(page: Page, diagnostics = false) {
       await page.getByText("诊断与实验", { exact: true }).click();
   }
 }
+/** Adds an Agent from scratch through the add dialog. */
+export async function addAgent(
+  page: Page,
+  name: string,
+  { description, multi }: { description?: string; multi?: boolean } = {},
+) {
+  await page
+    .getByRole("button", { name: "从头添加 Agent", exact: true })
+    .click();
+  await page.getByRole("textbox", { name: "名称", exact: true }).fill(name);
+  if (description)
+    await page.getByRole("textbox", { name: "角色说明" }).fill(description);
+  if (multi) await page.getByLabel("允许多个会话").check();
+  await page
+    .getByRole("dialog")
+    .getByRole("button", { name: "添加", exact: true })
+    .click();
+}
 export async function legacyEntry(page: Page) {
   await manage(page, true);
   return page.getByRole("button", { name: "授予实验能力并启动", exact: true });

@@ -143,10 +143,11 @@ export function createContext(
     ) => {
       const { version, live } = required(name);
       const named = (services: Service[]) =>
-        services.map(({ owner, value }) => ({
+        services.map(({ owner, value, signal }) => ({
           id: owner,
           label: label(owner),
           value: value as T,
+          signal,
         }));
       if (onChange) {
         const watcher = {
@@ -171,7 +172,12 @@ export function createContext(
       const services = registry.services.get(name) ?? [];
       if (services.some((service) => service.owner === id))
         throw hostError(`Service already provided: ${name}`);
-      const service = { owner: id, version, value };
+      const service = {
+        owner: id,
+        version,
+        value,
+        signal: scope.controller.signal,
+      };
       registry.services.set(name, [...services, service]);
       own(() => {
         const rest = (registry.services.get(name) ?? []).filter(
