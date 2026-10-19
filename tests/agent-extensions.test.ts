@@ -209,6 +209,12 @@ it("a reply in flight is not saved when its extension stops meanwhile", async ()
   const agent = await agents().create({ name: "慢回复" });
   await agents().setExtension!(agent.id, "transform.a", false);
   await agents().setExtension!(agent.id, "transform.slow", true);
+  // Another service stopping and starting mid-reply does not discard it.
+  const kept = agents().send(agent.id, "保留");
+  await host.stop("transform.b");
+  await host.start("transform.b");
+  finish();
+  await kept;
   const sent = agents().send(agent.id, "你好");
   await host.stop("transform.slow");
   finish();
@@ -216,6 +222,7 @@ it("a reply in flight is not saved when its extension stops meanwhile", async ()
   expect(
     agents()
       .list()
-      .find((a) => a.id === agent.id)!.sessions[0].messages,
-  ).toEqual([]);
+      .find((a) => a.id === agent.id)!
+      .sessions[0].messages.map((m) => m.text),
+  ).toEqual(["保留", "保留"]);
 });

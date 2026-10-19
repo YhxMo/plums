@@ -62,8 +62,9 @@ export function agentExtension(
               const transformer = transformers.find((t) => t.id === id);
               if (!transformer) throw new Error("扩展已停用，请重试。");
               output = await transformer.value.transform(output, signal);
-              // A service stopped mid-reply leaves nothing to save.
-              if (!transformers.includes(transformer))
+              // A service stopped mid-reply leaves nothing to save; list
+              // entries are rebuilt on any change, so compare the service.
+              if (!transformers.some((t) => t.value === transformer.value))
                 throw new Error("扩展已停用，本次结果未保存，请重试。");
               if (typeof output !== "string")
                 throw new Error("文本服务必须返回文本；本次结果未保存。");
