@@ -1,7 +1,7 @@
 import type { ExtensionDefinition } from "../sdk";
 import type { Transformer } from "../../extensions/contracts";
 import { AgentStore, restoreAgents } from "./store";
-import { replySourceOf } from "./contract";
+import { enabledExtensions } from "./contract";
 import { AgentState } from "./sharded-state";
 
 /**
@@ -23,7 +23,7 @@ export function agentExtension(
       capabilities: ["state.read", "state.write"],
     },
     async activate(ctx) {
-      // Every active text service can write replies; each Agent picks one.
+      // Every active text service is offered; each Agent switches its own on.
       let transformers = ctx.providers<Transformer>(
         "text.transform",
         (next) => {
@@ -51,18 +51,28 @@ export function agentExtension(
       const store = new AgentStore(
         initial,
         (agents, save) => state.save(agents, save),
-        (text, signal, source) => {
-          const chosen = replySourceOf({ replySource: source }, sources());
-          const transformer = transformers.find(({ id }) => id === chosen?.id);
-          if (!transformer)
-            throw new Error("没有可用的回复来源，请启用文本服务。");
-          return ctx.task(() => transformer.value.transform(text, signal));
+        (text, signal, extensions) => {
+          if (!extensions.length)
+            throw new Error(
+              "此 Agent 没有开启的扩展，请在 Agent 详情中开启至少一个。",
+            );
+          return ctx.task(async () => {
+            let output = text;
+            for (const id of extensions) {
+              const transformer = transformers.find((t) => t.id === id);
+              if (!transformer) throw new Error("扩展已停用，请重试。");
+              output = await transformer.value.transform(output, signal);
+              if (typeof output !== "string")
+                throw new Error("文本服务必须返回文本；本次结果未保存。");
+            }
+            return output;
+          });
         },
         sources,
         ctx.shell.dependencies(),
       );
-      // Management lists each Agent under the service writing its replies
-      // and can move it onto another one.
+      // Management lists each Agent under the services it has switched on
+      // and can switch any of them on or off.
       const publish = () => {
         if (ctx.signal.aborted) return;
         ctx.shell.publishUsers(
@@ -70,14 +80,12 @@ export function agentExtension(
           store.list().map((agent) => ({
             id: agent.id,
             label: agent.name,
-            uses: [replySourceOf(agent, sources())?.id].filter(
-              (id): id is string => !!id,
-            ),
+            uses: enabledExtensions(agent, sources()),
           })),
           {
             service: "text.transform",
-            to: (agentId, extensionId) =>
-              store.setReplySource(agentId, extensionId),
+            set: (agentId, extensionId, on) =>
+              store.setExtension(agentId, extensionId, on),
           },
         );
       };

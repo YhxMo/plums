@@ -69,10 +69,10 @@ export type ShellAction = "extensions" | "settings" | "diagnostics";
 export type Named = { id: string; label: string };
 /** A user of an extension; `uses` names providers it relies on beyond the publisher's `dependencies()`. */
 export type User = Named & { uses?: string[] };
-/** Lets management move a user onto another active provider of `service`, which the publisher requires. */
-export type Assignment = {
+/** Lets management switch an active provider of `service`, which the publisher requires, on or off for one user. */
+export type UserToggle = {
   service: string;
-  to(userId: string, extensionId: string): Promise<void>;
+  set(userId: string, extensionId: string, on: boolean): Promise<void>;
 };
 /** One active provider of a service, named for the user. */
 export type Provider<T> = Named & { value: T };
@@ -92,7 +92,7 @@ export interface ShellAccess {
   /** This extension, then the providers it took with `use()`, transitively. */
   dependencies(): Named[];
   /** Replaces what this extension serves, e.g. its Agents; management lists them under every extension in `dependencies()` and their `uses`. Cleared on stop. */
-  publishUsers(kind: string, users: User[], assign?: Assignment): void;
+  publishUsers(kind: string, users: User[], toggle?: UserToggle): void;
 }
 export interface ExtensionContext {
   readonly id: string;

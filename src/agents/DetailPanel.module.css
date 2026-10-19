@@ -142,40 +142,80 @@
 .sessionRow svg {
   flex-shrink: 0;
 }
-.chips {
-  display: flex;
-  flex-wrap: wrap;
+.extensionList {
+  display: grid;
   gap: 6px;
   margin: 0;
   padding: 0;
   list-style: none;
 }
-.chip {
-  display: inline-flex;
+.extensionRow {
+  display: flex;
   align-items: center;
-  gap: 6px;
-  min-height: 28px;
-  max-width: 100%;
-  padding: 3px 10px;
+  gap: 10px;
+  padding: 8px 10px 8px 12px;
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: 10px;
   background: var(--card);
+}
+.extensionOpen {
+  flex: 1;
+  min-width: 0;
+  display: grid;
+  gap: 1px;
+  justify-items: start;
+  min-height: 0;
+  padding: 0;
+  border: 0;
+  background: none;
   color: var(--text);
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 500;
   text-align: left;
 }
-.chip svg {
-  color: var(--accent-text);
+.extensionOpen small {
+  max-width: 100%;
+  overflow: hidden;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 400;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
-.chip:hover:not(:disabled) {
-  background: var(--accent-soft);
-  border-color: var(--accent);
+@media (hover: hover) {
+  .extensionOpen:hover span {
+    color: var(--accent-text);
+  }
 }
-.chip[aria-checked="true"] {
-  background: var(--accent-soft);
-  border-color: var(--accent);
-  color: var(--accent-text);
+.switch {
+  position: relative;
+  flex: none;
+  width: 36px;
+  height: 20px;
+  min-height: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 999px;
+  background: var(--control-border);
+  transition: background 0.15s;
+}
+.switch::after {
+  content: "";
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 1px 2px var(--shadow);
+  transition: transform 0.15s;
+}
+.switch[aria-checked="true"] {
+  background: var(--accent);
+}
+.switch[aria-checked="true"]::after {
+  transform: translateX(16px);
 }
 @media (min-width: 768px) and (max-width: 1100px) {
   .detailHost {
@@ -212,10 +252,25 @@
   .detailScroll p {
     font-size: 14px;
   }
-  .chip {
-    min-height: 40px;
-    padding: 6px 12px;
-    font-size: 14px;
+  .extensionRow {
+    padding: 10px 12px 10px 14px;
+  }
+  .extensionOpen {
+    font-size: 15px;
+  }
+  .extensionOpen small {
+    font-size: 13px;
+  }
+  .switch {
+    width: 46px;
+    height: 28px;
+  }
+  .switch::after {
+    width: 24px;
+    height: 24px;
+  }
+  .switch[aria-checked="true"]::after {
+    transform: translateX(18px);
   }
 }
 

@@ -143,11 +143,11 @@ export function AgentWorkspace({
         setDetail(false);
         onExtensions(id);
       }}
-      sources={api.replySources?.()}
-      onReplySource={
-        api.setReplySource &&
-        ((extensionId) =>
-          void act(() => api.setReplySource!(agent.id, extensionId)))
+      choices={api.extensionChoices?.()}
+      onExtension={
+        api.setExtension &&
+        ((extensionId, on) =>
+          void act(() => api.setExtension!(agent.id, extensionId, on)))
       }
     />
   );

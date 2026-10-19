@@ -624,14 +624,15 @@ test("service reply boundary rejects without losing draft and valid output survi
   await page
     .getByRole("button", { name: "启用 transform.boundary", exact: true })
     .click();
-  await page
-    .getByRole("button", { name: "停用 transform.upper", exact: true })
-    .click();
-  await page.getByRole("button", { name: "停用", exact: true }).click();
   await page.getByRole("button", { name: "返回工作区", exact: true }).click();
   await page
     .getByRole("button", { name: "与 Boundary 交互", exact: true })
     .click();
+  await page.getByRole("button", { name: "展开或收起右侧栏" }).click();
+  for (const name of ["transform.boundary", "大写转换服务"])
+    await page
+      .getByRole("switch", { name: `在 Boundary 中使用 ${name}` })
+      .click();
   const input = page.getByRole("textbox", { name: "消息", exact: true });
   await input.fill("oversized");
   await page.getByRole("button", { name: "发送", exact: true }).click();

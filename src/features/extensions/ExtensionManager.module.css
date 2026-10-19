@@ -192,12 +192,12 @@
   font-size: 12px;
   overflow-wrap: anywhere;
 }
-/* Users that could move here: outlined until chosen. */
-.userChips li.assignable {
+/* Per-user switches: filled when on, dashed outline when off. */
+.userChips li.toggleChip {
   padding: 0;
   background: none;
 }
-.assignable button {
+.toggleChip button {
   display: inline-flex;
   align-items: center;
   gap: 4px;
@@ -210,15 +210,21 @@
   font-size: 12px;
   font-weight: 400;
 }
+.toggleChip button[aria-pressed="true"] {
+  border: 1px solid transparent;
+  background: var(--accent-soft);
+  color: var(--text);
+}
+.toggleChip button[aria-pressed="true"] svg {
+  color: var(--accent-text);
+}
 @media (hover: hover) {
-  .assignable button:hover:not(:disabled) {
-    border-style: solid;
+  .toggleChip button:hover:not(:disabled) {
     border-color: var(--accent);
-    color: var(--text);
   }
 }
 .assignHint {
-  margin: 10px 0 6px;
+  margin: 8px 0 0;
   color: var(--muted);
   font-size: 12px;
 }
@@ -339,7 +345,7 @@
   }
 }
 @media (max-width: 767px) {
-  .assignable button {
+  .toggleChip button {
     min-height: 40px;
     padding: 6px 12px;
     font-size: 14px;

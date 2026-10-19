@@ -318,7 +318,7 @@ it("rejects fractional output budgets before publishing a service", async () => 
   expect(f.call).not.toHaveBeenCalled();
 });
 
-it("returns to the local provider with saved Agent messages intact", async () => {
+it("an Agent switched to the local provider keeps its saved messages", async () => {
   const f = fixture();
   await f.enable();
   // The Agent footer tells the user where messages go.
@@ -331,6 +331,9 @@ it("returns to the local provider with saved Agent messages intact", async () =>
   await f.host.start("transform.upper");
   expect(f.agents.info.description).toContain("不连接语言模型");
   expect(f.agents.info.description).not.toContain("deepseek");
+  // The Agent keeps DeepSeek switched on while it is stopped.
+  await expect(f.agents.send(agent.id, "none")).rejects.toThrow("没有开启");
+  await f.agents.setExtension!(agent.id, "transform.upper", true);
   await f.agents.send(agent.id, "local only");
   expect(f.agents.list()[0].sessions[0].messages.at(-1)?.text).toBe(
     "LOCAL ONLY",

@@ -1,5 +1,5 @@
 import type { Theme } from "../sdk/theme";
-import type { Assignment, Named, User, View } from "../sdk";
+import type { Named, User, UserToggle, View } from "../sdk";
 import { hostError } from "./lifecycle";
 
 export type Service = { owner: string; version: number; value: unknown };
@@ -12,7 +12,7 @@ export type RegisteredTheme = Theme & { owner: string; generation: number };
 type Published = {
   kind: string;
   users: User[];
-  assign?: Assignment & { version: number };
+  toggle?: UserToggle & { version: number };
 };
 type Watcher = {
   name: string;
@@ -21,6 +21,12 @@ type Watcher = {
   listener: (providers: Service[]) => void;
 };
 type Active = (owner: string) => boolean;
+export type ToggleArgs = [
+  owner: string,
+  userId: string,
+  id: string,
+  on: boolean,
+];
 const named = ({ id, label }: Named) => ({ id, label });
 
 /** Contributions registered by active extensions, keyed by their public ids. */
@@ -67,34 +73,37 @@ export class Registry {
     visit(id);
     return [...seen];
   }
-  /** Users of active extensions that rely on `id`, those that could be moved onto it, and where they go if `id` stops. */
+  /** Users of active extensions that rely on `id`; with `toggle`, `id` can be switched on for `others` and off for users that name it in `uses`. */
   usersOf(id: string, active: Active) {
-    return [...this.users].flatMap(([owner, { kind, users, assign }]) => {
+    return [...this.users].flatMap(([owner, { kind, users, toggle }]) => {
       const relies = this.chain(owner).includes(id);
       const using = (user: User) =>
         relies || !!user.uses?.some((used) => this.chain(used).includes(id));
-      const live = assign
-        ? this.providers(assign.service, assign.version, active)
-        : [];
-      const offered = live.some((service) => service.owner === id);
+      const offered =
+        !!toggle &&
+        this.providers(toggle.service, toggle.version, active).some(
+          (service) => service.owner === id,
+        );
       const group = {
         owner,
         kind,
         users: users.filter(using).map(named),
         others: offered ? users.filter((user) => !using(user)).map(named) : [],
-        fallback: live.find((service) => service.owner !== id)?.owner,
+        toggle: offered,
       };
       return group.users.length || group.others.length ? [group] : [];
     });
   }
-  async assign(owner: string, userId: string, id: string, active: Active) {
-    const group = this.usersOf(id, active).find(
-      (entry) => entry.owner === owner,
-    );
-    const assign = this.users.get(owner)?.assign;
-    if (!assign || !group?.others.some((user) => user.id === userId))
-      throw hostError("Invalid assignment");
-    await assign.to(userId, id);
+  async toggleUser(active: Active, ...[owner, userId, id, on]: ToggleArgs) {
+    const published = this.users.get(owner);
+    const user = published?.users.find((entry) => entry.id === userId);
+    const group = this.usersOf(id, active).find((g) => g.owner === owner);
+    const allowed = on
+      ? group?.others.some((other) => other.id === userId)
+      : user?.uses?.includes(id);
+    if (!published?.toggle || !group?.toggle || !allowed)
+      throw hostError("Invalid toggle");
+    await published.toggle.set(userId, id, on);
   }
   /** Calls watchers whose provider list changed. */
   notify(active: Active) {

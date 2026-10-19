@@ -88,7 +88,13 @@ test("published users appear under every extension the publisher relies on", asy
   contexts.c.shell.publishUsers("Agent", users);
   users.push({ id: "2", label: "改动不应泄漏" });
   const expected = [
-    { owner: "c", kind: "Agent", users: [users[0]], others: [] },
+    {
+      owner: "c",
+      kind: "Agent",
+      users: [users[0]],
+      others: [],
+      toggle: false,
+    },
   ];
   for (const id of ["a", "b", "c"]) expect(host.users(id)).toEqual(expected);
   expect(host.users("d")).toEqual([]);

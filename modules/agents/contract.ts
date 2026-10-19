@@ -25,8 +25,8 @@ export type Agent = {
   /** Text being sent and not yet saved with its reply; never persisted. */
   pending?: { sessionId: string; text: string };
   extensionId: string;
-  /** Extension chosen to write replies; the first reply source is used while it is absent or stopped. */
-  replySource?: string;
+  /** Text extensions switched on for this Agent; replies pass through them in this order. Absent means the first available one. */
+  extensions?: string[];
   capabilities: string[];
   sessions: Session[];
   multiSession: boolean;
@@ -37,13 +37,16 @@ export type AgentConfig = {
   description?: string;
   multiSession?: boolean;
 };
-/** An extension that can write replies, described for the user. */
-export type ReplySource = Named & { description: string };
-/** The source that writes this Agent's next reply. */
-export const replySourceOf = (
-  agent: Pick<Agent, "replySource">,
-  sources: readonly ReplySource[],
-) => sources.find((source) => source.id === agent.replySource) ?? sources[0];
+/** An extension an Agent can switch on, described for the user. */
+export type ExtensionChoice = Named & { description: string };
+/** The IDs of the available extensions this Agent uses, in order; stopped ones are skipped. */
+export const enabledExtensions = (
+  agent: Pick<Agent, "extensions">,
+  available: readonly Named[],
+) =>
+  agent.extensions
+    ? agent.extensions.filter((id) => available.some((a) => a.id === id))
+    : available.slice(0, 1).map(({ id }) => id);
 export type AgentProviderInfo = {
   label: string;
   version: string;
@@ -68,10 +71,10 @@ export interface AgentProvider {
   ): Promise<void>;
   send(id: string, text: string): Promise<void>;
   cancel(id: string): void;
-  /** Extensions that can write replies, the default first; added after agents@1 shipped. */
-  replySources?(): readonly ReplySource[];
-  /** Chooses which of `replySources()` writes this Agent's replies. */
-  setReplySource?(id: string, extensionId: string): Promise<void>;
+  /** Extensions each Agent can switch on, oldest first; added after agents@1 shipped. */
+  extensionChoices?(): readonly ExtensionChoice[];
+  /** Switches one of `extensionChoices()` on (appended last) or off for one Agent. */
+  setExtension?(id: string, extensionId: string, on: boolean): Promise<void>;
   /** Deletes one saved message; added after agents@1 shipped, so optional. */
   removeMessage?(
     id: string,

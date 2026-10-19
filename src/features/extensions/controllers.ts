@@ -26,7 +26,7 @@ export type ExtensionCardModel = {
   imported: boolean;
 };
 export type ExtensionDetailsProps = {
-  host: Pick<Host, "inspect" | "manifest" | "users" | "assign">;
+  host: Pick<Host, "inspect" | "manifest" | "users" | "toggleUser">;
   /** Shown inside the selected card on narrow screens. */
   inline?: boolean;
   access: CredentialAccess;

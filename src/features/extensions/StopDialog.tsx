@@ -2,7 +2,7 @@ import type { Host } from "../../../modules/extension-host/host";
 import type { DialogFeedback } from "../../shell/controllers";
 import { Dialog } from "../../components/Dialog";
 
-/** Confirms stopping an extension that something still uses, naming where each user goes. */
+/** Confirms stopping an extension that something still uses, naming who. */
 export function StopDialog({
   host,
   name,
@@ -35,10 +35,7 @@ export function StopDialog({
           .filter((group) => group.users.length)
           .map((group) => (
             <p key={group.owner}>
-              {group.kind}「{group.users.map((user) => user.label).join("、")}」
-              {group.fallback
-                ? `将改用「${name(group.fallback)}」。`
-                : "将暂时无法使用，重新启用后恢复。"}
+              {`${group.kind}「${group.users.map((user) => user.label).join("、")}」正在使用此扩展。停用后暂时不再使用它，重新启用后自动恢复。`}
             </p>
           ))}
         {error && (

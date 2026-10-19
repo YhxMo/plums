@@ -34,16 +34,22 @@ for (const width of [375, 1280]) {
     ).toBeVisible();
     const card = page.locator('article[data-extension-id="transform.upper"]');
     await expect(
-      card.getByRole("button", { name: "大写转换服务" }),
+      card.getByRole("button", { name: "大写转换服务", exact: true }),
     ).toHaveAttribute("aria-pressed", "true");
     await expect(card).toContainText("1 个 Agent 在使用");
     const detail = page.getByRole("region", { name: "所选扩展详情" });
     await expect(detail).toBeInViewport();
     await expect(detail).toContainText("transform.upper");
-    await expect(
-      detail.getByRole("listitem").filter({ hasText: "写作助手" }),
-    ).toBeVisible();
-    // A second text service can take the Agent over from its own details.
+    const on = (agent: string, extension: string) =>
+      detail.getByRole("button", {
+        name: `在 ${agent} 中使用 ${extension}`,
+        exact: true,
+      });
+    await expect(on("写作助手", "大写转换服务")).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+    // Another text service can be switched on for the Agent as well.
     const reverse = page.locator(
       'article[data-extension-id="transform.reverse"]',
     );
@@ -53,39 +59,46 @@ for (const width of [375, 1280]) {
     await reverse
       .getByRole("button", { name: "逆序转换服务", exact: true })
       .click();
-    await detail
-      .getByRole("button", { name: "让 写作助手 改用 逆序转换服务" })
-      .click();
+    await expect(on("写作助手", "逆序转换服务")).toHaveAttribute(
+      "aria-pressed",
+      "false",
+    );
+    await on("写作助手", "逆序转换服务").click();
+    await expect(on("写作助手", "逆序转换服务")).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
     await expect(reverse).toContainText("1 个 Agent 在使用");
+    await expect(card).toContainText("1 个 Agent 在使用");
+    // ...and switched off for it without stopping the extension.
+    await card
+      .getByRole("button", { name: "大写转换服务", exact: true })
+      .click();
+    await on("写作助手", "大写转换服务").click();
     await expect(card).not.toContainText("在使用");
-    // Stopping it asks first and says where the Agent goes.
+    await expect(card).toContainText("运行中");
+    // Stopping an extension in use asks first and names who uses it.
     await reverse
       .getByRole("button", { name: "停用 transform.reverse", exact: true })
       .click();
     const confirm = page.getByRole("dialog", { name: "停用 逆序转换服务" });
-    await expect(confirm).toContainText("写作助手」将改用「大写转换服务」");
+    await expect(confirm).toContainText("「写作助手」正在使用此扩展");
     await confirm.getByRole("button", { name: "取消", exact: true }).click();
     await expect(reverse).toContainText("运行中");
     await reverse
       .getByRole("button", { name: "停用 transform.reverse", exact: true })
       .click();
     await confirm.getByRole("button", { name: "停用", exact: true }).click();
-    await expect(card).toContainText("1 个 Agent 在使用");
-    await card
-      .getByRole("button", { name: "停用 transform.upper", exact: true })
+    await expect(reverse).not.toContainText("在使用");
+    // A stopped extension keeps the Agent's switch and resumes with it.
+    await reverse
+      .getByRole("button", { name: "启用 transform.reverse", exact: true })
       .click();
-    await expect(
-      page.getByRole("dialog", { name: "停用 大写转换服务" }),
-    ).toContainText("将暂时无法使用");
-    await page
-      .getByRole("dialog")
-      .getByRole("button", { name: "停用", exact: true })
-      .click();
-    await expect(card).not.toContainText("在使用");
+    await expect(reverse).toContainText("1 个 Agent 在使用");
   });
 }
 
-test("an Agent's details choose which text service replies", async ({
+test("an Agent's details switch each text extension on or off", async ({
   page,
 }) => {
   await page.goto("/");
@@ -105,15 +118,29 @@ test("an Agent's details choose which text service replies", async ({
   await page
     .getByRole("button", { name: "展开或收起右侧栏", exact: true })
     .click();
-  const sources = page.getByRole("radiogroup", { name: "回复来源" });
-  await expect(
-    sources.getByRole("radio", { name: "大写转换服务" }),
-  ).toBeChecked();
-  await sources.getByRole("radio", { name: "逆序转换服务" }).click();
-  await expect(
-    sources.getByRole("radio", { name: "逆序转换服务" }),
-  ).toBeChecked();
-  await page.getByRole("textbox", { name: "消息", exact: true }).fill("abc");
-  await page.getByRole("button", { name: "发送", exact: true }).click();
-  await expect(page.getByRole("log")).toContainText("cba");
+  const details = page.getByRole("complementary", { name: "Agent 详情" });
+  const upper = details.getByRole("switch", {
+    name: "在 测试 中使用 大写转换服务",
+  });
+  const reverse = details.getByRole("switch", {
+    name: "在 测试 中使用 逆序转换服务",
+  });
+  await expect(upper).toBeChecked();
+  await expect(reverse).not.toBeChecked();
+  await reverse.click();
+  await expect(reverse).toBeChecked();
+  await expect(details).toContainText(
+    "回复依次经过：大写转换服务 → 逆序转换服务",
+  );
+  const send = async (text: string) => {
+    await page.getByRole("textbox", { name: "消息", exact: true }).fill(text);
+    await page.getByRole("button", { name: "发送", exact: true }).click();
+  };
+  await send("abc");
+  await expect(page.getByRole("log")).toContainText("CBA");
+  await upper.click();
+  await send("xyz");
+  await expect(page.getByRole("log")).toContainText("zyx");
+  await reverse.click();
+  await expect(details).toContainText("此 Agent 暂时无法回复");
 });

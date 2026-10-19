@@ -15,7 +15,7 @@ export default {
     id: "starter.text-service",
     version: "0.1.0",
     apiVersion: 1,
-    // 提供 Agent 使用的文本服务（版本 1）。可以与其他文本服务同时启用，每个 Agent 选用其中一个。
+    // 提供 Agent 使用的文本服务（版本 1）。可以与其他文本服务同时启用，每个 Agent 单独开关。
     provides: { "text.transform": 1 },
   },
   activate(ctx) {

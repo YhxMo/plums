@@ -76,9 +76,9 @@ export function createContext(
           label: label(owner),
         }));
       },
-      publishUsers: (kind, users, assign) => {
+      publishUsers: (kind, users, toggle) => {
         scope.assertOpen();
-        const version = assign && manifest.requires?.[assign.service];
+        const version = toggle && manifest.requires?.[toggle.service];
         if (
           typeof kind !== "string" ||
           !Array.isArray(users) ||
@@ -90,7 +90,7 @@ export function createContext(
                 (!Array.isArray(user.uses) ||
                   user.uses.some((used) => typeof used !== "string"))),
           ) ||
-          (assign && (!version || typeof assign.to !== "function"))
+          (toggle && (!version || typeof toggle.set !== "function"))
         )
           throw hostError("Invalid users");
         const next = {
@@ -98,18 +98,18 @@ export function createContext(
           users: users.map(({ id, label, uses }) =>
             uses ? { id, label, uses: [...uses] } : { id, label },
           ),
-          ...(assign && {
-            assign: {
-              service: assign.service,
+          ...(toggle && {
+            toggle: {
+              service: toggle.service,
               version: version!,
-              to: assign.to,
+              set: toggle.set,
             },
           }),
         };
-        // Functions drop out of the comparison, so a changed `to` alone is kept.
+        // Functions drop out of the comparison, so a changed `set` alone is kept.
         const previous = registry.users.get(id);
         if (
-          previous?.assign?.to === next.assign?.to &&
+          previous?.toggle?.set === next.toggle?.set &&
           JSON.stringify(previous) === JSON.stringify(next)
         )
           return;

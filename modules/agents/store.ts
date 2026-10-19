@@ -5,9 +5,10 @@ import type {
   AgentConfig,
   AgentProvider,
   AgentProviderInfo,
-  ReplySource,
+  ExtensionChoice,
   Session,
 } from "./contract";
+import { enabledExtensions } from "./contract";
 
 const id = () => crypto.randomUUID();
 const newSession = (): Session => ({
@@ -57,7 +58,9 @@ export function restoreAgents(value: unknown): Agent[] {
       typeof a.pinned !== "boolean" ||
       typeof a.multiSession !== "boolean" ||
       !text(a.extensionId) ||
-      (a.replySource !== undefined && !text(a.replySource)) ||
+      (a.extensions !== undefined &&
+        (!Array.isArray(a.extensions) ||
+          !a.extensions.every((e) => text(e)))) ||
       !Array.isArray(a.capabilities) ||
       !a.capabilities.every((c) => text(c)) ||
       !Array.isArray(a.sessions) ||
@@ -119,14 +122,14 @@ export class AgentStore implements AgentProvider {
   constructor(
     initial: Agent[],
     private persist: (agents: Agent[], options?: SaveOptions) => Promise<void>,
-    /** Writes a reply with the chosen source, or the first one available. */
+    /** Passes the text through these extensions in order. */
     private reply: (
       text: string,
       signal: AbortSignal,
-      source?: string,
+      extensions: string[],
     ) => Promise<string>,
-    /** Extensions that can write replies, the default first. */
-    private sources: () => readonly ReplySource[] = () => [],
+    /** Extensions an Agent can switch on, the default first. */
+    private sources: () => readonly ExtensionChoice[] = () => [],
     private extensions: readonly Named[] = [],
   ) {
     this.agents = initial;
@@ -141,14 +144,18 @@ export class AgentStore implements AgentProvider {
       extensions: this.extensions,
     };
   }
-  replySources = () => this.sources();
-  /** Re-renders Agents after reply sources start or stop. */
+  extensionChoices = () => this.sources();
+  /** Re-renders Agents after their extensions start or stop. */
   sourcesChanged = () => this.emit();
-  setReplySource(agentId: string, extensionId: string) {
-    if (!this.sources().some((source) => source.id === extensionId))
-      return Promise.reject(new Error("回复来源不可用，请先启用该扩展。"));
+  setExtension(agentId: string, extensionId: string, on: boolean) {
+    if (on && !this.sources().some((source) => source.id === extensionId))
+      return Promise.reject(new Error("扩展未启用，请先在扩展管理中启用它。"));
     return this.change((agents) => {
-      this.find(agents, agentId).replySource = extensionId;
+      const a = this.find(agents, agentId);
+      const rest = (
+        a.extensions ?? enabledExtensions(a, this.sources())
+      ).filter((id) => id !== extensionId);
+      a.extensions = on ? [...rest, extensionId] : rest;
     });
   }
   list = () => this.agents;
@@ -206,7 +213,7 @@ export class AgentStore implements AgentProvider {
       status: "idle",
       pinned: false,
       extensionId: "agents.local",
-      replySource: this.sources()[0]?.id,
+      extensions: enabledExtensions({}, this.sources()),
       capabilities: ["本地文本处理", "保存会话"],
       multiSession: clean.multiSession ?? false,
       sessions: [session],
@@ -303,7 +310,11 @@ export class AgentStore implements AgentProvider {
     this.pending.set(agentId, { sessionId, text: input });
     this.emit();
     try {
-      const output = await this.reply(input, controller.signal, a.replySource);
+      const output = await this.reply(
+        input,
+        controller.signal,
+        enabledExtensions(a, this.sources()),
+      );
       controller.signal.throwIfAborted();
       if (!text(output, 32000))
         throw new Error(

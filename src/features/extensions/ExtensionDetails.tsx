@@ -39,38 +39,42 @@ export function ExtensionDetails({
       </header>
       {users.map((group) => (
         <section className={styles.detailSection} key={group.owner}>
-          <h4>使用中的 {group.kind}</h4>
-          {group.users.length ? (
-            <ul className={managerStyles.userChips}>
-              {group.users.map((user) => (
-                <li key={user.id}>{user.label}</li>
-              ))}
-            </ul>
-          ) : (
-            <p className="muted">暂无</p>
-          )}
-          {group.others.length > 0 && (
-            <>
-              <p className={managerStyles.assignHint}>点按以改用此扩展：</p>
-              <ul className={managerStyles.userChips}>
-                {group.others.map((user) => (
-                  <li key={user.id} className={managerStyles.assignable}>
+          <h4>
+            {group.toggle ? `为 ${group.kind} 开启` : `使用中的 ${group.kind}`}
+          </h4>
+          <ul className={managerStyles.userChips}>
+            {group.toggle
+              ? [
+                  ...group.users.map((user) => ({ ...user, on: true })),
+                  ...group.others.map((user) => ({ ...user, on: false })),
+                ].map((user) => (
+                  <li key={user.id} className={managerStyles.toggleChip}>
                     <button
-                      aria-label={`让 ${user.label} 改用 ${activeSelectedExt.label}`}
+                      aria-pressed={user.on}
+                      aria-label={`在 ${user.label} 中使用 ${activeSelectedExt.label}`}
                       disabled={operations.busy}
                       onClick={() =>
                         void operations.operate(() =>
-                          host.assign(group.owner, user.id, extId),
+                          host.toggleUser(
+                            group.owner,
+                            user.id,
+                            extId,
+                            !user.on,
+                          ),
                         )
                       }
                     >
-                      <Icon name="plus" size={13} />
+                      <Icon name={user.on ? "check" : "plus"} size={13} />
                       {user.label}
                     </button>
                   </li>
-                ))}
-              </ul>
-            </>
+                ))
+              : group.users.map((user) => <li key={user.id}>{user.label}</li>)}
+          </ul>
+          {group.toggle && (
+            <p className={managerStyles.assignHint}>
+              点按为单个 {group.kind} 开启或关闭此扩展。
+            </p>
           )}
         </section>
       ))}

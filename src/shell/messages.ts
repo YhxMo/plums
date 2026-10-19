@@ -28,6 +28,7 @@ function hostMessage(message: string) {
     "Shell bridge already connected": "宿主入口已连接。",
     "Unknown shell action": "宿主操作不支持。",
     "Shell controls unavailable": "宿主入口暂不可用。",
+    "Invalid toggle": "此扩展已无法为该对象开启或关闭，请刷新后重试。",
     "Native write receipt unavailable":
       "写入回执未确认，请重新加载应用后再修改。",
   };

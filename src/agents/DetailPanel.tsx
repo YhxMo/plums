@@ -1,8 +1,8 @@
 import {
-  replySourceOf,
+  enabledExtensions,
   type Agent,
   type AgentProviderInfo,
-  type ReplySource,
+  type ExtensionChoice,
 } from "../../modules/agents/contract";
 import { Avatar } from "./AgentList";
 import { Icon } from "../components/Icon";
@@ -15,14 +15,14 @@ export function DetailPanel({
   onSession,
   onDeleteSession,
   onOpenExtension,
-  sources = [],
-  onReplySource,
+  choices,
+  onExtension,
 }: {
   agent: Agent;
   provider: AgentProviderInfo;
   /** Absent for providers that do not let each Agent choose. */
-  sources?: readonly ReplySource[];
-  onReplySource?: (extensionId: string) => void;
+  choices?: readonly ExtensionChoice[];
+  onExtension?: (extensionId: string, on: boolean) => void;
   onClose: () => void;
   onPin: () => void;
   onSession: (action: "create" | "select", id?: string) => void;
@@ -30,13 +30,36 @@ export function DetailPanel({
   onOpenExtension: (id: string) => void;
 }) {
   // Providers predating `extensions` are shown as the one extension they are.
-  const source = replySourceOf(agent, sources);
-  const extensions = [
-    ...(provider.extensions ?? [
-      { id: agent.extensionId, label: provider.label },
-    ]),
-    ...(source ? [source] : []),
-  ].filter((entry, i, all) => all.findIndex((e) => e.id === entry.id) === i);
+  const base = provider.extensions ?? [
+    { id: agent.extensionId, label: provider.label },
+  ];
+  const enabled = choices ? enabledExtensions(agent, choices) : [];
+  const label = (id: string) => choices?.find((c) => c.id === id)?.label;
+  const row = (
+    extension: { id: string; label: string; description?: string },
+    toggle?: boolean,
+  ) => (
+    <li key={extension.id} className={s.extensionRow}>
+      <button
+        className={s.extensionOpen}
+        title={extension.id}
+        aria-label={`查看扩展 ${extension.label}`}
+        onClick={() => onOpenExtension(extension.id)}
+      >
+        <span>{extension.label}</span>
+        <small>{extension.description ?? "Agent 本体，始终开启"}</small>
+      </button>
+      {toggle !== undefined && (
+        <button
+          role="switch"
+          aria-checked={toggle}
+          aria-label={`在 ${agent.name} 中使用 ${extension.label}`}
+          className={s.switch}
+          onClick={() => onExtension?.(extension.id, !toggle)}
+        />
+      )}
+    </li>
+  );
   return (
     <aside className={s.details} aria-label="Agent 详情">
       <header>
@@ -61,56 +84,22 @@ export function DetailPanel({
             <p>{agent.description}</p>
           </section>
         )}
-        {extensions.length > 0 && (
-          <section>
-            <h3>使用的扩展</h3>
-            <ul className={s.chips}>
-              {extensions.map((extension) => (
-                <li key={extension.id}>
-                  <button
-                    className={s.chip}
-                    title={extension.id}
-                    aria-label={`查看扩展 ${extension.label}`}
-                    onClick={() => onOpenExtension(extension.id)}
-                  >
-                    <Icon name="puzzle" size={14} />
-                    {extension.label}
-                  </button>
-                </li>
-              ))}
-            </ul>
-          </section>
-        )}
-        {onReplySource && sources.length > 0 && (
-          <section>
-            <h3 id="reply-source-heading">回复来源</h3>
-            <div
-              className={s.chips}
-              role="radiogroup"
-              aria-labelledby="reply-source-heading"
-            >
-              {sources.map((entry) => (
-                <button
-                  key={entry.id}
-                  role="radio"
-                  aria-checked={entry.id === source?.id}
-                  className={s.chip}
-                  title={entry.id}
-                  onClick={() => {
-                    if (entry.id !== source?.id) onReplySource(entry.id);
-                  }}
-                >
-                  {entry.label}
-                </button>
-              ))}
-            </div>
+        <section>
+          <h3>组成扩展</h3>
+          <ul className={s.extensionList}>
+            {base.map((extension) => row(extension))}
+            {choices?.map((choice) => row(choice, enabled.includes(choice.id)))}
+          </ul>
+          {choices && (
             <p className={s.detailNote}>
-              {agent.replySource && agent.replySource !== source?.id
-                ? `所选扩展未启用，暂由「${source?.label}」回复。`
-                : source?.description}
+              {enabled.length === 0
+                ? "尚未开启任何扩展，此 Agent 暂时无法回复。"
+                : enabled.length > 1
+                  ? `回复依次经过：${enabled.map(label).join(" → ")}`
+                  : "开启的扩展处理此 Agent 的回复，可同时开启多个。"}
             </p>
-          </section>
-        )}
+          )}
+        </section>
         <section>
           <h3>实际可用能力</h3>
           {agent.capabilities.map((c) => (

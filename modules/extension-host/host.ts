@@ -1,7 +1,7 @@
 import { validateDefinition } from "./definition";
 import { describeWait, hostError, within, type WaitReason } from "./lifecycle";
 import { Scope, message } from "./scope";
-import { Registry } from "./registry";
+import { Registry, type ToggleArgs } from "./registry";
 import { createContext, type ContextHost } from "./context";
 import { resolveConfiguration, type Configuration } from "../sdk/configuration";
 import type { ExtensionDefinition, Platform, ShellBridge } from "../sdk";
@@ -158,11 +158,11 @@ export class Host {
     };
   }
   readonly serviceNames = () => [...this.registry.services.keys()];
-  /** Users of active extensions that rely on `id`, and those `assign` could move onto it. */
+  /** Users of active extensions that rely on `id`, and those it could be switched on for. */
   readonly users = (id: string) => this.registry.usersOf(id, this.active);
-  /** Moves a published user onto `extensionId`, which must be in its `others`. */
-  readonly assign = (owner: string, userId: string, extensionId: string) =>
-    this.registry.assign(owner, userId, extensionId, this.active);
+  /** Switches `extensionId` on or off for one published user; see `usersOf`. */
+  readonly toggleUser = (...args: ToggleArgs) =>
+    this.registry.toggleUser(this.active, ...args);
   peekService<T>(name: string, version = 1): T | undefined {
     return this.registry.providers(name, version, this.active)[0]?.value as T;
   }

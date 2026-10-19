@@ -103,9 +103,9 @@ test("dependencies follow the providers taken with use()", async () => {
   ]);
 });
 
-test("users name the providers they use and can be assigned to another", async () => {
+test("users name the providers they use and can be switched on or off per provider", async () => {
   const { host, contexts } = await setup();
-  const to = vi.fn(async () => {});
+  const set = vi.fn(async () => {});
   const users = [
     { id: "1", label: "写作助手", uses: ["a"] },
     { id: "2", label: "代码助手", uses: ["b"] },
@@ -117,26 +117,40 @@ test("users name the providers they use and can be assigned to another", async (
       kind: "Agent",
       users: [{ id: "1", label: "写作助手" }],
       others: [],
+      toggle: false,
     },
   ]);
   expect(host.users("live")[0].users).toHaveLength(2);
-  contexts.live.shell.publishUsers("Agent", users, { service: "s", to });
-  expect(host.users("a")[0].others).toEqual([{ id: "2", label: "代码助手" }]);
-  // Users of `a` move to the next live provider when it stops.
-  expect(host.users("a")[0].fallback).toBe("b");
-  // Assignment only offers providers of the service the publisher requires.
+  await expect(host.toggleUser("live", "1", "a", false)).rejects.toThrow(
+    "Invalid toggle",
+  );
+  contexts.live.shell.publishUsers("Agent", users, { service: "s", set });
+  expect(host.users("a")[0]).toMatchObject({
+    others: [{ id: "2", label: "代码助手" }],
+    toggle: true,
+  });
+  // Only providers of the service the publisher requires can be toggled.
   expect(host.users("old")).toEqual([]);
-  await host.assign("live", "2", "a");
-  expect(to).toHaveBeenCalledWith("2", "a");
-  await expect(host.assign("live", "2", "old")).rejects.toThrow(
-    "Invalid assignment",
+  await host.toggleUser("live", "2", "a", true);
+  expect(set).toHaveBeenLastCalledWith("2", "a", true);
+  await host.toggleUser("live", "1", "a", false);
+  expect(set).toHaveBeenLastCalledWith("1", "a", false);
+  // Switching on a user that already uses it, or off one that does not, is refused.
+  await expect(host.toggleUser("live", "1", "a", true)).rejects.toThrow(
+    "Invalid toggle",
+  );
+  await expect(host.toggleUser("live", "2", "a", false)).rejects.toThrow(
+    "Invalid toggle",
+  );
+  await expect(host.toggleUser("live", "2", "old", true)).rejects.toThrow(
+    "Invalid toggle",
   );
   expect(() =>
-    contexts.live.shell.publishUsers("Agent", users, { service: "x", to }),
+    contexts.live.shell.publishUsers("Agent", users, { service: "x", set }),
   ).toThrow("Invalid users");
   await host.stop("live");
   expect(host.users("a")).toEqual([]);
-  await expect(host.assign("live", "2", "a")).rejects.toThrow(
-    "Invalid assignment",
+  await expect(host.toggleUser("live", "2", "a", true)).rejects.toThrow(
+    "Invalid toggle",
   );
 });
