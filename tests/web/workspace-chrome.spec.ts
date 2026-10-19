@@ -265,3 +265,39 @@ for (const width of [375, 1180]) {
     ).toBeVisible();
   });
 }
+
+test("icon-only buttons keep their icon centred on phones and desktop", async ({
+  page,
+}) => {
+  const offCentre = () =>
+    page.evaluate(() =>
+      [...document.querySelectorAll("button")].flatMap((button) => {
+        const icon = button.querySelector(":scope > svg");
+        const box = button.getBoundingClientRect();
+        if (!icon || button.textContent?.trim() || !box.width) return [];
+        const inner = icon.getBoundingClientRect();
+        const dx = inner.x + inner.width / 2 - (box.x + box.width / 2);
+        const dy = inner.y + inner.height / 2 - (box.y + box.height / 2);
+        return Math.abs(dx) > 1 || Math.abs(dy) > 1
+          ? [button.getAttribute("aria-label")]
+          : [];
+      }),
+    );
+  await page.setViewportSize({ width: 393, height: 852 });
+  await page.goto("/");
+  await page
+    .getByRole("button", { name: "从头添加 Agent", exact: true })
+    .click();
+  await page.getByRole("textbox", { name: "名称", exact: true }).fill("手机");
+  await page
+    .getByRole("dialog")
+    .getByRole("button", { name: "添加", exact: true })
+    .click();
+  await expect(
+    page.getByRole("button", { name: "查看 Agent 详情", exact: true }),
+  ).toBeVisible();
+  expect(await offCentre()).toEqual([]);
+  await page.setViewportSize({ width: 1280, height: 800 });
+  await manage(page);
+  expect(await offCentre()).toEqual([]);
+});

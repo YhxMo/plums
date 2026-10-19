@@ -1,5 +1,7 @@
-.backArrow {
+/* Beats the heading's text-button padding so the icon stays centred. */
+.inspectorHeading .backArrow {
   flex-shrink: 0;
+  padding: 0;
 }
 .inspectorHeadingLeft {
   display: flex;

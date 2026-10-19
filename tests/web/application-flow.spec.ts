@@ -304,6 +304,12 @@ for (const width of [375, 1180]) {
     await manage(page, true);
     const back = page.getByRole("button", { name: "返回工作区", exact: true });
     const before = await back.boundingBox();
+    // The arrow sits in the middle of the button's highlight.
+    const arrow = (await back.locator("svg").boundingBox())!;
+    expect(arrow.x + arrow.width / 2).toBeCloseTo(
+      before!.x + before!.width / 2,
+      0,
+    );
     if (width === 375) {
       expect(before!.width).toBeGreaterThanOrEqual(44);
       expect(before!.height).toBeGreaterThanOrEqual(44);

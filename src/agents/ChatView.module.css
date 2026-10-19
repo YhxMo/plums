@@ -258,6 +258,10 @@
   .mobileOnly {
     display: inline-flex !important;
   }
+  /* Icon buttons stay grids so the icon keeps centred. */
+  .chatHeader > .mobileOnly {
+    display: inline-grid !important;
+  }
   .chatHeader {
     padding: 10px 16px 10px 4px;
     min-height: 76px;
