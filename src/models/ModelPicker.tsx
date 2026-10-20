@@ -1,24 +1,29 @@
 import { useState } from "react";
+import type { ListedModel } from "../../modules/models/extension";
 import { MAX_MODELS } from "../../modules/models/providers";
+import { tokenLabel } from "../../modules/models/protocols";
 import s from "./ModelConnections.module.css";
 
-/** The service's model list: filter, tick, and add the ticked ones. */
+/**
+ * The service's model list with each one's window from models.dev: filter,
+ * tick, and add the ticked ones with their windows.
+ */
 export function ModelPicker({
   available,
   added,
   onAdd,
   onClose,
 }: {
-  available: readonly string[];
+  available: readonly ListedModel[];
   added: readonly string[];
-  onAdd: (models: string[]) => void;
+  onAdd: (models: ListedModel[]) => void;
   onClose: () => void;
 }) {
   const [query, setQuery] = useState("");
   const [picked, setPicked] = useState<string[]>([]);
   const room = MAX_MODELS - added.length;
-  const shown = available.filter((model) =>
-    model.toLowerCase().includes(query.trim().toLowerCase()),
+  const shown = available.filter(({ name }) =>
+    name.toLowerCase().includes(query.trim().toLowerCase()),
   );
   const toggle = (model: string) =>
     setPicked((value) =>
@@ -45,7 +50,7 @@ export function ModelPicker({
         />
       )}
       <ul className={s.options}>
-        {shown.map((model) => {
+        {shown.map(({ name: model, context }) => {
           const exists = added.includes(model);
           const checked = exists || picked.includes(model);
           return (
@@ -58,6 +63,9 @@ export function ModelPicker({
                   onChange={() => toggle(model)}
                 />
                 <span>{model}</span>
+                {context && (
+                  <span className={s.hint}>上下文 {tokenLabel(context)}</span>
+                )}
                 {exists && <span className={s.hint}>已添加</span>}
               </label>
             </li>
@@ -72,7 +80,9 @@ export function ModelPicker({
         <button
           type="button"
           disabled={picked.length === 0}
-          onClick={() => onAdd(available.filter((m) => picked.includes(m)))}
+          onClick={() =>
+            onAdd(available.filter(({ name }) => picked.includes(name)))
+          }
         >
           添加所选（{picked.length}）
         </button>

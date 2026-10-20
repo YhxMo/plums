@@ -167,6 +167,17 @@ export interface NativeCommands {
     response: null;
     error: string;
   };
+  network_read: {
+    args: { owner: string; id: string; url: string };
+    response: { status: number; body: string };
+    error: { code: string; outcome: string };
+  };
+  network_abort: {
+    args: { owner: string; id: string };
+    response: null;
+    error: never;
+  };
+  network_release: { args: { owner: string }; response: null; error: never };
   platform_grant: {
     args: { owner: string; capabilities: Array<string> };
     response: null;

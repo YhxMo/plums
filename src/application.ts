@@ -65,6 +65,7 @@ export const defaultApplication: ShellApplication = {
       "state.write",
       "credential.request",
       "credential.connect",
+      "network.read",
     ],
   },
   start: [

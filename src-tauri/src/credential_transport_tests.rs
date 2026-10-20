@@ -84,6 +84,7 @@ fn run(url: &str, total: Duration, auth: serde_json::Value, body: &str) -> Resul
         map,
         Some(body.into()),
         total,
+        MAX_RESPONSE,
     ))
 }
 fn bearer() -> serde_json::Value {
@@ -131,6 +132,7 @@ fn a_read_sends_get_with_the_key_and_no_body() {
         map,
         None,
         desktop::TOTAL,
+        MAX_RESPONSE,
     ))
     .unwrap();
     assert_eq!(read.body, "{\"data\":[]}");
@@ -217,6 +219,7 @@ fn production_client_never_sends_plain_http() {
         map,
         Some("x".into()),
         desktop::TOTAL,
+        MAX_RESPONSE,
     ));
     assert_eq!(result, Err(Fault::Unknown("transport")));
     std::thread::sleep(Duration::from_millis(100));
@@ -224,12 +227,24 @@ fn production_client_never_sends_plain_http() {
 }
 #[test]
 fn only_complete_utf8_non_redirect_responses_are_accepted() {
-    assert_eq!(accept(304, vec![]), Err(Fault::Unknown("status")));
-    assert_eq!(accept(199, vec![]), Err(Fault::Unknown("status")));
-    assert_eq!(accept(600, vec![]), Err(Fault::Unknown("status")));
     assert_eq!(
-        accept(200, vec![0xff, 0xfe]),
+        accept(304, vec![], MAX_RESPONSE),
+        Err(Fault::Unknown("status"))
+    );
+    assert_eq!(
+        accept(199, vec![], MAX_RESPONSE),
+        Err(Fault::Unknown("status"))
+    );
+    assert_eq!(
+        accept(600, vec![], MAX_RESPONSE),
+        Err(Fault::Unknown("status"))
+    );
+    assert_eq!(
+        accept(200, vec![0xff, 0xfe], MAX_RESPONSE),
         Err(Fault::Unknown("response-encoding"))
     );
-    assert_eq!(accept(503, b"down".to_vec()).unwrap().status, 503);
+    assert_eq!(
+        accept(503, b"down".to_vec(), MAX_RESPONSE).unwrap().status,
+        503
+    );
 }

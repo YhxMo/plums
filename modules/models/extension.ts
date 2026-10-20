@@ -1,11 +1,27 @@
-import type { CredentialResponse, ExtensionDefinition } from "../sdk";
+import type {
+  CredentialResponse,
+  ExtensionDefinition,
+  NetworkReadResponse,
+} from "../sdk";
 import type { ChatService } from "../../extensions/contracts";
-import { ProviderStore, modelId, presetOf } from "./providers";
+import { ProviderStore, limits, modelId, presetOf } from "./providers";
+import {
+  CATALOG_SOURCE,
+  CATALOG_URL,
+  contextWindow,
+  readCatalog,
+  type Catalog,
+} from "./catalog";
 import { modelListPaths, readModelList } from "./addresses";
 import { formats, presets, protocols } from "./presets";
 import { failure, readReply, requestBody, type Turn } from "./protocols";
 
 export const MODEL_PAGE = "model-connections";
+/** models.dev is read again after an hour, like cc-switch. */
+const CATALOG_TTL = 3_600_000;
+
+/** A model the service lists, with the window models.dev gives for it. */
+export type ListedModel = { name: string; context?: number };
 
 /** What the connection page works with; the page itself is supplied by the app. */
 export type ModelConnectionsApi = Pick<
@@ -16,8 +32,8 @@ export type ModelConnectionsApi = Pick<
   readonly formats: typeof formats;
   /** Sends one short message to one model of a provider and returns the reply. */
   test(provider: string, model: string, signal: AbortSignal): Promise<string>;
-  /** Model names the provider's service lists, read with its saved key. */
-  fetchModels(provider: string, signal: AbortSignal): Promise<string[]>;
+  /** Models the provider's service lists, read with its saved key. */
+  fetchModels(provider: string, signal: AbortSignal): Promise<ListedModel[]>;
 };
 type MountPage = (
   container: HTMLElement,
@@ -57,9 +73,11 @@ export function modelConnector({
         "state.write",
         "credential.request",
         "credential.connect",
+        "network.read",
       ],
       provides: { chat: 1 },
       credentialProtocols: protocols,
+      networkSources: [CATALOG_SOURCE],
     },
     async activate(ctx) {
       const store = new ProviderStore((capability, payload) =>
@@ -108,6 +126,7 @@ export function modelConnector({
           {
             ...provider,
             model: chosen.model,
+            context: chosen.context,
             extra:
               preset?.protocol === provider.protocol ? preset.extra : undefined,
           },
@@ -143,8 +162,46 @@ export function modelConnector({
           return readReply(provider.protocol, response);
         });
       };
+      // Shared by every lookup; a failed read is tried again next time.
+      let catalog: { at: number; value: Promise<Catalog | undefined> } | null =
+        null;
+      const loadCatalog = (signal: AbortSignal) => {
+        if (catalog && Date.now() - catalog.at < CATALOG_TTL)
+          return catalog.value;
+        const value = (async () => {
+          try {
+            const response = (await ctx.platform(
+              "network.read",
+              { version: 1, url: CATALOG_URL },
+              signal,
+            )) as NetworkReadResponse;
+            return response.status === 200
+              ? readCatalog(response.body)
+              : undefined;
+          } catch {
+            return undefined;
+          }
+        })();
+        const entry = { at: Date.now(), value };
+        catalog = entry;
+        void value.then((found) => {
+          if (!found && catalog === entry) catalog = null;
+        });
+        return value;
+      };
+      /** models.dev's window for a model, within what a provider may use. */
+      const windowFor = (
+        found: Catalog | undefined,
+        base: string,
+        name: string,
+      ) => {
+        const tokens = found && contextWindow(found, base, name);
+        return tokens && tokens >= limits.context[0]
+          ? Math.min(tokens, limits.context[1])
+          : undefined;
+      };
       // Reads the list where cc-switch looks for it; only the key's site is reached.
-      const fetchModels = async (id: string, signal: AbortSignal) => {
+      const listModels = async (id: string, signal: AbortSignal) => {
         const provider = store.list().find((item) => item.id === id);
         if (!provider) throw new Error("该服务商已被删除。");
         const problem = await sendProblem(id);
@@ -181,6 +238,22 @@ export function modelConnector({
           throw new Error(
             `没有从该服务取到模型列表（${problem}），请按服务商文档手动填写模型名。`,
           );
+        });
+      };
+      const fetchModels = async (
+        id: string,
+        signal: AbortSignal,
+      ): Promise<ListedModel[]> => {
+        const base = store.find(id)?.base ?? "";
+        const [names, found] = await Promise.all([
+          listModels(id, signal),
+          ctx.task((lifecycle) =>
+            loadCatalog(AbortSignal.any([signal, lifecycle])),
+          ),
+        ]);
+        return names.map((name) => {
+          const context = windowFor(found, base, name);
+          return context ? { name, context } : { name };
         });
       };
       const models = () =>

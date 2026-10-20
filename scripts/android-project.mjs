@@ -122,7 +122,7 @@ export function prepareAndroid(root, toolsRoot) {
     throw new Error("MainActivity template changed; review before adapting");
   edits.set(activity, adapted);
 
-  for (const name of ["Appearance", "Documents", "Credentials"]) {
+  for (const name of ["Appearance", "Documents", "Credentials", "Network"]) {
     const filename = `${name}Plugin.kt`;
     const path = join(dirname(activity), filename);
     const source = readFileSync(

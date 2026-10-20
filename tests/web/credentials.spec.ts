@@ -370,10 +370,12 @@ for (const width of [375, 1180])
         __TAURI_INTERNALS__: unknown;
         __configured: Array<Record<string, unknown>>;
         __requests: Array<Record<string, unknown>>;
+        __reads: Array<Record<string, unknown>>;
       };
       w.isTauri = true;
       w.__configured = [];
       w.__requests = [];
+      w.__reads = [];
       let records: Array<Record<string, unknown>> = [];
       const states = new Map<string, { revision: number; value: unknown }>();
       (w as unknown as { __states: () => string }).__states = () =>
@@ -409,6 +411,25 @@ for (const width of [375, 1180])
                 data: ["model-two", "model-one", "model-three"].map((id) => ({
                   id,
                 })),
+              }),
+            };
+          }
+          // models.dev, trimmed: the gateway is unknown there, so the
+          // window comes from the maker's entry another service points at.
+          if (command === "network_read") {
+            w.__reads.push(args);
+            return {
+              status: 200,
+              body: JSON.stringify({
+                acme: {
+                  models: { "model-two": { limit: { context: 200_000 } } },
+                },
+                reseller: {
+                  api: "https://reseller.invalid/v1",
+                  models: {
+                    "model-two": { canonical_model_id: "acme/model-two" },
+                  },
+                },
               }),
             };
           }
@@ -492,14 +513,19 @@ for (const width of [375, 1180])
     await fetchModels.click();
     const picker = dialog.getByRole("group", { name: "服务提供的模型" });
     await expect(picker.getByRole("checkbox")).toHaveCount(3);
+    await expect(picker.getByRole("listitem")).toHaveText([
+      "model-one",
+      "model-three",
+      "model-two上下文 200K",
+    ]);
     await picker.getByRole("checkbox", { name: "model-one" }).check();
     await picker.getByRole("checkbox", { name: "model-two" }).check();
     await picker.getByRole("button", { name: "添加所选（2）" }).click();
     await expect(picker).toBeHidden();
     const added = dialog.getByRole("list", { name: "已添加的模型" });
     await expect(added.getByRole("listitem")).toHaveText([
-      "model-one",
-      "model-two",
+      "model-one默认（128K）",
+      "model-two200K",
     ]);
     await dialog
       .getByRole("button", { name: "移除 model-one", exact: true })
@@ -510,11 +536,19 @@ for (const width of [375, 1180])
     });
     await modelName.fill("model-three");
     await modelName.press("Enter");
-    const context = dialog.getByRole("combobox", { name: "上下文窗口" });
+    const context = dialog.getByRole("combobox", {
+      name: "默认上下文窗口",
+      exact: true,
+    });
     await expect(context).toHaveText("128K");
     await context.click();
     await dialog.getByRole("option", { name: "1M", exact: true }).click();
     await expect(context).toHaveText("1M");
+    // Models without their own window follow the default.
+    await expect(added.getByRole("listitem")).toHaveText([
+      "model-two200K",
+      "model-three默认（1M）",
+    ]);
     expect(
       await page.evaluate(
         () => document.documentElement.scrollWidth <= innerWidth,
@@ -531,17 +565,30 @@ for (const width of [375, 1180])
     await expect(provider).toContainText("自定义 · 上下文 1M · 公司账号");
     await expect(
       provider.getByRole("list", { name: "网关 的模型" }).getByRole("listitem"),
-    ).toHaveText(["model-two测试", "model-three测试"]);
+    ).toHaveText(["model-two · 上下文 200K测试", "model-three测试"]);
     await expect(
       provider.getByRole("button", { name: "测试 model-two", exact: true }),
     ).toBeEnabled();
-    const { configured, requests } = await page.evaluate(() => {
+    const { configured, requests, reads } = await page.evaluate(() => {
       const w = window as unknown as {
         __configured: Array<Record<string, unknown>>;
         __requests: Array<Record<string, unknown>>;
+        __reads: Array<Record<string, unknown>>;
       };
-      return { configured: w.__configured, requests: w.__requests };
+      return {
+        configured: w.__configured,
+        requests: w.__requests,
+        reads: w.__reads,
+      };
     });
+    // models.dev is read without the key, from the connector's declared source.
+    expect(reads).toEqual([
+      {
+        owner: "extension.connector.models",
+        id: expect.any(String),
+        url: "https://models.dev/api.json",
+      },
+    ]);
     expect(configured).toHaveLength(1);
     expect(configured[0]).toMatchObject({
       owner: "extension.connector.models",

@@ -95,7 +95,9 @@ export function ExtensionDetails({
           <dt>系统权限</dt>
           <dd>
             {extCaps.length
-              ? extCaps.map(capabilityLabel).join("、")
+              ? extCaps
+                  .map((cap) => capabilityLabel(cap, extManifest))
+                  .join("、")
               : "无需原生能力"}
           </dd>
           <dt>运行资源</dt>

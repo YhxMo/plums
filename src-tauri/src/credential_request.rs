@@ -57,7 +57,7 @@ impl Slot<'_> {
     pub fn cancelled(&self) -> bool {
         *self.cancelled.borrow()
     }
-    async fn until_cancelled(&mut self) {
+    pub(crate) async fn until_cancelled(&mut self) {
         let _ = self.cancelled.wait_for(|cancelled| *cancelled).await;
     }
 }

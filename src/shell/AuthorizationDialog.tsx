@@ -91,7 +91,9 @@ export function AuthorizationDialog({
                 </code>
                 <ul>
                   {host.manifest(id).capabilities?.map((capability) => (
-                    <li key={capability}>{capabilityLabel(capability)}</li>
+                    <li key={capability}>
+                      {capabilityLabel(capability, host.manifest(id))}
+                    </li>
                   ))}
                 </ul>
               </section>

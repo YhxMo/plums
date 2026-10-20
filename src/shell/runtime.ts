@@ -134,6 +134,12 @@ export async function bootShell(
       ? { source: entry.url, version: host.manifest(id).version, protocols }
       : undefined;
   };
+  adapter.network.describe = (owner) => {
+    const id = owner.replace(/^extension\./, "");
+    return host.ids().includes(id)
+      ? host.manifest(id).networkSources
+      : undefined;
+  };
   for (const extension of application.extensions(preferences, save))
     host.install(extension, configurations[extension.manifest.id]);
   // Built-ins get only what this platform has (no keys in the browser preview).

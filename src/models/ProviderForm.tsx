@@ -1,5 +1,8 @@
 import { useId, useState } from "react";
-import type { ModelConnectionsApi } from "../../modules/models/extension";
+import type {
+  ListedModel,
+  ModelConnectionsApi,
+} from "../../modules/models/extension";
 import { chatTarget, normalizeBase } from "../../modules/models/addresses";
 import { contextChoices, CUSTOM } from "../../modules/models/presets";
 import { tokenLabel } from "../../modules/models/protocols";
@@ -28,6 +31,7 @@ export function fromPreset(
     protocol: preset.protocol,
     base: preset.base,
     models: [],
+    windows: {},
     maxTokens: null,
     context: preset.context,
   };
@@ -40,41 +44,88 @@ const draftOf = (provider: ProviderView): ProviderDraft => ({
   protocol: provider.protocol,
   base: provider.base,
   models: provider.models,
+  windows: provider.windows,
   maxTokens: provider.maxTokens,
   context: provider.context,
 });
 
-/** Model names of one provider: type to add, or pick from the fetched list. */
+const windowChoices = (...extra: number[]) =>
+  [...new Set<number>([...contextChoices, ...extra])]
+    .sort((a, b) => a - b)
+    .map((tokens) => ({ value: String(tokens), label: tokenLabel(tokens) }));
+
+/**
+ * Model names of one provider, each with its own window or the default:
+ * type to add, or pick from the fetched list.
+ */
 function ModelList({
   models,
+  windows,
+  context,
   disabled,
   onChange,
 }: {
   models: string[];
+  windows: Record<string, number>;
+  context: number;
   disabled: boolean;
-  onChange: (models: string[]) => void;
+  onChange: (patch: Pick<ProviderDraft, "models" | "windows">) => void;
 }) {
+  const without = (model: string) =>
+    Object.fromEntries(
+      Object.entries(windows).filter(([name]) => name !== model),
+    );
   const [name, setName] = useState("");
   const value = name.trim();
   const full = models.length >= MAX_MODELS;
   const add = () => {
     if (!value || models.includes(value) || full) return;
-    onChange([...models, value]);
+    onChange({ models: [...models, value], windows });
     setName("");
   };
   return (
     <>
       {models.length > 0 && (
-        <ul className={s.chips} aria-label="已添加的模型">
+        <ul className={s.modelList} aria-label="已添加的模型">
           {models.map((model) => (
             <li key={model}>
-              <span>{model}</span>
+              <span className={s.modelName}>{model}</span>
+              <span className={s.modelWindow}>
+                <Select
+                  label={`${model} 的上下文窗口`}
+                  value={
+                    Object.hasOwn(windows, model) ? String(windows[model]) : ""
+                  }
+                  disabled={disabled}
+                  options={[
+                    { value: "", label: `默认（${tokenLabel(context)}）` },
+                    ...windowChoices(
+                      ...(Object.hasOwn(windows, model)
+                        ? [windows[model]]
+                        : []),
+                    ),
+                  ]}
+                  onChange={(value) =>
+                    onChange({
+                      models,
+                      windows: value
+                        ? { ...windows, [model]: Number(value) }
+                        : without(model),
+                    })
+                  }
+                />
+              </span>
               <button
                 type="button"
                 className="icon-button"
                 aria-label={`移除 ${model}`}
                 disabled={disabled}
-                onClick={() => onChange(models.filter((m) => m !== model))}
+                onClick={() =>
+                  onChange({
+                    models: models.filter((m) => m !== model),
+                    windows: without(model),
+                  })
+                }
               >
                 <Icon name="close" size={14} />
               </button>
@@ -132,7 +183,7 @@ export function ProviderForm({
   const [draft, setDraft] = useState<ProviderDraft>(() =>
     provider ? draftOf(provider) : fromPreset(api, api.presets[0].id),
   );
-  const [fetched, setFetched] = useState<string[] | null>(null);
+  const [fetched, setFetched] = useState<ListedModel[] | null>(null);
   const [key, setKey] = useState("");
   const { busy, error, notice, run } = useAsyncAction();
   const set = (patch: Partial<ProviderDraft>) =>
@@ -346,8 +397,18 @@ export function ProviderForm({
           <ModelPicker
             available={fetched}
             added={draft.models}
-            onAdd={(names) => {
-              set({ models: [...draft.models, ...names] });
+            onAdd={(picked) => {
+              set({
+                models: [...draft.models, ...picked.map(({ name }) => name)],
+                windows: {
+                  ...draft.windows,
+                  ...Object.fromEntries(
+                    picked.flatMap(({ name, context }) =>
+                      context ? [[name, context]] : [],
+                    ),
+                  ),
+                },
+              });
               setFetched(null);
             }}
             onClose={() => setFetched(null)}
@@ -355,26 +416,23 @@ export function ProviderForm({
         )}
         <ModelList
           models={draft.models}
+          windows={draft.windows}
+          context={draft.context}
           disabled={busy}
-          onChange={(models) => set({ models })}
+          onChange={set}
         />
         <div className="field">
-          <span aria-hidden>上下文窗口</span>
+          <span aria-hidden>默认上下文窗口</span>
           <Select
-            label="上下文窗口"
+            label="默认上下文窗口"
             value={String(draft.context)}
             disabled={busy}
-            options={[...new Set<number>([...contextChoices, draft.context])]
-              .sort((a, b) => a - b)
-              .map((tokens) => ({
-                value: String(tokens),
-                label: tokenLabel(tokens),
-              }))}
+            options={windowChoices(draft.context)}
             onChange={(value) => set({ context: Number(value) })}
           />
           <span className={s.hint}>
-            按服务商文档填这些模型能接收的总 token 数，例如 Claude 为
-            1M。每次发送整段对话，服务商会缓存重复的部分；接近上限时一次丢弃较早的一批轮次。
+            模型能接收的总 token 数。获取列表时按 models.dev
+            为每个模型填好；没有填的模型用这里的默认值，可按服务商文档调整。每次发送整段对话，服务商会缓存重复的部分；接近上限时一次丢弃较早的一批轮次。
           </span>
         </div>
       </section>

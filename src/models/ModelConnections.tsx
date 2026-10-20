@@ -124,7 +124,14 @@ export function ModelConnections({ api }: { api: ModelConnectionsApi }) {
                     return (
                       <li key={model}>
                         <span className={s.summary}>
-                          <span>{model}</span>
+                          <span>
+                            {model}
+                            {Object.hasOwn(provider.windows, model) && (
+                              <span className={s.meta}>
+                                {` · 上下文 ${tokenLabel(provider.windows[model])}`}
+                              </span>
+                            )}
+                          </span>
                           {result && (
                             <span role="status" className={s.meta}>
                               {result}

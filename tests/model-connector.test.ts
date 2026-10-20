@@ -18,6 +18,7 @@ const deepseek: ProviderDraft = {
   protocol: "openai-chat",
   base: "https://api.deepseek.com",
   models: ["user-model-a", "user-model-b"],
+  windows: {},
   maxTokens: null,
   context: 128_000,
 };
@@ -31,9 +32,17 @@ const claude: ProviderDraft = {
   protocol: "anthropic-messages",
   base: "https://gateway.example",
   models: ["user-claude"],
+  windows: {},
   maxTokens: 512,
   context: 1_000_000,
 };
+/** models.dev's shape, trimmed to one service. */
+const catalogText = JSON.stringify({
+  deepseek: {
+    api: "https://api.deepseek.com",
+    models: { "deepseek-chat": { limit: { context: 1_048_576 } } },
+  },
+});
 const completion = (content: string) => ({
   status: 200,
   body: JSON.stringify({
@@ -71,6 +80,10 @@ async function fixture({
     async (_alias: string, _target: string, _path: string) =>
       ({ status: 404, body: "" }) as { status: number; body: string },
   );
+  const catalog = vi.fn(async (_url: string) => ({
+    status: 200,
+    body: catalogText,
+  }));
   let next = 0;
   let writeFailure: Error | undefined;
   let listFailures = 0;
@@ -116,6 +129,7 @@ async function fixture({
         });
         return { alias, status };
       }
+      if (name === "network.read") return catalog(request.url as string);
       if (name === "credential.request") {
         const item = connections.get(request.binding as string);
         if (!item)
@@ -164,6 +178,7 @@ async function fixture({
     "state.write",
     "credential.request",
     "credential.connect",
+    "network.read",
   ];
   await host.grant("connector.models", capabilities.filter(platform.available));
   await host.start("connector.models").catch(() => {});
@@ -179,6 +194,7 @@ async function fixture({
     connect,
     send,
     read,
+    catalog,
     states,
     connections,
     failNextWrite: () => void (writeFailure = new Error("磁盘已满")),
@@ -208,7 +224,7 @@ it("adds a provider with the key typed in the form and offers each of its models
   });
   expect(provider.id).toMatch(/^p-[a-z0-9]{8}$/);
   expect(states.get(owner)?.value).toEqual({
-    version: 5,
+    version: 6,
     providers: [{ ...deepseek, id: provider.id, alias: "c-00000000" }],
   });
   expect(chat().models()).toEqual(
@@ -644,14 +660,112 @@ it("fetches a provider's model list from the first path that has one", async () 
       data: [{ id: "deepseek-reasoner" }, { id: "deepseek-chat" }],
     }),
   });
+  // Windows come from models.dev, matched by the provider's address.
   await expect(api.fetchModels(id, signal())).resolves.toEqual([
-    "deepseek-chat",
-    "deepseek-reasoner",
+    { name: "deepseek-chat", context: 1_048_576 },
+    { name: "deepseek-reasoner" },
   ]);
   expect(read.mock.calls).toEqual([
     ["c-00000000", deepseekTarget, "/models"],
     ["c-00000000", deepseekTarget, "/v1/models"],
   ]);
+});
+
+it("reads models.dev once an hour and lists models without it when it fails", async () => {
+  const { api, read, catalog } = await fixture();
+  const id = (await api.save(deepseek, undefined, KEY)) as string;
+  const list = {
+    status: 200,
+    body: JSON.stringify({ data: [{ id: "deepseek-chat" }] }),
+  };
+  read.mockResolvedValue(list);
+  catalog.mockRejectedValueOnce(
+    Object.assign(new Error("读取超时。"), { outcome: "unknown" }),
+  );
+  await expect(api.fetchModels(id, signal())).resolves.toEqual([
+    { name: "deepseek-chat" },
+  ]);
+  // A failed read is tried again; a good one is kept.
+  for (let i = 0; i < 2; i++)
+    await expect(api.fetchModels(id, signal())).resolves.toEqual([
+      { name: "deepseek-chat", context: 1_048_576 },
+    ]);
+  expect(catalog.mock.calls).toEqual([
+    ["https://models.dev/api.json"],
+    ["https://models.dev/api.json"],
+  ]);
+  catalog.mockResolvedValueOnce({ status: 200, body: "{" });
+  vi.useFakeTimers({ now: Date.now() + 3_600_001, toFake: ["Date"] });
+  try {
+    await expect(api.fetchModels(id, signal())).resolves.toEqual([
+      { name: "deepseek-chat" },
+    ]);
+  } finally {
+    vi.useRealTimers();
+  }
+});
+
+it("trims each model's history to its own window", async () => {
+  const { api, chat, send } = await fixture();
+  const id = (await api.save(
+    { ...deepseek, windows: { "user-model-a": 1_000_000 } },
+    undefined,
+    KEY,
+  )) as string;
+  const history = Array.from({ length: 100 }, (_, i) => [
+    { role: "user" as const, text: `${i}` + "问".repeat(4000) },
+    { role: "agent" as const, text: `${i}` + "答".repeat(4000) },
+  ]).flat();
+  for (const model of ["user-model-a", "user-model-b"])
+    await chat().reply(
+      { model: `${id}/${model}`, history, input: "总结" },
+      signal(),
+    );
+  const [own, shared] = [0, 1].map(
+    (call) => (body(send, call).messages as unknown[]).length,
+  );
+  expect(own).toBe(201);
+  expect(shared).toBeLessThan(40);
+});
+
+it("drops a removed model's window and refuses one out of range", async () => {
+  const { api } = await fixture();
+  const id = await api.save(
+    {
+      ...deepseek,
+      models: ["user-model-a"],
+      windows: { "user-model-a": 200_000, gone: 200_000 },
+    },
+    undefined,
+    KEY,
+  );
+  expect(api.list()[0].windows).toEqual({ "user-model-a": 200_000 });
+  await expect(
+    api.save({ ...deepseek, windows: { "user-model-a": 8000 } }, id),
+  ).rejects.toThrow("模型的上下文窗口");
+  await expect(
+    api.save(
+      { ...deepseek, maxTokens: 64_000, windows: { "user-model-a": 32_000 } },
+      id,
+    ),
+  ).rejects.toThrow("最大输出须小于上下文窗口");
+});
+
+it("gives version 5 records no per-model windows", async () => {
+  const saved = {
+    version: 5,
+    providers: [
+      {
+        ...deepseek,
+        windows: undefined,
+        id: "p-aaaaaaaa",
+        alias: "c-00000000",
+      },
+    ],
+  };
+  const { api, states } = await fixture({ saved });
+  expect(api.list()[0]).toMatchObject({ windows: {}, context: 128_000 });
+  expect(states.get(owner)?.value).toBe(saved);
 });
 
 it("explains a refused key or a service without a model list", async () => {

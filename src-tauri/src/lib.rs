@@ -9,6 +9,7 @@ mod credentials;
 mod credentials_native;
 mod documents;
 mod ipc;
+mod network;
 mod storage;
 use serde::Serialize;
 use serde_json::Value;
@@ -22,10 +23,12 @@ fn platform_grant(
     state: tauri::State<'_, Broker>,
     documents: tauri::State<'_, documents::Documents>,
     requests: tauri::State<'_, credential_request::Requests>,
+    reads: tauri::State<'_, network::Reads>,
 ) -> Result<(), storage::StateErrorCode> {
     Broker::validate_grant(&owner, &capabilities)?;
-    // Any grant change ends send confirmations and the request in flight.
+    // Any grant change ends send confirmations and the requests in flight.
     requests.release(&owner);
+    reads.0.release(&owner);
     documents
         .grant_with(
             &owner,
@@ -87,6 +90,9 @@ macro_rules! native_commands {
             documents::document_read,
             documents::document_cancel,
             documents::document_revoke,
+            network::network_read,
+            network::network_abort,
+            network::network_release,
             crate::platform_grant,
             crate::platform_call,
             appearance::shell_set_theme
@@ -170,6 +176,18 @@ pub fn run() {
             })
             .build(),
     );
+    #[cfg(target_os = "android")]
+    let builder = builder.plugin(
+        tauri::plugin::Builder::<tauri::Wry, ()>::new("network")
+            .setup(|app, api| {
+                app.manage(network::AndroidNetwork(api.register_android_plugin(
+                    &app.config().identifier,
+                    "NetworkPlugin",
+                )?));
+                Ok(())
+            })
+            .build(),
+    );
     let builder = builder.invoke_handler(command_handler());
     builder
         .setup(|app| {
@@ -183,6 +201,7 @@ pub fn run() {
             app.manage(broker);
             app.manage(documents::Documents::default());
             app.manage(credential_request::Requests::default());
+            app.manage(network::Reads::default());
             Ok(())
         })
         .run(tauri::generate_context!())

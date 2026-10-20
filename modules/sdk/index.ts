@@ -44,6 +44,8 @@ export interface Manifest {
   credentialBindings?: Record<string, CredentialBindingDeclaration>;
   /** Connection templates the user completes with a target; requires `credential.connect`. */
   credentialProtocols?: Record<string, CredentialProtocol>;
+  /** HTTPS origins `network.read` may GET without credentials, such as `https://models.dev`; shown to the user. */
+  networkSources?: string[];
 }
 
 export interface Platform {
@@ -164,6 +166,7 @@ export type {
   CredentialConnectRequest,
   CredentialConnectResult,
 } from "./credential";
+export type { NetworkReadRequest, NetworkReadResponse } from "./network";
 export { migrateState, restorePreviousState } from "./state-migration";
 export type {
   StateMigration,

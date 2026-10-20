@@ -30,6 +30,7 @@ vi.mock("../src/platform", () => ({
       initialize: async () => {},
       initializationError: null as string | null,
     };
+    network = {};
     get documentsInitializationError() {
       return runtimeFixture.documentsError;
     }

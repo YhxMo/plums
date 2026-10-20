@@ -1,5 +1,6 @@
 import { DocumentAccess } from "./documents";
 import { CredentialAccess } from "./credentials";
+import { NetworkAccess } from "./network";
 import { isTauri } from "@tauri-apps/api/core";
 import { invokeNative } from "./native/invoke";
 import {
@@ -58,6 +59,7 @@ function browserState(raw: string | null): StoredState | null {
 export class PlatformAdapter implements Platform {
   readonly kind = isTauri() ? "native" : "browser";
   readonly credentials = new CredentialAccess();
+  readonly network = new NetworkAccess();
   failWrites = false;
   async setTheme(theme: Appearance) {
     await invokeNative("shell_set_theme", { theme });
@@ -92,6 +94,7 @@ export class PlatformAdapter implements Platform {
     await Promise.all([
       granted?.has("document.read") && this.revokeDocument(owner),
       granted?.has("credential.request") && this.credentials.release(owner),
+      granted?.has("network.read") && this.network.release(owner),
     ]);
   }
   available(capability: string) {
@@ -101,6 +104,7 @@ export class PlatformAdapter implements Platform {
       capability === "credential.connect"
     )
       return this.kind === "native" && this.credentials.supported;
+    if (capability === "network.read") return this.kind === "native";
     return ["state.read", "state.write", "platform.info"].includes(capability);
   }
   async grant(owner: string, capabilities: string[]) {
@@ -138,6 +142,8 @@ export class PlatformAdapter implements Platform {
       return this.credentials.request(owner, payload, signal);
     if (capability === "credential.connect")
       return this.credentials.connect(owner, payload);
+    if (capability === "network.read")
+      return this.network.read(owner, payload, signal);
     if (this.failWrites && capability === "state.write")
       throw platformRejection("注入的写入故障：原数据保持不变");
     if (this.kind === "native") {

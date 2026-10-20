@@ -23,13 +23,13 @@ pub struct Reply, rename_all = "camelCase" {
     pub body: String,
 }
 }
-/// Only a complete, non-redirect UTF-8 response within the cap is delivered;
-/// HTTP 4xx/5xx stay for the extension to interpret.
-pub fn accept(status: u16, body: Vec<u8>) -> Result<Reply, Fault> {
+/// Only a complete, non-redirect UTF-8 response within `limit` bytes is
+/// delivered; HTTP 4xx/5xx stay for the extension to interpret.
+pub fn accept(status: u16, body: Vec<u8>, limit: usize) -> Result<Reply, Fault> {
     if !(200..=599).contains(&status) || (300..400).contains(&status) {
         return Err(Fault::Unknown("status"));
     }
-    if body.len() > MAX_RESPONSE {
+    if body.len() > limit {
         return Err(Fault::Unknown("response-too-large"));
     }
     let body = String::from_utf8(body).map_err(|_| Fault::Unknown("response-encoding"))?;
@@ -38,7 +38,7 @@ pub fn accept(status: u16, body: Vec<u8>) -> Result<Reply, Fault> {
 
 #[cfg(desktop)]
 pub(crate) mod desktop {
-    use super::{accept, Fault, Reply, View, MAX_RESPONSE};
+    use super::{accept, Fault, Reply, View};
     use crate::credential_types::Authentication;
     use reqwest::header::{HeaderMap, HeaderName, HeaderValue, AUTHORIZATION, CONTENT_TYPE};
     use std::time::Duration;
@@ -89,13 +89,14 @@ pub(crate) mod desktop {
         map.insert(name, value);
         Ok(map)
     }
-    /// POSTs `body`, or GETs when there is none.
+    /// POSTs `body`, or GETs when there is none; the response may be up to `limit` bytes.
     pub async fn transmit(
         client: &reqwest::Client,
         target: &str,
         headers: HeaderMap,
         body: Option<String>,
         total: Duration,
+        limit: usize,
     ) -> Result<Reply, Fault> {
         let exchange = async {
             let failed = |_| Fault::Unknown("transport");
@@ -110,18 +111,18 @@ pub(crate) mod desktop {
             }
             if response
                 .content_length()
-                .is_some_and(|length| length > MAX_RESPONSE as u64)
+                .is_some_and(|length| length > limit as u64)
             {
                 return Err(Fault::Unknown("response-too-large"));
             }
             let mut bytes = Vec::new();
             while let Some(chunk) = response.chunk().await.map_err(failed)? {
-                if bytes.len() + chunk.len() > MAX_RESPONSE {
+                if bytes.len() + chunk.len() > limit {
                     return Err(Fault::Unknown("response-too-large"));
                 }
                 bytes.extend_from_slice(&chunk);
             }
-            accept(status, bytes)
+            accept(status, bytes, limit)
         };
         tokio::time::timeout(total, exchange)
             .await
@@ -148,7 +149,15 @@ pub async fn send(
     secret.fill(0);
     let client =
         desktop::client(true).map_err(|_| Fault::NotDispatched("transport-unavailable"))?;
-    desktop::transmit(&client, target, headers?, body, desktop::TOTAL).await
+    desktop::transmit(
+        &client,
+        target,
+        headers?,
+        body,
+        desktop::TOTAL,
+        MAX_RESPONSE,
+    )
+    .await
 }
 /// Dropping the request future closes the connection on desktop.
 #[cfg(not(target_os = "android"))]
@@ -202,7 +211,11 @@ pub async fn send(
         Some("ok") => {
             let status = result["httpStatus"].as_u64().unwrap_or(0);
             let body = result["body"].as_str().ok_or(Fault::Unknown("transport"))?;
-            accept(u16::try_from(status).unwrap_or(0), body.as_bytes().to_vec())
+            accept(
+                u16::try_from(status).unwrap_or(0),
+                body.as_bytes().to_vec(),
+                MAX_RESPONSE,
+            )
         }
         Some("not-dispatched") => Err(Fault::NotDispatched(code())),
         _ => Err(Fault::Unknown(code())),

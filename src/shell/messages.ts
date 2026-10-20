@@ -1,5 +1,6 @@
 import { ContractError, type ErrorCode } from "../../modules/sdk/errors";
 import type { WaitReason } from "../../modules/extension-host/lifecycle";
+import type { Manifest } from "../../modules/sdk";
 
 export const preservedMessage = (
   reason: string,
@@ -62,6 +63,7 @@ export function errorMessage(error: unknown): string {
     if (detail.startsWith("configuration")) return "扩展配置无效。";
     if (/^credential(?:Bindings|Protocols)/.test(detail))
       return "凭据绑定声明无效。";
+    if (detail.startsWith("networkSources")) return "联网来源声明无效。";
     if (detail.startsWith("theme")) return "主题声明无效。";
     return reason;
   }
@@ -97,7 +99,11 @@ export function stateMessage(state: { error?: string; wait?: WaitReason }) {
       return "扩展存在循环依赖。";
   }
 }
-export const capabilityLabel = (capability: string) =>
+/** `manifest` names the sites `network.read` may reach. */
+export const capabilityLabel = (
+  capability: string,
+  manifest?: Pick<Manifest, "networkSources">,
+) =>
   ({
     "state.read": "读取隔离状态",
     "state.write": "写入隔离状态",
@@ -106,6 +112,11 @@ export const capabilityLabel = (capability: string) =>
     "credential.request": "通过已授权连接发送请求",
     "credential.connect":
       "新建和管理自己的连接（地址与密钥须你在原生面板确认）",
+    "network.read": `读取公开网络资源（${
+      manifest?.networkSources
+        ?.map((source) => new URL(source).hostname)
+        .join("、") || "未声明来源"
+    }，不带密钥）`,
   })[capability] ?? capability;
 export const translateStatus = (status: string) =>
   ({

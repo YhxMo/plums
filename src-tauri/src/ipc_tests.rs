@@ -31,7 +31,8 @@ fn wire_enum_export_and_serde_agree() {
 #[test]
 fn feature_contract_matches_the_registered_command_set() {
     let output = ipc_typescript();
-    assert_eq!(output.matches(": { args:").count(), 20);
+    assert_eq!(output.matches(": { args:").count(), 23);
+    assert!(output.contains("network_read: { args: { owner: string; id: string; url: string }"));
     assert!(output.contains(
         "credential_request: { args: { owner: string; id: string; binding: string; body: string; path?: string | null }"
     ));

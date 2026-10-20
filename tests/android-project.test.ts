@@ -51,6 +51,10 @@ class MainActivity : TauriActivity() {
       new URL("../native/android/CredentialsPlugin.kt", import.meta.url),
       "utf8",
     ),
+    "native/android/NetworkPlugin.kt": readFileSync(
+      new URL("../native/android/NetworkPlugin.kt", import.meta.url),
+      "utf8",
+    ),
     [activity]: original,
     "src-tauri/gen/android/buildSrc/src/main/java/dev/plums/plums/kotlin/BuildTask.kt":
       'val executable = """node""";\nval args = listOf("tauri", "android", "android-studio-script");\n',
@@ -177,7 +181,7 @@ test("missing icon sources fail before generated templates are changed", () => {
   expect(readFileSync(join(root, activity), "utf8")).toBe(original);
 });
 
-test.each(["Appearance", "Documents", "Credentials"])(
+test.each(["Appearance", "Documents", "Credentials", "Network"])(
   "unknown %s plugin code is preserved before any template writes",
   (name) => {
     const { root, activity, original } = fixture();

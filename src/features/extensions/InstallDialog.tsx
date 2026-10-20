@@ -46,7 +46,9 @@ function PreviewDetails({ file, definition, replacing }: ImportPreview) {
         <dt>系统权限</dt>
         <dd>
           {manifest.capabilities?.length
-            ? manifest.capabilities.map(capabilityLabel).join("、")
+            ? manifest.capabilities
+                .map((cap) => capabilityLabel(cap, manifest))
+                .join("、")
             : "无需原生能力"}
         </dd>
         {bindings.length > 0 && (

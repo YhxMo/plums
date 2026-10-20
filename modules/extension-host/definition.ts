@@ -6,6 +6,7 @@ import {
   validateCredentialBindings,
   validateCredentialProtocols,
 } from "../sdk/credential-bindings";
+import { validateNetworkSources } from "../sdk/network";
 
 export function validateDefinition(
   value: unknown,
@@ -96,6 +97,7 @@ export function validateDefinition(
     manifest.credentialProtocols,
     manifest.capabilities,
   );
+  validateNetworkSources(manifest.networkSources, manifest.capabilities);
 }
 
 /** Modules execute as trusted code in the same JS environment. Import is not sandboxed. */

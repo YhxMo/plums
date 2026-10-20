@@ -23,9 +23,11 @@ export type ModelProvider = {
   base: string;
   /** Model names exactly as the service expects them; may be empty. */
   models: string[];
+  /** A model's own context window, from models.dev or the user. */
+  windows: Record<string, number>;
   /** Longest reply in tokens; null leaves it to the service. */
   maxTokens: number | null;
-  /** The models' context window in tokens; history is trimmed to fit it. */
+  /** Context window of models without their own; history is trimmed to fit. */
   context: number;
 };
 export type ProviderDraft = Omit<ModelProvider, "id" | "alias">;
@@ -97,11 +99,24 @@ export function draftProblem(draft: ProviderDraft) {
   )
     return "模型名须为 1–120 个字符，不含首尾空格。";
   if (new Set(draft.models).size !== draft.models.length) return "模型名重复。";
+  if (
+    !record(draft.windows) ||
+    Object.entries(draft.windows).some(
+      ([model, tokens]) =>
+        !draft.models.includes(model) || !integer(tokens, limits.context),
+    )
+  )
+    return `模型的上下文窗口须为 ${limits.context.join("–")} 的整数（token）。`;
   if (draft.maxTokens !== null && !integer(draft.maxTokens, limits.maxTokens))
     return `最大输出须为 ${limits.maxTokens.join("–")} 的整数，或留空由服务决定。`;
   if (!integer(draft.context, limits.context))
     return `上下文窗口须为 ${limits.context.join("–")} 的整数（token）。`;
-  if (draft.maxTokens !== null && draft.maxTokens >= draft.context)
+  if (
+    draft.maxTokens !== null &&
+    [draft.context, ...Object.values(draft.windows)].some(
+      (tokens) => draft.maxTokens! >= tokens,
+    )
+  )
     return "最大输出须小于上下文窗口。";
   return undefined;
 }
@@ -139,10 +154,16 @@ function fromVersion4({ turns: _turns, ...entry }: Record<string, unknown>) {
   };
 }
 
+/** Version 5 had one context window for all of a provider's models. */
+const fromVersion5 = (entry: Record<string, unknown>) => ({
+  ...entry,
+  windows: {},
+});
+
 function restore(value: unknown): ModelProvider[] {
   if (
     !record(value) ||
-    ![2, 3, 4, 5].includes(value.version as number) ||
+    ![2, 3, 4, 5, 6].includes(value.version as number) ||
     !Array.isArray(value.providers)
   )
     throw corrupt();
@@ -153,6 +174,7 @@ function restore(value: unknown): ModelProvider[] {
     if (record(entry) && version === 2) entry = fromVersion2(entry);
     if (record(entry) && version < 4) entry = fromVersion3(entry);
     if (record(entry) && version < 5) entry = fromVersion4(entry);
+    if (record(entry) && version < 6) entry = fromVersion5(entry);
     if (
       !record(entry) ||
       typeof entry.id !== "string" ||
@@ -222,12 +244,14 @@ export class ProviderStore {
   find(id: string) {
     return this.providers.find((provider) => provider.id === id);
   }
-  /** The provider and model behind a chat model id, if both still exist. */
+  /** The provider, model and its window behind a chat model id, if both still exist. */
   resolve(id: string) {
     const split = id.indexOf("/");
     const provider = split > 0 ? this.find(id.slice(0, split)) : undefined;
     const model = id.slice(split + 1);
-    return provider?.models.includes(model) ? { provider, model } : undefined;
+    return provider?.models.includes(model)
+      ? { provider, model, context: windowOf(provider, model) }
+      : undefined;
   }
   subscribe(listener: () => void) {
     this.listeners.add(listener);
@@ -254,7 +278,7 @@ export class ProviderStore {
   private async write(next: ModelProvider[]) {
     const receipt = (await this.call("state.write", {
       revision: this.revision,
-      value: { version: 5, providers: next },
+      value: { version: 6, providers: next },
     })) as StoredState;
     this.revision = receipt.revision;
     this.providers = next;
@@ -295,7 +319,16 @@ export class ProviderStore {
    * the saved key. Other edits, models included, only save the record.
    */
   async save(input: ProviderDraft, id?: string, key?: string): Promise<string> {
-    const draft = { ...input, base: normalizeBase(input.protocol, input.base) };
+    const draft = {
+      ...input,
+      base: normalizeBase(input.protocol, input.base),
+      // A removed model takes its window with it.
+      windows: Object.fromEntries(
+        Object.entries(input.windows ?? {}).filter(([model]) =>
+          input.models.includes(model),
+        ),
+      ),
+    };
     const problem = draftProblem(draft);
     if (problem) throw new Error(problem);
     if (key && !validKey(key))
@@ -324,6 +357,7 @@ export class ProviderStore {
     const next = {
       ...draft,
       models: [...draft.models],
+      windows: { ...draft.windows },
       id: existing?.id ?? newId(),
       alias: alias!,
     };
@@ -360,6 +394,15 @@ export class ProviderStore {
     return true;
   }
 }
+
+/** The model's own window, or its provider's. */
+export const windowOf = (
+  provider: Pick<ModelProvider, "windows" | "context">,
+  model: string,
+) =>
+  Object.hasOwn(provider.windows, model)
+    ? provider.windows[model]
+    : provider.context;
 
 export const presetOf = (
   provider: Pick<ModelProvider, "preset">,
