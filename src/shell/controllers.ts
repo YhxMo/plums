@@ -10,7 +10,7 @@ import type { Authorization } from "./AuthorizationDialog";
 import type { Experiments } from "../features/extensions/useExperiments";
 
 export type CredentialOperations = Pick<ShellOperations, "busy" | "operate">;
-export type DialogFeedback = Pick<ShellOperations, "busy" | "error">;
+export type DialogFeedback = Pick<ShellOperations, "busy">;
 export type TitleBarProps = {
   platformKind: Runtime["adapter"]["kind"];
   appearance: Pick<Appearance, "appearance" | "toggleTheme">;
@@ -32,7 +32,7 @@ export type ShellFeedbackProps = {
 };
 export type ShellDialogsProps = {
   host: Host;
-  operations: Pick<ShellOperations, "busy" | "error" | "operate">;
+  operations: Pick<ShellOperations, "busy" | "operate">;
   workspace: Pick<
     Workspace,
     "views" | "activeView" | "allViews" | "selectLayout"

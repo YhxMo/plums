@@ -18,7 +18,7 @@ export function ConfigurationDialog({
   onClose(): void;
   onSave(values: Record<string, ConfigurationValue>): Promise<void>;
 }) {
-  const { busy, error } = feedback;
+  const { busy } = feedback;
   const [configDraft, setConfigDraft] = useState<
     Record<string, ConfigurationValue>
   >(() => ({ ...host.configuration(configuring).value.values }));
@@ -89,12 +89,6 @@ export function ConfigurationDialog({
                 )}
               </label>
             ),
-          )}
-          {error && (
-            <p className="error" role="alert">
-              配置操作未完成：{error}
-              。扩展可能已停用，配置可能已保存；重载确认或修复后重新启用。
-            </p>
           )}
         </div>
         <footer className="dialog-actions">

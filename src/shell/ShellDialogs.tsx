@@ -11,7 +11,7 @@ export function ShellDialogs({
   appearance: settingsAppearance,
   navigation,
 }: ShellDialogsProps) {
-  const { busy, error, operate } = operations;
+  const { busy, operate } = operations;
   const { views, activeView } = workspace;
   const settings = navigation.dialog;
   const setSettings = navigation.setDialog;
@@ -78,11 +78,6 @@ export function ShellDialogs({
               navigation.openManager(diagnostics);
             }}
           />
-        )}
-        {error && (
-          <p role="alert" className="error">
-            {error}
-          </p>
         )}
       </div>
     </Dialog>

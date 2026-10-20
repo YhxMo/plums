@@ -2,6 +2,7 @@ import type { Agent, Message } from "../../modules/agents/contract";
 import { Avatar } from "./AgentList";
 import { Icon } from "../components/Icon";
 import s from "./ChatView.module.css";
+import { Tooltip } from "../components/Tooltip";
 
 export type MessageAction = "copy" | "resend" | "delete";
 
@@ -70,35 +71,38 @@ export function MessageRow({
       </p>
       {message && onAction && (
         <div className={s.messageActions} data-message-id={message.id}>
-          <button
-            className="icon-button"
-            aria-label={copied ? "已复制" : "复制"}
-            title={copied ? "已复制" : "复制"}
-            onClick={() => onAction("copy", message)}
-          >
-            <Icon name={copied ? "check" : "copy"} size={15} />
-          </button>
-          {user && (
+          <Tooltip label={copied ? "已复制" : "复制"}>
             <button
               className="icon-button"
-              aria-label="重新发送"
-              title="重新发送"
-              disabled={busy}
-              onClick={() => onAction("resend", message)}
+              aria-label={copied ? "已复制" : "复制"}
+              onClick={() => onAction("copy", message)}
             >
-              <Icon name="retry" size={15} />
+              <Icon name={copied ? "check" : "copy"} size={15} />
             </button>
+          </Tooltip>
+          {user && (
+            <Tooltip label="重新发送">
+              <button
+                className="icon-button"
+                aria-label="重新发送"
+                disabled={busy}
+                onClick={() => onAction("resend", message)}
+              >
+                <Icon name="retry" size={15} />
+              </button>
+            </Tooltip>
           )}
           {canDelete && (
-            <button
-              className="icon-button"
-              aria-label="删除"
-              title="删除"
-              disabled={busy}
-              onClick={() => onAction("delete", message)}
-            >
-              <Icon name="trash" size={15} />
-            </button>
+            <Tooltip label="删除">
+              <button
+                className="icon-button"
+                aria-label="删除"
+                disabled={busy}
+                onClick={() => onAction("delete", message)}
+              >
+                <Icon name="trash" size={15} />
+              </button>
+            </Tooltip>
           )}
         </div>
       )}

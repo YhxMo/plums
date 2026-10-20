@@ -5,6 +5,7 @@ import { formatTime } from "./time";
 import s from "./AgentList.module.css";
 import chatStyles from "./ChatView.module.css";
 import detailStyles from "./DetailPanel.module.css";
+import { Tooltip } from "../components/Tooltip";
 export function Avatar({
   agent,
   size = "normal",
@@ -63,14 +64,15 @@ export function AgentList({
       <div className={s.listHeading}>
         <h2>我的 Agent</h2>
         <span>{agents.length}</span>
-        <button
-          className="icon-button"
-          aria-label="添加"
-          title="添加 Agent"
-          onClick={(e) => onAdd(e.currentTarget)}
-        >
-          <Icon name="plus" />
-        </button>
+        <Tooltip label="添加 Agent">
+          <button
+            className="icon-button"
+            aria-label="添加"
+            onClick={(e) => onAdd(e.currentTarget)}
+          >
+            <Icon name="plus" />
+          </button>
+        </Tooltip>
       </div>
       {agents.length > 0 && (
         <label className={s.search}>

@@ -507,6 +507,8 @@ for (const width of [375, 1180])
     });
     await fetchModels.click();
     await expect(dialog.getByRole("alert")).toHaveText("请填写 API Key。");
+    // Errors pass on their own, without a close button.
+    await expect(dialog.getByRole("alert")).toBeHidden({ timeout: 15000 });
     const key = dialog.getByLabel("API Key", { exact: true });
     await expect(key).toHaveAttribute("type", "password");
     await key.fill(" sk-test-key ");
@@ -541,6 +543,18 @@ for (const width of [375, 1180])
       exact: true,
     });
     await expect(context).toHaveText("128K");
+    // The long explanation sits behind an info button, not under the field.
+    await expect(dialog.getByText(/^模型能接收的总 token 数/)).toBeHidden();
+    const info = dialog.getByRole("button", {
+      name: "默认上下文窗口说明",
+      exact: true,
+    });
+    await info.click();
+    await expect(dialog.getByRole("tooltip")).toContainText(
+      "模型能接收的总 token 数",
+    );
+    await info.click();
+    await expect(dialog.getByRole("tooltip")).toBeHidden();
     await context.click();
     await dialog.getByRole("option", { name: "1M", exact: true }).click();
     await expect(context).toHaveText("1M");

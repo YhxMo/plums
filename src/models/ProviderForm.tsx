@@ -14,9 +14,11 @@ import {
 } from "../../modules/models/providers";
 import { Icon } from "../components/Icon";
 import { Select } from "../components/Select";
+import { InfoTip } from "../components/Tooltip";
 import { useAsyncAction } from "../components/useAsyncAction";
 import { ModelPicker } from "./ModelPicker";
 import s from "./ModelConnections.module.css";
+import { ActionToast } from "../components/Toast";
 
 export function fromPreset(
   api: ModelConnectionsApi,
@@ -185,7 +187,7 @@ export function ProviderForm({
   );
   const [fetched, setFetched] = useState<ListedModel[] | null>(null);
   const [key, setKey] = useState("");
-  const { busy, error, notice, run } = useAsyncAction();
+  const { busy, error, notice, setError, setNotice, run } = useAsyncAction();
   const set = (patch: Partial<ProviderDraft>) =>
     setDraft((value) => ({ ...value, ...patch }));
   const preset = api.presets.find((p) => p.id === draft.preset);
@@ -247,7 +249,17 @@ export function ProviderForm({
           </p>
         ) : (
           <div className="field">
-            <span aria-hidden>预设服务商</span>
+            <span>
+              <span aria-hidden>预设服务商</span>
+              <InfoTip
+                label="服务商"
+                text={
+                  custom
+                    ? "自定义服务需要填写请求地址并选择 API 格式。"
+                    : "请求地址已预设，只需录入 API Key 并添加模型。"
+                }
+              />
+            </span>
             <Select
               label="服务商"
               value={draft.preset}
@@ -260,11 +272,6 @@ export function ProviderForm({
                 setDraft({ ...fromPreset(api, id), models: draft.models })
               }
             />
-            <span className={s.hint}>
-              {custom
-                ? "自定义服务需要填写请求地址并选择 API 格式。"
-                : "请求地址已预设，只需录入 API Key 并添加模型。"}
-            </span>
           </div>
         )}
         <div className={s.pair}>
@@ -422,7 +429,13 @@ export function ProviderForm({
           onChange={set}
         />
         <div className="field">
-          <span aria-hidden>默认上下文窗口</span>
+          <span>
+            <span aria-hidden>默认上下文窗口</span>
+            <InfoTip
+              label="默认上下文窗口"
+              text="模型能接收的总 token 数。获取列表时按 models.dev 为每个模型填好；没有填的模型用这里的默认值，可按服务商文档调整。每次发送整段对话，服务商会缓存重复的部分；接近上限时一次丢弃较早的一批轮次。"
+            />
+          </span>
           <Select
             label="默认上下文窗口"
             value={String(draft.context)}
@@ -430,18 +443,21 @@ export function ProviderForm({
             options={windowChoices(draft.context)}
             onChange={(value) => set({ context: Number(value) })}
           />
-          <span className={s.hint}>
-            模型能接收的总 token 数。获取列表时按 models.dev
-            为每个模型填好；没有填的模型用这里的默认值，可按服务商文档调整。每次发送整段对话，服务商会缓存重复的部分；接近上限时一次丢弃较早的一批轮次。
-          </span>
         </div>
       </section>
 
       <details className={s.advanced}>
         <summary>高级选项</summary>
-        <label className="field">
-          最大输出 token
+        <div className="field">
+          <span>
+            <label htmlFor={`${ids}-max-tokens`}>最大输出 token</label>
+            <InfoTip
+              label="最大输出 token"
+              text="一般留空。Anthropic 格式必须填写时按上下文窗口留出（最多 32K）。"
+            />
+          </span>
           <input
+            id={`${ids}-max-tokens`}
             type="number"
             min={limits.maxTokens[0]}
             max={limits.maxTokens[1]}
@@ -455,18 +471,17 @@ export function ProviderForm({
               })
             }
           />
-        </label>
-        <p className={s.hint}>
-          一般留空。Anthropic 格式必须填写时按上下文窗口留出（最多 32K）。
-        </p>
+        </div>
       </details>
 
-      {error && (
-        <p role="alert" className="error">
-          {error}
-        </p>
-      )}
-      {notice && <p role="status">{notice}</p>}
+      <ActionToast
+        error={error}
+        notice={notice}
+        onDone={() => {
+          setError("");
+          setNotice("");
+        }}
+      />
       <div className={s.footer}>
         <button
           type="button"

@@ -2,7 +2,7 @@ import { useState } from "react";
 import { diagnoseLayoutFallback } from "../../modules/shell/diagnostics";
 import type { ShellFeedbackProps } from "./controllers";
 import { Icon } from "../components/Icon";
-import { Toast } from "../components/Toast";
+import { ActionToast } from "../components/Toast";
 import layoutStyles from "./layout.module.css";
 export function ShellFeedback({
   runtime,
@@ -63,17 +63,14 @@ export function ShellFeedback({
           所选主题 {themeId} 暂不可用，已使用内置外观；再次启用该主题后恢复。
         </p>
       )}
-      {(error || notice) && (
-        <Toast
-          key={error || notice}
-          message={error || notice}
-          error={!!error}
-          onDone={() => {
-            setError("");
-            setNotice("");
-          }}
-        />
-      )}
+      <ActionToast
+        error={error}
+        notice={notice}
+        onDone={() => {
+          setError("");
+          setNotice("");
+        }}
+      />
     </>
   );
 }

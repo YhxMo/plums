@@ -12,7 +12,7 @@ import { ChatView } from "./ChatView";
 import { DetailPanel } from "./DetailPanel";
 import { EmptyState } from "./EmptyState";
 import { Dialog } from "../components/Dialog";
-import { Toast } from "../components/Toast";
+import { ActionToast } from "../components/Toast";
 import { useMediaQuery } from "../components/useMediaQuery";
 import { useAgentModals } from "./useAgentModals";
 import { AgentDialogs } from "./AgentDialogs";
@@ -61,7 +61,7 @@ export function AgentWorkspace({
     returnToAgent.current = null;
   }, [selected]);
   const modals = useAgentModals();
-  const { modal, error, notice, setError, setNotice, open, act } = modals;
+  const { error, notice, setError, setNotice, open, act } = modals;
   useEffect(
     () =>
       chrome.connect((id) => {
@@ -114,18 +114,16 @@ export function AgentWorkspace({
       void act(() => api.update(a.id, { pinned: !a.pinned }));
     else open({ action, agent: a }, source);
   }
-  const feedback =
-    (error || notice) && !modal ? (
-      <Toast
-        key={error || notice}
-        message={error || notice}
-        error={!!error}
-        onDone={() => {
-          setError("");
-          setNotice("");
-        }}
-      />
-    ) : null;
+  const feedback = (
+    <ActionToast
+      error={error}
+      notice={notice}
+      onDone={() => {
+        setError("");
+        setNotice("");
+      }}
+    />
+  );
   const detailContent = agent && (
     <DetailPanel
       agent={agent}

@@ -24,7 +24,6 @@ export function AgentDialogs({
     | "modal"
     | "name"
     | "busy"
-    | "error"
     | "roleCard"
     | "modalTrigger"
     | "setName"
@@ -43,7 +42,6 @@ export function AgentDialogs({
     name,
     setName,
     busy,
-    error,
     modalTrigger,
     open,
     closeModal,
@@ -224,11 +222,6 @@ export function AgentDialogs({
                 </p>
               </>
             )}
-            {error && (
-              <p role="alert" className="error">
-                {error}
-              </p>
-            )}
           </div>
           <footer className="dialog-actions">
             <button
@@ -285,11 +278,6 @@ export function AgentDialogs({
                   {modal.action === "remove"
                     ? `移除「${modal.agent.name}」并删除它在此应用中的本地会话？`
                     : "删除此会话及其本地消息？此操作不能撤销。"}
-                </p>
-              )}
-              {error && (
-                <p role="alert" className="error">
-                  {error}
                 </p>
               )}
             </div>

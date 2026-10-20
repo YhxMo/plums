@@ -19,6 +19,7 @@ import { MessageMenu } from "./MessageMenu";
 import { copyText } from "./clipboard";
 import { formatTime, TIME_GAP } from "./time";
 import s from "./ChatView.module.css";
+import { Tooltip } from "../components/Tooltip";
 export function ChatView({
   agent,
   provider,
@@ -216,26 +217,28 @@ export function ChatView({
         />
         <div className={s.composerBottom}>
           {busy ? (
-            <button
-              type="button"
-              className={`secondary ${s.composerButton}`}
-              aria-label={saving ? "正在保存…" : "停止处理"}
-              title={saving ? "正在保存…" : "停止处理"}
-              onClick={onCancel}
-              disabled={saving}
-            >
-              <Icon name="stop" size={16} />
-            </button>
+            <Tooltip label={saving ? "正在保存…" : "停止处理"}>
+              <button
+                type="button"
+                className={`secondary ${s.composerButton}`}
+                aria-label={saving ? "正在保存…" : "停止处理"}
+                onClick={onCancel}
+                disabled={saving}
+              >
+                <Icon name="stop" size={16} />
+              </button>
+            </Tooltip>
           ) : (
-            <button
-              type="submit"
-              className={s.composerButton}
-              aria-label="发送"
-              title="发送"
-              disabled={!draft.trim()}
-            >
-              <Icon name="arrowUp" size={18} />
-            </button>
+            <Tooltip label="发送">
+              <button
+                type="submit"
+                className={s.composerButton}
+                aria-label="发送"
+                disabled={!draft.trim()}
+              >
+                <Icon name="arrowUp" size={18} />
+              </button>
+            </Tooltip>
           )}
         </div>
       </form>

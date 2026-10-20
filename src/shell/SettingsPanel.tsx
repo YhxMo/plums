@@ -1,5 +1,6 @@
 import type { ShellDialogsProps } from "./controllers";
 import s from "./settings.module.css";
+import { Tooltip } from "../components/Tooltip";
 
 type Props = Pick<ShellDialogsProps["operations"], "busy" | "operate"> &
   Pick<ShellDialogsProps["workspace"], "views" | "activeView"> & {
@@ -52,18 +53,18 @@ export function SettingsPanel({
             使用内置外观
           </button>
           {themes.map((entry) => (
-            <button
-              disabled={busy}
-              key={entry.id}
-              aria-pressed={entry.id === themeId}
-              title={`${entry.id} · ${entry.owner}`}
-              onClick={() => void operate(() => selectTheme(entry.id))}
-            >
-              使用 {entry.label}
-              <small className="sr-only">
-                {entry.id} · {entry.owner}
-              </small>
-            </button>
+            <Tooltip key={entry.id} label={`${entry.id} · ${entry.owner}`}>
+              <button
+                disabled={busy}
+                aria-pressed={entry.id === themeId}
+                onClick={() => void operate(() => selectTheme(entry.id))}
+              >
+                使用 {entry.label}
+                <small className="sr-only">
+                  {entry.id} · {entry.owner}
+                </small>
+              </button>
+            </Tooltip>
           ))}
         </div>
       </div>

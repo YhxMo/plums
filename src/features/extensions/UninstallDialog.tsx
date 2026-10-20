@@ -13,7 +13,7 @@ export function UninstallDialog({
   onClose(): void;
   onUninstall(): Promise<void>;
 }) {
-  const { busy, error } = feedback;
+  const { busy } = feedback;
   return (
     <Dialog
       title="卸载扩展"
@@ -28,12 +28,6 @@ export function UninstallDialog({
           保留已保存的数据和模块文件，仅移除安装路径与授权；下次启动不会自动加载。同
           ID 重装后需重新授权。
         </p>
-        {error && (
-          <p className="error" role="alert">
-            卸载未完成：{error}
-            。扩展可能已停用；可重试，保存回执不明时请重新加载确认。
-          </p>
-        )}
       </div>
       <footer className="dialog-actions">
         <button className="secondary" disabled={busy} onClick={() => onClose()}>

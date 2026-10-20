@@ -8,6 +8,7 @@ import { tokenLabel } from "../../modules/models/protocols";
 import { useAsyncAction } from "../components/useAsyncAction";
 import { ProviderForm } from "./ProviderForm";
 import s from "./ModelConnections.module.css";
+import { ActionToast } from "../components/Toast";
 
 const statusLabel: Record<ProviderStatus, string> = {
   ready: "可用",
@@ -28,7 +29,7 @@ export function ModelConnections({ api }: { api: ModelConnectionsApi }) {
   // `null` lists; `""` is a new provider; otherwise the id being edited.
   const [editing, setEditing] = useState<string | null>(null);
   const [results, setResults] = useState<Record<string, string>>({});
-  const { busy, error, notice, setNotice, run } = useAsyncAction();
+  const { busy, error, notice, setError, setNotice, run } = useAsyncAction();
 
   const test = (provider: ProviderView, model: string) =>
     run(async () => {
@@ -155,12 +156,14 @@ export function ModelConnections({ api }: { api: ModelConnectionsApi }) {
           ))}
         </ul>
       )}
-      {error && (
-        <p role="alert" className="error">
-          {error}
-        </p>
-      )}
-      {notice && <p role="status">{notice}</p>}
+      <ActionToast
+        error={error}
+        notice={notice}
+        onDone={() => {
+          setError("");
+          setNotice("");
+        }}
+      />
       <button className={s.add} disabled={busy} onClick={() => setEditing("")}>
         添加服务商
       </button>

@@ -90,7 +90,7 @@ export function InstallDialog({
   onPreview(file: Blob): Promise<ImportPreview | undefined>;
   onImport(preview: ImportPreview): Promise<void>;
 }) {
-  const { busy, error } = feedback;
+  const { busy } = feedback;
   const [moduleUrl, setModuleUrl] = useState("");
   const [moduleId, setModuleId] = useState("");
   const [preview, setPreview] = useState<ImportPreview>();
@@ -183,11 +183,6 @@ export function InstallDialog({
               </form>
             </details>
           </>
-        )}
-        {error && (
-          <p className="error" role="alert">
-            {error}
-          </p>
         )}
       </div>
       <footer className="dialog-actions">

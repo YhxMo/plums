@@ -5,6 +5,7 @@ import { readRoleCardFile } from "../../modules/agents/role-card";
 import { useAsyncAction } from "../components/useAsyncAction";
 import { Icon } from "../components/Icon";
 import s from "./Onboarding.module.css";
+import { ActionToast } from "../components/Toast";
 
 export function RoleCardSettings({ api }: { api: AgentProvider }) {
   const subscribe = useCallback(
@@ -117,12 +118,14 @@ export function RoleCardSettings({ api }: { api: AgentProvider }) {
           )}
         </>
       )}
-      {error && (
-        <p role="alert" className="error">
-          {error}
-        </p>
-      )}
-      {notice && <p role="status">{notice}</p>}
+      <ActionToast
+        error={error}
+        notice={notice}
+        onDone={() => {
+          setError("");
+          setNotice("");
+        }}
+      />
     </div>
   );
 }

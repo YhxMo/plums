@@ -20,7 +20,7 @@ export function StopDialog({
   onClose(): void;
   onStop(): Promise<void>;
 }) {
-  const { busy, error } = feedback;
+  const { busy } = feedback;
   return (
     <Dialog
       title={`停用 ${name(id)}`}
@@ -38,11 +38,6 @@ export function StopDialog({
               {`${group.kind}「${group.users.map((user) => user.label).join("、")}」正在使用此扩展。停用后暂时不再使用它，重新启用后自动恢复。`}
             </p>
           ))}
-        {error && (
-          <p className="error" role="alert">
-            停用未完成：{error}
-          </p>
-        )}
       </div>
       <footer className="dialog-actions">
         <button className="secondary" disabled={busy} onClick={() => onClose()}>

@@ -20,6 +20,14 @@ import { errorMessage, stateMessage } from "../../shell/messages";
 import { useExtensionState } from "../../shell/useExtensionState";
 import type { ManagementInputs, ExtensionCardModel } from "./controllers";
 
+/** Names the step that failed, so the message reads on its own. */
+const failed =
+  (step: string, after = "") =>
+  (reason: unknown): never => {
+    const message = errorMessage(reason).replace(/。$/, "");
+    throw new Error(`${step}：${message}。${after}`);
+  };
+
 type ManagementDialog =
   | { kind: "install"; source: HTMLElement }
   | {
@@ -68,7 +76,10 @@ export function useExtensionManager(
         queued = false;
         return persistComposition(host, draft);
       }).catch((reason) =>
-        setError(`扩展启用状态未保存：${errorMessage(reason)}`),
+        // A failed operation already names this; keep its own wording.
+        setError(
+          (shown) => shown || `扩展启用状态未保存：${errorMessage(reason)}`,
+        ),
       );
     });
   }, [host, run, setError]);
@@ -249,7 +260,7 @@ export function useExtensionManager(
         }),
       stop: (id: string) =>
         operate(async () => {
-          await host.stop(id);
+          await host.stop(id).catch(failed("停用未完成"));
           close();
         }),
       uninstall: (id: string) =>
@@ -262,6 +273,11 @@ export function useExtensionManager(
               prepareUninstall,
               runtime.sources,
             ),
+          ).catch(
+            failed(
+              "卸载未完成",
+              "扩展可能已停用；可重试，保存回执不明时请重新加载确认。",
+            ),
           );
           removed.current = true;
           close();
@@ -269,7 +285,14 @@ export function useExtensionManager(
         }),
       configure: (id: string, values: Record<string, ConfigurationValue>) =>
         operate(async () => {
-          await run((draft) => configureExtension(host, draft, id, values));
+          await run((draft) =>
+            configureExtension(host, draft, id, values),
+          ).catch(
+            failed(
+              "配置操作未完成",
+              "扩展可能已停用，配置可能已保存；重载确认或修复后重新启用。",
+            ),
+          );
           close();
           setNotice("配置已保存并应用；未启用的扩展保持停用。");
         }),

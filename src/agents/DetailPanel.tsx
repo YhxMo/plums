@@ -10,6 +10,7 @@ import { Avatar } from "./AgentList";
 import { Icon } from "../components/Icon";
 import { Select } from "../components/Select";
 import s from "./DetailPanel.module.css";
+import { Tooltip } from "../components/Tooltip";
 export function DetailPanel({
   agent,
   provider,
@@ -58,15 +59,16 @@ export function DetailPanel({
     toggle?: boolean,
   ) => (
     <li key={extension.id} className={s.extensionRow}>
-      <button
-        className={s.extensionOpen}
-        title={extension.id}
-        aria-label={`查看扩展 ${extension.label}`}
-        onClick={() => onOpenExtension(extension.id)}
-      >
-        <span>{extension.label}</span>
-        <small>{extension.description ?? "Agent 本体，始终开启"}</small>
-      </button>
+      <Tooltip label={extension.id}>
+        <button
+          className={s.extensionOpen}
+          aria-label={`查看扩展 ${extension.label}`}
+          onClick={() => onOpenExtension(extension.id)}
+        >
+          <span>{extension.label}</span>
+          <small>{extension.description ?? "Agent 本体，始终开启"}</small>
+        </button>
+      </Tooltip>
       {toggle !== undefined && (
         <button
           role="switch"
