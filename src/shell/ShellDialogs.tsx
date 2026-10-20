@@ -59,7 +59,7 @@ export function ShellDialogs({
               height="56"
               alt=""
             />
-            <h3>Plums · 0.0.4</h3>
+            <h3>Plums · 0.2.0</h3>
             <p>通过扩展组合角色、能力和界面。</p>
             <p className="muted">
               本地调试原型。能力与数据格式由已启用的扩展提供；请在扩展详情核对来源、版本与权限。

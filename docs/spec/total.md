@@ -38,7 +38,7 @@ M2.0 已完成[限定重新基线与交付](archive/M2-baseline-2026-10-18.md)�
 
 ## 平台优先级与门槛调整
 
-先主攻 Mac＋Android 稳定第一版，最终覆盖 macOS、Android、iOS、Windows、Linux。当前 0.0.4 debug 原型不因此成为稳定产品；现有实证限于各报告列出的浏览器、Mac arm64 和 Android API36 ARM64 单配置模拟器。
+先主攻 Mac＋Android 稳定第一版，最终覆盖 macOS、Android、iOS、Windows、Linux。当前 0.2.0 debug 原型不因此成为稳定产品；现有实证限于各报告列出的浏览器、Mac arm64 和 Android API36 ARM64 单配置模拟器。
 
 iOS 资源/ESM/桥接/存储/生命周期的最小原生实验必须在 **M2.4 内、声明稳定 SDK 之前**完成。其目标是检验共享接口，不等于 iOS 产品完整验收。Android 真机与声明支持配置必须在稳定 Android 第一版发布前完成，本路线将首批配置验收安排在 M2.4。Windows/Linux 和更广配置在 M3 逐平台验收；模拟器、真机、浏览器与原生包分别留证。
 
