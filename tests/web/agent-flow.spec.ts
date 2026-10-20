@@ -629,10 +629,11 @@ test("service reply boundary rejects without losing draft and valid output survi
   await page.getByRole("button", { name: "发送", exact: true }).click();
   await expect(page.getByRole("alert")).toContainText("本次结果未保存");
   await expect(input).toHaveValue("oversized");
-  expect(await firstSessionMessageCount(page)).toBe(0);
+  expect(await firstSessionMessageCount(page, "Boundary")).toBe(0);
   await input.fill("boundary");
   await page.getByRole("button", { name: "发送", exact: true }).click();
   await expect(input).toHaveValue("");
+  await expect.poll(() => firstSessionMessageCount(page, "Boundary")).toBe(2);
   await page.reload();
   await page
     .getByRole("button", { name: "与 Boundary 交互", exact: true })

@@ -118,11 +118,21 @@ export function CredentialBindings({
             // Made by the extension from a protocol template; it re-enters keys itself.
             const own = managed && !declaration && /^c-/.test(alias);
             const revision = item?.revision ?? 0;
+            // Saving a key binds the declaration's target, so that is the one shown.
+            const target = declaration?.target ?? item!.declaration.target;
+            const saved = item?.declaration.target;
+            const moved = saved !== undefined && saved !== target;
             const disabled = operations.busy || unavailable;
             return (
               <div key={alias}>
                 <strong>{declaration?.label ?? item!.declaration.label}</strong>
-                <p>{item?.declaration.target ?? declaration!.target}</p>
+                <p>{target}</p>
+                {moved && (
+                  <p>
+                    已保存的连接仍指向 {saved}
+                    ，保存 API Key 后改为上面的地址。
+                  </p>
+                )}
                 {own ? (
                   <p>由扩展新建，在它的连接页面中修改或重新录入密钥。</p>
                 ) : (

@@ -106,6 +106,27 @@ it("keeps a conversation of several MB in 64 KiB pages, rewriting only its tail"
   ).toEqual([0, 1, 2, 3].flatMap((i) => [text(i), `回复：${text(i)}`]));
 });
 
+it("reads a long conversation's pages together, within the activation time", async () => {
+  const { platform } = memoryPlatform();
+  const host = await start(platform);
+  const agent = await provider(host).create({ name: "长上下文" });
+  for (let i = 0; i < 2; i++)
+    await provider(host).send(agent.id, "长".repeat(300_000));
+  // Each page read takes 50 ms; one after another, these ~60 pages would
+  // pass the Host's 800 ms activation limit.
+  const slow: Platform = {
+    ...platform,
+    async call(key, capability, payload, signal) {
+      if (capability === "state.read" && (payload as { key?: string })?.key)
+        await new Promise((resolve) => setTimeout(resolve, 50));
+      return platform.call(key, capability, payload, signal);
+    },
+  };
+  const restarted = await start(slow);
+  expect(restarted.inspect("agents.local").status).toBe("active");
+  expect(provider(restarted).list()[0].sessions[0].messages).toHaveLength(4);
+});
+
 it("saves more than 64 KiB in total across sessions and restores it", async () => {
   const { platform, states } = memoryPlatform();
   const host = await start(platform);

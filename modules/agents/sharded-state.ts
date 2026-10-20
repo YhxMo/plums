@@ -101,24 +101,28 @@ export class AgentState {
       !Array.isArray(doc.agents)
     )
       throw corrupt();
-    const agents: unknown[] = [];
-    for (const entry of doc.agents as unknown[]) {
-      if (!record(entry) || !Array.isArray(entry.sessions)) throw corrupt();
-      const sessions: unknown[] = [];
-      for (const session of entry.sessions as unknown[]) {
-        if (!record(session)) throw corrupt();
-        const { shard, pages, ...meta } = session;
-        const messages =
-          doc.version === 2
-            ? await this.readShard(shard)
-            : await this.readPages(
-                `${String(entry.id)}\n${String(meta.id)}`,
-                pages,
-              );
-        sessions.push({ ...meta, messages });
-      }
-      agents.push({ ...entry, sessions });
-    }
+    // All pages are read at once: a long conversation has dozens, and
+    // activation must finish within the Host's time limit.
+    const agents = await Promise.all(
+      (doc.agents as unknown[]).map(async (entry) => {
+        if (!record(entry) || !Array.isArray(entry.sessions)) throw corrupt();
+        const sessions = await Promise.all(
+          (entry.sessions as unknown[]).map(async (session) => {
+            if (!record(session)) throw corrupt();
+            const { shard, pages, ...meta } = session;
+            const messages =
+              doc.version === 2
+                ? await this.readShard(shard)
+                : await this.readPages(
+                    `${String(entry.id)}\n${String(meta.id)}`,
+                    pages,
+                  );
+            return { ...meta, messages };
+          }),
+        );
+        return { ...entry, sessions };
+      }),
+    );
     const restored = restoreAgents(agents);
     if (doc.version === 3) this.written = JSON.stringify(this.index(restored));
     return restored;
@@ -141,17 +145,18 @@ export class AgentState {
   private async readPages(slot: string, keys: unknown) {
     if (!Array.isArray(keys) || !keys.every((key) => typeof key === "string"))
       throw corrupt();
-    const parts: string[] = [];
-    for (const key of keys) {
-      const value = await this.read(key);
-      if (
-        !record(value) ||
-        value.version !== 2 ||
-        typeof value.part !== "string"
-      )
-        throw corrupt();
-      parts.push(value.part);
-    }
+    const parts = await Promise.all(
+      keys.map(async (key) => {
+        const value = await this.read(key);
+        if (
+          !record(value) ||
+          value.version !== 2 ||
+          typeof value.part !== "string"
+        )
+          throw corrupt();
+        return value.part;
+      }),
+    );
     const json = parts.join("");
     this.stored.set(slot, { json, parts, keys });
     try {

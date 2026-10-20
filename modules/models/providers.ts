@@ -259,6 +259,19 @@ export class ProviderStore {
     this.revision = receipt.revision;
     this.providers = next;
   }
+  /**
+   * A connection no provider uses, left when a new provider's key was saved
+   * but its record was not. Reusing it keeps failed saves from using up the
+   * connection limit, without a native delete prompt.
+   */
+  private spare() {
+    return this.credentials?.find(
+      (item) =>
+        item.status !== "pending" &&
+        item.status !== "delete-pending" &&
+        !this.providers.some((provider) => provider.alias === item.alias),
+    )?.alias;
+  }
   /** Saves the key for the draft's target, under `alias` when given. */
   private async connect(draft: ProviderDraft, key: string, alias?: string) {
     const result = (await this.call("credential.connect", {
@@ -306,7 +319,7 @@ export class ProviderStore {
       alias = await this.connect(
         draft,
         key,
-        status === "missing" ? undefined : alias,
+        !existing || status === "missing" ? this.spare() : alias,
       );
     const next = {
       ...draft,

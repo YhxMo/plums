@@ -60,17 +60,22 @@ export async function chooseLayout(page: Page, id: string) {
   await button.click();
   await expect(dialog).not.toBeVisible();
 }
-/** Messages saved for the first Agent's first session (they live in its shard). */
-export function firstSessionMessageCount(page: Page) {
-  return page.evaluate(() => {
+/** Messages saved for an Agent's first session, read from its stored pages. */
+export function firstSessionMessageCount(page: Page, agent: string) {
+  return page.evaluate((agent) => {
     const owner = "plums:m1:extension.agents.local";
     const index = JSON.parse(localStorage.getItem(owner)!).value;
-    // A shard is written only once the session has messages.
-    const shard = localStorage.getItem(
-      `${owner}+${index.agents[0].sessions[0].shard}`,
+    const entry = index.agents.find(
+      (item: { name: string }) => item.name === agent,
     );
-    return shard ? JSON.parse(shard).value.messages.length : 0;
-  });
+    const json = (entry.sessions[0].pages as string[])
+      .map(
+        (key) =>
+          JSON.parse(localStorage.getItem(`${owner}+${key}`)!).value.part,
+      )
+      .join("");
+    return json ? JSON.parse(json).length : 0;
+  }, agent);
 }
 
 /** Selects an extension's card and returns the details shown for it. */

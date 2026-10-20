@@ -274,6 +274,91 @@ test("connector key entry saves the typed key natively and recovers an unknown s
   ]);
 });
 
+test("rebinding shows and saves the address the extension now declares", async ({
+  page,
+}) => {
+  const old = "https://old.invalid/chat/completions";
+  await page.route("**/test-connector.js", (route) =>
+    route.fulfill({
+      contentType: "text/javascript",
+      body: `export default { manifest: { id: "sample.connector", version: "0.2.0", apiVersion: 1, capabilities: ["credential.request"], credentialBindings: { text: ${JSON.stringify(declaration)} } }, activate() {} };`,
+    }),
+  );
+  await page.addInitScript(
+    ({ declaration, old }) => {
+      const w = window as unknown as {
+        isTauri: boolean;
+        __TAURI_INTERNALS__: unknown;
+        __credentialPayloads: unknown[];
+      };
+      w.isTauri = true;
+      w.__credentialPayloads = [];
+      const source = "/test-connector.js";
+      // Saved by an earlier version that declared another address.
+      const records = [
+        {
+          owner: "extension.sample.connector",
+          alias: "text",
+          declaration: { ...declaration, target: old },
+          source,
+          version: "0.1.0",
+          revision: 1,
+          status: "ready",
+          route: { type: "direct" },
+        },
+      ];
+      const saved = {
+        revision: 1,
+        value: {
+          version: 1,
+          imports: [
+            { id: "sample.connector", label: "测试连接器", url: source },
+          ],
+        },
+      };
+      w.__TAURI_INTERNALS__ = {
+        invoke: async (command: string, args: { capability?: string }) => {
+          if (command === "credential_supported") return true;
+          if (
+            command === "credential_inventory" ||
+            command === "credential_list"
+          )
+            return records;
+          if (command === "credential_configure") {
+            w.__credentialPayloads.push(args);
+            return { status: "cancelled" };
+          }
+          if (command === "document_supported") return false;
+          if (command === "platform_call" && args.capability === "state.read")
+            return saved;
+        },
+      };
+    },
+    { declaration, old },
+  );
+  await page.goto("/");
+  await manage(page);
+  await page.getByText("测试连接器", { exact: true }).click();
+  const binding = page.getByRole("region", { name: "连接与凭据", exact: true });
+  await expect(binding).toContainText(declaration.target);
+  await expect(binding).toContainText(`已保存的连接仍指向 ${old}`);
+  await binding
+    .getByLabel(`${declaration.label} 的 API Key`)
+    .fill("sk-test-key");
+  await binding
+    .getByRole("button", { name: "更换 API Key", exact: true })
+    .click();
+  await expect(binding).toContainText("已取消");
+  const payloads = await page.evaluate(
+    () =>
+      (window as unknown as { __credentialPayloads: object[] })
+        .__credentialPayloads,
+  );
+  expect(payloads).toMatchObject([
+    { declaration: { target: declaration.target } },
+  ]);
+});
+
 for (const width of [375, 1180])
   test(`the model connection page adds a provider and picks models the service lists ${width}`, async ({
     page,

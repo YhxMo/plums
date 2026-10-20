@@ -348,6 +348,20 @@ it("never sends to an address whose record failed to save", async () => {
   expect(api.list()[0].status).toBe("ready");
 });
 
+it("reuses the connection of a new provider whose record failed to save", async () => {
+  const { api, connect, connections, failNextWrite } = await fixture();
+  failNextWrite();
+  await expect(api.save(deepseek, undefined, KEY)).rejects.toThrow("磁盘已满");
+  expect(api.list()).toEqual([]);
+  const [spare] = connections.keys();
+  // Retrying, or adding another provider, takes over that connection.
+  await api.save(claude, undefined, KEY);
+  expect(connect).toHaveBeenLastCalledWith(
+    expect.objectContaining({ alias: spare }),
+  );
+  expect(connections.size).toBe(1);
+  expect(api.list()[0]).toMatchObject({ alias: spare, status: "ready" });
+});
 it("does not keep showing or using a stale ready state when re-reading keys fails", async () => {
   const { api, chat, send, failLists } = await fixture();
   await api.save(deepseek, undefined, KEY);
