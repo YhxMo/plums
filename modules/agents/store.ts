@@ -187,6 +187,14 @@ export class AgentStore implements AgentProvider {
       a.extensions = on ? [...rest, extensionId] : rest;
     });
   }
+  setExtensions(agentId: string, extensionIds: string[]) {
+    const choices = this.extensionChoices();
+    if (extensionIds.some((id) => !choices.some((c) => c.id === id)))
+      return Promise.reject(new Error("扩展未启用，请先在扩展管理中启用它。"));
+    return this.change((agents) => {
+      this.find(agents, agentId).extensions = [...new Set(extensionIds)];
+    });
+  }
   setModel(agentId: string, model: AgentModel | null) {
     if (
       model &&
@@ -250,8 +258,23 @@ export class AgentStore implements AgentProvider {
   }
   async create(config: AgentConfig) {
     const clean = parseRoleCard(JSON.stringify(config));
+    const choices = this.extensionChoices();
+    if (config.extensions?.some((e) => !choices.some((c) => c.id === e)))
+      throw new Error("扩展未启用，请先在扩展管理中启用它。");
+    if (
+      config.model &&
+      !this.modelChoices().some((m) => sameModel(m, config.model!))
+    )
+      throw new Error("模型不可用，请先在模型连接中添加它。");
+    const [first] = this.modelChoices();
+    const model =
+      config.model === undefined
+        ? first && { provider: first.provider, model: first.id }
+        : config.model && {
+            provider: config.model.provider,
+            model: config.model.model,
+          };
     const session = newSession();
-    const [model] = this.modelChoices();
     const agent: Agent = {
       id: id(),
       name: clean.name,
@@ -259,15 +282,14 @@ export class AgentStore implements AgentProvider {
       status: "idle",
       pinned: false,
       extensionId: "agents.local",
-      ...(model
-        ? {
-            model: { provider: model.provider, model: model.id },
-            extensions: [],
-          }
-        : // Without any service yet, the first one enabled later is used.
-          this.extensionChoices().length && {
-            extensions: enabledExtensions({}, this.extensionChoices()),
-          }),
+      ...(model && { model }),
+      ...(config.extensions
+        ? { extensions: [...new Set(config.extensions)] }
+        : model
+          ? // With a model, text extensions become explicit post-processing.
+            { extensions: [] }
+          : // Without any service yet, the first one enabled later is used.
+            choices.length && { extensions: enabledExtensions({}, choices) }),
       capabilities: ["本地文本处理", "保存会话"],
       multiSession: clean.multiSession ?? false,
       sessions: [session],

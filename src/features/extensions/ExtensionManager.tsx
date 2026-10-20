@@ -6,7 +6,6 @@ import { ExtensionList } from "./ExtensionList";
 import { ExtensionDetails } from "./ExtensionDetails";
 import { ExtensionDialogs } from "./ExtensionDialogs";
 import { RetainedCredentialBindings } from "./CredentialBindings";
-import styles from "./ExtensionManager.module.css";
 
 export function ExtensionManager({
   controller,
@@ -32,19 +31,19 @@ export function ExtensionManager({
       <aside
         id="extension-manager"
         hidden={!controller.visible}
-        className={styles.inspector}
+        className="mx-2 mb-2 flex min-h-0 w-full flex-1 shrink-0 flex-col overflow-hidden rounded-xl bg-surface shadow-panel max-md:m-0 max-md:rounded-none max-md:shadow-none"
         aria-label="扩展管理"
       >
         <ManagerHeader controller={controller.header} />
-        <div className={styles.managerScroll}>
-          <div className={styles.managerPage}>
-            <div className={styles.managerMaster}>
+        <div className="min-h-0 flex-1 overflow-auto px-6 pt-4 pb-5 max-[1020px]:px-4 max-md:px-4">
+          <div className="mx-auto grid max-w-310 grid-cols-[minmax(320px,44%)_minmax(340px,56%)] items-start gap-5 max-[1020px]:grid-cols-1">
+            <div className="min-w-0">
               <ExtensionList
                 controller={controller.list}
                 selectedDetail={narrow ? details : undefined}
               />
             </div>
-            <div className={styles.managerDetailPane}>
+            <div className="sticky top-0 flex min-w-0 flex-col gap-3.5 max-[1020px]:static">
               {!narrow && details}
               {diagnostics}
               <RetainedCredentialBindings

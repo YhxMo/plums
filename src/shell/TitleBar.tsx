@@ -1,8 +1,10 @@
+import { MoonIcon, PanelRightIcon, SunIcon } from "lucide-react";
+import { AnimatePresence, motion } from "motion/react";
+import { cn } from "cn";
 import type { TitleBarProps } from "./controllers";
 import { SettingsMenu } from "../components/SettingsMenu";
-import { Icon } from "../components/Icon";
 import { Tooltip } from "../components/Tooltip";
-import styles from "./layout.module.css";
+import { Button } from "../components/ui/button";
 
 export function TitleBar({
   platformKind,
@@ -17,56 +19,79 @@ export function TitleBar({
     ? "扩展管理"
     : chrome.title ||
       (workspace.current?.chrome ? "" : workspace.current?.label || "工作空间");
-  const themeLabel =
-    appearance.appearance === "light" ? "切换到深色模式" : "切换到浅色模式";
+  const light = appearance.appearance === "light";
+  const themeLabel = light ? "切换到深色模式" : "切换到浅色模式";
   const isMacOverlay =
     platformKind === "native" && !/android/i.test(navigator.userAgent);
   return (
     <header
-      className={`${styles.header} ${isMacOverlay ? styles.macOverlayHeader : ""}`}
+      className={cn(
+        "sticky top-0 z-2 flex min-h-12 shrink-0 items-center justify-between gap-3 px-3 select-none max-md:min-h-14 max-md:border-b max-md:bg-surface max-md:px-4",
+        isMacOverlay && "pl-[78px] max-md:pl-[78px]",
+      )}
       data-tauri-drag-region
     >
-      <div className={styles.headerLeft} data-tauri-drag-region>
-        <div className={styles.brand} data-tauri-drag-region>
-          <img className={styles.logo} src="/brand/plums.png" alt="" />
-          <strong>Plums</strong>
+      <div
+        className="flex min-w-0 flex-1 items-center gap-2.5"
+        data-tauri-drag-region
+      >
+        <div
+          className="flex shrink-0 items-center gap-2"
+          data-tauri-drag-region
+        >
+          <img
+            className="size-6.5 rounded-md object-contain max-md:size-7.5"
+            src="/brand/plums.png"
+            alt=""
+          />
+          <strong className="text-[15px] font-semibold tracking-tight max-md:text-[17px]">
+            Plums
+          </strong>
         </div>
-        {title && (
-          <>
-            <span className={styles.topDivider} aria-hidden="true" />
-            <span className={styles.topTitle} data-tauri-drag-region>
-              {title}
-            </span>
-          </>
-        )}
+        <AnimatePresence mode="popLayout" initial={false}>
+          {title && (
+            <motion.span
+              key={title}
+              initial={{ opacity: 0, y: 4 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -4 }}
+              transition={{ duration: 0.16 }}
+              className="flex min-w-0 items-center gap-2.5"
+              data-tauri-drag-region
+            >
+              <span
+                aria-hidden="true"
+                className="h-3.5 w-px shrink-0 bg-border"
+              />
+              <span className="truncate text-[13px] font-medium text-muted-foreground">
+                {title}
+              </span>
+            </motion.span>
+          )}
+        </AnimatePresence>
       </div>
-      <div className={styles.headerRight}>
+      <div className="flex shrink-0 items-center gap-0.5">
         <Tooltip label={themeLabel}>
-          <button
-            className={`topbar-ghost ${styles.themeSwitch}`}
+          <Button
+            variant="ghost"
+            size="icon"
             aria-label={themeLabel}
             disabled={operations.busy}
             onClick={() => void operations.operate(appearance.toggleTheme)}
           >
-            <svg
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="1.6"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              aria-hidden="true"
-            >
-              {appearance.appearance === "light" ? (
-                <path d="M20.6 13.1A8.6 8.6 0 0 1 10.9 3.4a8.7 8.7 0 1 0 9.7 9.7Z" />
-              ) : (
-                <>
-                  <circle cx="12" cy="12" r="4" />
-                  <path d="M12 2v2m0 16v2M2 12h2m16 0h2M4.9 4.9l1.4 1.4m11.4 11.4 1.4 1.4M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4" />
-                </>
-              )}
-            </svg>
-          </button>
+            <AnimatePresence mode="wait" initial={false}>
+              <motion.span
+                key={light ? "moon" : "sun"}
+                initial={{ opacity: 0, rotate: -60, scale: 0.6 }}
+                animate={{ opacity: 1, rotate: 0, scale: 1 }}
+                exit={{ opacity: 0, rotate: 60, scale: 0.6 }}
+                transition={{ duration: 0.18 }}
+                className="grid place-items-center"
+              >
+                {light ? <MoonIcon /> : <SunIcon />}
+              </motion.span>
+            </AnimatePresence>
+          </Button>
         </Tooltip>
         <SettingsMenu
           views={workspace.allViews.filter(
@@ -84,14 +109,16 @@ export function TitleBar({
             chrome.custom ? `切换 ${chrome.custom.label}` : "展开或收起右侧栏"
           }
         >
-          <button
-            className={`topbar-ghost ${styles.sidebarToggle}`}
+          <Button
+            variant="ghost"
+            size="icon"
             aria-label="展开或收起右侧栏"
             aria-pressed={chrome.open}
+            className="aria-pressed:bg-muted aria-pressed:text-foreground"
             onClick={(event) => chrome.toggle(event.currentTarget)}
           >
-            <Icon name="sidebarList" size={18} />
-          </button>
+            <PanelRightIcon />
+          </Button>
         </Tooltip>
       </div>
     </header>

@@ -1,6 +1,8 @@
 import { useState } from "react";
 import type { DiagnosticActionsProps } from "../../shell/controllers";
-import styles from "./ExtensionManager.module.css";
+import { Button } from "../../components/ui/button";
+import { Checkbox } from "../../components/ui/checkbox";
+import { Label } from "../../components/ui/label";
 export function DiagnosticActions({
   runtime,
   operations,
@@ -16,18 +18,19 @@ export function DiagnosticActions({
   const [fault, setFault] = useState(false);
   return (
     <>
-      <button
-        className="secondary"
+      <Button
+        variant="secondary"
+        className="justify-self-start"
         disabled={busy || !experiments.available}
         onClick={(event) =>
           requestAuthorization(["workbench"], start, event.currentTarget)
         }
       >
         授予实验能力并启动
-      </button>
-      <div className={styles.diagnosticActions}>
-        <button
-          className="secondary"
+      </Button>
+      <div className="grid grid-cols-2 gap-2 max-md:grid-cols-1">
+        <Button
+          variant="outline"
           disabled={!started || busy}
           onClick={() =>
             void operate(async () => {
@@ -39,9 +42,9 @@ export function DiagnosticActions({
           }
         >
           替换服务
-        </button>
-        <button
-          className="secondary"
+        </Button>
+        <Button
+          variant="outline"
           disabled={!activeView || busy}
           onClick={() =>
             void operate(async () => {
@@ -55,9 +58,9 @@ export function DiagnosticActions({
           }
         >
           停用当前布局
-        </button>
-        <button
-          className="secondary"
+        </Button>
+        <Button
+          variant="outline"
           disabled={!started || busy}
           onClick={() =>
             void operate(async () => {
@@ -67,9 +70,9 @@ export function DiagnosticActions({
           }
         >
           测试故障布局
-        </button>
-        <button
-          className="secondary"
+        </Button>
+        <Button
+          variant="outline"
           disabled={!started || busy}
           onClick={(event) => {
             if (writeDenied)
@@ -88,19 +91,20 @@ export function DiagnosticActions({
           }}
         >
           {writeDenied ? "恢复状态写入" : "撤销状态写入"}
-        </button>
-        <label className={styles.checkbox}>
-          <input
-            type="checkbox"
+        </Button>
+        <Label className="col-span-full flex min-h-9 items-center gap-2 font-normal">
+          <Checkbox
             checked={fault}
-            onChange={(event) => {
-              adapter.failWrites = event.target.checked;
-              setFault(event.target.checked);
+            onCheckedChange={(checked) => {
+              adapter.failWrites = checked === true;
+              setFault(checked === true);
             }}
           />
           注入存储写入失败
-        </label>
-        <p>故障注入只用于本应用实验，不代表操作系统授权。</p>
+        </Label>
+        <p className="col-span-full text-xs text-muted-foreground">
+          故障注入只用于本应用实验，不代表操作系统授权。
+        </p>
       </div>
     </>
   );

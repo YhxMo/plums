@@ -1,6 +1,13 @@
-import { useEffect, useId, useRef, useState } from "react";
-import { Icon } from "./Icon";
-import s from "./Select.module.css";
+import { Fragment } from "react";
+import {
+  Select as SelectRoot,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectLabel,
+  SelectTrigger,
+  SelectValue,
+} from "./ui/select";
 
 export type SelectOption = {
   value: string;
@@ -11,10 +18,13 @@ export type SelectOption = {
   group?: string;
 };
 
+// Item values must be non-empty; an empty option value is a valid choice here.
+const key = (value: string) => `v:${value}`;
+
 /**
- * Single-choice picker styled like the app's menus (select-only combobox).
- * Focus stays on the button; arrows, Home/End, Enter/Space and Escape work
- * as in a native select, and Escape closes only the list.
+ * Single-choice picker with the app's menu styling. Arrows, Home/End,
+ * Enter/Space and typeahead work as in a native select; Escape and system
+ * Back close only the list, not the dialog around it.
  */
 export function Select({
   label,
@@ -31,148 +41,50 @@ export function Select({
   disabled?: boolean;
   placeholder?: string;
 }) {
-  const id = useId();
-  const root = useRef<HTMLDivElement>(null);
-  const [open, setOpen] = useState(false);
-  const [active, setActive] = useState(0);
-  const selected = options.findIndex((option) => option.value === value);
-  useEffect(() => {
-    if (!open) return;
-    const close = (e: PointerEvent) => {
-      if (!root.current?.contains(e.target as Node)) setOpen(false);
-    };
-    document.addEventListener("pointerdown", close);
-    return () => document.removeEventListener("pointerdown", close);
-  }, [open]);
-  useEffect(() => {
-    if (open)
-      document
-        .getElementById(`${id}-${active}`)
-        ?.scrollIntoView({ block: "nearest" });
-  }, [open, active, id]);
-  useEffect(() => {
-    if (disabled) setOpen(false);
-  }, [disabled]);
-
-  const show = () => {
-    setActive(Math.max(selected, 0));
-    setOpen(true);
-  };
-  const choose = (index: number) => {
-    setOpen(false);
-    const option = options[index];
-    if (option && option.value !== value) onChange(option.value);
-  };
-  const onKeyDown = (e: React.KeyboardEvent) => {
-    const last = options.length - 1;
-    if (!open) {
-      if (["ArrowDown", "ArrowUp", "Enter", " "].includes(e.key)) {
-        e.preventDefault();
-        show();
-      }
-      return;
-    }
-    const moves: Record<string, number> = {
-      ArrowDown: Math.min(active + 1, last),
-      ArrowUp: Math.max(active - 1, 0),
-      Home: 0,
-      End: last,
-    };
-    if (e.key in moves) {
-      e.preventDefault();
-      setActive(moves[e.key]);
-    } else if (e.key === "Enter" || e.key === " ") {
-      e.preventDefault();
-      choose(active);
-    } else if (e.key === "Escape") {
-      // Keep the surrounding dialog open.
-      e.preventDefault();
-      e.stopPropagation();
-      setOpen(false);
-    } else if (e.key === "Tab") setOpen(false);
-  };
-  const current = options[selected];
+  const selected = options.some((option) => option.value === value);
   return (
-    <div className={s.select} ref={root}>
-      <button
-        type="button"
-        role="combobox"
-        className={s.trigger}
-        aria-label={label}
-        aria-haspopup="listbox"
-        aria-expanded={open}
-        aria-controls={`${id}-list`}
-        aria-activedescendant={open ? `${id}-${active}` : undefined}
-        disabled={disabled}
-        onClick={() => (open ? setOpen(false) : show())}
-        onKeyDown={onKeyDown}
-      >
-        <span className={current ? undefined : s.placeholder}>
-          {current?.label ?? placeholder}
-        </span>
-        <Icon name="down" size={16} />
-      </button>
-      {open && (
-        <div
-          id={`${id}-list`}
-          role="listbox"
-          aria-label={label}
-          className={s.list}
-          // System Back dispatches Escape to the open list.
-          onKeyDown={onKeyDown}
-        >
-          {groups(options).map(({ group, items }) => {
-            const rows = items.map(({ option, index }) => (
-              <div
-                key={option.value}
-                id={`${id}-${index}`}
-                role="option"
-                aria-selected={index === selected}
-                className={s.option}
-                data-active={index === active || undefined}
-                onPointerDown={(e) => e.preventDefault()}
-                onPointerEnter={() => setActive(index)}
-                onClick={() => choose(index)}
-              >
-                <span className={s.text}>
-                  <span>{option.label}</span>
-                  {option.description && (
-                    <span className={s.description}>{option.description}</span>
-                  )}
-                </span>
-                {index === selected && <Icon name="check" size={16} />}
-              </div>
-            ));
-            return group === undefined ? (
-              rows
-            ) : (
-              <div
-                key={`group-${items[0].index}`}
-                role="group"
-                aria-label={group}
-              >
-                <div className={s.heading} aria-hidden>
-                  {group}
-                </div>
-                {rows}
-              </div>
-            );
-          })}
-        </div>
-      )}
-    </div>
+    <SelectRoot
+      value={selected ? key(value) : ""}
+      disabled={disabled}
+      onValueChange={(next) => {
+        const choice = next.slice(2);
+        if (choice !== value) onChange(choice);
+      }}
+    >
+      <SelectTrigger aria-label={label} className="w-full min-w-0 bg-card">
+        <SelectValue placeholder={placeholder} />
+      </SelectTrigger>
+      <SelectContent position="popper" aria-label={label}>
+        {groups(options).map(({ group, items }) => {
+          const rows = items.map((option) => (
+            <SelectItem
+              key={option.value}
+              value={key(option.value)}
+              description={option.description}
+            >
+              {option.label}
+            </SelectItem>
+          ));
+          return group === undefined ? (
+            <Fragment key={`rows-${items[0].value}`}>{rows}</Fragment>
+          ) : (
+            <SelectGroup key={`group-${items[0].value}`}>
+              <SelectLabel>{group}</SelectLabel>
+              {rows}
+            </SelectGroup>
+          );
+        })}
+      </SelectContent>
+    </SelectRoot>
   );
 }
 
 function groups(options: readonly SelectOption[]) {
-  const result: {
-    group?: string;
-    items: { option: SelectOption; index: number }[];
-  }[] = [];
-  options.forEach((option, index) => {
+  const result: { group?: string; items: SelectOption[] }[] = [];
+  for (const option of options) {
     const last = result.at(-1);
-    if (last && last.group === option.group) last.items.push({ option, index });
-    else result.push({ group: option.group, items: [{ option, index }] });
-  });
+    if (last && last.group === option.group) last.items.push(option);
+    else result.push({ group: option.group, items: [option] });
+  }
   return result;
 }

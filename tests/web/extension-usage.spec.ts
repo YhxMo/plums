@@ -155,7 +155,9 @@ test("each Agent picks its own model and the model receives the conversation so 
   await page
     .getByRole("button", { name: "启用 chat.echo", exact: true })
     .click();
-  await page.getByRole("button", { name: "返回工作区", exact: true }).click();
+  // Management opened from the connections page returns there.
+  await page.getByRole("button", { name: "返回模型连接", exact: true }).click();
+  await dialog.getByRole("button", { name: "关闭", exact: true }).click();
   await toggleDetails.click();
   const picker = page.getByRole("combobox", {
     name: "甲 使用的模型",

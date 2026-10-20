@@ -9,7 +9,8 @@ import type {
   CredentialManagementResponse,
 } from "../../credentials";
 import type { CredentialOperations } from "../../shell/controllers";
-import styles from "./SelectedDocuments.module.css";
+import { Button } from "../../components/ui/button";
+import { Input } from "../../components/ui/input";
 import { resultMessage } from "./credential-copy";
 
 const stateLabel = {
@@ -92,8 +93,11 @@ export function CredentialBindings({
     ]),
   ];
   return (
-    <section className={styles.documents} aria-label="连接与凭据">
-      <h3>连接与凭据</h3>
+    <section
+      className="mt-4 grid gap-3 border-t pt-4 text-[13px] leading-relaxed [overflow-wrap:anywhere]"
+      aria-label="连接与凭据"
+    >
+      <h3 className="text-[13px] font-semibold">连接与凭据</h3>
       {access.supported && access.initializationError && (
         <p role="status">
           初始化读取失败：{access.initializationError}
@@ -108,7 +112,7 @@ export function CredentialBindings({
         </p>
       ) : (
         <>
-          <p>
+          <p className="text-xs text-muted-foreground">
             API Key
             只保存在本机，用于向下方地址发送请求，保存后不再显示；保存本身不发送请求。当前版本只通过直连发送，设置了网络代理的连接会拒绝发送。
           </p>
@@ -124,9 +128,14 @@ export function CredentialBindings({
             const moved = saved !== undefined && saved !== target;
             const disabled = operations.busy || unavailable;
             return (
-              <div key={alias}>
+              <div
+                key={alias}
+                className="grid gap-1.5 rounded-lg bg-muted/50 p-3"
+              >
                 <strong>{declaration?.label ?? item!.declaration.label}</strong>
-                <p>{target}</p>
+                <p className="font-mono text-xs text-muted-foreground">
+                  {target}
+                </p>
                 {moved && (
                   <p>
                     已保存的连接仍指向 {saved}
@@ -155,7 +164,7 @@ export function CredentialBindings({
                 )}
                 {declaration && (
                   <form
-                    className={styles.actions}
+                    className="flex flex-wrap gap-2"
                     onSubmit={(event) => {
                       event.preventDefault();
                       const key = keys[alias]?.trim();
@@ -176,8 +185,9 @@ export function CredentialBindings({
                       );
                     }}
                   >
-                    <input
+                    <Input
                       type="password"
+                      className="min-w-0 flex-[1_1_200px] bg-background"
                       aria-label={`${declaration.label} 的 API Key`}
                       value={keys[alias] ?? ""}
                       maxLength={4096}
@@ -200,9 +210,9 @@ export function CredentialBindings({
                         }))
                       }
                     />
-                    <button
+                    <Button
                       type="submit"
-                      className="secondary"
+                      variant="outline"
                       disabled={
                         disabled ||
                         !keys[alias]?.trim() ||
@@ -213,15 +223,15 @@ export function CredentialBindings({
                       {item?.status === "ready"
                         ? "更换 API Key"
                         : "保存 API Key"}
-                    </button>
+                    </Button>
                   </form>
                 )}
-                <div className={styles.actions}>
+                <div className="flex flex-wrap gap-2">
                   {item && (
                     <>
                       {(declaration || own) && (
-                        <button
-                          className="secondary"
+                        <Button
+                          variant="outline"
                           disabled={
                             disabled || item.status === "delete-pending"
                           }
@@ -232,11 +242,11 @@ export function CredentialBindings({
                           }
                         >
                           网络设置
-                        </button>
+                        </Button>
                       )}
                       {item.status === "pending" && (
-                        <button
-                          className="secondary"
+                        <Button
+                          variant="outline"
                           disabled={disabled}
                           onClick={(event) =>
                             run(event.currentTarget, () =>
@@ -245,10 +255,10 @@ export function CredentialBindings({
                           }
                         >
                           核对保存状态
-                        </button>
+                        </Button>
                       )}
-                      <button
-                        className="secondary"
+                      <Button
+                        variant="outline"
                         disabled={disabled}
                         onClick={(event) =>
                           run(
@@ -261,7 +271,7 @@ export function CredentialBindings({
                         {item.status === "delete-pending"
                           ? "继续删除凭据"
                           : "撤销并删除凭据"}
-                      </button>
+                      </Button>
                     </>
                   )}
                 </div>
@@ -311,8 +321,11 @@ export function RetainedCredentialBindings({
   const owners = [...new Set(retained.map((item) => item.owner))];
   if (!owners.length && !failed) return null;
   return (
-    <section className={styles.documents} aria-label="卸载后保留的凭据">
-      <h3>卸载后保留的凭据</h3>
+    <section
+      className="grid gap-3 rounded-xl bg-card p-5 text-[13px] shadow-panel"
+      aria-label="卸载后保留的凭据"
+    >
+      <h3 className="text-[15px] font-semibold">卸载后保留的凭据</h3>
       {failed && <p role="status">凭据记录暂不可用，请重新启动后核对。</p>}
       {owners.map((owner) => {
         const first = retained.find((item) => item.owner === owner)!;

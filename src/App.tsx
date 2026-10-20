@@ -3,6 +3,7 @@ import { boot } from "./application";
 import type { Runtime } from "./shell/runtime";
 import { StartupScreen } from "./shell/StartupScreen";
 import { Workbench } from "./shell/Workbench";
+import { Toaster } from "./components/ui/sonner";
 
 type Startup =
   | { status: "loading" }
@@ -26,7 +27,13 @@ export function App() {
     };
   }, []);
   if (startup.status === "ready")
-    return <Workbench runtime={startup.runtime} />;
+    return (
+      <>
+        <Workbench runtime={startup.runtime} />
+        {/* Toasts raised outside any dialog; each dialog brings its own. */}
+        <Toaster position="top-center" />
+      </>
+    );
   return (
     <StartupScreen
       key={startup.status}

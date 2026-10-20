@@ -34,7 +34,7 @@ test("React views release cleanly across dialog, layout and extension lifecycles
   await page.getByRole("button", { name: "应用菜单", exact: true }).click();
   await page.getByRole("menuitem", { name: "应用设置", exact: true }).click();
   await page
-    .getByRole("button", { name: "使用 Agent 界面", exact: true })
+    .getByRole("radio", { name: "使用 Agent 界面", exact: true })
     .click();
   await manage(page);
   await page

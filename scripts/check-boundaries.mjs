@@ -90,6 +90,8 @@ const generic =
 // manager; R5 moves them out of the shell, then this exception goes away.
 const pendingDevTools =
   /^src\/features\/extensions\/(?:DiagnosticActions\.tsx|useExperiments\.ts)$/;
+// shadcn/ui sources name their variants "default"; they hold no view ids.
+const vendoredUI = /^src\/components\/ui\//;
 const businessViewIds = new Set([
   "agents",
   "default",
@@ -130,12 +132,15 @@ export function checkBoundaries(entries) {
       if (
         target &&
         ts.isStringLiteralLike(target) &&
-        /^(?:\.{1,2}(?:\/|$)|\/)/.test(target.text)
+        /^(?:\.{1,2}(?:\/|$)|\/|@\/)/.test(target.text)
       ) {
+        // `@/` is the Vite/TypeScript alias for src/ that shadcn/ui uses.
         const destination = posix.normalize(
-          target.text.startsWith("/")
-            ? target.text.slice(1)
-            : posix.join(posix.dirname(file), target.text),
+          target.text.startsWith("@/")
+            ? `src/${target.text.slice(2)}`
+            : target.text.startsWith("/")
+              ? target.text.slice(1)
+              : posix.join(posix.dirname(file), target.text),
         );
         if (!allowed.test(destination))
           problems.push(
@@ -145,6 +150,7 @@ export function checkBoundaries(entries) {
       if (
         generic.test(file) &&
         !pendingDevTools.test(file) &&
+        !vendoredUI.test(file) &&
         ts.isStringLiteralLike(node) &&
         businessViewIds.has(node.text)
       )

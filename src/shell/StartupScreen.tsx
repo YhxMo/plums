@@ -1,7 +1,9 @@
 import { useEffect, useRef, useState } from "react";
 import { recoverComposition } from "../../modules/shell/composition-recovery";
-import { Dialog } from "../components/Dialog";
-import styles from "./layout.module.css";
+import { motion } from "motion/react";
+import { Dialog, DialogActions, DialogBody } from "../components/Dialog";
+import { Button } from "../components/ui/button";
+import { Spinner } from "../components/ui/spinner";
 import { CompositionRecovery } from "./runtime";
 import { errorMessage } from "./messages";
 
@@ -23,30 +25,49 @@ export function StartupScreen({ reason }: { reason?: unknown }) {
   }, [confirmRecovery]);
   const [error, setError] = useState(reason ? errorMessage(reason) : "");
   return (
-    <main className={styles.loading}>
-      <img className={styles.logo} src="/brand/plums.png" alt="" />
-      <h1>Plums</h1>
-      <p role={error ? "alert" : "status"}>{error || "正在读取本地扩展…"}</p>
-      {error && (
-        <button
-          ref={reloadButton}
-          disabled={recovering}
-          onClick={() => location.reload()}
+    <main className="grid min-h-dvh place-items-center bg-sidebar p-6">
+      <motion.div
+        initial={{ opacity: 0, y: 8 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.3, ease: "easeOut" }}
+        className="flex max-w-md flex-col items-center gap-3 text-center"
+      >
+        <img
+          className="size-14 rounded-xl object-contain"
+          src="/brand/plums.png"
+          alt=""
+        />
+        <h1 className="text-2xl font-semibold tracking-tight">Plums</h1>
+        <p
+          role={error ? "alert" : "status"}
+          className="flex items-center gap-2 text-muted-foreground"
         >
-          重新加载
-        </button>
-      )}
-      {recovery && !recoveryLocked && (
-        <button
-          className="secondary"
-          onClick={(event) => {
-            recoveryTrigger.current = event.currentTarget;
-            setConfirmRecovery(true);
-          }}
-        >
-          恢复默认组合
-        </button>
-      )}
+          {!error && <Spinner />}
+          {error || "正在读取本地扩展…"}
+        </p>
+        <div className="mt-2 flex flex-wrap justify-center gap-2">
+          {error && (
+            <Button
+              ref={reloadButton}
+              disabled={recovering}
+              onClick={() => location.reload()}
+            >
+              重新加载
+            </Button>
+          )}
+          {recovery && !recoveryLocked && (
+            <Button
+              variant="outline"
+              onClick={(event) => {
+                recoveryTrigger.current = event.currentTarget;
+                setConfirmRecovery(true);
+              }}
+            >
+              恢复默认组合
+            </Button>
+          )}
+        </div>
+      </motion.div>
       {confirmRecovery && recovery && (
         <Dialog
           title="恢复默认组合"
@@ -55,23 +76,23 @@ export function StartupScreen({ reason }: { reason?: unknown }) {
             if (!recovering) setConfirmRecovery(false);
           }}
         >
-          <div className="dialog-content">
+          <DialogBody>
             <p>
               先独立备份原应用配置，再重置损坏的组合。角色、会话、外观、安装路径及扩展数据保留；重新加载后启动默认组合。
             </p>
             <p>
               备份保留在本地应用状态目录，不自动清理。此操作不能修复其他配置损坏。
             </p>
-          </div>
-          <footer className="dialog-actions">
-            <button
-              className="secondary"
+          </DialogBody>
+          <DialogActions>
+            <Button
+              variant="outline"
               disabled={recovering}
               onClick={() => setConfirmRecovery(false)}
             >
               取消
-            </button>
-            <button
+            </Button>
+            <Button
               disabled={recovering}
               onClick={() => {
                 setRecovering(true);
@@ -101,8 +122,8 @@ export function StartupScreen({ reason }: { reason?: unknown }) {
               }}
             >
               备份并重置组合
-            </button>
-          </footer>
+            </Button>
+          </DialogActions>
         </Dialog>
       )}
     </main>

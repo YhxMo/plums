@@ -84,11 +84,12 @@ for (const width of [375, 1440]) {
       .getByRole("button", { name: "设为特别关注", exact: true })
       .click();
     await page.getByRole("button", { name: "新建会话", exact: true }).click();
-    await expectConversationTitle(page, width, "编程助手", "未命名会话");
     await expect(
       page.getByRole("button", { name: "未命名会话", exact: true }),
     ).toBeVisible();
     await page.getByRole("button", { name: "收起详情" }).click();
+    // The phone details sheet is modal and hides the title bar until closed.
+    await expectConversationTitle(page, width, "编程助手", "未命名会话");
     await expect(sidebarToggle(page)).toHaveAttribute("aria-pressed", "false");
     await expect(page.getByRole("log")).not.toContainText("HELLO AGENT");
     await page.reload();
@@ -488,10 +489,13 @@ for (const theme of ["light", "dark"] as const) {
     await trigger.evaluate((button: HTMLButtonElement) => button.click());
     const dialog = page.getByRole("dialog", { name: "添加", exact: true });
     const close = dialog.getByRole("button", { name: "关闭", exact: true });
-    const outline = () =>
-      close.evaluate((button) => getComputedStyle(button).outlineStyle);
+    // Buttons show keyboard focus as a 3px ring.
+    const ring = () =>
+      close.evaluate((button) =>
+        getComputedStyle(button).boxShadow.includes(" 0px 0px 0px 3px"),
+      );
     await expect(close).toBeVisible();
-    expect(await outline()).toBe("none");
+    expect(await ring()).toBe(false);
     await close.hover();
     await expect
       .poll(() =>
@@ -499,10 +503,10 @@ for (const theme of ["light", "dark"] as const) {
       )
       .not.toBe("rgba(0, 0, 0, 0)");
     await page.mouse.move(1, 1);
-    expect(await outline()).toBe("none");
+    expect(await ring()).toBe(false);
     await page.keyboard.press("Tab");
     await expect(close).toBeFocused();
-    expect(await outline()).toBe("solid");
+    await expect.poll(ring).toBe(true);
     await page.keyboard.press("Escape");
     await expect(dialog).not.toBeVisible();
     await expect(trigger).toBeFocused();
@@ -578,7 +582,7 @@ test("settings reports rejected layout and theme writes inside the modal and ret
   const dialog = page.getByRole("dialog", { name: "应用设置", exact: true });
   const before = await page.locator("html").getAttribute("data-theme");
   await dialog
-    .getByRole("button", { name: "使用 Agent 界面", exact: true })
+    .getByRole("radio", { name: "使用 Agent 界面", exact: true })
     .click();
   await expect(dialog.getByRole("alert")).toContainText("注入的写入故障");
   await dialog.getByRole("button", { name: /切换到.*模式/ }).click();
@@ -590,7 +594,7 @@ test("settings reports rejected layout and theme writes inside the modal and ret
   await dialog.getByRole("button", { name: /切换到.*模式/ }).click();
   await expect(page.locator("html")).not.toHaveAttribute("data-theme", before!);
   await dialog
-    .getByRole("button", { name: "使用 Agent 界面", exact: true })
+    .getByRole("radio", { name: "使用 Agent 界面", exact: true })
     .click();
   await expect(dialog).not.toBeVisible();
 });

@@ -1,29 +1,121 @@
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
+import { EllipsisIcon, PlusIcon, SearchIcon, StarIcon } from "lucide-react";
+import { AnimatePresence, motion } from "motion/react";
 import type { Agent } from "../../modules/agents/contract";
-import { Icon } from "../components/Icon";
 import { formatTime } from "./time";
-import s from "./AgentList.module.css";
-import chatStyles from "./ChatView.module.css";
-import detailStyles from "./DetailPanel.module.css";
+import { Avatar } from "./Avatar";
+import { AgentMenuItems, type AgentAction } from "./AgentMenu";
 import { Tooltip } from "../components/Tooltip";
-export function Avatar({
-  agent,
-  size = "normal",
+import { Button } from "../components/ui/button";
+import { Badge } from "../components/ui/badge";
+import {
+  InputGroup,
+  InputGroupAddon,
+  InputGroupInput,
+} from "../components/ui/input-group";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuTrigger,
+} from "../components/ui/dropdown-menu";
+import {
+  ContextMenu,
+  ContextMenuContent,
+  ContextMenuTrigger,
+} from "../components/ui/context-menu";
+
+// Rows leave at once: a removed row may hold the focus a dialog returns to.
+const enter = {
+  initial: { opacity: 0, y: 6 },
+  animate: { opacity: 1, y: 0 },
+  transition: { duration: 0.18, ease: "easeOut" },
+} as const;
+
+function AgentRow({
+  agent: a,
+  selected,
+  onSelect,
+  onAction,
 }: {
   agent: Agent;
-  size?: "normal" | "large";
+  selected: boolean;
+  onSelect: () => void;
+  onAction: (action: AgentAction, source: HTMLElement | null) => void;
 }) {
+  const more = useRef<HTMLButtonElement>(null);
+  const session = a.sessions.find((x) => x.id === a.currentSessionId);
+  const lastAt = session?.messages.length
+    ? (session.messages.at(-1)?.at ?? session.lastMessageAt)
+    : undefined;
+  const act = (action: AgentAction) => onAction(action, more.current);
   return (
-    <span
-      className={`${s.avatar} ${chatStyles.avatar} ${detailStyles.avatar} ${size === "large" ? s.avatarLarge : ""}`}
-    >
-      <Icon
-        name={agent.multiSession ? "code" : "document"}
-        size={size === "large" ? 30 : 22}
-      />
-    </span>
+    <ContextMenu>
+      <ContextMenuTrigger asChild>
+        <motion.div
+          layout="position"
+          {...enter}
+          className="group/row relative my-0.5 flex items-center rounded-lg transition-colors hover:bg-sidebar-accent data-[selected=true]:bg-sidebar-primary data-[selected=true]:shadow-panel"
+          data-selected={selected}
+        >
+          <button
+            className="flex min-w-0 flex-1 items-center gap-2.5 rounded-lg py-2 pr-1.5 pl-2.5 text-left outline-none focus-visible:ring-3 focus-visible:ring-ring/50 md:pointer-fine:pr-2.5 max-md:py-2.5"
+            data-agent-id={a.id}
+            onClick={onSelect}
+            aria-label={`与 ${a.name} 交互`}
+          >
+            <Avatar agent={a} />
+            <span className="flex min-w-0 flex-1 flex-col gap-0.5">
+              <span className="flex min-w-0 items-baseline justify-between gap-2">
+                <strong className="truncate text-[13px] font-medium max-md:text-[15px]">
+                  {a.name}
+                </strong>
+                <span className="min-w-7 shrink-0 text-right text-[11px] text-muted-foreground transition-opacity md:pointer-fine:group-hover/row:opacity-0 md:pointer-fine:group-focus-within/row:opacity-0 md:pointer-fine:group-has-aria-expanded/row:opacity-0">
+                  {lastAt !== undefined && formatTime(lastAt, undefined, true)}
+                </span>
+              </span>
+              <span className="truncate text-xs text-muted-foreground max-md:text-[13px]">
+                {session?.messages.at(-1)?.text || a.description}
+              </span>
+            </span>
+            {a.status === "busy" && (
+              <span
+                className="relative ml-auto flex size-2 shrink-0"
+                aria-label="运行中"
+              >
+                <span className="absolute inline-flex size-full animate-ping rounded-full bg-running opacity-60 motion-reduce:hidden" />
+                <span className="relative inline-flex size-2 rounded-full bg-running" />
+              </span>
+            )}
+          </button>
+          <DropdownMenu modal={false}>
+            <DropdownMenuTrigger asChild>
+              <Button
+                ref={more}
+                variant="ghost"
+                size="icon-sm"
+                className="mr-1 shrink-0 pointer-fine:opacity-0 pointer-fine:group-hover/row:opacity-100 pointer-fine:group-focus-within/row:opacity-100 pointer-fine:aria-expanded:opacity-100 md:pointer-fine:absolute md:pointer-fine:top-1.5 md:pointer-fine:right-1.5 md:pointer-fine:m-0"
+                aria-label={`${a.name} 的操作`}
+              >
+                <EllipsisIcon />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent
+              align="end"
+              className="w-44"
+              aria-label={`${a.name} 的操作菜单`}
+            >
+              <AgentMenuItems agent={a} kind="dropdown" onAction={act} />
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </motion.div>
+      </ContextMenuTrigger>
+      <ContextMenuContent className="w-44" aria-label={`${a.name} 的操作菜单`}>
+        <AgentMenuItems agent={a} kind="context" onAction={act} />
+      </ContextMenuContent>
+    </ContextMenu>
   );
 }
+
 export function AgentList({
   agents,
   selected,
@@ -37,229 +129,124 @@ export function AgentList({
   onAdd: (source: HTMLElement) => void;
   onAction: (
     agent: Agent,
-    action: "pin" | "rename" | "remove",
+    action: AgentAction,
     source: HTMLElement | null,
   ) => void;
 }) {
   const [query, setQuery] = useState("");
-  const [menu, setMenu] = useState<string | null>(null);
-  const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
-  const root = useRef<HTMLElement>(null);
-  useEffect(() => {
-    if (!menu) return;
-    const popup = root.current?.querySelector<HTMLElement>("[role=menu]");
-    popup?.querySelector<HTMLElement>("[role=menuitem]")?.focus();
-    const close = (event: PointerEvent) => {
-      if (!popup?.parentElement?.contains(event.target as Node)) setMenu(null);
-    };
-    document.addEventListener("pointerdown", close);
-    return () => document.removeEventListener("pointerdown", close);
-  }, [menu]);
   const shown = agents.filter((a) =>
     a.name.toLowerCase().includes(query.toLowerCase()),
   );
   const pinned = shown.filter((a) => a.pinned);
   return (
-    <aside ref={root} className={s.agentList} aria-label="Agent 列表">
-      <div className={s.listHeading}>
-        <h2>我的 Agent</h2>
-        <span>{agents.length}</span>
+    <aside
+      className="flex h-full min-h-0 w-full flex-col"
+      aria-label="Agent 列表"
+    >
+      <div className="flex items-center gap-1.5 pt-1 pr-2 pb-2 pl-3.5 max-md:px-5 max-md:pt-4 max-md:pb-3">
+        <h2 className="text-[13px] font-semibold max-md:text-lg">我的 Agent</h2>
+        <Badge variant="secondary" className="bg-sidebar-accent">
+          {agents.length}
+        </Badge>
         <Tooltip label="添加 Agent">
-          <button
-            className="icon-button"
+          <Button
+            variant="ghost"
+            size="icon"
+            className="ml-auto"
             aria-label="添加"
             onClick={(e) => onAdd(e.currentTarget)}
           >
-            <Icon name="plus" />
-          </button>
+            <PlusIcon />
+          </Button>
         </Tooltip>
       </div>
       {agents.length > 0 && (
-        <label className={s.search}>
-          <Icon name="search" size={17} />
-          <input
-            aria-label="搜索 Agent"
-            placeholder="搜索 Agent"
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-          />
-        </label>
+        <div className="px-2.5 pb-2 max-md:px-4">
+          <InputGroup className="h-8 bg-card/70 shadow-panel max-md:h-11 dark:bg-card/40">
+            <InputGroupAddon>
+              <SearchIcon />
+            </InputGroupAddon>
+            <InputGroupInput
+              aria-label="搜索 Agent"
+              placeholder="搜索 Agent"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+            />
+          </InputGroup>
+        </div>
       )}
-      <div className={s.listScroll}>
-        {pinned.length > 0 && (
-          <section className={s.pinned}>
-            <h3>特别关注</h3>
-            <div className={s.pinnedGrid}>
-              {pinned.map((a) => (
-                <button
-                  key={a.id}
-                  data-agent-id={a.id}
-                  className={s.pinnedAgent}
-                  aria-label={`打开 ${a.name}`}
-                  aria-pressed={selected === a.id}
-                  onClick={() => onSelect(a.id)}
-                >
-                  <span className={s.pinAvatar}>
-                    <Avatar agent={a} size="large" />
-                    <span className={s.star}>
-                      <Icon name="star" size={12} />
-                    </span>
-                  </span>
-                  <span>{a.name}</span>
-                </button>
-              ))}
-            </div>
-          </section>
-        )}
-        {agents.length > 0 && <h3 className={s.sectionLabel}>全部 Agent</h3>}
-        {shown.map((a) => {
-          const session = a.sessions.find((x) => x.id === a.currentSessionId);
-          const lastAt = session?.messages.length
-            ? (session.messages.at(-1)?.at ?? session.lastMessageAt)
-            : undefined;
-          return (
-            <div
-              className={s.agentRow}
-              data-selected={selected === a.id}
-              key={a.id}
-              onContextMenu={(e) => {
-                e.preventDefault();
-                setMenu(a.id);
-              }}
-              onPointerDown={(e) => {
-                if (e.pointerType === "touch")
-                  timer.current = setTimeout(() => setMenu(a.id), 550);
-              }}
-              onPointerUp={() => clearTimeout(timer.current)}
-              onPointerCancel={() => clearTimeout(timer.current)}
-              onPointerMove={() => clearTimeout(timer.current)}
+      <div className="min-h-0 flex-1 overflow-y-auto px-2 pb-3 max-md:px-3 max-md:pb-5">
+        <AnimatePresence initial={false}>
+          {pinned.length > 0 && (
+            <motion.section
+              {...enter}
+              exit={{ opacity: 0, height: 0 }}
+              key="pinned"
+              className="mb-2 overflow-hidden"
             >
-              <button
-                className={s.agentMain}
-                data-agent-id={a.id}
-                onClick={() => onSelect(a.id)}
-                aria-label={`与 ${a.name} 交互`}
-              >
-                <Avatar agent={a} />
-                <span className={s.agentCopy}>
-                  <span className={s.rowTop}>
-                    <strong>{a.name}</strong>
-                    <span className={s.rowTime}>
-                      {lastAt !== undefined &&
-                        formatTime(lastAt, undefined, true)}
+              <h3 className="px-2 pt-1 pb-1.5 text-[11px] font-medium text-muted-foreground">
+                特别关注
+              </h3>
+              <div className="grid grid-cols-[repeat(auto-fill,minmax(64px,1fr))] gap-1">
+                {pinned.map((a) => (
+                  <motion.button
+                    layout
+                    key={a.id}
+                    data-agent-id={a.id}
+                    className="flex min-w-0 flex-col items-center gap-1.5 rounded-xl px-1 py-2 text-xs outline-none hover:bg-sidebar-accent focus-visible:ring-3 focus-visible:ring-ring/50 aria-pressed:bg-sidebar-primary aria-pressed:shadow-panel"
+                    aria-label={`打开 ${a.name}`}
+                    aria-pressed={selected === a.id}
+                    onClick={() => onSelect(a.id)}
+                  >
+                    <span className="relative">
+                      <Avatar
+                        agent={a}
+                        size="large"
+                        className="size-11 rounded-[14px] [&_svg]:size-6"
+                      />
+                      <span className="absolute -right-1 -bottom-1 grid size-4.5 place-items-center rounded-full bg-brand text-primary-foreground ring-2 ring-sidebar">
+                        <StarIcon className="size-2.5 fill-current" />
+                      </span>
                     </span>
-                  </span>
-                  <span>{session?.messages.at(-1)?.text || a.description}</span>
-                </span>
-                {a.status === "busy" && (
-                  <span className={s.statusDot} aria-label="运行中" />
-                )}
-              </button>
-              <button
-                className={`icon-button ${s.rowMore}`}
-                aria-label={`${a.name} 的操作`}
-                onClick={() => setMenu(menu === a.id ? null : a.id)}
-                aria-expanded={menu === a.id}
-              >
-                <Icon name="more" size={17} />
-              </button>
-              {menu === a.id && (
-                <div
-                  className={s.agentMenu}
-                  role="menu"
-                  aria-label={`${a.name} 的操作菜单`}
-                  onKeyDown={(e) => {
-                    if (e.key === "Escape") {
-                      setMenu(null);
-                      e.currentTarget.parentElement
-                        ?.querySelector<HTMLButtonElement>("[aria-expanded]")
-                        ?.focus();
-                    }
-                    if (e.key === "ArrowDown" || e.key === "ArrowUp") {
-                      e.preventDefault();
-                      const items = Array.from(
-                        e.currentTarget.querySelectorAll<HTMLButtonElement>(
-                          "[role=menuitem]",
-                        ),
-                      );
-                      const index = items.indexOf(
-                        document.activeElement as HTMLButtonElement,
-                      );
-                      items[
-                        (index +
-                          (e.key === "ArrowDown" ? 1 : -1) +
-                          items.length) %
-                          items.length
-                      ]?.focus();
-                    }
-                  }}
-                >
-                  <button
-                    role="menuitem"
-                    onClick={(e) => {
-                      const source =
-                        e.currentTarget
-                          .closest("[role=menu]")
-                          ?.parentElement?.querySelector<HTMLButtonElement>(
-                            "[aria-expanded]",
-                          ) ?? null;
-                      source?.focus();
-                      onAction(a, "pin", source);
-                      setMenu(null);
-                    }}
-                  >
-                    <Icon name="star" size={16} />
-                    {a.pinned ? "取消特别关注" : "设为特别关注"}
-                  </button>
-                  <button
-                    role="menuitem"
-                    onClick={(e) => {
-                      const source =
-                        e.currentTarget
-                          .closest("[role=menu]")
-                          ?.parentElement?.querySelector<HTMLButtonElement>(
-                            "[aria-expanded]",
-                          ) ?? null;
-                      source?.focus();
-                      onAction(a, "rename", source);
-                      setMenu(null);
-                    }}
-                  >
-                    重命名
-                  </button>
-                  <button
-                    role="menuitem"
-                    onClick={(e) => {
-                      const source =
-                        e.currentTarget
-                          .closest("[role=menu]")
-                          ?.parentElement?.querySelector<HTMLButtonElement>(
-                            "[aria-expanded]",
-                          ) ?? null;
-                      source?.focus();
-                      onAction(a, "remove", source);
-                      setMenu(null);
-                    }}
-                  >
-                    移除 Agent
-                  </button>
-                  <button role="menuitem" onClick={() => setMenu(null)}>
-                    关闭菜单
-                  </button>
-                </div>
-              )}
-            </div>
-          );
-        })}
+                    <span className="w-full truncate text-center">
+                      {a.name}
+                    </span>
+                  </motion.button>
+                ))}
+              </div>
+            </motion.section>
+          )}
+        </AnimatePresence>
+        {agents.length > 0 && (
+          <h3 className="px-2 pt-1 pb-1 text-[11px] font-medium text-muted-foreground">
+            全部 Agent
+          </h3>
+        )}
+        {shown.map((a) => (
+          <AgentRow
+            key={a.id}
+            agent={a}
+            selected={selected === a.id}
+            onSelect={() => onSelect(a.id)}
+            onAction={(action, source) => onAction(a, action, source)}
+          />
+        ))}
         {agents.length === 0 && (
-          <p className={s.listHint}>添加后，Agent 会出现在这里。</p>
+          <p className="m-3 text-xs text-muted-foreground">
+            添加后，Agent 会出现在这里。
+          </p>
         )}
         {agents.length > 0 && !shown.length && (
-          <p className={s.listHint}>
+          <p className="m-3 text-xs text-muted-foreground">
             没有找到 Agent。
-            <button className="text-button" onClick={() => setQuery("")}>
+            <Button
+              variant="link"
+              size="xs"
+              className="px-1"
+              onClick={() => setQuery("")}
+            >
               清除搜索
-            </button>
+            </Button>
           </p>
         )}
       </div>

@@ -1,4 +1,13 @@
 import { useCallback, useState, useSyncExternalStore } from "react";
+import { motion } from "motion/react";
+import {
+  PencilIcon,
+  PlusIcon,
+  ServerIcon,
+  Trash2Icon,
+  ZapIcon,
+} from "lucide-react";
+import { cn } from "cn";
 import type { ModelConnectionsApi } from "../../modules/models/extension";
 import type {
   ProviderStatus,
@@ -6,10 +15,19 @@ import type {
 } from "../../modules/models/providers";
 import { tokenLabel } from "../../modules/models/protocols";
 import { useAsyncAction } from "../components/useAsyncAction";
+import { DialogBody } from "../components/Dialog";
+import { ActionToast } from "../components/Toast";
+import { Badge } from "../components/ui/badge";
+import { Button } from "../components/ui/button";
+import {
+  Empty,
+  EmptyDescription,
+  EmptyHeader,
+  EmptyMedia,
+  EmptyTitle,
+} from "../components/ui/empty";
 import { ProviderForm } from "./ProviderForm";
 import { useRequestSignal } from "./useRequestSignal";
-import s from "./ModelConnections.module.css";
-import { ActionToast } from "../components/Toast";
 
 const statusLabel: Record<ProviderStatus, string> = {
   ready: "可用",
@@ -18,6 +36,11 @@ const statusLabel: Record<ProviderStatus, string> = {
   "delete-pending": "删除待核对",
   missing: "需要录入密钥",
   changed: "地址未确认",
+};
+const statusTone: Partial<Record<ProviderStatus, string>> = {
+  ready: "bg-running/12 text-foreground",
+  missing: "bg-brand-soft text-brand-text",
+  changed: "bg-brand-soft text-brand-text",
 };
 
 /** The user's model providers and their models: add, edit, re-key, test, delete. */
@@ -59,44 +82,69 @@ export function ModelConnections({ api }: { api: ModelConnectionsApi }) {
       />
     );
   return (
-    <div className="dialog-content">
-      <p>
+    <DialogBody>
+      <p className="text-muted-foreground">
         先添加服务商（请求地址与你自己的 API Key），再添加或获取它提供的模型；在
         Agent 详情里为每个 Agent 选择模型。
       </p>
       {providers.length === 0 ? (
-        <p className={s.empty}>还没有服务商。</p>
+        <Empty className="gap-3 border border-dashed p-6 md:p-6">
+          <EmptyHeader>
+            <EmptyMedia variant="icon">
+              <ServerIcon />
+            </EmptyMedia>
+            <EmptyTitle className="text-sm">还没有服务商</EmptyTitle>
+            <EmptyDescription>
+              添加一个服务商后，Agent 就能选用它的模型。
+            </EmptyDescription>
+          </EmptyHeader>
+        </Empty>
       ) : (
-        <ul className={s.list} aria-label="服务商">
+        <ul className="grid gap-3" aria-label="服务商">
           {providers.map((provider) => (
-            <li key={provider.id} aria-label={provider.name}>
-              <div className={s.header}>
-                <div className={s.summary}>
-                  <span className={s.title}>
-                    <strong>{provider.name}</strong>
-                    <span className={s.status} data-status={provider.status}>
+            <motion.li
+              key={provider.id}
+              aria-label={provider.name}
+              initial={{ opacity: 0, y: 4 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="grid gap-3 rounded-xl bg-card p-3.5 shadow-panel"
+            >
+              <div className="flex items-start justify-between gap-3 max-[520px]:flex-col max-[520px]:items-stretch">
+                <div className="grid min-w-0 gap-0.5 text-[13px]">
+                  <span className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                    <strong className="font-semibold">{provider.name}</strong>
+                    <Badge
+                      variant="secondary"
+                      className={statusTone[provider.status]}
+                    >
                       {statusLabel[provider.status]}
-                    </span>
+                    </Badge>
                   </span>
-                  <span className={s.meta}>
+                  <span className="text-xs text-muted-foreground">
                     {api.presets.find((p) => p.id === provider.preset)?.label ??
                       "自定义"}
                     {` · 上下文 ${tokenLabel(provider.context)}`}
                     {provider.notes && ` · ${provider.notes}`}
                   </span>
-                  <span className={`${s.meta} ${s.url}`}>{provider.base}</span>
+                  <span className="font-mono text-xs break-all text-muted-foreground">
+                    {provider.base}
+                  </span>
                 </div>
-                <div className={s.actions}>
-                  <button
-                    className="secondary"
+                <div className="flex shrink-0 gap-2 max-[520px]:*:flex-1">
+                  <Button
+                    variant="outline"
+                    size="sm"
                     aria-label={`编辑 ${provider.name}`}
                     disabled={busy}
                     onClick={() => setEditing(provider.id)}
                   >
+                    <PencilIcon data-icon="inline-start" />
                     编辑
-                  </button>
-                  <button
-                    className="secondary"
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="text-destructive hover:text-destructive"
                     aria-label={`删除 ${provider.name}`}
                     disabled={busy}
                     onClick={() =>
@@ -107,50 +155,65 @@ export function ModelConnections({ api }: { api: ModelConnectionsApi }) {
                       })
                     }
                   >
+                    <Trash2Icon data-icon="inline-start" />
                     删除
-                  </button>
+                  </Button>
                 </div>
               </div>
               {provider.models.length === 0 ? (
-                <p className={s.meta}>还没有模型，点「编辑」添加或获取。</p>
+                <p className="text-xs text-muted-foreground">
+                  还没有模型，点「编辑」添加或获取。
+                </p>
               ) : (
                 <ul
-                  className={s.modelRows}
+                  className="divide-y overflow-hidden rounded-lg border bg-background/60"
                   aria-label={`${provider.name} 的模型`}
                 >
                   {provider.models.map((model) => {
                     const result = results[`${provider.id}/${model}`];
                     return (
-                      <li key={model}>
-                        <span className={s.summary}>
+                      <li
+                        key={model}
+                        className="flex min-h-10 items-center justify-between gap-3 px-3 py-1.5 text-[13px]"
+                      >
+                        <span className="grid min-w-0 gap-0.5 break-words">
                           <span>
                             {model}
                             {Object.hasOwn(provider.windows, model) && (
-                              <span className={s.meta}>
+                              <span className="text-xs text-muted-foreground">
                                 {` · 上下文 ${tokenLabel(provider.windows[model])}`}
                               </span>
                             )}
                           </span>
                           {result && (
-                            <span role="status" className={s.meta}>
+                            <span
+                              role="status"
+                              className={cn(
+                                "text-xs text-muted-foreground",
+                                result.startsWith("回复") && "text-running",
+                              )}
+                            >
                               {result}
                             </span>
                           )}
                         </span>
-                        <button
-                          className="secondary"
+                        <Button
+                          variant="ghost"
+                          size="xs"
+                          className="max-md:min-h-11"
                           aria-label={`测试 ${model}`}
                           disabled={busy || provider.status !== "ready"}
                           onClick={() => void test(provider, model)}
                         >
+                          <ZapIcon data-icon="inline-start" />
                           测试
-                        </button>
+                        </Button>
                       </li>
                     );
                   })}
                 </ul>
               )}
-            </li>
+            </motion.li>
           ))}
         </ul>
       )}
@@ -162,9 +225,10 @@ export function ModelConnections({ api }: { api: ModelConnectionsApi }) {
           setNotice("");
         }}
       />
-      <button className={s.add} disabled={busy} onClick={() => setEditing("")}>
+      <Button disabled={busy} onClick={() => setEditing("")}>
+        <PlusIcon data-icon="inline-start" />
         添加服务商
-      </button>
-    </div>
+      </Button>
+    </DialogBody>
   );
 }

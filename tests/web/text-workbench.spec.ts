@@ -71,7 +71,7 @@ for (const width of [375, 1440]) {
     await page.getByRole("button", { name: "应用菜单", exact: true }).click();
     await page.getByRole("menuitem", { name: "应用设置", exact: true }).click();
     await page
-      .getByRole("button", { name: "使用 Agent 界面", exact: true })
+      .getByRole("radio", { name: "使用 Agent 界面", exact: true })
       .click();
     await expect(
       page.getByRole("heading", { name: "欢迎使用 Plums" }),
@@ -79,7 +79,7 @@ for (const width of [375, 1440]) {
     await page.getByRole("button", { name: "应用菜单", exact: true }).click();
     await page.getByRole("menuitem", { name: "应用设置", exact: true }).click();
     await page
-      .getByRole("button", { name: "使用 文本处理工作台", exact: true })
+      .getByRole("radio", { name: "使用 文本处理工作台", exact: true })
       .click();
     await expect(page.getByRole("textbox", { name: "输入文本" })).toHaveValue(
       "draft after result",

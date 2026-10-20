@@ -41,18 +41,17 @@ export type ShellDialogsProps = {
     Appearance,
     "appearance" | "themes" | "themeId" | "selectTheme" | "toggleTheme"
   >;
-  navigation: Pick<ShellNavigation, "dialog" | "setDialog" | "openManager">;
+  navigation: Pick<
+    ShellNavigation,
+    "dialog" | "setDialog" | "back" | "openManager"
+  >;
 };
 export type AuthorizationDialogProps = {
   runtime: Pick<Runtime, "host" | "catalog">;
   operations: Pick<ShellOperations, "operate">;
   controller: Pick<
     Authorization,
-    | "authorization"
-    | "dialog"
-    | "trigger"
-    | "setAuthorization"
-    | "closeAuthorization"
+    "authorization" | "trigger" | "closeAuthorization"
   >;
 };
 export type WorkspaceAreaProps = {

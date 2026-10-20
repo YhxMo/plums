@@ -3,8 +3,10 @@ import type { ShellNavigation } from "./useShellNavigation";
 import type { WorkspaceChrome } from "./useWorkspaceChrome";
 
 const layerSelector = 'dialog[open], [role="dialog"][aria-modal="true"]';
+// Radix keeps a closing layer mounted for its exit animation.
 const visible = (element: Element) =>
-  element.getClientRects().length > 0 && !element.closest("[inert]");
+  element.getClientRects().length > 0 &&
+  !element.closest('[inert], [data-state="closed"]');
 
 /** Uses the same cancel/Escape path as keyboard input, preserving local ownership. */
 function dismissLayer(event: Event) {
@@ -31,7 +33,12 @@ function dismissLayer(event: Event) {
   }
   if (!dialog) return false;
   event.preventDefault();
-  if (dialog instanceof HTMLDialogElement) {
+  // A dialog reached from another step goes back to it, as its own button does.
+  const stepBack = dialog.querySelector<HTMLButtonElement>(
+    "button[data-dialog-back]:not(:disabled)",
+  );
+  if (stepBack) stepBack.click();
+  else if (dialog instanceof HTMLDialogElement) {
     if (dialog.dispatchEvent(new Event("cancel", { cancelable: true })))
       dialog.close();
   } else {

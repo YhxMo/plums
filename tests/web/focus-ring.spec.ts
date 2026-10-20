@@ -7,8 +7,12 @@ const tap = async (target: Locator) => {
   await target.dispatchEvent("pointerdown");
   await target.dispatchEvent("click");
 };
-const outline = (target: Locator) =>
-  target.evaluate((element) => getComputedStyle(element).outlineStyle);
+// Controls mark keyboard focus with a 3px ring (box-shadow), not an outline;
+// it fades in, so a shown ring is polled for.
+const ringed = (target: Locator) =>
+  target.evaluate((element) =>
+    getComputedStyle(element).boxShadow.includes(" 0px 0px 0px 3px"),
+  );
 
 test("focus returned after pointer use stays quiet until the keyboard is used", async ({
   page,
@@ -21,11 +25,11 @@ test("focus returned after pointer use stays quiet until the keyboard is used", 
   await tap(roles.getByRole("button", { name: "关闭", exact: true }));
   await expect(roles).not.toBeVisible();
   await expect(menu).toBeFocused();
-  expect(await outline(menu)).toBe("none");
+  expect(await ringed(menu)).toBe(false);
   await page.keyboard.press("Shift+Tab");
   await page.keyboard.press("Tab");
   await expect(menu).toBeFocused();
-  expect(await outline(menu)).toBe("solid");
+  await expect.poll(() => ringed(menu)).toBe(true);
 });
 
 test("the file picker shows its ring for the keyboard only", async ({
@@ -38,8 +42,8 @@ test("the file picker shows its ring for the keyboard only", async ({
   const input = page.getByLabel("选择扩展文件");
   await pick.dispatchEvent("pointerdown");
   await input.focus();
-  expect(await outline(pick)).toBe("none");
+  expect(await ringed(pick)).toBe(false);
   await page.keyboard.press("Shift");
   await input.focus();
-  expect(await outline(pick)).toBe("solid");
+  await expect.poll(() => ringed(pick)).toBe(true);
 });

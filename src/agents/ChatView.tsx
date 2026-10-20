@@ -1,25 +1,38 @@
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import {
-  useCallback,
-  useEffect,
-  useLayoutEffect,
-  useRef,
-  useState,
-  type ReactNode,
-} from "react";
+  ArrowUpIcon,
+  ChevronLeftIcon,
+  InfoIcon,
+  SquareIcon,
+} from "lucide-react";
+import { AnimatePresence, motion } from "motion/react";
 import type {
   Agent,
   AgentProviderInfo,
   Message,
 } from "../../modules/agents/contract";
 import { MAX_TEXT } from "../../modules/agents/store";
-import { Avatar } from "./AgentList";
-import { Icon } from "../components/Icon";
+import { Avatar } from "./Avatar";
 import { MessageRow, type MessageAction } from "./MessageRow";
-import { MessageMenu } from "./MessageMenu";
 import { copyText } from "./clipboard";
 import { formatTime, TIME_GAP } from "./time";
-import s from "./ChatView.module.css";
 import { Tooltip } from "../components/Tooltip";
+import { useMediaQuery } from "../components/useMediaQuery";
+import {
+  InputGroup,
+  InputGroupAddon,
+  InputGroupButton,
+  InputGroupTextarea,
+} from "../components/ui/input-group";
+import { Button } from "../components/ui/button";
+
+const swap = {
+  initial: { opacity: 0, scale: 0.6 },
+  animate: { opacity: 1, scale: 1 },
+  exit: { opacity: 0, scale: 0.6 },
+  transition: { duration: 0.15 },
+} as const;
+
 export function ChatView({
   agent,
   provider,
@@ -48,17 +61,10 @@ export function ChatView({
 }) {
   const session = agent.sessions.find((s) => s.id === agent.currentSessionId)!;
   const busy = agent.status === "busy";
+  const desktop = useMediaQuery("(min-width: 768px)");
   const bottom = useRef<HTMLDivElement>(null);
   const input = useRef<HTMLTextAreaElement>(null);
-  const [menu, setMenu] = useState<{ id: string; x: number; y: number }>();
   const [copied, setCopied] = useState<string>();
-  // Grow with the draft up to the CSS max-height, then scroll.
-  useLayoutEffect(() => {
-    const element = input.current;
-    if (!element) return;
-    element.style.height = "auto";
-    element.style.height = `${element.scrollHeight}px`;
-  }, [draft]);
   useEffect(() => {
     bottom.current?.scrollIntoView({ block: "end" });
   }, [session.id, session.messages.length, agent.status, agent.pending]);
@@ -67,18 +73,6 @@ export function ChatView({
     const timer = setTimeout(() => setCopied(undefined), 1500);
     return () => clearTimeout(timer);
   }, [copied]);
-  const closeMenu = useCallback(
-    (restore: boolean) => {
-      if (restore && menu)
-        document
-          .querySelector<HTMLElement>(
-            `[data-message-id="${CSS.escape(menu.id)}"] button`,
-          )
-          ?.focus();
-      setMenu(undefined);
-    },
-    [menu],
-  );
   function act(action: MessageAction, message: Message) {
     if (action === "copy")
       copyText(message.text).then(
@@ -97,7 +91,10 @@ export function ChatView({
   for (const m of session.messages) {
     if (m.at !== undefined && (last === undefined || m.at - last > TIME_GAP))
       lines.push(
-        <p className={s.timeDivider} key={`time-${m.id}`}>
+        <p
+          className="m-0 self-center rounded-full px-2.5 py-0.5 text-[11px] text-muted-foreground"
+          key={`time-${m.id}`}
+        >
           <time dateTime={new Date(m.at).toISOString()}>
             {formatTime(m.at)}
           </time>
@@ -113,58 +110,107 @@ export function ChatView({
         message={m}
         busy={busy}
         copied={copied === m.id}
-        menuOpen={menu?.id === m.id}
         canDelete={!!onDeleteMessage}
+        pointerMenu={desktop}
         onAction={act}
-        onMenu={(message, x, y) => setMenu({ id: message.id, x, y })}
       />,
     );
   }
-  const menuMessage = menu && session.messages.find((m) => m.id === menu.id);
   const saving = agent.canCancel === false;
+  const status = busy
+    ? "正在处理…"
+    : agent.status === "online"
+      ? "在线"
+      : "空闲";
   return (
-    <section className={s.chat} aria-label={`${agent.name} 的会话`}>
-      <header className={s.chatHeader}>
-        <button
-          className={`icon-button ${s.mobileOnly}`}
+    <section
+      className="flex min-h-0 flex-1 flex-col"
+      aria-label={`${agent.name} 的会话`}
+    >
+      <header className="flex min-h-14 shrink-0 items-center gap-3 border-b px-5 max-md:min-h-[68px] max-md:gap-2 max-md:pr-4 max-md:pl-1">
+        <Button
+          variant="ghost"
+          size="icon"
+          className="md:hidden"
           onClick={onBack}
           aria-label="返回 Agent 列表"
         >
-          <Icon name="back" />
-        </button>
+          <ChevronLeftIcon />
+        </Button>
         <Avatar agent={agent} />
-        <div>
-          <h1>{agent.name}</h1>
-          <p>
-            {busy ? "正在处理…" : agent.status === "online" ? "在线" : "空闲"}
+        <div className="min-w-0">
+          <motion.h1
+            key={agent.name}
+            initial={{ opacity: 0, y: 3 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="truncate text-sm font-semibold max-md:font-reading max-md:text-[17px] max-md:font-medium"
+          >
+            {agent.name}
+          </motion.h1>
+          <p className="mt-px flex items-center gap-1.5 text-xs text-muted-foreground max-md:text-[11px]">
+            <span
+              aria-hidden="true"
+              className={
+                busy
+                  ? "size-1.5 animate-pulse rounded-full bg-running"
+                  : agent.status === "online"
+                    ? "size-1.5 rounded-full bg-running"
+                    : "size-1.5 rounded-full bg-muted-foreground/40"
+              }
+            />
+            {status}
             {agent.multiSession ? ` · ${session.title}` : ""}
           </p>
         </div>
-        <button
-          className={`icon-button ${s.detailButton} ${s.mobileOnly}`}
+        <Button
+          variant="ghost"
+          size="icon"
+          className="ml-auto md:hidden"
           aria-label="查看 Agent 详情"
           onClick={(e) => onDetail(e.currentTarget)}
         >
-          <Icon name="info" />
-        </button>
+          <InfoIcon />
+        </Button>
       </header>
-      <div className={s.messages} role="log" aria-label="会话消息">
+      <div
+        className="relative flex min-h-0 flex-1 flex-col gap-3.5 overflow-auto px-[max(32px,calc((100%-880px)/2))] pt-5 pb-6 max-md:gap-[18px] max-md:px-4"
+        role="log"
+        aria-label="会话消息"
+      >
         {agent.description && (
-          <p className={s.conversationIntro}>{agent.description}</p>
+          <p className="m-0 max-w-[520px] self-center rounded-lg bg-surface px-3 py-1.5 text-center text-xs leading-relaxed whitespace-pre-wrap text-muted-foreground wrap-anywhere shadow-panel max-md:bg-transparent max-md:shadow-none">
+            {agent.description}
+          </p>
         )}
         {!session.messages.length && (
-          <div className={s.chatWelcome}>
-            <Avatar agent={agent} size="large" />
-            <h2>和 {agent.name} 开始吧</h2>
-            <p>{provider.description}</p>
-          </div>
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.3, ease: "easeOut" }}
+            className="flex min-h-48 flex-col items-center justify-center text-center"
+          >
+            <Avatar agent={agent} size="large" className="shadow-raised" />
+            <h2 className="mt-3.5 mb-1.5 text-[17px] font-semibold tracking-tight max-md:font-reading max-md:text-[22px] max-md:font-medium">
+              和 {agent.name} 开始吧
+            </h2>
+            <p className="max-w-sm text-[13px] leading-relaxed text-muted-foreground">
+              {provider.description}
+            </p>
+          </motion.div>
         )}
-        {lines}
+        <AnimatePresence initial={false}>{lines}</AnimatePresence>
+        {/* The pending turn and the typing line give way to the saved ones at once. */}
         {agent.pending?.sessionId === session.id && (
-          <MessageRow agent={agent} role="user" text={agent.pending.text} />
+          <MessageRow
+            key="pending"
+            agent={agent}
+            role="user"
+            text={agent.pending.text}
+          />
         )}
         {busy && (
           <MessageRow
+            key="typing"
             agent={agent}
             role="agent"
             status
@@ -173,74 +219,75 @@ export function ChatView({
         )}
         <div ref={bottom} />
       </div>
-      {menu && menuMessage && (
-        <MessageMenu
-          message={menuMessage}
-          x={menu.x}
-          y={menu.y}
-          busy={busy}
-          canDelete={!!onDeleteMessage}
-          onAction={act}
-          onClose={closeMenu}
-        />
-      )}
       <form
-        className={s.composer}
+        className="mx-5 mt-1 mb-4 max-md:mx-3 max-md:mb-3"
         onSubmit={(e) => {
           e.preventDefault();
           onSend();
         }}
       >
-        <label className="sr-only" htmlFor="message-input">
-          消息
-        </label>
-        <textarea
-          ref={input}
-          id="message-input"
-          aria-label="消息"
-          placeholder={`发送给 ${agent.name}…`}
-          rows={1}
-          maxLength={MAX_TEXT}
-          value={draft}
-          onChange={(e) => onDraft(e.target.value)}
-          onKeyDown={(e) => {
-            if (
-              e.key === "Enter" &&
-              !e.shiftKey &&
-              !e.nativeEvent.isComposing &&
-              window.matchMedia("(min-width: 768px)").matches
-            ) {
-              e.preventDefault();
-              if (draft.trim() && !busy) onSend();
-            }
-          }}
-        />
-        <div className={s.composerBottom}>
-          {busy ? (
-            <Tooltip label={saving ? "正在保存…" : "停止处理"}>
-              <button
-                type="button"
-                className={`secondary ${s.composerButton}`}
-                aria-label={saving ? "正在保存…" : "停止处理"}
-                onClick={onCancel}
-                disabled={saving}
-              >
-                <Icon name="stop" size={16} />
-              </button>
-            </Tooltip>
-          ) : (
-            <Tooltip label="发送">
-              <button
-                type="submit"
-                className={s.composerButton}
-                aria-label="发送"
-                disabled={!draft.trim()}
-              >
-                <Icon name="arrowUp" size={18} />
-              </button>
-            </Tooltip>
-          )}
-        </div>
+        <InputGroup className="h-auto rounded-3xl border-border bg-card shadow-raised has-disabled:bg-card has-disabled:opacity-100 dark:has-disabled:bg-overlay transition-shadow max-md:items-end max-md:rounded-[22px] dark:bg-overlay has-[[data-slot=input-group-control]:focus-visible]:border-input has-[[data-slot=input-group-control]:focus-visible]:shadow-float has-[[data-slot=input-group-control]:focus-visible]:ring-0">
+          <InputGroupTextarea
+            ref={input}
+            aria-label="消息"
+            placeholder={`发送给 ${agent.name}…`}
+            rows={1}
+            maxLength={MAX_TEXT}
+            value={draft}
+            className="max-h-44 min-h-11 px-4.5 pt-3 pb-1 text-sm leading-relaxed [field-sizing:content] max-md:min-h-6 max-md:py-2.5 max-md:pl-3 max-md:text-base"
+            onChange={(e) => onDraft(e.target.value)}
+            onKeyDown={(e) => {
+              if (
+                e.key === "Enter" &&
+                !e.shiftKey &&
+                !e.nativeEvent.isComposing &&
+                desktop
+              ) {
+                e.preventDefault();
+                if (draft.trim() && !busy) onSend();
+              }
+            }}
+          />
+          <InputGroupAddon
+            align={desktop ? "block-end" : "inline-end"}
+            className="justify-end self-end max-md:py-1.5"
+          >
+            <AnimatePresence mode="popLayout" initial={false}>
+              {busy ? (
+                <motion.span key="stop" {...swap}>
+                  <Tooltip label={saving ? "正在保存…" : "停止处理"}>
+                    <InputGroupButton
+                      type="button"
+                      variant="outline"
+                      size="icon-sm"
+                      className="size-9 rounded-full max-md:size-10"
+                      aria-label={saving ? "正在保存…" : "停止处理"}
+                      onClick={onCancel}
+                      disabled={saving}
+                    >
+                      <SquareIcon className="fill-current" />
+                    </InputGroupButton>
+                  </Tooltip>
+                </motion.span>
+              ) : (
+                <motion.span key="send" {...swap}>
+                  <Tooltip label="发送">
+                    <InputGroupButton
+                      type="submit"
+                      variant="default"
+                      size="icon-sm"
+                      className="size-9 rounded-full max-md:size-10"
+                      aria-label="发送"
+                      disabled={!draft.trim()}
+                    >
+                      <ArrowUpIcon />
+                    </InputGroupButton>
+                  </Tooltip>
+                </motion.span>
+              )}
+            </AnimatePresence>
+          </InputGroupAddon>
+        </InputGroup>
       </form>
     </section>
   );

@@ -1,5 +1,11 @@
 import type { ReactNode } from "react";
-import styles from "./ExtensionManager.module.css";
+import { ChevronRightIcon, FlaskConicalIcon } from "lucide-react";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "../../components/ui/collapsible";
+
 export function DiagnosticsPanel({
   open,
   onToggle,
@@ -10,13 +16,19 @@ export function DiagnosticsPanel({
   children: ReactNode;
 }) {
   return (
-    <details
-      className={styles.diagnostics}
+    <Collapsible
       open={open}
-      onToggle={(e) => onToggle(e.currentTarget.open)}
+      onOpenChange={onToggle}
+      className="rounded-xl bg-card shadow-panel"
     >
-      <summary>诊断与实验</summary>
-      {children}
-    </details>
+      <CollapsibleTrigger className="group flex w-full items-center gap-2 rounded-xl px-4 py-3 text-left text-[13px] font-semibold outline-none hover:bg-muted/50 focus-visible:ring-3 focus-visible:ring-ring/50">
+        <FlaskConicalIcon className="size-4 text-muted-foreground" />
+        诊断与实验
+        <ChevronRightIcon className="ml-auto size-4 text-muted-foreground transition-transform group-data-[state=open]:rotate-90" />
+      </CollapsibleTrigger>
+      <CollapsibleContent className="grid gap-2.5 border-t px-4 pt-3 pb-4">
+        {children}
+      </CollapsibleContent>
+    </Collapsible>
   );
 }

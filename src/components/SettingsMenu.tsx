@@ -1,5 +1,20 @@
-import { Fragment, useEffect, useRef, useState } from "react";
-import { Icon } from "./Icon";
+import {
+  Code2Icon,
+  EllipsisIcon,
+  IdCardIcon,
+  InfoIcon,
+  PuzzleIcon,
+  SettingsIcon,
+} from "lucide-react";
+import { Button } from "./ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "./ui/dropdown-menu";
+
 export function SettingsMenu({
   onChoose,
   views = [],
@@ -11,101 +26,44 @@ export function SettingsMenu({
   views?: { id: string; label: string }[];
   onView?: (view: { id: string; label: string }) => void;
 }) {
-  const [open, setOpen] = useState(false);
-  const root = useRef<HTMLDivElement>(null);
-  const trigger = useRef<HTMLButtonElement>(null);
-  useEffect(() => {
-    if (!open) return;
-    root.current?.querySelector<HTMLElement>("[role=menuitem]")?.focus();
-    const close = (e: PointerEvent) => {
-      if (!root.current?.contains(e.target as Node)) setOpen(false);
-    };
-    document.addEventListener("pointerdown", close);
-    return () => document.removeEventListener("pointerdown", close);
-  }, [open]);
   return (
-    <div className="settings-menu" ref={root}>
-      <button
-        ref={trigger}
-        className="icon-button topbar-ghost"
+    <DropdownMenu modal={false}>
+      <DropdownMenuTrigger asChild>
+        <Button variant="ghost" size="icon" aria-label="应用菜单">
+          <EllipsisIcon />
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent
         aria-label="应用菜单"
-        aria-haspopup="menu"
-        aria-expanded={open}
-        onClick={() => setOpen((o) => !o)}
+        align="end"
+        className="min-w-48"
       >
-        <Icon name="more" />
-      </button>
-      {open && (
-        <div
-          role="menu"
-          aria-label="应用菜单"
-          className="menu-popup"
-          onKeyDown={(e) => {
-            const items = Array.from(
-              e.currentTarget.querySelectorAll<HTMLElement>("[role=menuitem]"),
-            );
-            const index = items.indexOf(document.activeElement as HTMLElement);
-            if (e.key === "Escape") {
-              setOpen(false);
-              trigger.current?.focus();
-            } else if (
-              ["ArrowDown", "ArrowUp", "Home", "End"].includes(e.key)
-            ) {
-              e.preventDefault();
-              items[
-                e.key === "Home"
-                  ? 0
-                  : e.key === "End"
-                    ? items.length - 1
-                    : (index + (e.key === "ArrowUp" ? -1 : 1) + items.length) %
-                      items.length
-              ]?.focus();
-            }
-          }}
-        >
-          {(
-            [
-              ["extensions", "puzzle", "扩展管理"],
-              ["settings", "settings", "应用设置"],
-              ["diagnostics", "code", "诊断工具"],
-              ["about", "info", "关于 Plums"],
-            ] as const
-          )
-            .filter(
-              ([action]) => import.meta.env.DEV || action !== "diagnostics",
-            )
-            .map(([action, icon, label]) => (
-              <Fragment key={action}>
-                <button
-                  role="menuitem"
-                  onClick={() => {
-                    setOpen(false);
-                    trigger.current?.focus();
-                    onChoose(action);
-                  }}
-                >
-                  <Icon name={icon} size={18} />
-                  {label}
-                </button>
-                {action === "extensions" &&
-                  views.map((view) => (
-                    <button
-                      key={view.id}
-                      role="menuitem"
-                      onClick={() => {
-                        setOpen(false);
-                        trigger.current?.focus();
-                        onView?.(view);
-                      }}
-                    >
-                      <Icon name="card" size={18} />
-                      {view.label}
-                    </button>
-                  ))}
-              </Fragment>
-            ))}
-        </div>
-      )}
-    </div>
+        <DropdownMenuItem onSelect={() => onChoose("extensions")}>
+          <PuzzleIcon />
+          扩展管理
+        </DropdownMenuItem>
+        {views.map((view) => (
+          <DropdownMenuItem key={view.id} onSelect={() => onView?.(view)}>
+            <IdCardIcon />
+            {view.label}
+          </DropdownMenuItem>
+        ))}
+        <DropdownMenuSeparator />
+        <DropdownMenuItem onSelect={() => onChoose("settings")}>
+          <SettingsIcon />
+          应用设置
+        </DropdownMenuItem>
+        {import.meta.env.DEV && (
+          <DropdownMenuItem onSelect={() => onChoose("diagnostics")}>
+            <Code2Icon />
+            诊断工具
+          </DropdownMenuItem>
+        )}
+        <DropdownMenuItem onSelect={() => onChoose("about")}>
+          <InfoIcon />
+          关于 Plums
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 }

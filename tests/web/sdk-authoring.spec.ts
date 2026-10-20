@@ -24,7 +24,7 @@ for (const width of [375, 768, 1440]) {
     await page.getByRole("button", { name: "应用菜单", exact: true }).click();
     await page.getByRole("menuitem", { name: "应用设置", exact: true }).click();
     await page
-      .getByRole("button", { name: "使用 计数样板", exact: true })
+      .getByRole("radio", { name: "使用 计数样板", exact: true })
       .click();
     await page.getByRole("button", { name: "返回工作区", exact: true }).click();
     const increment = page.getByRole("button", {

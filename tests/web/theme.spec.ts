@@ -117,7 +117,7 @@ test("a layout choice during a pending theme write keeps the new theme", async (
         .release !== undefined,
   );
   await dialog
-    .getByRole("button", { name: "使用 Agent 界面", exact: true })
+    .getByRole("radio", { name: "使用 Agent 界面", exact: true })
     .click();
   await page.evaluate(() =>
     (
@@ -154,4 +154,39 @@ test("a rejected preference write keeps the current theme and reports the failur
     page.getByRole("button", { name: "切换到深色模式" }),
   ).toBeEnabled();
   await expect(page.locator("html")).toHaveAttribute("data-theme", "light");
+});
+
+test("reduced motion keeps entrance animations from moving", async ({
+  page,
+}) => {
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  // The longest run of frames any one element spends mid-slide or mid-scale;
+  // the first frames may still carry the initial style before it jumps.
+  await page.addInitScript(() => {
+    const w = window as unknown as { __moving: number };
+    w.__moving = 0;
+    const moving = /translate[XY]?\((?!0px\))|scale\((?!1\))/;
+    const runs = new WeakMap<Element, number>();
+    const frame = () => {
+      for (const el of document.querySelectorAll<HTMLElement>("[style]")) {
+        const run = moving.test(el.style.transform)
+          ? (runs.get(el) ?? 0) + 1
+          : 0;
+        runs.set(el, run);
+        w.__moving = Math.max(w.__moving, run);
+      }
+      requestAnimationFrame(frame);
+    };
+    requestAnimationFrame(frame);
+  });
+  await page.goto("/");
+  await expect(
+    page.getByRole("heading", { name: "欢迎使用 Plums" }),
+  ).toBeVisible();
+  await page.waitForTimeout(800);
+  expect(
+    await page.evaluate(
+      () => (window as unknown as { __moving: number }).__moving,
+    ),
+  ).toBeLessThanOrEqual(2);
 });

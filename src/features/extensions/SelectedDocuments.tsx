@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 import type { PlatformAdapter } from "../../platform";
 import type { SelectedDocument } from "../../documents";
-import styles from "./SelectedDocuments.module.css";
+import { FileTextIcon } from "lucide-react";
+import { Button } from "../../components/ui/button";
 
 export function SelectedDocuments({
   adapter,
@@ -96,9 +97,13 @@ export function SelectedDocuments({
     }
   }
   return (
-    <section className={styles.documents} aria-label="文档只读授权">
-      <h3>本次文档授权</h3>
-      <p>
+    <section
+      className="mt-3 grid gap-2.5 border-t pt-3 text-[13px] leading-relaxed [overflow-wrap:anywhere]"
+      aria-label="文档只读授权"
+      onClick={(event) => event.stopPropagation()}
+    >
+      <h3 className="text-[13px] font-semibold">本次文档授权</h3>
+      <p className="text-xs text-muted-foreground">
         仅向此扩展提供所选文档的只读句柄，每次最多64 KiB。停用或退出应用即失效。
       </p>
       {!adapter.available("document.read") ? (
@@ -110,56 +115,67 @@ export function SelectedDocuments({
       ) : (
         <>
           {!enabled && <p>启用并确认扩展能力后，可选择文档。</p>}
-          <div className={styles.actions}>
-            <button
-              className="secondary"
+          <div className="flex flex-wrap gap-2">
+            <Button
+              variant="outline"
+              size="sm"
               disabled={!enabled || pending}
               onClick={() => void select(false)}
             >
               选择单个文档
-            </button>
-            <button
-              className="secondary"
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
               disabled={!enabled || pending}
               onClick={() => void select(true)}
             >
               选择多个文档
-            </button>
+            </Button>
             {pending && (
-              <button
-                className="secondary"
+              <Button
+                variant="outline"
+                size="sm"
                 disabled={!controller.current}
                 onClick={() => controller.current?.abort()}
               >
                 取消选择
-              </button>
+              </Button>
             )}
-            <button
-              className="secondary"
+            <Button
+              variant="outline"
+              size="sm"
               disabled={!enabled || pending}
               onClick={() => void revoke()}
             >
               撤销全部文档
-            </button>
+            </Button>
           </div>
           {items.length ? (
-            <ul>
+            <ul className="divide-y rounded-lg bg-muted/50 px-3">
               {items.map((item) => (
-                <li key={item.handle}>
-                  <span>{item.name}</span>
-                  <button
-                    className="secondary"
+                <li
+                  key={item.handle}
+                  className="flex items-center justify-between gap-2 py-2"
+                >
+                  <span className="flex min-w-0 items-center gap-2">
+                    <FileTextIcon className="size-4 shrink-0 text-muted-foreground" />
+                    {item.name}
+                  </span>
+                  <Button
+                    variant="outline"
+                    size="sm"
                     disabled={pending || !enabled}
                     aria-label={`撤销 ${item.name}`}
                     onClick={() => void revoke(item.handle)}
                   >
                     撤销
-                  </button>
+                  </Button>
                 </li>
               ))}
             </ul>
           ) : (
-            <p>没有可读取的文档。</p>
+            <p className="text-muted-foreground">没有可读取的文档。</p>
           )}
         </>
       )}

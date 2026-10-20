@@ -11,14 +11,19 @@ import { AgentList } from "./AgentList";
 import { ChatView } from "./ChatView";
 import { DetailPanel } from "./DetailPanel";
 import { EmptyState } from "./EmptyState";
+import { AnimatePresence, motion } from "motion/react";
 import { Dialog } from "../components/Dialog";
 import { ActionToast } from "../components/Toast";
 import { useMediaQuery } from "../components/useMediaQuery";
+import {
+  ResizableHandle,
+  ResizablePanel,
+  ResizablePanelGroup,
+} from "../components/ui/resizable";
 import { useAgentModals } from "./useAgentModals";
 import { AgentDialogs } from "./AgentDialogs";
+import type { AgentAction } from "./AgentMenu";
 import { fallbackFocus } from "./focus";
-import s from "./AgentList.module.css";
-import detailStyles from "./DetailPanel.module.css";
 
 export function AgentWorkspace({
   api,
@@ -40,6 +45,8 @@ export function AgentWorkspace({
   const snapshot = useCallback(() => api.list(), [api]);
   const agents = useSyncExternalStore(subscribe, snapshot);
   const mobile = useMediaQuery("(max-width: 767px)");
+  // Wide windows keep details beside the chat; narrower ones float them over it.
+  const wide = useMediaQuery("(min-width: 1100px)");
   const [selected, setSelected] = useState<string | null>(null);
   const [detail, setDetail] = useState(false);
   const workspaceRoot = useRef<HTMLDivElement>(null);
@@ -107,7 +114,7 @@ export function AgentWorkspace({
   }, [chrome, agent, agents, detail, mobile, returnToList]);
   function agentAction(
     a: Agent,
-    action: "pin" | "rename" | "remove",
+    action: AgentAction,
     source?: HTMLElement | null,
   ) {
     if (action === "pin")
@@ -153,110 +160,170 @@ export function AgentWorkspace({
           onModels();
         })
       }
-      onExtension={
-        api.setExtension &&
-        ((extensionId, on) =>
-          void act(() => api.setExtension!(agent.id, extensionId, on)))
+      onExtensions={
+        api.setExtensions &&
+        ((ids) => void act(() => api.setExtensions!(agent.id, ids)))
       }
     />
   );
-  return (
-    <div
-      ref={workspaceRoot}
-      className={s.workspace}
-      data-conversation={!!agent}
-      data-has-agents={agents.length > 0}
-      data-detail={detail}
-    >
-      {!(mobile && detail && agent) && feedback}
-      <AgentList
-        agents={agents}
-        selected={selected}
-        onSelect={(id) => {
-          setSelected(id);
-          setDetail(false);
-        }}
-        onAdd={(source) => open("add", source)}
-        onAction={agentAction}
-      />
-      <div className={s.mainColumn}>
-        {!agent ? (
-          <EmptyState
-            hasAgents={agents.length > 0}
-            onImport={(source) => open("import", source)}
-            onAdd={(source) => open("create", source)}
-            onExtensions={() => onExtensions()}
-          />
+  const list = (
+    <AgentList
+      agents={agents}
+      selected={selected}
+      onSelect={(id) => {
+        setSelected(id);
+        setDetail(false);
+      }}
+      onAdd={(source) => open("add", source)}
+      onAction={agentAction}
+    />
+  );
+  const main = !agent ? (
+    <EmptyState
+      hasAgents={agents.length > 0}
+      onImport={(source) => open("import", source)}
+      onAdd={(source) => open("create", source)}
+      onExtensions={() => onExtensions()}
+    />
+  ) : (
+    <ChatView
+      agent={agent}
+      provider={api.info}
+      draft={drafts[key] ?? ""}
+      onDraft={(value) => setDrafts((d) => ({ ...d, [key]: value }))}
+      onBack={returnToList}
+      onDetail={(source) => {
+        detailTrigger.current = source;
+        setDetail((d) => !d);
+      }}
+      onCancel={() => api.cancel(agent.id)}
+      onSend={() => {
+        const input = drafts[key] ?? "";
+        // The sent text shows as a pending bubble; a failed send puts it
+        // back unless the user has started a new draft.
+        setDrafts((d) => ({ ...d, [key]: "" }));
+        void act(async () => {
+          try {
+            await api.send(agent.id, input);
+          } catch (error) {
+            setDrafts((d) => (d[key] ? d : { ...d, [key]: input }));
+            throw error;
+          }
+        });
+      }}
+      onResend={(text) => void act(() => api.send(agent.id, text))}
+      onDeleteMessage={
+        api.removeMessage
+          ? (id) =>
+              void act(() =>
+                api.removeMessage!(agent.id, agent.currentSessionId, id),
+              )
+          : undefined
+      }
+      onError={setError}
+    />
+  );
+  const showDetail = detail && !!agent;
+  const dialogs = (
+    <AgentDialogs
+      api={api}
+      modals={modals}
+      fallbackFocus={focusFallback}
+      onCreated={(agent) => {
+        setSelected(agent.id);
+        setDetail(false);
+      }}
+      onRemoved={(id) => {
+        if (selected === id) setSelected(null);
+      }}
+      onExtensions={() => onExtensions()}
+      onModels={onModels}
+    />
+  );
+  if (mobile)
+    return (
+      <div
+        ref={workspaceRoot}
+        className="relative flex h-full min-h-0 bg-background"
+      >
+        {!showDetail && feedback}
+        {/* Phones show the list or one conversation, never both. */}
+        {agent || !agents.length ? (
+          <div className="flex min-h-0 w-full flex-col">{main}</div>
         ) : (
-          <ChatView
-            agent={agent}
-            provider={api.info}
-            draft={drafts[key] ?? ""}
-            onDraft={(value) => setDrafts((d) => ({ ...d, [key]: value }))}
-            onBack={returnToList}
-            onDetail={(source) => {
-              detailTrigger.current = source;
-              setDetail((d) => !d);
-            }}
-            onCancel={() => api.cancel(agent.id)}
-            onSend={() => {
-              const input = drafts[key] ?? "";
-              // The sent text shows as a pending bubble; a failed send puts it
-              // back unless the user has started a new draft.
-              setDrafts((d) => ({ ...d, [key]: "" }));
-              void act(async () => {
-                try {
-                  await api.send(agent.id, input);
-                } catch (error) {
-                  setDrafts((d) => (d[key] ? d : { ...d, [key]: input }));
-                  throw error;
-                }
-              });
-            }}
-            onResend={(text) => void act(() => api.send(agent.id, text))}
-            onDeleteMessage={
-              api.removeMessage
-                ? (id) =>
-                    void act(() =>
-                      api.removeMessage!(agent.id, agent.currentSessionId, id),
-                    )
-                : undefined
-            }
-            onError={setError}
-          />
+          list
         )}
-      </div>
-      {detail &&
-        agent &&
-        (mobile ? (
+        {showDetail && (
           <Dialog
             title="Agent 详情"
-            bare
+            sheet
             returnFocusTo={detailTrigger.current}
             fallbackFocus={focusFallback}
             onClose={() => setDetail(false)}
           >
-            <div className={detailStyles.mobileDetail}>
-              {feedback}
-              {detailContent}
-            </div>
+            {feedback}
+            {detailContent}
           </Dialog>
-        ) : (
-          <div className={detailStyles.detailHost}>{detailContent}</div>
-        ))}
-      <AgentDialogs
-        api={api}
-        modals={modals}
-        fallbackFocus={focusFallback}
-        onCreated={(agent) => {
-          setSelected(agent.id);
-          setDetail(false);
-        }}
-        onRemoved={(id) => {
-          if (selected === id) setSelected(null);
-        }}
-        onExtensions={() => onExtensions()}
-      />
+        )}
+        {dialogs}
+      </div>
+    );
+  return (
+    <div
+      ref={workspaceRoot}
+      className="relative flex h-full min-h-0 bg-sidebar"
+    >
+      {feedback}
+      <ResizablePanelGroup orientation="horizontal" className="min-h-0">
+        <ResizablePanel
+          id="agent-list"
+          defaultSize={256}
+          minSize={208}
+          maxSize={380}
+          className="flex min-h-0 flex-col pt-2"
+        >
+          {list}
+        </ResizablePanel>
+        <ResizableHandle className="w-1.5 bg-transparent after:w-1.5 hover:bg-brand/20 data-[separator=active]:bg-brand/30" />
+        <ResizablePanel
+          id="agent-main"
+          minSize={360}
+          className="flex min-h-0 py-2 pr-2"
+        >
+          <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-xl bg-background shadow-panel">
+            {main}
+          </div>
+        </ResizablePanel>
+        {showDetail && wide && (
+          <>
+            <ResizableHandle className="w-1.5 bg-transparent after:w-1.5 hover:bg-brand/20 data-[separator=active]:bg-brand/30" />
+            <ResizablePanel
+              id="agent-detail"
+              defaultSize={300}
+              minSize={260}
+              maxSize={440}
+              className="flex min-h-0 py-2 pr-2"
+            >
+              {detailContent}
+            </ResizablePanel>
+          </>
+        )}
+      </ResizablePanelGroup>
+      <AnimatePresence>
+        {showDetail && !wide && (
+          <motion.div
+            key="detail"
+            initial={{ opacity: 0, x: 24 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: 24 }}
+            transition={{ duration: 0.2, ease: "easeOut" }}
+            className="absolute inset-y-2 right-2 z-10 flex w-[300px] rounded-xl shadow-float"
+          >
+            {detailContent}
+          </motion.div>
+        )}
+      </AnimatePresence>
+      {dialogs}
     </div>
   );
 }

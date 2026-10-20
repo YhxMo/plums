@@ -60,8 +60,8 @@
 
 | 原文件 | 新文件与物理行数 | 主要使用方 |
 | --- | --- | --- |
-| Workspace.module.css，951 行 | [AgentList](../src/agents/AgentList.module.css) 332、[ChatView](../src/agents/ChatView.module.css) 204、[DetailPanel](../src/agents/DetailPanel.module.css) 208、[Onboarding](../src/agents/Onboarding.module.css) 217 | 列表／共享 Avatar、会话、详情、EmptyState／AgentDialogs／RoleCardSettings；AgentWorkspace 使用列表与详情模块 |
-| App.module.css，680 行 | [layout](../src/shell/layout.module.css) 212、[ExtensionManager](../src/features/extensions/ExtensionManager.module.css) 327、[dialogs](../src/shell/dialogs.module.css) 145 | 顶栏／外壳布局、扩展管理／诊断／引导／权限说明、授权弹窗／反馈／详情卡片 |
+| Workspace.module.css，951 行 | `AgentList` 332、`ChatView` 204、`DetailPanel` 208、`Onboarding` 217 | 列表／共享 Avatar、会话、详情、EmptyState／AgentDialogs／RoleCardSettings；AgentWorkspace 使用列表与详情模块（这些模块后已由 Tailwind 工具类替换并删除，可从提交 `dba20a7` 取回） |
+| App.module.css，680 行 | `layout` 212、`ExtensionManager` 327、`dialogs` 145 | 顶栏／外壳布局、扩展管理／诊断／引导／权限说明、授权弹窗／反馈／详情卡片（同上，可从提交 `dba20a7` 取回） |
 
 复合选择器保持原文：Avatar 由 TSX 同时绑定列表的基础 avatar、会话头和详情排除条件的局部 avatar；手机顶栏与管理返回按钮的分组规则保留在 layout，管理页头／返回按钮显式绑定其局部 class。CSS module 间没有 import 或 composes，公共原子样式仍在 styles.css；没有新增规则、改变值或改动业务逻辑。两个旧模块已删除，src／tests／scripts 无旧路径引用；行数棘轮删除两项旧上限，其余上限保持。原 hardening 上限回归改用仍存在的 documents.rs 906 行豁免，不改 Rust 源码。
 

@@ -1,5 +1,6 @@
 import { rmSync } from "node:fs";
-import { join } from "node:path";
+import { join, resolve } from "node:path";
+import tailwindcss from "@tailwindcss/vite";
 import { defineConfig } from "vitest/config";
 
 /** Public files that only development and tests load; releases drop them. */
@@ -15,7 +16,9 @@ export default defineConfig({
   publicDir: "extensions",
   server: { host: "127.0.0.1", port: 1420, strictPort: true },
   build: { target: "es2022" },
+  resolve: { alias: { "@": resolve(import.meta.dirname, "src") } },
   plugins: [
+    tailwindcss(),
     {
       name: "plums-release-files",
       apply: "build",

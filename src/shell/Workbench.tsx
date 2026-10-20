@@ -17,7 +17,6 @@ import { ExtensionManager } from "../features/extensions/ExtensionManager";
 import { useExtensionManager } from "../features/extensions/useExtensionManager";
 import { DiagnosticsPanel } from "../features/extensions/DiagnosticsPanel";
 import { DiagnosticActions } from "../features/extensions/DiagnosticActions";
-import styles from "./layout.module.css";
 
 /** Composes feature owners; it does not own extension form or workspace state. */
 export function Workbench({ runtime }: { runtime: Runtime }) {
@@ -41,7 +40,7 @@ export function Workbench({ runtime }: { runtime: Runtime }) {
     authorization,
   });
   return (
-    <div className={styles.app}>
+    <div className="flex h-dvh min-h-0 flex-col overflow-hidden bg-sidebar">
       <TitleBar
         platformKind={runtime.adapter.kind}
         operations={operations}
@@ -58,7 +57,10 @@ export function Workbench({ runtime }: { runtime: Runtime }) {
         navigation={navigation}
         failedImports={management.failedImports}
       />
-      <div className={styles.body} data-inspecting={navigation.manager.open}>
+      <div
+        className="isolate flex min-h-0 flex-1 items-stretch"
+        data-inspecting={navigation.manager.open}
+      >
         <WorkspaceArea
           host={runtime.host}
           workspace={workspace}

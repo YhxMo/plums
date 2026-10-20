@@ -10,7 +10,10 @@
     "allowJs": true,
     "checkJs": true,
     "skipLibCheck": true,
-    "types": ["vite/client", "node"]
+    "types": ["vite/client", "node"],
+    "paths": {
+      "@/*": ["./src/*"]
+    }
   },
   "include": [
     "src",

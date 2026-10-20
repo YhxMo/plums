@@ -1,10 +1,14 @@
+/*
+ * Semantic colours: the 17 public theme keys (docs/THEMES.md) plus the shell's
+ * sidebar tones. shadcn/ui tokens map onto these in app.css. Contributed
+ * themes write the same names as inline variables on :root.
+ */
 :root {
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --font-serif: "Anthropic Serif", Georgia, "Songti SC", "Noto Serif SC", serif;
   color-scheme: light;
   color: var(--text);
   background: var(--background);
   font-synthesis: none;
-  font-size: 13px;
   line-height: 1.5;
   --text: #1a1a1a;
   --surface: #f7f7f8;
@@ -62,370 +66,218 @@
 :root[data-theme="dark"] img[src="/brand/plums.png"] {
   content: url("/brand/plums-dark.png");
 }
-* {
-  box-sizing: border-box;
+[hidden] {
+  display: none !important;
 }
-body {
-  margin: 0;
-}
-button,
-select,
-textarea,
-input {
-  font: inherit;
-}
-button,
-select {
-  min-height: 34px;
-  border-radius: 8px;
-  cursor: pointer;
-}
-button {
-  background: var(--accent);
-  color: var(--accent-ink);
-  border: 1px solid var(--accent);
-  padding: 6px 12px;
-  font-size: 13px;
-  font-weight: 500;
-  line-height: 1.4;
-}
-button:where(:hover:not(:disabled)) {
-  background: var(--accent-hover);
-  border-color: var(--accent-hover);
-}
-button:disabled {
-  cursor: not-allowed;
-  opacity: 0.48;
-}
-.secondary {
-  background: transparent;
-  color: var(--text);
-  border-color: var(--control-border);
-}
-.secondary:hover:not(:disabled) {
-  background: var(--subtle);
-  border-color: var(--control-border);
-}
-textarea {
-  width: 100%;
-  min-height: 112px;
-  resize: none;
-  field-sizing: content;
-  border: 1px solid var(--control-border);
-  border-radius: 8px;
-  padding: 12px;
-  background: var(--surface);
-  line-height: 1.6;
-  color: inherit;
-  font-size: 14px;
-}
-/* Zero specificity: a wrapper that draws its own ring (search, composer) wins. */
-:where(button, select, a, summary, input[type="checkbox"]):focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 2px;
-}
-:where(input:not([type="checkbox"]), textarea):focus-visible {
-  outline: none;
-  border-color: var(--accent);
-  box-shadow: 0 0 0 3px var(--accent-soft);
-}
+/* After a tap or click, focus returned by code stays quiet (WebKit would
+   otherwise ring the opener); the keyboard brings the ring back. */
 :root[data-input="pointer"]
-  :where(button, select, a, summary, input[type="checkbox"]):focus-visible {
-  outline: none;
+  :is(
+    button,
+    a,
+    summary,
+    [role="menuitem"],
+    [role="option"],
+    [role="tab"],
+    [role="radio"],
+    [role="switch"],
+    [role="checkbox"]
+  ):focus-visible,
+:root[data-input="pointer"] label:has(> input:focus-visible) {
+  outline-style: none;
+  --tw-ring-shadow: 0 0 #0000;
 }
 /* Programmatic focus targets (headings) mark position for screen readers only. */
 [tabindex="-1"]:focus {
   outline: none;
 }
-a {
-  color: var(--accent);
-  text-underline-offset: 4px;
-}
 ::selection {
   background: var(--accent-soft);
   color: var(--text);
 }
-.eyebrow {
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--muted);
-  letter-spacing: 0.04em;
-}
-.error {
-  color: var(--error);
-  line-height: 1.7;
-  overflow-wrap: anywhere;
-}
-.error:empty {
-  display: none;
-}
-summary {
-  cursor: pointer;
-  min-height: 34px;
-  padding: 6px 0;
-  color: var(--muted);
-}
-code {
-  font-family: ui-monospace, SFMono-Regular, monospace;
-  overflow-wrap: anywhere;
-}
-[hidden] {
-  display: none !important;
-}
-@media (prefers-reduced-motion: no-preference) {
-  button {
+
+/*
+ * Plain elements and the public helper classes below style DOM that
+ * extensions render themselves. App components use shadcn/ui (data-slot)
+ * and are left alone; layered rules never beat Tailwind utilities.
+ */
+@layer base {
+  :where(
+    button:not([data-slot]),
+    select,
+    textarea:not([data-slot]),
+    input:not([data-slot])
+  ) {
+    font: inherit;
+    color: inherit;
+  }
+  :where(button:not([data-slot]), select) {
+    min-height: 34px;
+    border-radius: 8px;
+    cursor: pointer;
+  }
+  :where(button:not([data-slot])) {
+    background: var(--accent);
+    color: var(--accent-ink);
+    border: 1px solid var(--accent);
+    padding: 6px 12px;
+    font-size: 13px;
+    font-weight: 500;
+    line-height: 1.4;
     transition:
       background 0.12s,
       border-color 0.12s;
   }
-}
-input {
-  color: inherit;
-}
-svg {
-  vertical-align: middle;
-  flex-shrink: 0;
-}
-.icon-button {
-  width: 32px;
-  min-height: 32px;
-  display: inline-grid;
-  place-items: center;
-  padding: 0;
-  border: 1px solid transparent;
-  background: transparent;
-  color: var(--muted);
-  border-radius: 6px;
-}
-.icon-button:hover:not(:disabled) {
-  background: var(--subtle);
-  border-color: transparent;
-  color: var(--text);
-}
-.icon-button:active:not(:disabled),
-.topbar-ghost:active:not(:disabled) {
-  background: var(--border);
-  color: var(--text);
-}
-.topbar-ghost {
-  width: 32px;
-  min-height: 32px;
-  padding: 0;
-  display: inline-grid;
-  place-items: center;
-  border: 1px solid transparent;
-  background: transparent;
-  color: var(--muted);
-  border-radius: 7px;
-  transition:
-    background 0.14s ease,
-    border-color 0.14s ease,
-    color 0.14s ease;
-}
-.topbar-ghost:hover:not(:disabled) {
-  background: var(--subtle);
-  border-color: var(--border);
-  color: var(--text);
-}
-.topbar-ghost:active:not(:disabled) {
-  background: var(--accent-soft);
-  border-color: var(--accent);
-  color: var(--accent-text);
-}
-.topbar-ghost[aria-pressed="true"] {
-  color: var(--accent-text);
-}
-.text-button {
-  display: inline;
-  min-height: 0;
-  padding: 0;
-  border: 0;
-  background: none;
-  color: var(--accent-text);
-  font-size: inherit;
-  font-weight: 500;
-}
-.text-button:hover:not(:disabled) {
-  background: none;
-  color: var(--text);
-  border: 0;
-}
-.muted {
-  color: var(--muted);
-  font-size: 13px;
-}
-.sr-only {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  padding: 0;
-  margin: -1px;
-  overflow: hidden;
-  clip: rect(0, 0, 0, 0);
-  white-space: nowrap;
-  border: 0;
-}
-.settings-menu {
-  position: relative;
-}
-.menu-popup {
-  position: absolute;
-  right: 0;
-  top: 38px;
-  min-width: 196px;
-  padding: 4px;
-  border-radius: 10px;
-  background: var(--overlay);
-  border: 1px solid var(--border);
-  box-shadow: 0 12px 36px var(--shadow);
-  z-index: 20;
-}
-.menu-popup button {
-  display: flex;
-  gap: 10px;
-  align-items: center;
-  width: 100%;
-  min-height: 32px;
-  padding: 6px 10px;
-  background: none;
-  color: var(--text);
-  border: 0;
-  border-radius: 6px;
-  text-align: left;
-  font-size: 13px;
-  font-weight: 500;
-}
-.menu-popup button:hover {
-  background: var(--subtle);
-}
-.app-dialog {
-  width: 520px;
-  max-width: calc(100% - 32px);
-  max-height: calc(100dvh - 32px);
-  border: 1px solid var(--border);
-  border-radius: 12px;
-  padding: 0;
-  color: var(--text);
-  background: var(--overlay);
-  box-shadow: 0 24px 80px var(--shadow);
-  overflow: auto;
-}
-.app-dialog::backdrop {
-  background: #0009;
-  backdrop-filter: blur(3px);
-}
-.dialog-heading {
-  padding: 12px 16px 12px 20px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  border-bottom: 1px solid var(--border);
-}
-.dialog-heading h2 {
-  font-size: 15px;
-  font-weight: 600;
-  margin: 0;
-  outline: none;
-}
-.dialog-content {
-  padding: 18px 20px;
-}
-.dialog-content > p:first-child {
-  margin-top: 0;
-  color: var(--muted);
-  font-size: 13px;
-}
-.dialog-content h3 {
-  font-size: 13px;
-  margin: 18px 0 10px;
-}
-.dialog-content h3:first-child {
-  margin-top: 0;
-}
-.dialog-actions {
-  display: flex;
-  justify-content: flex-end;
-  gap: 8px;
-  padding: 4px 20px 18px;
-}
-.field {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  font-size: 12px;
-  font-weight: 500;
-  margin-bottom: 14px;
-}
-.field input,
-.field textarea {
-  width: 100%;
-  padding: 7px 10px;
-  border: 1px solid var(--control-border);
-  background: var(--card);
-  color: var(--text);
-  border-radius: 8px;
-  min-height: 36px;
-  font-size: 13px;
-  line-height: 1.5;
-  font-weight: 400;
-}
-.field textarea {
-  min-height: 88px;
-  max-height: 240px;
-}
-.check-field {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  min-height: 34px;
-  font-size: 13px;
-}
-.check-field input {
-  accent-color: var(--accent);
-  width: 16px;
-  height: 16px;
-}
-@media (max-width: 767px) {
-  button,
-  select {
-    min-height: 44px;
-    padding: 9px 14px;
+  :where(button:not([data-slot]):hover:not(:disabled)) {
+    background: var(--accent-hover);
+    border-color: var(--accent-hover);
+  }
+  :where(button:not([data-slot]):disabled) {
+    cursor: not-allowed;
+    opacity: 0.48;
+  }
+  :where(textarea:not([data-slot])) {
+    width: 100%;
+    min-height: 112px;
+    resize: none;
+    field-sizing: content;
+    border: 1px solid var(--control-border);
+    border-radius: 8px;
+    padding: 12px;
+    background: var(--surface);
+    line-height: 1.6;
+    font-size: 14px;
+  }
+  :where(
+    button:not([data-slot]),
+    select,
+    a,
+    summary,
+    input[type="checkbox"]
+  ):focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
+  :where(
+    input:not([type="checkbox"]):not([data-slot]),
+    textarea:not([data-slot])
+  ):focus-visible {
+    outline: none;
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px var(--accent-soft);
+  }
+  a {
+    color: var(--accent);
+    text-underline-offset: 4px;
   }
   summary {
-    min-height: 44px;
-    padding: 10px 0;
+    cursor: pointer;
   }
-  .icon-button {
-    width: 44px;
-    min-height: 44px;
+  code {
+    font-family: ui-monospace, SFMono-Regular, monospace;
+    overflow-wrap: anywhere;
+  }
+  svg {
+    vertical-align: middle;
+    flex-shrink: 0;
+  }
+  @media (max-width: 767px) {
+    :where(button:not([data-slot]), select) {
+      min-height: 44px;
+      padding: 9px 14px;
+    }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    ::before,
+    ::after {
+      animation-duration: 0.01ms !important;
+      transition-duration: 0.01ms !important;
+    }
+  }
+}
+@layer components {
+  .secondary {
+    background: transparent;
+    color: var(--text);
+    border-color: var(--control-border);
+  }
+  .secondary:hover:not(:disabled) {
+    background: var(--subtle);
+    border-color: var(--control-border);
+  }
+  .text-button {
+    display: inline;
+    min-height: 0;
+    padding: 0;
+    border: 0;
+    background: none;
+    color: var(--accent-text);
+    font-size: inherit;
+    font-weight: 500;
+  }
+  .text-button:hover:not(:disabled) {
+    background: none;
+    color: var(--text);
+    border: 0;
+  }
+  .eyebrow {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--muted);
+    letter-spacing: 0.04em;
+  }
+  .muted {
+    color: var(--muted);
+    font-size: 13px;
+  }
+  .error {
+    color: var(--error);
+    line-height: 1.7;
+    overflow-wrap: anywhere;
+  }
+  .error:empty {
+    display: none;
+  }
+  .sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+  }
+  .field {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    font-size: 12px;
+    font-weight: 500;
+    margin-bottom: 14px;
   }
   .field input,
-  .check-field {
-    min-height: 44px;
+  .field textarea {
+    width: 100%;
+    padding: 7px 10px;
+    border: 1px solid var(--control-border);
+    background: var(--card);
+    color: var(--text);
+    border-radius: 8px;
+    min-height: 36px;
+    font-size: 13px;
+    line-height: 1.5;
+    font-weight: 400;
   }
-  .dialog-content {
-    padding: 20px;
+  .field textarea {
+    min-height: 88px;
+    max-height: 240px;
   }
-  .dialog-heading {
-    padding: 12px 12px 12px 20px;
+  @media (max-width: 767px) {
+    .field input {
+      min-height: 44px;
+    }
   }
-  .dialog-actions {
-    padding: 4px 20px 20px;
-  }
-  .dialog-actions button {
-    flex: 1;
-  }
-}
-.detail-dialog {
-  width: 375px;
-  height: calc(100dvh - 32px);
-}
-.theme-fallback {
-  margin: 0;
-  padding: 10px 24px;
-  background: var(--subtle);
-  color: var(--text);
-  overflow-wrap: anywhere;
-  font-size: 13px;
 }

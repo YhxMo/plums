@@ -25,13 +25,13 @@ for (const width of [320, 375, 768, 1440])
     await install(page, "ocean");
     await install(page, "ink");
     const dialog = await settings(page);
-    await dialog.getByRole("button", { name: /^使用 海湾/ }).click();
+    await dialog.getByRole("radio", { name: /^使用 海湾/ }).click();
     await expect(page.locator("html")).toHaveAttribute(
       "data-theme-id",
       "sample.ocean",
     );
     await expect(page.locator("html")).toHaveCSS("--accent", "#176B63");
-    await dialog.getByRole("button", { name: /^使用 墨夜/ }).click();
+    await dialog.getByRole("radio", { name: /^使用 墨夜/ }).click();
     await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
     await expect(page.locator("html")).toHaveAttribute(
       "data-theme-id",
@@ -74,7 +74,7 @@ for (const width of [320, 375, 768, 1440])
     );
     const restored = await settings(page);
     await restored
-      .getByRole("button", { name: "使用内置外观", exact: true })
+      .getByRole("radio", { name: "使用内置外观", exact: true })
       .click();
     await expect(page.locator("html")).not.toHaveAttribute("data-theme-id");
     await restored.getByRole("button", { name: "关闭" }).click();
@@ -89,12 +89,12 @@ test("failed theme preference write keeps the applied palette", async ({
   await install(page, "ocean");
   await install(page, "ink");
   const dialog = await settings(page);
-  await dialog.getByRole("button", { name: /^使用 海湾/ }).click();
+  await dialog.getByRole("radio", { name: /^使用 海湾/ }).click();
   await dialog.getByRole("button", { name: "关闭" }).click();
   await manage(page, true);
   await page.getByLabel("注入存储写入失败").check();
   const failed = await settings(page);
-  await failed.getByRole("button", { name: /^使用 墨夜/ }).click();
+  await failed.getByRole("radio", { name: /^使用 墨夜/ }).click();
   await expect(page.locator("html")).toHaveAttribute(
     "data-theme-id",
     "sample.ocean",

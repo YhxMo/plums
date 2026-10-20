@@ -1,11 +1,30 @@
 import type { ExtensionDetailsProps } from "./controllers";
-import { capabilityLabel, translateStatus } from "../../shell/messages";
-import styles from "../../shell/dialogs.module.css";
-import managerStyles from "./ExtensionManager.module.css";
+import type { ReactNode } from "react";
+import { CheckIcon, PlusIcon } from "lucide-react";
+import { cn } from "cn";
+import { capabilityLabel } from "../../shell/messages";
 import { CredentialBindings } from "./CredentialBindings";
 import { sourceLabel } from "../../../modules/shell/file-import";
-import { Icon } from "../../components/Icon";
 import { serviceList } from "./services";
+import { StatusBadge } from "./StatusBadge";
+import { Badge } from "../../components/ui/badge";
+import { Toggle } from "../../components/ui/toggle";
+
+/** One titled block of the details, separated from the one above. */
+export function DetailSection({
+  title,
+  children,
+}: {
+  title: string;
+  children: ReactNode;
+}) {
+  return (
+    <section className="mt-4 border-t pt-3.5 first:mt-0 first:border-0 first:pt-0">
+      <h4 className="mb-2.5 text-[13px] font-semibold">{title}</h4>
+      {children}
+    </section>
+  );
+}
 export function ExtensionDetails({
   host,
   access,
@@ -21,71 +40,83 @@ export function ExtensionDetails({
   return (
     <section
       aria-label="所选扩展详情"
-      className={inline ? managerStyles.inlineDetail : styles.detailCard}
+      className={cn(
+        inline
+          ? "mt-3 cursor-default border-t pt-3"
+          : "rounded-xl bg-card p-5 shadow-raised",
+      )}
+      onClick={inline ? (event) => event.stopPropagation() : undefined}
     >
-      <header className={styles.detailCardHeader} hidden={inline}>
-        <div>
-          <div className={managerStyles.extensionTitle}>
-            <h3>{activeSelectedExt.label}</h3>
-            <span
-              className={`${managerStyles.status} ${extState.status === "active" ? managerStyles.active : ""}`}
-            >
-              {translateStatus(extState.status)}
-            </span>
-          </div>
-          <code>
-            {extId} · {extManifest.version}
-          </code>
+      <header hidden={inline} className="mb-1">
+        <div className="flex items-center justify-between gap-2">
+          <h3 className="text-base font-semibold tracking-tight">
+            {activeSelectedExt.label}
+          </h3>
+          <StatusBadge status={extState.status} />
         </div>
+        <code className="mt-1 block text-xs text-muted-foreground">
+          {extId} · {extManifest.version}
+        </code>
       </header>
       {extManifest.description && (
         // Author text from the manifest; React renders it as plain text.
-        <p className={styles.detailDescription}>{extManifest.description}</p>
+        <p className="mt-3 [overflow-wrap:anywhere] whitespace-pre-line">
+          {extManifest.description}
+        </p>
       )}
       {users.map((group) => (
-        <section className={styles.detailSection} key={group.owner}>
-          <h4>
-            {group.toggle ? `为 ${group.kind} 开启` : `使用中的 ${group.kind}`}
-          </h4>
-          <ul className={managerStyles.userChips}>
+        <DetailSection
+          key={group.owner}
+          title={
+            group.toggle ? `为 ${group.kind} 开启` : `使用中的 ${group.kind}`
+          }
+        >
+          <ul className="flex flex-wrap gap-1.5">
             {group.toggle
               ? [
                   ...group.users.map((user) => ({ ...user, on: true })),
                   ...group.others.map((user) => ({ ...user, on: false })),
                 ].map((user) => (
-                  <li key={user.id} className={managerStyles.toggleChip}>
-                    <button
-                      aria-pressed={user.on}
+                  <li key={user.id}>
+                    <Toggle
+                      size="sm"
+                      variant="outline"
+                      pressed={user.on}
                       aria-label={`在 ${user.label} 中使用 ${activeSelectedExt.label}`}
                       disabled={operations.busy}
-                      onClick={() =>
+                      className="border-dashed font-normal text-muted-foreground data-[state=on]:border-solid data-[state=on]:border-transparent data-[state=on]:bg-brand-soft data-[state=on]:text-foreground max-md:h-10"
+                      onPressedChange={(on) =>
                         void operations.operate(() =>
-                          host.toggleUser(
-                            group.owner,
-                            user.id,
-                            extId,
-                            !user.on,
-                          ),
+                          host.toggleUser(group.owner, user.id, extId, on),
                         )
                       }
                     >
-                      <Icon name={user.on ? "check" : "plus"} size={13} />
+                      {user.on ? (
+                        <CheckIcon className="text-brand-text" />
+                      ) : (
+                        <PlusIcon />
+                      )}
                       {user.label}
-                    </button>
+                    </Toggle>
                   </li>
                 ))
-              : group.users.map((user) => <li key={user.id}>{user.label}</li>)}
+              : group.users.map((user) => (
+                  <li key={user.id}>
+                    <Badge className="bg-brand-soft text-foreground">
+                      {user.label}
+                    </Badge>
+                  </li>
+                ))}
           </ul>
           {group.toggle && (
-            <p className={managerStyles.assignHint}>
+            <p className="mt-2 text-xs text-muted-foreground">
               点按为单个 {group.kind} 开启或关闭此扩展。
             </p>
           )}
-        </section>
+        </DetailSection>
       ))}
-      <section className={styles.detailSection}>
-        <h4>服务与权限概览</h4>
-        <dl className={styles.detailMetaGrid}>
+      <DetailSection title="服务与权限概览">
+        <dl className="grid grid-cols-[88px_1fr] gap-x-3 gap-y-1.5 text-xs [&_dd]:[overflow-wrap:anywhere] [&_dt]:text-muted-foreground">
           <dt>模块位置</dt>
           <dd>{sourceLabel(activeSelectedExt.url)}</dd>
           <dt>所需服务</dt>
@@ -105,7 +136,7 @@ export function ExtensionDetails({
             {extState.resources} 项资源 · {extState.tasks} 个在途任务
           </dd>
         </dl>
-      </section>
+      </DetailSection>
       <CredentialBindings
         key={extId}
         access={access}

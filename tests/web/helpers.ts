@@ -11,11 +11,9 @@ export async function manage(page: Page, diagnostics = false) {
       .click();
   }
   if (diagnostics) {
-    const details = page
-      .locator("details")
-      .filter({ has: page.locator("summary", { hasText: "诊断与实验" }) });
-    if (!(await details.evaluate((e) => e.hasAttribute("open"))))
-      await page.getByText("诊断与实验", { exact: true }).click();
+    const panel = page.getByRole("button", { name: "诊断与实验" });
+    if ((await panel.getAttribute("aria-expanded")) !== "true")
+      await panel.click();
   }
 }
 /** Opens the model connections dialog from the app menu. */
@@ -59,7 +57,7 @@ export async function chooseLayout(page: Page, id: string) {
   await page.getByRole("button", { name: "应用菜单", exact: true }).click();
   await page.getByRole("menuitem", { name: "应用设置", exact: true }).click();
   const dialog = page.getByRole("dialog", { name: "应用设置" });
-  const button = dialog.getByRole("button", {
+  const button = dialog.getByRole("radio", {
     name: `使用 ${names[id]}`,
     exact: true,
   });

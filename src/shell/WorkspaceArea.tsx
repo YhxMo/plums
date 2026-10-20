@@ -1,7 +1,9 @@
+import { XIcon } from "lucide-react";
+import { AnimatePresence, motion } from "motion/react";
 import type { WorkspaceAreaProps } from "./controllers";
 import { ExtensionView } from "./ExtensionView";
-import { Icon } from "../components/Icon";
-import styles from "./layout.module.css";
+import { Button } from "../components/ui/button";
+
 export function WorkspaceArea({
   host,
   workspace,
@@ -9,10 +11,12 @@ export function WorkspaceArea({
   hidden,
   children,
 }: WorkspaceAreaProps) {
+  const sidebar =
+    !hidden && chrome.custom && chrome.open ? chrome.custom : null;
   return (
     <>
       <div
-        className={styles.stageArea}
+        className="min-w-0 flex-1 overflow-auto"
         data-workspace
         hidden={hidden}
         inert={hidden || undefined}
@@ -21,33 +25,41 @@ export function WorkspaceArea({
         <div
           ref={workspace.slot}
           hidden={!workspace.activeView}
-          className={styles.viewSlot}
+          className="h-full min-w-0 *:h-full"
         />
       </div>
-      {!hidden && chrome.custom && chrome.open && (
-        <aside
-          className={styles.extensionSidebar}
-          aria-label={chrome.custom.label}
-        >
-          <header className={styles.extensionSidebarHeader}>
-            <h2>{chrome.custom.label}</h2>
-            <button
-              className="topbar-ghost"
-              aria-label="收起扩展侧栏"
-              onClick={chrome.closeCustom}
-            >
-              <Icon name="close" size={16} />
-            </button>
-          </header>
-          <div className={styles.extensionSidebarBody}>
-            <ExtensionView
-              host={host}
-              id={chrome.custom.id}
-              generation={chrome.custom.generation}
-            />
-          </div>
-        </aside>
-      )}
+      <AnimatePresence initial={false}>
+        {sidebar && (
+          <motion.aside
+            key={sidebar.id}
+            initial={{ opacity: 0, x: 16 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: 16 }}
+            transition={{ duration: 0.18, ease: "easeOut" }}
+            className="mr-2 mb-2 flex w-68 shrink-0 flex-col overflow-hidden rounded-xl bg-card shadow-panel"
+            aria-label={sidebar.label}
+          >
+            <header className="flex min-h-12 items-center justify-between border-b py-1.5 pr-2 pl-4">
+              <h2 className="text-[13px] font-semibold">{sidebar.label}</h2>
+              <Button
+                variant="ghost"
+                size="icon-sm"
+                aria-label="收起扩展侧栏"
+                onClick={chrome.closeCustom}
+              >
+                <XIcon />
+              </Button>
+            </header>
+            <div className="min-h-0 flex-1 overflow-auto">
+              <ExtensionView
+                host={host}
+                id={sidebar.id}
+                generation={sidebar.generation}
+              />
+            </div>
+          </motion.aside>
+        )}
+      </AnimatePresence>
     </>
   );
 }

@@ -162,3 +162,18 @@ it.each([{ provider: "chat.a" }, { provider: 1, model: "m1" }, "chat.a/m1"])(
     );
   },
 );
+
+it("a new Agent can start with a chosen model or none", async () => {
+  const { agents } = await setup();
+  const picked = await agents().create({
+    name: "选了",
+    model: { provider: "chat.a", model: "m2" },
+  });
+  expect(picked.model).toEqual({ provider: "chat.a", model: "m2" });
+  expect(picked.extensions).toEqual([]);
+  const none = await agents().create({ name: "未选", model: null });
+  expect(none.model).toBeUndefined();
+  await expect(
+    agents().create({ name: "错", model: { provider: "chat.a", model: "x" } }),
+  ).rejects.toThrow("模型不可用");
+});

@@ -117,7 +117,11 @@ for (const width of [375, 1180]) {
         name: "撤销并删除凭据",
         exact: true,
       });
-      expect((await cleanup.boundingBox())!.height).toBeGreaterThanOrEqual(44);
+      // Phones get full-size touch targets; desktop keeps the compact row.
+      if (width === 375)
+        expect((await cleanup.boundingBox())!.height).toBeGreaterThanOrEqual(
+          44,
+        );
       await page
         .getByRole("button", { name: `卸载 ${extensionId}`, exact: true })
         .click();
@@ -468,15 +472,27 @@ for (const width of [375, 1180])
     await presets.focus();
     await page.keyboard.press("ArrowDown");
     const list = dialog.getByRole("listbox", { name: "服务商" });
-    await expect(list.getByRole("option", { selected: true })).toHaveText(
-      "DeepSeek",
-    );
+    const current = list.getByRole("option", { selected: true });
+    await expect(current).toHaveText("DeepSeek");
+    // The open list takes over Escape and keys once its layer has settled
+    // (a frame later); people do not type faster than that.
+    const settled = () =>
+      page.evaluate(
+        () =>
+          new Promise((done) =>
+            requestAnimationFrame(() => requestAnimationFrame(done)),
+          ),
+      );
+    await settled();
     await page.keyboard.press("Escape");
     await expect(list).toBeHidden();
     await expect(dialog).toBeVisible();
     await expect(presets).toBeFocused();
     await page.keyboard.press("Enter");
+    await expect(current).toBeFocused();
+    await settled();
     await page.keyboard.press("End");
+    await expect(list.getByRole("option", { name: "自定义" })).toBeFocused();
     await page.keyboard.press("Enter");
     await expect(presets).toHaveText("自定义");
     await expect(presets).toBeFocused();
@@ -523,9 +539,11 @@ for (const width of [375, 1180])
     await picker.getByRole("button", { name: "添加所选（2）" }).click();
     await expect(picker).toBeHidden();
     const added = dialog.getByRole("list", { name: "已添加的模型" });
+    // Each row's window picker carries a hidden native select (Radix form
+    // support), so rows are matched by their visible start.
     await expect(added.getByRole("listitem")).toHaveText([
-      "model-one默认（128K）",
-      "model-two200K",
+      /^model-one默认（128K）/,
+      /^model-two200K/,
     ]);
     await dialog
       .getByRole("button", { name: "移除 model-one", exact: true })
@@ -558,8 +576,8 @@ for (const width of [375, 1180])
     await expect(context).toHaveText("1M");
     // Models without their own window follow the default.
     await expect(added.getByRole("listitem")).toHaveText([
-      "model-two200K",
-      "model-three默认（1M）",
+      /^model-two200K/,
+      /^model-three默认（1M）/,
     ]);
     expect(
       await page.evaluate(

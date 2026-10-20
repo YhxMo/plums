@@ -25,7 +25,9 @@ for (const width of [375, 1180])
     await page.mouse.move(width / 2, 700);
     await theme.hover();
     await expect(tip).toBeVisible();
-    await page.mouse.move(width / 2, 700);
+    // A real pointer passes through the space between; a single jump would
+    // land inside the tooltip's hover grace area.
+    await page.mouse.move(width / 2, 700, { steps: 10 });
     await expect(tip).toBeHidden();
     // A click acts on the button and hides the tooltip.
     await theme.hover();

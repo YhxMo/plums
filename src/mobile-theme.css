@@ -1,9 +1,6 @@
 /* Phones use a warm reading palette: parchment canvas, terracotta accent, warm
    grays and serif headings. Desktop keeps the base palette in styles.css. A
    contributed theme writes inline variables on :root and still wins. */
-:root {
-  --font-serif: "Anthropic Serif", Georgia, "Songti SC", "Noto Serif SC", serif;
-}
 @media (max-width: 767px) {
   :root {
     --text: #141413;
@@ -49,9 +46,13 @@
     --sidebar-hover: #242423;
     --sidebar-active: #30302e;
   }
-  h1,
-  h2 {
-    font-family: var(--font-serif);
-    font-weight: 500;
+}
+@layer base {
+  @media (max-width: 767px) {
+    h1,
+    h2 {
+      font-family: var(--font-serif);
+      font-weight: 500;
+    }
   }
 }

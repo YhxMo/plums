@@ -1,10 +1,11 @@
 import type { ReactNode } from "react";
+import { TriangleAlertIcon } from "lucide-react";
 import type { ExtensionListController } from "./controllers";
 import { extensionOwner } from "../../../modules/sdk";
 import { SelectedDocuments } from "./SelectedDocuments";
 import { ExtensionCard } from "./ExtensionCard";
 import { ExtensionActions } from "./ExtensionActions";
-import styles from "./ExtensionManager.module.css";
+import { Button } from "../../components/ui/button";
 
 export function ExtensionList({
   controller,
@@ -15,27 +16,39 @@ export function ExtensionList({
 }) {
   const { actions, busy } = controller;
   return (
-    <div className={styles.extensions}>
+    <div className="mt-1">
       {Object.entries(controller.failures).map(([id, reason]) => (
-        <article key={id}>
-          <strong>{id}</strong>
-          <p className="error">加载失败：{reason}</p>
-          <button
-            className="secondary"
-            disabled={busy}
-            aria-label={`重试加载 ${id}`}
-            onClick={() => void actions.retry(id)}
-          >
-            重试加载
-          </button>{" "}
-          <button
-            className="secondary"
-            disabled={busy}
-            aria-label={`移除路径 ${id}`}
-            onClick={() => void actions.removeFailure(id)}
-          >
-            移除失效路径
-          </button>
+        <article
+          key={id}
+          className="mb-2 rounded-xl bg-destructive/6 p-3.5 ring-1 ring-destructive/20"
+        >
+          <strong className="flex items-center gap-1.5 text-[13px]">
+            <TriangleAlertIcon className="size-4 text-destructive" />
+            {id}
+          </strong>
+          <p className="mt-1 mb-2.5 text-xs text-destructive">
+            加载失败：{reason}
+          </p>
+          <div className="flex flex-wrap gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={busy}
+              aria-label={`重试加载 ${id}`}
+              onClick={() => void actions.retry(id)}
+            >
+              重试加载
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              disabled={busy}
+              aria-label={`移除路径 ${id}`}
+              onClick={() => void actions.removeFailure(id)}
+            >
+              移除失效路径
+            </Button>
+          </div>
         </article>
       ))}
       {controller.rows.map((row) => (

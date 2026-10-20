@@ -86,6 +86,8 @@ it.each([
   ["extensions/examples/example.js", "../../modules/extension-host/host"],
   ["extensions/examples/example.js", "/src/platform"],
   ["modules/sdk/nested/example.ts", "../../extension-host/host"],
+  ["src/components/ui/example.tsx", "@/shell/runtime"],
+  ["modules/sdk/example.ts", "@/components/ui/button"],
 ])("normalizes private imports from %s", (file, target) => {
   expect(boundaryProblems(file, `import "${target}";`)).toHaveLength(1);
 });
@@ -114,6 +116,8 @@ it.each([
   ["modules/shell/example.ts", "../sdk/pages"],
   ["extensions/examples/example.js", "../../modules/sdk"],
   ["extensions/examples/example.js", "../contracts"],
+  ["src/components/ui/example.tsx", "@/components/lib/utils"],
+  ["src/agents/example.tsx", "@/components/ui/button"],
 ])("allows downward imports: %s -> %s", (file, target) =>
   expect(boundaryProblems(file, `import "${target}";`)).toEqual([]),
 );
@@ -164,6 +168,14 @@ it("allows public SDK imports and ignores non-code references", () => {
   expect(
     boundaryProblems("src/shell/runtime.ts", 'import "../../src/platform";'),
   ).toEqual([]);
+});
+
+it("keeps business view ids out of generic layers but not variant names", () => {
+  const source = 'export const size = "default";';
+  expect(boundaryProblems("src/components/Probe.tsx", source)).toEqual([
+    "src/components/Probe.tsx:1: business view id default belongs to application composition",
+  ]);
+  expect(boundaryProblems("src/components/ui/probe.tsx", source)).toEqual([]);
 });
 
 it("reports the original line of a forbidden import", () => {

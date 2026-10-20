@@ -1,8 +1,16 @@
 import { useState } from "react";
+import { motion } from "motion/react";
+import { SearchIcon } from "lucide-react";
 import type { ListedModel } from "../../modules/models/extension";
 import { MAX_MODELS } from "../../modules/models/providers";
 import { tokenLabel } from "../../modules/models/protocols";
-import s from "./ModelConnections.module.css";
+import { Button } from "../components/ui/button";
+import { Checkbox } from "../components/ui/checkbox";
+import {
+  InputGroup,
+  InputGroupAddon,
+  InputGroupInput,
+} from "../components/ui/input-group";
 
 /**
  * The service's model list with each one's window from models.dev: filter,
@@ -37,65 +45,83 @@ export function ModelPicker({
         : [...value, model],
     );
   return (
-    <div className={s.picker} role="group" aria-label="服务提供的模型">
-      <div className={s.pickerHeader}>
-        <span>
-          找到 {available.length} 个模型
-          {room < available.length && `，还能添加 ${Math.max(room, 0)} 个`}
-        </span>
-      </div>
+    <motion.div
+      role="group"
+      aria-label="服务提供的模型"
+      initial={{ opacity: 0, y: -4 }}
+      animate={{ opacity: 1, y: 0 }}
+      className="grid gap-2 rounded-xl bg-muted/50 p-3 shadow-panel"
+    >
+      <span className="text-xs text-muted-foreground">
+        找到 {available.length} 个模型
+        {room < available.length && `，还能添加 ${Math.max(room, 0)} 个`}
+      </span>
       {available.length > 8 && (
-        <input
-          className={s.filter}
-          type="search"
-          aria-label="筛选模型"
-          placeholder="筛选模型"
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-        />
+        <InputGroup className="bg-card max-md:h-11">
+          <InputGroupAddon>
+            <SearchIcon />
+          </InputGroupAddon>
+          <InputGroupInput
+            type="search"
+            aria-label="筛选模型"
+            placeholder="筛选模型"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+          />
+        </InputGroup>
       )}
-      <ul className={s.options}>
+      <ul className="max-h-60 overflow-y-auto rounded-lg bg-card p-1 shadow-panel">
         {shown.map(({ name: model, context }) => {
           const exists = added.includes(model);
           const checked = exists || picked.includes(model);
           return (
-            <li key={model}>
-              <label className="check-field">
-                <input
-                  type="checkbox"
+            <li key={model} className="min-w-0">
+              <label className="flex min-h-9 cursor-pointer items-center gap-2.5 rounded-md px-2 py-1.5 text-[13px] hover:bg-muted/60 has-disabled:cursor-not-allowed has-disabled:opacity-60 max-md:min-h-11">
+                <Checkbox
                   checked={checked}
                   disabled={exists || (!checked && selected.length >= room)}
-                  onChange={() => toggle(model)}
+                  onCheckedChange={() => toggle(model)}
                 />
-                <span>{model}</span>
+                <span className="min-w-0 break-all">{model}</span>
                 {context && (
-                  <span className={s.hint}>上下文 {tokenLabel(context)}</span>
+                  <span className="ml-auto shrink-0 text-xs text-muted-foreground">
+                    上下文 {tokenLabel(context)}
+                  </span>
                 )}
-                {exists && <span className={s.hint}>已添加</span>}
+                {exists && (
+                  <span className="ml-auto shrink-0 text-xs text-muted-foreground">
+                    已添加
+                  </span>
+                )}
               </label>
             </li>
           );
         })}
-        {shown.length === 0 && <li className={s.hint}>没有匹配的模型。</li>}
+        {shown.length === 0 && (
+          <li className="px-2 py-3 text-center text-xs text-muted-foreground">
+            没有匹配的模型。
+          </li>
+        )}
       </ul>
       {overCapacity && (
-        <p role="alert" className={s.hint}>
+        <p role="alert" className="text-xs text-destructive">
           最多还能添加 {Math.max(room, 0)}{" "}
           个，请取消部分选择或移除已添加的模型。
         </p>
       )}
-      <div className={s.footerInline}>
-        <button type="button" className="secondary" onClick={onClose}>
+      <div className="flex justify-end gap-2 max-[520px]:*:flex-1">
+        <Button type="button" variant="outline" size="sm" onClick={onClose}>
           收起
-        </button>
-        <button
+        </Button>
+        <Button
           type="button"
+          size="sm"
           disabled={selected.length === 0 || overCapacity}
           onClick={() => onAdd(selected)}
         >
           添加所选（{selected.length}）
-        </button>
+        </Button>
       </div>
-    </div>
+    </motion.div>
   );
 }

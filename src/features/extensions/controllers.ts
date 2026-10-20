@@ -40,7 +40,7 @@ export type ExtensionManagerController = Pick<
 >;
 export type ManagerHeaderController = Pick<
   Management["header"],
-  "heading" | "count" | "close" | "install"
+  "heading" | "count" | "close" | "backLabel" | "install"
 >;
 export type ExtensionListController = Pick<
   Management["list"],

@@ -1,4 +1,5 @@
 import { createRoot } from "react-dom/client";
+import { MotionConfig } from "motion/react";
 import type { ReactNode } from "react";
 import {
   createWorkspaceChrome,
@@ -18,7 +19,7 @@ function mountReactView(
   if (fillHeight) element.style.height = "100%";
   container.append(element);
   const root = createRoot(element);
-  root.render(content);
+  root.render(<MotionConfig reducedMotion="user">{content}</MotionConfig>);
   return async () => {
     element.remove();
     // A shell effect may be cleaning up during React's commit.

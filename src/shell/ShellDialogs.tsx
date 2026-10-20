@@ -1,9 +1,9 @@
 import { preservedMessage } from "./messages";
 import type { ShellDialogsProps } from "./controllers";
 import { ExtensionView } from "./ExtensionView";
-import { Dialog } from "../components/Dialog";
+import { Dialog, DialogBody } from "../components/Dialog";
+import { Button } from "../components/ui/button";
 import { SettingsPanel } from "./SettingsPanel";
-import styles from "../features/extensions/ExtensionManager.module.css";
 export function ShellDialogs({
   host,
   operations,
@@ -26,7 +26,9 @@ export function ShellDialogs({
     );
     return (
       <Dialog
+        key={settings.id}
         title={view?.label ?? settings.label}
+        onBack={navigation.back}
         onClose={() => setSettings(null)}
       >
         {view ? (
@@ -36,36 +38,48 @@ export function ShellDialogs({
             generation={view.generation}
           />
         ) : (
-          <div className="dialog-content">
+          <DialogBody>
             <p>{preservedMessage("界面提供者暂不可用")}</p>
-            <button onClick={() => navigation.openManager()}>查看扩展</button>
-          </div>
+            <Button
+              variant="outline"
+              className="justify-self-start"
+              onClick={() => navigation.openManager()}
+            >
+              查看扩展
+            </Button>
+          </DialogBody>
         )}
       </Dialog>
     );
   }
   return (
     <Dialog
+      key={settings}
       title={settings === "about" ? "关于 Plums" : "应用设置"}
+      onBack={navigation.back}
       onClose={() => setSettings(null)}
     >
-      <div className="dialog-content">
-        {settings === "about" ? (
-          <>
-            <img
-              className={styles.aboutLogo}
-              src="/brand/plums.png"
-              width="56"
-              height="56"
-              alt=""
-            />
-            <h3>Plums · 0.2.0</h3>
+      {settings === "about" ? (
+        <DialogBody className="justify-items-center py-8 text-center">
+          <img
+            className="size-16 rounded-2xl object-contain shadow-raised"
+            src="/brand/plums.png"
+            width="64"
+            height="64"
+            alt=""
+          />
+          <div className="grid gap-1">
+            <h3 className="text-lg font-semibold tracking-tight">
+              Plums · 0.2.0
+            </h3>
             <p>通过扩展组合角色、能力和界面。</p>
-            <p className="muted">
-              本地调试原型。能力与数据格式由已启用的扩展提供；请在扩展详情核对来源、版本与权限。
-            </p>
-          </>
-        ) : (
+          </div>
+          <p className="max-w-sm text-xs text-muted-foreground">
+            本地调试原型。能力与数据格式由已启用的扩展提供；请在扩展详情核对来源、版本与权限。
+          </p>
+        </DialogBody>
+      ) : (
+        <DialogBody className="gap-5">
           <SettingsPanel
             busy={busy}
             operate={operate}
@@ -73,13 +87,10 @@ export function ShellDialogs({
             activeView={activeView}
             selectLayout={selectLayout}
             appearance={settingsAppearance}
-            openManager={(diagnostics) => {
-              setSettings(null);
-              navigation.openManager(diagnostics);
-            }}
+            openManager={(diagnostics) => navigation.openManager(diagnostics)}
           />
-        )}
-      </div>
+        </DialogBody>
+      )}
     </Dialog>
   );
 }

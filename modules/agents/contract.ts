@@ -49,6 +49,10 @@ export type AgentConfig = {
   name: string;
   description?: string;
   multiSession?: boolean;
+  /** Text extensions to start with, in order; absent picks the provider's default. */
+  extensions?: string[];
+  /** The model to start with, or `null` for none; absent picks the first one. */
+  model?: AgentModel | null;
 };
 /** An extension an Agent can switch on, described for the user. */
 export type ExtensionChoice = Named & { description: string };
@@ -88,6 +92,8 @@ export interface AgentProvider {
   extensionChoices?(): readonly ExtensionChoice[];
   /** Switches one of `extensionChoices()` on (appended last) or off for one Agent. */
   setExtension?(id: string, extensionId: string, on: boolean): Promise<void>;
+  /** Replaces one Agent's extensions with these, in this order. */
+  setExtensions?(id: string, extensionIds: string[]): Promise<void>;
   /** Models any Agent can use; added after agents@1 shipped. */
   modelChoices?(): readonly ModelChoice[];
   /** Picks one of `modelChoices()` for an Agent, or none. */

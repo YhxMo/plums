@@ -4,6 +4,8 @@ html {
   touch-action: manipulation;
   -webkit-tap-highlight-color: transparent;
 }
-button:active:not(:disabled) {
-  filter: brightness(0.9);
+@layer base {
+  button:active:not(:disabled) {
+    filter: brightness(0.9);
+  }
 }

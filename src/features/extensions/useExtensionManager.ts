@@ -129,6 +129,7 @@ export function useExtensionManager(
       heading,
       count: catalog.length,
       close: closeManager,
+      backLabel: manager.backLabel,
       install: (source: HTMLElement) => setDialog({ kind: "install", source }),
     },
     list: {

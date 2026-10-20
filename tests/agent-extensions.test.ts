@@ -215,3 +215,36 @@ it("a reply in flight is not saved when its extension stops meanwhile", async ()
       .sessions[0].messages.map((m) => m.text),
   ).toEqual(["保留", "保留"]);
 });
+
+it("a new Agent starts with the extensions chosen for it, in that order", async () => {
+  const { agents, last } = await setup();
+  const agent = await agents().create({
+    name: "拼接",
+    extensions: ["transform.b", "transform.a"],
+  });
+  expect(agent.extensions).toEqual(["transform.b", "transform.a"]);
+  await agents().send(agent.id, "一");
+  expect(last(agent.id)).toBe("甲：乙：一");
+  const none = await agents().create({ name: "无", extensions: [] });
+  expect(none.extensions).toEqual([]);
+  await expect(
+    agents().create({ name: "错", extensions: ["transform.none"] }),
+  ).rejects.toThrow("扩展未启用");
+  expect(agents().list()).toHaveLength(2);
+});
+
+it("an Agent's extensions can be replaced as one ordered list", async () => {
+  const { agents, last } = await setup();
+  const agent = await agents().create({ name: "排序" });
+  await agents().setExtensions!(agent.id, ["transform.b", "transform.a"]);
+  expect(agents().list()[0].extensions).toEqual(["transform.b", "transform.a"]);
+  await agents().send(agent.id, "一");
+  expect(last(agent.id)).toBe("甲：乙：一");
+  await agents().setExtensions!(agent.id, ["transform.a", "transform.b"]);
+  await agents().send(agent.id, "二");
+  expect(last(agent.id)).toBe("乙：甲：二");
+  await expect(
+    agents().setExtensions!(agent.id, ["transform.none"]),
+  ).rejects.toThrow("扩展未启用");
+  expect(agents().list()[0].extensions).toEqual(["transform.a", "transform.b"]);
+});

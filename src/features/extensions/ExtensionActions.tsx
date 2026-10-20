@@ -1,5 +1,11 @@
+import {
+  PowerIcon,
+  PowerOffIcon,
+  Settings2Icon,
+  Trash2Icon,
+} from "lucide-react";
 import type { ExtensionCardModel, ExtensionRowActions } from "./controllers";
-import styles from "./ExtensionManager.module.css";
+import { Button } from "../../components/ui/button";
 
 export function ExtensionActions({
   extension,
@@ -15,31 +21,38 @@ export function ExtensionActions({
 }) {
   const { entry, manifest, state, imported } = extension;
   const { id } = entry;
+  const active = state.status === "active";
   return (
-    <div className={styles.extensionActions}>
+    <div className="flex flex-wrap items-center gap-2">
       {manifest.configuration && (
-        <button
-          className="secondary"
+        <Button
+          variant="outline"
+          size="sm"
           aria-label={`配置 ${id}`}
           disabled={busy}
           onClick={(event) => actions.configure(id, event.currentTarget)}
         >
+          <Settings2Icon data-icon="inline-start" />
           配置
-        </button>
+        </Button>
       )}
       {imported && (
-        <button
-          className="secondary"
+        <Button
+          variant="ghost"
+          size="sm"
           disabled={busy}
           aria-label={`卸载 ${id}`}
           onClick={(event) => actions.uninstall(id, event.currentTarget)}
         >
+          <Trash2Icon data-icon="inline-start" />
           卸载（保留数据）
-        </button>
+        </Button>
       )}
-      <button
-        className={`secondary ${styles.toggle}`}
-        aria-label={`${state.status === "active" ? "停用" : "启用"} ${id}`}
+      <Button
+        variant={active ? "outline" : "secondary"}
+        size="sm"
+        className="ml-auto"
+        aria-label={`${active ? "停用" : "启用"} ${id}`}
         disabled={
           busy ||
           state.status === "cleanup-failed" ||
@@ -47,12 +60,13 @@ export function ExtensionActions({
         }
         onClick={(event) => actions.toggle(extension, event.currentTarget)}
       >
-        {state.status === "active"
-          ? "停用"
-          : state.status === "waiting"
-            ? "恢复"
-            : "启用"}
-      </button>
+        {active ? (
+          <PowerOffIcon data-icon="inline-start" />
+        ) : (
+          <PowerIcon data-icon="inline-start" />
+        )}
+        {active ? "停用" : state.status === "waiting" ? "恢复" : "启用"}
+      </Button>
     </div>
   );
 }
