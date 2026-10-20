@@ -272,6 +272,30 @@ test("preparation replaces only known earlier credential plugin templates", () =
   );
 });
 
+test("preparation replaces the earlier network plugin template, nothing else", () => {
+  const { root, activity } = fixture();
+  const plugin = join(
+    root,
+    activity.replace("MainActivity.kt", "NetworkPlugin.kt"),
+  );
+  const current = readFileSync(
+    join(root, "native/android/NetworkPlugin.kt"),
+    "utf8",
+  ).replace("{{PACKAGE}}", "dev.plums.plums");
+  const previous = execFileSync(
+    "git",
+    ["show", "a027edf:native/android/NetworkPlugin.kt"],
+    { cwd: process.cwd(), encoding: "utf8" },
+  ).replace("{{PACKAGE}}", "dev.plums.plums");
+  writeFileSync(plugin, previous);
+  prepareAndroid(root, "/toolchain");
+  expect(readFileSync(plugin, "utf8")).toBe(current);
+  writeFileSync(plugin, current.replace("open.connect()", ""));
+  expect(() => prepareAndroid(root, "/toolchain")).toThrow(
+    "Network plugin changed",
+  );
+});
+
 test("document picker requests only temporary read access and bounded worker reads", () => {
   const { root, activity } = fixture();
   prepareAndroid(root, "/toolchain");

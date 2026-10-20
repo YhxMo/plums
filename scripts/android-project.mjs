@@ -88,6 +88,10 @@ const previousTemplates = {
     // 6fc58eb: 8 MiB request, key typed in a native dialog.
     "45b5d08536d1d8102089b836d41e9ff91527953ad70df327270546d9b8ceb07e",
   ]),
+  Network: new Set([
+    // a027edf: cancel before connecting did not stop the read.
+    "fa669a57c644385193584f45968c1cab144b2679fa04271138ec68dd4b1d3c54",
+  ]),
 };
 /** Validate every edit before writing any generated file.
  * @param {string} root @param {string} toolsRoot */
