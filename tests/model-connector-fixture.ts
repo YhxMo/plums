@@ -81,7 +81,7 @@ export async function fixture({
     async (_alias: string, _target: string, _path: string) =>
       ({ status: 404, body: "" }) as { status: number; body: string },
   );
-  const catalog = vi.fn(async (_url: string) => ({
+  const catalog = vi.fn(async (_url: string, _signal?: AbortSignal) => ({
     status: 200,
     body: catalogText,
   }));
@@ -92,7 +92,7 @@ export async function fixture({
     kind: credentials ? "native" : "browser",
     available: (name) => credentials || name.startsWith("state."),
     async grant() {},
-    async call(caller, name, payload) {
+    async call(caller, name, payload, signal) {
       expect(caller).toBe(owner);
       const request = (payload ?? {}) as Record<string, unknown>;
       if (name === "state.read") return states.get(owner) ?? null;
@@ -130,7 +130,8 @@ export async function fixture({
         });
         return { alias, status };
       }
-      if (name === "network.read") return catalog(request.url as string);
+      if (name === "network.read")
+        return catalog(request.url as string, signal);
       if (name === "credential.request") {
         const item = connections.get(request.binding as string);
         if (!item)

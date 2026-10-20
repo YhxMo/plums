@@ -28,9 +28,9 @@ it("reads models.dev once an hour and lists models without it when it fails", as
     await expect(api.fetchModels(id, signal())).resolves.toEqual([
       { name: "deepseek-chat", context: 1_048_576 },
     ]);
-  expect(catalog.mock.calls).toEqual([
-    ["https://models.dev/api.json"],
-    ["https://models.dev/api.json"],
+  expect(catalog.mock.calls.map(([url]) => url)).toEqual([
+    "https://models.dev/api.json",
+    "https://models.dev/api.json",
   ]);
   catalog.mockResolvedValueOnce({ status: 200, body: "{" });
   vi.useFakeTimers({ now: Date.now() + 3_600_001, toFake: ["Date"] });
@@ -73,6 +73,26 @@ it("lists models without waiting long for a slow models.dev", async () => {
     { name: "deepseek-chat", context: 1_048_576 },
   ]);
   expect(catalog).toHaveBeenCalledTimes(1);
+});
+
+it("stops waiting for models.dev when the form is closed", async () => {
+  const { api, read, catalog } = await fixture();
+  const id = (await api.save(deepseek, undefined, KEY)) as string;
+  read.mockResolvedValue({
+    status: 200,
+    body: JSON.stringify({ data: [{ id: "deepseek-chat" }] }),
+  });
+  catalog.mockImplementationOnce(
+    (_url, stop) =>
+      new Promise((_, reject) =>
+        stop?.addEventListener("abort", () => reject(stop.reason)),
+      ),
+  );
+  const controller = new AbortController();
+  const listed = api.fetchModels(id, controller.signal);
+  await vi.waitFor(() => expect(read).toHaveBeenCalled());
+  controller.abort(new Error("closed"));
+  await expect(listed).rejects.toThrow("closed");
 });
 
 it("trims each model's history to its own window", async () => {

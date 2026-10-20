@@ -264,10 +264,18 @@ it.each([
   expect(() => readReply(protocol, response)).toThrow(text);
 });
 
-it("labels windows so two different sizes never read the same", () => {
+it("labels sizes exactly, so two different sizes never read the same", () => {
   expect(
-    [128_000, 131_072, 1_000_000, 1_048_576, 262_144, 2_000_000].map(
+    [400, 128_000, 128_400, 131_072, 999_600, 1_000_000, 1_048_576].map(
       tokenLabel,
     ),
-  ).toEqual(["128K", "131K", "1M", "1.05M", "262K", "2M"]);
+  ).toEqual([
+    "400",
+    "128K",
+    "128,400",
+    "131,072",
+    "999,600",
+    "1M",
+    "1,048,576",
+  ]);
 });

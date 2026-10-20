@@ -34,12 +34,13 @@ const cache = { type: "ephemeral" };
 export const replyRoom = ({ maxTokens, context }: Endpoint) =>
   maxTokens ?? Math.min(32_000, Math.floor(context / 4));
 
-/** 1000000 → "1M", 128000 → "128K". */
-/** 200K, 1M; other sizes rounded (131072 → 131K, 1048576 → 1.05M). */
+/** Exact: 128000 → "128K", 1000000 → "1M", 131072 → "131,072", 400 → "400". */
 export const tokenLabel = (tokens: number) =>
-  tokens >= 1_000_000
-    ? `${Number((tokens / 1_000_000).toFixed(2))}M`
-    : `${Math.round(tokens / 1000)}K`;
+  tokens > 0 && tokens % 1_000_000 === 0
+    ? `${tokens / 1_000_000}M`
+    : tokens > 0 && tokens % 1000 === 0
+      ? `${tokens / 1000}K`
+      : String(tokens).replace(/\B(?=(\d{3})+(?!\d))/g, ",");
 
 /**
  * A deliberately high token count, so a request stays inside the window:

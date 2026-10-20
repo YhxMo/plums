@@ -272,7 +272,7 @@ test("preparation replaces only known earlier credential plugin templates", () =
   );
 });
 
-test("preparation replaces the earlier network plugin template, nothing else", () => {
+test("preparation replaces only known earlier network plugin templates", () => {
   const { root, activity } = fixture();
   const plugin = join(
     root,
@@ -282,14 +282,16 @@ test("preparation replaces the earlier network plugin template, nothing else", (
     join(root, "native/android/NetworkPlugin.kt"),
     "utf8",
   ).replace("{{PACKAGE}}", "dev.plums.plums");
-  const previous = execFileSync(
-    "git",
-    ["show", "a027edf:native/android/NetworkPlugin.kt"],
-    { cwd: process.cwd(), encoding: "utf8" },
-  ).replace("{{PACKAGE}}", "dev.plums.plums");
-  writeFileSync(plugin, previous);
-  prepareAndroid(root, "/toolchain");
-  expect(readFileSync(plugin, "utf8")).toBe(current);
+  for (const commit of ["a027edf", "f31e4cd"]) {
+    const previous = execFileSync(
+      "git",
+      ["show", `${commit}:native/android/NetworkPlugin.kt`],
+      { cwd: process.cwd(), encoding: "utf8" },
+    ).replace("{{PACKAGE}}", "dev.plums.plums");
+    writeFileSync(plugin, previous);
+    prepareAndroid(root, "/toolchain");
+    expect(readFileSync(plugin, "utf8")).toBe(current);
+  }
   writeFileSync(plugin, current.replace("open.connect()", ""));
   expect(() => prepareAndroid(root, "/toolchain")).toThrow(
     "Network plugin changed",

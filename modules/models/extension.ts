@@ -22,14 +22,19 @@ const CATALOG_TTL = 3_600_000;
 /** How long a listed model waits for models.dev before showing without it. */
 const CATALOG_WAIT = 5000;
 
-/** The value, or undefined once `ms` pass first. */
-const within = <T>(value: Promise<T>, ms: number) =>
-  new Promise<T | undefined>((resolve) => {
+/** The value, or undefined when it fails or `ms` pass first; rejects on abort. */
+const atMost = <T>(value: Promise<T>, ms: number, signal: AbortSignal) =>
+  new Promise<T | undefined>((resolve, reject) => {
+    const stop = () => reject(signal.reason);
+    if (signal.aborted) return stop();
     const timer = setTimeout(() => resolve(undefined), ms);
-    void value.then((result) => {
-      clearTimeout(timer);
-      resolve(result);
-    });
+    signal.addEventListener("abort", stop, { once: true });
+    void value
+      .then(resolve, () => resolve(undefined))
+      .finally(() => {
+        clearTimeout(timer);
+        signal.removeEventListener("abort", stop);
+      });
   });
 
 /** A model the service lists, with the window models.dev gives for it. */
@@ -259,7 +264,7 @@ export function modelConnector({
         // Read alongside the list; the list never waits long for it.
         const pending = loadCatalog();
         const names = await listModels(id, signal);
-        const found = await within(pending, CATALOG_WAIT);
+        const found = await atMost(pending, CATALOG_WAIT, signal);
         return names.map((name) => {
           const context = windowFor(found, base, name);
           return context ? { name, context } : { name };
