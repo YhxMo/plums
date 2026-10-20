@@ -97,7 +97,7 @@ Mac 钥匙串的取舍：ad-hoc 签名的每次构建都被视为新应用，读
 
 本地隔离测试覆盖声明拒绝、来源/修订冲突、未知回执、坏元数据、重启、临时写入中断、保留秘密清理、保存密钥即确认发送，以及 Mac 密钥文件的 0600 权限、重启读取、引用不复用、格式拒绝与损坏文件保留（`credential_secrets_tests.rs`）；浏览器测试模拟原生回执，验证应用内填写、密钥只进入 `credential_configure`、当前/移除声明及卸载后的管理入口。
 
-浏览器测试不执行原生秘密保存/读取，也不发送真实请求。秘密读取/注入、传输时限与真实调用的验证见[凭据请求契约](CREDENTIAL-REQUEST.md)；扩展自建连接由 `tests/credential-connect.test.ts` 覆盖模板组装、只写密钥、owner 隔离与参数拒绝。应用内填写后的 Mac 文件存储与 Android Keystore 写入尚未在打包应用中实机验证。
+浏览器测试不执行原生秘密保存/读取，也不发送真实请求。秘密读取/注入、传输时限与真实调用的验证见[凭据请求契约](CREDENTIAL-REQUEST.md)；扩展自建连接由 `tests/credential-connect.test.ts` 覆盖模板组装、只写密钥、owner 隔离与参数拒绝。应用内填写后的 Mac 文件存储已在 0.2.0 打包应用中验证（[证据](../evidence/RELEASE-0.2.0-2026-10-20.md)）；Android Keystore 写入尚未在打包应用中验证。
 
 实现入口为 [SDK 声明](../modules/sdk/credential-bindings.ts)、[原生绑定状态](../src-tauri/src/credential_bindings.rs)、[原生管理命令](../src-tauri/src/credentials.rs)、[原生秘密适配](../src-tauri/src/credentials_native.rs)、[Android 秘密适配](../native/android/CredentialsPlugin.kt)和[宿主管理组件](../src/features/extensions/CredentialBindings.tsx)。底座不包含模型协议或业务循环。
 

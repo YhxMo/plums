@@ -4,14 +4,14 @@
 
 ## 当前交付
 
-[2026-10-18 M2.0 重新基线](BASELINE-2026-10-18.md)记录当前两端交付：标签 `m2-baseline-2026-10-18`（015ac2d）、空 source.patch；普通候选实际运行并经独立复核后原包发布。
+[2026-10-20 0.2.0 交付](RELEASE-0.2.0-2026-10-20.md)记录当前两端交付：提交 `6668ce7`、空 source.patch；候选实际运行并经四轮独立审查后原包发布。
 
 | 平台 | 当前入口与范围 |
 | --- | --- |
-| Mac arm64 | `release/mac/Plums M1.app`，0.0.4 debug ad-hoc；主题双向与冷恢复、管理、Agent 恢复、真实拒写反馈、原生凭据取消 |
-| Android ARM64 | `release/android/plums-m1-0.0.4-android-arm64-debug.apk`；API36 ARM64 模拟器，主题恢复、显式管理返回、IME/Back 收键盘、Agent 恢复、凭据取消 |
+| Mac arm64 | `release/mac/Plums.app`，0.2.0 debug ad-hoc；关于版本、连接器权限与文案、服务商表单、按模型窗口保存（密钥只在 0600 文件）与重启恢复 |
+| Android ARM64 | `release/android/plums-0.2.0-android-arm64-debug.apk`；API36 ARM64 模拟器，原生读取 models.dev、拒绝与取消、连接器文案、服务商表单 |
 
-已知限制：此基线交付包的管理页系统 Back 退出 Activity；[P7](ENGINEERING-PREREQUISITES-2026-10-18.md#p7android-返回层级)已在开发普通候选修复并验收，尚未替换 release。真机、中文 IME 组合输入、其他平台和真实模型调用不在本次范围。旧两端包分别保留在 `.cache/archive/releases/mac-Eyjl1K/mac`、`.cache/archive/releases/android-TcFWvt/android`。此前[弹窗焦点交付](DIALOG-FOCUS-2026-10-17.md)仅证明其受验版本，不能代表当前包全范围验收。
+已知限制：真实模型调用、Mac 打包应用读取 models.dev、Android Keystore 写入、真机、中文 IME 组合输入与其他平台不在本次范围。0.0.4 旧包保留在 `.cache/archive/releases/mac-uIizKK/mac`、`.cache/archive/releases/android-JS89ll/android`；[M2.0 重新基线](BASELINE-2026-10-18.md)只证明 0.0.4。
 
 ## 当前本地增量
 

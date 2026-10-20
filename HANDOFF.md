@@ -10,7 +10,7 @@ App 从 application 装配默认业务组合，通用 bootShell 接收组合定�
 
 宿主偏好、安装路径、主题和组合沿用串行 host.shell 快照，通用外壳保留不透明业务字段；Agent/会话与文本工作台各用自身命名空间，旧 `host.shell.agents` 首启迁移一次。Agent 数据损坏只使 `agents.local` 失败，不阻断启动。不提供 Agent 的组合也可启动、管理、保存和恢复。启用状态与按版本的授权自动保留，未知写入回执锁住继续修改，坏数据保留；状态可按 `key` 分片，每片上限 64 KiB；Agent 会话的消息按页存于多片，单个会话可达数 MB。
 
-[通用绑定与凭据管理](docs/CREDENTIAL-BINDINGS.md)已接入开发版：API Key 在应用内的密码框填写（模型连接表单或扩展管理），只写不读；Mac 存于数据根 `credential-secrets.json`（0600，不用钥匙串，不再要求登录密码），Android 用 Keystore 加密；保存密钥即确认向显示的目标发送。旧钥匙串中的密钥不迁移，升级后须重新填写；改为应用内填写后两端尚未实机调用。绑定默认指向官方 API、直连；代理配置可保存但当前不用于发送。R4 最小安全集（原生注入、发送确认、受限传输、取消）已在源码实现并接入生产适配器，旧 DeepSeek 连接器曾在 Mac 与 Android 模拟器各完成一次真实调用。扩展可声明协议模板并经 `credential.connect` 让用户自建多条连接（目标与密钥在扩展表单中填写），请求上限为 8 MiB（总计 10 分钟）、响应 2 MiB，还可 GET 同一站点的受限路径读取模型列表；内置模型连接器（取代 `connector.deepseek`）基于它实现，每个模型可有自己的上下文窗口（获取模型列表时经 [`network.read`](docs/NETWORK-READ.md) 读取公开目录 models.dev 填写，不带密钥），其余跟随服务商默认窗口（Anthropic 预设 1M），最大输出默认由服务决定，发送完整历史并利用服务商提示缓存，超出窗口时分批丢弃最早轮次；真实服务调用与 1M 长上下文待手测。`release/` 交付包仍是 R4 之前的版本；真实调用前确认范围，密钥由账户所有者填写。
+[通用绑定与凭据管理](docs/CREDENTIAL-BINDINGS.md)已接入开发版：API Key 在应用内的密码框填写（模型连接表单或扩展管理），只写不读；Mac 存于数据根 `credential-secrets.json`（0600，不用钥匙串，不再要求登录密码），Android 用 Keystore 加密；保存密钥即确认向显示的目标发送。旧钥匙串中的密钥不迁移，升级后须重新填写；改为应用内填写后两端尚未实机调用（Mac 打包应用已验证保存到该文件）。绑定默认指向官方 API、直连；代理配置可保存但当前不用于发送。R4 最小安全集（原生注入、发送确认、受限传输、取消）已在源码实现并接入生产适配器，旧 DeepSeek 连接器曾在 Mac 与 Android 模拟器各完成一次真实调用。扩展可声明协议模板并经 `credential.connect` 让用户自建多条连接（目标与密钥在扩展表单中填写），请求上限为 8 MiB（总计 10 分钟）、响应 2 MiB，还可 GET 同一站点的受限路径读取模型列表；内置模型连接器（取代 `connector.deepseek`）基于它实现，每个模型可有自己的上下文窗口（获取模型列表时经 [`network.read`](docs/NETWORK-READ.md) 读取公开目录 models.dev 填写，不带密钥），其余跟随服务商默认窗口（Anthropic 预设 1M），最大输出默认由服务决定，发送完整历史并利用服务商提示缓存，超出窗口时分批丢弃最早轮次；真实服务调用与 1M 长上下文待手测。`release/` 为 0.2.0 交付包；真实调用前确认范围，密钥由账户所有者填写。
 
 开发候选已实现 Android Back 层级：IME、顶层菜单/弹窗、管理页、工作区、系统根层。管理与列表往返保留草稿，嵌套关闭和列表返回恢复焦点。P6 允许名单覆盖未知模块、父目录入口及间接 SDK 依赖；P1/P6/P7 的失败反例、审查与验证见[工程前置证据](evidence/ENGINEERING-PREREQUISITES-2026-10-18.md)。P2 已将 Rust 实际命令/DTO 与生成的 TS 契约绑定，生产调用使用类型入口，状态拒绝按稳定错误码呈现；默认与实验桥接分别登记。
 
@@ -20,7 +20,7 @@ M2.3.1 的独立 Mac/Android TLS 候选及 Android JNI 假字节实验已限定�
 
 ## 工程基线与门禁
 
-当前交付基线为 `m2-baseline-2026-10-18`（`015ac2d`），M2.0 限定验收完成。开发源码为 `a307648` 上的工程前置增量，与 release 分开记录；源码清单和旧包恢复入口见[重新基线证据](evidence/BASELINE-2026-10-18.md)。
+当前交付为 0.2.0（`6668ce7`），见 [0.2.0 交付证据](evidence/RELEASE-0.2.0-2026-10-20.md)；M2.0 基线为 `m2-baseline-2026-10-18`（`015ac2d`）。开发源码为 `a307648` 上的工程前置增量，与 release 分开记录；源码清单和旧包恢复入口见[重新基线证据](evidence/BASELINE-2026-10-18.md)。
 
 基线交付的 Web 517 单元、浏览器 121 项与 Rust 格式/Clippy/30 单元通过；两端原生范围见基线证据。集成开发增量最终通过 584 单元、129 浏览器、Rust 默认 33 单元与格式/Clippy/契约漂移检查；实验特性另有 39 单元通过。Android 普通候选实测状态 IPC、稳定拒绝/冲突保留及完整返回/焦点路径。首次失败与定向复验单列于工程前置证据。中文 IME 组合输入、真机与其他平台仍有未验范围。TS/TSX 与 React Hooks lint 已随 TypeScript 6.0.3 恢复。
 
@@ -32,10 +32,10 @@ M2.3.1 的独立 Mac/Android TLS 候选及 Android JNI 假字节实验已限定�
 
 | 平台 | 当前入口 | 来源与范围 |
 | --- | --- | --- |
-| Mac arm64 | release/mac/Plums M1.app | 0.0.4 debug、ad-hoc 签名；绑定 015ac2d，source.patch 为空 |
-| Android ARM64 | release/android/plums-m1-0.0.4-android-arm64-debug.apk | 同源 debug；API36 ARM64 模拟器限定验收 |
+| Mac arm64 | release/mac/Plums.app | 0.2.0 debug、ad-hoc 签名；绑定 6668ce7，source.patch 为空 |
+| Android ARM64 | release/android/plums-0.2.0-android-arm64-debug.apk | 同源 debug；API36 ARM64 模拟器限定验收 |
 
-build-info.json 与 acceptance.json 保存来源和验收范围。旧包保留于 `.cache/archive/releases/mac-Eyjl1K/mac` 与 `.cache/archive/releases/android-TcFWvt/android`；恢复不自动回滚应用数据。完整摘要和限制见[基线证据](evidence/BASELINE-2026-10-18.md)。
+build-info.json 与 acceptance.json 保存来源和验收范围。0.0.4 旧包保留于 `.cache/archive/releases/mac-uIizKK/mac` 与 `.cache/archive/releases/android-JS89ll/android`；恢复不自动回滚应用数据。范围与未验项见 [0.2.0 交付证据](evidence/RELEASE-0.2.0-2026-10-20.md)。
 
 ## 后续范围
 

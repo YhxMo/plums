@@ -75,7 +75,7 @@ npm run verify:native
 
 供本地查看的应用包统一放在仓库根 `release/`。此目录仅保存当前交付产物、精炼使用说明与校验清单，按 `/release/` 忽略并从源码盘点中排除；应用数据、缓存、原始日志、测试签名私钥及私人配置不进入交付目录。
 
-Mac使用 `npm run release:mac` 统一构建普通debug包、本地临时签名、复制内容核对、文件校验及旧包归档；当前入口为 `release/mac/Plums M1.app`。同目录 build-info.json记录实际包标识、版本、架构、签名和文件校验，source.patch保存基线提交上的公开工作区差异；构建和签名通过不自动代表原生用户路径通过。Android当前包独立放在release/android，保留其受验来源，不因Mac更新而改写为同版验证。
+Mac使用 `npm run release:mac` 统一构建普通debug包、本地临时签名、复制内容核对、文件校验及旧包归档；当前入口为 `release/mac/Plums.app`。同目录 build-info.json记录实际包标识、版本、架构、签名和文件校验，source.patch保存基线提交上的公开工作区差异；构建和签名通过不自动代表原生用户路径通过。Android当前包独立放在release/android，保留其受验来源，不因Mac更新而改写为同版验证。
 
 需要先验收再交付时，执行 `npm run release:mac -- --stage`，读取命令输出的候选目录并在独立数据下启动其中的 app。通过验收和独立审查后，先关闭当前应用，再执行 `npm run release:mac -- --publish <候选目录>`，只移动这份受验包，不重新构建。省略参数直接构建并发布。候选与当前目录必须分开；发布保留整份旧平台目录，替换失败恢复旧入口并保留候选。此处是本地包替换，不是业务数据迁移或跨平台原子升级。
 

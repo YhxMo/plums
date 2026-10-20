@@ -1,6 +1,6 @@
 # 公开网络读取
 
-状态：当前有效（2026-10-20 核实）；`network.read` 已在 TS 宿主、Mac（Rust）与 Android（Kotlin）源码实现，TS 与 Rust 单元测试通过；内置模型连接器用它读取 models.dev。真实网络读取待在 Mac 与 Android 手测。
+状态：当前有效（2026-10-20 核实）；`network.read` 已在 TS 宿主、Mac（Rust）与 Android（Kotlin）源码实现，TS 与 Rust 单元测试通过；内置模型连接器用它读取 models.dev。Android 0.2.0 打包应用已真实读取、拒绝与取消（[证据](../evidence/RELEASE-0.2.0-2026-10-20.md)）；Mac 打包应用的真实读取未验。
 
 扩展读取不需要密钥的公开资源（如公开的模型目录）时使用本能力。它不带任何凭据，与[凭据代用请求](CREDENTIAL-REQUEST.md)分开：需要 API Key 的请求一律走凭据请求。
 
