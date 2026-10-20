@@ -17,6 +17,7 @@ import { Select } from "../components/Select";
 import { InfoTip } from "../components/Tooltip";
 import { useAsyncAction } from "../components/useAsyncAction";
 import { ModelPicker } from "./ModelPicker";
+import { useRequestSignal } from "./useRequestSignal";
 import s from "./ModelConnections.module.css";
 import { ActionToast } from "../components/Toast";
 
@@ -188,6 +189,7 @@ export function ProviderForm({
   const [fetched, setFetched] = useState<ListedModel[] | null>(null);
   const [key, setKey] = useState("");
   const { busy, error, notice, setError, setNotice, run } = useAsyncAction();
+  const requestSignal = useRequestSignal();
   const set = (patch: Partial<ProviderDraft>) =>
     setDraft((value) => ({ ...value, ...patch }));
   const preset = api.presets.find((p) => p.id === draft.preset);
@@ -207,12 +209,17 @@ export function ProviderForm({
   const typed = key.trim() || undefined;
   const save = () =>
     run(async () => {
-      await api.save(draft, current?.id, typed);
+      const saved = await api.save(draft, current?.id, typed);
       setKey("");
-      onDone("已保存。");
+      onDone(
+        api.list().find((item) => item.id === saved)?.status === "pending"
+          ? "配置已保存，连接状态待核对。"
+          : "已保存。",
+      );
     });
   const fetchModels = () =>
     run(async () => {
+      const signal = requestSignal();
       let saved = current?.id;
       if (needsKey || typed || current?.status !== "ready") {
         saved = await api.save(draft, saved, typed);
@@ -220,7 +227,7 @@ export function ProviderForm({
         setId(saved);
         set({ base });
       }
-      setFetched(await api.fetchModels(saved!, AbortSignal.timeout(60_000)));
+      setFetched(await api.fetchModels(saved!, signal));
     });
 
   const keyState = !current

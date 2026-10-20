@@ -1,6 +1,6 @@
 # Plums 工程状态
 
-核对日期：2026-10-19（Asia/Singapore）。[整体路线](docs/spec/total.md)维护能力依赖与门槛，[当前阶段](docs/spec/milestone.md)维护正在执行的工作，[验证索引](evidence/RESULTS.md)区分当前交付、开发增量和历史结果。
+核对日期：2026-10-21（Asia/Singapore）。[整体路线](docs/spec/total.md)维护能力依赖与门槛，[当前阶段](docs/spec/milestone.md)维护正在执行的工作，[验证索引](evidence/RESULTS.md)区分当前交付、开发增量和历史结果。
 
 ## 当前实现
 
@@ -20,7 +20,7 @@ M2.3.1 的独立 Mac/Android TLS 候选及 Android JNI 假字节实验已限定�
 
 ## 工程基线与门禁
 
-当前交付为 0.2.0（`6668ce7`），见 [0.2.0 交付证据](evidence/RELEASE-0.2.0-2026-10-20.md)；M2.0 基线为 `m2-baseline-2026-10-18`（`015ac2d`）。开发源码为 `a307648` 上的工程前置增量，与 release 分开记录；源码清单和旧包恢复入口见[重新基线证据](evidence/BASELINE-2026-10-18.md)。
+当前交付为 0.2.0（`6668ce7`），见 [0.2.0 交付证据](evidence/RELEASE-0.2.0-2026-10-20.md)；M2.0 基线为 `m2-baseline-2026-10-18`（`015ac2d`）。开发源码为 0.2.0 之后的增量，尚未替换 release；模型连接的行为与回归入口见[模型连接](docs/MODELS.md)。源码清单和旧包恢复入口见[重新基线证据](evidence/BASELINE-2026-10-18.md)。
 
 基线交付的 Web 517 单元、浏览器 121 项与 Rust 格式/Clippy/30 单元通过；两端原生范围见基线证据。集成开发增量最终通过 584 单元、129 浏览器、Rust 默认 33 单元与格式/Clippy/契约漂移检查；实验特性另有 39 单元通过。Android 普通候选实测状态 IPC、稳定拒绝/冲突保留及完整返回/焦点路径。首次失败与定向复验单列于工程前置证据。中文 IME 组合输入、真机与其他平台仍有未验范围。TS/TSX 与 React Hooks lint 已随 TypeScript 6.0.3 恢复。
 

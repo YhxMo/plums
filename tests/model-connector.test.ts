@@ -184,6 +184,48 @@ it("reuses the connection of a new provider whose record failed to save", async 
   expect(connections.size).toBe(1);
   expect(api.list()[0]).toMatchObject({ alias: spare, status: "ready" });
 });
+
+it("returns a committed provider id even when refreshing its key status fails", async () => {
+  const { api, connect, connections, states, failLists } = await fixture();
+  failLists(1);
+  const id = await api.save(deepseek, undefined, KEY);
+  expect(api.list()).toEqual([
+    expect.objectContaining({ id, status: "pending" }),
+  ]);
+  // The form keeps this id, so its next save edits rather than duplicates it.
+  await api.save({ ...deepseek, name: "已修改" }, id);
+  expect(api.list()).toEqual([
+    expect.objectContaining({ id, name: "已修改", status: "ready" }),
+  ]);
+  expect(connect).toHaveBeenCalledTimes(1);
+  expect(connections.size).toBe(1);
+  expect(states.get(owner)?.value).toMatchObject({
+    providers: [expect.objectContaining({ id, name: "已修改" })],
+  });
+});
+
+it("preserves the write failure when refreshing key status also fails", async () => {
+  const { api, states, failNextWrite, failLists } = await fixture();
+  failNextWrite();
+  failLists(1);
+  await expect(api.save(deepseek, undefined, KEY)).rejects.toThrow("磁盘已满");
+  expect(api.list()).toEqual([]);
+  expect(states.has(owner)).toBe(false);
+});
+
+it("keeps a committed deletion successful when its final refresh fails", async () => {
+  const { api, connect, connections, states, failLists } = await fixture();
+  const id = await api.save(deepseek, undefined, KEY);
+  connect.mockImplementationOnce(async () => {
+    failLists(1);
+    return "saved";
+  });
+  await expect(api.remove(id)).resolves.toBe(true);
+  expect(api.list()).toEqual([]);
+  expect(connections.size).toBe(0);
+  expect(states.get(owner)?.value).toMatchObject({ providers: [] });
+});
+
 it("does not keep showing or using a stale ready state when re-reading keys fails", async () => {
   const { api, chat, send, failLists } = await fixture();
   await api.save(deepseek, undefined, KEY);

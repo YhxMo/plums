@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { addAgent, manage } from "./helpers";
+import { addAgent, manage, openConnections } from "./helpers";
 
 const extensionId = "sample.credential-test";
 const declaration = {
@@ -456,9 +456,7 @@ for (const width of [375, 1180])
       };
     });
     await page.goto("/");
-    await page.getByRole("button", { name: "应用菜单", exact: true }).click();
-    await page.getByRole("menuitem", { name: "模型连接", exact: true }).click();
-    const dialog = page.getByRole("dialog", { name: "模型连接" });
+    const dialog = await openConnections(page);
     await dialog
       .getByRole("button", { name: "添加服务商", exact: true })
       .click();

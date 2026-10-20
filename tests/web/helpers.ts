@@ -18,6 +18,12 @@ export async function manage(page: Page, diagnostics = false) {
       await page.getByText("诊断与实验", { exact: true }).click();
   }
 }
+/** Opens the model connections dialog from the app menu. */
+export async function openConnections(page: Page) {
+  await page.getByRole("button", { name: "应用菜单", exact: true }).click();
+  await page.getByRole("menuitem", { name: "模型连接", exact: true }).click();
+  return page.getByRole("dialog", { name: "模型连接", exact: true });
+}
 /** Adds an Agent from scratch through the add dialog. */
 export async function addAgent(
   page: Page,

@@ -275,12 +275,18 @@ export class ProviderStore {
     for (const listener of this.listeners) listener();
   }
   private async write(next: ModelProvider[]) {
-    const receipt = (await this.call("state.write", {
-      revision: this.revision,
-      value: { version: 6, providers: next },
-    })) as StoredState;
-    this.revision = receipt.revision;
-    this.providers = next;
+    try {
+      const receipt = (await this.call("state.write", {
+        revision: this.revision,
+        value: { version: 6, providers: next },
+      })) as StoredState;
+      this.revision = receipt.revision;
+      this.providers = next;
+    } finally {
+      // A failed refresh publishes "pending"; it must not replace the write's
+      // confirmed result or its original failure.
+      await this.refresh().catch(() => {});
+    }
   }
   /**
    * A connection no provider uses, left when a new provider's key was saved
@@ -360,15 +366,11 @@ export class ProviderStore {
       id: existing?.id ?? newId(),
       alias: alias!,
     };
-    try {
-      await this.write(
-        existing
-          ? this.providers.map((item) => (item.id === next.id ? next : item))
-          : [...this.providers, next],
-      );
-    } finally {
-      await this.refresh();
-    }
+    await this.write(
+      existing
+        ? this.providers.map((item) => (item.id === next.id ? next : item))
+        : [...this.providers, next],
+    );
     return next.id;
   }
   /** Deletes the key natively, then the record; cancelling keeps both. */
@@ -385,11 +387,7 @@ export class ProviderStore {
       if (result.status === "rejected")
         throw new Error(`未删除：${result.reason ?? "平台拒绝了请求"}。`);
     }
-    try {
-      await this.write(this.providers.filter((item) => item.id !== id));
-    } finally {
-      await this.refresh();
-    }
+    await this.write(this.providers.filter((item) => item.id !== id));
     return true;
   }
 }

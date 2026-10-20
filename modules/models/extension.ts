@@ -263,6 +263,7 @@ export function modelConnector({
         id: string,
         signal: AbortSignal,
       ): Promise<ListedModel[]> => {
+        signal.throwIfAborted();
         const base = store.find(id)?.base ?? "";
         // Read alongside the list; the list never waits long for it.
         const pending = loadCatalog();

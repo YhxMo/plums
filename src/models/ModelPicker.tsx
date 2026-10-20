@@ -22,6 +22,11 @@ export function ModelPicker({
   const [query, setQuery] = useState("");
   const [picked, setPicked] = useState<string[]>([]);
   const room = MAX_MODELS - added.length;
+  // Manual additions can change both membership and room while this is open.
+  const selected = available.filter(
+    ({ name }) => picked.includes(name) && !added.includes(name),
+  );
+  const overCapacity = selected.length > room;
   const shown = available.filter(({ name }) =>
     name.toLowerCase().includes(query.trim().toLowerCase()),
   );
@@ -59,7 +64,7 @@ export function ModelPicker({
                 <input
                   type="checkbox"
                   checked={checked}
-                  disabled={exists || (!checked && picked.length >= room)}
+                  disabled={exists || (!checked && selected.length >= room)}
                   onChange={() => toggle(model)}
                 />
                 <span>{model}</span>
@@ -73,18 +78,22 @@ export function ModelPicker({
         })}
         {shown.length === 0 && <li className={s.hint}>没有匹配的模型。</li>}
       </ul>
+      {overCapacity && (
+        <p role="alert" className={s.hint}>
+          最多还能添加 {Math.max(room, 0)}{" "}
+          个，请取消部分选择或移除已添加的模型。
+        </p>
+      )}
       <div className={s.footerInline}>
         <button type="button" className="secondary" onClick={onClose}>
           收起
         </button>
         <button
           type="button"
-          disabled={picked.length === 0}
-          onClick={() =>
-            onAdd(available.filter(({ name }) => picked.includes(name)))
-          }
+          disabled={selected.length === 0 || overCapacity}
+          onClick={() => onAdd(selected)}
         >
-          添加所选（{picked.length}）
+          添加所选（{selected.length}）
         </button>
       </div>
     </div>

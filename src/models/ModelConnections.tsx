@@ -7,6 +7,7 @@ import type {
 import { tokenLabel } from "../../modules/models/protocols";
 import { useAsyncAction } from "../components/useAsyncAction";
 import { ProviderForm } from "./ProviderForm";
+import { useRequestSignal } from "./useRequestSignal";
 import s from "./ModelConnections.module.css";
 import { ActionToast } from "../components/Toast";
 
@@ -30,17 +31,14 @@ export function ModelConnections({ api }: { api: ModelConnectionsApi }) {
   const [editing, setEditing] = useState<string | null>(null);
   const [results, setResults] = useState<Record<string, string>>({});
   const { busy, error, notice, setError, setNotice, run } = useAsyncAction();
+  const requestSignal = useRequestSignal();
 
   const test = (provider: ProviderView, model: string) =>
     run(async () => {
       const key = `${provider.id}/${model}`;
       setResults((r) => ({ ...r, [key]: "正在测试…" }));
       try {
-        const reply = await api.test(
-          provider.id,
-          model,
-          AbortSignal.timeout(60_000),
-        );
+        const reply = await api.test(provider.id, model, requestSignal());
         setResults((r) => ({ ...r, [key]: `回复：${reply.slice(0, 60)}` }));
       } catch (reason) {
         setResults((r) => ({ ...r, [key]: "" }));
