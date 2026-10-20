@@ -34,13 +34,14 @@ const cache = { type: "ephemeral" };
 export const replyRoom = ({ maxTokens, context }: Endpoint) =>
   maxTokens ?? Math.min(32_000, Math.floor(context / 4));
 
+const grouped = new Intl.NumberFormat("en-US", { maximumFractionDigits: 0 });
 /** Exact: 128000 → "128K", 1000000 → "1M", 131072 → "131,072", 400 → "400". */
 export const tokenLabel = (tokens: number) =>
   tokens > 0 && tokens % 1_000_000 === 0
     ? `${tokens / 1_000_000}M`
     : tokens > 0 && tokens % 1000 === 0
       ? `${tokens / 1000}K`
-      : String(tokens).replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+      : grouped.format(tokens);
 
 /**
  * A deliberately high token count, so a request stays inside the window:

@@ -91,8 +91,8 @@ const previousTemplates = {
   Network: new Set([
     // a027edf: cancel before connecting did not stop the read.
     "fa669a57c644385193584f45968c1cab144b2679fa04271138ec68dd4b1d3c54",
-    // f31e4cd: a connect failure reported as possibly sent.
-    "eee2b51e0b24d2a1aaa13c5ae0cafc97b0d297ee4369abbf5086a4c5cd61f031",
+    // 741bf25: a failed TLS handshake reported as not sent.
+    "a6ddda691bf027f9cda20c56f6cafb92c6eb584dd590194487e650310c216865",
   ]),
 };
 /** Validate every edit before writing any generated file.

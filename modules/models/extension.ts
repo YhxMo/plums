@@ -25,9 +25,12 @@ const CATALOG_WAIT = 5000;
 /** The value, or undefined when it fails or `ms` pass first; rejects on abort. */
 const atMost = <T>(value: Promise<T>, ms: number, signal: AbortSignal) =>
   new Promise<T | undefined>((resolve, reject) => {
-    const stop = () => reject(signal.reason);
-    if (signal.aborted) return stop();
+    if (signal.aborted) return reject(signal.reason);
     const timer = setTimeout(() => resolve(undefined), ms);
+    const stop = () => {
+      clearTimeout(timer);
+      reject(signal.reason);
+    };
     signal.addEventListener("abort", stop, { once: true });
     void value
       .then(resolve, () => resolve(undefined))

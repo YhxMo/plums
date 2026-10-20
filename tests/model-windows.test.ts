@@ -82,6 +82,7 @@ it("stops waiting for models.dev when the form is closed", async () => {
     status: 200,
     body: JSON.stringify({ data: [{ id: "deepseek-chat" }] }),
   });
+  // Never answers; ends only when the host stops the extension.
   catalog.mockImplementationOnce(
     (_url, stop) =>
       new Promise((_, reject) =>

@@ -282,7 +282,7 @@ test("preparation replaces only known earlier network plugin templates", () => {
     join(root, "native/android/NetworkPlugin.kt"),
     "utf8",
   ).replace("{{PACKAGE}}", "dev.plums.plums");
-  for (const commit of ["a027edf", "f31e4cd"]) {
+  for (const commit of ["a027edf", "741bf25"]) {
     const previous = execFileSync(
       "git",
       ["show", `${commit}:native/android/NetworkPlugin.kt`],
