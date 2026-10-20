@@ -111,7 +111,7 @@ export const capabilityLabel = (
     "document.read": "只读访问本次选择的文档（最多64 KiB）",
     "credential.request": "通过已授权连接发送请求",
     "credential.connect":
-      "新建和管理自己的连接（地址与密钥须你在原生面板确认）",
+      "新建和管理自己的连接（密钥交给本机应用保存，扩展之后读不到）",
     "network.read": `读取公开网络资源（${
       manifest?.networkSources
         ?.map((source) => new URL(source).hostname)

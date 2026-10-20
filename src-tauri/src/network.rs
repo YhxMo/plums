@@ -6,12 +6,13 @@ use crate::credential_request::{RequestFailure, Requests};
 use crate::credential_transport::{Fault, Reply};
 use crate::ipc::ipc_command;
 use crate::storage::Broker;
-use std::time::Duration;
 use tauri::Manager;
 
 /// Room for a public model catalog such as models.dev (about 6 MB).
 pub const MAX_RESPONSE: usize = 16 * 1024 * 1024;
-pub const TOTAL: Duration = Duration::from_secs(60);
+/// Android enforces the same limit in Kotlin.
+#[cfg(desktop)]
+pub const TOTAL: std::time::Duration = std::time::Duration::from_secs(60);
 
 /// Reads in flight, one per owner; separate from credential requests.
 #[derive(Default)]

@@ -35,12 +35,11 @@ export const replyRoom = ({ maxTokens, context }: Endpoint) =>
   maxTokens ?? Math.min(32_000, Math.floor(context / 4));
 
 /** 1000000 → "1M", 128000 → "128K". */
-/** 200K, 1M; binary sizes such as 131072 or 1048576 read as 128K and 1M. */
+/** 200K, 1M; other sizes rounded (131072 → 131K, 1048576 → 1.05M). */
 export const tokenLabel = (tokens: number) =>
-  [1_000_000, 1_048_576, 1000, 1024]
-    .filter((unit) => tokens % unit === 0)
-    .map((unit) => `${tokens / unit}${unit > 1024 ? "M" : "K"}`)[0] ??
-  String(tokens);
+  tokens >= 1_000_000
+    ? `${Number((tokens / 1_000_000).toFixed(2))}M`
+    : `${Math.round(tokens / 1000)}K`;
 
 /**
  * A deliberately high token count, so a request stays inside the window:

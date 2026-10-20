@@ -19,6 +19,18 @@ import { failure, readReply, requestBody, type Turn } from "./protocols";
 export const MODEL_PAGE = "model-connections";
 /** models.dev is read again after an hour, like cc-switch. */
 const CATALOG_TTL = 3_600_000;
+/** How long a listed model waits for models.dev before showing without it. */
+const CATALOG_WAIT = 5000;
+
+/** The value, or undefined once `ms` pass first. */
+const within = <T>(value: Promise<T>, ms: number) =>
+  new Promise<T | undefined>((resolve) => {
+    const timer = setTimeout(() => resolve(undefined), ms);
+    void value.then((result) => {
+      clearTimeout(timer);
+      resolve(result);
+    });
+  });
 
 /** A model the service lists, with the window models.dev gives for it. */
 export type ListedModel = { name: string; context?: number };
@@ -67,7 +79,7 @@ export function modelConnector({
       version: "0.1.0",
       apiVersion: 1,
       description:
-        "添加你自己的模型服务商（DeepSeek、OpenAI、Anthropic、Kimi、通义、智谱、OpenRouter 或任何兼容接口）和它的模型，供各个 Agent 选用。密钥只保存在系统凭据库；对话会发送到你选的服务。",
+        "添加你自己的模型服务商（DeepSeek、OpenAI、Anthropic、Kimi、通义、智谱、OpenRouter 或任何兼容接口）和它的模型，供各个 Agent 选用。密钥只交给本机应用保存，扩展记录里没有它；对话会发送到你选的服务。",
       capabilities: [
         "state.read",
         "state.write",
@@ -162,26 +174,25 @@ export function modelConnector({
           return readReply(provider.protocol, response);
         });
       };
-      // Shared by every lookup; a failed read is tried again next time.
+      // Shared by every lookup and stopped only with the extension, so a
+      // closed form never takes it from another; a failure is retried.
       let catalog: { at: number; value: Promise<Catalog | undefined> } | null =
         null;
-      const loadCatalog = (signal: AbortSignal) => {
+      const loadCatalog = () => {
         if (catalog && Date.now() - catalog.at < CATALOG_TTL)
           return catalog.value;
-        const value = (async () => {
-          try {
+        const value = ctx
+          .task(async (lifecycle) => {
             const response = (await ctx.platform(
               "network.read",
               { version: 1, url: CATALOG_URL },
-              signal,
+              lifecycle,
             )) as NetworkReadResponse;
             return response.status === 200
               ? readCatalog(response.body)
               : undefined;
-          } catch {
-            return undefined;
-          }
-        })();
+          })
+          .catch(() => undefined);
         const entry = { at: Date.now(), value };
         catalog = entry;
         void value.then((found) => {
@@ -245,12 +256,10 @@ export function modelConnector({
         signal: AbortSignal,
       ): Promise<ListedModel[]> => {
         const base = store.find(id)?.base ?? "";
-        const [names, found] = await Promise.all([
-          listModels(id, signal),
-          ctx.task((lifecycle) =>
-            loadCatalog(AbortSignal.any([signal, lifecycle])),
-          ),
-        ]);
+        // Read alongside the list; the list never waits long for it.
+        const pending = loadCatalog();
+        const names = await listModels(id, signal);
+        const found = await within(pending, CATALOG_WAIT);
         return names.map((name) => {
           const context = windowFor(found, base, name);
           return context ? { name, context } : { name };

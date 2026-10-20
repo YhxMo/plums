@@ -104,11 +104,11 @@ export function readCatalog(text: string): Catalog {
       };
       service.models.set(id, entry);
       const name = normalizeModel(id);
-      if (name)
-        catalog.byName.set(name, [
-          ...(catalog.byName.get(name) ?? []),
-          { service: serviceId, entry },
-        ]);
+      if (name) {
+        const same = catalog.byName.get(name) ?? [];
+        same.push({ service: serviceId, entry });
+        catalog.byName.set(name, same);
+      }
       if (canonical) catalog.makers.add(canonical.split("/")[0]);
     }
     catalog.services.push(service);

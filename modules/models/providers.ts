@@ -111,13 +111,12 @@ export function draftProblem(draft: ProviderDraft) {
     return `最大输出须为 ${limits.maxTokens.join("–")} 的整数，或留空由服务决定。`;
   if (!integer(draft.context, limits.context))
     return `上下文窗口须为 ${limits.context.join("–")} 的整数（token）。`;
-  if (
-    draft.maxTokens !== null &&
-    [draft.context, ...Object.values(draft.windows)].some(
-      (tokens) => draft.maxTokens! >= tokens,
-    )
-  )
-    return "最大输出须小于上下文窗口。";
+  if (draft.maxTokens !== null && draft.maxTokens >= draft.context)
+    return "最大输出须小于默认上下文窗口。";
+  const small = Object.entries(draft.windows).find(
+    ([, tokens]) => draft.maxTokens !== null && draft.maxTokens >= tokens,
+  );
+  if (small) return `最大输出须小于 ${small[0]} 的上下文窗口。`;
   return undefined;
 }
 

@@ -3,6 +3,7 @@ import {
   estimateTokens,
   readReply,
   requestBody,
+  tokenLabel,
   type Endpoint,
 } from "../modules/models/protocols";
 
@@ -261,4 +262,12 @@ it.each([
   ["anthropic-messages", { status: 200, body: "[]" }, "完整文本"],
 ] as const)("rejects an unusable %s reply", (protocol, response, text) => {
   expect(() => readReply(protocol, response)).toThrow(text);
+});
+
+it("labels windows so two different sizes never read the same", () => {
+  expect(
+    [128_000, 131_072, 1_000_000, 1_048_576, 262_144, 2_000_000].map(
+      tokenLabel,
+    ),
+  ).toEqual(["128K", "131K", "1M", "1.05M", "262K", "2M"]);
 });

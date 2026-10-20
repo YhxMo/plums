@@ -67,6 +67,9 @@ class NetworkPlugin(private val activity: Activity) : Plugin(activity) {
         val deadline = watchdog.schedule(Runnable { timedOut.set(true); open.disconnect() }, 60, TimeUnit.SECONDS)
         try {
           dispatched = true
+          open.connect()
+          // A cancel that came before the socket existed could not disconnect it.
+          if (cancelled.remove(args.id)) { fail("unknown", "cancelled"); return@Thread }
           val status = open.responseCode
           if (status in 300..399) { fail("unknown", "redirect"); return@Thread }
           val output = ByteArrayOutputStream()

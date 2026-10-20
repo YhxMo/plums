@@ -36,7 +36,7 @@
 
 模型列表按 API 格式依次尝试：Base URL 以 `/vN` 结尾时取 `…/models`，否则 OpenAI 兼容取 `…/models` 再 `…/v1/models`、Anthropic 取 `…/v1/models`；带 `/anthropic`、`/api/coding` 等兼容子路径时再去掉子路径重试。读取 `data[].id` 或 `models[].slug|id`，去重排序；401/403 提示核对密钥，全部找不到时提示手动填写。
 
-上下文窗口取自公开目录 [models.dev](https://models.dev)：服务商的模型列表接口一般不返回窗口。连接器声明 `network.read` 与来源 `https://models.dev`，与模型列表同时读取 `https://models.dev/api.json`（约 6 MB，不带密钥，见[公开网络读取](NETWORK-READ.md)），成功后在内存中保留 1 小时；读取失败不影响模型列表，只是不填窗口，下次重试。查找顺序：先找地址相同的服务（比较 host 与路径，去掉末尾的 `v1`/`v4`/`v1beta` 等版本段与 `chat/completions`、`messages`、`responses`，其余路径须一致，所以同一域名下的不同套餐分开），在其中按模型名精确、忽略大小写、去掉 `厂商/` 前缀与 `:变体`、`[1m]` 后匹配；找不到或没有窗口时，取其他服务以 `canonical_model_id` 指向的模型厂商条目（厂商不唯一则放弃）。这一步取到的 GPT 系列窗口最多 272K（许多转售服务用 ChatGPT 订阅额度，上限更低）。结果超出 16K–2M 的不用。应用不预置模型名或逐模型窗口表。
+上下文窗口取自公开目录 [models.dev](https://models.dev)：服务商的模型列表接口一般不返回窗口。连接器声明 `network.read` 与来源 `https://models.dev`，与模型列表同时读取 `https://models.dev/api.json`（约 6 MB，不带密钥，见[公开网络读取](NETWORK-READ.md)），成功后在内存中保留 1 小时。列表返回后最多再等 5 秒，未读完则先显示不带窗口的列表，读取继续进行（关闭表单不中断，扩展停用才取消），下次获取即可填入；读取失败只是不填窗口，下次重试。查找顺序：先找地址相同的服务（比较 host 与路径，去掉末尾的 `v1`/`v4`/`v1beta` 等版本段与 `chat/completions`、`messages`、`responses`，其余路径须一致，所以同一域名下的不同套餐分开），在其中按模型名精确、忽略大小写、去掉 `厂商/` 前缀与 `:变体`、`[1m]` 后匹配；找不到或没有窗口时，取其他服务以 `canonical_model_id` 指向的模型厂商条目（厂商不唯一则放弃）。这一步取到的 GPT 系列窗口最多 272K（许多转售服务用 ChatGPT 订阅额度，上限更低）。结果超出 16K–2M 的不用。应用不预置模型名或逐模型窗口表。
 
 DeepSeek 预设额外附带 `thinking: { type: "disabled" }`，其他服务不加非标准字段。
 
@@ -54,7 +54,7 @@ DeepSeek 预设额外附带 `thinking: { type: "disabled" }`，其他服务不�
 
 ## 验证
 
-`tests/model-protocols.test.ts`（两种协议组装、裁剪、响应校验）、`tests/model-addresses.test.ts`（Base URL 还原、对话地址、模型列表候选路径与解析）、`tests/model-catalog.test.ts`（models.dev 地址匹配、厂商回退、GPT 上限、名称归一）、`tests/model-connector.test.ts`（表单密钥只交给原生、缺少或格式不符的密钥不保存、服务商与模型列表、只改模型不需密钥、删除、请求路由、单个模型测试、获取模型列表与窗口、目录缓存与失败重试、按模型窗口裁剪、版本 2/4/5 换算、损坏数据保留）、`tests/agent-models.test.ts`（按 Agent 选模型、只取当前会话、指令、停用提示、持久化）、`tests/credential-connect.test.ts`（模板组装、只写密钥与 owner 隔离）；浏览器测试 `tests/web/extension-usage.spec.ts` 用回显模型检查两个 Agent 选不同模型且第二问带上第一问，`tests/web/credentials.spec.ts` 用假原生桥在 375 与 1180 宽度检查添加自定义服务商、粘贴完整地址、填写 API Key（密码框，密钥只进入原生保存、不进扩展记录、编辑时不回显）、获取并勾选模型（显示并填入 models.dev 的窗口，不带密钥读取声明的来源）、调整默认窗口、按模板组装连接，新 Agent 在扩展管理中同时列在连接器与 Agent 界面下，且无横向溢出。
+`tests/model-protocols.test.ts`（两种协议组装、裁剪、响应校验）、`tests/model-addresses.test.ts`（Base URL 还原、对话地址、模型列表候选路径与解析）、`tests/model-catalog.test.ts`（models.dev 地址匹配、厂商回退、GPT 上限、名称归一）、`tests/model-connector.test.ts`（表单密钥只交给原生、缺少或格式不符的密钥不保存、服务商与模型列表、只改模型不需密钥、删除、请求路由、单个模型测试、获取模型列表、版本 2/3 换算、损坏数据保留）、`tests/model-windows.test.ts`（models.dev 窗口填入、目录缓存与失败重试、目录慢时列表不等待、按模型窗口裁剪、移除模型清理窗口、版本 5 换算）、`tests/agent-models.test.ts`（按 Agent 选模型、只取当前会话、指令、停用提示、持久化）、`tests/credential-connect.test.ts`（模板组装、只写密钥与 owner 隔离）；浏览器测试 `tests/web/extension-usage.spec.ts` 用回显模型检查两个 Agent 选不同模型且第二问带上第一问，`tests/web/credentials.spec.ts` 用假原生桥在 375 与 1180 宽度检查添加自定义服务商、粘贴完整地址、填写 API Key（密码框，密钥只进入原生保存、不进扩展记录、编辑时不回显）、获取并勾选模型（显示并填入 models.dev 的窗口，不带密钥读取声明的来源）、调整默认窗口、按模板组装连接，新 Agent 在扩展管理中同时列在连接器与 Agent 界面下，且无横向溢出。
 
 ## 设计参考
 
