@@ -6,7 +6,6 @@ import {
   type ExtensionDefinition,
 } from "../../modules/sdk";
 import type { AgentProvider } from "../../modules/agents/contract";
-import { RoleCardSettings } from "./RoleCardSettings";
 import { AgentWorkspace } from "./AgentWorkspace";
 
 function mountReactView(
@@ -41,14 +40,6 @@ export function agentUI(): ExtensionDefinition {
       const chrome = createWorkspaceChrome("agents.agent");
       // This interface first, then the provider it is built on.
       const [ui] = ctx.shell.dependencies();
-      ctx.view({
-        id: "role-settings",
-        label: "角色卡设置",
-        presentation: "dialog",
-        mount(container) {
-          return mountReactView(container, <RoleCardSettings api={agents} />);
-        },
-      });
       ctx.view({
         id: "agents",
         label: "Agent 界面",

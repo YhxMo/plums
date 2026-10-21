@@ -6,11 +6,9 @@ import type {
   AgentModel,
   AgentProvider,
   AgentProviderInfo,
-  ExtensionChoice,
   ModelChoice,
   Session,
 } from "./contract";
-import { enabledExtensions } from "./contract";
 
 const id = () => crypto.randomUUID();
 const newSession = (): Session => ({
@@ -34,17 +32,14 @@ export function parseRoleCard(raw: string): AgentConfig {
     !text(value.name, 60) ||
     !value.name.trim() ||
     (value.version !== undefined && value.version !== 1) ||
-    (value.description !== undefined && !text(value.description)) ||
-    (value.multiSession !== undefined &&
-      typeof value.multiSession !== "boolean")
+    (value.description !== undefined && !text(value.description))
   )
     throw new Error(
-      "角色卡格式不支持：需要 name，可选 description、multiSession 和 version: 1。",
+      "角色卡格式不支持：需要 name，可选 description 和 version: 1。",
     );
   return {
     name: value.name.trim(),
     description: value.description as string | undefined,
-    multiSession: value.multiSession as boolean | undefined,
   };
 }
 /** Longest `chat@1` model id an Agent keeps; longer ones are not offered. */
@@ -65,18 +60,12 @@ export function restoreAgents(value: unknown): Agent[] {
       !a.name.trim() ||
       !text(a.description) ||
       typeof a.pinned !== "boolean" ||
-      typeof a.multiSession !== "boolean" ||
       !text(a.extensionId) ||
-      (a.extensions !== undefined &&
-        (!Array.isArray(a.extensions) ||
-          !a.extensions.every((e) => text(e)))) ||
       (a.off !== undefined && !extensionIds(a.off)) ||
       (a.model !== undefined &&
         (!object(a.model) ||
           !text(a.model.provider, 64) ||
           !text(a.model.model, MAX_MODEL_ID))) ||
-      !Array.isArray(a.capabilities) ||
-      !a.capabilities.every((c) => text(c)) ||
       !Array.isArray(a.sessions) ||
       a.sessions.length === 0 ||
       !text(a.currentSessionId)
@@ -116,10 +105,14 @@ export function restoreAgents(value: unknown): Agent[] {
         "当前会话不存在",
       );
   }
-  return structuredClone(value).map(({ canCancel, pending, ...a }) => ({
-    ...a,
-    status: "idle",
-  }));
+  // Older versions also saved text extensions, fixed capabilities and a
+  // single-session flag; none of them is used any more.
+  return structuredClone(value).map(
+    ({ canCancel, pending, extensions, capabilities, multiSession, ...a }) => ({
+      ...a,
+      status: "idle",
+    }),
+  );
 }
 
 /** Extension-owned model; writes publish only after a successful receipt. */
@@ -147,15 +140,12 @@ export class AgentStore implements AgentProvider {
   constructor(
     initial: Agent[],
     private persist: (agents: Agent[], options?: SaveOptions) => Promise<void>,
-    /** Asks the Agent's model, then passes the text through these extensions in order. */
+    /** Asks the Agent's model. */
     private reply: (
       text: string,
       signal: AbortSignal,
-      extensions: string[],
       context: ReplyContext,
     ) => Promise<string>,
-    /** Extensions an Agent can switch on, the default first. */
-    readonly extensionChoices: () => readonly ExtensionChoice[] = () => [],
     private extensions: readonly Named[] = [],
     /** Models an Agent can use, the default first. */
     readonly modelChoices: () => readonly ModelChoice[] = () => [],
@@ -167,39 +157,15 @@ export class AgentStore implements AgentProvider {
   }
   get info(): AgentProviderInfo {
     return {
-      label: "内置本地 Agent 提供者",
+      label: "Agent 核心",
       version: "0.0.4",
-      description: this.modelChoices().length
-        ? "回复由此 Agent 选择的模型生成；最近的对话与角色说明会一起发送到该模型服务。"
-        : (this.extensionChoices()[0]?.description ??
-          "还没有可用的模型，请在 Agent 详情中添加模型连接。"),
+      description:
+        "回复由此 Agent 选择的模型生成；对话与角色说明会一起发送到该模型服务。",
       extensions: this.extensions,
     };
   }
-  /** Re-renders Agents after their extensions start or stop. */
+  /** Re-renders Agents after their model connections start, stop or change. */
   sourcesChanged = () => this.emit();
-  setExtension(agentId: string, extensionId: string, on: boolean) {
-    if (
-      on &&
-      !this.extensionChoices().some((source) => source.id === extensionId)
-    )
-      return Promise.reject(new Error("扩展未启用，请先在扩展管理中启用它。"));
-    return this.change((agents) => {
-      const a = this.find(agents, agentId);
-      const rest = (
-        a.extensions ?? enabledExtensions(a, this.extensionChoices())
-      ).filter((id) => id !== extensionId);
-      a.extensions = on ? [...rest, extensionId] : rest;
-    });
-  }
-  setExtensions(agentId: string, extensionIds: string[]) {
-    const choices = this.extensionChoices();
-    if (extensionIds.some((id) => !choices.some((c) => c.id === id)))
-      return Promise.reject(new Error("扩展未启用，请先在扩展管理中启用它。"));
-    return this.change((agents) => {
-      this.find(agents, agentId).extensions = [...new Set(extensionIds)];
-    });
-  }
   setOff(agentId: string, extensionId: string, off: boolean) {
     if (!text(extensionId, 64))
       return Promise.reject(new Error("扩展 ID 无效。"));
@@ -226,8 +192,6 @@ export class AgentStore implements AgentProvider {
         const off = a.off?.filter((id) => id !== model.provider);
         if (off?.length) a.off = off;
         else delete a.off;
-        // With a model, text extensions become explicit post-processing.
-        a.extensions ??= [];
       }
     });
   }
@@ -277,9 +241,6 @@ export class AgentStore implements AgentProvider {
   }
   async create(config: AgentConfig) {
     const clean = parseRoleCard(JSON.stringify(config));
-    const choices = this.extensionChoices();
-    if (config.extensions?.some((e) => !choices.some((c) => c.id === e)))
-      throw new Error("扩展未启用，请先在扩展管理中启用它。");
     if (config.off !== undefined && !extensionIds(config.off))
       throw new Error("扩展 ID 无效。");
     if (
@@ -305,15 +266,6 @@ export class AgentStore implements AgentProvider {
       extensionId: "agents.local",
       ...(model && { model }),
       ...(config.off?.length && { off: [...new Set(config.off)] }),
-      ...(config.extensions
-        ? { extensions: [...new Set(config.extensions)] }
-        : model
-          ? // With a model, text extensions become explicit post-processing.
-            { extensions: [] }
-          : // Without any service yet, the first one enabled later is used.
-            choices.length && { extensions: enabledExtensions({}, choices) }),
-      capabilities: ["本地文本处理", "保存会话"],
-      multiSession: clean.multiSession ?? false,
       sessions: [session],
       currentSessionId: session.id,
     };
@@ -370,7 +322,6 @@ export class AgentStore implements AgentProvider {
     this.emit();
     return this.change((agents) => {
       const a = this.find(agents, agentId);
-      if (!a.multiSession) throw new Error("此 Agent 仅支持一个会话。");
       if (action === "create") {
         const s = newSession();
         a.sessions.push(s);
@@ -404,7 +355,6 @@ export class AgentStore implements AgentProvider {
     const blocked = this.saveBlocked();
     if (blocked) throw new Error(blocked);
     const a = this.find(this.agents, agentId);
-    const extensions = enabledExtensions(a, this.extensionChoices());
     const off = (id: string) => a.off?.includes(id);
     const label = (id: string, known: readonly Named[]) =>
       known.find((e) => e.id === id)?.label ?? id;
@@ -412,11 +362,11 @@ export class AgentStore implements AgentProvider {
       throw new Error(
         `此 Agent 已关闭「${label(a.extensionId, this.extensions)}」，在详情的组成扩展中开启后才能回复。`,
       );
-    const model = a.model && !off(a.model.provider) ? a.model : undefined;
-    if (a.model && !model && !extensions.length)
+    if (a.model && off(a.model.provider))
       throw new Error(
-        `此 Agent 已关闭「${label(a.model.provider, this.connectors())}」，也没有开启文本扩展；开启其中一个后才能回复。`,
+        `此 Agent 已关闭「${label(a.model.provider, this.connectors())}」，在详情的组成扩展中开启后才能回复。`,
       );
+    const model = a.model;
     const sessionId = a.currentSessionId;
     const history = a.sessions
       .find((s) => s.id === sessionId)!
@@ -427,7 +377,7 @@ export class AgentStore implements AgentProvider {
     this.pending.set(agentId, { sessionId, text: input });
     this.emit();
     try {
-      const output = await this.reply(input, controller.signal, extensions, {
+      const output = await this.reply(input, controller.signal, {
         model,
         instructions: a.description,
         history,
@@ -435,7 +385,7 @@ export class AgentStore implements AgentProvider {
       controller.signal.throwIfAborted();
       if (!text(output, MAX_TEXT))
         throw new Error(
-          `文本服务必须返回不超过 ${MAX_TEXT} 个字符的文本；本次结果未保存。`,
+          `模型必须返回不超过 ${MAX_TEXT} 个字符的文本；本次结果未保存。`,
         );
       await this.change(
         (agents) => {

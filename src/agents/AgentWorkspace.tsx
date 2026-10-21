@@ -9,10 +9,12 @@ import type { Agent, AgentProvider } from "../../modules/agents/contract";
 import type { Named, WorkspaceChromeController } from "../../modules/sdk";
 import { cn } from "cn";
 import { AgentList } from "./AgentList";
-import { ChatView } from "./ChatView";
+import { ChatView, type Blocked } from "./ChatView";
+import { ModelSelect } from "./ModelSelect";
 import { DetailPanel } from "./DetailPanel";
 import { EmptyState } from "./EmptyState";
 import { Dialog } from "../components/Dialog";
+import { Button } from "../components/ui/button";
 import { ActionToast } from "../components/Toast";
 import { useMediaQuery } from "../components/useMediaQuery";
 import {
@@ -153,41 +155,83 @@ export function AgentWorkspace({
       else await api.setOff!(a.id, part.choice.id, next.off);
     });
   }
-  const uiOff = !!agent && !!ui && !!agent.off?.includes(ui.id);
+  const models = api.modelChoices?.();
+  /** The first thing stopping this Agent from replying here, if any. */
+  function blocker(a: Agent): Blocked | undefined {
+    const off = (part?: Part) => part && !part.on;
+    const turnOn = (part: Part) => (
+      <Button size="sm" onClick={() => switchAgentPart(a, part, true)}>
+        开启
+      </Button>
+    );
+    const [core] = parts!;
+    const view = ui && parts!.find((p) => p.choice.id === ui.id);
+    if (off(view))
+      return {
+        text: `此 Agent 已关闭「${view!.choice.label}」，开启后才能在这里对话。`,
+        action: turnOn(view!),
+      };
+    if (off(core))
+      return {
+        text: `此 Agent 已关闭「${core.choice.label}」，开启后它才会回复。`,
+        action: turnOn(core),
+      };
+    if (!models || !api.setModel) return undefined;
+    if (!models.length)
+      return {
+        text: "先连接一个 AI 模型，它才能理解和回复你。",
+        action: onModels && (
+          <Button size="sm" onClick={onModels}>
+            连接模型
+          </Button>
+        ),
+      };
+    const picked =
+      a.model &&
+      models.some(
+        (m) => m.provider === a.model!.provider && m.id === a.model!.model,
+      );
+    if (!picked)
+      return {
+        text: `为 ${a.name} 选一个模型，它就能回复你。`,
+        action: (
+          <span className="w-56 max-md:w-full">
+            <ModelSelect
+              compact
+              label={`${a.name} 使用的模型`}
+              models={models}
+              value={a.model}
+              onChange={(model) => void act(() => api.setModel!(a.id, model))}
+            />
+          </span>
+        ),
+      };
+    const connection = parts!.find((p) => p.choice.id === a.model!.provider);
+    if (off(connection))
+      return {
+        text: `此 Agent 已关闭「${connection!.choice.label}」，开启后它才会回复。`,
+        action: turnOn(connection!),
+      };
+    return undefined;
+  }
   const detailContent = agent && (
     <DetailPanel
       agent={agent}
       parts={parts!}
       onPart={api.setOff && ((part, on) => switchAgentPart(agent, part, on))}
+      onDescription={async (description) => {
+        let saved = false;
+        await act(async () => {
+          await api.update(agent.id, { description });
+          saved = true;
+        });
+        return saved;
+      }}
       onClose={() => setDetail(false)}
-      onPin={() => agentAction(agent, "pin")}
-      onSession={(action, id) =>
-        void act(() => api.session(agent.id, action, id))
-      }
-      onDeleteSession={(id, source) =>
-        open({ action: "deleteSession", agent, session: id }, source)
-      }
       onOpenExtension={(id) => {
         setDetail(false);
         onExtensions(id);
       }}
-      choices={api.extensionChoices?.()}
-      models={api.modelChoices?.()}
-      onModel={
-        api.setModel &&
-        ((model) => void act(() => api.setModel!(agent.id, model)))
-      }
-      onModels={
-        onModels &&
-        (() => {
-          setDetail(false);
-          onModels();
-        })
-      }
-      onExtensions={
-        api.setExtensions &&
-        ((ids) => void act(() => api.setExtensions!(agent.id, ids)))
-      }
     />
   );
   const list = (
@@ -212,20 +256,11 @@ export function AgentWorkspace({
   ) : (
     <ChatView
       agent={agent}
-      provider={api.info}
-      closed={
-        uiOff
-          ? {
-              label: ui!.label,
-              onOpen: () =>
-                void act(() => api.setOff!(agent.id, ui!.id, false)),
-            }
-          : undefined
-      }
+      blocked={blocker(agent)}
       draft={drafts[key] ?? ""}
       onDraft={(value) => setDrafts((d) => ({ ...d, [key]: value }))}
       onBack={returnToList}
-      models={api.modelChoices?.()}
+      models={models}
       onModel={
         api.setModel &&
         ((model) => void act(() => api.setModel!(agent.id, model)))
@@ -235,6 +270,12 @@ export function AgentWorkspace({
         setDetail(true);
       }}
       onAction={(action, source) => agentAction(agent, action, source)}
+      onSession={(action, id) =>
+        void act(() => api.session(agent.id, action, id))
+      }
+      onDeleteSession={(id, source) =>
+        open({ action: "deleteSession", agent, session: id }, source)
+      }
       onCancel={() => api.cancel(agent.id)}
       onSend={() => {
         const input = drafts[key] ?? "";

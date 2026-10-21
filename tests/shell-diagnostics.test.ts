@@ -20,7 +20,7 @@ const catalog: import("../modules/shell/uninstall").ImportedExtension[] = [
     label: "默认工作台布局",
     views: { default: "工作台" },
   },
-  { id: "agents.local", url: "内置公开服务", label: "本地 Agent 提供者" },
+  { id: "agents.local", url: "内置公开服务", label: "Agent 核心" },
   {
     id: "ui.agents",
     url: "内置可替换界面",

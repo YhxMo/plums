@@ -52,7 +52,7 @@ export function memoryPlatform(initial: Record<string, StoredState> = {}) {
 }
 
 /** A saved Agent with one session, as an older version wrote it. */
-export function legacyAgent(): Agent {
+export function legacyAgent(): Agent & Record<string, unknown> {
   return {
     id: "a1",
     name: "旧角色",
@@ -61,8 +61,10 @@ export function legacyAgent(): Agent {
     canCancel: true,
     pinned: true,
     extensionId: "agents.local",
+    // Fields older versions saved and later dropped.
     capabilities: ["本地文本处理"],
     multiSession: false,
+    extensions: [],
     currentSessionId: "s1",
     sessions: [
       {

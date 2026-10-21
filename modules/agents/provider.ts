@@ -1,11 +1,7 @@
 import type { ExtensionDefinition } from "../sdk";
-import type { ChatService, Transformer } from "../../extensions/contracts";
+import type { ChatService } from "../../extensions/contracts";
 import { AgentStore, MAX_MODEL_ID, restoreAgents } from "./store";
-import { enabledExtensions } from "./contract";
 import { AgentState } from "./sharded-state";
-
-const NONE_AVAILABLE =
-  "还没有可用的模型，请在 Agent 详情中添加模型连接，或在扩展管理中启用模型连接扩展。";
 
 /**
  * Agents live in this extension's own `state.*` namespace as an index plus one
@@ -21,20 +17,12 @@ export function agentExtension(
       id: "agents.local",
       apiVersion: 1,
       version: "0.0.4",
-      // Agents open without any model or text service and say how to add one.
-      optional: { chat: 1, "text.transform": 1 },
+      // Agents open without any model and say how to add one.
+      optional: { chat: 1 },
       provides: { agents: 1 },
       capabilities: ["state.read", "state.write"],
     },
     async activate(ctx) {
-      // Every active text service is offered; each Agent switches its own on.
-      let transformers = ctx.providers<Transformer>(
-        "text.transform",
-        (next) => {
-          transformers = next;
-          store.sourcesChanged();
-        },
-      );
       // Each connector's model list can change while it runs.
       let unwatch: Array<() => void> = [];
       const watchModels = () => {
@@ -63,12 +51,6 @@ export function agentExtension(
               description,
             })),
         );
-      const sources = () =>
-        transformers.map(({ id, label, value }) => ({
-          id,
-          label,
-          description: value.description ?? `回复由「${value.name}」生成。`,
-        }));
       const state = new AgentState((capability, payload, signal) =>
         ctx.platform(capability, payload, signal),
       );
@@ -83,77 +65,69 @@ export function agentExtension(
       const store = new AgentStore(
         initial,
         (agents, save) => state.save(agents, save),
-        (text, signal, extensions, { model, instructions, history }) => {
-          if (!model && !extensions.length)
+        (text, signal, { model, instructions, history }) => {
+          if (!model)
             throw new Error(
               models().length
-                ? "请在 Agent 详情中为此 Agent 选择模型。"
-                : transformers.length
-                  ? "此 Agent 没有开启的扩展，请在 Agent 详情中开启至少一个。"
-                  : NONE_AVAILABLE,
+                ? "请为此 Agent 选择模型。"
+                : "还没有可用的模型，请先添加模型连接。",
+            );
+          const chat = chats.find((c) => c.id === model.provider);
+          if (!chat)
+            throw new Error(
+              "此 Agent 的模型连接已停用，请在扩展管理中启用，或换一个模型。",
             );
           return ctx.task(async () => {
-            let output = text;
-            if (model) {
-              const chat = chats.find((c) => c.id === model.provider);
-              if (!chat)
-                throw new Error(
-                  "此 Agent 的模型连接已停用，请在扩展管理中启用，或在 Agent 详情中换一个模型。",
-                );
-              output = await chat.value.reply(
-                { model: model.model, instructions, history, input: text },
-                AbortSignal.any([signal, chat.signal]),
-              );
-              if (chat.signal.aborted)
-                throw new Error("模型连接已停用，本次结果未保存，请重试。");
-              if (typeof output !== "string")
-                throw new Error("模型必须返回文本；本次结果未保存。");
-            }
-            for (const id of extensions) {
-              const transformer = transformers.find((t) => t.id === id);
-              if (!transformer) throw new Error("扩展已停用，请重试。");
-              // A service stopping mid-reply cancels the call and saves nothing.
-              output = await transformer.value.transform(
-                output,
-                AbortSignal.any([signal, transformer.signal]),
-              );
-              if (transformer.signal.aborted)
-                throw new Error("扩展已停用，本次结果未保存，请重试。");
-              if (typeof output !== "string")
-                throw new Error("文本服务必须返回文本；本次结果未保存。");
-            }
+            // A connection stopping mid-reply cancels the call and saves nothing.
+            const output = await chat.value.reply(
+              { model: model.model, instructions, history, input: text },
+              AbortSignal.any([signal, chat.signal]),
+            );
+            if (chat.signal.aborted)
+              throw new Error("模型连接已停用，本次结果未保存，请重试。");
+            if (typeof output !== "string")
+              throw new Error("模型必须返回文本；本次结果未保存。");
             return output;
           });
         },
-        sources,
         ctx.shell.dependencies(),
         models,
         () => state.blocked(),
         () => chats.map(({ id, label }) => ({ id, label })),
       );
       watchModels();
-      // Management lists each Agent under the services it has switched on
-      // and can switch any of them on or off. One toggle object lets the
-      // host skip republishing when nothing visible changed.
+      // Management lists each Agent under the connection it uses and can
+      // switch it on (taking that connection's first model if the Agent uses
+      // another) or off. One toggle object lets the host skip republishing
+      // when nothing visible changed.
       const toggle = {
-        service: "text.transform",
-        set: (agentId: string, extensionId: string, on: boolean) =>
-          store.setExtension(agentId, extensionId, on),
+        service: "chat",
+        set(agentId: string, connector: string, on: boolean) {
+          const agent = store.list().find((a) => a.id === agentId);
+          if (!on || agent?.model?.provider === connector)
+            return store.setOff(agentId, connector, !on);
+          const first = models().find((m) => m.provider === connector);
+          if (!first)
+            return Promise.reject(
+              new Error("这个模型连接还没有可用的模型，请先添加。"),
+            );
+          return store.setModel(agentId, {
+            provider: first.provider,
+            model: first.id,
+          });
+        },
       };
       const publish = () => {
         if (ctx.signal.aborted) return;
-        const choices = sources();
         ctx.shell.publishUsers(
           "Agent",
           store.list().map((agent) => ({
             id: agent.id,
             label: agent.name,
-            uses: [
-              ...(agent.model && !agent.off?.includes(agent.model.provider)
+            uses:
+              agent.model && !agent.off?.includes(agent.model.provider)
                 ? [agent.model.provider]
-                : []),
-              ...enabledExtensions(agent, choices),
-            ],
+                : [],
           })),
           toggle,
         );

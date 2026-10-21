@@ -208,7 +208,7 @@ test("dismissible fallback notice, independent extension manager page and topbar
   await manage(page);
   await page
     .locator("#extension-manager article")
-    .filter({ hasText: "本地 Agent 提供者" })
+    .filter({ hasText: "Agent 核心" })
     .click();
   // Agent names arrive only through the extension's published users.
   const detail = page.getByRole("region", { name: "所选扩展详情" });

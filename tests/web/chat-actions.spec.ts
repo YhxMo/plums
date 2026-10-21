@@ -1,5 +1,7 @@
 import { expect, test, type Page } from "@playwright/test";
 
+/** The echo model's replies. */
+const reply = /^echo-a｜/;
 async function startChat(page: Page, width: number) {
   await page.setViewportSize({ width, height: 900 });
   await page.goto("/");
@@ -13,7 +15,9 @@ async function startChat(page: Page, width: number) {
     .click();
   await page.getByRole("textbox", { name: "消息", exact: true }).fill("hi");
   await page.getByRole("button", { name: "发送", exact: true }).click();
-  await expect(page.getByRole("log")).toContainText("HI");
+  await expect(
+    page.getByRole("log").locator("p", { hasText: reply }),
+  ).toHaveCount(1);
 }
 
 test("desktop messages show a time, copy, resend and delete from hover and right-click", async ({
@@ -34,7 +38,7 @@ test("desktop messages show a time, copy, resend and delete from hover and right
 
   await own.hover();
   await page.getByRole("button", { name: "重新发送", exact: true }).click();
-  await expect(log.locator("p", { hasText: /^HI$/ })).toHaveCount(2);
+  await expect(log.locator("p", { hasText: reply })).toHaveCount(2);
 
   await own.first().click({ button: "right" });
   const menu = page.getByRole("menu", { name: "消息操作" });
@@ -50,17 +54,14 @@ test("desktop messages show a time, copy, resend and delete from hover and right
     page.getByRole("button", { name: "复制", exact: true }).first(),
   ).toBeFocused();
 
-  await log
-    .locator("p", { hasText: /^HI$/ })
-    .first()
-    .click({ button: "right" });
+  await log.locator("p", { hasText: reply }).first().click({ button: "right" });
   await expect(menu.getByRole("menuitem")).toHaveText(["复制", "删除"]);
   await menu.getByRole("menuitem", { name: "删除" }).click();
-  await expect(log.locator("p", { hasText: /^HI$/ })).toHaveCount(1);
+  await expect(log.locator("p", { hasText: reply })).toHaveCount(1);
   await expect(log.locator("p", { hasText: /^hi$/ })).toHaveCount(2);
   await page.reload();
   await page.getByRole("button", { name: "与 助手 交互", exact: true }).click();
-  await expect(log.locator("p", { hasText: /^HI$/ })).toHaveCount(1);
+  await expect(log.locator("p", { hasText: reply })).toHaveCount(1);
   await expect(log.locator("time")).toHaveCount(1);
 });
 
@@ -71,7 +72,7 @@ test("phones keep a reading layout without hover actions or a pointer menu", asy
   await expect(page.getByRole("button", { name: "复制" })).toBeHidden();
   await page
     .getByRole("log")
-    .locator("p", { hasText: /^HI$/ })
+    .locator("p", { hasText: reply })
     .click({ button: "right" });
   await expect(page.getByRole("menu", { name: "消息操作" })).toHaveCount(0);
   const send = page.getByRole("button", { name: "发送", exact: true });

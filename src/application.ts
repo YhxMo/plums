@@ -4,13 +4,13 @@ import { agentUI } from "./agents/extension";
 import { modelConnectorWithPage } from "./models/extension";
 import { bootShell, type ShellApplication } from "./shell/runtime";
 
-/** Development and tests also get the text workbench and the upper-case service. */
+/** Development and tests also get the text workbench, the upper-case service and the echo model. */
 const development = import.meta.env.DEV;
 
 /** Default application composition; the shell does not interpret business state. */
 export const defaultApplication: ShellApplication = {
   catalog: [
-    { id: "agents.local", url: "内置公开服务", label: "本地 Agent 提供者" },
+    { id: "agents.local", url: "内置公开服务", label: "Agent 核心" },
     {
       id: "connector.models",
       url: "内置模型连接器",
@@ -69,7 +69,9 @@ export const defaultApplication: ShellApplication = {
     ],
   },
   start: [
-    ...(development ? ["transform.upper"] : []),
+    // Development Agents answer with the local echo model; the upper-case
+    // service feeds the text workbench.
+    ...(development ? ["transform.upper", "chat.echo"] : []),
     "connector.models",
     "agents.local",
     "ui.agents",

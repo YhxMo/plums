@@ -13,7 +13,6 @@ async function createAgent(page: Page) {
   await page
     .getByRole("textbox", { name: "名称", exact: true })
     .fill("Back probe");
-  await page.getByLabel("允许多个会话").check();
   await page
     .getByRole("dialog")
     .getByRole("button", { name: "添加", exact: true })
@@ -54,23 +53,25 @@ test("system Back dismisses only the top dialog and returns focus", async ({
   await page.setViewportSize({ width: 375, height: 820 });
   await page.goto("/");
   await createAgent(page);
+  const sessions = page.getByRole("button", {
+    name: "会话：未命名会话",
+    exact: true,
+  });
+  await sessions.click();
+  await page.getByRole("menuitem", { name: "删除此会话", exact: true }).click();
+  const confirm = page.getByRole("dialog", { name: "删除会话", exact: true });
+  await expect(confirm).toBeVisible();
+  expect(await back(page)).toBe(false);
+  await expect(confirm).toBeHidden();
+  await expect(sessions).toBeFocused();
   const trigger = page.getByRole("button", { name: "展开或收起右侧栏" });
   await trigger.click();
   const detail = page.getByRole("dialog", { name: "Agent 详情", exact: true });
-  const remove = detail.getByRole("button", {
-    name: "删除会话 未命名会话",
-    exact: true,
-  });
-  await remove.click();
-  expect(await back(page)).toBe(false);
-  await expect(
-    page.getByRole("dialog", { name: "删除会话", exact: true }),
-  ).toBeHidden();
   await expect(detail).toBeVisible();
-  await expect(remove).toBeFocused();
   expect(await back(page)).toBe(false);
   await expect(detail).toBeHidden();
   await expect(trigger).toBeFocused();
+  await expect(page.getByRole("textbox", { name: "消息" })).toBeVisible();
 });
 
 for (const throws of [false, true]) {
@@ -148,21 +149,16 @@ test("system Back dismisses menu, then authorization, without granting", async (
   expect(await back(page)).toBe(true);
 });
 
-test("system Back closes an open model picker before the details", async ({
+test("system Back closes an open model picker before leaving the conversation", async ({
   page,
 }) => {
   await page.setViewportSize({ width: 375, height: 820 });
   await page.goto("/");
   await createAgent(page);
-  await page.getByRole("button", { name: "展开或收起右侧栏" }).click();
-  const detail = page.getByRole("dialog", { name: "Agent 详情", exact: true });
-  const picker = detail.getByRole("combobox", {
-    name: "Back probe 使用的模型",
-    exact: true,
-  });
-  await picker.click();
-  await expect(detail.getByRole("listbox")).toBeVisible();
+  await page.getByRole("combobox", { name: "切换模型", exact: true }).click();
+  const choices = page.getByRole("listbox", { name: "切换模型" });
+  await expect(choices).toBeVisible();
   expect(await back(page)).toBe(false);
-  await expect(detail.getByRole("listbox")).toBeHidden();
-  await expect(detail).toBeVisible();
+  await expect(choices).toBeHidden();
+  await expect(page.getByRole("textbox", { name: "消息" })).toBeVisible();
 });

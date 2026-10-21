@@ -121,7 +121,7 @@ it("lets each Agent use its own model and keeps it across restarts", async () =>
 
 it("sends only the current session's messages", async () => {
   const { agents, requests } = await setup();
-  const agent = await agents().create({ name: "多会话", multiSession: true });
+  const agent = await agents().create({ name: "多会话" });
   await agents().send(agent.id, "旧会话");
   await agents().session(agent.id, "create");
   await agents().send(agent.id, "新会话");
@@ -140,18 +140,60 @@ it("asks for a model when an Agent has none, and names a stopped connector", asy
   );
 });
 
-it("management lists each Agent under the connector it uses", async () => {
-  const { host, agents } = await setup();
+it("management lists each Agent under its connection and switches it on or off", async () => {
+  const { host, agents, find } = await setup();
   const agent = await agents().create({ name: "用户" });
+  const other = await agents().create({ name: "未选", model: null });
+  const named = (a: typeof agent) => ({ id: a.id, label: a.name });
   expect(host.users("chat.a")).toEqual([
     {
       owner: "agents.local",
       kind: "Agent",
-      users: [{ id: agent.id, label: "用户" }],
-      others: [],
-      toggle: false,
+      users: [named(agent)],
+      others: [named(other)],
+      toggle: true,
     },
   ]);
+  await host.toggleUser("agents.local", agent.id, "chat.a", false);
+  expect(find(agent.id).off).toEqual(["chat.a"]);
+  await host.toggleUser("agents.local", agent.id, "chat.a", true);
+  expect(find(agent.id).off).toBeUndefined();
+  // Switching on an Agent without this connection's model picks its first.
+  await host.toggleUser("agents.local", other.id, "chat.a", true);
+  expect(find(other.id).model).toEqual({ provider: "chat.a", model: "m1" });
+  expect(host.users("chat.a")[0].users).toEqual([named(agent), named(other)]);
+});
+
+it("sending a message does not republish the Agents to the host", async () => {
+  const { host, agents } = await setup();
+  const agent = await agents().create({ name: "安静" });
+  const before = host.snapshot();
+  await agents().send(agent.id, "你好");
+  // Only the reply task starting and ending changes the host.
+  expect(host.snapshot()).toBe(before + 2);
+});
+
+it("replies come from the model alone; text services are not used", async () => {
+  const { host, agents, find } = await setup();
+  host.install({
+    manifest: {
+      id: "transform.a",
+      apiVersion: 1,
+      version: "1",
+      provides: { "text.transform": 1 },
+    },
+    activate(ctx) {
+      ctx.provide("text.transform", 1, {
+        name: "甲",
+        transform: async (text: string) => `甲：${text}`,
+      });
+    },
+  });
+  await host.start("transform.a");
+  const agent = await agents().create({ name: "纯模型" });
+  await agents().send(agent.id, "一");
+  expect(find(agent.id).sessions[0].messages.at(-1)?.text).toBe("m1:0:一");
+  expect(host.users("transform.a")).toEqual([]);
 });
 
 it.each([{ provider: "chat.a" }, { provider: 1, model: "m1" }, "chat.a/m1"])(
@@ -170,7 +212,6 @@ it("a new Agent can start with a chosen model or none", async () => {
     model: { provider: "chat.a", model: "m2" },
   });
   expect(picked.model).toEqual({ provider: "chat.a", model: "m2" });
-  expect(picked.extensions).toEqual([]);
   const none = await agents().create({ name: "未选", model: null });
   expect(none.model).toBeUndefined();
   await expect(
@@ -186,29 +227,11 @@ it("an Agent can switch off its model connection, its provider or any other part
   // Off keeps the chosen model for when it is switched on again.
   await agents().setOff!(agent.id, "chat.a", true);
   expect(find(agent.id).model).toEqual({ provider: "chat.a", model: "m1" });
-  expect(host.users("chat.a")).toEqual([]);
+  expect(host.users("chat.a")[0].users).toEqual([]);
   await expect(agents().send(agent.id, "你好")).rejects.toThrow(
     "已关闭「chat.a」",
   );
-  host.install({
-    manifest: {
-      id: "transform.a",
-      apiVersion: 1,
-      version: "1",
-      provides: { "text.transform": 1 },
-    },
-    activate(ctx) {
-      ctx.provide("text.transform", 1, {
-        name: "甲",
-        transform: async (text: string) => `甲：${text}`,
-      });
-    },
-  });
-  await host.start("transform.a");
-  await agents().setExtension!(agent.id, "transform.a", true);
-  await agents().send(agent.id, "一");
   expect(requests).toEqual([]);
-  expect(find(agent.id).sessions[0].messages.at(-1)?.text).toBe("甲：一");
   // Picking a model switches its connection back on.
   await agents().setModel!(agent.id, { provider: "chat.a", model: "m2" });
   expect(find(agent.id).off).toEqual(["ui.x"]);

@@ -140,7 +140,7 @@ for (const scenario of ["resize", "dynamic"]) {
           manifest:{id:"test.agents",version:"1",apiVersion:1,provides:{agents:1}},
           activate(ctx){
             const agents=[{id:"external",name:"外部角色",description:"侧栏夹具",status:"idle",
-              pinned:false,extensionId:"test.agents",capabilities:[],multiSession:false,
+              pinned:false,extensionId:"test.agents",
               currentSessionId:"s",sessions:[{id:"s",title:"外部会话",createdAt:1,lastMessageAt:1,messages:[]}]}];
             ctx.provide("agents",1,{
               info:{label:"外部提供者",version:"1",description:"上下文详情"},

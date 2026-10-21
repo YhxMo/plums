@@ -1,17 +1,19 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import {
   ArrowUpIcon,
+  ChevronDownIcon,
   ChevronLeftIcon,
   EllipsisIcon,
   PanelRightIcon,
+  PlusIcon,
   SquareIcon,
+  SquarePenIcon,
+  Trash2Icon,
 } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
-import { cn } from "cn";
 import type {
   Agent,
   AgentModel,
-  AgentProviderInfo,
   Message,
   ModelChoice,
 } from "../../modules/agents/contract";
@@ -35,9 +37,14 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "../components/ui/dropdown-menu";
+
+/** Why this Agent cannot reply here yet, and the one step that fixes it. */
+export type Blocked = { text: string; action: ReactNode };
 
 const swap = {
   initial: { opacity: 0, scale: 0.6 },
@@ -48,13 +55,14 @@ const swap = {
 
 export function ChatView({
   agent,
-  provider,
-  closed,
+  blocked,
   draft,
   onDraft,
   onBack,
   onDetail,
   onAction,
+  onSession,
+  onDeleteSession,
   models,
   onModel,
   onSend,
@@ -64,9 +72,8 @@ export function ChatView({
   onError,
 }: {
   agent: Agent;
-  provider: AgentProviderInfo;
-  /** This interface, switched off for the Agent: no new messages here. */
-  closed?: { label: string; onOpen: () => void };
+  /** Shown instead of the message box while the Agent cannot reply. */
+  blocked?: Blocked;
   draft: string;
   onDraft: (value: string) => void;
   onBack: () => void;
@@ -74,6 +81,8 @@ export function ChatView({
   onDetail: (source: HTMLElement | null) => void;
   /** The Agent's own actions, from the header's more menu. */
   onAction: (action: AgentAction, source: HTMLElement | null) => void;
+  onSession: (action: "create" | "select", id?: string) => void;
+  onDeleteSession: (id: string, source: HTMLElement | null) => void;
   /** Absent for providers without per-Agent models. */
   models?: readonly ModelChoice[];
   onModel?: (model: AgentModel | null) => void;
@@ -90,6 +99,7 @@ export function ChatView({
   const bottom = useRef<HTMLDivElement>(null);
   const input = useRef<HTMLTextAreaElement>(null);
   const more = useRef<HTMLButtonElement>(null);
+  const sessions = useRef<HTMLButtonElement>(null);
   const [copied, setCopied] = useState<string>();
   useEffect(() => {
     bottom.current?.scrollIntoView({ block: "end" });
@@ -147,11 +157,16 @@ export function ChatView({
     );
   }
   const saving = agent.canCancel === false;
-  const status = busy
-    ? "正在处理…"
-    : agent.status === "online"
-      ? "在线"
-      : "空闲";
+  const modelPicker = models && onModel && (
+    <ModelSelect
+      compact
+      label="切换模型"
+      models={models}
+      value={agent.model}
+      disabled={busy}
+      onChange={onModel}
+    />
+  );
   return (
     <section
       className="flex min-h-0 flex-1 flex-col"
@@ -176,39 +191,87 @@ export function ChatView({
             transition={{ duration: 0.16 }}
             className="flex min-w-0 flex-1 items-center gap-2.5"
           >
-            <Avatar agent={agent} className="md:hidden" />
-            <div className="flex min-w-0 items-baseline gap-2">
-              <h1 className="min-w-0 truncate text-[15px] font-semibold tracking-tight max-md:font-reading max-md:text-[17px] max-md:font-medium">
-                {agent.name}
-              </h1>
-              <span
-                className={cn(
-                  "flex shrink-0 items-center gap-1 text-xs",
-                  busy || agent.status === "online"
-                    ? "text-running"
-                    : "text-muted-foreground",
-                )}
-              >
-                <span
-                  aria-hidden="true"
-                  className={cn(
-                    "size-1.5 self-center rounded-full",
-                    busy || agent.status === "online"
-                      ? "bg-running"
-                      : "bg-muted-foreground/40",
-                    busy && "animate-pulse",
+            <Avatar agent={agent} className="size-8 text-sm md:hidden" />
+            <h1 className="min-w-0 shrink truncate text-[15px] font-semibold tracking-tight max-md:font-reading max-md:text-[17px] max-md:font-medium">
+              {agent.name}
+            </h1>
+            {/* The button stays while busy so focus can return to it. */}
+            <DropdownMenu modal={false}>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  ref={sessions}
+                  variant="ghost"
+                  size="xs"
+                  className="min-w-0 shrink-[4] gap-0.5 font-normal text-muted-foreground aria-expanded:bg-muted"
+                  aria-label={`会话：${session.title}`}
+                >
+                  {busy ? (
+                    <span className="flex items-center gap-1.5 text-running">
+                      <span
+                        aria-hidden="true"
+                        className="size-1.5 animate-pulse rounded-full bg-running"
+                      />
+                      正在回复…
+                    </span>
+                  ) : (
+                    <>
+                      <span className="truncate">{session.title}</span>
+                      <ChevronDownIcon />
+                    </>
                   )}
-                />
-                {status}
-              </span>
-              {agent.multiSession && (
-                <span className="min-w-0 shrink-[4] truncate text-xs text-muted-foreground">
-                  · {session.title}
-                </span>
-              )}
-            </div>
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent
+                align="start"
+                className="w-60"
+                aria-label="会话"
+              >
+                <DropdownMenuRadioGroup
+                  value={session.id}
+                  onValueChange={(id) => onSession("select", id)}
+                >
+                  {agent.sessions.map((s) => (
+                    <DropdownMenuRadioItem
+                      key={s.id}
+                      value={s.id}
+                      disabled={busy}
+                    >
+                      <span className="truncate">{s.title}</span>
+                    </DropdownMenuRadioItem>
+                  ))}
+                </DropdownMenuRadioGroup>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem
+                  disabled={busy}
+                  onSelect={() => onSession("create")}
+                >
+                  <PlusIcon />
+                  新建会话
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  variant="destructive"
+                  disabled={busy}
+                  onSelect={() => onDeleteSession(session.id, sessions.current)}
+                >
+                  <Trash2Icon />
+                  删除此会话
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </motion.div>
         </AnimatePresence>
+        <Tooltip label="新建会话" side="bottom">
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            className="ml-auto text-muted-foreground"
+            aria-label="新建会话"
+            disabled={busy}
+            onClick={() => onSession("create")}
+          >
+            <SquarePenIcon />
+          </Button>
+        </Tooltip>
         <DropdownMenu modal={false}>
           {/* Below, so it never covers the title bar above. */}
           <Tooltip label="更多操作" side="bottom">
@@ -217,7 +280,7 @@ export function ChatView({
                 ref={more}
                 variant="ghost"
                 size="icon-sm"
-                className="ml-auto text-muted-foreground aria-expanded:bg-muted aria-expanded:text-foreground"
+                className="text-muted-foreground aria-expanded:bg-muted aria-expanded:text-foreground"
                 aria-label="更多操作"
               >
                 <EllipsisIcon />
@@ -243,34 +306,22 @@ export function ChatView({
         role="log"
         aria-label="会话消息"
       >
-        {agent.description && (
-          <p className="m-0 max-w-[520px] self-center rounded-full bg-surface px-3 py-1 text-center text-xs leading-relaxed whitespace-pre-wrap text-muted-foreground wrap-anywhere ring-1 ring-border/60 max-md:bg-transparent max-md:ring-0">
-            {agent.description}
-          </p>
-        )}
         {!session.messages.length && (
           <motion.div
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.3, ease: "easeOut" }}
-            className="flex min-h-40 flex-col items-center justify-center text-center"
+            className="my-auto flex flex-col items-center gap-3 text-center"
           >
-            <motion.span
-              initial={{ scale: 0.8 }}
-              animate={{ scale: 1 }}
-              transition={{ type: "spring", stiffness: 300, damping: 18 }}
-            >
-              <Avatar
-                agent={agent}
-                className="size-12 shadow-raised [&_svg]:size-6"
-              />
-            </motion.span>
-            <h2 className="mt-3 mb-1 text-[15px] font-semibold tracking-tight max-md:font-reading max-md:text-[22px] max-md:font-medium">
-              和 {agent.name} 开始吧
+            <Avatar agent={agent} size="large" />
+            <h2 className="text-lg font-semibold tracking-tight max-md:font-reading max-md:text-[22px] max-md:font-medium">
+              {agent.name}
             </h2>
-            <p className="max-w-sm text-xs leading-relaxed text-muted-foreground">
-              {provider.description}
-            </p>
+            {agent.description && (
+              <p className="line-clamp-4 max-w-md text-[13px] leading-relaxed whitespace-pre-wrap text-muted-foreground wrap-anywhere">
+                {agent.description}
+              </p>
+            )}
           </motion.div>
         )}
         <AnimatePresence initial={false}>{lines}</AnimatePresence>
@@ -294,14 +345,15 @@ export function ChatView({
         )}
         <div ref={bottom} />
       </div>
-      {closed ? (
-        <div className="mx-auto mt-1 mb-3 flex w-[calc(100%-32px)] max-w-[760px] items-center gap-3 rounded-2xl bg-card px-4 py-3 text-[13px] shadow-raised max-md:mb-3 max-md:w-[calc(100%-24px)] dark:bg-overlay">
-          <p className="min-w-0 flex-1 text-muted-foreground">
-            此 Agent 已关闭「{closed.label}」，开启后才能在这里对话。
+      {blocked ? (
+        <div
+          role="status"
+          className="mx-auto mt-1 mb-3 flex w-[calc(100%-32px)] max-w-[760px] flex-wrap items-center gap-x-4 gap-y-2 rounded-2xl border border-border bg-card px-4 py-3 text-[13px] max-md:w-[calc(100%-24px)] dark:bg-overlay"
+        >
+          <p className="min-w-48 flex-1 text-muted-foreground">
+            {blocked.text}
           </p>
-          <Button size="sm" onClick={closed.onOpen}>
-            开启
-          </Button>
+          {blocked.action}
         </div>
       ) : (
         <form
@@ -311,6 +363,10 @@ export function ChatView({
             onSend();
           }}
         >
+          {/* Phones keep the picker above the input, which has no room. */}
+          {!desktop && modelPicker && (
+            <div className="mb-1 flex">{modelPicker}</div>
+          )}
           <InputGroup className="h-auto rounded-2xl border-border bg-card shadow-raised transition-shadow duration-200 has-disabled:bg-card has-disabled:opacity-100 max-md:items-end dark:bg-overlay dark:has-disabled:bg-overlay has-[[data-slot=input-group-control]:focus-visible]:border-input has-[[data-slot=input-group-control]:focus-visible]:shadow-float has-[[data-slot=input-group-control]:focus-visible]:ring-0">
             <InputGroupTextarea
               ref={input}
@@ -337,17 +393,8 @@ export function ChatView({
               align={desktop ? "block-end" : "inline-end"}
               className="cursor-default justify-end gap-1 self-end px-2 pb-2 max-md:px-2 max-md:py-1.5"
             >
-              {desktop && models && onModel && (
-                <span className="mr-auto min-w-0">
-                  <ModelSelect
-                    compact
-                    label="切换模型"
-                    models={models}
-                    value={agent.model}
-                    disabled={busy}
-                    onChange={onModel}
-                  />
-                </span>
+              {desktop && modelPicker && (
+                <span className="mr-auto min-w-0">{modelPicker}</span>
               )}
               <AnimatePresence mode="popLayout" initial={false}>
                 {busy ? (

@@ -1,4 +1,3 @@
-import { FileTextIcon, SquareTerminalIcon } from "lucide-react";
 import { cn } from "cn";
 import type { Agent } from "../../modules/agents/contract";
 import {
@@ -8,14 +7,13 @@ import {
 } from "../components/ui/avatar";
 
 const sizes = {
-  small: "size-7 [&_svg]:size-3.5",
-  normal: "size-10 [&_svg]:size-5",
-  large: "size-16 [&_svg]:size-7",
+  normal: "size-10 text-base",
+  large: "size-16 text-2xl",
 } as const;
 
 /**
- * An Agent's mark: a terminal for multi-session Agents, a page otherwise.
- * With `status`, a dot shows whether it is working (pulsing) or online.
+ * An Agent's mark: the first character of its name. With `status`, a dot
+ * shows whether it is working (pulsing) or online.
  */
 export function Avatar({
   agent,
@@ -23,16 +21,15 @@ export function Avatar({
   status,
   className,
 }: {
-  agent: Pick<Agent, "multiSession">;
+  agent: Pick<Agent, "name">;
   size?: keyof typeof sizes;
   status?: Agent["status"];
   className?: string;
 }) {
-  const Icon = agent.multiSession ? SquareTerminalIcon : FileTextIcon;
   return (
     <AvatarRoot aria-hidden="true" className={cn(sizes[size], className)}>
-      <AvatarFallback className="bg-linear-to-br from-brand-soft to-brand-soft/50 text-brand-text">
-        <Icon strokeWidth={1.6} />
+      <AvatarFallback className="bg-subtle font-medium text-foreground/80 [font-size:inherit]">
+        {[...agent.name.trim()][0] ?? "?"}
       </AvatarFallback>
       {status && status !== "idle" && (
         <AvatarBadge

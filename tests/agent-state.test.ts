@@ -4,6 +4,7 @@ import type { Platform, StoredState } from "../modules/sdk";
 import { bytes, legacyAgent, memoryPlatform } from "./fixtures/agents";
 import { agentExtension } from "../modules/agents/provider";
 import type { Agent, AgentProvider } from "../modules/agents/contract";
+import type { ChatService } from "../extensions/contracts";
 
 const owner = "extension.agents.local";
 
@@ -14,21 +15,23 @@ async function start(
   const host = new Host(platform);
   host.install({
     manifest: {
-      id: "transform.test",
+      id: "chat.test",
       apiVersion: 1,
       version: "1",
-      provides: { "text.transform": 1 },
+      provides: { chat: 1 },
     },
     activate(ctx) {
-      ctx.provide("text.transform", 1, {
+      ctx.provide("chat", 1, {
         name: "测试",
-        transform: async (text: string) => `回复：${text}`,
-      });
+        models: () => [{ id: "m", label: "M", description: "" }],
+        subscribe: () => () => {},
+        reply: async ({ input }) => `回复：${input}`,
+      } satisfies ChatService);
     },
   });
   host.install(agentExtension(options));
   await host.grant("agents.local", ["state.read", "state.write"]);
-  await host.start("transform.test");
+  await host.start("chat.test");
   // A failed activation rejects here; the Host records it for inspection.
   await host.start("agents.local").catch(() => {});
   return host;
@@ -132,7 +135,6 @@ it("saves more than 64 KiB in total across sessions and restores it", async () =
   const host = await start(platform);
   const agent = await provider(host).create({
     name: "长对话",
-    multiSession: true,
   });
   const text = "长".repeat(8_000);
   for (let i = 0; i < 4; i++) {
@@ -159,7 +161,6 @@ it("writes only the changed session and removes a deleted session's pages", asyn
   const host = await start(platform);
   const agent = await provider(host).create({
     name: "多会话",
-    multiSession: true,
   });
   await provider(host).send(agent.id, "一");
   const first = provider(host).list()[0].currentSessionId;
@@ -226,6 +227,10 @@ it("reads version 2 shards and moves them into pages on the next save", async ()
   expect(write).not.toHaveBeenCalled();
   const agentId = provider(host).list()[0].id;
   expect(provider(host).list()[0].sessions[0].messages).toHaveLength(2);
+  await provider(host).setModel!(agentId, {
+    provider: "chat.test",
+    model: "m",
+  });
   await provider(host).send(agentId, "新");
   const session = index(states).agents[0].sessions[0];
   expect(index(states).version).toBe(3);
@@ -356,7 +361,7 @@ it.each([
     const { platform, states, write } = memoryPlatform(initial);
     const retireLegacy = vi.fn(async () => {});
     const host = await start(platform, { ...options, retireLegacy });
-    expect(host.inspect("transform.test").status).toBe("active");
+    expect(host.inspect("chat.test").status).toBe("active");
     expect(host.inspect("agents.local")).toMatchObject({ status: "failed" });
     expect(write).not.toHaveBeenCalled();
     expect(retireLegacy).not.toHaveBeenCalled();

@@ -5,7 +5,7 @@ import type {
   ExtensionChoice,
 } from "../../modules/agents/contract";
 
-/** One extension an Agent is assembled from besides its text extensions. */
+/** One extension an Agent is composed of. */
 export type Part = {
   choice: ExtensionChoice;
   on: boolean;
@@ -38,16 +38,16 @@ export function agentParts({
     : undefined;
   return [
     ...provider.map((p) => ({
-      choice: { ...p, description: "保存角色与会话，把消息交给模型和文本扩展" },
+      choice: { ...p, description: "记住角色设定和聊天记录" },
       on: !off.includes(p.id),
-      note: "已关闭：此 Agent 不会回复",
+      note: "已关闭：它不会回复",
     })),
     ...(ui && !provider.some((p) => p.id === ui.id)
       ? [
           {
-            choice: { ...ui, description: "显示此 Agent，并在这里与它对话" },
+            choice: { ...ui, description: "在这里和它对话" },
             on: !off.includes(ui.id),
-            note: "已关闭：不能在此界面与它对话",
+            note: "已关闭：不能在这里和它对话",
           },
         ]
       : []),
@@ -58,10 +58,10 @@ export function agentParts({
           ...c,
           description: own
             ? `使用 ${picked?.label ?? model.model}`
-            : "为此 Agent 提供模型",
+            : "提供理解和回复用的 AI 模型",
         },
         on: own && !off.includes(c.id),
-        note: own ? "已关闭：回复不经过模型" : undefined,
+        note: own ? "已关闭：它不会回复" : undefined,
         connector: true as const,
       };
     }),

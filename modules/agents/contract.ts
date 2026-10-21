@@ -25,15 +25,11 @@ export type Agent = {
   /** Text being sent and not yet saved with its reply; never persisted. */
   pending?: { sessionId: string; text: string };
   extensionId: string;
-  /** Text extensions switched on for this Agent; replies pass through them in this order. Absent means the first available one. */
-  extensions?: string[];
   /** The `chat@1` model that answers this Agent, by provider extension and model id. */
   model?: AgentModel;
-  /** Other extensions switched off for this Agent, such as its provider, the interface showing it or its model's connection. */
+  /** Extensions switched off for this Agent: its provider, the interface showing it or its model's connection. */
   off?: string[];
-  capabilities: string[];
   sessions: Session[];
-  multiSession: boolean;
   currentSessionId: string;
 };
 export type AgentModel = { provider: string; model: string };
@@ -50,24 +46,13 @@ export type ModelChoice = {
 export type AgentConfig = {
   name: string;
   description?: string;
-  multiSession?: boolean;
-  /** Text extensions to start with, in order; absent picks the provider's default. */
-  extensions?: string[];
   /** The model to start with, or `null` for none; absent picks the first one. */
   model?: AgentModel | null;
   /** Other extensions to start switched off, as in `Agent.off`. */
   off?: string[];
 };
-/** An extension an Agent can switch on, described for the user. */
+/** An extension an Agent is composed of, described for the user. */
 export type ExtensionChoice = Named & { description: string };
-/** The IDs of the available extensions this Agent uses, in order; stopped ones are skipped. */
-export const enabledExtensions = (
-  agent: Pick<Agent, "extensions">,
-  available: readonly Named[],
-) =>
-  agent.extensions
-    ? agent.extensions.filter((id) => available.some((a) => a.id === id))
-    : available.slice(0, 1).map(({ id }) => id);
 export type AgentProviderInfo = {
   label: string;
   version: string;
@@ -92,19 +77,13 @@ export interface AgentProvider {
   ): Promise<void>;
   send(id: string, text: string): Promise<void>;
   cancel(id: string): void;
-  /** Extensions each Agent can switch on, oldest first; added after agents@1 shipped. */
-  extensionChoices?(): readonly ExtensionChoice[];
-  /** Switches one of `extensionChoices()` on (appended last) or off for one Agent. */
-  setExtension?(id: string, extensionId: string, on: boolean): Promise<void>;
-  /** Replaces one Agent's extensions with these, in this order. */
-  setExtensions?(id: string, extensionIds: string[]): Promise<void>;
   /** Models any Agent can use; added after agents@1 shipped. */
   modelChoices?(): readonly ModelChoice[];
   /** Picks one of `modelChoices()` for an Agent, or none, and switches its connection on. */
   setModel?(id: string, model: AgentModel | null): Promise<void>;
   /** The `chat@1` providers models come from, with models or not. */
   connectors?(): readonly Named[];
-  /** Switches any extension other than a text one off or back on for one Agent. */
+  /** Switches one of the Agent's extensions off or back on for one Agent. */
   setOff?(id: string, extensionId: string, off: boolean): Promise<void>;
   /** Deletes one saved message; added after agents@1 shipped, so optional. */
   removeMessage?(

@@ -5,6 +5,7 @@ import {
   parseRoleCard,
   restoreAgents,
 } from "../modules/agents/store";
+import { legacyAgent } from "./fixtures/agents";
 
 function deferred() {
   let resolve!: () => void;
@@ -15,6 +16,24 @@ function deferred() {
 }
 
 describe("agent extension data", () => {
+  it("drops fields older versions saved and gives every Agent several sessions", async () => {
+    const [restored] = restoreAgents([legacyAgent()]);
+    expect(restored).not.toHaveProperty("capabilities");
+    expect(restored).not.toHaveProperty("multiSession");
+    expect(restored).not.toHaveProperty("extensions");
+    const store = new AgentStore(
+      [restored],
+      async () => {},
+      async (t) => t,
+    );
+    await store.session(restored.id, "create");
+    expect(store.list()[0].sessions).toHaveLength(2);
+  });
+  it("reads role cards that still carry the old multiSession field", () => {
+    expect(
+      parseRoleCard('{"version":1,"name":"旧卡","multiSession":true}'),
+    ).toEqual({ name: "旧卡", description: undefined });
+  });
   it("adds, pins and restores independent sessions without persisting runtime status", async () => {
     let saved: unknown;
     const store = new AgentStore(
@@ -24,7 +43,7 @@ describe("agent extension data", () => {
       },
       async (text) => text.toUpperCase(),
     );
-    const a = await store.create({ name: "本地助手", multiSession: true });
+    const a = await store.create({ name: "本地助手" });
     await store.update(a.id, { pinned: true });
     await store.send(a.id, "first");
     await store.session(a.id, "create");
@@ -82,7 +101,7 @@ describe("agent extension data", () => {
       async () => {},
       async (text) => text,
     );
-    const a = await store.create({ name: "test", multiSession: true });
+    const a = await store.create({ name: "test" });
     await Promise.all([
       store.update(a.id, { name: "renamed" }),
       store.update(a.id, { pinned: true }),
@@ -151,7 +170,7 @@ it("reserves session changes until saved so sending cannot use the old session",
     },
     async (text) => text,
   );
-  const a = await store.create({ name: "sessions", multiSession: true });
+  const a = await store.create({ name: "sessions" });
   hold = true;
   const switching = store.session(a.id, "create");
   await enter.promise;
@@ -348,7 +367,6 @@ it("restores the longest model id the model connector offers and refuses longer 
       saved = structuredClone(agents);
     },
     async (text) => text,
-    () => [],
     [],
     () => [choice(longest), choice(tooLong)],
   );
@@ -371,7 +389,6 @@ it("does not ask the model while saving is blocked, so retries cost nothing", as
       asked++;
       return text;
     },
-    () => [],
     [],
     () => [],
     () => lock.reason,

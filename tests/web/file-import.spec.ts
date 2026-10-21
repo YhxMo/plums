@@ -2,12 +2,17 @@ import { readFileSync } from "node:fs";
 import { expect, test, type Page } from "@playwright/test";
 import { manage, persisted } from "./helpers";
 
-const starter = readFileSync("extensions/examples/starter-text-service.js");
+const starter = readFileSync("extensions/examples/starter-model.js");
 const service = (id: string, prefix: string) =>
   Buffer.from(`export default {
-  manifest: { id: "${id}", version: "${prefix}", apiVersion: 1, provides: { "text.transform": 1 } },
+  manifest: { id: "${id}", version: "${prefix}", apiVersion: 1, provides: { chat: 1 } },
   activate(ctx) {
-    ctx.provide("text.transform", 1, { name: "${prefix}", async transform(input) { return "${prefix}：" + input; } });
+    ctx.provide("chat", 1, {
+      name: "${prefix}",
+      models: () => [{ id: "m", label: "${prefix}", description: "" }],
+      subscribe: () => () => {},
+      async reply({ input }) { return "${prefix}：" + input; },
+    });
   },
 };`);
 
@@ -25,7 +30,7 @@ async function importFile(page: Page, name: string, buffer: Buffer) {
 }
 async function useService(page: Page, id: string) {
   const stop = page.getByRole("button", {
-    name: "停用 transform.upper",
+    name: "停用 chat.echo",
     exact: true,
   });
   if (await stop.isVisible()) await stop.click();
@@ -56,27 +61,27 @@ test("an imported file drives the Agent and stays enabled after reload", async (
   await page.goto("/");
   const dialog = await importFile(page, "starter.js", starter);
   const summary = dialog.getByRole("definition");
-  await expect(dialog).toContainText("starter.text-service");
-  await expect(dialog).toContainText("起步文本服务");
+  await expect(dialog).toContainText("starter.model");
+  await expect(dialog).toContainText("起步模型");
   await expect(dialog).toContainText("统计字数后回显你的消息");
-  await expect(dialog).toContainText("text.transform@1");
+  await expect(dialog).toContainText("chat@1");
   await expect(summary.filter({ hasText: "本地导入的文件 · " })).toBeVisible();
   await dialog.getByRole("button", { name: "导入", exact: true }).click();
   await expect(page.getByRole("status")).toContainText("扩展已导入");
-  await page.getByRole("button", { name: "起步文本服务", exact: true }).click();
+  await page.getByRole("button", { name: "起步模型", exact: true }).click();
   await expect(
     page.getByRole("region", { name: "所选扩展详情" }),
   ).toContainText("统计字数后回显你的消息，不联网、不保存数据。");
-  await useService(page, "starter.text-service");
+  await useService(page, "starter.model");
   await addAgent(page);
   await send(page, "你好");
   await expect(page.getByRole("log")).toContainText("你写了 2 个字：你好");
-  await persisted(page, "starter.text-service");
+  await persisted(page, "starter.model");
   await page.reload();
   await manage(page);
   await expect(
     page.getByRole("button", {
-      name: "停用 starter.text-service",
+      name: "停用 starter.model",
       exact: true,
     }),
   ).toBeVisible();

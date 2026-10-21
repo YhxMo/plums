@@ -98,7 +98,6 @@ const businessViewIds = new Set([
   "board",
   "text-workbench",
   "broken",
-  "role-settings",
   "model-connections",
 ]);
 

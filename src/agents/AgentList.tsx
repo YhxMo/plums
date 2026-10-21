@@ -1,13 +1,12 @@
 import { useRef, useState } from "react";
-import { EllipsisIcon, PlusIcon, SearchIcon, StarIcon } from "lucide-react";
-import { AnimatePresence, LayoutGroup, motion } from "motion/react";
+import { EllipsisIcon, PinIcon, PlusIcon, SearchIcon } from "lucide-react";
+import { LayoutGroup, motion } from "motion/react";
 import type { Agent } from "../../modules/agents/contract";
 import { formatTime } from "./time";
 import { Avatar } from "./Avatar";
 import { AgentMenuItems, type AgentAction } from "./AgentMenu";
 import { Tooltip } from "../components/Tooltip";
 import { Button } from "../components/ui/button";
-import { Badge } from "../components/ui/badge";
 import {
   InputGroup,
   InputGroupAddon,
@@ -75,9 +74,17 @@ function AgentRow({
             <Avatar agent={a} status={a.status} className="size-9" />
             <span className="flex min-w-0 flex-1 flex-col gap-0.5">
               <span className="flex min-w-0 items-baseline justify-between gap-2">
-                <strong className="truncate text-[13px] font-medium max-md:text-[15px]">
-                  {a.name}
-                </strong>
+                <span className="flex min-w-0 items-center gap-1">
+                  <strong className="truncate text-[13px] font-medium max-md:text-[15px]">
+                    {a.name}
+                  </strong>
+                  {a.pinned && (
+                    <PinIcon
+                      aria-label="特别关注"
+                      className="size-3 shrink-0 text-muted-foreground"
+                    />
+                  )}
+                </span>
                 <span className="min-w-7 shrink-0 text-right text-[11px] text-muted-foreground transition-opacity md:pointer-fine:group-hover/row:opacity-0 md:pointer-fine:group-focus-within/row:opacity-0 md:pointer-fine:group-has-aria-expanded/row:opacity-0">
                   {lastAt !== undefined && formatTime(lastAt, undefined, true)}
                 </span>
@@ -121,54 +128,6 @@ function AgentRow({
   );
 }
 
-/** A pinned Agent's tile; its menu opens with a right click or long press. */
-function PinnedTile({
-  agent: a,
-  selected,
-  onSelect,
-  onAction,
-}: {
-  agent: Agent;
-  selected: boolean;
-  onSelect: () => void;
-  onAction: (action: AgentAction, source: HTMLElement | null) => void;
-}) {
-  const tile = useRef<HTMLButtonElement>(null);
-  return (
-    <ContextMenu>
-      <ContextMenuTrigger asChild>
-        <motion.button
-          ref={tile}
-          data-slot="agent-tile"
-          layout
-          data-agent-id={a.id}
-          whileHover={{ y: -2 }}
-          whileTap={{ scale: 0.96 }}
-          className="flex min-w-0 flex-col items-center gap-1 rounded-lg px-1 py-1.5 text-xs outline-none hover:bg-sidebar-accent focus-visible:ring-3 focus-visible:ring-ring/50 aria-pressed:bg-sidebar-primary"
-          aria-label={`打开 ${a.name}`}
-          aria-pressed={selected}
-          onClick={onSelect}
-        >
-          <span className="relative">
-            <Avatar agent={a} className="shadow-raised" />
-            <span className="absolute -right-0.5 -bottom-0.5 grid size-4 place-items-center rounded-full bg-brand text-primary-foreground ring-2 ring-list">
-              <StarIcon className="size-2 fill-current" />
-            </span>
-          </span>
-          <span className="w-full truncate text-center">{a.name}</span>
-        </motion.button>
-      </ContextMenuTrigger>
-      <ContextMenuContent className="w-44" aria-label={`${a.name} 的操作菜单`}>
-        <AgentMenuItems
-          agent={a}
-          kind="context"
-          onAction={(action) => onAction(action, tile.current)}
-        />
-      </ContextMenuContent>
-    </ContextMenu>
-  );
-}
-
 export function AgentList({
   agents,
   selected,
@@ -190,9 +149,11 @@ export function AgentList({
   const shown = agents.filter((a) =>
     a.name.toLowerCase().includes(query.toLowerCase()),
   );
-  // Pinned Agents show once, in their own row of tiles.
-  const pinned = shown.filter((a) => a.pinned);
-  const others = shown.filter((a) => !a.pinned);
+  // Pinned Agents come first, as in a messenger.
+  const ordered = [
+    ...shown.filter((a) => a.pinned),
+    ...shown.filter((a) => !a.pinned),
+  ];
   return (
     <aside
       // Desktop tints the list between the rail and the conversation.
@@ -203,12 +164,6 @@ export function AgentList({
         <h2 className="text-[15px] font-semibold tracking-tight max-md:text-lg">
           我的 Agent
         </h2>
-        <Badge
-          variant="secondary"
-          className="bg-sidebar-accent text-muted-foreground tabular-nums"
-        >
-          {agents.length}
-        </Badge>
         <Tooltip label="添加 Agent">
           <Button
             variant="ghost"
@@ -237,38 +192,8 @@ export function AgentList({
         </div>
       )}
       <div className="flex min-h-0 flex-1 flex-col gap-0.5 overflow-y-auto px-2 pb-3 max-md:px-3 max-md:pb-5">
-        <AnimatePresence initial={false}>
-          {pinned.length > 0 && (
-            <motion.section
-              {...enter}
-              exit={{ opacity: 0, height: 0 }}
-              key="pinned"
-              className="mb-1 shrink-0 overflow-hidden"
-            >
-              <h3 className="px-2 pt-1 pb-1 text-[11px] font-medium text-muted-foreground">
-                特别关注
-              </h3>
-              <div className="grid grid-cols-[repeat(auto-fill,minmax(56px,1fr))] gap-0.5">
-                {pinned.map((a) => (
-                  <PinnedTile
-                    key={a.id}
-                    agent={a}
-                    selected={selected === a.id}
-                    onSelect={() => onSelect(a.id)}
-                    onAction={(action, source) => onAction(a, action, source)}
-                  />
-                ))}
-              </div>
-            </motion.section>
-          )}
-        </AnimatePresence>
-        {others.length > 0 && pinned.length > 0 && (
-          <h3 className="px-2 pt-1 pb-1 text-[11px] font-medium text-muted-foreground">
-            其他 Agent
-          </h3>
-        )}
         <LayoutGroup id="agent-rows">
-          {others.map((a) => (
+          {ordered.map((a) => (
             <AgentRow
               key={a.id}
               agent={a}

@@ -261,21 +261,17 @@ it.each([
     ).toHaveLength(1);
   },
 );
-it.each([
-  "agents",
-  "default",
-  "board",
-  "text-workbench",
-  "broken",
-  "role-settings",
-])("rejects business view ID %s in generic shell", (id) => {
-  expect(
-    boundaryProblems("src/shell/probe.ts", `const selected = "${id}";`),
-  ).toHaveLength(1);
-  expect(
-    boundaryProblems("modules/shell/probe.ts", `const selected = "${id}";`),
-  ).toHaveLength(1);
-});
+it.each(["agents", "default", "board", "text-workbench", "broken"])(
+  "rejects business view ID %s in generic shell",
+  (id) => {
+    expect(
+      boundaryProblems("src/shell/probe.ts", `const selected = "${id}";`),
+    ).toHaveLength(1);
+    expect(
+      boundaryProblems("modules/shell/probe.ts", `const selected = "${id}";`),
+    ).toHaveLength(1);
+  },
+);
 it("cannot smuggle Agent contracts through an SDK barrel", () => {
   expect(
     checkBoundaries([

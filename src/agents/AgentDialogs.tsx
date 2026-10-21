@@ -8,11 +8,10 @@ import {
   SparklesIcon,
   UploadIcon,
 } from "lucide-react";
-import {
-  enabledExtensions,
-  type Agent,
-  type AgentConfig,
-  type AgentProvider,
+import type {
+  Agent,
+  AgentConfig,
+  AgentProvider,
 } from "../../modules/agents/contract";
 import { parseRoleCard } from "../../modules/agents/store";
 import type { Named } from "../../modules/sdk";
@@ -21,8 +20,6 @@ import { Dialog, DialogActions, DialogBody } from "../components/Dialog";
 import { Button, buttonVariants } from "../components/ui/button";
 import { Input } from "../components/ui/input";
 import { Textarea } from "../components/ui/textarea";
-import { Checkbox } from "../components/ui/checkbox";
-import { Label } from "../components/ui/label";
 import {
   Field,
   FieldDescription,
@@ -40,7 +37,7 @@ import {
   ItemMedia,
   ItemTitle,
 } from "../components/ui/item";
-import { ExtensionPipeline } from "./ExtensionPipeline";
+import { AgentParts } from "./AgentParts";
 import { ModelSelect } from "./ModelSelect";
 import { useAgentDraft } from "./draft";
 import { agentParts, switchPart, type Part } from "./parts";
@@ -133,7 +130,6 @@ export function AgentDialogs({
   } = modals;
   const { raw, url, setRaw, setUrl, reading, readLink, readFile } = roleCard;
   const draft = useAgentDraft();
-  const choices = api.extensionChoices?.();
   const models = api.modelChoices?.();
   // Unchosen fields show what the provider would pick on its own.
   const [first] = models ?? [];
@@ -143,9 +139,6 @@ export function AgentDialogs({
         ? { provider: first.provider, model: first.id }
         : null
       : draft.model;
-  const extensions =
-    draft.extensions?.filter((id) => choices?.some((c) => c.id === id)) ??
-    (model ? [] : enabledExtensions({}, choices ?? []));
   const parts = agentParts({
     provider: api.info.extensions ?? [],
     ui,
@@ -165,10 +158,6 @@ export function AgentDialogs({
       setError(error instanceof Error ? error.message : String(error));
     }
   }
-  const replies =
-    parts.some((p) => p.connector && p.on) ||
-    (!api.connectors && !!model) ||
-    extensions.length > 0;
   async function add(config: AgentConfig) {
     const agent = await api.create(config);
     onCreated(agent);
@@ -311,13 +300,12 @@ export function AgentDialogs({
                 value={raw}
                 onChange={(e) => setRaw(e.target.value)}
                 placeholder={
-                  '{"version":1,"name":"我的助手","description":"帮助整理文字","multiSession":true}'
+                  '{"version":1,"name":"我的助手","description":"帮助整理文字"}'
                 }
                 maxLength={32000}
               />
               <FieldDescription>
-                支持实验 JSON 格式：name、description、multiSession、version:
-                1。
+                支持实验 JSON 格式：name、description、version: 1。
               </FieldDescription>
             </Field>
           </DialogBody>
@@ -353,9 +341,7 @@ export function AgentDialogs({
               add({
                 name: draft.name,
                 description: draft.description,
-                multiSession: draft.multiSession,
                 ...(models && { model }),
-                ...(choices && { extensions }),
                 ...(api.setOff && { off: draft.off }),
               }),
             );
@@ -376,7 +362,7 @@ export function AgentDialogs({
                 />
               </Field>
               <Field>
-                <FieldLabel htmlFor="agent-description">角色说明</FieldLabel>
+                <FieldLabel htmlFor="agent-description">介绍</FieldLabel>
                 <Textarea
                   id="agent-description"
                   value={draft.description}
@@ -384,21 +370,9 @@ export function AgentDialogs({
                     draft.change({ description: e.target.value })
                   }
                   maxLength={4000}
-                  placeholder="它帮助你做什么？有哪些边界？"
+                  placeholder="它是谁，能帮你做什么，有哪些边界？"
                   className="min-h-20"
                 />
-              </Field>
-              <Field orientation="horizontal">
-                <Checkbox
-                  id="agent-multi"
-                  checked={draft.multiSession}
-                  onCheckedChange={(checked) =>
-                    draft.change({ multiSession: checked === true })
-                  }
-                />
-                <Label htmlFor="agent-multi" className="font-normal">
-                  允许多个会话
-                </Label>
               </Field>
             </FieldGroup>
             {models && (
@@ -412,9 +386,9 @@ export function AgentDialogs({
                     {onModels && (
                       <Button
                         type="button"
-                        variant="link"
+                        variant="ghost"
                         size="xs"
-                        className="px-0 text-brand-text"
+                        className="-mr-2 text-muted-foreground"
                         onClick={() => detour(onModels)}
                       >
                         {models.length ? "管理模型连接" : "去添加模型连接"}
@@ -437,7 +411,7 @@ export function AgentDialogs({
                 </FieldSet>
               </>
             )}
-            {choices && (
+            {parts.length > 0 && (
               <>
                 <FieldSeparator />
                 <FieldSet className="gap-2">
@@ -446,39 +420,30 @@ export function AgentDialogs({
                       variant="label"
                       className="mb-0 flex items-center gap-1"
                     >
-                      拼接扩展
+                      组成扩展
                       <InfoTip
-                        label="拼接扩展"
-                        text="开启的扩展组成这个 Agent；带编号的文本扩展依次处理回复，可拖动调整先后。添加后也能在详情里增减。"
+                        label="组成扩展"
+                        text="这个 Agent 由这些扩展组成。添加后也能在详情里开关。"
                       />
                     </FieldLegend>
                     <Button
                       type="button"
-                      variant="link"
+                      variant="ghost"
                       size="xs"
-                      className="px-0 text-brand-text"
+                      className="-mr-2 text-muted-foreground"
                       onClick={() => detour(onExtensions)}
                     >
-                      安装或启用更多
+                      扩展管理
                       <ChevronRightIcon data-icon="inline-end" />
                     </Button>
                   </div>
-                  <ExtensionPipeline
+                  <AgentParts
                     agentName={draft.name.trim() || "新 Agent"}
                     parts={parts}
                     onPart={api.setOff && switchDraftPart}
-                    choices={choices}
-                    value={extensions}
-                    onChange={(ids) => draft.change({ extensions: ids })}
                   />
                 </FieldSet>
               </>
-            )}
-            {(models || choices) && !replies && (
-              <p className="rounded-lg bg-muted/60 px-3 py-2 text-xs text-muted-foreground">
-                还没有开启模型连接或文本扩展：可以先添加，开启后此 Agent
-                才能回复。
-              </p>
             )}
           </DialogBody>
           <DialogActions>

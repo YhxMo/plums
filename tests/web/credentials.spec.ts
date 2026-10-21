@@ -651,11 +651,16 @@ for (const width of [375, 1180])
     await expect(dialog.getByLabel("API Key", { exact: true })).toHaveValue("");
     await expect(dialog).toContainText("已保存");
     await dialog.getByRole("button", { name: "返回", exact: true }).click();
-    // A new Agent takes the first model; management lists it as a user of
-    // the connector as well as of the Agent provider.
+    // An Agent that picks one of these models is listed in management as a
+    // user of the connector as well as of the Agent interface.
     await page.keyboard.press("Escape");
     await expect(dialog).toBeHidden();
     await addAgent(page, "模型助手");
+    await page.getByRole("combobox", { name: "切换模型", exact: true }).click();
+    await page
+      .getByRole("listbox", { name: "切换模型" })
+      .getByRole("option", { name: /^model-two/ })
+      .click();
     await manage(page);
     // The connector and the Agent interface both list the Agent.
     for (const id of ["connector.models", "ui.agents"])

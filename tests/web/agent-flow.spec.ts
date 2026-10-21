@@ -8,11 +8,11 @@ import {
 import { expect, test, type Page } from "@playwright/test";
 const sidebarToggle = (page: Page) =>
   page.getByRole("button", { name: "展开或收起右侧栏", exact: true });
-const add = (page: Page, name = "编程助手", multi = true) =>
-  addAgent(page, name, {
-    description: "帮助整理代码与文字；仅使用本地文本能力。",
-    multi,
-  });
+const add = (page: Page, name = "编程助手") =>
+  addAgent(page, name, { description: "帮助整理代码与文字。" });
+/** Opens the conversation header's session menu. */
+const sessions = (page: Page, title: string) =>
+  page.getByRole("button", { name: `会话：${title}`, exact: true });
 for (const width of [375, 1180]) {
   test(`welcome is reserved for zero Agents and existing Agent navigation survives reload at ${width}`, async ({
     page,
@@ -59,7 +59,7 @@ for (const width of [375, 1180]) {
   });
 }
 for (const width of [375, 1440]) {
-  test(`agent creation, pinned shortcuts, sessions and reload at ${width}`, async ({
+  test(`agent creation, pinning, sessions and reload at ${width}`, async ({
     page,
   }) => {
     await page.setViewportSize({ width, height: 900 });
@@ -75,41 +75,32 @@ for (const width of [375, 1440]) {
       .getByRole("textbox", { name: "消息", exact: true })
       .fill("hello agent");
     await page.getByRole("button", { name: "发送", exact: true }).click();
-    await expect(page.getByRole("log")).toContainText("HELLO AGENT");
+    const reply = /^echo-a｜第 1 轮｜.*hello agent$/;
+    await expect(page.getByRole("log").getByText(reply)).toBeVisible();
     await expectConversationTitle(page, width, "编程助手", "hello agent");
-    if (width === 375)
-      await page.getByRole("button", { name: "展开或收起右侧栏" }).click();
-    else await sidebarToggle(page).click();
+    await page.getByRole("button", { name: "更多操作", exact: true }).click();
     await page
-      .getByRole("button", { name: "设为特别关注", exact: true })
+      .getByRole("menuitem", { name: "设为特别关注", exact: true })
       .click();
     await page.getByRole("button", { name: "新建会话", exact: true }).click();
-    await expect(
-      page.getByRole("button", { name: "未命名会话", exact: true }),
-    ).toBeVisible();
-    await page.getByRole("button", { name: "收起详情" }).click();
-    // The phone details sheet is modal and hides the title bar until closed.
     await expectConversationTitle(page, width, "编程助手", "未命名会话");
-    await expect(sidebarToggle(page)).toHaveAttribute("aria-pressed", "false");
-    await expect(page.getByRole("log")).not.toContainText("HELLO AGENT");
+    await expect(page.getByRole("log").getByText(reply)).toHaveCount(0);
     await page.reload();
+    const row = page.getByRole("button", {
+      name: "与 编程助手 交互",
+      exact: true,
+    });
+    await expect(row.getByLabel("特别关注")).toBeVisible();
+    await row.click();
+    await sessions(page, "未命名会话").click();
     await page
-      .getByRole("button", { name: "打开 编程助手", exact: true })
+      .getByRole("menuitemradio", { name: "hello agent", exact: true })
       .click();
-    if (width === 375)
-      await page.getByRole("button", { name: "展开或收起右侧栏" }).click();
-    else await sidebarToggle(page).click();
-    await page
-      .getByRole("button", { name: "hello agent", exact: true })
-      .click();
-    await page.getByRole("button", { name: "收起详情" }).click();
-    await expect(page.getByRole("log")).toContainText("HELLO AGENT");
+    await expect(page.getByRole("log").getByText(reply)).toBeVisible();
     if (width === 375)
       await page.getByRole("button", { name: "返回 Agent 列表" }).click();
-    // A pinned Agent is only a tile, whose menu opens with a right click.
-    await page
-      .getByRole("button", { name: "打开 编程助手", exact: true })
-      .click({ button: "right" });
+    // Every Agent row has the same menu on a right click.
+    await row.click({ button: "right" });
     await page
       .getByRole("menuitem", { name: "移除 Agent", exact: true })
       .click();
@@ -119,7 +110,7 @@ for (const width of [375, 1440]) {
     ).toBeVisible();
   });
 }
-test("role card file import, validation and truthful local capabilities", async ({
+test("an imported role card introduces the Agent in the conversation and details", async ({
   page,
 }) => {
   await page.goto("/");
@@ -142,21 +133,17 @@ test("role card file import, validation and truthful local capabilities", async 
   await expect(
     page.getByRole("region", { name: "写作助手 的会话", exact: true }),
   ).toBeVisible();
-  await expect(
-    page
-      .getByRole("log")
-      .getByText("本地示例：把输入转为大写，不连接语言模型。", {
-        exact: false,
-      }),
-  ).toBeVisible();
+  await expect(page.getByRole("log")).toContainText("协助理解文稿边界");
   await sidebarToggle(page).click();
+  const details = page.getByRole("complementary", { name: "Agent 详情" });
+  await expect(details).toContainText("协助理解文稿边界");
   await expect(
-    page.getByRole("complementary", { name: "Agent 详情" }),
-  ).toContainText("角色卡说明不会授予额外访问权限");
+    details.getByRole("list", { name: "写作助手 的组成扩展" }),
+  ).toBeVisible();
 });
 test("custom app menu keyboard and theme draft retention", async ({ page }) => {
   await page.goto("/");
-  await add(page, "本地助手", false);
+  await add(page, "本地助手");
   await page.getByRole("textbox", { name: "消息", exact: true }).fill("draft");
   await page.getByRole("button", { name: "切换到深色模式" }).click();
   await expect(
@@ -167,9 +154,7 @@ test("custom app menu keyboard and theme draft retention", async ({ page }) => {
     page.getByRole("menuitem", { name: "扩展管理", exact: true }),
   ).toBeFocused();
   await page.keyboard.press("ArrowDown");
-  await expect(
-    page.getByRole("menuitem", { name: "角色卡设置" }),
-  ).toBeFocused();
+  await expect(page.getByRole("menuitem", { name: "应用设置" })).toBeFocused();
   await page.keyboard.press("Escape");
   await expect(
     page.getByRole("button", { name: "应用菜单", exact: true }),
@@ -180,7 +165,7 @@ test("agent save failure retains draft and can recover without duplicate message
   page,
 }) => {
   await page.goto("/");
-  await add(page, "恢复助手", false);
+  await add(page, "恢复助手");
   await manage(page, true);
   await page.getByLabel("注入存储写入失败").check();
   await page.getByRole("button", { name: "返回工作区", exact: true }).click();
@@ -189,47 +174,42 @@ test("agent save failure retains draft and can recover without duplicate message
   await page.getByRole("button", { name: "发送", exact: true }).click();
   await expect(page.getByRole("alert")).toContainText("注入的写入故障");
   await expect(input).toHaveValue("retain this draft");
-  await expect(page.getByRole("log")).not.toContainText("RETAIN THIS DRAFT");
+  await expect(page.getByRole("log")).not.toContainText("retain this draft");
   await manage(page, true);
   await page.getByLabel("注入存储写入失败").uncheck();
   await page.getByRole("button", { name: "返回工作区", exact: true }).click();
   await page.getByRole("button", { name: "发送", exact: true }).click();
-  await expect(
-    page.getByRole("log").getByText("RETAIN THIS DRAFT", { exact: true }),
-  ).toHaveCount(1);
+  const log = page.getByRole("log");
+  await expect(log.getByText(/^echo-a｜.*retain this draft$/)).toHaveCount(1);
+  await expect(log.getByText("retain this draft", { exact: true })).toHaveCount(
+    1,
+  );
   await expect(input).toHaveValue("");
 });
 
-test("mobile details trap focus and allow rename and session deletion", async ({
+test("mobile details trap focus, and the session menu and list rename work", async ({
   page,
 }) => {
   await page.setViewportSize({ width: 375, height: 812 });
   await page.goto("/");
   await add(page);
-  await page.getByRole("button", { name: "展开或收起右侧栏" }).click();
+  const trigger = page.getByRole("button", { name: "展开或收起右侧栏" });
+  await trigger.click();
   const detail = page.getByRole("dialog", { name: "Agent 详情", exact: true });
   for (let i = 0; i < 12; i++) await page.keyboard.press("Tab");
   expect(
     await detail.evaluate((el) => el.contains(document.activeElement)),
   ).toBe(true);
-  await page
-    .getByRole("button", { name: "删除会话 未命名会话", exact: true })
-    .click();
+  await detail.getByRole("button", { name: "收起详情", exact: true }).click();
+  await expect(trigger).toBeFocused();
+  // Deleting the only session leaves a fresh one, and focus on its menu.
+  await sessions(page, "未命名会话").click();
+  await page.getByRole("menuitem", { name: "删除此会话", exact: true }).click();
   await page
     .getByRole("dialog", { name: "删除会话", exact: true })
     .getByRole("button", { name: "确认删除" })
     .click();
-  await expect(detail).toBeVisible();
-  await expect(
-    detail.getByRole("button", { name: "未命名会话", exact: true }),
-  ).toHaveCount(1);
-  await expect(
-    detail.getByRole("button", { name: "收起详情", exact: true }),
-  ).toBeFocused();
-  await page.keyboard.press("Escape");
-  await expect(
-    page.getByRole("button", { name: "展开或收起右侧栏" }),
-  ).toBeFocused();
+  await expect(sessions(page, "未命名会话")).toBeFocused();
   await page.getByRole("button", { name: "返回 Agent 列表" }).click();
   await page
     .getByRole("button", { name: "编程助手 的操作", exact: true })
@@ -253,7 +233,7 @@ test("imports persist and an external agent provider drives the default UI", asy
       body: `
     export default {manifest:{id:'external.agents',apiVersion:1,version:'2.1.0',provides:{agents:1}},activate(ctx){
       const session={id:'s',title:'外部会话',createdAt:1,lastMessageAt:1,messages:[]};
-      let agents=[{id:'external',name:'外部角色',description:'独立作者的角色说明',status:'online',pinned:false,extensionId:'external.agents',capabilities:['外部回声'],multiSession:false,currentSessionId:'s',sessions:[session]}];
+      let agents=[{id:'external',name:'外部角色',description:'独立作者的角色说明',status:'online',pinned:false,extensionId:'external.agents',currentSessionId:'s',sessions:[session]}];
       const listeners=new Set();ctx.provide('agents',1,{agents,listeners,info:{label:'独立提供者',version:'2.1.0',description:'外部回声服务'},list(){return this.agents},subscribe(f){this.listeners.add(f);return()=>this.listeners.delete(f)},async send(id,text){this.agents=this.agents.map(a=>({...a,sessions:[{...session,messages:[{id:'m1',role:'user',text},{id:'m2',role:'agent',text:'外部：'+text}]}]}));this.listeners.forEach(f=>f())},cancel(){}});
     }};`,
     }),
@@ -279,17 +259,16 @@ test("imports persist and an external agent provider drives the default UI", asy
   await page
     .getByRole("button", { name: "与 外部角色 交互", exact: true })
     .click();
-  await expect(page.getByRole("log")).toContainText("外部回声服务");
-  await expect(page.getByRole("log")).not.toContainText("本地文本");
+  await expect(page.getByRole("log")).toContainText("独立作者的角色说明");
   await page
     .getByRole("textbox", { name: "消息", exact: true })
     .fill("contract");
   await page.getByRole("button", { name: "发送", exact: true }).click();
   await expect(page.getByRole("log")).toContainText("外部：contract");
   await sidebarToggle(page).click();
-  const chip = page.getByRole("button", { name: "查看扩展 独立提供者" });
-  await chip.hover();
-  await expect(page.getByRole("tooltip")).toHaveText("external.agents");
+  await expect(
+    page.getByRole("button", { name: "查看扩展 独立提供者" }),
+  ).toBeVisible();
 });
 
 test("unavailable saved import retains startup and offers removal and retry", async ({
@@ -370,31 +349,25 @@ test("mobile list failures stay visible and rename cancel restores the operation
 });
 
 for (const width of [375, 1440])
-  test(`role card settings edit and persist at ${width}`, async ({ page }) => {
+  test(`the introduction is edited in details and persists at ${width}`, async ({
+    page,
+  }) => {
     await page.setViewportSize({ width, height: 900 });
     await page.goto("/");
-    await add(page, "角色设置", false);
-    await page.getByRole("button", { name: "应用菜单", exact: true }).click();
+    await add(page, "角色设置");
+    await sidebarToggle(page).click();
+    await page.getByRole("button", { name: "编辑介绍", exact: true }).click();
     await page
-      .getByRole("menuitem", { name: "角色卡设置", exact: true })
-      .click();
-    const settings = page.getByRole("dialog", {
-      name: "角色卡设置",
-      exact: true,
-    });
-    await settings.getByLabel("角色名称", { exact: true }).fill("新的角色名称");
-    await settings
-      .getByRole("textbox", { name: "角色说明", exact: true })
+      .getByRole("textbox", { name: "介绍", exact: true })
       .fill("新的角色边界与工作方式");
-    await settings.getByRole("button", { name: "保存角色卡" }).click();
-    await expect(settings.getByRole("status")).toHaveText("角色卡已保存。");
-    await page.keyboard.press("Escape");
+    await page.getByRole("button", { name: "保存", exact: true }).click();
     await expect(
-      page.getByRole("region", { name: "新的角色名称 的会话", exact: true }),
-    ).toBeVisible();
+      page.getByRole("textbox", { name: "介绍", exact: true }),
+    ).toHaveCount(0);
+    await page.getByRole("button", { name: "收起详情" }).click();
     await page.reload();
     await page
-      .getByRole("button", { name: "与 新的角色名称 交互", exact: true })
+      .getByRole("button", { name: "与 角色设置 交互", exact: true })
       .click();
     await expect(page.getByRole("log")).toContainText("新的角色边界与工作方式");
   });
@@ -456,7 +429,7 @@ test("reinstalling a failed import replaces its path and remains bootable", asyn
   ).toBeVisible();
 });
 
-test("mobile detail pin failure appears inside the current modal", async ({
+test("a failed introduction save shows inside the phone details and keeps the edit", async ({
   page,
 }) => {
   await page.setViewportSize({ width: 375, height: 812 });
@@ -467,14 +440,12 @@ test("mobile detail pin failure appears inside the current modal", async ({
   await page.getByRole("button", { name: "返回工作区", exact: true }).click();
   await page.getByRole("button", { name: "展开或收起右侧栏" }).click();
   const detail = page.getByRole("dialog", { name: "Agent 详情", exact: true });
-  await detail
-    .getByRole("button", { name: "设为特别关注", exact: true })
-    .click();
+  await detail.getByRole("button", { name: "编辑介绍", exact: true }).click();
+  const intro = detail.getByRole("textbox", { name: "介绍", exact: true });
+  await intro.fill("保存不了的介绍");
+  await detail.getByRole("button", { name: "保存", exact: true }).click();
   await expect(detail.getByRole("alert")).toContainText("注入的写入故障");
-  await expect(detail.getByRole("alert")).toBeVisible();
-  await expect(
-    detail.getByRole("button", { name: "设为特别关注", exact: true }),
-  ).toBeVisible();
+  await expect(intro).toHaveValue("保存不了的介绍");
 });
 
 for (const theme of ["light", "dark"] as const) {
@@ -544,7 +515,7 @@ for (const close of ["Escape", "button"] as const) {
   });
 }
 
-test("non-focusing mobile detail and nested dialog return to their own triggers", async ({
+test("a non-focusing mobile detail returns to its trigger", async ({
   page,
 }) => {
   await page.setViewportSize({ width: 375, height: 812 });
@@ -554,17 +525,9 @@ test("non-focusing mobile detail and nested dialog return to their own triggers"
   await input.focus();
   const trigger = page.getByRole("button", { name: "展开或收起右侧栏" });
   await trigger.evaluate((button) => (button as HTMLButtonElement).click());
-  const detail = page.getByRole("dialog", { name: "Agent 详情", exact: true });
-  const remove = detail.getByRole("button", {
-    name: "删除会话 未命名会话",
-    exact: true,
-  });
-  await remove.evaluate((button) => (button as HTMLButtonElement).click());
   await expect(
-    page.getByRole("dialog", { name: "删除会话", exact: true }),
+    page.getByRole("dialog", { name: "Agent 详情", exact: true }),
   ).toBeVisible();
-  await page.keyboard.press("Escape");
-  await expect(remove).toBeFocused();
   await page.keyboard.press("Escape");
   await expect(trigger).toBeFocused();
 });
@@ -603,33 +566,31 @@ test("settings reports rejected layout and theme writes inside the modal and ret
 test("service reply boundary rejects without losing draft and valid output survives reload", async ({
   page,
 }) => {
-  await page.route("**/boundary-transform.js", (route) =>
+  await page.route("**/boundary-chat.js", (route) =>
     route.fulfill({
       contentType: "text/javascript",
-      body: readFileSync("tests/fixtures/boundary-transform.js", "utf8"),
+      body: readFileSync("tests/fixtures/boundary-chat.js", "utf8"),
     }),
   );
   await page.goto("/");
-  await add(page, "Boundary", false);
+  await add(page, "Boundary");
   await manage(page);
   await page.getByRole("button", { name: "安装扩展", exact: true }).click();
-  await page.getByLabel("扩展 ID", { exact: true }).fill("transform.boundary");
-  await page
-    .getByLabel("模块路径", { exact: true })
-    .fill("/boundary-transform.js");
+  await page.getByLabel("扩展 ID", { exact: true }).fill("chat.boundary");
+  await page.getByLabel("模块路径", { exact: true }).fill("/boundary-chat.js");
   await page.getByRole("button", { name: "加载模块", exact: true }).click();
   await page
-    .getByRole("button", { name: "启用 transform.boundary", exact: true })
+    .getByRole("button", { name: "启用 chat.boundary", exact: true })
     .click();
   await page.getByRole("button", { name: "返回工作区", exact: true }).click();
   await page
     .getByRole("button", { name: "与 Boundary 交互", exact: true })
     .click();
-  await page.getByRole("button", { name: "展开或收起右侧栏" }).click();
-  for (const name of ["transform.boundary", "大写转换服务"])
-    await page
-      .getByRole("switch", { name: `在 Boundary 中使用 ${name}` })
-      .click();
+  await page.getByRole("combobox", { name: "切换模型", exact: true }).click();
+  await page
+    .getByRole("listbox", { name: "切换模型" })
+    .getByRole("option", { name: /^边界/ })
+    .click();
   const input = page.getByRole("textbox", { name: "消息", exact: true });
   await input.fill("oversized");
   await page.getByRole("button", { name: "发送", exact: true }).click();
@@ -698,8 +659,8 @@ test("a long conversation scrolls inside the log, never the whole workspace", as
     await input.press("Enter");
     // Wait for the reply before the next turn.
     await expect(
-      page.getByRole("log").getByText(new RegExp(`^第 ${i} 句`)),
-    ).toHaveCount(2);
+      page.getByRole("log").getByText(new RegExp(`^echo-a｜第 ${i + 1} 轮`)),
+    ).toHaveCount(1);
   }
   // Hidden speaker labels are absolutely positioned. If their containing
   // block sits outside the log, WebKit counts them as overflow of the shell,
@@ -715,42 +676,39 @@ test("a long conversation scrolls inside the log, never the whole workspace", as
   ).toEqual([]);
 });
 
-test("a pinned Agent shows once, as a tile with its own menu", async ({
+test("a pinned Agent comes first in the list and is marked", async ({
   page,
 }) => {
   await page.goto("/");
-  await add(page, "关注者", false);
+  await add(page, "普通");
   await page.getByRole("button", { name: "添加", exact: true }).first().click();
   await page
     .getByRole("dialog")
     .getByRole("button", { name: /添加 Agent/ })
     .click();
-  await page.getByRole("textbox", { name: "名称", exact: true }).fill("普通");
+  await page.getByRole("textbox", { name: "名称", exact: true }).fill("关注者");
   await page
     .getByRole("dialog")
     .getByRole("button", { name: "添加", exact: true })
     .click();
+  const list = page.getByRole("complementary", { name: "Agent 列表" });
+  const rows = list.locator('[data-slot="agent-row"]');
+  const row = list.getByRole("button", { name: "与 关注者 交互", exact: true });
+  await expect(rows.first()).toHaveAccessibleName("与 普通 交互");
   await page
     .getByRole("button", { name: "关注者 的操作", exact: true })
     .click();
   await page
     .getByRole("menuitem", { name: "设为特别关注", exact: true })
     .click();
-  const list = page.getByRole("complementary", { name: "Agent 列表" });
-  const tile = list.getByRole("button", { name: "打开 关注者", exact: true });
-  await expect(tile).toBeVisible();
-  await expect(
-    list.getByRole("button", { name: "与 关注者 交互", exact: true }),
-  ).toHaveCount(0);
-  await expect(list.getByRole("heading", { name: "其他 Agent" })).toBeVisible();
-  await tile.click({ button: "right" });
+  await expect(rows.first()).toHaveAccessibleName("与 关注者 交互");
+  await expect(row.getByLabel("特别关注")).toBeVisible();
+  await row.click({ button: "right" });
   await page
     .getByRole("menuitem", { name: "取消特别关注", exact: true })
     .click();
-  await expect(
-    list.getByRole("button", { name: "与 关注者 交互", exact: true }),
-  ).toBeVisible();
-  await expect(tile).toHaveCount(0);
+  await expect(row.getByLabel("特别关注")).toHaveCount(0);
+  await expect(rows.first()).toHaveAccessibleName("与 普通 交互");
 });
 
 test("each part of an Agent can be switched off, and says what that means", async ({
@@ -765,32 +723,31 @@ test("each part of an Agent can be switched off, and says what that means", asyn
   const dialog = page.getByRole("dialog", { name: "添加 Agent" });
   await dialog.getByLabel("名称").fill("拼装");
   const provider = dialog.getByRole("switch", {
-    name: "在 拼装 中使用 本地 Agent 提供者",
+    name: "在 拼装 中使用 Agent 核心",
   });
   await expect(provider).toBeChecked();
   await provider.click();
-  await expect(dialog).toContainText("已关闭：此 Agent 不会回复");
+  await expect(dialog).toContainText("已关闭：它不会回复");
   await dialog.getByRole("button", { name: "添加", exact: true }).click();
   const message = page.getByRole("textbox", { name: "消息", exact: true });
-  await message.fill("你好");
-  await page.getByRole("button", { name: "发送", exact: true }).click();
-  await expect(page.getByRole("alert")).toContainText(
-    "已关闭「本地 Agent 提供者」",
+  await expect(message).toHaveCount(0);
+  await expect(page.getByRole("status")).toContainText(
+    "此 Agent 已关闭「Agent 核心」，开启后它才会回复。",
   );
   await sidebarToggle(page).click();
   const details = page.getByRole("complementary", { name: "Agent 详情" });
   await details
-    .getByRole("switch", { name: "在 拼装 中使用 本地 Agent 提供者" })
+    .getByRole("switch", { name: "在 拼装 中使用 Agent 核心" })
     .click();
   await details
     .getByRole("switch", { name: "在 拼装 中使用 默认 Agent 界面" })
     .click();
-  await expect(message).toHaveCount(0);
-  await expect(
-    page.getByText("此 Agent 已关闭「默认 Agent 界面」", { exact: false }),
-  ).toBeVisible();
+  await expect(details).toContainText("已关闭：不能在这里和它对话");
+  await expect(page.getByRole("status")).toContainText(
+    "此 Agent 已关闭「默认 Agent 界面」",
+  );
   await page.getByRole("button", { name: "开启", exact: true }).click();
   await message.fill("hello");
   await page.getByRole("button", { name: "发送", exact: true }).click();
-  await expect(page.getByRole("log")).toContainText("HELLO");
+  await expect(page.getByRole("log")).toContainText("echo-a｜第 1 轮");
 });

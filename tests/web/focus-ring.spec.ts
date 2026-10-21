@@ -20,10 +20,10 @@ test("focus returned after pointer use stays quiet until the keyboard is used", 
   await page.goto("/");
   const menu = page.getByRole("button", { name: "应用菜单", exact: true });
   await tap(menu);
-  await tap(page.getByRole("menuitem", { name: "角色卡设置", exact: true }));
-  const roles = page.getByRole("dialog", { name: "角色卡设置", exact: true });
-  await tap(roles.getByRole("button", { name: "关闭", exact: true }));
-  await expect(roles).not.toBeVisible();
+  await tap(page.getByRole("menuitem", { name: "应用设置", exact: true }));
+  const settings = page.getByRole("dialog", { name: "应用设置", exact: true });
+  await tap(settings.getByRole("button", { name: "关闭", exact: true }));
+  await expect(settings).not.toBeVisible();
   await expect(menu).toBeFocused();
   expect(await ringed(menu)).toBe(false);
   await page.keyboard.press("Shift+Tab");

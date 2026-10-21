@@ -1,100 +1,46 @@
-import type { ReactNode } from "react";
-import {
-  CheckIcon,
-  ChevronRightIcon,
-  MessageSquareTextIcon,
-  PlusIcon,
-  StarIcon,
-  Trash2Icon,
-  XIcon,
-} from "lucide-react";
-import { cn } from "cn";
-import {
-  enabledExtensions,
-  type Agent,
-  type AgentModel,
-  type ExtensionChoice,
-  type ModelChoice,
-} from "../../modules/agents/contract";
+import { useState } from "react";
+import { ChevronRightIcon, PencilIcon, XIcon } from "lucide-react";
+import type { Agent } from "../../modules/agents/contract";
 import { Avatar } from "./Avatar";
-import { ExtensionPipeline } from "./ExtensionPipeline";
-import { ModelSelect } from "./ModelSelect";
+import { AgentParts } from "./AgentParts";
 import type { Part } from "./parts";
-import { InfoTip, Tooltip } from "../components/Tooltip";
+import { InfoTip } from "../components/Tooltip";
 import { Button } from "../components/ui/button";
+import { Textarea } from "../components/ui/textarea";
 
-function Section({
-  title,
-  info,
-  action,
-  children,
-}: {
-  title: string;
-  /** Background on the section, behind an info button beside the title. */
-  info?: string;
-  action?: ReactNode;
-  children: ReactNode;
-}) {
-  return (
-    <section className="flex flex-col gap-2 border-t border-border/60 px-4 py-3 max-md:px-6 max-md:py-5">
-      <div className="flex min-h-6 items-center justify-between gap-2">
-        <h3 className="flex items-center gap-1 text-xs font-semibold tracking-wide text-muted-foreground max-md:text-sm">
-          {title}
-          {info && <InfoTip label={title} text={info} />}
-        </h3>
-        {action}
-      </div>
-      {children}
-    </section>
-  );
-}
-
-const note = "text-xs leading-relaxed text-muted-foreground";
-
+/**
+ * What a person needs to understand an Agent: who it is, and the extensions
+ * it is composed of. Models, sessions and other actions live where they are
+ * used.
+ */
 export function DetailPanel({
   agent,
-  onClose,
-  onPin,
-  onSession,
-  onDeleteSession,
-  onOpenExtension,
   parts,
   onPart,
-  choices,
-  onExtensions,
-  models,
-  onModel,
-  onModels,
+  onDescription,
+  onOpenExtension,
+  onClose,
 }: {
   agent: Agent;
   /** The provider, interface and model connections, each switched on or off. */
   parts: readonly Part[];
   /** Absent for providers that cannot switch parts off. */
   onPart?: (part: Part, on: boolean) => void;
-  /** Absent for providers that do not let each Agent choose. */
-  choices?: readonly ExtensionChoice[];
-  /** Sets the switched-on extensions, in order. */
-  onExtensions?: (ids: string[]) => void;
-  /** Absent for providers without per-Agent models. */
-  models?: readonly ModelChoice[];
-  onModel?: (model: AgentModel | null) => void;
-  onModels?: () => void;
-  onClose: () => void;
-  onPin: () => void;
-  onSession: (action: "create" | "select", id?: string) => void;
-  onDeleteSession: (id: string, source: HTMLElement) => void;
+  /** Resolves true once saved; a failure is reported by the caller. */
+  onDescription: (description: string) => Promise<boolean>;
   /** Opens extension management, selecting `id` when given. */
   onOpenExtension: (id?: string) => void;
+  onClose: () => void;
 }) {
-  const enabled = choices ? enabledExtensions(agent, choices) : [];
   const busy = agent.status === "busy";
+  const [editing, setEditing] = useState<string | null>(null);
   return (
     <aside
       className="flex h-full min-h-0 w-full flex-1 flex-col overflow-hidden bg-popover"
       aria-label="Agent 详情"
     >
-      <header className="flex min-h-12 shrink-0 items-center justify-between border-b border-border/60 pr-2.5 pl-4 max-md:min-h-14 max-md:border-0 max-md:pl-6">
-        <h2 className="text-[13px] font-semibold max-md:text-base">
+      <header className="flex min-h-12 shrink-0 items-center justify-between pr-2.5 pl-5 max-md:min-h-14 max-md:pl-6">
+        <h2 className="text-[13px] font-medium text-muted-foreground max-md:text-base">
           Agent 详情
         </h2>
         <Button
@@ -106,178 +52,94 @@ export function DetailPanel({
           <XIcon />
         </Button>
       </header>
-      <div className="min-h-0 flex-1 overflow-y-auto">
-        <div className="flex flex-col items-center gap-0.5 px-4 pt-4 pb-4 text-center">
-          <Avatar
-            agent={agent}
-            className="size-12 shadow-raised [&_svg]:size-6"
-          />
-          <h2 className="mt-2 text-[15px] font-semibold wrap-anywhere">
-            {agent.name}
-          </h2>
-          <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
-            <span
-              aria-hidden="true"
-              className={cn(
-                "size-1.5 rounded-full",
-                busy ? "animate-pulse bg-running" : "bg-muted-foreground/40",
-              )}
-            />
-            {busy ? "正在回复" : "空闲"}
-          </span>
-          <Button
-            variant={agent.pinned ? "secondary" : "outline"}
-            size="xs"
-            className="mt-2"
-            onClick={onPin}
-          >
-            <StarIcon className={cn(agent.pinned && "fill-brand text-brand")} />
-            {agent.pinned ? "取消特别关注" : "设为特别关注"}
-          </Button>
-        </div>
-        {agent.description && (
-          <Section title="角色说明">
-            <p className="text-[13px] leading-relaxed whitespace-pre-wrap wrap-anywhere">
-              {agent.description}
-            </p>
-          </Section>
-        )}
-        {models && onModel && (
-          <Section
-            title="模型"
-            action={
-              onModels && (
+      <div className="flex min-h-0 flex-1 flex-col gap-7 overflow-y-auto px-5 pt-2 pb-6 max-md:px-6">
+        <section className="flex flex-col gap-3" aria-label="介绍">
+          <div className="flex items-center gap-3">
+            <Avatar agent={agent} />
+            <h3 className="min-w-0 text-base font-semibold wrap-anywhere">
+              {agent.name}
+            </h3>
+          </div>
+          {editing === null ? (
+            <div className="group/intro flex flex-col items-start gap-1.5">
+              <p className="text-[13px] leading-relaxed whitespace-pre-wrap text-foreground/85 wrap-anywhere">
+                {agent.description || (
+                  <span className="text-muted-foreground">还没有介绍。</span>
+                )}
+              </p>
+              <Button
+                variant="ghost"
+                size="xs"
+                className="-ml-2 text-muted-foreground"
+                disabled={busy}
+                onClick={() => setEditing(agent.description)}
+              >
+                <PencilIcon />
+                编辑介绍
+              </Button>
+            </div>
+          ) : (
+            <form
+              className="flex flex-col gap-2"
+              onSubmit={(e) => {
+                e.preventDefault();
+                void onDescription(editing).then((saved) => {
+                  if (saved) setEditing(null);
+                });
+              }}
+            >
+              <Textarea
+                aria-label="介绍"
+                autoFocus
+                value={editing}
+                maxLength={4000}
+                className="min-h-28 text-[13px]"
+                placeholder="它是谁，能帮你做什么，有哪些边界？"
+                onChange={(e) => setEditing(e.target.value)}
+              />
+              <div className="flex justify-end gap-2">
                 <Button
-                  variant="link"
-                  size="xs"
-                  className="px-0 text-brand-text"
-                  onClick={onModels}
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setEditing(null)}
                 >
-                  {models.length ? "管理模型连接" : "添加模型连接"}
-                  <ChevronRightIcon data-icon="inline-end" />
+                  取消
                 </Button>
-              )
-            }
-          >
-            <ModelSelect
-              label={`${agent.name} 使用的模型`}
-              models={models}
-              value={agent.model}
-              disabled={busy}
-              onChange={onModel}
-            />
-          </Section>
-        )}
-        <Section
-          title="组成扩展"
-          info="开启的扩展组成这个 Agent；带编号的文本扩展依次处理回复，可拖动调整先后。"
-          action={
+                <Button type="submit" size="sm" disabled={busy}>
+                  保存
+                </Button>
+              </div>
+            </form>
+          )}
+        </section>
+        <section className="flex flex-col gap-2.5" aria-label="组成扩展">
+          <div className="flex items-center justify-between gap-2">
+            <h3 className="flex items-center gap-1 text-xs font-medium text-muted-foreground max-md:text-sm">
+              组成扩展
+              <InfoTip
+                label="组成扩展"
+                text="这个 Agent 由这些扩展组成。关闭一项只影响这个 Agent。"
+              />
+            </h3>
             <Button
-              variant="link"
+              variant="ghost"
               size="xs"
-              className="px-0 text-brand-text"
+              className="-mr-2 text-muted-foreground"
               onClick={() => onOpenExtension()}
             >
               扩展管理
               <ChevronRightIcon data-icon="inline-end" />
             </Button>
-          }
-        >
-          {!onPart && (
-            <ul className="grid gap-1.5">
-              {parts.map(({ choice }) => (
-                <li key={choice.id}>
-                  <Tooltip label={choice.id}>
-                    <button
-                      className="w-full truncate rounded-lg bg-brand-soft/60 px-3 py-2 text-left text-[13px] font-medium outline-none transition-colors hover:bg-brand-soft focus-visible:ring-3 focus-visible:ring-ring/50"
-                      aria-label={`查看扩展 ${choice.label}`}
-                      onClick={() => onOpenExtension(choice.id)}
-                    >
-                      {choice.label}
-                    </button>
-                  </Tooltip>
-                </li>
-              ))}
-            </ul>
-          )}
-          {(onPart || (choices && onExtensions)) && (
-            <ExtensionPipeline
-              agentName={agent.name}
-              parts={parts}
-              onPart={onPart}
-              choices={choices ?? []}
-              value={enabled}
-              onChange={(ids) => onExtensions?.(ids)}
-              onOpen={onOpenExtension}
-            />
-          )}
-          {!parts.some((p) => p.connector && p.on) && !enabled.length && (
-            <p className={note}>
-              还没有开启模型连接或文本扩展，此 Agent 暂时无法回复。
-            </p>
-          )}
-        </Section>
-        <Section title="实际可用能力" info="角色卡说明不会授予额外访问权限。">
-          <ul className="grid gap-1.5">
-            {agent.capabilities.map((c) => (
-              <li key={c} className="flex items-start gap-2 text-[13px]">
-                <CheckIcon className="mt-0.5 size-4 text-running" />
-                {c}
-              </li>
-            ))}
-          </ul>
-        </Section>
-        {agent.multiSession && (
-          <Section
-            title="会话"
-            action={
-              <Tooltip label="新建会话">
-                <Button
-                  variant="ghost"
-                  size="icon-sm"
-                  aria-label="新建会话"
-                  disabled={busy}
-                  onClick={() => onSession("create")}
-                >
-                  <PlusIcon />
-                </Button>
-              </Tooltip>
-            }
-          >
-            <ul className="grid gap-0.5">
-              {agent.sessions.map((session) => (
-                <li
-                  key={session.id}
-                  className="group/session flex items-center gap-1 rounded-lg has-aria-pressed:bg-sidebar-primary hover:bg-sidebar-accent"
-                >
-                  <button
-                    data-slot="session-row"
-                    className="flex min-w-0 flex-1 items-center gap-2 rounded-lg px-2.5 py-2 text-left text-[13px] outline-none focus-visible:ring-3 focus-visible:ring-ring/50 disabled:opacity-60 max-md:min-h-11"
-                    aria-pressed={session.id === agent.currentSessionId}
-                    disabled={busy}
-                    onClick={() => onSession("select", session.id)}
-                  >
-                    <MessageSquareTextIcon className="size-4 text-muted-foreground" />
-                    <span className="truncate">{session.title}</span>
-                  </button>
-                  <Button
-                    variant="ghost"
-                    size="icon-sm"
-                    className="text-muted-foreground hover:text-destructive"
-                    aria-label={`删除会话 ${session.title}`}
-                    disabled={busy}
-                    onClick={(e) =>
-                      onDeleteSession(session.id, e.currentTarget)
-                    }
-                  >
-                    <Trash2Icon />
-                  </Button>
-                </li>
-              ))}
-            </ul>
-            {busy && <p className={note}>停止处理后可管理会话。</p>}
-          </Section>
-        )}
+          </div>
+          <AgentParts
+            agentName={agent.name}
+            parts={parts}
+            onPart={onPart}
+            onOpen={onOpenExtension}
+            disabled={busy}
+          />
+        </section>
       </div>
     </aside>
   );

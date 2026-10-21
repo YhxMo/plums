@@ -1,7 +1,7 @@
 import { expect, test } from "@playwright/test";
 import { manage } from "./helpers";
 
-test("React views release cleanly across dialog, layout and extension lifecycles", async ({
+test("React views release cleanly across layout and extension lifecycles", async ({
   page,
 }) => {
   const errors: string[] = [];
@@ -11,18 +11,6 @@ test("React views release cleanly across dialog, layout and extension lifecycles
       errors.push(message.text());
   });
   await page.goto("/");
-  for (let cycle = 0; cycle < 3; cycle++) {
-    await page.getByRole("button", { name: "应用菜单", exact: true }).click();
-    await page
-      .getByRole("menuitem", { name: "角色卡设置", exact: true })
-      .click();
-    const roles = page.getByRole("dialog", { name: "角色卡设置", exact: true });
-    await expect(
-      roles.getByText("管理角色名称与说明，运行能力由对应扩展提供。"),
-    ).toBeVisible();
-    await roles.getByRole("button", { name: "关闭", exact: true }).click();
-    await expect(roles).not.toBeVisible();
-  }
   await manage(page, true);
   await page
     .getByRole("button", { name: "授予实验能力并启动", exact: true })
@@ -67,9 +55,8 @@ for (const width of [375, 1280])
                 name: "Layout",
                 description: "Long conversation",
                 pinned: false,
-                multiSession: false,
                 extensionId: "agents.local",
-                capabilities: [],
+                model: { provider: "chat.echo", model: "echo-a" },
                 currentSessionId: "session",
                 sessions: [
                   {
@@ -135,6 +122,7 @@ test("overlapping React view releases retain the replacement and release subscri
       },
       activate(ctx: import("../../modules/sdk").ExtensionContext) {
         ctx.provide("agents", 1, {
+          info: { label: "测试", version: "1", description: "" },
           list: () => agents,
           subscribe(listener: () => void) {
             listeners.add(listener);
@@ -156,24 +144,24 @@ test("overlapping React view releases retain the replacement and release subscri
         await new Promise((resolve) => setTimeout(resolve, 0));
       }
     };
-    const first = host.mountView("role-settings", container);
+    const first = host.mountView("agents", container);
     await until(
       "initial mount",
       () => container.childElementCount > 0 && listeners.size > 0,
     );
     const initial = listeners.size;
     const release = first();
-    const second = host.mountView("role-settings", container);
+    const second = host.mountView("agents", container);
     await release;
     await until(
       "replacement mount",
       () =>
-        container.textContent?.includes("管理角色名称与说明") === true &&
+        container.textContent?.includes("欢迎使用 Plums") === true &&
         listeners.size > 0,
     );
     const replacement = {
       nodes: container.childElementCount,
-      visible: container.textContent?.includes("管理角色名称与说明"),
+      visible: container.textContent?.includes("欢迎使用 Plums"),
       subscriptions: listeners.size,
     };
     const pending = second();

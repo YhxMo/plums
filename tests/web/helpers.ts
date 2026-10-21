@@ -26,15 +26,14 @@ export async function openConnections(page: Page) {
 export async function addAgent(
   page: Page,
   name: string,
-  { description, multi }: { description?: string; multi?: boolean } = {},
+  { description }: { description?: string } = {},
 ) {
   await page
     .getByRole("button", { name: "从头添加 Agent", exact: true })
     .click();
   await page.getByRole("textbox", { name: "名称", exact: true }).fill(name);
   if (description)
-    await page.getByRole("textbox", { name: "角色说明" }).fill(description);
-  if (multi) await page.getByLabel("允许多个会话").check();
+    await page.getByRole("textbox", { name: "介绍" }).fill(description);
   await page
     .getByRole("dialog")
     .getByRole("button", { name: "添加", exact: true })
@@ -103,7 +102,9 @@ export async function expectConversationTitle(
     .getByRole("region", { name: `${agent} 的会话` })
     .locator("header");
   await expect(header.getByRole("heading", { name: agent })).toBeVisible();
-  await expect(header).toContainText(`· ${session}`);
+  await expect(
+    header.getByRole("button", { name: `会话：${session}`, exact: true }),
+  ).toBeVisible();
   await expect(page.getByRole("banner")).not.toContainText(agent);
 }
 /** Waits until the enabled set recorded for the next start has `id` on or off. */
