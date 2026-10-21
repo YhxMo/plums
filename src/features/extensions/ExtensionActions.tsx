@@ -23,7 +23,7 @@ export function ExtensionActions({
   const { id } = entry;
   const active = state.status === "active";
   return (
-    <div className="flex flex-wrap items-center gap-2">
+    <div className="flex flex-wrap items-center justify-end gap-2">
       {manifest.configuration && (
         <Button
           variant="outline"
@@ -51,7 +51,6 @@ export function ExtensionActions({
       <Button
         variant={active ? "outline" : "secondary"}
         size="sm"
-        className="ml-auto"
         aria-label={`${active ? "停用" : "启用"} ${id}`}
         disabled={
           busy ||

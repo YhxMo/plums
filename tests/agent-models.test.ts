@@ -177,3 +177,59 @@ it("a new Agent can start with a chosen model or none", async () => {
     agents().create({ name: "错", model: { provider: "chat.a", model: "x" } }),
   ).rejects.toThrow("模型不可用");
 });
+
+it("an Agent can switch off its model connection, its provider or any other part", async () => {
+  const { host, agents, find, requests } = await setup();
+  expect(agents().connectors!()).toEqual([{ id: "chat.a", label: "chat.a" }]);
+  const agent = await agents().create({ name: "拼装", off: ["ui.x"] });
+  expect(agent.off).toEqual(["ui.x"]);
+  // Off keeps the chosen model for when it is switched on again.
+  await agents().setOff!(agent.id, "chat.a", true);
+  expect(find(agent.id).model).toEqual({ provider: "chat.a", model: "m1" });
+  expect(host.users("chat.a")).toEqual([]);
+  await expect(agents().send(agent.id, "你好")).rejects.toThrow(
+    "已关闭「chat.a」",
+  );
+  host.install({
+    manifest: {
+      id: "transform.a",
+      apiVersion: 1,
+      version: "1",
+      provides: { "text.transform": 1 },
+    },
+    activate(ctx) {
+      ctx.provide("text.transform", 1, {
+        name: "甲",
+        transform: async (text: string) => `甲：${text}`,
+      });
+    },
+  });
+  await host.start("transform.a");
+  await agents().setExtension!(agent.id, "transform.a", true);
+  await agents().send(agent.id, "一");
+  expect(requests).toEqual([]);
+  expect(find(agent.id).sessions[0].messages.at(-1)?.text).toBe("甲：一");
+  // Picking a model switches its connection back on.
+  await agents().setModel!(agent.id, { provider: "chat.a", model: "m2" });
+  expect(find(agent.id).off).toEqual(["ui.x"]);
+  await agents().setOff!(agent.id, "agents.local", true);
+  await expect(agents().send(agent.id, "二")).rejects.toThrow(
+    "已关闭「agents.local」",
+  );
+  expect(requests).toEqual([]);
+  await host.stop("agents.local");
+  await host.start("agents.local");
+  expect(find(agent.id).off).toEqual(["ui.x", "agents.local"]);
+  await agents().setOff!(agent.id, "agents.local", false);
+  await agents().send(agent.id, "三");
+  expect(requests.map((request) => request.model)).toEqual(["m2"]);
+});
+
+it.each([{ off: "ui.x" }, { off: [1] }, { off: ["x".repeat(65)] }])(
+  "rejects saved switched-off extensions of %j",
+  (patch) => {
+    expect(() => restoreAgents([{ ...legacyAgent(), ...patch }])).toThrow(
+      "Agent 配置损坏",
+    );
+  },
+);

@@ -93,7 +93,8 @@ function AgentRow({
                 ref={more}
                 variant="ghost"
                 size="icon-sm"
-                className="mr-1 shrink-0 pointer-fine:opacity-0 pointer-fine:group-hover/row:opacity-100 pointer-fine:group-focus-within/row:opacity-100 pointer-fine:aria-expanded:opacity-100 md:pointer-fine:absolute md:pointer-fine:top-1.5 md:pointer-fine:right-1.5 md:pointer-fine:m-0"
+                // Its own tint shows over the row's hover and selected tints.
+                className="mr-1 shrink-0 hover:bg-foreground/10 aria-expanded:bg-foreground/10 dark:hover:bg-foreground/10 pointer-fine:opacity-0 pointer-fine:group-hover/row:opacity-100 pointer-fine:group-focus-within/row:opacity-100 pointer-fine:aria-expanded:opacity-100 md:pointer-fine:absolute md:pointer-fine:top-1.5 md:pointer-fine:right-1.5 md:pointer-fine:m-0"
                 aria-label={`${a.name} 的操作`}
               >
                 <EllipsisIcon />
@@ -111,6 +112,55 @@ function AgentRow({
       </ContextMenuTrigger>
       <ContextMenuContent className="w-44" aria-label={`${a.name} 的操作菜单`}>
         <AgentMenuItems agent={a} kind="context" onAction={act} />
+      </ContextMenuContent>
+    </ContextMenu>
+  );
+}
+
+/** A pinned Agent's tile; its menu opens with a right click or long press. */
+function PinnedTile({
+  agent: a,
+  selected,
+  onSelect,
+  onAction,
+}: {
+  agent: Agent;
+  selected: boolean;
+  onSelect: () => void;
+  onAction: (action: AgentAction, source: HTMLElement | null) => void;
+}) {
+  const tile = useRef<HTMLButtonElement>(null);
+  return (
+    <ContextMenu>
+      <ContextMenuTrigger asChild>
+        <motion.button
+          ref={tile}
+          layout
+          data-agent-id={a.id}
+          className="flex min-w-0 flex-col items-center gap-1.5 rounded-xl px-1 py-2 text-xs outline-none hover:bg-sidebar-accent focus-visible:ring-3 focus-visible:ring-ring/50 aria-pressed:bg-sidebar-primary aria-pressed:shadow-panel"
+          aria-label={`打开 ${a.name}`}
+          aria-pressed={selected}
+          onClick={onSelect}
+        >
+          <span className="relative">
+            <Avatar
+              agent={a}
+              size="large"
+              className="size-11 rounded-[14px] [&_svg]:size-6"
+            />
+            <span className="absolute -right-1 -bottom-1 grid size-4.5 place-items-center rounded-full bg-brand text-primary-foreground ring-2 ring-sidebar">
+              <StarIcon className="size-2.5 fill-current" />
+            </span>
+          </span>
+          <span className="w-full truncate text-center">{a.name}</span>
+        </motion.button>
+      </ContextMenuTrigger>
+      <ContextMenuContent className="w-44" aria-label={`${a.name} 的操作菜单`}>
+        <AgentMenuItems
+          agent={a}
+          kind="context"
+          onAction={(action) => onAction(action, tile.current)}
+        />
       </ContextMenuContent>
     </ContextMenu>
   );
@@ -137,7 +187,9 @@ export function AgentList({
   const shown = agents.filter((a) =>
     a.name.toLowerCase().includes(query.toLowerCase()),
   );
+  // Pinned Agents show once, in their own row of tiles.
   const pinned = shown.filter((a) => a.pinned);
+  const others = shown.filter((a) => !a.pinned);
   return (
     <aside
       className="flex h-full min-h-0 w-full flex-col"
@@ -189,40 +241,24 @@ export function AgentList({
               </h3>
               <div className="grid grid-cols-[repeat(auto-fill,minmax(64px,1fr))] gap-1">
                 {pinned.map((a) => (
-                  <motion.button
-                    layout
+                  <PinnedTile
                     key={a.id}
-                    data-agent-id={a.id}
-                    className="flex min-w-0 flex-col items-center gap-1.5 rounded-xl px-1 py-2 text-xs outline-none hover:bg-sidebar-accent focus-visible:ring-3 focus-visible:ring-ring/50 aria-pressed:bg-sidebar-primary aria-pressed:shadow-panel"
-                    aria-label={`打开 ${a.name}`}
-                    aria-pressed={selected === a.id}
-                    onClick={() => onSelect(a.id)}
-                  >
-                    <span className="relative">
-                      <Avatar
-                        agent={a}
-                        size="large"
-                        className="size-11 rounded-[14px] [&_svg]:size-6"
-                      />
-                      <span className="absolute -right-1 -bottom-1 grid size-4.5 place-items-center rounded-full bg-brand text-primary-foreground ring-2 ring-sidebar">
-                        <StarIcon className="size-2.5 fill-current" />
-                      </span>
-                    </span>
-                    <span className="w-full truncate text-center">
-                      {a.name}
-                    </span>
-                  </motion.button>
+                    agent={a}
+                    selected={selected === a.id}
+                    onSelect={() => onSelect(a.id)}
+                    onAction={(action, source) => onAction(a, action, source)}
+                  />
                 ))}
               </div>
             </motion.section>
           )}
         </AnimatePresence>
-        {agents.length > 0 && (
+        {others.length > 0 && (
           <h3 className="px-2 pt-1 pb-1 text-[11px] font-medium text-muted-foreground">
-            全部 Agent
+            {pinned.length ? "其他 Agent" : "全部 Agent"}
           </h3>
         )}
-        {shown.map((a) => (
+        {others.map((a) => (
           <AgentRow
             key={a.id}
             agent={a}

@@ -29,6 +29,8 @@ export type Agent = {
   extensions?: string[];
   /** The `chat@1` model that answers this Agent, by provider extension and model id. */
   model?: AgentModel;
+  /** Other extensions switched off for this Agent, such as its provider, the interface showing it or its model's connection. */
+  off?: string[];
   capabilities: string[];
   sessions: Session[];
   multiSession: boolean;
@@ -53,6 +55,8 @@ export type AgentConfig = {
   extensions?: string[];
   /** The model to start with, or `null` for none; absent picks the first one. */
   model?: AgentModel | null;
+  /** Other extensions to start switched off, as in `Agent.off`. */
+  off?: string[];
 };
 /** An extension an Agent can switch on, described for the user. */
 export type ExtensionChoice = Named & { description: string };
@@ -96,8 +100,12 @@ export interface AgentProvider {
   setExtensions?(id: string, extensionIds: string[]): Promise<void>;
   /** Models any Agent can use; added after agents@1 shipped. */
   modelChoices?(): readonly ModelChoice[];
-  /** Picks one of `modelChoices()` for an Agent, or none. */
+  /** Picks one of `modelChoices()` for an Agent, or none, and switches its connection on. */
   setModel?(id: string, model: AgentModel | null): Promise<void>;
+  /** The `chat@1` providers models come from, with models or not. */
+  connectors?(): readonly Named[];
+  /** Switches any extension other than a text one off or back on for one Agent. */
+  setOff?(id: string, extensionId: string, off: boolean): Promise<void>;
   /** Deletes one saved message; added after agents@1 shipped, so optional. */
   removeMessage?(
     id: string,

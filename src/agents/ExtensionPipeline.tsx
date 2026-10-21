@@ -25,8 +25,15 @@ import { cn } from "cn";
 import type { ExtensionChoice } from "../../modules/agents/contract";
 import { Switch } from "../components/ui/switch";
 import { Tooltip } from "../components/Tooltip";
+import type { Part } from "./parts";
 
-type Row = { choice: ExtensionChoice; on: boolean; index: number };
+/** `index` numbers a step of the reply; `note` says what being off means. */
+type Row = {
+  choice: ExtensionChoice;
+  on: boolean;
+  index?: number;
+  note?: string;
+};
 
 type Drag = ReturnType<typeof useSortable>;
 
@@ -55,12 +62,18 @@ function PipelineRow({
   onToggle: (on: boolean) => void;
   onOpen?: () => void;
 }) {
-  const { choice, on, index } = row;
+  const { choice, on, index, note } = row;
+  const warn = !on && note;
   const name = (
     <>
       <span className="truncate text-[13px] font-medium">{choice.label}</span>
-      <span className="line-clamp-2 text-xs text-muted-foreground">
-        {choice.description}
+      <span
+        className={cn(
+          "w-full truncate text-xs text-muted-foreground",
+          warn && "text-destructive",
+        )}
+      >
+        {warn ? note : choice.description}
       </span>
     </>
   );
@@ -87,7 +100,7 @@ function PipelineRow({
             ref={drag.setActivatorNodeRef}
             type="button"
             className="grid h-8 w-6 shrink-0 cursor-grab touch-none place-items-center rounded-md text-muted-foreground outline-none hover:bg-subtle hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/50 active:cursor-grabbing disabled:cursor-not-allowed disabled:opacity-50 max-md:h-11 max-md:w-8"
-            aria-label={`调整 ${choice.label} 的顺序，当前第 ${index + 1} 步`}
+            aria-label={`调整 ${choice.label} 的顺序，当前第 ${index! + 1} 步`}
             disabled={disabled}
             {...drag.attributes}
             {...drag.listeners}
@@ -96,7 +109,7 @@ function PipelineRow({
           </button>
         </Tooltip>
       )}
-      {on && (
+      {on && index !== undefined && (
         <span
           aria-hidden="true"
           className="grid size-5 shrink-0 place-items-center rounded-full bg-brand-soft text-[11px] font-semibold text-brand-text tabular-nums"
@@ -105,7 +118,7 @@ function PipelineRow({
         </span>
       )}
       {onOpen ? (
-        <Tooltip label={choice.id}>
+        <Tooltip label={choice.description || choice.id}>
           <button
             type="button"
             className="flex min-w-0 flex-1 flex-col items-start rounded-md text-left outline-none hover:underline focus-visible:ring-3 focus-visible:ring-ring/50"
@@ -129,12 +142,15 @@ function PipelineRow({
 }
 
 /**
- * The extensions an Agent is assembled from: switched-on ones first, in the
- * order replies pass through them (drag or arrow keys to reorder), then the
- * ones still available.
+ * The extensions an Agent is assembled from: its parts such as provider,
+ * interface and model connection, then the text extensions switched on, in
+ * the order replies pass through them (drag or arrow keys to reorder), then
+ * the ones still available.
  */
 export function ExtensionPipeline({
   agentName,
+  parts = [],
+  onPart,
   choices,
   value,
   onChange,
@@ -142,6 +158,8 @@ export function ExtensionPipeline({
   disabled,
 }: {
   agentName: string;
+  parts?: readonly Part[];
+  onPart?: (part: Part, on: boolean) => void;
   choices: readonly ExtensionChoice[];
   /** Switched-on extension IDs, in order. */
   value: readonly string[];
@@ -186,56 +204,75 @@ export function ExtensionPipeline({
       ),
     );
   }
-  if (!choices.length)
-    return (
-      <p className="flex items-center gap-2 rounded-lg bg-muted/60 px-3 py-2.5 text-xs text-muted-foreground">
-        <PuzzleIcon className="size-4 shrink-0" />
-        没有可开启的文本扩展；回复只由所选模型生成。
-      </p>
-    );
   return (
-    <div className="grid gap-2">
-      <DndContext
-        sensors={sensors}
-        collisionDetection={closestCenter}
-        modifiers={[restrictToVerticalAxis, restrictToParentElement]}
-        accessibility={{
-          announcements,
-          screenReaderInstructions: {
-            draggable:
-              "按空格键拿起，用上下方向键移动，再按空格键放下；Esc 取消。",
-          },
-        }}
-        onDragEnd={end}
-      >
-        <SortableContext
-          items={[...value]}
-          strategy={verticalListSortingStrategy}
+    <div className="grid grid-cols-1 gap-2">
+      {parts.length > 0 && onPart && (
+        <ul
+          className="grid grid-cols-1 gap-1.5"
+          aria-label={`${agentName} 的组成扩展`}
         >
-          <ol
-            className="grid gap-1.5"
-            aria-label={`${agentName} 的回复处理顺序`}
+          {parts.map((part) => (
+            <PipelineRow
+              key={part.choice.id}
+              row={part}
+              agentName={agentName}
+              sortable={false}
+              disabled={disabled}
+              onToggle={(next) => onPart(part, next)}
+              onOpen={onOpen && (() => onOpen(part.choice.id))}
+            />
+          ))}
+        </ul>
+      )}
+      {!choices.length && (
+        <p className="flex items-center gap-2 rounded-lg bg-muted/60 px-3 py-2.5 text-xs text-muted-foreground">
+          <PuzzleIcon className="size-4 shrink-0" />
+          没有可开启的文本扩展。
+        </p>
+      )}
+      {on.length > 0 && (
+        <DndContext
+          sensors={sensors}
+          collisionDetection={closestCenter}
+          modifiers={[restrictToVerticalAxis, restrictToParentElement]}
+          accessibility={{
+            announcements,
+            screenReaderInstructions: {
+              draggable:
+                "按空格键拿起，用上下方向键移动，再按空格键放下；Esc 取消。",
+            },
+          }}
+          onDragEnd={end}
+        >
+          <SortableContext
+            items={[...value]}
+            strategy={verticalListSortingStrategy}
           >
-            {on.map((choice, index) => (
-              <SortableRow
-                key={choice.id}
-                row={{ choice, on: true, index }}
-                agentName={agentName}
-                sortable={on.length > 1}
-                disabled={disabled}
-                onToggle={(next) => toggle(choice.id, next)}
-                onOpen={onOpen && (() => onOpen(choice.id))}
-              />
-            ))}
-          </ol>
-        </SortableContext>
-      </DndContext>
+            <ol
+              className="grid grid-cols-1 gap-1.5"
+              aria-label={`${agentName} 的回复处理顺序`}
+            >
+              {on.map((choice, index) => (
+                <SortableRow
+                  key={choice.id}
+                  row={{ choice, on: true, index }}
+                  agentName={agentName}
+                  sortable={on.length > 1}
+                  disabled={disabled}
+                  onToggle={(next) => toggle(choice.id, next)}
+                  onOpen={onOpen && (() => onOpen(choice.id))}
+                />
+              ))}
+            </ol>
+          </SortableContext>
+        </DndContext>
+      )}
       {off.length > 0 && (
-        <ul className="grid gap-1.5" aria-label="可开启的扩展">
-          {off.map((choice, index) => (
+        <ul className="grid grid-cols-1 gap-1.5" aria-label="可开启的扩展">
+          {off.map((choice) => (
             <PipelineRow
               key={choice.id}
-              row={{ choice, on: false, index }}
+              row={{ choice, on: false }}
               agentName={agentName}
               sortable={false}
               disabled={disabled}

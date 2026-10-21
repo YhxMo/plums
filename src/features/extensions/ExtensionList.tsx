@@ -56,8 +56,10 @@ export function ExtensionList({
           key={row.entry.id}
           extension={row}
           onSelect={() => actions.select(row.entry.id)}
+          actions={
+            <ExtensionActions extension={row} actions={actions} busy={busy} />
+          }
         >
-          <ExtensionActions extension={row} actions={actions} busy={busy} />
           {row.manifest.capabilities?.includes("document.read") && (
             <SelectedDocuments
               adapter={controller.adapter}

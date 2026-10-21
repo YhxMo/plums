@@ -39,6 +39,8 @@ export function agentUI(): ExtensionDefinition {
     activate(ctx) {
       const agents = ctx.use<AgentProvider>("agents");
       const chrome = createWorkspaceChrome("agents.agent");
+      // This interface first, then the provider it is built on.
+      const [ui] = ctx.shell.dependencies();
       ctx.view({
         id: "role-settings",
         label: "角色卡设置",
@@ -58,6 +60,7 @@ export function agentUI(): ExtensionDefinition {
             <AgentWorkspace
               api={agents}
               chrome={chrome}
+              ui={ui}
               onExtensions={(id) => {
                 void (id
                   ? ctx.shell.open("extensions", id)

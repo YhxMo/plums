@@ -7,6 +7,7 @@ import { StatusBadge } from "./StatusBadge";
 export function ExtensionCard({
   extension,
   onSelect,
+  actions,
   children,
 }: {
   extension: Pick<
@@ -14,7 +15,9 @@ export function ExtensionCard({
     "entry" | "manifest" | "state" | "selected" | "users"
   >;
   onSelect(): void;
-  children: ReactNode;
+  /** Buttons beside the status, such as enable or configure. */
+  actions: ReactNode;
+  children?: ReactNode;
 }) {
   const { entry, manifest, state, users, selected: isSelected } = extension;
   const { id } = entry;
@@ -28,31 +31,38 @@ export function ExtensionCard({
       )}
       onClick={onSelect}
     >
-      <div className="flex items-center justify-between gap-2">
-        <button
-          type="button"
-          className="min-w-0 truncate text-left text-[13px] font-semibold outline-none focus-visible:underline"
-          aria-pressed={isSelected}
-          onClick={onSelect}
-        >
-          {entry.label}
-        </button>
-        <StatusBadge status={state.status} />
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+        <div className="min-w-0 flex-1">
+          <div className="flex min-w-0 items-center gap-2">
+            {/* data-slot keeps the plain-button look for extension DOM off it. */}
+            <button
+              type="button"
+              data-slot="extension-title"
+              className="min-w-0 truncate text-left text-[13px] font-semibold outline-none focus-visible:underline"
+              aria-pressed={isSelected}
+              onClick={onSelect}
+            >
+              {entry.label}
+            </button>
+            <StatusBadge status={state.status} />
+          </div>
+          <p className="mt-0.5 flex flex-wrap gap-x-1.5 text-xs text-muted-foreground">
+            <code>
+              {id} · {manifest.version}
+            </code>
+            {users.map((group) =>
+              group.users.length ? (
+                <span key={group.owner} className="before:content-['·_']">
+                  {group.users.length} 个 {group.kind} 在使用
+                </span>
+              ) : null,
+            )}
+          </p>
+        </div>
+        <div onClick={(event) => event.stopPropagation()}>{actions}</div>
       </div>
-      <p className="mt-1 mb-2.5 flex flex-wrap gap-x-2.5 gap-y-1 text-xs text-muted-foreground">
-        <code>
-          {id} · {manifest.version}
-        </code>
-        {users.map((group) =>
-          group.users.length ? (
-            <span key={group.owner} className="before:content-['·_']">
-              {group.users.length} 个 {group.kind} 在使用
-            </span>
-          ) : null,
-        )}
-      </p>
       {state.error && (
-        <p className="mb-2 text-xs text-destructive">{stateMessage(state)}</p>
+        <p className="mt-2 text-xs text-destructive">{stateMessage(state)}</p>
       )}
       {children}
       {state.status === "cleanup-failed" && (

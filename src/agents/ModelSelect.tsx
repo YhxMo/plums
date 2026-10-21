@@ -5,7 +5,7 @@ const key = (model: AgentModel) => `${model.provider}\n${model.model}`;
 const choiceKey = (m: ModelChoice) =>
   key({ provider: m.provider, model: m.id });
 
-/** Picks one of the available models, or none; explains the current choice. */
+/** Picks one of the available models, or none; explains a missing choice. */
 export function ModelSelect({
   label,
   models,
@@ -45,14 +45,15 @@ export function ModelSelect({
           );
         }}
       />
-      <p className="text-xs leading-relaxed text-muted-foreground">
-        {missing
-          ? "所选模型已删除或其连接已停用，请重新选择。"
-          : (choice?.description ??
-            (models.length
+      {!choice && (
+        <p className="text-xs leading-relaxed text-muted-foreground">
+          {missing
+            ? "所选模型已删除或其连接已停用，请重新选择。"
+            : models.length
               ? "选择一个模型后此 Agent 才能回复；最近的对话与角色说明会发送给它。"
-              : "还没有可选的模型：添加服务商和它的模型后即可选择。"))}
-      </p>
+              : "还没有可选的模型：添加服务商和它的模型后即可选择。"}
+        </p>
+      )}
     </div>
   );
 }

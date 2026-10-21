@@ -36,6 +36,7 @@ const swap = {
 export function ChatView({
   agent,
   provider,
+  closed,
   draft,
   onDraft,
   onBack,
@@ -48,6 +49,8 @@ export function ChatView({
 }: {
   agent: Agent;
   provider: AgentProviderInfo;
+  /** This interface, switched off for the Agent: no new messages here. */
+  closed?: { label: string; onOpen: () => void };
   draft: string;
   onDraft: (value: string) => void;
   onBack: () => void;
@@ -219,76 +222,87 @@ export function ChatView({
         )}
         <div ref={bottom} />
       </div>
-      <form
-        className="mx-5 mt-1 mb-4 max-md:mx-3 max-md:mb-3"
-        onSubmit={(e) => {
-          e.preventDefault();
-          onSend();
-        }}
-      >
-        <InputGroup className="h-auto rounded-3xl border-border bg-card shadow-raised has-disabled:bg-card has-disabled:opacity-100 dark:has-disabled:bg-overlay transition-shadow max-md:items-end max-md:rounded-[22px] dark:bg-overlay has-[[data-slot=input-group-control]:focus-visible]:border-input has-[[data-slot=input-group-control]:focus-visible]:shadow-float has-[[data-slot=input-group-control]:focus-visible]:ring-0">
-          <InputGroupTextarea
-            ref={input}
-            aria-label="消息"
-            placeholder={`发送给 ${agent.name}…`}
-            rows={1}
-            maxLength={MAX_TEXT}
-            value={draft}
-            className="max-h-44 min-h-11 px-4.5 pt-3 pb-1 text-sm leading-relaxed [field-sizing:content] max-md:min-h-6 max-md:py-2.5 max-md:pl-3 max-md:text-base"
-            onChange={(e) => onDraft(e.target.value)}
-            onKeyDown={(e) => {
-              if (
-                e.key === "Enter" &&
-                !e.shiftKey &&
-                !e.nativeEvent.isComposing &&
-                desktop
-              ) {
-                e.preventDefault();
-                if (draft.trim() && !busy) onSend();
-              }
-            }}
-          />
-          <InputGroupAddon
-            align={desktop ? "block-end" : "inline-end"}
-            className="justify-end self-end max-md:py-1.5"
-          >
-            <AnimatePresence mode="popLayout" initial={false}>
-              {busy ? (
-                <motion.span key="stop" {...swap}>
-                  <Tooltip label={saving ? "正在保存…" : "停止处理"}>
-                    <InputGroupButton
-                      type="button"
-                      variant="outline"
-                      size="icon-sm"
-                      className="size-9 rounded-full max-md:size-10"
-                      aria-label={saving ? "正在保存…" : "停止处理"}
-                      onClick={onCancel}
-                      disabled={saving}
-                    >
-                      <SquareIcon className="fill-current" />
-                    </InputGroupButton>
-                  </Tooltip>
-                </motion.span>
-              ) : (
-                <motion.span key="send" {...swap}>
-                  <Tooltip label="发送">
-                    <InputGroupButton
-                      type="submit"
-                      variant="default"
-                      size="icon-sm"
-                      className="size-9 rounded-full max-md:size-10"
-                      aria-label="发送"
-                      disabled={!draft.trim()}
-                    >
-                      <ArrowUpIcon />
-                    </InputGroupButton>
-                  </Tooltip>
-                </motion.span>
-              )}
-            </AnimatePresence>
-          </InputGroupAddon>
-        </InputGroup>
-      </form>
+      {closed ? (
+        <div className="mx-5 mt-1 mb-4 flex items-center gap-3 rounded-2xl bg-card px-4 py-3 text-[13px] shadow-raised max-md:mx-3 max-md:mb-3 dark:bg-overlay">
+          <p className="min-w-0 flex-1 text-muted-foreground">
+            此 Agent 已关闭「{closed.label}」，开启后才能在这里对话。
+          </p>
+          <Button size="sm" onClick={closed.onOpen}>
+            开启
+          </Button>
+        </div>
+      ) : (
+        <form
+          className="mx-5 mt-1 mb-4 max-md:mx-3 max-md:mb-3"
+          onSubmit={(e) => {
+            e.preventDefault();
+            onSend();
+          }}
+        >
+          <InputGroup className="h-auto rounded-3xl border-border bg-card shadow-raised has-disabled:bg-card has-disabled:opacity-100 dark:has-disabled:bg-overlay transition-shadow max-md:items-end max-md:rounded-[22px] dark:bg-overlay has-[[data-slot=input-group-control]:focus-visible]:border-input has-[[data-slot=input-group-control]:focus-visible]:shadow-float has-[[data-slot=input-group-control]:focus-visible]:ring-0">
+            <InputGroupTextarea
+              ref={input}
+              aria-label="消息"
+              placeholder={`发送给 ${agent.name}…`}
+              rows={1}
+              maxLength={MAX_TEXT}
+              value={draft}
+              className="max-h-44 min-h-11 px-4.5 pt-3 pb-1 text-sm leading-relaxed [field-sizing:content] max-md:min-h-6 max-md:py-2.5 max-md:pl-3 max-md:text-base"
+              onChange={(e) => onDraft(e.target.value)}
+              onKeyDown={(e) => {
+                if (
+                  e.key === "Enter" &&
+                  !e.shiftKey &&
+                  !e.nativeEvent.isComposing &&
+                  desktop
+                ) {
+                  e.preventDefault();
+                  if (draft.trim() && !busy) onSend();
+                }
+              }}
+            />
+            <InputGroupAddon
+              align={desktop ? "block-end" : "inline-end"}
+              className="justify-end self-end max-md:py-1.5"
+            >
+              <AnimatePresence mode="popLayout" initial={false}>
+                {busy ? (
+                  <motion.span key="stop" {...swap}>
+                    <Tooltip label={saving ? "正在保存…" : "停止处理"}>
+                      <InputGroupButton
+                        type="button"
+                        variant="outline"
+                        size="icon-sm"
+                        className="size-9 rounded-full max-md:size-10"
+                        aria-label={saving ? "正在保存…" : "停止处理"}
+                        onClick={onCancel}
+                        disabled={saving}
+                      >
+                        <SquareIcon className="fill-current" />
+                      </InputGroupButton>
+                    </Tooltip>
+                  </motion.span>
+                ) : (
+                  <motion.span key="send" {...swap}>
+                    <Tooltip label="发送">
+                      <InputGroupButton
+                        type="submit"
+                        variant="default"
+                        size="icon-sm"
+                        className="size-9 rounded-full max-md:size-10"
+                        aria-label="发送"
+                        disabled={!draft.trim()}
+                      >
+                        <ArrowUpIcon />
+                      </InputGroupButton>
+                    </Tooltip>
+                  </motion.span>
+                )}
+              </AnimatePresence>
+            </InputGroupAddon>
+          </InputGroup>
+        </form>
+      )}
     </section>
   );
 }

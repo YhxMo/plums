@@ -9,18 +9,25 @@ import { serviceList } from "./services";
 import { StatusBadge } from "./StatusBadge";
 import { Badge } from "../../components/ui/badge";
 import { Toggle } from "../../components/ui/toggle";
+import { InfoTip } from "../../components/Tooltip";
 
 /** One titled block of the details, separated from the one above. */
 export function DetailSection({
   title,
+  info,
   children,
 }: {
   title: string;
+  /** Background behind an info button beside the title. */
+  info?: string;
   children: ReactNode;
 }) {
   return (
     <section className="mt-4 border-t pt-3.5 first:mt-0 first:border-0 first:pt-0">
-      <h4 className="mb-2.5 text-[13px] font-semibold">{title}</h4>
+      <h4 className="mb-2.5 flex items-center gap-1 text-[13px] font-semibold">
+        {title}
+        {info && <InfoTip label={title} text={info} />}
+      </h4>
       {children}
     </section>
   );
@@ -70,6 +77,11 @@ export function ExtensionDetails({
           title={
             group.toggle ? `为 ${group.kind} 开启` : `使用中的 ${group.kind}`
           }
+          info={
+            group.toggle
+              ? `点按为单个 ${group.kind} 开启或关闭此扩展。`
+              : undefined
+          }
         >
           <ul className="flex flex-wrap gap-1.5">
             {group.toggle
@@ -108,11 +120,6 @@ export function ExtensionDetails({
                   </li>
                 ))}
           </ul>
-          {group.toggle && (
-            <p className="mt-2 text-xs text-muted-foreground">
-              点按为单个 {group.kind} 开启或关闭此扩展。
-            </p>
-          )}
         </DetailSection>
       ))}
       <DetailSection title="服务与权限概览">

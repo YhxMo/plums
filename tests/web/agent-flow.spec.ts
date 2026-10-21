@@ -106,9 +106,10 @@ for (const width of [375, 1440]) {
     await expect(page.getByRole("log")).toContainText("HELLO AGENT");
     if (width === 375)
       await page.getByRole("button", { name: "返回 Agent 列表" }).click();
+    // A pinned Agent is only a tile, whose menu opens with a right click.
     await page
-      .getByRole("button", { name: "编程助手 的操作", exact: true })
-      .click();
+      .getByRole("button", { name: "打开 编程助手", exact: true })
+      .click({ button: "right" });
     await page
       .getByRole("menuitem", { name: "移除 Agent", exact: true })
       .click();
@@ -712,4 +713,84 @@ test("a long conversation scrolls inside the log, never the whole workspace", as
         .map((label) => label.textContent),
     ),
   ).toEqual([]);
+});
+
+test("a pinned Agent shows once, as a tile with its own menu", async ({
+  page,
+}) => {
+  await page.goto("/");
+  await add(page, "关注者", false);
+  await page.getByRole("button", { name: "添加", exact: true }).first().click();
+  await page
+    .getByRole("dialog")
+    .getByRole("button", { name: /添加 Agent/ })
+    .click();
+  await page.getByRole("textbox", { name: "名称", exact: true }).fill("普通");
+  await page
+    .getByRole("dialog")
+    .getByRole("button", { name: "添加", exact: true })
+    .click();
+  await page
+    .getByRole("button", { name: "关注者 的操作", exact: true })
+    .click();
+  await page
+    .getByRole("menuitem", { name: "设为特别关注", exact: true })
+    .click();
+  const list = page.getByRole("complementary", { name: "Agent 列表" });
+  const tile = list.getByRole("button", { name: "打开 关注者", exact: true });
+  await expect(tile).toBeVisible();
+  await expect(
+    list.getByRole("button", { name: "与 关注者 交互", exact: true }),
+  ).toHaveCount(0);
+  await expect(list.getByRole("heading", { name: "其他 Agent" })).toBeVisible();
+  await tile.click({ button: "right" });
+  await page
+    .getByRole("menuitem", { name: "取消特别关注", exact: true })
+    .click();
+  await expect(
+    list.getByRole("button", { name: "与 关注者 交互", exact: true }),
+  ).toBeVisible();
+  await expect(tile).toHaveCount(0);
+});
+
+test("each part of an Agent can be switched off, and says what that means", async ({
+  page,
+}) => {
+  await page.goto("/");
+  await page.getByRole("button", { name: "添加", exact: true }).first().click();
+  await page
+    .getByRole("dialog")
+    .getByRole("button", { name: /添加 Agent/ })
+    .click();
+  const dialog = page.getByRole("dialog", { name: "添加 Agent" });
+  await dialog.getByLabel("名称").fill("拼装");
+  const provider = dialog.getByRole("switch", {
+    name: "在 拼装 中使用 本地 Agent 提供者",
+  });
+  await expect(provider).toBeChecked();
+  await provider.click();
+  await expect(dialog).toContainText("已关闭：此 Agent 不会回复");
+  await dialog.getByRole("button", { name: "添加", exact: true }).click();
+  const message = page.getByRole("textbox", { name: "消息", exact: true });
+  await message.fill("你好");
+  await page.getByRole("button", { name: "发送", exact: true }).click();
+  await expect(page.getByRole("alert")).toContainText(
+    "已关闭「本地 Agent 提供者」",
+  );
+  await sidebarToggle(page).click();
+  const details = page.getByRole("complementary", { name: "Agent 详情" });
+  await details
+    .getByRole("switch", { name: "在 拼装 中使用 本地 Agent 提供者" })
+    .click();
+  await details
+    .getByRole("switch", { name: "在 拼装 中使用 默认 Agent 界面" })
+    .click();
+  await expect(message).toHaveCount(0);
+  await expect(
+    page.getByText("此 Agent 已关闭「默认 Agent 界面」", { exact: false }),
+  ).toBeVisible();
+  await page.getByRole("button", { name: "开启", exact: true }).click();
+  await message.fill("hello");
+  await page.getByRole("button", { name: "发送", exact: true }).click();
+  await expect(page.getByRole("log")).toContainText("HELLO");
 });

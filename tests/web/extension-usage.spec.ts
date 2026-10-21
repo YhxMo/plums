@@ -113,9 +113,11 @@ test("an Agent's details switch each text extension on or off", async ({
   await expect(reverse).not.toBeChecked();
   await reverse.click();
   await expect(reverse).toBeChecked();
-  await expect(details).toContainText(
-    "回复依次经过：大写转换服务 → 逆序转换服务",
-  );
+  await expect(
+    details
+      .getByRole("list", { name: "测试 的回复处理顺序" })
+      .getByRole("listitem"),
+  ).toHaveText([/大写转换服务/, /逆序转换服务/]);
   const send = async (text: string) => {
     await page.getByRole("textbox", { name: "消息", exact: true }).fill(text);
     await page.getByRole("button", { name: "发送", exact: true }).click();

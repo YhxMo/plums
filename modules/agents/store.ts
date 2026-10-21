@@ -24,6 +24,9 @@ const object = (value: unknown): value is Record<string, unknown> =>
   typeof value === "object" && value !== null && !Array.isArray(value);
 const text = (value: unknown, max = 4000): value is string =>
   typeof value === "string" && value.length <= max;
+/** Extension IDs, as in `Agent.off`. */
+const extensionIds = (value: unknown): value is string[] =>
+  Array.isArray(value) && value.every((e) => text(e, 64));
 export function parseRoleCard(raw: string): AgentConfig {
   const value: unknown = JSON.parse(raw);
   if (
@@ -67,6 +70,7 @@ export function restoreAgents(value: unknown): Agent[] {
       (a.extensions !== undefined &&
         (!Array.isArray(a.extensions) ||
           !a.extensions.every((e) => text(e)))) ||
+      (a.off !== undefined && !extensionIds(a.off)) ||
       (a.model !== undefined &&
         (!object(a.model) ||
           !text(a.model.provider, 64) ||
@@ -157,6 +161,7 @@ export class AgentStore implements AgentProvider {
     readonly modelChoices: () => readonly ModelChoice[] = () => [],
     /** Why saving cannot succeed now, checked before asking a model. */
     private saveBlocked: () => string | undefined = () => undefined,
+    readonly connectors: () => readonly Named[] = () => [],
   ) {
     this.agents = initial;
   }
@@ -195,6 +200,17 @@ export class AgentStore implements AgentProvider {
       this.find(agents, agentId).extensions = [...new Set(extensionIds)];
     });
   }
+  setOff(agentId: string, extensionId: string, off: boolean) {
+    if (!text(extensionId, 64))
+      return Promise.reject(new Error("扩展 ID 无效。"));
+    return this.change((agents) => {
+      const a = this.find(agents, agentId);
+      const rest = (a.off ?? []).filter((id) => id !== extensionId);
+      if (off) a.off = [...rest, extensionId];
+      else if (rest.length) a.off = rest;
+      else delete a.off;
+    });
+  }
   setModel(agentId: string, model: AgentModel | null) {
     if (
       model &&
@@ -207,6 +223,9 @@ export class AgentStore implements AgentProvider {
       if (!model) delete a.model;
       else {
         a.model = { provider: model.provider, model: model.model };
+        const off = a.off?.filter((id) => id !== model.provider);
+        if (off?.length) a.off = off;
+        else delete a.off;
         // With a model, text extensions become explicit post-processing.
         a.extensions ??= [];
       }
@@ -261,6 +280,8 @@ export class AgentStore implements AgentProvider {
     const choices = this.extensionChoices();
     if (config.extensions?.some((e) => !choices.some((c) => c.id === e)))
       throw new Error("扩展未启用，请先在扩展管理中启用它。");
+    if (config.off !== undefined && !extensionIds(config.off))
+      throw new Error("扩展 ID 无效。");
     if (
       config.model &&
       !this.modelChoices().some((m) => sameModel(m, config.model!))
@@ -283,6 +304,7 @@ export class AgentStore implements AgentProvider {
       pinned: false,
       extensionId: "agents.local",
       ...(model && { model }),
+      ...(config.off?.length && { off: [...new Set(config.off)] }),
       ...(config.extensions
         ? { extensions: [...new Set(config.extensions)] }
         : model
@@ -382,6 +404,19 @@ export class AgentStore implements AgentProvider {
     const blocked = this.saveBlocked();
     if (blocked) throw new Error(blocked);
     const a = this.find(this.agents, agentId);
+    const extensions = enabledExtensions(a, this.extensionChoices());
+    const off = (id: string) => a.off?.includes(id);
+    const label = (id: string, known: readonly Named[]) =>
+      known.find((e) => e.id === id)?.label ?? id;
+    if (off(a.extensionId))
+      throw new Error(
+        `此 Agent 已关闭「${label(a.extensionId, this.extensions)}」，在详情的组成扩展中开启后才能回复。`,
+      );
+    const model = a.model && !off(a.model.provider) ? a.model : undefined;
+    if (a.model && !model && !extensions.length)
+      throw new Error(
+        `此 Agent 已关闭「${label(a.model.provider, this.connectors())}」，也没有开启文本扩展；开启其中一个后才能回复。`,
+      );
     const sessionId = a.currentSessionId;
     const history = a.sessions
       .find((s) => s.id === sessionId)!
@@ -392,12 +427,11 @@ export class AgentStore implements AgentProvider {
     this.pending.set(agentId, { sessionId, text: input });
     this.emit();
     try {
-      const output = await this.reply(
-        input,
-        controller.signal,
-        enabledExtensions(a, this.extensionChoices()),
-        { model: a.model, instructions: a.description, history },
-      );
+      const output = await this.reply(input, controller.signal, extensions, {
+        model,
+        instructions: a.description,
+        history,
+      });
       controller.signal.throwIfAborted();
       if (!text(output, MAX_TEXT))
         throw new Error(

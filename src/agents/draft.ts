@@ -12,9 +12,16 @@ export type AgentDraft = {
   multiSession: boolean;
   model?: AgentModel | null;
   extensions?: string[];
+  /** Parts such as the provider or a model connection switched off. */
+  off: string[];
 };
 
-const empty: AgentDraft = { name: "", description: "", multiSession: false };
+const empty: AgentDraft = {
+  name: "",
+  description: "",
+  multiSession: false,
+  off: [],
+};
 
 export const useAgentDraft = create<
   AgentDraft & {

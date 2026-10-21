@@ -129,6 +129,7 @@ export function agentExtension(
         ctx.shell.dependencies(),
         models,
         () => state.blocked(),
+        () => chats.map(({ id, label }) => ({ id, label })),
       );
       watchModels();
       // Management lists each Agent under the services it has switched on
@@ -148,7 +149,9 @@ export function agentExtension(
             id: agent.id,
             label: agent.name,
             uses: [
-              ...(agent.model ? [agent.model.provider] : []),
+              ...(agent.model && !agent.off?.includes(agent.model.provider)
+                ? [agent.model.provider]
+                : []),
               ...enabledExtensions(agent, choices),
             ],
           })),

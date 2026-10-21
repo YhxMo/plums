@@ -15,6 +15,8 @@ import {
   type AgentProvider,
 } from "../../modules/agents/contract";
 import { parseRoleCard } from "../../modules/agents/store";
+import type { Named } from "../../modules/sdk";
+import { InfoTip } from "../components/Tooltip";
 import { Dialog, DialogActions, DialogBody } from "../components/Dialog";
 import { Button, buttonVariants } from "../components/ui/button";
 import { Input } from "../components/ui/input";
@@ -41,6 +43,7 @@ import {
 import { ExtensionPipeline } from "./ExtensionPipeline";
 import { ModelSelect } from "./ModelSelect";
 import { useAgentDraft } from "./draft";
+import { agentParts, switchPart, type Part } from "./parts";
 import type { AgentModals } from "./useAgentModals";
 
 function Choice({
@@ -81,6 +84,7 @@ function Choice({
 
 export function AgentDialogs({
   api,
+  ui,
   modals,
   onCreated,
   onRemoved,
@@ -89,6 +93,7 @@ export function AgentDialogs({
   fallbackFocus,
 }: {
   api: AgentProvider;
+  ui?: Named;
   modals: Pick<
     AgentModals,
     | "modal"
@@ -141,6 +146,29 @@ export function AgentDialogs({
   const extensions =
     draft.extensions?.filter((id) => choices?.some((c) => c.id === id)) ??
     (model ? [] : enabledExtensions({}, choices ?? []));
+  const parts = agentParts({
+    provider: api.info.extensions ?? [],
+    ui,
+    api,
+    model,
+    off: draft.off,
+  });
+  function switchDraftPart(part: Part, on: boolean) {
+    try {
+      const next = switchPart(part, on, api, model);
+      const off = draft.off.filter((id) => id !== part.choice.id);
+      draft.change({
+        off: next.off ? [...off, part.choice.id] : off,
+        ...(next.model && { model: next.model }),
+      });
+    } catch (error) {
+      setError(error instanceof Error ? error.message : String(error));
+    }
+  }
+  const replies =
+    parts.some((p) => p.connector && p.on) ||
+    (!api.connectors && !!model) ||
+    extensions.length > 0;
   async function add(config: AgentConfig) {
     const agent = await api.create(config);
     onCreated(agent);
@@ -328,6 +356,7 @@ export function AgentDialogs({
                 multiSession: draft.multiSession,
                 ...(models && { model }),
                 ...(choices && { extensions }),
+                ...(api.setOff && { off: draft.off }),
               }),
             );
           }}
@@ -397,7 +426,13 @@ export function AgentDialogs({
                     label="新 Agent 使用的模型"
                     models={models}
                     value={model}
-                    onChange={(next) => draft.change({ model: next })}
+                    onChange={(next) =>
+                      draft.change({
+                        model: next,
+                        // Picking a model switches its connection on.
+                        off: draft.off.filter((id) => id !== next?.provider),
+                      })
+                    }
                   />
                 </FieldSet>
               </>
@@ -407,8 +442,15 @@ export function AgentDialogs({
                 <FieldSeparator />
                 <FieldSet className="gap-2">
                   <div className="flex items-center justify-between gap-2">
-                    <FieldLegend variant="label" className="mb-0">
+                    <FieldLegend
+                      variant="label"
+                      className="mb-0 flex items-center gap-1"
+                    >
                       拼接扩展
+                      <InfoTip
+                        label="拼接扩展"
+                        text="开启的扩展组成这个 Agent；带编号的文本扩展依次处理回复，可拖动调整先后。添加后也能在详情里增减。"
+                      />
                     </FieldLegend>
                     <Button
                       type="button"
@@ -421,11 +463,10 @@ export function AgentDialogs({
                       <ChevronRightIcon data-icon="inline-end" />
                     </Button>
                   </div>
-                  <FieldDescription>
-                    开启的扩展按顺序处理回复，拖动可调整先后；添加后也能在详情里增减。
-                  </FieldDescription>
                   <ExtensionPipeline
                     agentName={draft.name.trim() || "新 Agent"}
+                    parts={parts}
+                    onPart={api.setOff && switchDraftPart}
                     choices={choices}
                     value={extensions}
                     onChange={(ids) => draft.change({ extensions: ids })}
@@ -433,21 +474,12 @@ export function AgentDialogs({
                 </FieldSet>
               </>
             )}
-            {(models || choices) && !model && !extensions.length && (
+            {(models || choices) && !replies && (
               <p className="rounded-lg bg-muted/60 px-3 py-2 text-xs text-muted-foreground">
-                还没有选择模型或开启扩展：添加后可以先保存，选好后此 Agent
+                还没有开启模型连接或文本扩展：可以先添加，开启后此 Agent
                 才能回复。
               </p>
             )}
-            <p className="flex items-start gap-2 text-xs text-muted-foreground">
-              <PuzzleIcon className="mt-px size-3.5" />
-              <span>
-                <strong className="font-medium text-foreground">
-                  Agent 本体
-                </strong>{" "}
-                {api.info.description}
-              </span>
-            </p>
           </DialogBody>
           <DialogActions>
             {cancel}

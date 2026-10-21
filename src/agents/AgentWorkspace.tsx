@@ -6,7 +6,7 @@ import {
   useSyncExternalStore,
 } from "react";
 import type { Agent, AgentProvider } from "../../modules/agents/contract";
-import type { WorkspaceChromeController } from "../../modules/sdk";
+import type { Named, WorkspaceChromeController } from "../../modules/sdk";
 import { AgentList } from "./AgentList";
 import { ChatView } from "./ChatView";
 import { DetailPanel } from "./DetailPanel";
@@ -24,15 +24,19 @@ import { useAgentModals } from "./useAgentModals";
 import { AgentDialogs } from "./AgentDialogs";
 import type { AgentAction } from "./AgentMenu";
 import { fallbackFocus } from "./focus";
+import { agentParts, switchPart, type Part } from "./parts";
 
 export function AgentWorkspace({
   api,
   chrome,
+  ui,
   onExtensions,
   onModels,
 }: {
   api: AgentProvider;
   chrome: WorkspaceChromeController;
+  /** This interface, which each Agent can switch off like its other parts. */
+  ui?: Named;
   /** Opens extension management, selecting `id` when given. */
   onExtensions: (id?: string) => void;
   /** Opens the page where the user manages model connections. */
@@ -131,10 +135,26 @@ export function AgentWorkspace({
       }}
     />
   );
+  // Providers predating `extensions` are shown as the one extension they are.
+  const provider = api.info.extensions ?? [
+    { id: agent?.extensionId ?? "", label: api.info.label },
+  ];
+  const parts =
+    agent &&
+    agentParts({ provider, ui, api, model: agent.model, off: agent.off });
+  function switchAgentPart(a: Agent, part: Part, on: boolean) {
+    void act(async () => {
+      const next = switchPart(part, on, api, a.model);
+      if (next.model) await api.setModel!(a.id, next.model);
+      else await api.setOff!(a.id, part.choice.id, next.off);
+    });
+  }
+  const uiOff = !!agent && !!ui && !!agent.off?.includes(ui.id);
   const detailContent = agent && (
     <DetailPanel
       agent={agent}
-      provider={api.info}
+      parts={parts!}
+      onPart={api.setOff && ((part, on) => switchAgentPart(agent, part, on))}
       onClose={() => setDetail(false)}
       onPin={() => agentAction(agent, "pin")}
       onSession={(action, id) =>
@@ -189,6 +209,15 @@ export function AgentWorkspace({
     <ChatView
       agent={agent}
       provider={api.info}
+      closed={
+        uiOff
+          ? {
+              label: ui!.label,
+              onOpen: () =>
+                void act(() => api.setOff!(agent.id, ui!.id, false)),
+            }
+          : undefined
+      }
       draft={drafts[key] ?? ""}
       onDraft={(value) => setDrafts((d) => ({ ...d, [key]: value }))}
       onBack={returnToList}
@@ -227,6 +256,7 @@ export function AgentWorkspace({
   const dialogs = (
     <AgentDialogs
       api={api}
+      ui={ui}
       modals={modals}
       fallbackFocus={focusFallback}
       onCreated={(agent) => {

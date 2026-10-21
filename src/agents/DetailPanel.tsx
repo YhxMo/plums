@@ -13,30 +13,34 @@ import {
   enabledExtensions,
   type Agent,
   type AgentModel,
-  type AgentProviderInfo,
   type ExtensionChoice,
   type ModelChoice,
 } from "../../modules/agents/contract";
 import { Avatar } from "./Avatar";
 import { ExtensionPipeline } from "./ExtensionPipeline";
 import { ModelSelect } from "./ModelSelect";
-import { Tooltip } from "../components/Tooltip";
+import type { Part } from "./parts";
+import { InfoTip, Tooltip } from "../components/Tooltip";
 import { Button } from "../components/ui/button";
 
 function Section({
   title,
+  info,
   action,
   children,
 }: {
   title: string;
+  /** Background on the section, behind an info button beside the title. */
+  info?: string;
   action?: ReactNode;
   children: ReactNode;
 }) {
   return (
-    <section className="grid gap-2.5 border-t border-sidebar-border/70 px-4.5 py-4 max-md:px-6 max-md:py-5">
+    <section className="grid grid-cols-1 gap-2.5 border-t border-sidebar-border/70 px-4.5 py-4 max-md:px-6 max-md:py-5">
       <div className="flex min-h-7 items-center justify-between gap-2">
-        <h3 className="text-xs font-semibold tracking-wide text-muted-foreground max-md:text-sm">
+        <h3 className="flex items-center gap-1 text-xs font-semibold tracking-wide text-muted-foreground max-md:text-sm">
           {title}
+          {info && <InfoTip label={title} text={info} />}
         </h3>
         {action}
       </div>
@@ -49,12 +53,13 @@ const note = "text-xs leading-relaxed text-muted-foreground";
 
 export function DetailPanel({
   agent,
-  provider,
   onClose,
   onPin,
   onSession,
   onDeleteSession,
   onOpenExtension,
+  parts,
+  onPart,
   choices,
   onExtensions,
   models,
@@ -62,7 +67,10 @@ export function DetailPanel({
   onModels,
 }: {
   agent: Agent;
-  provider: AgentProviderInfo;
+  /** The provider, interface and model connections, each switched on or off. */
+  parts: readonly Part[];
+  /** Absent for providers that cannot switch parts off. */
+  onPart?: (part: Part, on: boolean) => void;
   /** Absent for providers that do not let each Agent choose. */
   choices?: readonly ExtensionChoice[];
   /** Sets the switched-on extensions, in order. */
@@ -78,10 +86,6 @@ export function DetailPanel({
   /** Opens extension management, selecting `id` when given. */
   onOpenExtension: (id?: string) => void;
 }) {
-  // Providers predating `extensions` are shown as the one extension they are.
-  const base = provider.extensions ?? [
-    { id: agent.extensionId, label: provider.label },
-  ];
   const enabled = choices ? enabledExtensions(agent, choices) : [];
   const busy = agent.status === "busy";
   return (
@@ -163,6 +167,7 @@ export function DetailPanel({
         )}
         <Section
           title="组成扩展"
+          info="开启的扩展组成这个 Agent；带编号的文本扩展依次处理回复，可拖动调整先后。"
           action={
             <Button
               variant="link"
@@ -175,53 +180,41 @@ export function DetailPanel({
             </Button>
           }
         >
-          <ul className="grid gap-1.5">
-            {base.map((extension) => (
-              <li
-                key={extension.id}
-                className="flex items-center gap-2 rounded-lg bg-brand-soft/60 px-3 py-2"
-              >
-                <Tooltip label={extension.id}>
-                  <button
-                    className="flex min-w-0 flex-1 flex-col items-start rounded-md text-left outline-none hover:underline focus-visible:ring-3 focus-visible:ring-ring/50"
-                    aria-label={`查看扩展 ${extension.label}`}
-                    onClick={() => onOpenExtension(extension.id)}
-                  >
-                    <span className="truncate text-[13px] font-medium">
-                      {extension.label}
-                    </span>
-                    <span className="text-xs text-muted-foreground">
-                      Agent 本体，始终开启
-                    </span>
-                  </button>
-                </Tooltip>
-              </li>
-            ))}
-          </ul>
-          {choices && onExtensions && (
+          {!onPart && (
+            <ul className="grid gap-1.5">
+              {parts.map(({ choice }) => (
+                <li key={choice.id}>
+                  <Tooltip label={choice.id}>
+                    <button
+                      className="w-full truncate rounded-lg bg-brand-soft/60 px-3 py-2 text-left text-[13px] font-medium outline-none hover:underline focus-visible:ring-3 focus-visible:ring-ring/50"
+                      aria-label={`查看扩展 ${choice.label}`}
+                      onClick={() => onOpenExtension(choice.id)}
+                    >
+                      {choice.label}
+                    </button>
+                  </Tooltip>
+                </li>
+              ))}
+            </ul>
+          )}
+          {(onPart || (choices && onExtensions)) && (
             <ExtensionPipeline
               agentName={agent.name}
-              choices={choices}
+              parts={parts}
+              onPart={onPart}
+              choices={choices ?? []}
               value={enabled}
-              onChange={onExtensions}
+              onChange={(ids) => onExtensions?.(ids)}
               onOpen={onOpenExtension}
             />
           )}
-          {!!choices?.length && (
+          {!parts.some((p) => p.connector && p.on) && !enabled.length && (
             <p className={note}>
-              {enabled.length === 0
-                ? agent.model
-                  ? "可开启文本扩展对模型回复做后处理。"
-                  : "尚未选择模型或开启扩展，此 Agent 暂时无法回复。"
-                : enabled.length > 1
-                  ? `回复依次经过：${enabled
-                      .map((id) => choices.find((c) => c.id === id)?.label)
-                      .join(" → ")}`
-                  : "开启的扩展处理此 Agent 的回复，可同时开启多个并拖动排序。"}
+              还没有开启模型连接或文本扩展，此 Agent 暂时无法回复。
             </p>
           )}
         </Section>
-        <Section title="实际可用能力">
+        <Section title="实际可用能力" info="角色卡说明不会授予额外访问权限。">
           <ul className="grid gap-1.5">
             {agent.capabilities.map((c) => (
               <li key={c} className="flex items-start gap-2 text-[13px]">
@@ -230,7 +223,6 @@ export function DetailPanel({
               </li>
             ))}
           </ul>
-          <p className={note}>角色卡说明不会授予额外访问权限。</p>
         </Section>
         {agent.multiSession && (
           <Section

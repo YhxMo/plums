@@ -3,6 +3,7 @@ import type { PlatformAdapter } from "../../platform";
 import type { SelectedDocument } from "../../documents";
 import { FileTextIcon } from "lucide-react";
 import { Button } from "../../components/ui/button";
+import { InfoTip } from "../../components/Tooltip";
 
 export function SelectedDocuments({
   adapter,
@@ -102,10 +103,13 @@ export function SelectedDocuments({
       aria-label="文档只读授权"
       onClick={(event) => event.stopPropagation()}
     >
-      <h3 className="text-[13px] font-semibold">本次文档授权</h3>
-      <p className="text-xs text-muted-foreground">
-        仅向此扩展提供所选文档的只读句柄，每次最多64 KiB。停用或退出应用即失效。
-      </p>
+      <h3 className="flex items-center gap-1 text-[13px] font-semibold">
+        本次文档授权
+        <InfoTip
+          label="本次文档授权"
+          text="仅向此扩展提供所选文档的只读句柄，每次最多64 KiB。停用或退出应用即失效。"
+        />
+      </h3>
       {!adapter.available("document.read") ? (
         <p>
           {adapter.documentsInitializationError
