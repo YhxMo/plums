@@ -36,7 +36,7 @@ export function WorkspaceArea({
             animate={{ opacity: 1, x: 0 }}
             exit={{ opacity: 0, x: 16 }}
             transition={{ duration: 0.18, ease: "easeOut" }}
-            className="mr-2 mb-2 flex w-68 shrink-0 flex-col overflow-hidden rounded-xl bg-card shadow-panel"
+            className="flex w-68 shrink-0 flex-col overflow-hidden border-l border-border/70"
             aria-label={sidebar.label}
           >
             <header className="flex min-h-12 items-center justify-between border-b py-1.5 pr-2 pl-4">

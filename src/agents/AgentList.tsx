@@ -54,7 +54,7 @@ function AgentRow({
           layout="position"
           {...enter}
           // The status dot's ring follows the row's tint.
-          className="group/row relative flex items-center rounded-lg transition-colors [--row-bg:var(--list-bg)] hover:bg-sidebar-accent hover:[--row-bg:var(--sidebar-hover)] data-[selected=true]:[--row-bg:var(--sidebar-active)] data-[selected=true]:hover:bg-transparent data-[selected=true]:hover:[--row-bg:var(--sidebar-active)]"
+          className="group/row relative flex items-center rounded-lg transition-colors [--row-bg:var(--background)] hover:bg-sidebar-accent hover:[--row-bg:var(--sidebar-hover)] data-[selected=true]:[--row-bg:var(--sidebar-active)] data-[selected=true]:hover:bg-transparent data-[selected=true]:hover:[--row-bg:var(--sidebar-active)]"
           data-selected={selected}
         >
           {selected && (
@@ -156,8 +156,7 @@ export function AgentList({
   ];
   return (
     <aside
-      // Desktop tints the list between the rail and the conversation.
-      className="flex h-full min-h-0 w-full flex-col md:bg-list"
+      className="flex h-full min-h-0 w-full flex-col"
       aria-label="Agent 列表"
     >
       <div className="flex min-h-12 items-center gap-1.5 pr-2 pl-4 max-md:min-h-0 max-md:px-5 max-md:pt-4 max-md:pb-3">

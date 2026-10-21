@@ -41,7 +41,7 @@ export function Workbench({ runtime }: { runtime: Runtime }) {
     authorization,
   });
   return (
-    <div className="flex h-dvh min-h-0 flex-col overflow-hidden bg-rail">
+    <div className="flex h-dvh min-h-0 flex-col overflow-hidden bg-chrome">
       <TitleBar
         platformKind={runtime.adapter.kind}
         operations={operations}
@@ -68,38 +68,41 @@ export function Workbench({ runtime }: { runtime: Runtime }) {
           workspace={workspace}
           navigation={navigation}
         />
-        <WorkspaceArea
-          host={runtime.host}
-          workspace={workspace}
-          chrome={chrome}
-          hidden={navigation.manager.open}
-        >
-          <RecoveryWelcome
-            operations={operations}
-            experiments={experiments}
-            authorization={authorization}
-            onExtensions={() => navigation.openManager()}
+        {/* The content: one flat surface framed by the chrome. */}
+        <div className="flex min-w-0 flex-1 overflow-hidden bg-background md:rounded-tl-xl md:border-t md:border-l md:border-border/70">
+          <WorkspaceArea
+            host={runtime.host}
+            workspace={workspace}
+            chrome={chrome}
+            hidden={navigation.manager.open}
+          >
+            <RecoveryWelcome
+              operations={operations}
+              experiments={experiments}
+              authorization={authorization}
+              onExtensions={() => navigation.openManager()}
+            />
+          </WorkspaceArea>
+          <ExtensionManager
+            controller={management}
+            diagnostics={
+              import.meta.env.DEV && (
+                <DiagnosticsPanel
+                  open={navigation.manager.diagnostics}
+                  onToggle={navigation.setDiagnostics}
+                >
+                  <DiagnosticActions
+                    runtime={runtime}
+                    operations={operations}
+                    workspace={workspace}
+                    authorization={authorization}
+                    experiments={experiments}
+                  />
+                </DiagnosticsPanel>
+              )
+            }
           />
-        </WorkspaceArea>
-        <ExtensionManager
-          controller={management}
-          diagnostics={
-            import.meta.env.DEV && (
-              <DiagnosticsPanel
-                open={navigation.manager.diagnostics}
-                onToggle={navigation.setDiagnostics}
-              >
-                <DiagnosticActions
-                  runtime={runtime}
-                  operations={operations}
-                  workspace={workspace}
-                  authorization={authorization}
-                  experiments={experiments}
-                />
-              </DiagnosticsPanel>
-            )
-          }
-        />
+        </div>
       </div>
       <ShellDialogs
         host={runtime.host}

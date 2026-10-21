@@ -47,9 +47,7 @@
   --color-sidebar-ring: var(--accent);
   /* Shell surfaces and the brand colour under their own names. */
   --color-surface: var(--surface);
-  --color-list: var(--list-bg);
-  --color-rail: var(--rail-bg);
-  --color-titlebar: var(--titlebar-bg);
+  --color-chrome: var(--chrome-bg);
   --color-overlay: var(--overlay);
   --color-subtle: var(--subtle);
   --color-brand: var(--accent);
@@ -71,14 +69,6 @@
   --shadow-raised:
     0 1px 2px var(--shadow), 0 6px 16px -8px var(--shadow),
     0 0 0 1px color-mix(in srgb, var(--border) 80%, transparent);
-  /* A bar resting over what lies below it. */
-  --shadow-bar:
-    0 1px 0 color-mix(in srgb, var(--border) 70%, transparent),
-    0 4px 12px -6px var(--shadow);
-  /* A column resting over its neighbour to the right. */
-  --shadow-side:
-    1px 0 0 color-mix(in srgb, var(--border) 70%, transparent),
-    6px 0 18px -10px var(--shadow);
   --shadow-float:
     0 2px 6px var(--shadow), 0 18px 48px -12px var(--shadow),
     0 0 0 1px color-mix(in srgb, var(--border) 90%, transparent);

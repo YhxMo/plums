@@ -29,8 +29,9 @@ import { fallbackFocus } from "./focus";
 import { agentParts, switchPart, type Part } from "./parts";
 
 // The list's own shadow marks the edge; the handle only shows while used.
+// A hairline between the list and the conversation, brand-coloured while used.
 const handle =
-  "bg-transparent transition-colors after:w-2 hover:bg-brand/50 data-[separator=active]:bg-brand";
+  "bg-border/70 transition-colors after:w-2 hover:bg-brand/50 data-[separator=active]:bg-brand";
 
 export function AgentWorkspace({
   api,
@@ -356,22 +357,18 @@ export function AgentWorkspace({
     <div
       ref={workspaceRoot}
       className={cn(
-        "relative flex h-full min-h-0 pt-2 pr-2 pb-2 transition-[padding] duration-200 ease-out",
+        "relative flex h-full min-h-0 transition-[padding] duration-200 ease-out",
         showDetail && wide && "pr-[336px]",
       )}
     >
       {!showDetail && feedback}
-      {/* One raised surface above the shell's rail; the list casts onto the chat. */}
-      <ResizablePanelGroup
-        orientation="horizontal"
-        className="min-h-0 overflow-hidden rounded-xl bg-background shadow-raised"
-      >
+      <ResizablePanelGroup orientation="horizontal" className="min-h-0">
         <ResizablePanel
           id="agent-list"
           defaultSize={256}
           minSize={208}
           maxSize={380}
-          className="relative z-1 flex min-h-0 flex-col shadow-side"
+          className="flex min-h-0 flex-col"
         >
           {list}
         </ResizablePanel>

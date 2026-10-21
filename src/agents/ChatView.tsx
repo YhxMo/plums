@@ -172,7 +172,7 @@ export function ChatView({
       className="flex min-h-0 flex-1 flex-col"
       aria-label={`${agent.name} 的会话`}
     >
-      <header className="flex min-h-12 shrink-0 items-center gap-2.5 border-b border-border/60 pr-2.5 pl-4 max-md:min-h-[60px] max-md:gap-2 max-md:pr-3 max-md:pl-1">
+      <header className="flex min-h-12 shrink-0 items-center gap-2.5 pr-2.5 pl-4 max-md:min-h-[60px] max-md:gap-2 max-md:pr-3 max-md:pl-1">
         <Button
           variant="ghost"
           size="icon"

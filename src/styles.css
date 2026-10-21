@@ -32,11 +32,9 @@
   --sidebar-divider: #ececef;
   --sidebar-hover: #ebebee;
   --sidebar-active: #e2e2e7;
-  /* Desktop layers, each a step further from the conversation's background:
-   * list, rail, title bar. Derived, so contributed themes keep the ladder. */
-  --list-bg: color-mix(in srgb, var(--text) 4%, var(--background));
-  --rail-bg: color-mix(in srgb, var(--text) 7%, var(--background));
-  --titlebar-bg: color-mix(in srgb, var(--text) 10%, var(--background));
+  /* Desktop chrome (title bar and rail) around the content, a step darker
+   * than the content in both modes. Derived, so contributed themes keep it. */
+  --chrome-bg: color-mix(in srgb, #000 4%, var(--background));
   --radius: 10px;
   --space-1: 8px;
   --space-2: 16px;
@@ -67,6 +65,7 @@
   --sidebar-divider: #2a2a2d;
   --sidebar-hover: #2c2c2f;
   --sidebar-active: #343438;
+  --chrome-bg: color-mix(in srgb, #000 30%, var(--background));
 }
 :root[data-theme="dark"] img[src="/brand/plums.png"] {
   content: url("/brand/plums-dark.png");

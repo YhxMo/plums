@@ -351,27 +351,36 @@ test("the desktop rail switches between the workspace and extension management",
 });
 
 for (const theme of ["light", "dark"] as const) {
-  test(`title bar, rail, list and conversation each have their own tone in ${theme}`, async ({
+  test(`chrome and content are two tones, content the lighter, in ${theme}`, async ({
     page,
   }) => {
     await page.emulateMedia({ colorScheme: theme });
     await page.setViewportSize({ width: 1180, height: 800 });
     await page.goto("/");
     await addAgent(page, "分层");
-    // The rail is transparent over the workbench, whose tone shows around it.
-    const tones = await page.evaluate(() =>
+    // Reads the first non-transparent background at or above each element.
+    const [titleBar, rail, list, conversation] = await page.evaluate(() =>
       [
         document.querySelector("header"),
-        document.querySelector('nav[aria-label="应用导航"]')?.parentElement
-          ?.parentElement,
+        document.querySelector('nav[aria-label="应用导航"]'),
         document.querySelector('aside[aria-label="Agent 列表"]'),
-        document
-          .querySelector('section[aria-label$="的会话"]')
-          ?.closest("[data-panel]")?.parentElement,
-      ].map((element) => element && getComputedStyle(element).backgroundColor),
+        document.querySelector('section[aria-label$="的会话"]'),
+      ].map((start) => {
+        for (let element = start; element; element = element.parentElement) {
+          const color = getComputedStyle(element).backgroundColor;
+          if (color !== "rgba(0, 0, 0, 0)") return color;
+        }
+        return "";
+      }),
     );
-    expect(tones.every(Boolean)).toBe(true);
-    expect(tones).not.toContain("rgba(0, 0, 0, 0)");
-    expect(new Set(tones).size).toBe(4);
+    expect(rail).toBe(titleBar);
+    expect(list).toBe(conversation);
+    expect(conversation).not.toBe(titleBar);
+    const luminance = (color: string) =>
+      color
+        .match(/[\d.]+/g)!
+        .slice(0, 3)
+        .reduce((sum, channel) => sum + Number(channel), 0);
+    expect(luminance(conversation)).toBeGreaterThan(luminance(titleBar));
   });
 }
