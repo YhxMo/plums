@@ -24,7 +24,7 @@ export function TitleBar({
   return (
     <header
       className={cn(
-        "sticky top-0 z-2 flex min-h-12 shrink-0 items-center justify-between gap-3 pr-2 pl-4 select-none max-md:min-h-14 max-md:border-b max-md:bg-surface max-md:px-4",
+        "sticky top-0 z-2 flex min-h-12 shrink-0 items-center justify-between gap-3 bg-titlebar pr-2 pl-4 shadow-bar select-none max-md:min-h-14 max-md:border-b max-md:bg-surface max-md:px-4 max-md:shadow-none",
         isMacOverlay && "pl-[78px] max-md:pl-[78px]",
       )}
       data-tauri-drag-region

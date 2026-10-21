@@ -8,7 +8,7 @@ import { Button } from "../components/ui/button";
 import { Separator } from "../components/ui/separator";
 
 const railButton =
-  "relative size-9 rounded-lg text-muted-foreground hover:bg-sidebar-accent aria-[current=page]:text-foreground [&_svg:not([class*='size-'])]:size-[18px]";
+  "relative size-9 rounded-lg text-muted-foreground hover:bg-foreground/6 aria-[current=page]:text-foreground [&_svg:not([class*='size-'])]:size-[18px]";
 
 /** One rail destination; the active one carries the sliding marker. */
 function Destination({
@@ -60,7 +60,7 @@ export function NavRail({
   return (
     <nav
       aria-label="应用导航"
-      className="flex w-13 shrink-0 flex-col items-center gap-1 pt-0.5 pb-2 max-md:hidden"
+      className="flex w-13 shrink-0 flex-col items-center gap-1 pt-2 pb-2 max-md:hidden"
     >
       {workspace.views.map((view) => (
         <Destination

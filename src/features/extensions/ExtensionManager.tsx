@@ -31,7 +31,7 @@ export function ExtensionManager({
       <aside
         id="extension-manager"
         hidden={!controller.visible}
-        className="mr-2 mb-2 flex min-h-0 w-full flex-1 shrink-0 flex-col overflow-hidden rounded-xl bg-surface shadow-panel max-md:m-0 max-md:rounded-none max-md:shadow-none"
+        className="mt-2 mr-2 mb-2 flex min-h-0 w-full flex-1 shrink-0 flex-col overflow-hidden rounded-xl bg-surface shadow-panel max-md:m-0 max-md:rounded-none max-md:shadow-none"
         aria-label="扩展管理"
       >
         <ManagerHeader controller={controller.header} />

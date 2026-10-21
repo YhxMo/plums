@@ -55,7 +55,7 @@ function AgentRow({
           layout="position"
           {...enter}
           // The status dot's ring follows the row's tint.
-          className="group/row relative flex items-center rounded-lg transition-colors [--row-bg:var(--list-bg,var(--background))] hover:bg-sidebar-accent hover:[--row-bg:var(--sidebar-hover)] data-[selected=true]:[--row-bg:var(--sidebar-active)] data-[selected=true]:hover:bg-transparent data-[selected=true]:hover:[--row-bg:var(--sidebar-active)]"
+          className="group/row relative flex items-center rounded-lg transition-colors [--row-bg:var(--list-bg)] hover:bg-sidebar-accent hover:[--row-bg:var(--sidebar-hover)] data-[selected=true]:[--row-bg:var(--sidebar-active)] data-[selected=true]:hover:bg-transparent data-[selected=true]:hover:[--row-bg:var(--sidebar-active)]"
           data-selected={selected}
         >
           {selected && (
@@ -151,7 +151,7 @@ function PinnedTile({
         >
           <span className="relative">
             <Avatar agent={a} className="shadow-raised" />
-            <span className="absolute -right-0.5 -bottom-0.5 grid size-4 place-items-center rounded-full bg-brand text-primary-foreground ring-2 ring-(--list-bg,var(--background))">
+            <span className="absolute -right-0.5 -bottom-0.5 grid size-4 place-items-center rounded-full bg-brand text-primary-foreground ring-2 ring-list">
               <StarIcon className="size-2 fill-current" />
             </span>
           </span>
@@ -195,8 +195,8 @@ export function AgentList({
   const others = shown.filter((a) => !a.pinned);
   return (
     <aside
-      // Desktop tints the list between the shell's rail and the conversation.
-      className="flex h-full min-h-0 w-full flex-col md:bg-(--list-bg) md:[--list-bg:color-mix(in_srgb,var(--surface)_60%,var(--background))]"
+      // Desktop tints the list between the rail and the conversation.
+      className="flex h-full min-h-0 w-full flex-col md:bg-list"
       aria-label="Agent 列表"
     >
       <div className="flex min-h-12 items-center gap-1.5 pr-2 pl-4 max-md:min-h-0 max-md:px-5 max-md:pt-4 max-md:pb-3">

@@ -41,7 +41,7 @@ export function Workbench({ runtime }: { runtime: Runtime }) {
     authorization,
   });
   return (
-    <div className="flex h-dvh min-h-0 flex-col overflow-hidden bg-sidebar">
+    <div className="flex h-dvh min-h-0 flex-col overflow-hidden bg-rail">
       <TitleBar
         platformKind={runtime.adapter.kind}
         operations={operations}

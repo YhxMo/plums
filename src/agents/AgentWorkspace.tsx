@@ -315,7 +315,7 @@ export function AgentWorkspace({
     <div
       ref={workspaceRoot}
       className={cn(
-        "relative flex h-full min-h-0 bg-sidebar pr-2 pb-2 transition-[padding] duration-200 ease-out",
+        "relative flex h-full min-h-0 pt-2 pr-2 pb-2 transition-[padding] duration-200 ease-out",
         showDetail && wide && "pr-[336px]",
       )}
     >

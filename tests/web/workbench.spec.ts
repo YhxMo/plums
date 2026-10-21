@@ -1,4 +1,4 @@
-import { manage, legacyEntry, chooseLayout } from "./helpers";
+import { addAgent, manage, legacyEntry, chooseLayout } from "./helpers";
 import { test, expect, type Page } from "@playwright/test";
 async function authorize(page: Page) {
   await page
@@ -349,3 +349,29 @@ test("the desktop rail switches between the workspace and extension management",
     page.getByRole("banner").getByRole("button", { name: "应用菜单" }),
   ).toBeVisible();
 });
+
+for (const theme of ["light", "dark"] as const) {
+  test(`title bar, rail, list and conversation each have their own tone in ${theme}`, async ({
+    page,
+  }) => {
+    await page.emulateMedia({ colorScheme: theme });
+    await page.setViewportSize({ width: 1180, height: 800 });
+    await page.goto("/");
+    await addAgent(page, "分层");
+    // The rail is transparent over the workbench, whose tone shows around it.
+    const tones = await page.evaluate(() =>
+      [
+        document.querySelector("header"),
+        document.querySelector('nav[aria-label="应用导航"]')?.parentElement
+          ?.parentElement,
+        document.querySelector('aside[aria-label="Agent 列表"]'),
+        document
+          .querySelector('section[aria-label$="的会话"]')
+          ?.closest("[data-panel]")?.parentElement,
+      ].map((element) => element && getComputedStyle(element).backgroundColor),
+    );
+    expect(tones.every(Boolean)).toBe(true);
+    expect(tones).not.toContain("rgba(0, 0, 0, 0)");
+    expect(new Set(tones).size).toBe(4);
+  });
+}
