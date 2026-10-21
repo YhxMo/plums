@@ -87,17 +87,13 @@ export async function extensionDetail(page: Page, card: Locator) {
   return page.getByRole("region", { name: "所选扩展详情" });
 }
 
-/** Phones name the conversation in the title bar; desktop in its own header. */
+/** The conversation names itself in its own header; the title bar never repeats it. */
 export async function expectConversationTitle(
   page: Page,
-  width: number,
+  _width: number,
   agent: string,
   session: string,
 ) {
-  if (width < 768)
-    return expect(page.getByRole("banner")).toContainText(
-      `${agent} · ${session}`,
-    );
   const header = page
     .getByRole("region", { name: `${agent} 的会话` })
     .locator("header");

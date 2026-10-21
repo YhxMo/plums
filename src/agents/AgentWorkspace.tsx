@@ -92,18 +92,9 @@ export function AgentWorkspace({
   const agent = agents.find((a) => a.id === selected);
   const key = agent ? `${agent.id}:${agent.currentSessionId}` : "";
   useEffect(() => {
-    const session = agent?.sessions.find(
-      (item) => item.id === agent.currentSessionId,
-    );
-    const title =
-      agent && session
-        ? session.title && session.title !== agent.name
-          ? `${agent.name} · ${session.title}`
-          : agent.name
-        : "";
     chrome.publish({
-      // The desktop conversation names itself in its own header.
-      title: mobile ? title : "",
+      // The conversation names itself in its own header, on every width.
+      title: "",
       back: mobile && agent ? returnToList : undefined,
       contextOwner: agent?.extensionId,
       sidebar: agents.length
