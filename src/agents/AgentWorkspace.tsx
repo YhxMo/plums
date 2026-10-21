@@ -26,9 +26,9 @@ import type { AgentAction } from "./AgentMenu";
 import { fallbackFocus } from "./focus";
 import { agentParts, switchPart, type Part } from "./parts";
 
-// An invisible gutter that shows a thin line while hovered or dragged.
+// A hairline between columns that turns brand-coloured while hovered or dragged.
 const handle =
-  "w-2 bg-transparent before:absolute before:inset-y-4 before:left-1/2 before:w-px before:-translate-x-1/2 before:rounded-full before:bg-transparent before:transition-colors after:w-2 hover:before:bg-brand/50 data-[separator=active]:before:bg-brand";
+  "bg-border/60 transition-colors after:w-2 hover:bg-brand/50 data-[separator=active]:bg-brand";
 
 export function AgentWorkspace({
   api,
@@ -225,7 +225,6 @@ export function AgentWorkspace({
       draft={drafts[key] ?? ""}
       onDraft={(value) => setDrafts((d) => ({ ...d, [key]: value }))}
       onBack={returnToList}
-      detailOpen={detail}
       models={api.modelChoices?.()}
       onModel={
         api.setModel &&
@@ -233,8 +232,9 @@ export function AgentWorkspace({
       }
       onDetail={(source) => {
         detailTrigger.current = source;
-        setDetail((d) => !d);
+        setDetail(true);
       }}
+      onAction={(action, source) => agentAction(agent, action, source)}
       onCancel={() => api.cancel(agent.id)}
       onSend={() => {
         const input = drafts[key] ?? "";
@@ -311,16 +311,20 @@ export function AgentWorkspace({
   return (
     <div
       ref={workspaceRoot}
-      className="relative flex h-full min-h-0 bg-sidebar"
+      className="relative flex h-full min-h-0 bg-sidebar pr-2 pb-2"
     >
       {feedback}
-      <ResizablePanelGroup orientation="horizontal" className="min-h-0">
+      {/* One raised surface above the shell's rail; columns split by hairlines. */}
+      <ResizablePanelGroup
+        orientation="horizontal"
+        className="min-h-0 overflow-hidden rounded-xl bg-background shadow-raised"
+      >
         <ResizablePanel
           id="agent-list"
           defaultSize={256}
           minSize={208}
           maxSize={380}
-          className="flex min-h-0 flex-col pt-1"
+          className="flex min-h-0 flex-col"
         >
           {list}
         </ResizablePanel>
@@ -328,11 +332,9 @@ export function AgentWorkspace({
         <ResizablePanel
           id="agent-main"
           minSize={360}
-          className="flex min-h-0 pr-2 pb-2"
+          className="flex min-h-0 min-w-0 flex-col"
         >
-          <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-2xl bg-background shadow-raised">
-            {main}
-          </div>
+          {main}
         </ResizablePanel>
         {showDetail && wide && (
           <>
@@ -342,7 +344,7 @@ export function AgentWorkspace({
               defaultSize={300}
               minSize={260}
               maxSize={440}
-              className="flex min-h-0 pr-2 pb-2"
+              className="flex min-h-0"
             >
               <motion.div
                 initial={{ opacity: 0, x: 16 }}
@@ -364,7 +366,7 @@ export function AgentWorkspace({
             animate={{ opacity: 1, x: 0 }}
             exit={{ opacity: 0, x: 24 }}
             transition={{ duration: 0.2, ease: "easeOut" }}
-            className="absolute top-0 right-2 bottom-2 z-10 flex w-[300px] rounded-2xl shadow-float"
+            className="absolute top-0 right-2 bottom-2 z-10 flex w-[300px] overflow-hidden rounded-xl shadow-float"
           >
             {detailContent}
           </motion.div>

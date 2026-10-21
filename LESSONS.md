@@ -30,3 +30,4 @@
 | 证据运行不得复用来源不明服务，异步界面等待须用有界条件 | Playwright 原默认复用 1420 现存服务，可能绑定旧源码；React 生命周期测试用固定 50ms 等待 | E2E 默认自起服务、复用需显式 `PLUMS_E2E_REUSE_SERVER=1`；固定延时改为有界条件轮询并在超时时失败，见 `playwright.config.ts` 与 `tests/web/react-view-lifecycle.spec.ts` |
 | 失败回退不写内部哨兵 | 视图挂载失败曾把空字符串写入 layout 偏好，抑制诊断并在重启后静默回退 | 保留失败标识或最后可用视图，空布局在解析层归一；冷启动失败布局的浏览器回归覆盖持久化值，见 `src/shell/selection.ts` 与 `tests/web/workbench.spec.ts` |
 | 绝对定位的隐藏文字须由所在滚动区容纳 | Mac 包长对话后整个工作区上移、下方留空；WebKit 把会话里 `.sr-only` 说话人标签计入外层 `stageArea` 溢出，滚到会话末尾时滚动链带动整页；Chromium 不计入，E2E 未发现 | 滚动区设 `position: relative` 容纳这些标签；[长对话回归](tests/web/agent-flow.spec.ts) 断言标签的定位祖先在会话内，WebKit 用 Playwright webkit 实测外层不再可滚动 |
+| 界面视觉须在 WebKit 下核对 | Mac 包详情栏标题行被拉高到 64–96px、分区留白过大；WebKit 拉伸 `grid` 分区内的标题行，Chromium 截图与 E2E 均正常 | 分区等纵向堆叠用 flex 列而非单列 grid；Mac 相关的间距与布局用 Playwright webkit 截图或量取几何核对，不以 Chromium 结果代替 |

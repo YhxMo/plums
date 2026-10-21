@@ -69,8 +69,8 @@ export function MessageRow({
       className={cn(
         "m-0 min-w-0 wrap-anywhere whitespace-pre-wrap",
         user
-          ? "max-w-[min(80%,560px)] rounded-[20px] rounded-br-md bg-subtle px-4 py-2.5 text-[14px] leading-relaxed max-md:max-w-[85%] max-md:text-[15px]"
-          : "text-[15px] leading-7 max-md:font-reading max-md:text-base max-md:leading-[1.7]",
+          ? "max-w-[min(80%,560px)] rounded-[18px] rounded-br-md bg-subtle px-3.5 py-2 text-sm leading-relaxed max-md:max-w-[85%] max-md:text-[15px]"
+          : "text-sm leading-6.5 max-md:font-reading max-md:text-base max-md:leading-[1.7]",
         status &&
           "flex items-center gap-2 text-[13px] text-muted-foreground max-md:font-sans",
         "rounded-md transition-shadow data-[state=open]:ring-2 data-[state=open]:ring-brand/50 data-[state=open]:ring-offset-4 data-[state=open]:ring-offset-background",

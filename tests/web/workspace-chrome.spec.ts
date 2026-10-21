@@ -170,7 +170,9 @@ for (const scenario of ["resize", "dynamic"]) {
       .getByRole("button", { name: "与 外部角色 交互", exact: true })
       .click();
     if (scenario === "resize") {
-      await page.getByRole("button", { name: "查看 Agent 详情" }).click();
+      // The title bar button belongs to the extension's sidebar here.
+      await page.getByRole("button", { name: "更多操作", exact: true }).click();
+      await page.getByRole("menuitem", { name: "查看 Agent 详情" }).click();
       await expect(
         page.getByRole("dialog", { name: "Agent 详情" }),
       ).toBeVisible();
@@ -287,7 +289,7 @@ test("icon-only buttons keep their icon centred on phones and desktop", async ({
   await page.goto("/");
   await addAgent(page, "手机");
   await expect(
-    page.getByRole("button", { name: "查看 Agent 详情", exact: true }),
+    page.getByRole("button", { name: "更多操作", exact: true }),
   ).toBeVisible();
   expect(await offCentre()).toEqual([]);
   await manage(page);
@@ -295,3 +297,40 @@ test("icon-only buttons keep their icon centred on phones and desktop", async ({
   await page.setViewportSize({ width: 1280, height: 800 });
   expect(await offCentre()).toEqual([]);
 });
+
+for (const width of [375, 1280]) {
+  test(`one sidebar button toggles details; the more menu holds Agent actions at ${width}px`, async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width, height: 820 });
+    await page.goto("/");
+    await addAgent(page, "菜单");
+    const details = page.getByRole(width < 768 ? "dialog" : "complementary", {
+      name: "Agent 详情",
+    });
+    await expect(page.getByRole("button", { name: /详情/ })).toHaveCount(0);
+    const more = page.getByRole("button", { name: "更多操作", exact: true });
+    await more.click();
+    const menu = page.getByRole("menu", { name: "更多操作" });
+    await expect(menu.getByRole("menuitem")).toHaveText([
+      "查看 Agent 详情",
+      "设为特别关注",
+      "重命名",
+      "移除 Agent",
+    ]);
+    await menu.getByRole("menuitem", { name: "重命名" }).click();
+    await expect(page.getByRole("dialog", { name: /重命名/ })).toBeVisible();
+    await page.keyboard.press("Escape");
+    await expect(more).toBeFocused();
+    const toggle = page.getByRole("button", {
+      name: "展开或收起右侧栏",
+      exact: true,
+    });
+    await toggle.click();
+    await expect(details).toBeVisible();
+    if (width >= 768) {
+      await toggle.click();
+      await expect(details).toHaveCount(0);
+    }
+  });
+}

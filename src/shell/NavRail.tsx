@@ -8,7 +8,7 @@ import { Button } from "../components/ui/button";
 import { Separator } from "../components/ui/separator";
 
 const railButton =
-  "relative size-10 rounded-xl text-muted-foreground hover:bg-sidebar-accent aria-[current=page]:text-foreground [&_svg:not([class*='size-'])]:size-5";
+  "relative size-9 rounded-lg text-muted-foreground hover:bg-sidebar-accent aria-[current=page]:text-foreground [&_svg:not([class*='size-'])]:size-[18px]";
 
 /** One rail destination; the active one carries the sliding marker. */
 function Destination({
@@ -36,7 +36,7 @@ function Destination({
           <motion.span
             layoutId="rail-active"
             transition={{ type: "spring", stiffness: 520, damping: 38 }}
-            className="absolute inset-0 rounded-xl bg-card shadow-raised"
+            className="absolute inset-0 rounded-lg bg-background shadow-panel"
           />
         )}
         <span className="relative grid place-items-center">{children}</span>
@@ -60,7 +60,7 @@ export function NavRail({
   return (
     <nav
       aria-label="应用导航"
-      className="flex w-15 shrink-0 flex-col items-center gap-1.5 pt-1 pb-3 max-md:hidden"
+      className="flex w-13 shrink-0 flex-col items-center gap-1 pt-0.5 pb-2 max-md:hidden"
     >
       {workspace.views.map((view) => (
         <Destination
@@ -74,12 +74,10 @@ export function NavRail({
           }}
         >
           {/* Views carry no icon in their contract; their initial stands in. */}
-          <span className="text-[15px] font-semibold">
-            {[...view.label][0]}
-          </span>
+          <span className="text-sm font-semibold">{[...view.label][0]}</span>
         </Destination>
       ))}
-      <Separator className="my-1 w-6! bg-sidebar-border" />
+      <Separator className="my-1 w-5! bg-sidebar-border" />
       <Destination
         label="扩展管理"
         active={managerOpen}

@@ -54,7 +54,7 @@ test("system Back dismisses only the top dialog and returns focus", async ({
   await page.setViewportSize({ width: 375, height: 820 });
   await page.goto("/");
   await createAgent(page);
-  const trigger = page.getByRole("button", { name: "查看 Agent 详情" });
+  const trigger = page.getByRole("button", { name: "展开或收起右侧栏" });
   await trigger.click();
   const detail = page.getByRole("dialog", { name: "Agent 详情", exact: true });
   const remove = detail.getByRole("button", {
@@ -154,7 +154,7 @@ test("system Back closes an open model picker before the details", async ({
   await page.setViewportSize({ width: 375, height: 820 });
   await page.goto("/");
   await createAgent(page);
-  await page.getByRole("button", { name: "查看 Agent 详情" }).click();
+  await page.getByRole("button", { name: "展开或收起右侧栏" }).click();
   const detail = page.getByRole("dialog", { name: "Agent 详情", exact: true });
   const picker = detail.getByRole("combobox", {
     name: "Back probe 使用的模型",

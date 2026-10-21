@@ -1,4 +1,4 @@
-import { PanelRightIcon } from "lucide-react";
+import { MenuIcon, PanelRightIcon } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { cn } from "cn";
 import type { TitleBarProps } from "./controllers";
@@ -72,7 +72,11 @@ export function TitleBar({
         {/* Desktop keeps these in the navigation rail. */}
         <div className="contents md:hidden">
           <ThemeToggle appearance={appearance} operations={operations} />
-          <AppMenu workspace={workspace} navigation={navigation} />
+          <AppMenu
+            workspace={workspace}
+            navigation={navigation}
+            icon={<MenuIcon />}
+          />
         </div>
         <Tooltip
           label={

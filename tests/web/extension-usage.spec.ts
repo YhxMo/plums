@@ -9,10 +9,7 @@ for (const width of [375, 1280]) {
     await page.goto("/");
     await addAgent(page, "写作助手");
     await page
-      .getByRole("button", {
-        name: width < 768 ? "查看 Agent 详情" : "展开或收起右侧栏",
-        exact: true,
-      })
+      .getByRole("button", { name: "展开或收起右侧栏", exact: true })
       .click();
     await expect(
       page.getByRole("button", { name: "查看扩展 本地 Agent 提供者" }),

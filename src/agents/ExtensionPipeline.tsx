@@ -87,7 +87,7 @@ function PipelineRow({
         }
       }
       className={cn(
-        "relative flex items-center gap-2 rounded-lg bg-card py-2 pr-3 pl-1.5 shadow-panel transition-[box-shadow,opacity]",
+        "relative flex items-center gap-2 rounded-lg bg-card py-1.5 pr-3 pl-1.5 shadow-panel transition-[box-shadow,opacity]",
         !on &&
           "bg-transparent opacity-80 shadow-none ring-1 ring-border ring-inset",
         drag?.isDragging && "z-10 shadow-float",
@@ -225,7 +225,7 @@ export function ExtensionPipeline({
         </ul>
       )}
       {!choices.length && (
-        <p className="flex items-center gap-2 rounded-lg bg-muted/60 px-3 py-2.5 text-xs text-muted-foreground">
+        <p className="flex items-center gap-2 rounded-lg bg-muted/60 px-3 py-2 text-xs text-muted-foreground">
           <PuzzleIcon className="size-4 shrink-0" />
           没有可开启的文本扩展。
         </p>

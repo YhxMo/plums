@@ -36,8 +36,8 @@ function Section({
   children: ReactNode;
 }) {
   return (
-    <section className="grid grid-cols-1 gap-2.5 border-t border-border/60 px-4.5 py-4 max-md:px-6 max-md:py-5">
-      <div className="flex min-h-7 items-center justify-between gap-2">
+    <section className="flex flex-col gap-2 border-t border-border/60 px-4 py-3 max-md:px-6 max-md:py-5">
+      <div className="flex min-h-6 items-center justify-between gap-2">
         <h3 className="flex items-center gap-1 text-xs font-semibold tracking-wide text-muted-foreground max-md:text-sm">
           {title}
           {info && <InfoTip label={title} text={info} />}
@@ -90,16 +90,16 @@ export function DetailPanel({
   const busy = agent.status === "busy";
   return (
     <aside
-      className="flex h-full w-full flex-col overflow-hidden bg-background md:rounded-2xl md:shadow-raised"
+      className="flex h-full w-full flex-col overflow-hidden bg-background"
       aria-label="Agent 详情"
     >
-      <header className="flex min-h-12 shrink-0 items-center justify-between py-1.5 pr-2.5 pl-4.5 max-md:min-h-14 max-md:pl-6">
+      <header className="flex min-h-12 shrink-0 items-center justify-between border-b border-border/60 pr-2.5 pl-4 max-md:min-h-14 max-md:border-0 max-md:pl-6">
         <h2 className="text-[13px] font-semibold max-md:text-base">
           Agent 详情
         </h2>
         <Button
           variant="ghost"
-          size="icon"
+          size="icon-sm"
           aria-label="收起详情"
           onClick={onClose}
         >
@@ -107,9 +107,12 @@ export function DetailPanel({
         </Button>
       </header>
       <div className="min-h-0 flex-1 overflow-y-auto">
-        <div className="flex flex-col items-center gap-1 px-4.5 pt-2 pb-5 text-center">
-          <Avatar agent={agent} size="large" className="shadow-raised" />
-          <h2 className="mt-2.5 text-base font-semibold wrap-anywhere">
+        <div className="flex flex-col items-center gap-0.5 px-4 pt-4 pb-4 text-center">
+          <Avatar
+            agent={agent}
+            className="size-12 shadow-raised [&_svg]:size-6"
+          />
+          <h2 className="mt-2 text-[15px] font-semibold wrap-anywhere">
             {agent.name}
           </h2>
           <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
@@ -124,8 +127,8 @@ export function DetailPanel({
           </span>
           <Button
             variant={agent.pinned ? "secondary" : "outline"}
-            size="sm"
-            className="mt-2.5"
+            size="xs"
+            className="mt-2"
             onClick={onPin}
           >
             <StarIcon className={cn(agent.pinned && "fill-brand text-brand")} />

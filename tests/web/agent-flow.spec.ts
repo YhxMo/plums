@@ -78,7 +78,7 @@ for (const width of [375, 1440]) {
     await expect(page.getByRole("log")).toContainText("HELLO AGENT");
     await expectConversationTitle(page, width, "编程助手", "hello agent");
     if (width === 375)
-      await page.getByRole("button", { name: "查看 Agent 详情" }).click();
+      await page.getByRole("button", { name: "展开或收起右侧栏" }).click();
     else await sidebarToggle(page).click();
     await page
       .getByRole("button", { name: "设为特别关注", exact: true })
@@ -97,7 +97,7 @@ for (const width of [375, 1440]) {
       .getByRole("button", { name: "打开 编程助手", exact: true })
       .click();
     if (width === 375)
-      await page.getByRole("button", { name: "查看 Agent 详情" }).click();
+      await page.getByRole("button", { name: "展开或收起右侧栏" }).click();
     else await sidebarToggle(page).click();
     await page
       .getByRole("button", { name: "hello agent", exact: true })
@@ -206,7 +206,7 @@ test("mobile details trap focus and allow rename and session deletion", async ({
   await page.setViewportSize({ width: 375, height: 812 });
   await page.goto("/");
   await add(page);
-  await page.getByRole("button", { name: "查看 Agent 详情" }).click();
+  await page.getByRole("button", { name: "展开或收起右侧栏" }).click();
   const detail = page.getByRole("dialog", { name: "Agent 详情", exact: true });
   for (let i = 0; i < 12; i++) await page.keyboard.press("Tab");
   expect(
@@ -228,7 +228,7 @@ test("mobile details trap focus and allow rename and session deletion", async ({
   ).toBeFocused();
   await page.keyboard.press("Escape");
   await expect(
-    page.getByRole("button", { name: "查看 Agent 详情" }),
+    page.getByRole("button", { name: "展开或收起右侧栏" }),
   ).toBeFocused();
   await page.getByRole("button", { name: "返回 Agent 列表" }).click();
   await page
@@ -465,7 +465,7 @@ test("mobile detail pin failure appears inside the current modal", async ({
   await manage(page, true);
   await page.getByLabel("注入存储写入失败").check();
   await page.getByRole("button", { name: "返回工作区", exact: true }).click();
-  await page.getByRole("button", { name: "查看 Agent 详情" }).click();
+  await page.getByRole("button", { name: "展开或收起右侧栏" }).click();
   const detail = page.getByRole("dialog", { name: "Agent 详情", exact: true });
   await detail
     .getByRole("button", { name: "设为特别关注", exact: true })
@@ -552,7 +552,7 @@ test("non-focusing mobile detail and nested dialog return to their own triggers"
   await add(page);
   const input = page.getByRole("textbox", { name: "消息", exact: true });
   await input.focus();
-  const trigger = page.getByRole("button", { name: "查看 Agent 详情" });
+  const trigger = page.getByRole("button", { name: "展开或收起右侧栏" });
   await trigger.evaluate((button) => (button as HTMLButtonElement).click());
   const detail = page.getByRole("dialog", { name: "Agent 详情", exact: true });
   const remove = detail.getByRole("button", {
