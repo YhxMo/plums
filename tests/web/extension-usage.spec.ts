@@ -192,4 +192,22 @@ test("each Agent picks its own model and the model receives the conversation so 
   await add.getByRole("button", { name: "添加", exact: true }).click();
   await send("你好");
   await expect(page.getByRole("log")).toContainText("echo-a｜第 1 轮");
+  // The composer switches the same per-Agent model without opening details.
+  const composer = page.getByRole("combobox", {
+    name: "切换模型",
+    exact: true,
+  });
+  await expect(composer).toHaveText(/回显 A/);
+  await composer.click();
+  await page
+    .getByRole("listbox", { name: "切换模型" })
+    .getByRole("option", { name: /^回显 B/ })
+    .click();
+  await expect(composer).toHaveText(/回显 B/);
+  await send("再来");
+  await expect(page.getByRole("log")).toContainText("echo-b｜第 2 轮");
+  await toggleDetails.click();
+  await expect(
+    page.getByRole("combobox", { name: "乙 使用的模型", exact: true }),
+  ).toHaveText(/回显 B/);
 });

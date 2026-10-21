@@ -3,7 +3,6 @@ import { CheckIcon, CopyIcon, RotateCcwIcon, Trash2Icon } from "lucide-react";
 import { motion } from "motion/react";
 import { cn } from "cn";
 import type { Agent, Message } from "../../modules/agents/contract";
-import { Avatar } from "./Avatar";
 import { Tooltip } from "../components/Tooltip";
 import { Button } from "../components/ui/button";
 import {
@@ -24,9 +23,10 @@ const actions: Record<MessageAction, { label: string; icon: typeof CopyIcon }> =
   };
 
 /**
- * One chat line. Desktop reads like a messenger (avatars, bubbles, hover
- * actions, a right-click menu); phones read replies as prose and keep only
- * the own turn in a bubble.
+ * One chat line. Replies read as prose across the column and the own turn
+ * sits in a bubble on the right; on desktop each saved line has actions
+ * below it (on hover or focus, always for the latest reply) and a
+ * right-click menu.
  */
 export function MessageRow({
   agent,
@@ -38,6 +38,7 @@ export function MessageRow({
   copied,
   canDelete,
   pointerMenu,
+  latest,
   onAction,
 }: {
   agent: Agent;
@@ -52,6 +53,8 @@ export function MessageRow({
   canDelete?: boolean;
   /** Offers the right-click menu (desktop only). */
   pointerMenu?: boolean;
+  /** The last reply keeps its actions in view. */
+  latest?: boolean;
   onAction?: (action: MessageAction, message: Message) => void;
 }) {
   const user = role === "user";
@@ -64,14 +67,13 @@ export function MessageRow({
     <p
       role={status ? "status" : undefined}
       className={cn(
-        "m-0 min-w-0 text-[14px] leading-relaxed wrap-anywhere whitespace-pre-wrap",
-        "md:max-w-[min(68%,600px)] md:rounded-xl md:px-3.5 md:py-2 md:shadow-panel",
+        "m-0 min-w-0 wrap-anywhere whitespace-pre-wrap",
         user
-          ? "bg-subtle max-md:max-w-[85%] max-md:rounded-[18px_18px_6px_18px] max-md:px-3.5 max-md:py-2.5 max-md:text-[15px] md:rounded-tr-sm md:bg-brand-soft md:shadow-none"
-          : "max-md:font-reading max-md:text-base max-md:leading-[1.7] md:rounded-tl-sm md:bg-card",
+          ? "max-w-[min(80%,560px)] rounded-[20px] rounded-br-md bg-subtle px-4 py-2.5 text-[14px] leading-relaxed max-md:max-w-[85%] max-md:text-[15px]"
+          : "text-[15px] leading-7 max-md:font-reading max-md:text-base max-md:leading-[1.7]",
         status &&
-          "flex items-center gap-2 bg-transparent! text-[13px] text-muted-foreground shadow-none! max-md:font-sans md:pl-1",
-        "data-[state=open]:ring-2 data-[state=open]:ring-brand/60",
+          "flex items-center gap-2 text-[13px] text-muted-foreground max-md:font-sans",
+        "rounded-md transition-shadow data-[state=open]:ring-2 data-[state=open]:ring-brand/50 data-[state=open]:ring-offset-4 data-[state=open]:ring-offset-background",
       )}
     >
       {status && (
@@ -80,7 +82,7 @@ export function MessageRow({
             <motion.span
               key={i}
               className="size-1.5 rounded-full bg-brand"
-              animate={{ opacity: [0.25, 1, 0.25] }}
+              animate={{ opacity: [0.25, 1, 0.25], y: [0, -2, 0] }}
               transition={{ duration: 1.2, repeat: Infinity, delay: i * 0.2 }}
             />
           ))}
@@ -93,28 +95,18 @@ export function MessageRow({
     <motion.div
       ref={row}
       layout="position"
-      initial={{ opacity: 0, y: 8 }}
+      initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, scale: 0.98 }}
-      transition={{ duration: 0.2, ease: "easeOut" }}
+      transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
       className={cn(
-        "group/row flex min-w-0 items-start gap-2.5",
-        user && "flex-row-reverse max-md:flex-row max-md:justify-end",
-        !user && "max-md:block",
+        "group/row relative flex min-w-0 flex-col gap-1",
+        user ? "items-end" : "items-start",
       )}
     >
-      <span className="flex shrink-0 max-md:hidden" aria-hidden="true">
-        {user ? (
-          <span className="grid size-8 place-items-center rounded-full bg-subtle text-xs font-semibold">
-            你
-          </span>
-        ) : (
-          <Avatar agent={agent} size="small" className="size-8" />
-        )}
-      </span>
       {!user && (
         <span
-          className="mb-1 hidden text-xs font-medium text-muted-foreground max-md:block"
+          className="mb-0.5 hidden text-xs font-medium text-muted-foreground max-md:block"
           aria-hidden="true"
         >
           {agent.name}
@@ -172,7 +164,12 @@ export function MessageRow({
       )}
       {message && onAction && (
         <div
-          className="flex gap-0.5 self-end opacity-0 transition-opacity group-focus-within/row:opacity-100 group-hover/row:opacity-100 group-has-data-[state=open]/row:opacity-100 max-md:hidden"
+          className={cn(
+            "-mx-1 flex gap-0.5 transition-opacity group-focus-within/row:opacity-100 group-hover/row:opacity-100 group-has-data-[state=open]/row:opacity-100 max-md:hidden",
+            // Hidden actions float in the gap below instead of spacing lines apart.
+            !(latest && !user) && "absolute top-full opacity-0",
+            user ? "right-0" : "left-0",
+          )}
           data-message-id={message.id}
         >
           {available.map((action) => {
@@ -189,7 +186,13 @@ export function MessageRow({
                   onClick={() => onAction(action, message)}
                 >
                   {action === "copy" && copied ? (
-                    <CheckIcon className="text-running" />
+                    <motion.span
+                      initial={{ scale: 0.4, opacity: 0 }}
+                      animate={{ scale: 1, opacity: 1 }}
+                      className="grid place-items-center"
+                    >
+                      <CheckIcon className="text-running" />
+                    </motion.span>
                   ) : (
                     <Icon />
                   )}

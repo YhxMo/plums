@@ -1,8 +1,8 @@
-import { MoonIcon, PanelRightIcon, SunIcon } from "lucide-react";
+import { PanelRightIcon } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { cn } from "cn";
 import type { TitleBarProps } from "./controllers";
-import { SettingsMenu } from "../components/SettingsMenu";
+import { AppMenu, ThemeToggle } from "./ShellActions";
 import { Tooltip } from "../components/Tooltip";
 import { Button } from "../components/ui/button";
 
@@ -19,14 +19,12 @@ export function TitleBar({
     ? "扩展管理"
     : chrome.title ||
       (workspace.current?.chrome ? "" : workspace.current?.label || "工作空间");
-  const light = appearance.appearance === "light";
-  const themeLabel = light ? "切换到深色模式" : "切换到浅色模式";
   const isMacOverlay =
     platformKind === "native" && !/android/i.test(navigator.userAgent);
   return (
     <header
       className={cn(
-        "sticky top-0 z-2 flex min-h-12 shrink-0 items-center justify-between gap-3 px-3 select-none max-md:min-h-14 max-md:border-b max-md:bg-surface max-md:px-4",
+        "sticky top-0 z-2 flex min-h-12 shrink-0 items-center justify-between gap-3 pr-2 pl-4 select-none max-md:min-h-14 max-md:border-b max-md:bg-surface max-md:px-4",
         isMacOverlay && "pl-[78px] max-md:pl-[78px]",
       )}
       data-tauri-drag-region
@@ -40,11 +38,11 @@ export function TitleBar({
           data-tauri-drag-region
         >
           <img
-            className="size-6.5 rounded-md object-contain max-md:size-7.5"
+            className="size-6 rounded-md object-contain max-md:size-7.5"
             src="/brand/plums.png"
             alt=""
           />
-          <strong className="text-[15px] font-semibold tracking-tight max-md:text-[17px]">
+          <strong className="text-[13px] font-semibold tracking-tight max-md:text-[17px]">
             Plums
           </strong>
         </div>
@@ -71,39 +69,11 @@ export function TitleBar({
         </AnimatePresence>
       </div>
       <div className="flex shrink-0 items-center gap-0.5">
-        <Tooltip label={themeLabel}>
-          <Button
-            variant="ghost"
-            size="icon"
-            aria-label={themeLabel}
-            disabled={operations.busy}
-            onClick={() => void operations.operate(appearance.toggleTheme)}
-          >
-            <AnimatePresence mode="wait" initial={false}>
-              <motion.span
-                key={light ? "moon" : "sun"}
-                initial={{ opacity: 0, rotate: -60, scale: 0.6 }}
-                animate={{ opacity: 1, rotate: 0, scale: 1 }}
-                exit={{ opacity: 0, rotate: 60, scale: 0.6 }}
-                transition={{ duration: 0.18 }}
-                className="grid place-items-center"
-              >
-                {light ? <MoonIcon /> : <SunIcon />}
-              </motion.span>
-            </AnimatePresence>
-          </Button>
-        </Tooltip>
-        <SettingsMenu
-          views={workspace.allViews.filter(
-            (view) => view.presentation === "dialog",
-          )}
-          onView={navigation.setDialog}
-          onChoose={(action) => {
-            if (action === "extensions" || action === "diagnostics") {
-              navigation.openManager(action === "diagnostics");
-            } else navigation.setDialog(action);
-          }}
-        />
+        {/* Desktop keeps these in the navigation rail. */}
+        <div className="contents md:hidden">
+          <ThemeToggle appearance={appearance} operations={operations} />
+          <AppMenu workspace={workspace} navigation={navigation} />
+        </div>
         <Tooltip
           label={
             chrome.custom ? `切换 ${chrome.custom.label}` : "展开或收起右侧栏"
@@ -114,7 +84,7 @@ export function TitleBar({
             size="icon"
             aria-label="展开或收起右侧栏"
             aria-pressed={chrome.open}
-            className="aria-pressed:bg-muted aria-pressed:text-foreground"
+            className="text-muted-foreground aria-pressed:bg-muted aria-pressed:text-foreground"
             onClick={(event) => chrome.toggle(event.currentTarget)}
           >
             <PanelRightIcon />

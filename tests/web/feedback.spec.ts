@@ -47,7 +47,10 @@ test("keyboard focus shows a tooltip until focus moves on", async ({
     await page.keyboard.press("Tab");
   }
   await expect(theme).toBeFocused();
-  await expect(page.getByRole("tooltip")).toHaveText(/^切换到(深色|浅色)模式$/);
+  // Tooltips of buttons tabbed past may still be fading out.
+  await expect(
+    page.getByRole("tooltip", { name: /^切换到(深色|浅色)模式$/ }),
+  ).toBeVisible();
   await page.keyboard.press("Tab");
   await expect(
     page.getByRole("tooltip").filter({ hasText: /^切换到(深色|浅色)模式$/ }),

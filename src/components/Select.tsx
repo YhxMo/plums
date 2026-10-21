@@ -1,4 +1,5 @@
-import { Fragment } from "react";
+import { Fragment, type ComponentProps } from "react";
+import { cn } from "cn";
 import {
   Select as SelectRoot,
   SelectContent,
@@ -33,6 +34,8 @@ export function Select({
   onChange,
   disabled,
   placeholder = "请选择",
+  size,
+  className,
 }: {
   label: string;
   value: string;
@@ -40,6 +43,9 @@ export function Select({
   onChange: (value: string) => void;
   disabled?: boolean;
   placeholder?: string;
+  size?: ComponentProps<typeof SelectTrigger>["size"];
+  /** Restyles the button, such as a borderless picker inside a toolbar. */
+  className?: string;
 }) {
   const selected = options.some((option) => option.value === value);
   return (
@@ -51,10 +57,14 @@ export function Select({
         if (choice !== value) onChange(choice);
       }}
     >
-      <SelectTrigger aria-label={label} className="w-full min-w-0 bg-card">
+      <SelectTrigger
+        aria-label={label}
+        size={size}
+        className={cn("w-full min-w-0 bg-card", className)}
+      >
         <SelectValue placeholder={placeholder} />
       </SelectTrigger>
-      <SelectContent position="popper" aria-label={label}>
+      <SelectContent position="popper" align="start" aria-label={label}>
         {groups(options).map(({ group, items }) => {
           const rows = items.map((option) => (
             <SelectItem

@@ -36,7 +36,7 @@ function Section({
   children: ReactNode;
 }) {
   return (
-    <section className="grid grid-cols-1 gap-2.5 border-t border-sidebar-border/70 px-4.5 py-4 max-md:px-6 max-md:py-5">
+    <section className="grid grid-cols-1 gap-2.5 border-t border-border/60 px-4.5 py-4 max-md:px-6 max-md:py-5">
       <div className="flex min-h-7 items-center justify-between gap-2">
         <h3 className="flex items-center gap-1 text-xs font-semibold tracking-wide text-muted-foreground max-md:text-sm">
           {title}
@@ -90,7 +90,7 @@ export function DetailPanel({
   const busy = agent.status === "busy";
   return (
     <aside
-      className="flex h-full w-full flex-col overflow-hidden bg-sidebar md:rounded-xl md:shadow-panel"
+      className="flex h-full w-full flex-col overflow-hidden bg-background md:rounded-2xl md:shadow-raised"
       aria-label="Agent 详情"
     >
       <header className="flex min-h-12 shrink-0 items-center justify-between py-1.5 pr-2.5 pl-4.5 max-md:min-h-14 max-md:pl-6">
@@ -248,6 +248,7 @@ export function DetailPanel({
                   className="group/session flex items-center gap-1 rounded-lg has-aria-pressed:bg-sidebar-primary hover:bg-sidebar-accent"
                 >
                   <button
+                    data-slot="session-row"
                     className="flex min-w-0 flex-1 items-center gap-2 rounded-lg px-2.5 py-2 text-left text-[13px] outline-none focus-visible:ring-3 focus-visible:ring-ring/50 disabled:opacity-60 max-md:min-h-11"
                     aria-pressed={session.id === agent.currentSessionId}
                     disabled={busy}

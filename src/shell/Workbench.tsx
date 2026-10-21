@@ -9,6 +9,7 @@ import { useSystemBack } from "./useSystemBack";
 import { useExperiments } from "../features/extensions/useExperiments";
 import { AuthorizationDialog, useAuthorization } from "./AuthorizationDialog";
 import { TitleBar } from "./TitleBar";
+import { NavRail } from "./NavRail";
 import { ShellFeedback } from "./ShellFeedback";
 import { WorkspaceArea } from "./WorkspaceArea";
 import { RecoveryWelcome } from "./RecoveryWelcome";
@@ -61,6 +62,12 @@ export function Workbench({ runtime }: { runtime: Runtime }) {
         className="isolate flex min-h-0 flex-1 items-stretch"
         data-inspecting={navigation.manager.open}
       >
+        <NavRail
+          operations={operations}
+          appearance={appearance}
+          workspace={workspace}
+          navigation={navigation}
+        />
         <WorkspaceArea
           host={runtime.host}
           workspace={workspace}

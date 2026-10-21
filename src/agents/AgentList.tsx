@@ -1,6 +1,6 @@
 import { useRef, useState } from "react";
 import { EllipsisIcon, PlusIcon, SearchIcon, StarIcon } from "lucide-react";
-import { AnimatePresence, motion } from "motion/react";
+import { AnimatePresence, LayoutGroup, motion } from "motion/react";
 import type { Agent } from "../../modules/agents/contract";
 import { formatTime } from "./time";
 import { Avatar } from "./Avatar";
@@ -54,19 +54,28 @@ function AgentRow({
         <motion.div
           layout="position"
           {...enter}
-          className="group/row relative my-0.5 flex items-center rounded-lg transition-colors hover:bg-sidebar-accent data-[selected=true]:bg-sidebar-primary data-[selected=true]:shadow-panel"
+          // The status dot's ring follows the row's tint.
+          className="group/row relative my-0.5 flex items-center rounded-xl transition-colors [--row-bg:var(--sidebar-bg)] hover:bg-sidebar-accent hover:[--row-bg:var(--sidebar-hover)] data-[selected=true]:[--row-bg:var(--sidebar-active)] data-[selected=true]:hover:bg-transparent data-[selected=true]:hover:[--row-bg:var(--sidebar-active)]"
           data-selected={selected}
         >
+          {selected && (
+            <motion.span
+              layoutId="agent-row-selected"
+              transition={{ type: "spring", stiffness: 520, damping: 40 }}
+              className="absolute inset-0 rounded-xl bg-sidebar-primary"
+            />
+          )}
           <button
-            className="flex min-w-0 flex-1 items-center gap-2.5 rounded-lg py-2 pr-1.5 pl-2.5 text-left outline-none focus-visible:ring-3 focus-visible:ring-ring/50 md:pointer-fine:pr-2.5 max-md:py-2.5"
+            data-slot="agent-row"
+            className="relative flex min-w-0 flex-1 items-center gap-3 rounded-xl py-2.5 pr-1.5 pl-2.5 text-left outline-none focus-visible:ring-3 focus-visible:ring-ring/50 md:pointer-fine:pr-2.5 max-md:py-3"
             data-agent-id={a.id}
             onClick={onSelect}
             aria-label={`与 ${a.name} 交互`}
           >
-            <Avatar agent={a} />
+            <Avatar agent={a} status={a.status} />
             <span className="flex min-w-0 flex-1 flex-col gap-0.5">
               <span className="flex min-w-0 items-baseline justify-between gap-2">
-                <strong className="truncate text-[13px] font-medium max-md:text-[15px]">
+                <strong className="truncate text-sm font-medium max-md:text-[15px]">
                   {a.name}
                 </strong>
                 <span className="min-w-7 shrink-0 text-right text-[11px] text-muted-foreground transition-opacity md:pointer-fine:group-hover/row:opacity-0 md:pointer-fine:group-focus-within/row:opacity-0 md:pointer-fine:group-has-aria-expanded/row:opacity-0">
@@ -74,18 +83,13 @@ function AgentRow({
                 </span>
               </span>
               <span className="truncate text-xs text-muted-foreground max-md:text-[13px]">
-                {session?.messages.at(-1)?.text || a.description}
+                {a.status === "busy" ? (
+                  <span className="text-running">正在回复…</span>
+                ) : (
+                  session?.messages.at(-1)?.text || a.description
+                )}
               </span>
             </span>
-            {a.status === "busy" && (
-              <span
-                className="relative ml-auto flex size-2 shrink-0"
-                aria-label="运行中"
-              >
-                <span className="absolute inline-flex size-full animate-ping rounded-full bg-running opacity-60 motion-reduce:hidden" />
-                <span className="relative inline-flex size-2 rounded-full bg-running" />
-              </span>
-            )}
           </button>
           <DropdownMenu modal={false}>
             <DropdownMenuTrigger asChild>
@@ -94,7 +98,7 @@ function AgentRow({
                 variant="ghost"
                 size="icon-sm"
                 // Its own tint shows over the row's hover and selected tints.
-                className="mr-1 shrink-0 hover:bg-foreground/10 aria-expanded:bg-foreground/10 dark:hover:bg-foreground/10 pointer-fine:opacity-0 pointer-fine:group-hover/row:opacity-100 pointer-fine:group-focus-within/row:opacity-100 pointer-fine:aria-expanded:opacity-100 md:pointer-fine:absolute md:pointer-fine:top-1.5 md:pointer-fine:right-1.5 md:pointer-fine:m-0"
+                className="relative mr-1 shrink-0 hover:bg-foreground/10 aria-expanded:bg-foreground/10 dark:hover:bg-foreground/10 pointer-fine:opacity-0 pointer-fine:group-hover/row:opacity-100 pointer-fine:group-focus-within/row:opacity-100 pointer-fine:aria-expanded:opacity-100 md:pointer-fine:absolute md:pointer-fine:top-2 md:pointer-fine:right-1.5 md:pointer-fine:m-0"
                 aria-label={`${a.name} 的操作`}
               >
                 <EllipsisIcon />
@@ -135,9 +139,12 @@ function PinnedTile({
       <ContextMenuTrigger asChild>
         <motion.button
           ref={tile}
+          data-slot="agent-tile"
           layout
           data-agent-id={a.id}
-          className="flex min-w-0 flex-col items-center gap-1.5 rounded-xl px-1 py-2 text-xs outline-none hover:bg-sidebar-accent focus-visible:ring-3 focus-visible:ring-ring/50 aria-pressed:bg-sidebar-primary aria-pressed:shadow-panel"
+          whileHover={{ y: -2 }}
+          whileTap={{ scale: 0.96 }}
+          className="flex min-w-0 flex-col items-center gap-1.5 rounded-xl px-1 py-2 text-xs outline-none hover:bg-sidebar-accent focus-visible:ring-3 focus-visible:ring-ring/50 aria-pressed:bg-sidebar-primary"
           aria-label={`打开 ${a.name}`}
           aria-pressed={selected}
           onClick={onSelect}
@@ -146,7 +153,7 @@ function PinnedTile({
             <Avatar
               agent={a}
               size="large"
-              className="size-11 rounded-[14px] [&_svg]:size-6"
+              className="size-12 shadow-raised [&_svg]:size-6"
             />
             <span className="absolute -right-1 -bottom-1 grid size-4.5 place-items-center rounded-full bg-brand text-primary-foreground ring-2 ring-sidebar">
               <StarIcon className="size-2.5 fill-current" />
@@ -195,16 +202,21 @@ export function AgentList({
       className="flex h-full min-h-0 w-full flex-col"
       aria-label="Agent 列表"
     >
-      <div className="flex items-center gap-1.5 pt-1 pr-2 pb-2 pl-3.5 max-md:px-5 max-md:pt-4 max-md:pb-3">
-        <h2 className="text-[13px] font-semibold max-md:text-lg">我的 Agent</h2>
-        <Badge variant="secondary" className="bg-sidebar-accent">
+      <div className="flex items-center gap-1.5 pt-1.5 pr-2.5 pb-2 pl-4 max-md:px-5 max-md:pt-4 max-md:pb-3">
+        <h2 className="text-[15px] font-semibold tracking-tight max-md:text-lg">
+          我的 Agent
+        </h2>
+        <Badge
+          variant="secondary"
+          className="bg-sidebar-accent text-muted-foreground tabular-nums"
+        >
           {agents.length}
         </Badge>
         <Tooltip label="添加 Agent">
           <Button
-            variant="ghost"
+            variant="outline"
             size="icon"
-            className="ml-auto"
+            className="ml-auto rounded-full bg-card shadow-panel hover:bg-card hover:shadow-raised dark:bg-card"
             aria-label="添加"
             onClick={(e) => onAdd(e.currentTarget)}
           >
@@ -213,8 +225,8 @@ export function AgentList({
         </Tooltip>
       </div>
       {agents.length > 0 && (
-        <div className="px-2.5 pb-2 max-md:px-4">
-          <InputGroup className="h-8 bg-card/70 shadow-panel max-md:h-11 dark:bg-card/40">
+        <div className="px-3 pb-2.5 max-md:px-4">
+          <InputGroup className="h-9 rounded-full border-transparent bg-card shadow-panel transition-shadow has-[[data-slot=input-group-control]:focus-visible]:shadow-raised has-[[data-slot=input-group-control]:focus-visible]:ring-0 max-md:h-11 dark:bg-card">
             <InputGroupAddon>
               <SearchIcon />
             </InputGroupAddon>
@@ -236,7 +248,7 @@ export function AgentList({
               key="pinned"
               className="mb-2 overflow-hidden"
             >
-              <h3 className="px-2 pt-1 pb-1.5 text-[11px] font-medium text-muted-foreground">
+              <h3 className="px-2.5 pt-1 pb-1.5 text-[11px] font-medium text-muted-foreground">
                 特别关注
               </h3>
               <div className="grid grid-cols-[repeat(auto-fill,minmax(64px,1fr))] gap-1">
@@ -253,20 +265,22 @@ export function AgentList({
             </motion.section>
           )}
         </AnimatePresence>
-        {others.length > 0 && (
-          <h3 className="px-2 pt-1 pb-1 text-[11px] font-medium text-muted-foreground">
-            {pinned.length ? "其他 Agent" : "全部 Agent"}
+        {others.length > 0 && pinned.length > 0 && (
+          <h3 className="px-2.5 pt-1 pb-1 text-[11px] font-medium text-muted-foreground">
+            其他 Agent
           </h3>
         )}
-        {others.map((a) => (
-          <AgentRow
-            key={a.id}
-            agent={a}
-            selected={selected === a.id}
-            onSelect={() => onSelect(a.id)}
-            onAction={(action, source) => onAction(a, action, source)}
-          />
-        ))}
+        <LayoutGroup id="agent-rows">
+          {others.map((a) => (
+            <AgentRow
+              key={a.id}
+              agent={a}
+              selected={selected === a.id}
+              onSelect={() => onSelect(a.id)}
+              onAction={(action, source) => onAction(a, action, source)}
+            />
+          ))}
+        </LayoutGroup>
         {agents.length === 0 && (
           <p className="m-3 text-xs text-muted-foreground">
             添加后，Agent 会出现在这里。

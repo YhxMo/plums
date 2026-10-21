@@ -12,39 +12,52 @@ export function ModelSelect({
   value,
   onChange,
   disabled,
+  compact,
 }: {
   label: string;
   models: readonly ModelChoice[];
   value: AgentModel | null | undefined;
   onChange: (model: AgentModel | null) => void;
   disabled?: boolean;
+  /** A borderless picker for a toolbar, without the explanation below. */
+  compact?: boolean;
 }) {
   const current = value ? key(value) : "";
   const choice = models.find((m) => choiceKey(m) === current);
   const missing = !!value && !choice;
+  const select = (
+    <Select
+      label={label}
+      value={current}
+      disabled={disabled}
+      size={compact ? "sm" : undefined}
+      className={
+        compact
+          ? "w-auto max-w-60 border-transparent bg-transparent text-xs text-muted-foreground shadow-none hover:bg-muted hover:text-foreground aria-expanded:bg-muted dark:bg-transparent"
+          : undefined
+      }
+      options={[
+        { value: "", label: compact ? "未选择模型" : "未选择" },
+        ...(missing ? [{ value: current, label: "已不可用的模型" }] : []),
+        ...models.map((m) => ({
+          value: choiceKey(m),
+          label: m.label,
+          description: m.description,
+          group: m.group,
+        })),
+      ]}
+      onChange={(next) => {
+        const picked = models.find((m) => choiceKey(m) === next);
+        onChange(
+          picked ? { provider: picked.provider, model: picked.id } : null,
+        );
+      }}
+    />
+  );
+  if (compact) return select;
   return (
     <div className="grid gap-1.5">
-      <Select
-        label={label}
-        value={current}
-        disabled={disabled}
-        options={[
-          { value: "", label: "未选择" },
-          ...(missing ? [{ value: current, label: "已不可用的模型" }] : []),
-          ...models.map((m) => ({
-            value: choiceKey(m),
-            label: m.label,
-            description: m.description,
-            group: m.group,
-          })),
-        ]}
-        onChange={(next) => {
-          const picked = models.find((m) => choiceKey(m) === next);
-          onChange(
-            picked ? { provider: picked.provider, model: picked.id } : null,
-          );
-        }}
-      />
+      {select}
       {!choice && (
         <p className="text-xs leading-relaxed text-muted-foreground">
           {missing

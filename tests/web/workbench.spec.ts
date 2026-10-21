@@ -316,3 +316,36 @@ test("an async release failure stays visible in the React management path", asyn
     page.getByRole("button", { name: "启用 cleanup.fixture", exact: true }),
   ).toBeDisabled();
 });
+
+test("the desktop rail switches between the workspace and extension management", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1180, height: 800 });
+  await page.goto("/");
+  const rail = page.getByRole("navigation", { name: "应用导航" });
+  const workspace = rail.getByRole("button", {
+    name: "Agent 界面",
+    exact: true,
+  });
+  const extensions = rail.getByRole("button", {
+    name: "扩展管理",
+    exact: true,
+  });
+  await expect(workspace).toHaveAttribute("aria-current", "page");
+  await extensions.click();
+  await expect(page.getByRole("heading", { name: "扩展与状态" })).toBeVisible();
+  await expect(extensions).toHaveAttribute("aria-current", "page");
+  await expect(workspace).not.toHaveAttribute("aria-current", "page");
+  await workspace.click();
+  await expect(page.getByRole("heading", { name: "扩展与状态" })).toBeHidden();
+  await expect(workspace).toHaveAttribute("aria-current", "page");
+  await rail.getByRole("button", { name: "应用菜单", exact: true }).click();
+  await expect(page.getByRole("menuitem", { name: "应用设置" })).toBeVisible();
+  await page.keyboard.press("Escape");
+  // Phones keep these actions in the title bar instead.
+  await page.setViewportSize({ width: 375, height: 800 });
+  await expect(rail).toBeHidden();
+  await expect(
+    page.getByRole("banner").getByRole("button", { name: "应用菜单" }),
+  ).toBeVisible();
+});

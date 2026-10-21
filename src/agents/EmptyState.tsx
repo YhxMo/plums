@@ -27,6 +27,7 @@ function Start({
 }) {
   return (
     <motion.button
+      data-slot="start-card"
       {...rise(delay)}
       whileHover={{ y: -2 }}
       className="group/start flex min-w-0 flex-col items-start rounded-xl bg-card p-4.5 text-left shadow-raised outline-none transition-shadow hover:shadow-float focus-visible:ring-3 focus-visible:ring-ring/50"

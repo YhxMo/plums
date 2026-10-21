@@ -19,6 +19,18 @@ export type TitleBarProps = {
   navigation: Pick<ShellNavigation, "manager" | "setDialog" | "openManager">;
   operations: Pick<ShellOperations, "busy" | "operate">;
 };
+export type NavRailProps = {
+  appearance: Pick<Appearance, "appearance" | "toggleTheme">;
+  workspace: Pick<
+    Workspace,
+    "views" | "allViews" | "activeView" | "selectLayout"
+  >;
+  navigation: Pick<
+    ShellNavigation,
+    "manager" | "setDialog" | "openManager" | "closeManager"
+  >;
+  operations: Pick<ShellOperations, "busy" | "operate">;
+};
 export type ShellFeedbackProps = {
   runtime: Pick<Runtime, "host" | "catalog">;
   operations: Pick<

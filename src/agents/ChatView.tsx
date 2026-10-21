@@ -2,18 +2,22 @@ import { useEffect, useRef, useState, type ReactNode } from "react";
 import {
   ArrowUpIcon,
   ChevronLeftIcon,
-  InfoIcon,
+  EllipsisIcon,
   SquareIcon,
 } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
+import { cn } from "cn";
 import type {
   Agent,
+  AgentModel,
   AgentProviderInfo,
   Message,
+  ModelChoice,
 } from "../../modules/agents/contract";
 import { MAX_TEXT } from "../../modules/agents/store";
 import { Avatar } from "./Avatar";
 import { MessageRow, type MessageAction } from "./MessageRow";
+import { ModelSelect } from "./ModelSelect";
 import { copyText } from "./clipboard";
 import { formatTime, TIME_GAP } from "./time";
 import { Tooltip } from "../components/Tooltip";
@@ -40,7 +44,10 @@ export function ChatView({
   draft,
   onDraft,
   onBack,
+  detailOpen,
   onDetail,
+  models,
+  onModel,
   onSend,
   onCancel,
   onResend,
@@ -54,7 +61,11 @@ export function ChatView({
   draft: string;
   onDraft: (value: string) => void;
   onBack: () => void;
+  detailOpen?: boolean;
   onDetail: (source: HTMLElement) => void;
+  /** Absent for providers without per-Agent models. */
+  models?: readonly ModelChoice[];
+  onModel?: (model: AgentModel | null) => void;
   onSend: () => void;
   onCancel: () => void;
   onResend: (text: string) => void;
@@ -91,11 +102,14 @@ export function ChatView({
   }
   const lines: ReactNode[] = [];
   let last: number | undefined;
+  const latestReply = session.messages
+    .filter((m) => m.role !== "user")
+    .at(-1)?.id;
   for (const m of session.messages) {
     if (m.at !== undefined && (last === undefined || m.at - last > TIME_GAP))
       lines.push(
         <p
-          className="m-0 self-center rounded-full px-2.5 py-0.5 text-[11px] text-muted-foreground"
+          className="m-0 flex items-center gap-3 self-stretch text-[11px] text-muted-foreground before:h-px before:flex-1 before:bg-border/70 after:h-px after:flex-1 after:bg-border/70"
           key={`time-${m.id}`}
         >
           <time dateTime={new Date(m.at).toISOString()}>
@@ -115,6 +129,7 @@ export function ChatView({
         copied={copied === m.id}
         canDelete={!!onDeleteMessage}
         pointerMenu={desktop}
+        latest={m.id === latestReply && !busy}
         onAction={act}
       />,
     );
@@ -130,7 +145,7 @@ export function ChatView({
       className="flex min-h-0 flex-1 flex-col"
       aria-label={`${agent.name} 的会话`}
     >
-      <header className="flex min-h-14 shrink-0 items-center gap-3 border-b px-5 max-md:min-h-[68px] max-md:gap-2 max-md:pr-4 max-md:pl-1">
+      <header className="flex min-h-15 shrink-0 items-center gap-3 border-b border-border/60 px-5 max-md:min-h-[68px] max-md:gap-2 max-md:pr-4 max-md:pl-1">
         <Button
           variant="ghost"
           size="icon"
@@ -140,48 +155,68 @@ export function ChatView({
         >
           <ChevronLeftIcon />
         </Button>
-        <Avatar agent={agent} />
-        <div className="min-w-0">
-          <motion.h1
-            key={agent.name}
-            initial={{ opacity: 0, y: 3 }}
+        <AnimatePresence mode="popLayout" initial={false}>
+          <motion.div
+            key={agent.id}
+            initial={{ opacity: 0, y: 4 }}
             animate={{ opacity: 1, y: 0 }}
-            className="truncate text-sm font-semibold max-md:font-reading max-md:text-[17px] max-md:font-medium"
+            exit={{ opacity: 0, y: -4 }}
+            transition={{ duration: 0.16 }}
+            className="flex min-w-0 flex-1 items-center gap-3"
           >
-            {agent.name}
-          </motion.h1>
-          <p className="mt-px flex items-center gap-1.5 text-xs text-muted-foreground max-md:text-[11px]">
-            <span
-              aria-hidden="true"
-              className={
-                busy
-                  ? "size-1.5 animate-pulse rounded-full bg-running"
-                  : agent.status === "online"
-                    ? "size-1.5 rounded-full bg-running"
-                    : "size-1.5 rounded-full bg-muted-foreground/40"
-              }
-            />
-            {status}
-            {agent.multiSession ? ` · ${session.title}` : ""}
-          </p>
-        </div>
-        <Button
-          variant="ghost"
-          size="icon"
-          className="ml-auto md:hidden"
-          aria-label="查看 Agent 详情"
-          onClick={(e) => onDetail(e.currentTarget)}
-        >
-          <InfoIcon />
-        </Button>
+            <Avatar agent={agent} className="md:hidden" />
+            <div className="flex min-w-0 items-baseline gap-2">
+              <h1 className="min-w-0 truncate text-base font-semibold tracking-tight max-md:font-reading max-md:text-[17px] max-md:font-medium">
+                {agent.name}
+              </h1>
+              <span
+                className={cn(
+                  "flex shrink-0 items-center gap-1 text-xs",
+                  busy || agent.status === "online"
+                    ? "text-running"
+                    : "text-muted-foreground",
+                )}
+              >
+                <span
+                  aria-hidden="true"
+                  className={cn(
+                    "size-1.5 self-center rounded-full",
+                    busy || agent.status === "online"
+                      ? "bg-running"
+                      : "bg-muted-foreground/40",
+                    busy && "animate-pulse",
+                  )}
+                />
+                {status}
+              </span>
+              {agent.multiSession && (
+                <span className="min-w-0 shrink-[4] truncate text-xs text-muted-foreground">
+                  · {session.title}
+                </span>
+              )}
+            </div>
+          </motion.div>
+        </AnimatePresence>
+        <Tooltip label="Agent 详情">
+          <Button
+            variant="outline"
+            size="icon"
+            className="ml-auto rounded-lg text-muted-foreground shadow-panel aria-pressed:bg-muted aria-pressed:text-foreground max-md:border-transparent max-md:shadow-none"
+            aria-label="查看 Agent 详情"
+            aria-pressed={desktop ? !!detailOpen : undefined}
+            onClick={(e) => onDetail(e.currentTarget)}
+          >
+            <EllipsisIcon />
+          </Button>
+        </Tooltip>
       </header>
       <div
-        className="relative flex min-h-0 flex-1 flex-col gap-3.5 overflow-auto px-[max(32px,calc((100%-880px)/2))] pt-5 pb-6 max-md:gap-[18px] max-md:px-4"
+        className="relative flex min-h-0 flex-1 flex-col gap-7 overflow-auto px-[max(32px,calc((100%-760px)/2))] pt-6 pb-8 max-md:gap-[18px] max-md:px-4"
         role="log"
         aria-label="会话消息"
       >
         {agent.description && (
-          <p className="m-0 max-w-[520px] self-center rounded-lg bg-surface px-3 py-1.5 text-center text-xs leading-relaxed whitespace-pre-wrap text-muted-foreground wrap-anywhere shadow-panel max-md:bg-transparent max-md:shadow-none">
+          <p className="m-0 max-w-[520px] self-center rounded-full bg-surface px-3.5 py-1.5 text-center text-xs leading-relaxed whitespace-pre-wrap text-muted-foreground wrap-anywhere ring-1 ring-border/60 max-md:bg-transparent max-md:ring-0">
             {agent.description}
           </p>
         )}
@@ -192,7 +227,13 @@ export function ChatView({
             transition={{ duration: 0.3, ease: "easeOut" }}
             className="flex min-h-48 flex-col items-center justify-center text-center"
           >
-            <Avatar agent={agent} size="large" className="shadow-raised" />
+            <motion.span
+              initial={{ scale: 0.8 }}
+              animate={{ scale: 1 }}
+              transition={{ type: "spring", stiffness: 300, damping: 18 }}
+            >
+              <Avatar agent={agent} size="large" className="shadow-raised" />
+            </motion.span>
             <h2 className="mt-3.5 mb-1.5 text-[17px] font-semibold tracking-tight max-md:font-reading max-md:text-[22px] max-md:font-medium">
               和 {agent.name} 开始吧
             </h2>
@@ -223,7 +264,7 @@ export function ChatView({
         <div ref={bottom} />
       </div>
       {closed ? (
-        <div className="mx-5 mt-1 mb-4 flex items-center gap-3 rounded-2xl bg-card px-4 py-3 text-[13px] shadow-raised max-md:mx-3 max-md:mb-3 dark:bg-overlay">
+        <div className="mx-auto mt-1 mb-4 flex w-[calc(100%-40px)] max-w-[800px] items-center gap-3 rounded-2xl bg-card px-4 py-3 text-[13px] shadow-raised max-md:mb-3 max-md:w-[calc(100%-24px)] dark:bg-overlay">
           <p className="min-w-0 flex-1 text-muted-foreground">
             此 Agent 已关闭「{closed.label}」，开启后才能在这里对话。
           </p>
@@ -233,13 +274,13 @@ export function ChatView({
         </div>
       ) : (
         <form
-          className="mx-5 mt-1 mb-4 max-md:mx-3 max-md:mb-3"
+          className="mx-auto mt-1 mb-4 w-[calc(100%-40px)] max-w-[800px] max-md:mb-3 max-md:w-[calc(100%-24px)]"
           onSubmit={(e) => {
             e.preventDefault();
             onSend();
           }}
         >
-          <InputGroup className="h-auto rounded-3xl border-border bg-card shadow-raised has-disabled:bg-card has-disabled:opacity-100 dark:has-disabled:bg-overlay transition-shadow max-md:items-end max-md:rounded-[22px] dark:bg-overlay has-[[data-slot=input-group-control]:focus-visible]:border-input has-[[data-slot=input-group-control]:focus-visible]:shadow-float has-[[data-slot=input-group-control]:focus-visible]:ring-0">
+          <InputGroup className="h-auto rounded-[22px] border-border bg-card shadow-raised transition-shadow duration-200 has-disabled:bg-card has-disabled:opacity-100 max-md:items-end dark:bg-overlay dark:has-disabled:bg-overlay has-[[data-slot=input-group-control]:focus-visible]:border-input has-[[data-slot=input-group-control]:focus-visible]:shadow-float has-[[data-slot=input-group-control]:focus-visible]:ring-0">
             <InputGroupTextarea
               ref={input}
               aria-label="消息"
@@ -247,7 +288,7 @@ export function ChatView({
               rows={1}
               maxLength={MAX_TEXT}
               value={draft}
-              className="max-h-44 min-h-11 px-4.5 pt-3 pb-1 text-sm leading-relaxed [field-sizing:content] max-md:min-h-6 max-md:py-2.5 max-md:pl-3 max-md:text-base"
+              className="max-h-52 min-h-14 px-4.5 pt-3.5 pb-1 text-[15px] leading-relaxed [field-sizing:content] max-md:min-h-6 max-md:py-2.5 max-md:pl-3 max-md:text-base"
               onChange={(e) => onDraft(e.target.value)}
               onKeyDown={(e) => {
                 if (
@@ -263,8 +304,20 @@ export function ChatView({
             />
             <InputGroupAddon
               align={desktop ? "block-end" : "inline-end"}
-              className="justify-end self-end max-md:py-1.5"
+              className="cursor-default justify-end gap-1 self-end px-3 pb-3 max-md:px-2 max-md:py-1.5"
             >
+              {desktop && models && onModel && (
+                <span className="mr-auto min-w-0">
+                  <ModelSelect
+                    compact
+                    label="切换模型"
+                    models={models}
+                    value={agent.model}
+                    disabled={busy}
+                    onChange={onModel}
+                  />
+                </span>
+              )}
               <AnimatePresence mode="popLayout" initial={false}>
                 {busy ? (
                   <motion.span key="stop" {...swap}>
