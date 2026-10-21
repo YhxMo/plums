@@ -12,7 +12,6 @@ import type { Experiments } from "../features/extensions/useExperiments";
 export type CredentialOperations = Pick<ShellOperations, "busy" | "operate">;
 export type DialogFeedback = Pick<ShellOperations, "busy">;
 export type TitleBarProps = {
-  platformKind: Runtime["adapter"]["kind"];
   appearance: Pick<Appearance, "appearance" | "toggleTheme">;
   workspace: Pick<Workspace, "current" | "allViews">;
   chrome: Pick<WorkspaceChrome, "title" | "custom" | "open" | "toggle">;
@@ -20,6 +19,7 @@ export type TitleBarProps = {
   operations: Pick<ShellOperations, "busy" | "operate">;
 };
 export type NavRailProps = {
+  platformKind: Runtime["adapter"]["kind"];
   appearance: Pick<Appearance, "appearance" | "toggleTheme">;
   workspace: Pick<
     Workspace,

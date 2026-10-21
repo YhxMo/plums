@@ -69,7 +69,7 @@ const close = host.mountView(viewId, root); // () => void | Promise<void>
 
 ## 工作区标题与上下文侧栏
 
-工作区希望在顶栏显示当前处理项时，在 `ctx.view` 中提供可选 `chrome`。下面的普通 ESM 示例通过稳定快照和订阅发布标题，不需要 React 或宿主私有事件：
+工作区希望显示当前处理项标题时（手机在顶栏，桌面在内容区顶部一行），在 `ctx.view` 中提供可选 `chrome`。下面的普通 ESM 示例通过稳定快照和订阅发布标题，不需要 React 或宿主私有事件：
 
 ```js
 export default {

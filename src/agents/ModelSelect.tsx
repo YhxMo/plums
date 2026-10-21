@@ -1,3 +1,4 @@
+import { cn } from "cn";
 import type { AgentModel, ModelChoice } from "../../modules/agents/contract";
 import { Select } from "../components/Select";
 
@@ -33,7 +34,10 @@ export function ModelSelect({
       size={compact ? "sm" : undefined}
       className={
         compact
-          ? "w-auto max-w-60 border-transparent bg-transparent text-xs text-muted-foreground shadow-none hover:bg-muted hover:text-foreground aria-expanded:bg-muted dark:bg-transparent"
+          ? cn(
+              "w-auto max-w-56 border-transparent bg-transparent text-[13px] text-foreground/80 shadow-none hover:bg-muted hover:text-foreground aria-expanded:bg-muted max-md:max-w-44 dark:bg-transparent",
+              choice && "pl-8",
+            )
           : undefined
       }
       options={[
@@ -54,7 +58,21 @@ export function ModelSelect({
       }}
     />
   );
-  if (compact) return select;
+  if (compact)
+    return (
+      <span className="relative inline-flex min-w-0">
+        {/* The service's first letter stands in for an icon; models carry none. */}
+        {choice && (
+          <span
+            aria-hidden="true"
+            className="pointer-events-none absolute top-1/2 left-2 grid size-[18px] -translate-y-1/2 place-items-center rounded-[5px] bg-brand-soft text-[11px] font-bold text-brand-text"
+          >
+            {[...choice.providerLabel][0]}
+          </span>
+        )}
+        {select}
+      </span>
+    );
   return (
     <div className="grid gap-1.5">
       {select}

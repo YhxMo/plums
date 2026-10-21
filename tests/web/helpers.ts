@@ -101,7 +101,9 @@ export async function expectConversationTitle(
   await expect(
     header.getByRole("button", { name: `会话：${session}`, exact: true }),
   ).toBeVisible();
-  await expect(page.getByRole("banner")).not.toContainText(agent);
+  await expect(page.getByRole("banner").filter({ hasText: agent })).toHaveCount(
+    0,
+  );
 }
 /** Waits until the enabled set recorded for the next start has `id` on or off. */
 export async function persisted(page: Page, id: string, enabled = true) {

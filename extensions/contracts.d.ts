@@ -25,6 +25,8 @@ export interface Workbench {
   run(input: string): Promise<void>;
   cancel(): void;
 }
+/** How much a model thinks before replying; `off` asks it not to. */
+export type Effort = "off" | "low" | "medium" | "high" | "max";
 /** One model a `chat@1` provider offers; `id` is what `reply` takes. */
 export interface ChatModel {
   /** At most 256 characters; Agents are not offered longer ids. */
@@ -34,10 +36,24 @@ export interface ChatModel {
   description: string;
   /** Heading the model is listed under, such as its service; defaults to the provider name. */
   group?: string;
+  /**
+   * The thinking strengths this model takes. Absent means it takes none, and
+   * Agents show no strength control for it; added after chat@1 shipped.
+   */
+  reasoning?: readonly Effort[];
+  /** The model reads pictures. Absent means it does not: Agents then send none. */
+  vision?: boolean;
+}
+/** A picture sent with a turn, already scaled; `data` is base64 without a prefix. */
+export interface ChatImage {
+  mime: "image/jpeg" | "image/png" | "image/webp";
+  data: string;
 }
 export interface ChatTurn {
   role: "user" | "agent";
   text: string;
+  /** Only for models that list `vision`. */
+  images?: readonly ChatImage[];
 }
 /** `chat@1`: multi-turn replies from a model the user picked for an Agent. */
 export interface ChatService {
@@ -54,6 +70,10 @@ export interface ChatService {
       instructions?: string;
       history: readonly ChatTurn[];
       input: string;
+      /** Pictures sent with `input`; only for models that list `vision`. */
+      images?: readonly ChatImage[];
+      /** One of the model's `reasoning`; absent leaves it to the service. */
+      effort?: Effort;
     },
     signal: AbortSignal,
   ): Promise<string>;

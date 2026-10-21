@@ -90,7 +90,7 @@ for (const width of [375, 1440]) {
       name: "与 编程助手 交互",
       exact: true,
     });
-    await expect(row.getByLabel("特别关注")).toBeVisible();
+    await expect(page.locator('[data-slot="agent-tile"]')).toHaveCount(1);
     await row.click();
     await sessions(page, "未命名会话").click();
     await page
@@ -676,7 +676,7 @@ test("a long conversation scrolls inside the log, never the whole workspace", as
   ).toEqual([]);
 });
 
-test("a pinned Agent comes first in the list and is marked", async ({
+test("a special-attention Agent moves to a large-avatar section above the rows", async ({
   page,
 }) => {
   await page.goto("/");
@@ -693,6 +693,7 @@ test("a pinned Agent comes first in the list and is marked", async ({
     .click();
   const list = page.getByRole("complementary", { name: "Agent 列表" });
   const rows = list.locator('[data-slot="agent-row"]');
+  const tiles = list.locator('[data-slot="agent-tile"]');
   const row = list.getByRole("button", { name: "与 关注者 交互", exact: true });
   await expect(rows.first()).toHaveAccessibleName("与 普通 交互");
   await page
@@ -701,14 +702,16 @@ test("a pinned Agent comes first in the list and is marked", async ({
   await page
     .getByRole("menuitem", { name: "设为特别关注", exact: true })
     .click();
-  await expect(rows.first()).toHaveAccessibleName("与 关注者 交互");
-  await expect(row.getByLabel("特别关注")).toBeVisible();
+  await expect(tiles).toHaveCount(1);
+  await expect(tiles.first()).toHaveAccessibleName("与 关注者 交互");
+  await expect(rows).toHaveCount(1);
+  await expect(rows.first()).toHaveAccessibleName("与 普通 交互");
   await row.click({ button: "right" });
   await page
     .getByRole("menuitem", { name: "取消特别关注", exact: true })
     .click();
-  await expect(row.getByLabel("特别关注")).toHaveCount(0);
-  await expect(rows.first()).toHaveAccessibleName("与 普通 交互");
+  await expect(tiles).toHaveCount(0);
+  await expect(rows).toHaveCount(2);
 });
 
 test("each part of an Agent can be switched off, and says what that means", async ({

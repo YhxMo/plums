@@ -1,6 +1,8 @@
 import type { ReactNode } from "react";
 import { ArrowRightIcon, IdCardIcon, PuzzleIcon } from "lucide-react";
 import { motion } from "motion/react";
+import { cn } from "cn";
+import { panel } from "./panel";
 import { Button } from "../components/ui/button";
 
 const rise = (delay: number) =>
@@ -61,7 +63,12 @@ export function EmptyState({
 }) {
   if (hasAgents)
     return (
-      <main className="flex flex-1 flex-col items-center justify-center gap-3 p-7">
+      <main
+        className={cn(
+          "flex flex-1 flex-col items-center justify-center gap-3 p-7 md:bg-background",
+          panel,
+        )}
+      >
         <motion.img
           initial={{ opacity: 0, scale: 0.9 }}
           animate={{ opacity: 0.28, scale: 1 }}
@@ -75,14 +82,19 @@ export function EmptyState({
       </main>
     );
   return (
-    <main className="flex flex-1 flex-col items-center justify-center overflow-auto p-7 max-md:px-5">
+    <main
+      className={cn(
+        "flex flex-1 flex-col items-center justify-center overflow-auto p-7 max-md:px-5 md:bg-background",
+        panel,
+      )}
+    >
       <motion.div {...rise(0)} className="text-center">
         <img
           src="/brand/plums.png"
           alt=""
           className="mx-auto mb-4 block size-12 rounded-[11px] drop-shadow-md"
         />
-        <h1 className="my-2 text-[22px] leading-snug font-semibold tracking-tight max-md:font-reading max-md:text-2xl max-md:font-medium">
+        <h1 className="my-2 text-[22px] leading-snug font-semibold tracking-tight max-md:text-2xl">
           欢迎使用 Plums
         </h1>
         <p className="text-[13px] text-muted-foreground">

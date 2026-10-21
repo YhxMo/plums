@@ -1,11 +1,24 @@
-import { useState } from "react";
-import { ChevronRightIcon, PencilIcon, XIcon } from "lucide-react";
+import { useRef, useState } from "react";
+import {
+  CameraIcon,
+  ChevronRightIcon,
+  ImageOffIcon,
+  ImagePlusIcon,
+  PencilIcon,
+  XIcon,
+} from "lucide-react";
 import type { Agent } from "../../modules/agents/contract";
 import { Avatar } from "./Avatar";
 import { AgentParts } from "./AgentParts";
 import type { Part } from "./parts";
 import { InfoTip } from "../components/Tooltip";
 import { Button } from "../components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "../components/ui/dropdown-menu";
 import { Textarea } from "../components/ui/textarea";
 
 /**
@@ -18,6 +31,7 @@ export function DetailPanel({
   parts,
   onPart,
   onDescription,
+  onAvatar,
   onOpenExtension,
   onClose,
 }: {
@@ -28,12 +42,15 @@ export function DetailPanel({
   onPart?: (part: Part, on: boolean) => void;
   /** Resolves true once saved; a failure is reported by the caller. */
   onDescription: (description: string) => Promise<boolean>;
+  /** Picks a new picture (a file to scale) or removes it with `null`. */
+  onAvatar?: (file: File | null) => void;
   /** Opens extension management, selecting `id` when given. */
   onOpenExtension: (id?: string) => void;
   onClose: () => void;
 }) {
   const busy = agent.status === "busy";
   const [editing, setEditing] = useState<string | null>(null);
+  const picker = useRef<HTMLInputElement>(null);
   return (
     <aside
       className="flex h-full min-h-0 w-full flex-1 flex-col overflow-hidden bg-popover"
@@ -55,7 +72,55 @@ export function DetailPanel({
       <div className="flex min-h-0 flex-1 flex-col gap-7 overflow-y-auto px-5 pt-2 pb-6 max-md:px-6">
         <section className="flex flex-col gap-3" aria-label="介绍">
           <div className="flex items-center gap-3">
-            <Avatar agent={agent} />
+            {onAvatar ? (
+              <>
+                <input
+                  ref={picker}
+                  type="file"
+                  hidden
+                  accept="image/png,image/jpeg,image/webp,image/gif"
+                  aria-label="选择头像图片"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    e.target.value = "";
+                    if (file) onAvatar(file);
+                  }}
+                />
+                <DropdownMenu modal={false}>
+                  <DropdownMenuTrigger asChild>
+                    <button
+                      type="button"
+                      data-slot="avatar-button"
+                      aria-label="更换头像"
+                      disabled={busy}
+                      className="group/avatar-button relative shrink-0 rounded-[26%] outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
+                    >
+                      <Avatar agent={agent} />
+                      <span
+                        aria-hidden="true"
+                        className="absolute inset-0 grid place-items-center rounded-[26%] bg-black/40 text-white opacity-0 transition-opacity group-hover/avatar-button:opacity-100 group-focus-visible/avatar-button:opacity-100 max-md:opacity-0"
+                      >
+                        <CameraIcon className="size-4" />
+                      </span>
+                    </button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="start" className="w-44">
+                    <DropdownMenuItem onSelect={() => picker.current?.click()}>
+                      <ImagePlusIcon />
+                      上传图片…
+                    </DropdownMenuItem>
+                    {agent.avatar && (
+                      <DropdownMenuItem onSelect={() => onAvatar(null)}>
+                        <ImageOffIcon />
+                        移除头像
+                      </DropdownMenuItem>
+                    )}
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </>
+            ) : (
+              <Avatar agent={agent} />
+            )}
             <h3 className="min-w-0 text-base font-semibold wrap-anywhere">
               {agent.name}
             </h3>

@@ -65,7 +65,7 @@ test("desktop messages show a time, copy, resend and delete from hover and right
   await expect(log.locator("time")).toHaveCount(1);
 });
 
-test("phones keep a reading layout without hover actions or a pointer menu", async ({
+test("phones keep the chat layout without hover actions or a pointer menu", async ({
   page,
 }) => {
   await startChat(page, 375);
@@ -90,5 +90,5 @@ test("phones keep a reading layout without hover actions or a pointer menu", asy
         .getPropertyValue("--background")
         .trim(),
     ),
-  ).toBe("#f5f4ed");
+  ).toBe("#ffffff");
 });

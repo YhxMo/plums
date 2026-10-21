@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   AgentStore,
+  MAX_AVATAR,
   MAX_TEXT,
   parseRoleCard,
   restoreAgents,
@@ -397,4 +398,60 @@ it("does not ask the model while saving is blocked, so retries cost nothing", as
   lock.reason = "Agent 保存回执未确认，请重新加载应用后再修改。";
   await expect(store.send(a.id, "你好")).rejects.toThrow(lock.reason);
   expect(asked).toBe(0);
+});
+
+describe("Agent avatars", () => {
+  const PNG =
+    "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==";
+  const image = `data:image/png;base64,${PNG}`;
+  const make = () =>
+    new AgentStore(
+      [],
+      async () => {},
+      async (t) => t,
+    );
+
+  it("keeps a small base64 image and removes it again", async () => {
+    const store = make();
+    const a = await store.create({ name: "头像" });
+    await store.update(a.id, { avatar: image });
+    expect(store.list()[0].avatar).toBe(image);
+    await store.update(a.id, { avatar: null });
+    expect(store.list()[0]).not.toHaveProperty("avatar");
+  });
+
+  it("refuses links, other types, bad base64 and oversized images", async () => {
+    const store = make();
+    const a = await store.create({ name: "头像" });
+    for (const avatar of [
+      "https://example.com/a.png",
+      `data:image/gif;base64,${PNG}`,
+      "data:image/svg+xml;base64,PHN2Zy8+",
+      "data:image/png;base64,not base64!",
+      `data:image/png;base64,${"A".repeat(MAX_AVATAR)}`,
+      "",
+    ])
+      await expect(store.update(a.id, { avatar })).rejects.toThrow("头像");
+    expect(store.list()[0]).not.toHaveProperty("avatar");
+  });
+
+  it("takes an avatar from a role card, and refuses a bad one", async () => {
+    expect(
+      parseRoleCard(JSON.stringify({ name: "卡", avatar: image })),
+    ).toEqual({ name: "卡", description: undefined, avatar: image });
+    expect(() =>
+      parseRoleCard(JSON.stringify({ name: "卡", avatar: "http://x/y.png" })),
+    ).toThrow("头像");
+    const a = await make().create({ name: "卡", avatar: image });
+    expect(a.avatar).toBe(image);
+  });
+
+  it("restoring drops a damaged avatar instead of failing", () => {
+    const [good, bad] = restoreAgents([
+      { ...legacyAgent(), id: "g", avatar: image },
+      { ...legacyAgent(), id: "b", avatar: "javascript:alert(1)" },
+    ]);
+    expect(good.avatar).toBe(image);
+    expect(bad).not.toHaveProperty("avatar");
+  });
 });

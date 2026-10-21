@@ -1,15 +1,27 @@
 import type { CredentialFailureOutcome } from "../sdk";
+import type { ChatImage, Effort } from "../../extensions/contracts";
+import { reasoningFields } from "./reasoning";
 
 export type Protocol = "openai-chat" | "anthropic-messages";
-export type Turn = { role: "user" | "agent"; text: string };
+export type Turn = {
+  role: "user" | "agent";
+  text: string;
+  images?: readonly ChatImage[];
+};
 export type ChatInput = {
   instructions?: string;
   history: readonly Turn[];
   input: string;
+  /** Pictures sent with `input`. */
+  images?: readonly ChatImage[];
+  /** Thinking strength; sent only if the model takes it. */
+  effort?: Effort;
 };
 /** How one connection talks to its service; `extra` adds fixed body fields. */
 export type Endpoint = {
   protocol: Protocol;
+  /** Preset the provider was made from; some services' thinking fields differ. */
+  preset?: string;
   model: string;
   /** Longest reply; null leaves it to the service where the protocol allows. */
   maxTokens: number | null;
@@ -77,16 +89,58 @@ function turnStarts(history: readonly Turn[]) {
   );
 }
 
-const message = ({ role, text }: Turn) => ({
-  role: role === "agent" ? "assistant" : "user",
-  content: text,
-});
+/** Tokens one picture takes from the window, whatever its bytes (about 1568 px). */
+const IMAGE_TOKENS = 1600;
+const imageTokens = (turn: { images?: readonly ChatImage[] }) =>
+  (turn.images?.length ?? 0) * IMAGE_TOKENS;
 
-function body(endpoint: Endpoint, request: ChatInput, history: Turn[]) {
+/** `strip` leaves the picture bytes out, so the rest can be counted in tokens. */
+function pictures(
+  protocol: Protocol,
+  images: readonly ChatImage[] | undefined,
+  strip: boolean,
+) {
+  return (images ?? []).map(({ mime, data: bytes }) => {
+    const data = strip ? "" : bytes;
+    return protocol === "anthropic-messages"
+      ? { type: "image", source: { type: "base64", media_type: mime, data } }
+      : {
+          type: "image_url",
+          image_url: { url: `data:${mime};base64,${data}` },
+        };
+  });
+}
+
+function message(protocol: Protocol, turn: Turn, strip = false) {
+  const role = turn.role === "agent" ? "assistant" : "user";
+  return turn.images?.length
+    ? {
+        role,
+        content: [
+          ...pictures(protocol, turn.images, strip),
+          { type: "text", text: turn.text },
+        ],
+      }
+    : { role, content: turn.text };
+}
+
+function body(
+  endpoint: Endpoint,
+  request: ChatInput,
+  history: Turn[],
+  strip = false,
+) {
   const instructions = request.instructions?.trim();
-  if (endpoint.protocol === "anthropic-messages")
+  const thinking = reasoningFields(
+    endpoint,
+    request.effort,
+    replyRoom(endpoint),
+  );
+  const { protocol } = endpoint;
+  if (protocol === "anthropic-messages")
     return JSON.stringify({
       ...endpoint.extra,
+      ...thinking,
       model: endpoint.model,
       // Required by Messages.
       max_tokens: replyRoom(endpoint),
@@ -96,10 +150,11 @@ function body(endpoint: Endpoint, request: ChatInput, history: Turn[]) {
         system: [{ type: "text", text: instructions, cache_control: cache }],
       }),
       messages: [
-        ...history.map(message),
+        ...history.map((turn) => message(protocol, turn, strip)),
         {
           role: "user",
           content: [
+            ...pictures(protocol, request.images, strip),
             { type: "text", text: request.input, cache_control: cache },
           ],
         },
@@ -107,14 +162,16 @@ function body(endpoint: Endpoint, request: ChatInput, history: Turn[]) {
     });
   return JSON.stringify({
     ...endpoint.extra,
+    ...thinking,
     model: endpoint.model,
     ...(endpoint.maxTokens !== null && { max_tokens: endpoint.maxTokens }),
     stream: false,
     messages: [
       ...(instructions ? [{ role: "system", content: instructions }] : []),
-      ...[...history, { role: "user" as const, text: request.input }].map(
-        message,
-      ),
+      ...[
+        ...history,
+        { role: "user" as const, text: request.input, images: request.images },
+      ].map((turn) => message(protocol, turn, strip)),
     ],
   });
 }
@@ -131,9 +188,9 @@ export function requestBody(
 ) {
   const room = replyRoom(endpoint);
   const budget = endpoint.context - room;
-  const bare = body(endpoint, request, []);
-  const size = bytes(bare);
-  const tokens = estimateTokens(bare);
+  const size = bytes(body(endpoint, request, []));
+  const tokens =
+    estimateTokens(body(endpoint, request, [], true)) + imageTokens(request);
   if (size > limit)
     throw failure(
       "这条消息连同角色说明超过请求大小上限（8 MiB），未发送；请缩短后再试。",
@@ -150,9 +207,12 @@ export function requestBody(
   const turns = starts.map((start, index) => {
     const turn = { start, size: 0, tokens: 0 };
     for (let i = start; i < (starts[index + 1] ?? history.length); i++) {
-      const json = `${JSON.stringify(message(history[i]))},`;
-      turn.size += bytes(json);
-      turn.tokens += estimateTokens(json);
+      const { protocol } = endpoint;
+      turn.size += bytes(`${JSON.stringify(message(protocol, history[i]))},`);
+      turn.tokens +=
+        estimateTokens(
+          `${JSON.stringify(message(protocol, history[i], true))},`,
+        ) + imageTokens(history[i]);
     }
     return turn;
   });

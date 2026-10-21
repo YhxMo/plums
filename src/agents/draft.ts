@@ -9,6 +9,8 @@ import type { AgentConfig, AgentModel } from "../../modules/agents/contract";
 export type AgentDraft = {
   name: string;
   description: string;
+  /** Picture from an imported role card. */
+  avatar?: string;
   model?: AgentModel | null;
   /** Parts such as the provider or a model connection switched off. */
   off: string[];
@@ -29,6 +31,10 @@ export const useAgentDraft = create<
     set({
       ...empty,
       model: undefined,
-      ...(card && { name: card.name, description: card.description ?? "" }),
+      ...(card && {
+        name: card.name,
+        description: card.description ?? "",
+        avatar: card.avatar,
+      }),
     }),
 }));

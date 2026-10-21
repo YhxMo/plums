@@ -1,8 +1,12 @@
 import { ContractError } from "../sdk/errors";
 import type { Named } from "../sdk";
+import type { Effort } from "../../extensions/contracts";
+import { LIMITS, attachmentProblem, imageSize } from "./attachments";
 import type {
   Agent,
   AgentConfig,
+  AgentPatch,
+  Attachment,
   AgentModel,
   AgentProvider,
   AgentProviderInfo,
@@ -22,9 +26,16 @@ const object = (value: unknown): value is Record<string, unknown> =>
   typeof value === "object" && value !== null && !Array.isArray(value);
 const text = (value: unknown, max = 4000): value is string =>
   typeof value === "string" && value.length <= max;
+const EFFORTS: readonly string[] = ["off", "low", "medium", "high", "max"];
 /** Extension IDs, as in `Agent.off`. */
 const extensionIds = (value: unknown): value is string[] =>
   Array.isArray(value) && value.every((e) => text(e, 64));
+/** Largest avatar kept, as a data URL: it lives in its own state document. */
+export const MAX_AVATAR = 40_000;
+const AVATAR = /^data:image\/(?:png|jpeg|webp);base64,[A-Za-z0-9+/]+={0,2}$/;
+export const validAvatar = (value: unknown): value is string =>
+  typeof value === "string" && value.length <= MAX_AVATAR && AVATAR.test(value);
+const AVATAR_PROBLEM = "头像须是不超过 40 KB 的 PNG、JPEG 或 WebP 图片。";
 export function parseRoleCard(raw: string): AgentConfig {
   const value: unknown = JSON.parse(raw);
   if (
@@ -35,11 +46,14 @@ export function parseRoleCard(raw: string): AgentConfig {
     (value.description !== undefined && !text(value.description))
   )
     throw new Error(
-      "角色卡格式不支持：需要 name，可选 description 和 version: 1。",
+      "角色卡格式不支持：需要 name，可选 description、avatar 和 version: 1。",
     );
+  if (value.avatar !== undefined && !validAvatar(value.avatar))
+    throw new Error(`角色卡的${AVATAR_PROBLEM}`);
   return {
     name: value.name.trim(),
     description: value.description as string | undefined,
+    ...(value.avatar !== undefined && { avatar: value.avatar as string }),
   };
 }
 /** Longest `chat@1` model id an Agent keeps; longer ones are not offered. */
@@ -62,6 +76,7 @@ export function restoreAgents(value: unknown): Agent[] {
       typeof a.pinned !== "boolean" ||
       !text(a.extensionId) ||
       (a.off !== undefined && !extensionIds(a.off)) ||
+      (a.effort !== undefined && !EFFORTS.includes(a.effort as string)) ||
       (a.model !== undefined &&
         (!object(a.model) ||
           !text(a.model.provider, 64) ||
@@ -88,6 +103,7 @@ export function restoreAgents(value: unknown): Agent[] {
             text(m.id) &&
             (m.role === "user" || m.role === "agent") &&
             text(m.text, MAX_TEXT) &&
+            attachmentProblem(m.attachments) === undefined &&
             (m.at === undefined || Number.isFinite(m.at)),
         )
       )
@@ -108,8 +124,18 @@ export function restoreAgents(value: unknown): Agent[] {
   // Older versions also saved text extensions, fixed capabilities and a
   // single-session flag; none of them is used any more.
   return structuredClone(value).map(
-    ({ canCancel, pending, extensions, capabilities, multiSession, ...a }) => ({
+    ({
+      canCancel,
+      pending,
+      extensions,
+      capabilities,
+      multiSession,
+      avatar,
+      ...a
+    }) => ({
       ...a,
+      // A damaged picture only costs the picture.
+      ...(validAvatar(avatar) && { avatar }),
       status: "idle",
     }),
   );
@@ -120,10 +146,18 @@ export type SaveOptions = { signal?: AbortSignal; onCommit?: () => void };
 /** What a reply may draw on besides the new text. */
 export type ReplyContext = {
   model?: AgentModel;
+  /** The Agent's chosen strength; the provider decides whether the model takes it. */
+  effort?: Effort;
   /** The Agent's role description. */
   instructions: string;
   /** The current session's saved messages, oldest first. */
-  history: { role: "user" | "agent"; text: string }[];
+  history: {
+    role: "user" | "agent";
+    text: string;
+    attachments?: Attachment[];
+  }[];
+  /** Files and pictures sent with the new message. */
+  attachments?: Attachment[];
 };
 const DEFAULT_DESCRIPTION = "简洁、友好地回答用户的问题。";
 const sameModel = (choice: ModelChoice, model: AgentModel) =>
@@ -132,7 +166,10 @@ export class AgentStore implements AgentProvider {
   private agents: Agent[];
   private listeners = new Set<() => void>();
   private running = new Map<string, AbortController>();
-  private pending = new Map<string, { sessionId: string; text: string }>();
+  private pending = new Map<
+    string,
+    { sessionId: string; text: string; attachments?: Attachment[] }
+  >();
   private structural = new Set<string>();
   private committing = new Set<string>();
   private queue: Promise<unknown> = Promise.resolve();
@@ -162,6 +199,7 @@ export class AgentStore implements AgentProvider {
       description:
         "回复由此 Agent 选择的模型生成；对话与角色说明会一起发送到该模型服务。",
       extensions: this.extensions,
+      attachments: true,
     };
   }
   /** Re-renders Agents after their model connections start, stop or change. */
@@ -193,6 +231,19 @@ export class AgentStore implements AgentProvider {
         if (off?.length) a.off = off;
         else delete a.off;
       }
+    });
+  }
+  setEffort(agentId: string, effort: Effort | null) {
+    if (effort !== null && !EFFORTS.includes(effort))
+      return Promise.reject(new Error("思考强度无效。"));
+    return this.change((agents) => {
+      const a = this.find(agents, agentId);
+      if (effort === null) return void delete a.effort;
+      const choice =
+        a.model && this.modelChoices().find((m) => sameModel(m, a.model!));
+      if (!choice?.reasoning?.includes(effort))
+        throw new Error("此模型不支持这个思考强度。");
+      a.effort = effort;
     });
   }
   list = () => this.agents;
@@ -261,6 +312,7 @@ export class AgentStore implements AgentProvider {
       id: id(),
       name: clean.name,
       description: clean.description?.trim() || DEFAULT_DESCRIPTION,
+      ...(clean.avatar && { avatar: clean.avatar }),
       status: "idle",
       pinned: false,
       extensionId: "agents.local",
@@ -274,12 +326,14 @@ export class AgentStore implements AgentProvider {
     });
     return agent;
   }
-  update(
-    agentId: string,
-    patch: Partial<Pick<Agent, "name" | "description" | "pinned">>,
-  ) {
+  update(agentId: string, patch: AgentPatch) {
     return this.change((agents) => {
       const a = this.find(agents, agentId);
+      if (patch.avatar === null) delete a.avatar;
+      else if (patch.avatar !== undefined) {
+        if (!validAvatar(patch.avatar)) throw new Error(AVATAR_PROBLEM);
+        a.avatar = patch.avatar;
+      }
       if (patch.name !== undefined) {
         if (!patch.name.trim() || patch.name.length > 60)
           throw new Error("名称需要 1–60 个字符。");
@@ -342,9 +396,18 @@ export class AgentStore implements AgentProvider {
       this.emit();
     });
   }
-  async send(agentId: string, input: string) {
+  async send(agentId: string, input: string, attachments?: Attachment[]) {
     if (!input.trim() || input.length > MAX_TEXT)
       throw new Error(`请输入 1–${MAX_TEXT} 个字符。`);
+    const problem = attachmentProblem(attachments);
+    if (problem) throw new Error(problem);
+    const files = attachments?.length ? attachments : undefined;
+    const filesText = (files ?? []).reduce(
+      (sum, a) => sum + (a.kind === "text" ? a.text.length : 0),
+      0,
+    );
+    if (input.length + filesText > MAX_TEXT)
+      throw new Error("文字与文件合计过长，请减少文件或缩短文字。");
     if (
       this.closed ||
       this.running.has(agentId) ||
@@ -368,19 +431,33 @@ export class AgentStore implements AgentProvider {
       );
     const model = a.model;
     const sessionId = a.currentSessionId;
-    const history = a.sessions
-      .find((s) => s.id === sessionId)!
-      .messages.map(({ role, text }) => ({ role, text }));
+    const saved = a.sessions.find((s) => s.id === sessionId)!.messages;
+    if (
+      imageSize(saved) + imageSize([{ attachments: files }]) >
+      LIMITS.sessionImages
+    )
+      throw new Error("此会话的图片已达上限，请新建会话或删除带图片的消息。");
+    const history = saved.map(({ role, text, attachments }) => ({
+      role,
+      text,
+      ...(attachments && { attachments }),
+    }));
     const sentAt = Date.now();
     const controller = new AbortController();
     this.running.set(agentId, controller);
-    this.pending.set(agentId, { sessionId, text: input });
+    this.pending.set(agentId, {
+      sessionId,
+      text: input,
+      ...(files && { attachments: files }),
+    });
     this.emit();
     try {
       const output = await this.reply(input, controller.signal, {
         model,
+        ...(a.effort && { effort: a.effort }),
         instructions: a.description,
         history,
+        ...(files && { attachments: files }),
       });
       controller.signal.throwIfAborted();
       if (!text(output, MAX_TEXT))
@@ -396,7 +473,13 @@ export class AgentStore implements AgentProvider {
           if (!s) throw new Error("会话已被移除。");
           const repliedAt = Date.now();
           s.messages.push(
-            { id: id(), role: "user", text: input, at: sentAt },
+            {
+              id: id(),
+              role: "user",
+              text: input,
+              ...(files && { attachments: files }),
+              at: sentAt,
+            },
             { id: id(), role: "agent", text: output, at: repliedAt },
           );
           s.lastMessageAt = repliedAt;

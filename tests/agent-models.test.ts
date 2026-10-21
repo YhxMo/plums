@@ -1,7 +1,7 @@
 import { expect, it } from "vitest";
 import { Host } from "../modules/extension-host/host";
 import type { ExtensionDefinition } from "../modules/sdk";
-import type { ChatService } from "../extensions/contracts";
+import type { ChatService, Effort } from "../extensions/contracts";
 import { agentExtension } from "../modules/agents/provider";
 import { restoreAgents } from "../modules/agents/store";
 import type { AgentProvider } from "../modules/agents/contract";
@@ -14,6 +14,8 @@ function chat(
   id: string,
   models: string[],
   requests: Request[],
+  reasoning: Record<string, readonly Effort[]> = {},
+  vision: readonly string[] = [],
 ): ExtensionDefinition {
   return {
     manifest: { id, apiVersion: 1, version: "1", provides: { chat: 1 } },
@@ -25,6 +27,8 @@ function chat(
             id: model,
             label: model.toUpperCase(),
             description: `${id} 的 ${model}`,
+            ...(reasoning[model] && { reasoning: reasoning[model] }),
+            ...(vision.includes(model) && { vision: true }),
           })),
         subscribe: () => () => {},
         async reply(request: Request) {
@@ -36,10 +40,13 @@ function chat(
   };
 }
 
-async function setup() {
+async function setup(
+  reasoning: Record<string, readonly Effort[]> = {},
+  vision: readonly string[] = [],
+) {
   const requests: Request[] = [];
   const host = new Host(memoryPlatform().platform);
-  host.install(chat("chat.a", ["m1", "m2"], requests));
+  host.install(chat("chat.a", ["m1", "m2"], requests, reasoning, vision));
   host.install(agentExtension());
   await host.grant("agents.local", ["state.read", "state.write"]);
   await host.start("chat.a");
@@ -256,3 +263,92 @@ it.each([{ off: "ui.x" }, { off: [1] }, { off: ["x".repeat(65)] }])(
     );
   },
 );
+
+it("keeps a thinking strength per Agent, only for models that list it, and sends it with replies", async () => {
+  const { host, agents, find, requests } = await setup({
+    m1: ["low", "high"],
+  });
+  expect(agents().modelChoices!().map((m) => m.reasoning)).toEqual([
+    ["low", "high"],
+    undefined,
+  ]);
+  const a = await agents().create({ name: "甲" });
+  expect(find(a.id).effort).toBeUndefined();
+  await agents().send(a.id, "默认");
+  expect(requests[0]).not.toHaveProperty("effort");
+  await expect(agents().setEffort!(a.id, "max")).rejects.toThrow("不支持");
+  await agents().setEffort!(a.id, "high");
+  await agents().send(a.id, "高");
+  expect(requests[1].effort).toBe("high");
+  // A model without strengths is never sent one, and the choice stays for m1.
+  await agents().setModel!(a.id, { provider: "chat.a", model: "m2" });
+  await agents().send(a.id, "换模型");
+  expect(requests[2]).not.toHaveProperty("effort");
+  await expect(agents().setEffort!(a.id, "low")).rejects.toThrow("不支持");
+  await agents().setModel!(a.id, { provider: "chat.a", model: "m1" });
+  await host.stop("agents.local");
+  await host.start("agents.local");
+  expect(find(a.id).effort).toBe("high");
+  await agents().setEffort!(a.id, null);
+  expect(find(a.id).effort).toBeUndefined();
+});
+
+it("refuses a saved thinking strength that is not one of the five", () => {
+  const [agent] = [legacyAgent()];
+  expect(restoreAgents([{ ...agent, effort: "high" }])[0].effort).toBe("high");
+  expect(() => restoreAgents([{ ...agent, effort: "extreme" }])).toThrow(
+    "Agent 配置损坏",
+  );
+});
+
+const note = { kind: "text" as const, name: "笔记.md", text: "第一行\n第二行" };
+const photo = {
+  kind: "image" as const,
+  name: "照片.webp",
+  mime: "image/webp" as const,
+  data: "QUJD",
+};
+
+it("keeps attachments with the message, and gives a model that cannot read pictures their names", async () => {
+  const { host, agents, find, requests } = await setup({}, ["m2"]);
+  const a = await agents().create({ name: "甲" });
+  expect(agents().info.attachments).toBe(true);
+  await agents().send(a.id, "看看", [note, photo]);
+  // m1 reads no pictures: the file is in the text, the picture only named.
+  expect(requests[0].input).toBe(
+    "文件「笔记.md」：\n```\n第一行\n第二行\n```\n\n看看\n[图片：照片.webp]",
+  );
+  expect(requests[0]).not.toHaveProperty("images");
+  expect(find(a.id).sessions[0].messages[0]).toMatchObject({
+    text: "看看",
+    attachments: [note, photo],
+  });
+  await agents().setModel!(a.id, { provider: "chat.a", model: "m2" });
+  await agents().send(a.id, "再看", [photo]);
+  expect(requests[1].images).toEqual([{ mime: "image/webp", data: "QUJD" }]);
+  expect(requests[1].input).toBe("再看");
+  // The earlier turn keeps its own picture too: still among the latest three.
+  expect(requests[1].history[0].images).toHaveLength(1);
+  await host.stop("agents.local");
+  await host.start("agents.local");
+  expect(find(a.id).sessions[0].messages[0].attachments).toEqual([note, photo]);
+});
+
+it("refuses attachments that are malformed, too many, or past the session's picture budget", async () => {
+  const { agents } = await setup();
+  const a = await agents().create({ name: "甲" });
+  await expect(
+    agents().send(a.id, "x", [{ kind: "pdf" }] as never),
+  ).rejects.toThrow("附件");
+  await expect(
+    agents().send(
+      a.id,
+      "x",
+      Array.from({ length: 6 }, () => note),
+    ),
+  ).rejects.toThrow("最多");
+  const big = { ...photo, data: "A".repeat(400_000) };
+  for (let i = 0; i < 20; i++) await agents().send(a.id, `图${i}`, [big]);
+  await expect(agents().send(a.id, "再来", [big])).rejects.toThrow("上限");
+  expect(agents().list()[0].sessions[0].messages).toHaveLength(40);
+});

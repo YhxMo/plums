@@ -15,7 +15,7 @@ function Banner({ children }: { children: ReactNode }) {
       animate={{ opacity: 1, height: "auto" }}
       exit={{ opacity: 0, height: 0 }}
       transition={{ duration: 0.18 }}
-      className="shrink-0 overflow-hidden px-2 pb-2"
+      className="shrink-0 overflow-hidden px-2 pb-2 md:pr-14"
     >
       {children}
     </motion.div>

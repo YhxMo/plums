@@ -1,7 +1,8 @@
 import type { ReactNode } from "react";
-import { MoonIcon, SunIcon } from "lucide-react";
+import { MoonIcon, PanelRightIcon, SunIcon } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
-import type { NavRailProps } from "./controllers";
+import { cn } from "cn";
+import type { NavRailProps, TitleBarProps } from "./controllers";
 import type { Workspace } from "./useWorkspace";
 import type { ShellNavigation } from "./useShellNavigation";
 import { SettingsMenu } from "../components/SettingsMenu";
@@ -44,6 +45,34 @@ export function ThemeToggle({
             {light ? <MoonIcon /> : <SunIcon />}
           </motion.span>
         </AnimatePresence>
+      </Button>
+    </Tooltip>
+  );
+}
+
+/** Opens or closes the right sidebar: the extension's own, else the built-in one. */
+export function SidebarToggle({
+  chrome,
+  side,
+  className,
+}: Pick<TitleBarProps, "chrome"> & { side?: Side; className?: string }) {
+  return (
+    <Tooltip
+      label={chrome.custom ? `切换 ${chrome.custom.label}` : "展开或收起右侧栏"}
+      side={side}
+    >
+      <Button
+        variant="ghost"
+        size="icon"
+        aria-label="展开或收起右侧栏"
+        aria-pressed={chrome.open}
+        className={cn(
+          "text-muted-foreground aria-pressed:bg-muted aria-pressed:text-foreground",
+          className,
+        )}
+        onClick={(event) => chrome.toggle(event.currentTarget)}
+      >
+        <PanelRightIcon />
       </Button>
     </Tooltip>
   );

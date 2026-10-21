@@ -10,6 +10,7 @@ import { useExperiments } from "../features/extensions/useExperiments";
 import { AuthorizationDialog, useAuthorization } from "./AuthorizationDialog";
 import { TitleBar } from "./TitleBar";
 import { NavRail } from "./NavRail";
+import { SidebarToggle } from "./ShellActions";
 import { ShellFeedback } from "./ShellFeedback";
 import { WorkspaceArea } from "./WorkspaceArea";
 import { RecoveryWelcome } from "./RecoveryWelcome";
@@ -41,67 +42,82 @@ export function Workbench({ runtime }: { runtime: Runtime }) {
     authorization,
   });
   return (
-    <div className="flex h-dvh min-h-0 flex-col overflow-hidden bg-chrome">
-      <TitleBar
+    <div className="flex h-dvh min-h-0 overflow-hidden bg-chrome max-md:flex-col">
+      <NavRail
         platformKind={runtime.adapter.kind}
         operations={operations}
         appearance={appearance}
         workspace={workspace}
-        chrome={chrome}
         navigation={navigation}
       />
-      <ShellFeedback
-        runtime={runtime}
-        operations={operations}
-        appearance={appearance}
-        workspace={workspace}
-        navigation={navigation}
-        failedImports={management.failedImports}
-      />
+      {/* The content is one rounded, raised pane on the chrome beside the rail,
+          unless the view draws its own panels there (see `.pane`). */}
       <div
-        className="isolate flex min-h-0 flex-1 items-stretch"
-        data-inspecting={navigation.manager.open}
+        className="flex min-h-0 min-w-0 flex-1 flex-col md:p-2 md:pl-0"
+        data-tauri-drag-region
       >
-        <NavRail
-          operations={operations}
-          appearance={appearance}
-          workspace={workspace}
-          navigation={navigation}
-        />
-        {/* The content: one flat surface framed by the chrome. */}
-        <div className="flex min-w-0 flex-1 overflow-hidden bg-background md:rounded-tl-xl md:border-t md:border-l md:border-border/70">
-          <WorkspaceArea
-            host={runtime.host}
+        <div
+          className="pane relative flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden"
+          data-manager={navigation.manager.open}
+        >
+          {/* Desktop keeps the sidebar button in the pane's top-right corner; headers leave room for it. */}
+          <div className="pane-toggle absolute top-1.5 right-2 z-3 max-md:hidden">
+            <SidebarToggle chrome={chrome} side="bottom" />
+          </div>
+          <TitleBar
+            operations={operations}
+            appearance={appearance}
             workspace={workspace}
             chrome={chrome}
-            hidden={navigation.manager.open}
-          >
-            <RecoveryWelcome
-              operations={operations}
-              experiments={experiments}
-              authorization={authorization}
-              onExtensions={() => navigation.openManager()}
-            />
-          </WorkspaceArea>
-          <ExtensionManager
-            controller={management}
-            diagnostics={
-              import.meta.env.DEV && (
-                <DiagnosticsPanel
-                  open={navigation.manager.diagnostics}
-                  onToggle={navigation.setDiagnostics}
-                >
-                  <DiagnosticActions
-                    runtime={runtime}
-                    operations={operations}
-                    workspace={workspace}
-                    authorization={authorization}
-                    experiments={experiments}
-                  />
-                </DiagnosticsPanel>
-              )
-            }
+            navigation={navigation}
           />
+          <ShellFeedback
+            runtime={runtime}
+            operations={operations}
+            appearance={appearance}
+            workspace={workspace}
+            navigation={navigation}
+            failedImports={management.failedImports}
+          />
+          <div
+            className="isolate flex min-h-0 flex-1 items-stretch"
+            data-inspecting={navigation.manager.open}
+          >
+            <div className="flex min-w-0 flex-1 overflow-hidden">
+              <WorkspaceArea
+                host={runtime.host}
+                workspace={workspace}
+                chrome={chrome}
+                hidden={navigation.manager.open}
+              >
+                <RecoveryWelcome
+                  operations={operations}
+                  experiments={experiments}
+                  authorization={authorization}
+                  onExtensions={() => navigation.openManager()}
+                />
+              </WorkspaceArea>
+              <ExtensionManager
+                controller={management}
+                diagnostics={
+                  import.meta.env.DEV && (
+                    <DiagnosticsPanel
+                      open={navigation.manager.diagnostics}
+                      onToggle={navigation.setDiagnostics}
+                    >
+                      <DiagnosticActions
+                        runtime={runtime}
+                        operations={operations}
+                        workspace={workspace}
+                        authorization={authorization}
+                        experiments={experiments}
+                      />
+                    </DiagnosticsPanel>
+                  )
+                }
+              />
+            </div>
+          </div>
         </div>
       </div>
       <ShellDialogs

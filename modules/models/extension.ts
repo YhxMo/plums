@@ -14,6 +14,8 @@ import {
 } from "./catalog";
 import { modelListPaths, readModelList } from "./addresses";
 import { formats, presets, protocols } from "./presets";
+import { reasoningLevels } from "./reasoning";
+import { readsPictures } from "./vision";
 import { failure, readReply, requestBody, type Turn } from "./protocols";
 
 export const MODEL_PAGE = "model-connections";
@@ -60,6 +62,18 @@ type MountPage = (
   api: ModelConnectionsApi,
 ) => () => void | Promise<void>;
 
+const pictures = (value: unknown) =>
+  value === undefined ||
+  (Array.isArray(value) &&
+    value.length <= 20 &&
+    value.every(
+      (image) =>
+        !!image &&
+        ["image/jpeg", "image/png", "image/webp"].includes(image.mime) &&
+        typeof image.data === "string" &&
+        /^[A-Za-z0-9+/]+={0,2}$/.test(image.data),
+    ));
+
 const turns = (value: unknown): value is Turn[] =>
   Array.isArray(value) &&
   value.every(
@@ -67,7 +81,8 @@ const turns = (value: unknown): value is Turn[] =>
       !!turn &&
       typeof turn === "object" &&
       ["user", "agent"].includes((turn as Turn).role) &&
-      typeof (turn as Turn).text === "string",
+      typeof (turn as Turn).text === "string" &&
+      pictures((turn as Turn).images),
   );
 
 /**
@@ -122,7 +137,8 @@ export function modelConnector({
       };
       const reply: ChatService["reply"] = async (request, signal) => {
         signal.throwIfAborted();
-        const { model, instructions, history, input } = request ?? {};
+        const { model, instructions, history, input, effort, images } =
+          request ?? {};
         const chosen =
           typeof model === "string" ? store.resolve(model) : undefined;
         if (!chosen)
@@ -138,6 +154,7 @@ export function modelConnector({
           typeof input !== "string" ||
           !input.trim() ||
           !turns(history) ||
+          !pictures(images) ||
           (instructions !== undefined && typeof instructions !== "string")
         )
           throw failure("对话内容格式无效，未发送。", "not-dispatched");
@@ -150,7 +167,7 @@ export function modelConnector({
             extra:
               preset?.protocol === provider.protocol ? preset.extra : undefined,
           },
-          { instructions, history, input },
+          { instructions, history, input, effort, images },
         );
         return ctx.task(async (lifecycle) => {
           const combined = AbortSignal.any([signal, lifecycle]);
@@ -278,12 +295,21 @@ export function modelConnector({
         store.list().flatMap((provider) => {
           const label = presetOf(provider)?.label ?? "自定义";
           const description = `${provider.name === label ? label : `${provider.name} · ${label}`}${provider.status === "ready" ? "" : "（需要填写 API Key）"}`;
-          return provider.models.map((model) => ({
-            id: modelId(provider.id, model),
-            label: model,
-            group: provider.name,
-            description,
-          }));
+          return provider.models.map((model) => {
+            const reasoning = reasoningLevels(
+              provider.protocol,
+              provider.preset,
+              model,
+            );
+            return {
+              id: modelId(provider.id, model),
+              label: model,
+              group: provider.name,
+              description,
+              ...(reasoning && { reasoning }),
+              ...(readsPictures(provider.protocol, model) && { vision: true }),
+            };
+          });
         });
       const service: ChatService = {
         name: "模型连接",

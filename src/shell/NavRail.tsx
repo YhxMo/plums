@@ -8,7 +8,7 @@ import { Button } from "../components/ui/button";
 import { Separator } from "../components/ui/separator";
 
 const railButton =
-  "relative size-9 rounded-lg text-muted-foreground hover:bg-foreground/6 aria-[current=page]:text-foreground [&_svg:not([class*='size-'])]:size-[18px]";
+  "relative size-9 rounded-xl text-muted-foreground hover:bg-foreground/6 aria-[current=page]:text-brand-text [&_svg:not([class*='size-'])]:size-[18px]";
 
 /** One rail destination; the active one carries the sliding marker. */
 function Destination({
@@ -36,7 +36,7 @@ function Destination({
           <motion.span
             layoutId="rail-active"
             transition={{ type: "spring", stiffness: 520, damping: 38 }}
-            className="absolute inset-0 rounded-lg bg-background shadow-panel"
+            className="absolute inset-0 rounded-xl bg-background shadow-panel"
           />
         )}
         <span className="relative grid place-items-center">{children}</span>
@@ -46,22 +46,35 @@ function Destination({
 }
 
 /**
- * Desktop navigation: the workspaces contributed by extensions, extension
- * management, then appearance and the app menu at the foot. Phones keep
- * these in the title bar.
+ * Desktop navigation, full window height: the workspaces contributed by
+ * extensions, extension management, then appearance and
+ * the app menu at the foot. On a Mac the window controls sit in its top
+ * strip, which also drags the window. Phones keep these in the title bar.
  */
 export function NavRail({
+  platformKind,
   appearance,
   workspace,
   navigation,
   operations,
 }: NavRailProps) {
   const managerOpen = navigation.manager.open;
+  const macOverlay =
+    platformKind === "native" && !/android/i.test(navigator.userAgent);
   return (
     <nav
       aria-label="应用导航"
-      className="flex w-13 shrink-0 flex-col items-center gap-1 pt-2 pb-2 max-md:hidden"
+      className="flex w-14 shrink-0 flex-col items-center gap-1 pb-2 max-md:hidden"
     >
+      <div
+        className={macOverlay ? "h-12 w-full shrink-0" : "h-2 w-full shrink-0"}
+        data-tauri-drag-region
+      />
+      <img
+        className="mb-3 size-7 shrink-0 rounded-lg object-contain"
+        src="/brand/plums.png"
+        alt=""
+      />
       {workspace.views.map((view) => (
         <Destination
           key={view.id}

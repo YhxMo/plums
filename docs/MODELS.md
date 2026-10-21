@@ -42,17 +42,37 @@
 
 DeepSeek 预设额外附带 `thinking: { type: "disabled" }`，其他服务不加非标准字段。
 
+### 思考强度
+
+Agent 可以按模型选择思考强度（关闭、低、中、高、最大），连接器按官方文档确认过的组合在 `chat@1` 的 `ChatModel.reasoning` 里列出每个模型可用的档位，没有列出的不显示控件，也不发送。依据服务商、协议与模型名判断（`modules/models/reasoning.ts`），记录不增加字段：
+
+| 服务与模型 | 可选档位 | 请求字段 |
+| --- | --- | --- |
+| Anthropic 协议，Claude 4.6 及以后（含 5 系列） | 低、中、高、最大 | `thinking: { type: "adaptive" }` 加 `output_config: { effort }`；这些模型总在思考，不提供「关闭」 |
+| Anthropic 协议，Claude 4.5 及更早、3.7 Sonnet | 关闭、低、中、高、最大 | `thinking: { type: "enabled", budget_tokens }`，预算 2K / 8K / 16K / 24K token，且不超过 `max_tokens` 减 4096，余量不足 1024 则不发送；「关闭」不带 `thinking` |
+| DeepSeek 预设 | 关闭、低、高、最大 | 关闭为 `thinking: { type: "disabled" }`；其余为 `thinking: { type: "enabled" }` 加 `reasoning_effort`（`low` / `high` / `max`，文档中中档与极高档会被服务端映射到 `high`，故不单列） |
+| OpenAI 预设，`o*`、`gpt-5*`（非 chat 变体） | 低、中、高 | `reasoning_effort` |
+| 其他服务商与自定义地址 | 无 | 暂未核对到文档，不显示强度控件 |
+
+未选择强度时请求与以前完全相同（DeepSeek 仍带预设的 `disabled`）。强度是 Agent 的设置，换到不支持它的模型后保留记录但不发送，界面显示为默认。Anthropic 的强度参与提示缓存前缀，同一会话中途调整强度会让一次缓存未命中。思考内容不展示，Anthropic 的思考块在读取回复时跳过。真实服务的接受情况需要用真实密钥验证，目前只有请求体的单元测试。
+
+### 附件与图片
+
+消息可带文本文件和图片（`modules/agents/attachments.ts`）。文本文件（UTF-8、无 NUL、≤ 200K 字符）在发送时以固定格式放在消息正文之前：`文件「名」：`、围栏（反引号数比内容中最长的反引号串多一个，至少三个）、内容；同一条消息每次得到相同前缀，历史中的旧附件按同格式保留，缓存继续命中。图片在界面端缩放到长边 ≤ 1568 px、WebP（不支持则 JPEG）编码并降质到 base64 ≤ 400K 字符，一条消息最多 5 个附件、其中图片 ≤ 4 张；附件内联存入消息，每个会话的图片合计 ≤ 8M 个 base64 字符，超出时拒绝发送并提示新建会话。
+
+只有 `ChatModel.vision` 为真的模型才收到图片，`vision` 由 `modules/models/vision.ts` 按协议与模型名判断（Anthropic 协议的 `claude-*`；OpenAI 兼容协议的 GPT-4o／4.1／4.5／4-turbo／5、o1／o3／o4、Gemini、Claude、Grok 4、Qwen-VL、QVQ、GLM-*V、Pixtral、LLaVA 及名称含 vision 者），未识别的名称按只读文本处理；这是按名称的规则，没有逐个服务核对，选择器因此不会对未收录的读图模型开放图片。不读图片的模型：添加图片置灰并说明原因，已有图片的历史与新消息中的图片都换成一行 `[图片：文件名]`。读图片的模型：最近 3 条带图的用户消息（含当前输入）随请求发送，更早的换成同样的文字。请求体中 OpenAI 兼容用 `image_url` 的 data URL 块，Anthropic 用 `image` 的 base64 源，图片都在文字之前，Anthropic 的 `cache_control` 位置不变。预算：每张图片按 1600 token 计，不把 base64 当文字计 token，字节上限（8 MiB）仍按 base64 实际长度计。真实服务是否接受这些图片块尚未用真实密钥验证。
+
 与一般 Agent 一样，每次发送当前会话的完整历史（以用户消息开头的整轮，丢弃开头的孤立回复），不设轮数上限。服务商的提示缓存按前缀命中：OpenAI 兼容服务（OpenAI、DeepSeek、Kimi、通义、智谱等）自动缓存；Anthropic 协议在角色说明与最后一条用户消息上加 `cache_control: { type: "ephemeral" }`（5 分钟），下一次请求重复的整段对话按缓存价计费。超过预算（该模型的上下文窗口减去留给回复的 token——设了最大输出用它，否则取窗口的 1/4、至多 32K——以及 8 MiB 请求上限）时不逐轮滑动：历史超过预算的 90% 时一次丢弃最早的若干整轮，降到 60% 以下，此后多次请求前缀不变、缓存继续命中；丢弃点只由此前的历史决定，同一会话重复计算结果相同。说明与当前输入过长时再额外丢弃。token 按偏高的估算（ASCII 每 2.5 字符 1 个、其他字符每字 1 个）计算，不调用分词器；只剩说明与当前输入仍超限则不发送（`not-dispatched`），提示缩短或调大上下文窗口。压缩（总结早期对话）与长期记忆将由扩展提供，取代直接丢弃。
 
 只接受 HTTP 200 的完整文本：OpenAI 兼容要求唯一 choice、`finish_reason: "stop"`、无工具调用；Anthropic 要求 `end_turn` 或 `stop_sequence`、无 `tool_use`，跳过思考块。截断提示调大或清空最大输出；401/403 提示检查密钥与模型权限；其他状态码不透传上游正文。平台失败保留 `not-dispatched` / `not-committed` / `unknown`，unknown 提示可能已计费，不自动重试。
 
 ## `chat@1`
 
-契约在 [`extensions/contracts.d.ts`](../extensions/contracts.d.ts)：`models()` 列出可选模型（`id`、`label`、`description`，可选 `group` 作为选择器中的分组标题，缺省为提供者名称；`id` 至多 256 个字符，更长的不提供给 Agent），`subscribe` 通知列表变化，`reply({ model, instructions?, history, input }, signal)` 返回回复文本，失败带 `outcome`。第三方扩展可以提供自己的 `chat@1`，模型选择器会一并列出；Agent 的回复只来自所选模型。
+契约在 [`extensions/contracts.d.ts`](../extensions/contracts.d.ts)：`models()` 列出可选模型（`id`、`label`、`description`，可选 `group` 作为选择器中的分组标题，缺省为提供者名称；`id` 至多 256 个字符，更长的不提供给 Agent），`subscribe` 通知列表变化，`reply({ model, instructions?, history, input, images?, effort? }, signal)` 返回回复文本（`images` 与历史轮次的 `images` 仅给列出 `vision` 的模型），失败带 `outcome`。第三方扩展可以提供自己的 `chat@1`，模型选择器会一并列出；Agent 的回复只来自所选模型。
 
 ## 迁移与限制
 
-替代旧 `connector.deepseek`：旧扩展及其凭据绑定不再加载，原密钥需要在新页面重新录入一次（旧绑定可在扩展管理「卸载后保留的凭据」或对应条目删除）。`connector.models` 是默认扩展，更新后首次启动自动开启。版本 2 的记录（保存完整地址、两个「自定义」预设）读取时换算为 Base URL 与单个「自定义」，下次保存写成版本 3。不支持流式、工具调用与图片；长期记忆（跨会话事实）是后续的 `memory@1`，见[整体计划](spec/total.md)。
+替代旧 `connector.deepseek`：旧扩展及其凭据绑定不再加载，原密钥需要在新页面重新录入一次（旧绑定可在扩展管理「卸载后保留的凭据」或对应条目删除）。`connector.models` 是默认扩展，更新后首次启动自动开启。版本 2 的记录（保存完整地址、两个「自定义」预设）读取时换算为 Base URL 与单个「自定义」，下次保存写成版本 3。不支持流式与工具调用；图片只作输入（见上）；长期记忆（跨会话事实）是后续的 `memory@1`，见[整体计划](spec/total.md)。
 
 ## 验证
 

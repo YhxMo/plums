@@ -39,6 +39,7 @@ it("adds a provider with the key typed in the form and offers each of its models
       label: model,
       group: "DeepSeek",
       description: "DeepSeek",
+      reasoning: ["off", "low", "high", "max"],
     })),
   );
   await expect(
@@ -69,6 +70,38 @@ it("adds a provider with the key typed in the form and offers each of its models
       { role: "user", content: "我是谁？" },
     ],
   });
+  // A chosen strength replaces the preset's default and reaches the service.
+  await chat().reply(
+    {
+      model: `${provider.id}/user-model-b`,
+      history: [],
+      input: "想一想",
+      effort: "max",
+    },
+    signal(),
+  );
+  expect(body(send, 1)).toMatchObject({
+    thinking: { type: "enabled" },
+    reasoning_effort: "max",
+  });
+});
+
+it("refuses pictures that are not base64 images before anything is sent", async () => {
+  const { api, chat, send } = await fixture();
+  await api.save(deepseek, undefined, KEY);
+  const model = `${api.list()[0].id}/user-model-a`;
+  for (const images of [
+    [{ mime: "image/gif", data: "QUJD" }],
+    [{ mime: "image/png", data: "not base64!" }],
+    "x",
+  ])
+    await expect(
+      chat().reply(
+        { model, history: [], input: "看", images } as never,
+        signal(),
+      ),
+    ).rejects.toMatchObject({ outcome: "not-dispatched" });
+  expect(send).not.toHaveBeenCalled();
 });
 
 it("keeps providers apart and uses each one's protocol", async () => {

@@ -38,6 +38,7 @@ import {
   ItemTitle,
 } from "../components/ui/item";
 import { AgentParts } from "./AgentParts";
+import { Avatar } from "./Avatar";
 import { ModelSelect } from "./ModelSelect";
 import { useAgentDraft } from "./draft";
 import { agentParts, switchPart, type Part } from "./parts";
@@ -341,6 +342,7 @@ export function AgentDialogs({
               add({
                 name: draft.name,
                 description: draft.description,
+                ...(draft.avatar && { avatar: draft.avatar }),
                 ...(models && { model }),
                 ...(api.setOff && { off: draft.off }),
               }),
@@ -349,6 +351,12 @@ export function AgentDialogs({
         >
           <DialogBody className="gap-5">
             <FieldGroup className="gap-4">
+              {draft.avatar && (
+                <div className="flex items-center gap-3 text-[13px] text-muted-foreground">
+                  <Avatar agent={{ name: draft.name, avatar: draft.avatar }} />
+                  角色卡自带的头像，创建后可在详情中更换。
+                </div>
+              )}
               <Field>
                 <FieldLabel htmlFor="agent-name">名称</FieldLabel>
                 <Input

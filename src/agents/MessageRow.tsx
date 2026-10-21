@@ -3,6 +3,7 @@ import { CheckIcon, CopyIcon, RotateCcwIcon, Trash2Icon } from "lucide-react";
 import { motion } from "motion/react";
 import { cn } from "cn";
 import type { Agent, Message } from "../../modules/agents/contract";
+import { MessageAttachments } from "./AttachmentView";
 import { Tooltip } from "../components/Tooltip";
 import { Button } from "../components/ui/button";
 import {
@@ -23,8 +24,8 @@ const actions: Record<MessageAction, { label: string; icon: typeof CopyIcon }> =
   };
 
 /**
- * One chat line: replies in a raised bubble on the left, the own turn in a
- * tinted bubble on the right; on desktop each saved line has actions
+ * One chat line: replies in a card-coloured bubble on the left, the own turn
+ * in a brand-coloured bubble on the right; on desktop each saved line has actions
  * below it (on hover or focus, always for the latest reply) and a
  * right-click menu.
  */
@@ -32,6 +33,7 @@ export function MessageRow({
   agent,
   role,
   text,
+  attachments,
   status,
   message,
   busy,
@@ -39,11 +41,14 @@ export function MessageRow({
   canDelete,
   pointerMenu,
   latest,
+  className,
   onAction,
 }: {
   agent: Agent;
   role: Message["role"];
   text: string;
+  /** Files and pictures shown under the text. */
+  attachments?: Message["attachments"];
   /** Live region for the typing line. */
   status?: boolean;
   /** Saved messages get actions; pending and typing lines do not. */
@@ -55,6 +60,8 @@ export function MessageRow({
   pointerMenu?: boolean;
   /** The last reply keeps its actions in view. */
   latest?: boolean;
+  /** Spacing from the line above, set by the list. */
+  className?: string;
   onAction?: (action: MessageAction, message: Message) => void;
 }) {
   const user = role === "user";
@@ -68,13 +75,12 @@ export function MessageRow({
       role={status ? "status" : undefined}
       className={cn(
         "m-0 min-w-0 wrap-anywhere whitespace-pre-wrap",
-        "max-w-[min(85%,640px)] rounded-[18px] px-3.5 py-2 text-sm leading-relaxed max-md:max-w-[85%] max-md:text-[15px]",
+        "max-w-[min(85%,640px)] rounded-[16px] px-3.5 py-2 text-sm leading-relaxed max-md:max-w-[85%] max-md:text-[15px]",
         user
-          ? "rounded-br-md bg-subtle"
-          : "rounded-bl-md bg-surface shadow-panel max-md:font-reading",
-        status &&
-          "flex items-center gap-2 text-[13px] text-muted-foreground max-md:font-sans",
-        "transition-shadow data-[state=open]:ring-2 data-[state=open]:ring-brand/50 data-[state=open]:ring-offset-2 data-[state=open]:ring-offset-background",
+          ? "rounded-br-[4px] bg-brand text-primary-foreground"
+          : "rounded-bl-[4px] bg-card text-card-foreground",
+        status && "flex items-center gap-2 text-[13px] text-muted-foreground",
+        "data-[state=open]:ring-2 data-[state=open]:ring-brand/50 data-[state=open]:ring-offset-2 data-[state=open]:ring-offset-background",
       )}
     >
       {status && (
@@ -101,19 +107,16 @@ export function MessageRow({
       exit={{ opacity: 0, scale: 0.98 }}
       transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
       className={cn(
-        "group/row relative flex min-w-0 flex-col gap-1",
+        // The floating actions of a hovered line stay above the line below.
+        "group/row relative flex min-w-0 flex-col gap-1 focus-within:z-1 hover:z-1",
         user ? "items-end" : "items-start",
+        className,
       )}
     >
-      {!user && (
-        <span
-          className="mb-0.5 hidden text-xs font-medium text-muted-foreground max-md:block"
-          aria-hidden="true"
-        >
-          {agent.name}
-        </span>
-      )}
       <span className="sr-only">{user ? "你" : agent.name}：</span>
+      {attachments && attachments.length > 0 && (
+        <MessageAttachments attachments={attachments} user={user} />
+      )}
       {message && onAction ? (
         <ContextMenu
           modal={false}

@@ -101,7 +101,7 @@ export function Dialog({
             "gap-0 border-0 shadow-float",
             sheet === "bottom"
               ? "max-h-[88dvh] overflow-auto rounded-t-2xl"
-              : "overflow-hidden rounded-xl data-[side=right]:top-12 data-[side=right]:right-2 data-[side=right]:bottom-2 data-[side=right]:h-auto data-[side=right]:w-80 data-[side=right]:max-w-[calc(100vw-1rem)] data-[side=right]:sm:max-w-80",
+              : "overflow-hidden rounded-xl data-[side=right]:top-14 data-[side=right]:right-2 data-[side=right]:bottom-2 data-[side=right]:h-auto data-[side=right]:w-80 data-[side=right]:max-w-[calc(100vw-1rem)] data-[side=right]:sm:max-w-80",
             className,
           )}
         >

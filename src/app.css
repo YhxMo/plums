@@ -2,7 +2,6 @@
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
 @import "./styles.css";
-@import "./mobile-theme.css";
 @import "./touch.css";
 
 /* Light/dark follows the shell's data-theme, which contributed themes also set. */
@@ -18,7 +17,6 @@
     -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC",
     "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
   --font-heading: var(--font-sans);
-  --font-reading: var(--font-serif);
   --color-background: var(--background);
   --color-foreground: var(--text);
   --color-card: var(--card);
@@ -48,6 +46,7 @@
   /* Shell surfaces and the brand colour under their own names. */
   --color-surface: var(--surface);
   --color-chrome: var(--chrome-bg);
+  --color-chat: var(--chat-bg);
   --color-overlay: var(--overlay);
   --color-subtle: var(--subtle);
   --color-brand: var(--accent);
@@ -96,6 +95,20 @@
     }
     [data-slot="button"][data-size^="icon"] {
       min-width: 44px;
+    }
+  }
+}
+
+@layer components {
+  /* The content beside the rail: one raised pane. A view that draws its own
+     panels (data-frame="own") sits on the chrome instead. */
+  .pane {
+    @apply md:rounded-2xl md:border md:border-border/70 md:bg-background md:shadow-panel;
+  }
+  .pane[data-manager="false"]:has([data-frame="own"]) {
+    @apply md:rounded-none md:border-0 md:bg-transparent md:shadow-none;
+    .pane-toggle {
+      @apply md:top-2.5;
     }
   }
 }

@@ -351,7 +351,7 @@ test("the desktop rail switches between the workspace and extension management",
 });
 
 for (const theme of ["light", "dark"] as const) {
-  test(`chrome and content are two tones, content the lighter, in ${theme}`, async ({
+  test(`the rail, list and conversation are three tones, both panes lighter than the rail, in ${theme}`, async ({
     page,
   }) => {
     await page.emulateMedia({ colorScheme: theme });
@@ -359,9 +359,8 @@ for (const theme of ["light", "dark"] as const) {
     await page.goto("/");
     await addAgent(page, "分层");
     // Reads the first non-transparent background at or above each element.
-    const [titleBar, rail, list, conversation] = await page.evaluate(() =>
+    const [rail, list, conversation] = await page.evaluate(() =>
       [
-        document.querySelector("header"),
         document.querySelector('nav[aria-label="应用导航"]'),
         document.querySelector('aside[aria-label="Agent 列表"]'),
         document.querySelector('section[aria-label$="的会话"]'),
@@ -373,14 +372,14 @@ for (const theme of ["light", "dark"] as const) {
         return "";
       }),
     );
-    expect(rail).toBe(titleBar);
-    expect(list).toBe(conversation);
-    expect(conversation).not.toBe(titleBar);
+    expect(list).not.toBe(conversation);
+    expect(conversation).not.toBe(rail);
     const luminance = (color: string) =>
       color
         .match(/[\d.]+/g)!
         .slice(0, 3)
         .reduce((sum, channel) => sum + Number(channel), 0);
-    expect(luminance(conversation)).toBeGreaterThan(luminance(titleBar));
+    expect(luminance(list)).toBeGreaterThan(luminance(rail));
+    expect(luminance(conversation)).toBeGreaterThan(luminance(rail));
   });
 }

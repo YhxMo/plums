@@ -437,3 +437,61 @@ it("allows a retry after a write that was definitely not committed", async () =>
       .map((agent) => agent.name),
   ).toEqual(["二"]);
 });
+
+const PNG =
+  "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==";
+const image = `data:image/png;base64,${PNG}`;
+type Entry = { avatar?: unknown };
+
+it("keeps an avatar in its own document, named by the index, and restores it", async () => {
+  const { platform, states, write } = memoryPlatform();
+  const host = await start(platform);
+  const agent = await provider(host).create({ name: "有头像" });
+  await provider(host).update(agent.id, { avatar: image });
+  const key = (index(states).agents[0] as Entry).avatar;
+  expect(key).toMatch(/^a-[0-9a-f]{16}$/);
+  expect(JSON.stringify(index(states))).not.toContain(PNG);
+  expect(states.get(`${owner}+${key}`)!.value).toEqual({ version: 1, image });
+  // Messages saved later leave the avatar document alone.
+  write.mockClear();
+  await provider(host).send(agent.id, "你好");
+  expect(write.mock.calls.map(([, update]) => update.key)).not.toContain(key);
+  const restarted = await start(platform);
+  expect(provider(restarted).list()[0].avatar).toBe(image);
+  // A new image gets a new document and the old one is removed.
+  await provider(restarted).update(agent.id, {
+    avatar: `${image}`.replace("png", "jpeg"),
+  });
+  const next = (index(states).agents[0] as Entry).avatar;
+  expect(next).not.toBe(key);
+  expect(states.has(`${owner}+${key}`)).toBe(false);
+  await provider(restarted).update(agent.id, { avatar: null });
+  expect(index(states).agents[0]).not.toHaveProperty("avatar");
+  expect(states.has(`${owner}+${next}`)).toBe(false);
+});
+
+it("starts without the avatar when its document is missing or damaged", async () => {
+  for (const damage of ["remove", "garbage"] as const) {
+    const { platform, states } = memoryPlatform();
+    const host = await start(platform);
+    const agent = await provider(host).create({ name: "有头像" });
+    await provider(host).update(agent.id, { avatar: image });
+    const key = `${owner}+${(index(states).agents[0] as Entry).avatar}`;
+    if (damage === "remove") states.delete(key);
+    else states.set(key, { revision: 1, value: { version: 1, image: 5 } });
+    const restarted = await start(platform);
+    expect(restarted.inspect("agents.local").status).toBe("active");
+    expect(provider(restarted).list()[0].name).toBe("有头像");
+    expect(provider(restarted).list()[0]).not.toHaveProperty("avatar");
+  }
+});
+
+it("removing an Agent removes its avatar document", async () => {
+  const { platform, states } = memoryPlatform();
+  const host = await start(platform);
+  const agent = await provider(host).create({ name: "有头像" });
+  await provider(host).update(agent.id, { avatar: image });
+  const key = `${owner}+${(index(states).agents[0] as Entry).avatar}`;
+  await provider(host).remove(agent.id);
+  expect(states.has(key)).toBe(false);
+});

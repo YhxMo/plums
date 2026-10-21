@@ -1,9 +1,11 @@
 import { useRef, useState } from "react";
-import { EllipsisIcon, PinIcon, PlusIcon, SearchIcon } from "lucide-react";
+import { EllipsisIcon, PlusIcon, SearchIcon } from "lucide-react";
 import { LayoutGroup, motion } from "motion/react";
+import { cn } from "cn";
 import type { Agent } from "../../modules/agents/contract";
 import { formatTime } from "./time";
 import { Avatar } from "./Avatar";
+import { panel } from "./panel";
 import { AgentMenuItems, type AgentAction } from "./AgentMenu";
 import { Tooltip } from "../components/Tooltip";
 import { Button } from "../components/ui/button";
@@ -54,42 +56,34 @@ function AgentRow({
           layout="position"
           {...enter}
           // The status dot's ring follows the row's tint.
-          className="group/row relative flex items-center rounded-lg transition-colors [--row-bg:var(--background)] hover:bg-sidebar-accent hover:[--row-bg:var(--sidebar-hover)] data-[selected=true]:[--row-bg:var(--sidebar-active)] data-[selected=true]:hover:bg-transparent data-[selected=true]:hover:[--row-bg:var(--sidebar-active)]"
+          className="group/row relative flex items-center rounded-xl transition-colors [--row-bg:var(--list-bg,var(--background))] hover:bg-sidebar-accent hover:[--row-bg:var(--sidebar-hover)] data-[selected=true]:[--row-bg:var(--sidebar-active)] data-[selected=true]:hover:bg-transparent data-[selected=true]:hover:[--row-bg:var(--sidebar-active)]"
           data-selected={selected}
         >
           {selected && (
             <motion.span
               layoutId="agent-row-selected"
               transition={{ type: "spring", stiffness: 520, damping: 40 }}
-              className="absolute inset-0 rounded-lg bg-sidebar-primary"
+              className="absolute inset-0 rounded-xl bg-sidebar-primary"
             />
           )}
           <button
             data-slot="agent-row"
-            className="relative flex min-w-0 flex-1 items-center gap-2.5 rounded-lg py-2 pr-1.5 pl-2 text-left outline-none focus-visible:ring-3 focus-visible:ring-ring/50 md:pointer-fine:pr-2.5 max-md:py-3"
+            className="relative flex min-w-0 flex-1 items-center gap-3 rounded-xl py-2.5 pr-1.5 pl-3 text-left outline-none focus-visible:ring-3 focus-visible:ring-ring/50 md:pointer-fine:pr-2.5 max-md:py-3"
             data-agent-id={a.id}
             onClick={onSelect}
             aria-label={`与 ${a.name} 交互`}
           >
-            <Avatar agent={a} status={a.status} className="size-9" />
+            <Avatar agent={a} status={a.status} className="size-11 text-lg" />
             <span className="flex min-w-0 flex-1 flex-col gap-0.5">
               <span className="flex min-w-0 items-baseline justify-between gap-2">
-                <span className="flex min-w-0 items-center gap-1">
-                  <strong className="truncate text-[13px] font-medium max-md:text-[15px]">
-                    {a.name}
-                  </strong>
-                  {a.pinned && (
-                    <PinIcon
-                      aria-label="特别关注"
-                      className="size-3 shrink-0 text-muted-foreground"
-                    />
-                  )}
-                </span>
+                <strong className="truncate text-sm font-medium max-md:text-[15px]">
+                  {a.name}
+                </strong>
                 <span className="min-w-7 shrink-0 text-right text-[11px] text-muted-foreground transition-opacity md:pointer-fine:group-hover/row:opacity-0 md:pointer-fine:group-focus-within/row:opacity-0 md:pointer-fine:group-has-aria-expanded/row:opacity-0">
                   {lastAt !== undefined && formatTime(lastAt, undefined, true)}
                 </span>
               </span>
-              <span className="truncate text-xs text-muted-foreground/90 max-md:text-[13px]">
+              <span className="truncate text-[13px] text-muted-foreground/90">
                 {a.status === "busy" ? (
                   <span className="text-running">正在回复…</span>
                 ) : (
@@ -128,6 +122,73 @@ function AgentRow({
   );
 }
 
+/** A special-attention Agent: a large avatar in the grid above the rows. */
+function AgentTile({
+  agent: a,
+  selected,
+  onSelect,
+  onAction,
+}: {
+  agent: Agent;
+  selected: boolean;
+  onSelect: () => void;
+  onAction: (action: AgentAction, source: HTMLElement | null) => void;
+}) {
+  const tile = useRef<HTMLButtonElement>(null);
+  return (
+    <ContextMenu>
+      <ContextMenuTrigger asChild>
+        <motion.div
+          layout="position"
+          {...enter}
+          className="relative rounded-xl"
+          data-selected={selected}
+        >
+          {selected && (
+            <motion.span
+              layoutId="agent-tile-selected"
+              transition={{ type: "spring", stiffness: 520, damping: 40 }}
+              className="absolute inset-0 rounded-xl bg-sidebar-primary"
+            />
+          )}
+          <button
+            ref={tile}
+            data-slot="agent-tile"
+            className="relative flex w-full min-w-0 flex-col items-center gap-1.5 rounded-xl px-1 py-2.5 outline-none hover:bg-sidebar-accent focus-visible:ring-3 focus-visible:ring-ring/50 max-md:py-3"
+            data-agent-id={a.id}
+            onClick={onSelect}
+            aria-label={`与 ${a.name} 交互`}
+          >
+            <span className="relative">
+              <Avatar
+                agent={a}
+                className={cn(
+                  "size-14 text-xl",
+                  a.status === "busy" &&
+                    "animate-pulse ring-2 ring-running ring-offset-2 ring-offset-(--list-bg,var(--background))",
+                )}
+              />
+            </span>
+            <span className="w-full truncate text-center text-xs">
+              {a.name}
+            </span>
+          </button>
+        </motion.div>
+      </ContextMenuTrigger>
+      <ContextMenuContent className="w-44" aria-label={`${a.name} 的操作菜单`}>
+        <AgentMenuItems
+          agent={a}
+          kind="context"
+          onAction={(action) => onAction(action, tile.current)}
+        />
+      </ContextMenuContent>
+    </ContextMenu>
+  );
+}
+
+const section =
+  "px-3 pt-2 pb-1 text-[11px] font-medium tracking-wide text-muted-foreground";
+
 export function AgentList({
   agents,
   selected,
@@ -149,35 +210,30 @@ export function AgentList({
   const shown = agents.filter((a) =>
     a.name.toLowerCase().includes(query.toLowerCase()),
   );
-  // Pinned Agents come first, as in a messenger.
-  const ordered = [
-    ...shown.filter((a) => a.pinned),
-    ...shown.filter((a) => !a.pinned),
-  ];
+  const favourites = shown.filter((a) => a.pinned);
+  const rest = shown.filter((a) => !a.pinned);
   return (
     <aside
-      className="flex h-full min-h-0 w-full flex-col"
+      className={cn(
+        "flex h-full min-h-0 w-full flex-col md:bg-sidebar md:[--list-bg:var(--sidebar-bg)]",
+        panel,
+      )}
       aria-label="Agent 列表"
     >
-      <div className="flex min-h-12 items-center gap-1.5 pr-2 pl-4 max-md:min-h-0 max-md:px-5 max-md:pt-4 max-md:pb-3">
-        <h2 className="text-[15px] font-semibold tracking-tight max-md:text-lg">
+      <div
+        className="flex min-h-12 items-center gap-2 px-3 max-md:flex-wrap max-md:px-5 max-md:pt-4 max-md:pb-3"
+        data-tauri-drag-region
+      >
+        <h2
+          className={cn(
+            "text-[15px] font-semibold tracking-tight max-md:flex-1 max-md:text-lg",
+            agents.length > 0 && "md:sr-only",
+          )}
+        >
           我的 Agent
         </h2>
-        <Tooltip label="添加 Agent">
-          <Button
-            variant="ghost"
-            size="icon-sm"
-            className="ml-auto text-muted-foreground hover:text-foreground"
-            aria-label="添加"
-            onClick={(e) => onAdd(e.currentTarget)}
-          >
-            <PlusIcon />
-          </Button>
-        </Tooltip>
-      </div>
-      {agents.length > 0 && (
-        <div className="px-3 pb-2 max-md:px-4">
-          <InputGroup className="h-8 rounded-lg border-transparent bg-muted shadow-none transition-colors has-[[data-slot=input-group-control]:focus-visible]:border-input has-[[data-slot=input-group-control]:focus-visible]:bg-background has-[[data-slot=input-group-control]:focus-visible]:ring-0 max-md:h-11 dark:bg-muted">
+        {agents.length > 0 && (
+          <InputGroup className="h-8 flex-1 rounded-xl border-transparent bg-muted shadow-none transition-colors has-[[data-slot=input-group-control]:focus-visible]:border-input has-[[data-slot=input-group-control]:focus-visible]:bg-background has-[[data-slot=input-group-control]:focus-visible]:ring-0 max-md:order-3 max-md:h-11 max-md:basis-full dark:bg-muted">
             <InputGroupAddon>
               <SearchIcon />
             </InputGroupAddon>
@@ -188,11 +244,39 @@ export function AgentList({
               onChange={(e) => setQuery(e.target.value)}
             />
           </InputGroup>
-        </div>
-      )}
+        )}
+        <Tooltip label="添加 Agent" side="right">
+          <Button
+            variant="ghost"
+            size="icon"
+            className="size-8 rounded-xl bg-muted text-muted-foreground hover:text-foreground max-md:order-2 max-md:size-9 max-md:bg-transparent"
+            aria-label="添加"
+            onClick={(e) => onAdd(e.currentTarget)}
+          >
+            <PlusIcon />
+          </Button>
+        </Tooltip>
+      </div>
       <div className="flex min-h-0 flex-1 flex-col gap-0.5 overflow-y-auto px-2 pb-3 max-md:px-3 max-md:pb-5">
         <LayoutGroup id="agent-rows">
-          {ordered.map((a) => (
+          {favourites.length > 0 && (
+            <>
+              <h3 className={section}>特别关注</h3>
+              <div className="grid grid-cols-[repeat(auto-fill,minmax(76px,1fr))] gap-0.5 pb-1">
+                {favourites.map((a) => (
+                  <AgentTile
+                    key={a.id}
+                    agent={a}
+                    selected={selected === a.id}
+                    onSelect={() => onSelect(a.id)}
+                    onAction={(action, source) => onAction(a, action, source)}
+                  />
+                ))}
+              </div>
+              {rest.length > 0 && <h3 className={section}>全部</h3>}
+            </>
+          )}
+          {rest.map((a) => (
             <AgentRow
               key={a.id}
               agent={a}

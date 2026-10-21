@@ -1,7 +1,7 @@
 import { ContractError } from "../sdk/errors";
 import type { StoredState } from "../sdk";
 import type { Agent, Session } from "./contract";
-import { restoreAgents, type SaveOptions } from "./store";
+import { restoreAgents, validAvatar, type SaveOptions } from "./store";
 
 type Call = (
   capability: string,
@@ -9,10 +9,15 @@ type Call = (
   signal?: AbortSignal,
 ) => Promise<unknown>;
 type SessionEntry = Omit<Session, "messages"> & { pages: string[] };
-type AgentEntry = Omit<Agent, "sessions"> & { sessions: SessionEntry[] };
+/** An Agent's picture is its own document; the index holds only that key. */
+type AgentEntry = Omit<Agent, "sessions" | "avatar"> & {
+  avatar?: string;
+  sessions: SessionEntry[];
+};
 /** Main document: Agents, session metadata and the keys of each session's pages. */
 export type AgentIndex = { version: 3; agents: AgentEntry[] };
 type Page = { version: 2; part: string };
+type Picture = { version: 1; image: string };
 /** A session as last committed: its messages' JSON, split into pages. */
 type Stored = { json: string; parts: string[]; keys: string[] };
 
@@ -74,6 +79,8 @@ export class AgentState {
   private written = "";
   /** Committed pages per `${agentId}\n${sessionId}`. */
   private stored = new Map<string, Stored>();
+  /** Committed avatar documents per Agent id. */
+  private avatars = new Map<string, { image: string; key: string }>();
   /** Version 2 shards, removed once a version 3 index is committed. */
   private legacy: string[] = [];
   private uncertain = false;
@@ -106,6 +113,8 @@ export class AgentState {
     const agents = await Promise.all(
       (doc.agents as unknown[]).map(async (entry) => {
         if (!record(entry) || !Array.isArray(entry.sessions)) throw corrupt();
+        const { avatar: avatarKey, ...rest } = entry;
+        const avatar = await this.readAvatar(String(entry.id), avatarKey);
         const sessions = await Promise.all(
           (entry.sessions as unknown[]).map(async (session) => {
             if (!record(session)) throw corrupt();
@@ -120,7 +129,7 @@ export class AgentState {
             return { ...meta, messages };
           }),
         );
-        return { ...entry, sessions };
+        return { ...rest, ...(avatar && { avatar }), sessions };
       }),
     );
     const restored = restoreAgents(agents);
@@ -133,6 +142,20 @@ export class AgentState {
     })) as StoredState | null;
     if (stored) this.revisions.set(key, stored.revision);
     return stored?.value;
+  }
+  /** The picture a key names; a missing or damaged one is just no picture. */
+  private async readAvatar(agent: string, key: unknown) {
+    if (typeof key !== "string") return undefined;
+    try {
+      const value = await this.read(key);
+      if (record(value) && value.version === 1 && validAvatar(value.image)) {
+        this.avatars.set(agent, { image: value.image, key });
+        return value.image;
+      }
+    } catch {
+      // The picture is optional: the Agent still starts.
+    }
+    return undefined;
   }
   private async readShard(key: unknown) {
     if (typeof key !== "string") throw corrupt();
@@ -177,7 +200,19 @@ export class AgentState {
     const blocked = this.blocked();
     if (blocked) throw Error(blocked);
     const next = new Map<string, Stored>();
-    const pages: { key: string; part: string }[] = [];
+    const pages: { key: string; value: Page | Picture }[] = [];
+    const avatars = new Map<string, { image: string; key: string }>();
+    for (const { id, avatar } of agents) {
+      if (!avatar) continue;
+      const old = this.avatars.get(id);
+      if (old?.image === avatar) {
+        avatars.set(id, old);
+        continue;
+      }
+      const key = this.newPage().replace(/^p-/, "a-");
+      pages.push({ key, value: { version: 1, image: avatar } });
+      avatars.set(id, { image: avatar, key });
+    }
     for (const agent of agents)
       for (const { id, messages } of agent.sessions) {
         const slot = `${agent.id}\n${id}`;
@@ -191,25 +226,25 @@ export class AgentState {
         const keys = parts.map((part, i) => {
           if (old?.parts[i] === part) return old.keys[i];
           const key = this.newPage();
-          pages.push({ key, part });
+          pages.push({ key, value: { version: 2, part } });
           return key;
         });
         next.set(slot, { json, parts, keys });
       }
-    const index = this.index(agents, next);
+    const index = this.index(agents, next, avatars);
     const json = JSON.stringify(index);
     if (json === this.written) return;
     options?.onCommit?.();
     const signal = options?.signal;
     const written: string[] = [];
     try {
-      for (const { key, part } of pages) {
+      for (const { key, value } of pages) {
         written.push(key);
         let receipt: StoredState;
         try {
           receipt = (await this.call(
             "state.write",
-            { key, revision: 0, value: { version: 2, part } satisfies Page },
+            { key, revision: 0, value },
             signal,
           )) as StoredState;
         } catch (error) {
@@ -245,10 +280,13 @@ export class AgentState {
     }
     this.written = json;
     const live = new Set([...next.values()].flatMap(({ keys }) => keys));
-    const gone = [...this.stored.values()]
-      .flatMap(({ keys }) => keys)
-      .filter((key) => !live.has(key));
+    for (const { key } of avatars.values()) live.add(key);
+    const gone = [
+      ...[...this.stored.values()].flatMap(({ keys }) => keys),
+      ...[...this.avatars.values()].map(({ key }) => key),
+    ].filter((key) => !live.has(key));
     this.stored = next;
+    this.avatars = avatars;
     await this.discard([...gone, ...this.legacy.splice(0)]);
   }
   /** Removes unreferenced documents; one left behind is inert. */
@@ -265,11 +303,13 @@ export class AgentState {
   private index(
     agents: Agent[],
     stored: Map<string, Stored> = this.stored,
+    avatars = this.avatars,
   ): AgentIndex {
     return {
       version: 3,
-      agents: agents.map(({ sessions, ...agent }) => ({
+      agents: agents.map(({ sessions, avatar: _avatar, ...agent }) => ({
         ...agent,
+        ...(avatars.has(agent.id) && { avatar: avatars.get(agent.id)!.key }),
         sessions: sessions.map(({ messages: _messages, ...session }) => ({
           ...session,
           pages: stored.get(`${agent.id}\n${session.id}`)?.keys ?? [],

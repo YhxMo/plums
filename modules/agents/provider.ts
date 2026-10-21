@@ -1,6 +1,7 @@
 import type { ExtensionDefinition } from "../sdk";
 import type { ChatService } from "../../extensions/contracts";
 import { AgentStore, MAX_MODEL_ID, restoreAgents } from "./store";
+import { prepareChat } from "./attachments";
 import { AgentState } from "./sharded-state";
 
 /**
@@ -42,14 +43,25 @@ export function agentExtension(
           value
             .models()
             .filter(({ id: model }) => model.length <= MAX_MODEL_ID)
-            .map(({ id: model, label: name, description, group }) => ({
-              provider: id,
-              providerLabel: label,
-              group: group ?? label,
-              id: model,
-              label: name,
-              description,
-            })),
+            .map(
+              ({
+                id: model,
+                label: name,
+                description,
+                group,
+                reasoning,
+                vision,
+              }) => ({
+                provider: id,
+                providerLabel: label,
+                group: group ?? label,
+                id: model,
+                label: name,
+                description,
+                ...(reasoning?.length && { reasoning }),
+                ...(vision && { vision }),
+              }),
+            ),
         );
       const state = new AgentState((capability, payload, signal) =>
         ctx.platform(capability, payload, signal),
@@ -65,7 +77,11 @@ export function agentExtension(
       const store = new AgentStore(
         initial,
         (agents, save) => state.save(agents, save),
-        (text, signal, { model, instructions, history }) => {
+        (
+          text,
+          signal,
+          { model, effort, instructions, history, attachments },
+        ) => {
           if (!model)
             throw new Error(
               models().length
@@ -77,10 +93,32 @@ export function agentExtension(
             throw new Error(
               "此 Agent 的模型连接已停用，请在扩展管理中启用，或换一个模型。",
             );
+          // Only a strength the model lists is sent; a kept choice may predate a model change.
+          const takes =
+            effort &&
+            models().find(
+              (m) => m.provider === model.provider && m.id === model.model,
+            )?.reasoning;
+          const conversation = prepareChat(
+            history,
+            { text, attachments },
+            models().find(
+              (m) => m.provider === model.provider && m.id === model.model,
+            )?.vision === true,
+          );
           return ctx.task(async () => {
             // A connection stopping mid-reply cancels the call and saves nothing.
             const output = await chat.value.reply(
-              { model: model.model, instructions, history, input: text },
+              {
+                model: model.model,
+                instructions,
+                history: conversation.history,
+                input: conversation.input.text,
+                ...(conversation.input.images && {
+                  images: conversation.input.images,
+                }),
+                ...(effort && takes?.includes(effort) && { effort }),
+              },
               AbortSignal.any([signal, chat.signal]),
             );
             if (chat.signal.aborted)

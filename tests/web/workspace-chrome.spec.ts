@@ -71,7 +71,7 @@ test("workspace-owned chrome publishes titles, scopes sidebars, and releases on 
     .getByRole("button", { name: "停用 test.workspace", exact: true })
     .click();
   await page.getByRole("button", { name: "返回工作区", exact: true }).click();
-  await expect(topbar).not.toContainText("更新后的任务标题");
+  await expect(topbar.filter({ hasText: "更新后的任务标题" })).toHaveCount(0);
   await expect(
     page.getByRole("complementary", { name: "test.context", exact: true }),
   ).toHaveCount(0);
@@ -121,7 +121,9 @@ for (const failure of ["snapshot", "subscribe", "notification"]) {
     await expect(
       page.getByRole("heading", { name: "欢迎使用 Plums" }),
     ).toBeVisible();
-    await expect(page.getByRole("banner")).not.toContainText("工作区故障夹具");
+    await expect(
+      page.getByRole("banner").filter({ hasText: "工作区故障夹具" }),
+    ).toHaveCount(0);
   });
 }
 

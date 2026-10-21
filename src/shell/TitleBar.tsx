@@ -1,13 +1,15 @@
-import { MenuIcon, PanelRightIcon } from "lucide-react";
+import { MenuIcon } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { cn } from "cn";
 import type { TitleBarProps } from "./controllers";
-import { AppMenu, ThemeToggle } from "./ShellActions";
-import { Tooltip } from "../components/Tooltip";
-import { Button } from "../components/ui/button";
+import { AppMenu, SidebarToggle, ThemeToggle } from "./ShellActions";
 
+/**
+ * The phone's top bar. Desktop has none: the rail starts at the window's
+ * top edge and each pane carries its own header. A workspace that sets a
+ * title of its own still gets a slim line for it there.
+ */
 export function TitleBar({
-  platformKind,
   appearance,
   workspace,
   chrome,
@@ -19,13 +21,12 @@ export function TitleBar({
     ? "扩展管理"
     : chrome.title ||
       (workspace.current?.chrome ? "" : workspace.current?.label || "工作空间");
-  const isMacOverlay =
-    platformKind === "native" && !/android/i.test(navigator.userAgent);
+  const desktopTitle = !managerOpen && chrome.title;
   return (
     <header
       className={cn(
-        "sticky top-0 z-2 flex min-h-12 shrink-0 items-center justify-between gap-3 bg-chrome pr-2 pl-4 select-none max-md:min-h-14 max-md:border-b max-md:bg-surface max-md:px-4",
-        isMacOverlay && "pl-[78px] max-md:pl-[78px]",
+        "sticky top-0 z-2 flex min-h-12 shrink-0 items-center justify-between gap-3 bg-chrome pr-2 pl-4 md:pr-14 select-none max-md:min-h-14 max-md:border-b max-md:bg-background max-md:px-4",
+        desktopTitle ? "md:bg-background" : "md:hidden",
       )}
       data-tauri-drag-region
     >
@@ -34,7 +35,7 @@ export function TitleBar({
         data-tauri-drag-region
       >
         <div
-          className="flex shrink-0 items-center gap-2"
+          className="flex shrink-0 items-center gap-2 md:hidden"
           data-tauri-drag-region
         >
           <img
@@ -59,7 +60,7 @@ export function TitleBar({
             >
               <span
                 aria-hidden="true"
-                className="h-3.5 w-px shrink-0 bg-border"
+                className="h-3.5 w-px shrink-0 bg-border md:hidden"
               />
               <span className="truncate text-[13px] font-medium text-muted-foreground">
                 {title}
@@ -68,32 +69,14 @@ export function TitleBar({
           )}
         </AnimatePresence>
       </div>
-      <div className="flex shrink-0 items-center gap-0.5">
-        {/* Desktop keeps these in the navigation rail. */}
-        <div className="contents md:hidden">
-          <ThemeToggle appearance={appearance} operations={operations} />
-          <AppMenu
-            workspace={workspace}
-            navigation={navigation}
-            icon={<MenuIcon />}
-          />
-        </div>
-        <Tooltip
-          label={
-            chrome.custom ? `切换 ${chrome.custom.label}` : "展开或收起右侧栏"
-          }
-        >
-          <Button
-            variant="ghost"
-            size="icon"
-            aria-label="展开或收起右侧栏"
-            aria-pressed={chrome.open}
-            className="text-muted-foreground aria-pressed:bg-muted aria-pressed:text-foreground"
-            onClick={(event) => chrome.toggle(event.currentTarget)}
-          >
-            <PanelRightIcon />
-          </Button>
-        </Tooltip>
+      <div className="flex shrink-0 items-center gap-0.5 md:hidden">
+        <ThemeToggle appearance={appearance} operations={operations} />
+        <AppMenu
+          workspace={workspace}
+          navigation={navigation}
+          icon={<MenuIcon />}
+        />
+        <SidebarToggle chrome={chrome} />
       </div>
     </header>
   );

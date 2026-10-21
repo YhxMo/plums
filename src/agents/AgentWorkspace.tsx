@@ -5,11 +5,17 @@ import {
   useState,
   useSyncExternalStore,
 } from "react";
-import type { Agent, AgentProvider } from "../../modules/agents/contract";
+import type {
+  Agent,
+  AgentProvider,
+  Attachment,
+} from "../../modules/agents/contract";
+import { attachmentProblem } from "../../modules/agents/attachments";
 import type { Named, WorkspaceChromeController } from "../../modules/sdk";
 import { cn } from "cn";
 import { AgentList } from "./AgentList";
-import { ChatView, type Blocked } from "./ChatView";
+import { ChatView } from "./ChatView";
+import type { Blocked } from "./Composer";
 import { ModelSelect } from "./ModelSelect";
 import { DetailPanel } from "./DetailPanel";
 import { EmptyState } from "./EmptyState";
@@ -26,12 +32,14 @@ import { useAgentModals } from "./useAgentModals";
 import { AgentDialogs } from "./AgentDialogs";
 import type { AgentAction } from "./AgentMenu";
 import { fallbackFocus } from "./focus";
+import { toAttachment } from "./attachmentFile";
+import { AVATAR_BASE64, AVATAR_SIDE, scaledPicture } from "./imageFile";
 import { agentParts, switchPart, type Part } from "./parts";
 
-// The list's own shadow marks the edge; the handle only shows while used.
-// A hairline between the list and the conversation, brand-coloured while used.
+// The list and the conversation are separate panels with a gap between them;
+// the handle sits in that gap and only shows a brand-coloured line while used.
 const handle =
-  "bg-border/70 transition-colors after:w-2 hover:bg-brand/50 data-[separator=active]:bg-brand";
+  "w-2 bg-transparent after:w-0.5 after:rounded-full after:transition-colors hover:after:bg-brand/50 data-[separator=active]:after:bg-brand";
 
 export function AgentWorkspace({
   api,
@@ -89,7 +97,26 @@ export function AgentWorkspace({
     [chrome],
   );
   const [drafts, setDrafts] = useState<Record<string, string>>({});
+  // Files waiting to be sent, kept per conversation like the text.
+  const [files, setFiles] = useState<Record<string, Attachment[]>>({});
+  const filesNow = useRef(files);
+  filesNow.current = files;
   const agent = agents.find((a) => a.id === selected);
+  async function addFiles(to: string, added: File[]) {
+    const read: Attachment[] = [];
+    for (const file of added) {
+      try {
+        read.push(await toAttachment(file));
+      } catch (error) {
+        setError(error instanceof Error ? error.message : "无法添加文件。");
+      }
+    }
+    if (!read.length) return;
+    const next = [...(filesNow.current[to] ?? []), ...read];
+    const problem = attachmentProblem(next);
+    if (problem) setError(problem);
+    else setFiles((current) => ({ ...current, [to]: next }));
+  }
   const key = agent ? `${agent.id}:${agent.currentSessionId}` : "";
   useEffect(() => {
     chrome.publish({
@@ -187,7 +214,7 @@ export function AgentWorkspace({
       return {
         text: `为 ${a.name} 选一个模型，它就能回复你。`,
         action: (
-          <span className="w-56 max-md:w-full">
+          <span className="max-md:w-full [&_button]:border-border [&_button]:bg-muted [&_button]:text-foreground">
             <ModelSelect
               compact
               label={`${a.name} 使用的模型`}
@@ -219,6 +246,17 @@ export function AgentWorkspace({
         });
         return saved;
       }}
+      onAvatar={(file) =>
+        void act(async () => {
+          if (!file) return api.update(agent.id, { avatar: null });
+          const { mime, data } = await scaledPicture(file, {
+            side: AVATAR_SIDE,
+            limit: AVATAR_BASE64,
+            crop: true,
+          });
+          await api.update(agent.id, { avatar: `data:${mime};base64,${data}` });
+        })
+      }
       onClose={() => setDetail(false)}
       onOpenExtension={(id) => {
         setDetail(false);
@@ -257,6 +295,10 @@ export function AgentWorkspace({
         api.setModel &&
         ((model) => void act(() => api.setModel!(agent.id, model)))
       }
+      onEffort={
+        api.setEffort &&
+        ((effort) => void act(() => api.setEffort!(agent.id, effort)))
+      }
       onDetail={(source) => {
         detailTrigger.current = source;
         setDetail(true);
@@ -269,21 +311,39 @@ export function AgentWorkspace({
         open({ action: "deleteSession", agent, session: id }, source)
       }
       onCancel={() => api.cancel(agent.id)}
+      attach={
+        api.info.attachments
+          ? {
+              files: files[key] ?? [],
+              onAdd: (added) => void addFiles(key, added),
+              onRemove: (index) =>
+                setFiles((f) => ({
+                  ...f,
+                  [key]: (f[key] ?? []).filter((_, i) => i !== index),
+                })),
+            }
+          : undefined
+      }
       onSend={() => {
         const input = drafts[key] ?? "";
+        const attached = files[key] ?? [];
         // The sent text shows as a pending bubble; a failed send puts it
         // back unless the user has started a new draft.
         setDrafts((d) => ({ ...d, [key]: "" }));
+        setFiles((f) => ({ ...f, [key]: [] }));
         void act(async () => {
           try {
-            await api.send(agent.id, input);
+            await api.send(agent.id, input, attached);
           } catch (error) {
             setDrafts((d) => (d[key] ? d : { ...d, [key]: input }));
+            setFiles((f) => (f[key]?.length ? f : { ...f, [key]: attached }));
             throw error;
           }
         });
       }}
-      onResend={(text) => void act(() => api.send(agent.id, text))}
+      onResend={(text, attachments) =>
+        void act(() => api.send(agent.id, text, attachments))
+      }
       onDeleteMessage={
         api.removeMessage
           ? (id) =>
@@ -347,6 +407,7 @@ export function AgentWorkspace({
   return (
     <div
       ref={workspaceRoot}
+      data-frame="own"
       className={cn(
         "relative flex h-full min-h-0 transition-[padding] duration-200 ease-out",
         showDetail && wide && "pr-[336px]",
