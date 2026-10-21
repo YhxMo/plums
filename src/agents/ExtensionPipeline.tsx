@@ -87,7 +87,8 @@ function PipelineRow({
         }
       }
       className={cn(
-        "relative flex items-center gap-2 rounded-lg bg-card py-1.5 pr-3 pl-1.5 shadow-panel transition-[box-shadow,opacity]",
+        // Hovering the name tints the whole row instead of underlining it.
+        "relative flex items-center gap-2 rounded-lg bg-card py-1.5 pr-3 pl-1.5 shadow-panel transition-[box-shadow,opacity,background-color] has-[[data-part-open]:hover]:bg-subtle",
         !on &&
           "bg-transparent opacity-80 shadow-none ring-1 ring-border ring-inset",
         drag?.isDragging && "z-10 shadow-float",
@@ -121,7 +122,8 @@ function PipelineRow({
         <Tooltip label={choice.description || choice.id}>
           <button
             type="button"
-            className="flex min-w-0 flex-1 flex-col items-start rounded-md text-left outline-none hover:underline focus-visible:ring-3 focus-visible:ring-ring/50"
+            data-part-open
+            className="flex min-w-0 flex-1 flex-col items-start rounded-md text-left outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
             aria-label={`查看扩展 ${choice.label}`}
             onClick={onOpen}
           >

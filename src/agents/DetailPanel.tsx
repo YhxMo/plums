@@ -90,7 +90,7 @@ export function DetailPanel({
   const busy = agent.status === "busy";
   return (
     <aside
-      className="flex h-full w-full flex-col overflow-hidden bg-background"
+      className="flex h-full min-h-0 w-full flex-1 flex-col overflow-hidden bg-popover"
       aria-label="Agent 详情"
     >
       <header className="flex min-h-12 shrink-0 items-center justify-between border-b border-border/60 pr-2.5 pl-4 max-md:min-h-14 max-md:border-0 max-md:pl-6">
@@ -189,7 +189,7 @@ export function DetailPanel({
                 <li key={choice.id}>
                   <Tooltip label={choice.id}>
                     <button
-                      className="w-full truncate rounded-lg bg-brand-soft/60 px-3 py-2 text-left text-[13px] font-medium outline-none hover:underline focus-visible:ring-3 focus-visible:ring-ring/50"
+                      className="w-full truncate rounded-lg bg-brand-soft/60 px-3 py-2 text-left text-[13px] font-medium outline-none transition-colors hover:bg-brand-soft focus-visible:ring-3 focus-visible:ring-ring/50"
                       aria-label={`查看扩展 ${choice.label}`}
                       onClick={() => onOpenExtension(choice.id)}
                     >

@@ -33,8 +33,9 @@ function menuOpener() {
  * A modal dialog that is open while mounted. Focus starts at the title,
  * and on close returns to the opener while it is still shown, else to
  * `fallbackFocus`. `onBack` adds a back button for a dialog reached from
- * another step. `sheet` slides up from the bottom without a title bar, for
- * content that brings its own (phone details).
+ * another step. `sheet` slides in from the bottom (phones) or the right
+ * without a title bar, for content that brings its own; the right one is a
+ * non-modal drawer that leaves the page usable and stays open until closed.
  */
 export function Dialog({
   title,
@@ -43,7 +44,7 @@ export function Dialog({
   onBack,
   returnFocusTo,
   fallbackFocus,
-  sheet = false,
+  sheet,
   className,
 }: {
   title: string;
@@ -52,7 +53,7 @@ export function Dialog({
   onBack?: () => void;
   returnFocusTo?: HTMLElement | null;
   fallbackFocus?: () => HTMLElement | null;
-  sheet?: boolean;
+  sheet?: "bottom" | "right";
   className?: string;
 }) {
   const heading = useRef<HTMLHeadingElement>(null);
@@ -61,6 +62,7 @@ export function Dialog({
   const fallback = useRef(fallbackFocus);
   const [content, setContent] = useState<HTMLDivElement | null>(null);
   const toaster = useId();
+  const drawer = sheet === "right";
   useEffect(() => {
     const { push, remove } = useToastLayers.getState();
     push(toaster);
@@ -68,7 +70,7 @@ export function Dialog({
   }, [toaster]);
   const props = {
     ref: setContent,
-    "aria-modal": true,
+    "aria-modal": !drawer,
     "aria-describedby": undefined,
     showCloseButton: false,
     onCloseAutoFocus(event: Event) {
@@ -85,21 +87,31 @@ export function Dialog({
     </LayerContainer>
   );
   return (
-    <DialogRoot open onOpenChange={(open) => !open && onClose()}>
+    <DialogRoot
+      open
+      modal={!drawer}
+      onOpenChange={(open) => !open && onClose()}
+    >
       {sheet ? (
         <SheetContent
           {...props}
-          side="bottom"
+          side={sheet}
+          onInteractOutside={(event) => drawer && event.preventDefault()}
           className={cn(
-            "max-h-[88dvh] gap-0 overflow-auto rounded-t-2xl border-0 shadow-float",
+            "gap-0 border-0 shadow-float",
+            sheet === "bottom"
+              ? "max-h-[88dvh] overflow-auto rounded-t-2xl"
+              : "overflow-hidden rounded-xl data-[side=right]:top-12 data-[side=right]:right-2 data-[side=right]:bottom-2 data-[side=right]:h-auto data-[side=right]:w-80 data-[side=right]:max-w-[calc(100vw-1rem)] data-[side=right]:sm:max-w-80",
             className,
           )}
         >
           <DialogTitle className="sr-only">{title}</DialogTitle>
-          <span
-            aria-hidden="true"
-            className="mx-auto mt-2 mb-1 h-1 w-9 shrink-0 rounded-full bg-border"
-          />
+          {sheet === "bottom" && (
+            <span
+              aria-hidden="true"
+              className="mx-auto mt-2 mb-1 h-1 w-9 shrink-0 rounded-full bg-border"
+            />
+          )}
           {body}
         </SheetContent>
       ) : (

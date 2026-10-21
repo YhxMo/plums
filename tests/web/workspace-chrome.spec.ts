@@ -329,6 +329,13 @@ for (const width of [375, 1280]) {
     await toggle.click();
     await expect(details).toBeVisible();
     if (width >= 768) {
+      // A drawer above the chat that leaves it usable.
+      await expect(
+        page.getByRole("dialog", { name: "Agent 详情" }),
+      ).toHaveAttribute("aria-modal", "false");
+      await page.getByRole("textbox", { name: "消息", exact: true }).fill("在");
+      await expect(page.getByRole("button", { name: "发送" })).toBeEnabled();
+      await expect(details).toBeVisible();
       await toggle.click();
       await expect(details).toHaveCount(0);
     }

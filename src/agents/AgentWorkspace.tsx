@@ -7,11 +7,11 @@ import {
 } from "react";
 import type { Agent, AgentProvider } from "../../modules/agents/contract";
 import type { Named, WorkspaceChromeController } from "../../modules/sdk";
+import { cn } from "cn";
 import { AgentList } from "./AgentList";
 import { ChatView } from "./ChatView";
 import { DetailPanel } from "./DetailPanel";
 import { EmptyState } from "./EmptyState";
-import { AnimatePresence, motion } from "motion/react";
 import { Dialog } from "../components/Dialog";
 import { ActionToast } from "../components/Toast";
 import { useMediaQuery } from "../components/useMediaQuery";
@@ -26,9 +26,9 @@ import type { AgentAction } from "./AgentMenu";
 import { fallbackFocus } from "./focus";
 import { agentParts, switchPart, type Part } from "./parts";
 
-// A hairline between columns that turns brand-coloured while hovered or dragged.
+// The list's own shadow marks the edge; the handle only shows while used.
 const handle =
-  "bg-border/60 transition-colors after:w-2 hover:bg-brand/50 data-[separator=active]:bg-brand";
+  "bg-transparent transition-colors after:w-2 hover:bg-brand/50 data-[separator=active]:bg-brand";
 
 export function AgentWorkspace({
   api,
@@ -53,7 +53,7 @@ export function AgentWorkspace({
   const snapshot = useCallback(() => api.list(), [api]);
   const agents = useSyncExternalStore(subscribe, snapshot);
   const mobile = useMediaQuery("(max-width: 767px)");
-  // Wide windows keep details beside the chat; narrower ones float them over it.
+  // Wide windows make room for the details drawer; narrower ones let it cover.
   const wide = useMediaQuery("(min-width: 1100px)");
   const [selected, setSelected] = useState<string | null>(null);
   const [detail, setDetail] = useState(false);
@@ -280,6 +280,20 @@ export function AgentWorkspace({
       onModels={onModels}
     />
   );
+  // Details pop out above the conversation: a bottom sheet on phones, a
+  // non-modal drawer on desktop so the chat stays usable beside them.
+  const details = showDetail && (
+    <Dialog
+      title="Agent 详情"
+      sheet={mobile ? "bottom" : "right"}
+      returnFocusTo={detailTrigger.current}
+      fallbackFocus={focusFallback}
+      onClose={() => setDetail(false)}
+    >
+      {feedback}
+      {detailContent}
+    </Dialog>
+  );
   if (mobile)
     return (
       <div
@@ -293,28 +307,20 @@ export function AgentWorkspace({
         ) : (
           list
         )}
-        {showDetail && (
-          <Dialog
-            title="Agent 详情"
-            sheet
-            returnFocusTo={detailTrigger.current}
-            fallbackFocus={focusFallback}
-            onClose={() => setDetail(false)}
-          >
-            {feedback}
-            {detailContent}
-          </Dialog>
-        )}
+        {details}
         {dialogs}
       </div>
     );
   return (
     <div
       ref={workspaceRoot}
-      className="relative flex h-full min-h-0 bg-sidebar pr-2 pb-2"
+      className={cn(
+        "relative flex h-full min-h-0 bg-sidebar pr-2 pb-2 transition-[padding] duration-200 ease-out",
+        showDetail && wide && "pr-[336px]",
+      )}
     >
-      {feedback}
-      {/* One raised surface above the shell's rail; columns split by hairlines. */}
+      {!showDetail && feedback}
+      {/* One raised surface above the shell's rail; the list casts onto the chat. */}
       <ResizablePanelGroup
         orientation="horizontal"
         className="min-h-0 overflow-hidden rounded-xl bg-background shadow-raised"
@@ -324,7 +330,7 @@ export function AgentWorkspace({
           defaultSize={256}
           minSize={208}
           maxSize={380}
-          className="flex min-h-0 flex-col"
+          className="relative z-1 flex min-h-0 flex-col shadow-side"
         >
           {list}
         </ResizablePanel>
@@ -336,42 +342,8 @@ export function AgentWorkspace({
         >
           {main}
         </ResizablePanel>
-        {showDetail && wide && (
-          <>
-            <ResizableHandle className={handle} />
-            <ResizablePanel
-              id="agent-detail"
-              defaultSize={300}
-              minSize={260}
-              maxSize={440}
-              className="flex min-h-0"
-            >
-              <motion.div
-                initial={{ opacity: 0, x: 16 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ duration: 0.2, ease: "easeOut" }}
-                className="flex min-h-0 w-full"
-              >
-                {detailContent}
-              </motion.div>
-            </ResizablePanel>
-          </>
-        )}
       </ResizablePanelGroup>
-      <AnimatePresence>
-        {showDetail && !wide && (
-          <motion.div
-            key="detail"
-            initial={{ opacity: 0, x: 24 }}
-            animate={{ opacity: 1, x: 0 }}
-            exit={{ opacity: 0, x: 24 }}
-            transition={{ duration: 0.2, ease: "easeOut" }}
-            className="absolute top-0 right-2 bottom-2 z-10 flex w-[300px] overflow-hidden rounded-xl shadow-float"
-          >
-            {detailContent}
-          </motion.div>
-        )}
-      </AnimatePresence>
+      {details}
       {dialogs}
     </div>
   );

@@ -23,8 +23,8 @@ const actions: Record<MessageAction, { label: string; icon: typeof CopyIcon }> =
   };
 
 /**
- * One chat line. Replies read as prose across the column and the own turn
- * sits in a bubble on the right; on desktop each saved line has actions
+ * One chat line: replies in a raised bubble on the left, the own turn in a
+ * tinted bubble on the right; on desktop each saved line has actions
  * below it (on hover or focus, always for the latest reply) and a
  * right-click menu.
  */
@@ -68,12 +68,13 @@ export function MessageRow({
       role={status ? "status" : undefined}
       className={cn(
         "m-0 min-w-0 wrap-anywhere whitespace-pre-wrap",
+        "max-w-[min(85%,640px)] rounded-[18px] px-3.5 py-2 text-sm leading-relaxed max-md:max-w-[85%] max-md:text-[15px]",
         user
-          ? "max-w-[min(80%,560px)] rounded-[18px] rounded-br-md bg-subtle px-3.5 py-2 text-sm leading-relaxed max-md:max-w-[85%] max-md:text-[15px]"
-          : "text-sm leading-6.5 max-md:font-reading max-md:text-base max-md:leading-[1.7]",
+          ? "rounded-br-md bg-subtle"
+          : "rounded-bl-md bg-surface shadow-panel max-md:font-reading",
         status &&
           "flex items-center gap-2 text-[13px] text-muted-foreground max-md:font-sans",
-        "rounded-md transition-shadow data-[state=open]:ring-2 data-[state=open]:ring-brand/50 data-[state=open]:ring-offset-4 data-[state=open]:ring-offset-background",
+        "transition-shadow data-[state=open]:ring-2 data-[state=open]:ring-brand/50 data-[state=open]:ring-offset-2 data-[state=open]:ring-offset-background",
       )}
     >
       {status && (
@@ -165,7 +166,7 @@ export function MessageRow({
       {message && onAction && (
         <div
           className={cn(
-            "-mx-1 flex gap-0.5 transition-opacity group-focus-within/row:opacity-100 group-hover/row:opacity-100 group-has-data-[state=open]/row:opacity-100 max-md:hidden",
+            "flex transition-opacity group-focus-within/row:opacity-100 group-hover/row:opacity-100 group-has-data-[state=open]/row:opacity-100 max-md:hidden",
             // Hidden actions float in the gap below instead of spacing lines apart.
             !(latest && !user) && "absolute top-full opacity-0",
             user ? "right-0" : "left-0",
@@ -179,8 +180,8 @@ export function MessageRow({
               <Tooltip key={action} label={shown}>
                 <Button
                   variant="ghost"
-                  size="icon-sm"
-                  className="text-muted-foreground"
+                  size="icon-xs"
+                  className="text-muted-foreground/80 hover:text-foreground [&_svg:not([class*='size-'])]:size-3.5"
                   aria-label={shown}
                   disabled={action !== "copy" && busy}
                   onClick={() => onAction(action, message)}
