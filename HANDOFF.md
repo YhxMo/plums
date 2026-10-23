@@ -20,18 +20,18 @@
 
 | 范围 | 实际结果 |
 | --- | --- |
-| Web | 最新提交上 `npm run verify:web` 通过（877 单元及类型、构建、发布配置、格式、边界、行数、lint），构建无单块体积警告 |
-| 原生逻辑 | 数据迁移提交后 `npm run verify:native` 通过：IPC、格式、Clippy、73 单元；之后未再改 Rust |
+| Web | 最新提交上 `npm run verify:web` 通过（876 单元及类型、构建、发布配置、格式、边界、行数、lint），构建无单块体积警告 |
+| 原生逻辑 | SQLite 存储提交后 `npm run verify:native` 通过：IPC、格式、Clippy、73 单元；debug 应用在真实格式开发数据副本上导入 `host.shell`（修订 11）并在其上保存 |
 | Chromium | `npm run verify:e2e` 全量 226 项通过，1 worker |
 | WebKit | focus-ring / dialog-keyboard / input-method / application-flow / model-connection-recovery / lazy-pages 共 35 项通过 |
 | 启动耗时 | 生产构建、浏览器冷启动 20 次中位数：Chrome 97.6 → 85.8 ms，WebKit 81 → 70 ms（按需加载与分块前后） |
 | 打包应用 | 改名前候选的实测见[输入法、焦点与布局记录](evidence/MAC-INPUT-LAYOUT-2026-10-23.md)；改名后的源码尚未重新打包验收 |
 
-改名后首个打包验收须覆盖：读取 `dev.plums.m1` 旧数据并保留原目录、复制失败弹窗、Mac 窗口按钮避让依 `platform.info`、点击后归还焦点无焦点环（WKWebView）、应用内启动耗时。
+改名后首个打包验收须覆盖：读取 `dev.plums.m1` 旧数据并保留原目录、旧 JSON 文档导入 SQLite 并移入 `legacy-json/`、复制失败弹窗、Mac 窗口按钮避让依 `platform.info`、点击后归还焦点无焦点环（WKWebView）、应用内启动耗时。
 
 ## 进行中与下一步
 
-按[当前阶段](docs/spec/milestone.md#规范化改造进行中)推进规范化改造。已完成：统一命名与历史改写、旧数据迁移、版本号单一来源、ESLint 全局变量、导入别名、`public/` 拆分、Radix 补丁上游跟踪、断点集中、平台检测与原生焦点环、按需加载。下一步为 SQLite 存储，其后依次为扩展包格式、联系人式回复、对话体验、外观与快捷键。当前未推送，现有交付包未替换。
+按[当前阶段](docs/spec/milestone.md#规范化改造进行中)推进规范化改造。已完成：统一命名与历史改写、旧数据迁移、版本号单一来源、ESLint 全局变量、导入别名、`public/` 拆分、Radix 补丁上游跟踪、断点集中、平台检测与原生焦点环、按需加载，以及 SQLite 存储的第一步（每个所属者一个库，`state.read`/`state.write` 语义不变，旧 JSON 首次导入）。下一步为原子批量写与记录能力，再将 Agent 消息改为记录存储，其后依次为扩展包格式、联系人式回复、对话体验、外观与快捷键。当前未推送，现有交付包未替换。
 
 后续真实模型调用、带密钥模型列表与 models.dev 联动、长上下文/图片/思考强度的服务兼容及正式签名分发仍未验；VoiceOver 暂缓。实际账户调用须先确认目标、次数和输出上限。M2 尚未整体退出。
 
