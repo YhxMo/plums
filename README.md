@@ -1,6 +1,6 @@
 <h1 align="center">Plums</h1>
 
-<p align="center">以插件组合服务、界面与业务的通用应用本体。</p>
+<p align="center">以扩展组合服务、界面与业务的通用应用本体。</p>
 
 ## 这是什么
 
