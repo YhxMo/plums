@@ -275,3 +275,66 @@ test("non-string colors and changing getters cannot bypass palette snapshot vali
   expect(host.themes()[0].colors.text).toBe("#123456");
   expect(reads).toBe(1);
 });
+
+test("the shell's layout colours are optional, validated and copied like the rest", async () => {
+  const shell = {
+    chrome: "#EEEEF0",
+    chat: "#FFFFFF",
+    bubble: "#F2F2F3",
+    "row-pinned": "#E6E6E8",
+    selection: "#E8692F",
+    "selection-text": "#FFFFFF",
+    "rail-icon": "#5A5A5F",
+  };
+  const host = new Host(platform);
+  host.install(
+    definition("full", (c) =>
+      c.theme({
+        ...palette(),
+        colors: { ...colors, ...shell },
+      } as import("../modules/sdk").Theme),
+    ),
+  );
+  await host.start("full");
+  expect(host.themes()[0].colors).toMatchObject(shell);
+  for (const bad of [
+    { chrome: "red" },
+    { selection: "#E8692F80" },
+    { "row-selected": "#E8692F" },
+  ]) {
+    const strict = new Host(platform);
+    strict.install(
+      definition("bad", (c) =>
+        c.theme({
+          ...palette(),
+          colors: { ...colors, ...bad },
+        } as import("../modules/sdk").Theme),
+      ),
+    );
+    await expect(strict.start("bad")).rejects.toThrow("Invalid theme");
+  }
+});
+
+test("applying a theme sets the optional colours it has and clears the rest", async () => {
+  const { applyTheme } = await import("../modules/shell/theme");
+  const values = new Map<string, string>();
+  const root = {
+    dataset: {} as Record<string, string>,
+    style: {
+      setProperty: (name: string, value: string) => values.set(name, value),
+      removeProperty: (name: string) => values.delete(name),
+    },
+  } as unknown as HTMLElement;
+  const theme = {
+    ...palette(),
+    colors: { ...colors, chrome: "#101010" },
+  } as import("../modules/sdk").Theme;
+  values.set("--chat", "#999999");
+  applyTheme(root, "light", theme);
+  expect(values.get("--chrome")).toBe("#101010");
+  // Missing optional colours fall back to what the stylesheet derives.
+  expect(values.has("--chat")).toBe(false);
+  applyTheme(root, "light");
+  expect(values.has("--chrome")).toBe(false);
+  expect(values.has("--text")).toBe(false);
+});

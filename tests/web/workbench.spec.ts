@@ -1,4 +1,4 @@
-import { addAgent, manage, legacyEntry, chooseLayout } from "./helpers";
+import { manage, legacyEntry, chooseLayout } from "./helpers";
 import { test, expect, type Page } from "@playwright/test";
 async function authorize(page: Page) {
   await page
@@ -349,37 +349,3 @@ test("the desktop rail switches between the workspace and extension management",
     page.getByRole("banner").getByRole("button", { name: "应用菜单" }),
   ).toBeVisible();
 });
-
-for (const theme of ["light", "dark"] as const) {
-  test(`the rail, list and conversation are three tones, both panes lighter than the rail, in ${theme}`, async ({
-    page,
-  }) => {
-    await page.emulateMedia({ colorScheme: theme });
-    await page.setViewportSize({ width: 1180, height: 800 });
-    await page.goto("/");
-    await addAgent(page, "分层");
-    // Reads the first non-transparent background at or above each element.
-    const [rail, list, conversation] = await page.evaluate(() =>
-      [
-        document.querySelector('nav[aria-label="应用导航"]'),
-        document.querySelector('aside[aria-label="Agent 列表"]'),
-        document.querySelector('section[aria-label$="的会话"]'),
-      ].map((start) => {
-        for (let element = start; element; element = element.parentElement) {
-          const color = getComputedStyle(element).backgroundColor;
-          if (color !== "rgba(0, 0, 0, 0)") return color;
-        }
-        return "";
-      }),
-    );
-    expect(list).not.toBe(conversation);
-    expect(conversation).not.toBe(rail);
-    const luminance = (color: string) =>
-      color
-        .match(/[\d.]+/g)!
-        .slice(0, 3)
-        .reduce((sum, channel) => sum + Number(channel), 0);
-    expect(luminance(list)).toBeGreaterThan(luminance(rail));
-    expect(luminance(conversation)).toBeGreaterThan(luminance(rail));
-  });
-}

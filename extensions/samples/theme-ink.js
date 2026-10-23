@@ -28,6 +28,14 @@ const extension = {
         error: "#ffb9c4",
         running: "#a9dac2",
         shadow: "#04071599",
+        // Optional layout colours; a palette without them gets derived ones.
+        chrome: "#1a1d32",
+        chat: "#111322",
+        bubble: "#20243c",
+        "row-pinned": "#242842",
+        selection: "#b9b5ff",
+        "selection-text": "#18152e",
+        "rail-icon": "#c0c7e7",
       },
     });
   },

@@ -54,8 +54,13 @@
   --color-sidebar-ring: var(--accent);
   /* Shell surfaces and the brand colour under their own names. */
   --color-surface: var(--surface);
-  --color-chrome: var(--chrome-bg);
-  --color-chat: var(--chat-bg);
+  --color-chrome: var(--chrome);
+  --color-chat: var(--chat);
+  --color-bubble: var(--bubble);
+  --color-row-pinned: var(--row-pinned);
+  --color-selection: var(--selection);
+  --color-selection-foreground: var(--selection-text);
+  --color-rail-icon: var(--rail-icon);
   --color-overlay: var(--overlay);
   --color-subtle: var(--subtle);
   --color-brand: var(--accent);
@@ -120,19 +125,20 @@
 }
 
 @layer components {
-  /* The content beside the rail: one raised pane. A view that draws its own
-     panels (data-frame="own") sits on the chrome instead. */
+  /* The content beside the rail: one card floating on the window colour. A
+     view that draws its own card (data-frame="own") gets the bare area. */
   .pane {
-    @apply md:rounded-2xl md:border md:border-border/70 md:bg-background md:shadow-panel;
+    @apply md:m-2 md:rounded-[14px] md:bg-chat md:shadow-panel;
   }
-  /* Centred on the 48px title bar; the own-frame panels' 56px headers sit lower. */
+  /* Centred on the 48px title bar; own-frame views get it centred on their
+     card's 52px header, 8px in from the window. */
   .pane-toggle {
-    @apply top-2;
+    @apply top-2 right-2;
   }
   .pane[data-manager="false"]:has([data-frame="own"]) {
-    @apply md:rounded-none md:border-0 md:bg-transparent md:shadow-none;
+    @apply md:m-0 md:rounded-none md:bg-transparent md:shadow-none;
     .pane-toggle {
-      @apply top-[12.5px];
+      @apply top-[18px] right-[18px];
     }
   }
 }

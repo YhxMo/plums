@@ -36,8 +36,8 @@ import { toAttachment } from "./attachmentFile";
 import { AVATAR_BASE64, AVATAR_SIDE, scaledPicture } from "./imageFile";
 import { agentParts, switchPart, type Part } from "./parts";
 
-// The list and the conversation are separate panels with a gap between them;
-// the handle sits in that gap and only shows a brand-coloured line while used.
+// The handle is the gap between the list and the conversation card; it only
+// shows a brand-coloured line while used.
 const handle =
   "w-2 bg-transparent after:w-0.5 after:rounded-full after:transition-colors hover:after:bg-brand/50 data-[separator=active]:after:bg-brand";
 
@@ -372,10 +372,7 @@ export function AgentWorkspace({
   );
   if (mobile)
     return (
-      <div
-        ref={workspaceRoot}
-        className="relative flex h-full min-h-0 bg-background"
-      >
+      <div ref={workspaceRoot} className="relative flex h-full min-h-0 bg-chat">
         {!showDetail && feedback}
         {/* Phones show the list or one conversation, never both. */}
         {agent || !agents.length ? (

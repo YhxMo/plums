@@ -1,4 +1,5 @@
 import {
+  optionalThemeColorNames,
   themeColorNames,
   type Appearance,
   type Theme,
@@ -13,8 +14,10 @@ export function applyTheme(
   root.dataset.theme = theme?.appearance ?? fallback;
   if (theme) root.dataset.themeId = theme.id;
   else delete root.dataset.themeId;
-  for (const name of themeColorNames) {
-    if (theme) root.style.setProperty(`--${name}`, theme.colors[name]);
+  // Layout colours a palette leaves out are derived by the stylesheet.
+  for (const name of [...themeColorNames, ...optionalThemeColorNames]) {
+    const value = theme?.colors[name];
+    if (value) root.style.setProperty(`--${name}`, value);
     else root.style.removeProperty(`--${name}`);
   }
 }

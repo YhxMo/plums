@@ -24,7 +24,6 @@ import {
 } from "@/components/ui/dropdown-menu";
 import {
   InputGroup,
-  InputGroupAddon,
   InputGroupButton,
   InputGroupTextarea,
 } from "@/components/ui/input-group";
@@ -120,30 +119,72 @@ export function Composer({
   return (
     <form
       ref={form}
-      className="mx-auto mt-1 mb-4 w-[calc(100%-32px)] max-w-[760px] max-md:mb-[max(12px,env(safe-area-inset-bottom))] max-md:w-[calc(100%-24px)]"
+      className="mx-auto mt-1 mb-4 w-[calc(100%-48px)] max-w-[600px] max-md:mb-[max(12px,env(safe-area-inset-bottom))] max-md:w-[calc(100%-24px)]"
       onSubmit={(e) => {
         e.preventDefault();
         if (canSend) onSend();
       }}
     >
-      <InputGroup className="h-auto rounded-[16px] border-border bg-card shadow-none transition-colors duration-200 has-disabled:bg-card has-disabled:opacity-100 dark:bg-card dark:has-disabled:bg-card has-[[data-slot=input-group-control]:focus-visible]:border-brand/60 has-[[data-slot=input-group-control]:focus-visible]:ring-0">
+      {/* One row on desktop: attach, text, model, send. Phones give the text
+          its own row above the controls. */}
+      <InputGroup className="h-auto flex-wrap items-end gap-x-1 rounded-[18px] border-border bg-transparent p-2 pl-2.5 shadow-none transition-colors duration-200 has-disabled:bg-transparent has-disabled:opacity-100 dark:bg-transparent dark:has-disabled:bg-transparent has-[[data-slot=input-group-control]:focus-visible]:border-brand/60 has-[[data-slot=input-group-control]:focus-visible]:ring-0 max-md:p-1.5">
         {blocked && (
           <div
             role="status"
-            className="flex w-full items-center justify-between gap-3 px-4 pt-3 text-xs text-muted-foreground"
+            className="flex basis-full items-center justify-between gap-3 px-1.5 pt-1 pb-2 text-xs text-muted-foreground"
           >
             <p>{blocked.text}</p>
             {blocked.action}
           </div>
         )}
         {attach && attach.files.length > 0 && (
-          <InputGroupAddon align="block-start" className="p-0">
+          <div className="basis-full pb-1">
             <DraftAttachments
               attachments={attach.files}
               disabled={busy}
               onRemove={attach.onRemove}
             />
-          </InputGroupAddon>
+          </div>
+        )}
+        {attach && (
+          <div className="flex shrink-0 max-md:order-1">
+            <input
+              ref={files}
+              type="file"
+              multiple
+              hidden
+              aria-label="选择文件"
+              onChange={(e) => {
+                attach.onAdd([...(e.target.files ?? [])]);
+                e.target.value = "";
+              }}
+            />
+            <DropdownMenu modal={false}>
+              <Tooltip label="添加附件">
+                <DropdownMenuTrigger asChild>
+                  <InputGroupButton
+                    type="button"
+                    variant="ghost"
+                    size="icon-sm"
+                    className="size-[30px] rounded-full text-muted-foreground aria-expanded:bg-muted max-md:size-11"
+                    aria-label="添加附件"
+                    disabled={busy}
+                  >
+                    <PlusIcon />
+                  </InputGroupButton>
+                </DropdownMenuTrigger>
+              </Tooltip>
+              <DropdownMenuContent align="start" side="top" className="w-56">
+                <DropdownMenuItem onSelect={() => files.current?.click()}>
+                  <PaperclipIcon />
+                  图片和文件
+                  <DropdownMenuShortcut>
+                    {mac ? "⌘U" : "Ctrl+U"}
+                  </DropdownMenuShortcut>
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
         )}
         <InputGroupTextarea
           ref={inputRef}
@@ -156,7 +197,7 @@ export function Composer({
           rows={1}
           maxLength={MAX_TEXT}
           value={draft}
-          className="max-h-52 min-h-14 px-4 pt-3.5 pb-1 text-sm leading-relaxed [field-sizing:content] max-md:min-h-12 max-md:text-base"
+          className="max-h-52 min-h-[30px] min-w-0 px-1 py-[5px] text-sm leading-5 [field-sizing:content] max-md:min-h-11 max-md:basis-full max-md:px-2 max-md:py-2.5 max-md:text-base"
           onChange={(e) => onDraft(e.target.value)}
           onPaste={(e) => {
             const pictures = [...e.clipboardData.files].filter((f) =>
@@ -180,75 +221,26 @@ export function Composer({
             }
           }}
         />
-        <InputGroupAddon
-          align="block-end"
-          className="cursor-default gap-1 px-2 pb-2 max-md:pb-1.5"
-        >
-          <div className="mr-auto flex min-w-0 items-center gap-0.5">
-            {attach && (
-              <>
-                <input
-                  ref={files}
-                  type="file"
-                  multiple
-                  hidden
-                  aria-label="选择文件"
-                  onChange={(e) => {
-                    attach.onAdd([...(e.target.files ?? [])]);
-                    e.target.value = "";
-                  }}
-                />
-                <DropdownMenu modal={false}>
-                  <Tooltip label="添加附件">
-                    <DropdownMenuTrigger asChild>
-                      <InputGroupButton
-                        type="button"
-                        variant="ghost"
-                        size="icon-sm"
-                        className="size-8 text-muted-foreground aria-expanded:bg-muted max-md:size-10"
-                        aria-label="添加附件"
-                        disabled={busy}
-                      >
-                        <PlusIcon />
-                      </InputGroupButton>
-                    </DropdownMenuTrigger>
-                  </Tooltip>
-                  <DropdownMenuContent
-                    align="start"
-                    side="top"
-                    className="w-56"
-                  >
-                    <DropdownMenuItem onSelect={() => files.current?.click()}>
-                      <PaperclipIcon />
-                      图片和文件
-                      <DropdownMenuShortcut>
-                        {mac ? "⌘U" : "Ctrl+U"}
-                      </DropdownMenuShortcut>
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              </>
-            )}
-            {models && onModel && (
-              <ModelSelect
-                compact
-                label="切换模型"
-                models={models}
-                value={agent.model}
-                disabled={busy}
-                onChange={onModel}
-                onConnect={onModels}
-              />
-            )}
-            {levels && onEffort && (
-              <EffortSelect
-                levels={levels}
-                value={agent.effort}
-                disabled={busy}
-                onChange={onEffort}
-              />
-            )}
-          </div>
+        <div className="ml-auto flex min-w-0 shrink-0 items-center gap-0.5 max-md:order-1 max-md:shrink">
+          {models && onModel && (
+            <ModelSelect
+              compact
+              label="切换模型"
+              models={models}
+              value={agent.model}
+              disabled={busy}
+              onChange={onModel}
+              onConnect={onModels}
+            />
+          )}
+          {levels && onEffort && (
+            <EffortSelect
+              levels={levels}
+              value={agent.effort}
+              disabled={busy}
+              onChange={onEffort}
+            />
+          )}
           <AnimatePresence mode="popLayout" initial={false}>
             {busy ? (
               <motion.span key="stop" {...swap}>
@@ -257,12 +249,12 @@ export function Composer({
                     type="button"
                     variant="outline"
                     size="icon-sm"
-                    className="size-[34px] rounded-[10px] max-md:size-11"
+                    className="size-[30px] rounded-full max-md:size-11"
                     aria-label={saving ? "正在保存…" : "停止处理"}
                     onClick={onCancel}
                     disabled={saving}
                   >
-                    <SquareIcon className="fill-current" />
+                    <SquareIcon className="size-3 fill-current" />
                   </InputGroupButton>
                 </Tooltip>
               </motion.span>
@@ -273,7 +265,8 @@ export function Composer({
                     type="submit"
                     variant="default"
                     size="icon-sm"
-                    className="size-[34px] rounded-[10px] max-md:size-11"
+                    // Grey while there is nothing to send, not a faded brand colour.
+                    className="size-[30px] rounded-full disabled:bg-muted disabled:text-muted-foreground disabled:opacity-100 max-md:size-11"
                     aria-label="发送"
                     disabled={!canSend}
                   >
@@ -283,7 +276,7 @@ export function Composer({
               </motion.span>
             )}
           </AnimatePresence>
-        </InputGroupAddon>
+        </div>
       </InputGroup>
     </form>
   );

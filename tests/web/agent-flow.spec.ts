@@ -82,7 +82,8 @@ for (const width of [375, 1440]) {
     await page
       .getByRole("menuitem", { name: "设为特别关注", exact: true })
       .click();
-    await page.getByRole("button", { name: "新建会话", exact: true }).click();
+    await sessions(page, "hello agent").click();
+    await page.getByRole("menuitem", { name: "新建会话", exact: true }).click();
     await expectConversationTitle(page, width, "编程助手", "未命名会话");
     await expect(page.getByRole("log").getByText(reply)).toHaveCount(0);
     await page.reload();

@@ -63,7 +63,7 @@ export function NavRail({
   return (
     <nav
       aria-label="应用导航"
-      className="flex w-16 shrink-0 flex-col items-center gap-1 pb-2 max-md:hidden"
+      className="flex w-16 shrink-0 flex-col items-center gap-1 border-r pb-2 max-md:hidden"
       data-tauri-drag-region
     >
       <div

@@ -2,7 +2,7 @@ import type { ReactNode } from "react";
 import { ArrowRightIcon, IdCardIcon, PuzzleIcon } from "lucide-react";
 import { motion } from "motion/react";
 import { cn } from "cn";
-import { panel } from "./panel";
+import { card } from "./card";
 import { Button } from "@/components/ui/button";
 
 const rise = (delay: number) =>
@@ -65,8 +65,8 @@ export function EmptyState({
     return (
       <main
         className={cn(
-          "flex flex-1 flex-col items-center justify-center gap-3 p-7 md:bg-background",
-          panel,
+          "flex flex-1 flex-col items-center justify-center gap-3 bg-chat p-7",
+          card,
         )}
       >
         <motion.img
@@ -84,8 +84,8 @@ export function EmptyState({
   return (
     <main
       className={cn(
-        "flex flex-1 flex-col items-center justify-center overflow-auto p-7 max-md:px-5 md:bg-background",
-        panel,
+        "flex flex-1 flex-col items-center justify-center overflow-auto bg-chat p-7 max-md:px-5",
+        card,
       )}
     >
       <motion.div {...rise(0)} className="text-center">

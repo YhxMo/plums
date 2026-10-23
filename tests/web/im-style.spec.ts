@@ -52,33 +52,71 @@ const resolve = (page: Page, value: string) =>
     return color;
   }, value);
 
-test("desktop shows the list and the conversation as two separate rounded panels", async ({
-  page,
-}) => {
-  await page.setViewportSize({ width: 1280, height: 800 });
-  await conversation(page);
-  const list = page.getByRole("complementary", { name: "Agent 列表" });
-  const chat = page.getByRole("region", { name: "编程助手 的会话" });
-  for (const panel of [list, chat])
-    expect(
-      parseFloat(await style(panel, "border-top-left-radius")),
-    ).toBeGreaterThanOrEqual(16);
-  const [a, b] = await Promise.all([list.boundingBox(), chat.boundingBox()]);
-  const gap = b!.x - (a!.x + a!.width);
-  expect(gap).toBeGreaterThanOrEqual(6);
-  expect(gap).toBeLessThanOrEqual(12);
-  // The navigation rail sits on the outer layer, left of the list panel.
-  const rail = await page
-    .getByRole("navigation", { name: "应用导航" })
-    .boundingBox();
-  expect(rail!.width).toBeLessThanOrEqual(64);
-  // Each panel is a step lighter than the surface around it.
-  const outer = await resolve(page, "var(--chrome-bg)");
-  expect(await style(chat, "background-color")).not.toBe(outer);
-  expect(await style(list, "background-color")).not.toBe(outer);
-});
+/** The built-in palette's window, card and bubble colours, light then dark. */
+const palette = {
+  light: {
+    chrome: "rgb(238, 238, 240)",
+    chat: "rgb(255, 255, 255)",
+    bubble: "rgb(242, 242, 243)",
+  },
+  dark: {
+    chrome: "rgb(47, 47, 48)",
+    chat: "rgb(30, 30, 31)",
+    bubble: "rgb(44, 44, 47)",
+  },
+} as const;
 
-test("own messages use the brand colour, replies the card colour, with one sans face on every width", async ({
+for (const scheme of ["light", "dark"] as const)
+  test(`desktop puts the rail and list on the window colour and the conversation on one floating card (${scheme})`, async ({
+    page,
+  }) => {
+    await page.emulateMedia({ colorScheme: scheme });
+    await page.setViewportSize({ width: 1280, height: 800 });
+    await conversation(page);
+    const colours = palette[scheme];
+    const list = page.getByRole("complementary", { name: "Agent 列表" });
+    const chat = page.getByRole("region", { name: "编程助手 的会话" });
+    const rail = page.getByRole("navigation", { name: "应用导航" });
+    expect(await resolve(page, "var(--chrome)")).toBe(colours.chrome);
+    expect(await resolve(page, "var(--chat)")).toBe(colours.chat);
+    // Rail and list share the window colour; only a hairline parts them.
+    expect(
+      await page
+        .locator("body > #root > div")
+        .first()
+        .evaluate((el) => getComputedStyle(el).backgroundColor),
+    ).toBe(colours.chrome);
+    for (const flat of [list, rail])
+      expect(await style(flat, "background-color")).toMatch(
+        /^(rgba\(0, 0, 0, 0\)|transparent)$/,
+      );
+    expect(parseFloat(await style(rail, "border-right-width"))).toBe(1);
+    expect(parseFloat(await style(list, "border-top-left-radius"))).toBe(0);
+    // One card, 8px from the window edges and the list, 14px round.
+    expect(await style(chat, "background-color")).toBe(colours.chat);
+    expect(parseFloat(await style(chat, "border-top-left-radius"))).toBe(14);
+    expect(await style(chat, "box-shadow")).not.toMatch(FLAT);
+    const [a, b] = await Promise.all([list.boundingBox(), chat.boundingBox()]);
+    expect(b!.x - (a!.x + a!.width)).toBe(8);
+    expect(b!.y).toBe(8);
+    expect(1280 - (b!.x + b!.width)).toBe(8);
+    expect(800 - (b!.y + b!.height)).toBe(8);
+    // The header shares the card's colour and draws no line under it.
+    const header = chat.locator("header");
+    expect(await style(header, "background-color")).toMatch(
+      /^(rgba\(0, 0, 0, 0\)|transparent)$/,
+    );
+    expect(parseFloat(await style(header, "border-bottom-width"))).toBe(0);
+    // Replies sit on the bubble colour, own turns on the brand colour.
+    const log = chat.getByRole("log");
+    const reply = log.getByText(/^echo-a｜第 1 轮｜/);
+    expect(await style(reply, "background-color")).toBe(colours.bubble);
+    expect(
+      await style(log.getByText("你好", { exact: true }), "background-color"),
+    ).toBe(await resolve(page, "var(--accent)"));
+  });
+
+test("own messages use the brand colour, replies the bubble colour, with one sans face on every width", async ({
   page,
 }) => {
   const faces: string[] = [];
@@ -90,12 +128,25 @@ test("own messages use the brand colour, replies the card colour, with one sans 
     expect(await style(own, "background-color")).toBe(
       await resolve(page, "var(--accent)"),
     );
-    expect(await style(reply, "background-color")).toBe(
-      await resolve(page, "var(--card)"),
+    expect(await style(own, "color")).toBe(
+      await resolve(page, "var(--accent-ink)"),
     );
-    // Bubbles carry no shadow and are 16px round.
+    expect(await style(reply, "background-color")).toBe(
+      await resolve(page, "var(--bubble)"),
+    );
+    // Bubbles carry no shadow, are 18px round and tuck in the sender's corner.
     expect(await style(reply, "box-shadow")).toMatch(FLAT);
-    expect(parseFloat(await style(own, "border-top-left-radius"))).toBe(16);
+    expect(parseFloat(await style(own, "border-top-left-radius"))).toBe(18);
+    expect(parseFloat(await style(own, "border-bottom-right-radius"))).toBe(5);
+    expect(parseFloat(await style(reply, "border-bottom-left-radius"))).toBe(5);
+    expect(parseFloat(await style(reply, "border-bottom-right-radius"))).toBe(
+      18,
+    );
+    // The time between turns is plain centred text, not a pill.
+    const time = log.locator("time").first().locator("..");
+    expect(await style(time, "background-color")).toMatch(
+      /^(rgba\(0, 0, 0, 0\)|transparent)$/,
+    );
     faces.push(await style(reply, "font-family"));
     expect(faces[faces.length - 1]).not.toMatch(
       /Anthropic Serif|Georgia|Songti/,
@@ -109,6 +160,26 @@ test("own messages use the brand colour, replies the card colour, with one sans 
     await page.evaluate(() => localStorage.clear());
   }
   expect(faces[0]).toBe(faces[1]);
+});
+
+test("desktop messages keep a 600px column and show actions only on hover or focus", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  const log = await conversation(page);
+  const reply = log.getByText(/^echo-a｜第 1 轮｜/);
+  const own = log.getByText("你好", { exact: true });
+  const [r, o] = await Promise.all([reply.boundingBox(), own.boundingBox()]);
+  expect(o!.x + o!.width - r!.x).toBeLessThanOrEqual(600);
+  // Even the latest reply hides its actions until it is pointed at.
+  await page.mouse.move(0, 0);
+  const copy = log.getByRole("button", { name: "复制", exact: true });
+  for (const button of await copy.all())
+    expect(await style(button.locator(".."), "opacity")).toBe("0");
+  await reply.hover();
+  await expect
+    .poll(() => style(copy.last().locator(".."), "opacity"))
+    .toBe("1");
 });
 
 // The native window is dragged from the top of each pane; a bare region only
@@ -177,19 +248,33 @@ test("the attach shortcut stays quiet behind the extension manager and under dia
   expect(await chooserOpens()).toBe(true);
 });
 
-test("the sidebar button sits on the same line as the conversation header buttons", async ({
+test("the conversation header keeps the session chip, more and the sidebar button on one line", async ({
   page,
 }) => {
   await page.setViewportSize({ width: 960, height: 680 });
   await page.goto("/");
   await addAgent(page, "对齐助手");
+  const chat = page.getByRole("region", { name: "对齐助手 的会话" });
   const middle = async (name: string) => {
     const box = await page.getByRole("button", { name }).first().boundingBox();
     return box!.y + box!.height / 2;
   };
   const toggle = await middle("展开或收起右侧栏");
-  expect(Math.abs(toggle - (await middle("新建会话")))).toBeLessThanOrEqual(1);
   expect(Math.abs(toggle - (await middle("更多操作")))).toBeLessThanOrEqual(1);
+  expect(
+    Math.abs(toggle - (await middle("会话：未命名会话"))),
+  ).toBeLessThanOrEqual(1);
+  const heading = await chat
+    .locator("header")
+    .getByRole("heading", { name: "对齐助手" })
+    .boundingBox();
+  expect(
+    Math.abs(toggle - (heading!.y + heading!.height / 2)),
+  ).toBeLessThanOrEqual(2);
+  // New conversations live in the session menu, not beside it.
+  await expect(chat.getByRole("button", { name: "新建会话" })).toHaveCount(0);
+  await chat.getByRole("button", { name: "会话：未命名会话" }).click();
+  await expect(page.getByRole("menuitem", { name: "新建会话" })).toBeVisible();
 });
 
 test("phone replies carry no name label above them", async ({ page }) => {
@@ -199,33 +284,54 @@ test("phone replies carry no name label above them", async ({ page }) => {
 });
 
 for (const width of [1280, 375]) {
-  test(`the message box is one card with the text above and model and send on one row at ${width}`, async ({
+  test(`the message box is one card with attach, text, model and a round send button at ${width}`, async ({
     page,
   }) => {
     await page.setViewportSize({ width, height: 844 });
     await conversation(page);
     const text = page.getByRole("textbox", { name: "消息", exact: true });
+    const plus = page.getByRole("button", { name: "添加附件" });
     const model = page.getByRole("combobox", { name: "切换模型" });
     const send = page.getByRole("button", { name: "发送", exact: true });
     const card = page.getByRole("group").filter({ has: text });
-    expect(parseFloat(await style(card, "border-top-left-radius"))).toBe(16);
+    expect(parseFloat(await style(card, "border-top-left-radius"))).toBe(18);
     expect(await style(card, "box-shadow")).toMatch(FLAT);
-    const [t, m, s] = await Promise.all([
+    const [t, p, m, s] = await Promise.all([
       text.boundingBox(),
+      plus.boundingBox(),
       model.boundingBox(),
       send.boundingBox(),
     ]);
-    // The toolbar sits under the text, and model and send share its row.
-    expect(m!.y).toBeGreaterThanOrEqual(t!.y + t!.height - 2);
-    expect(
-      Math.abs(m!.y + m!.height / 2 - (s!.y + s!.height / 2)),
-    ).toBeLessThan(6);
-    // A rounded square, not a pill or a wide labelled button.
+    const centre = (box: typeof t) => box!.y + box!.height / 2;
+    // Model and send always share a row, in that order.
+    expect(Math.abs(centre(m) - centre(s))).toBeLessThan(6);
+    expect(m!.x + m!.width).toBeLessThanOrEqual(s!.x);
+    if (width >= 768) {
+      // Desktop: one row, attach first and send last.
+      for (const box of [p, m])
+        expect(Math.abs(centre(box) - centre(s))).toBeLessThan(6);
+      expect(p!.x + p!.width).toBeLessThanOrEqual(t!.x);
+      expect(t!.x + t!.width).toBeLessThanOrEqual(m!.x);
+    } else {
+      // Phones keep the text on its own row above the controls.
+      expect(m!.y).toBeGreaterThanOrEqual(t!.y + t!.height - 2);
+    }
+    // A circle.
     expect(s!.width).toBeLessThanOrEqual(46);
     expect(Math.abs(s!.width - s!.height)).toBeLessThan(2);
     expect(
       parseFloat(await style(send, "border-top-left-radius")),
-    ).toBeLessThan(s!.width / 2);
+    ).toBeGreaterThanOrEqual(s!.width / 2 - 1);
+    // With nothing to send it turns grey instead of a faded brand colour.
+    await page.mouse.move(0, 0);
+    await expect(send).toBeDisabled();
+    expect(await style(send, "opacity")).toBe("1");
+    const grey = await resolve(page, "var(--subtle)");
+    await expect.poll(() => style(send, "background-color")).toBe(grey);
+    await text.fill("再来");
+    await expect(send).toBeEnabled();
+    const brand = await resolve(page, "var(--accent)");
+    await expect.poll(() => style(send, "background-color")).toBe(brand);
     expect(
       await page.evaluate(
         () => document.documentElement.scrollWidth <= window.innerWidth,

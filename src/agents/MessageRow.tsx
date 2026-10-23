@@ -24,10 +24,9 @@ const actions: Record<MessageAction, { label: string; icon: typeof CopyIcon }> =
   };
 
 /**
- * One chat line: replies in a card-coloured bubble on the left, the own turn
- * in a brand-coloured bubble on the right; on desktop each saved line has actions
- * below it (on hover or focus, always for the latest reply) and a
- * right-click menu.
+ * One chat line: replies in a bubble-coloured bubble on the left, the own turn
+ * in a brand-coloured bubble on the right; on desktop each saved line has
+ * actions below it (on hover or focus) and a right-click menu.
  */
 export function MessageRow({
   agent,
@@ -40,7 +39,6 @@ export function MessageRow({
   copied,
   canDelete,
   pointerMenu,
-  latest,
   className,
   onAction,
 }: {
@@ -58,8 +56,6 @@ export function MessageRow({
   canDelete?: boolean;
   /** Offers the right-click menu (desktop only). */
   pointerMenu?: boolean;
-  /** The last reply keeps its actions in view. */
-  latest?: boolean;
   /** Spacing from the line above, set by the list. */
   className?: string;
   onAction?: (action: MessageAction, message: Message) => void;
@@ -75,12 +71,12 @@ export function MessageRow({
       role={status ? "status" : undefined}
       className={cn(
         "m-0 min-w-0 wrap-anywhere whitespace-pre-wrap",
-        "max-w-[min(85%,640px)] rounded-[16px] px-3.5 py-2 text-sm leading-relaxed max-md:max-w-[85%] max-md:text-[15px]",
+        "max-w-[75%] rounded-[18px] px-[13px] py-2 text-sm leading-[22px] max-md:max-w-[85%] max-md:text-[15px]",
         user
-          ? "rounded-br-[4px] bg-brand text-primary-foreground"
-          : "rounded-bl-[4px] bg-card text-card-foreground",
+          ? "rounded-br-[5px] bg-brand text-primary-foreground"
+          : "rounded-bl-[5px] bg-bubble text-foreground",
         status && "flex items-center gap-2 text-[13px] text-muted-foreground",
-        "data-[state=open]:ring-2 data-[state=open]:ring-brand/50 data-[state=open]:ring-offset-2 data-[state=open]:ring-offset-background",
+        "data-[state=open]:ring-2 data-[state=open]:ring-brand/50 data-[state=open]:ring-offset-2 data-[state=open]:ring-offset-chat",
       )}
     >
       {status && (
@@ -169,9 +165,8 @@ export function MessageRow({
       {message && onAction && (
         <div
           className={cn(
-            "flex transition-opacity group-focus-within/row:opacity-100 group-hover/row:opacity-100 group-has-data-[state=open]/row:opacity-100 max-md:hidden",
             // Hidden actions float in the gap below instead of spacing lines apart.
-            !(latest && !user) && "absolute top-full opacity-0",
+            "absolute top-full flex opacity-0 transition-opacity group-focus-within/row:opacity-100 group-hover/row:opacity-100 group-has-data-[state=open]/row:opacity-100 max-md:hidden",
             user ? "right-0" : "left-0",
           )}
           data-message-id={message.id}

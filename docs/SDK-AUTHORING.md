@@ -155,6 +155,6 @@ ctx.task 跟踪异步任务，使用传入 signal 合作式取消；ctx.onDispos
 
 ## 公开主题样板
 
-[主题颜色契约](THEMES.md)提供 `ctx.theme(Theme)`、17个语义色与生命周期规则。两个独立作者样板 [海湾](../extensions/samples/theme-ocean.js)（`sample.theme-ocean` / `/samples/theme-ocean.js`）和 [墨夜](../extensions/samples/theme-ink.js)（`sample.theme-ink` / `/samples/theme-ink.js`）仅在开发服务中提供，不自动启用。按上述安装流程分别安装、启用，应用设置选择“使用 海湾”或“使用 墨夜”。无需平台权限。选择成功后可关闭设置；停用主题恢复内置外观，重新启用恢复已选主题。启用集合会自动保留到重启后。打包应用不包含这些样板路径，需导入本地单文件。
+[主题颜色契约](THEMES.md)提供 `ctx.theme(Theme)`、17个语义色、可选布局色与生命周期规则。两个独立作者样板 [海湾](../extensions/samples/theme-ocean.js)（`sample.theme-ocean` / `/samples/theme-ocean.js`）和 [墨夜](../extensions/samples/theme-ink.js)（`sample.theme-ink` / `/samples/theme-ink.js`）仅在开发服务中提供，不自动启用。按上述安装流程分别安装、启用，应用设置选择“使用 海湾”或“使用 墨夜”。无需平台权限。选择成功后可关闭设置；停用主题恢复内置外观，重新启用恢复已选主题。启用集合会自动保留到重启后。打包应用不包含这些样板路径，需导入本地单文件。
 
 主题注册的颜色被复制；`Host.themes()` 返回带owner/generation的副本用于管理，重新贡献前应取出主题本身的四个字段。完整主题系统、导航和快捷键仍未稳定。

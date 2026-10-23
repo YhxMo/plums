@@ -5,6 +5,16 @@ async function settings(page: Page) {
   await page.getByRole("menuitem", { name: "应用设置", exact: true }).click();
   return page.getByRole("dialog", { name: "应用设置" });
 }
+/** The computed colour a CSS value (such as a variable) resolves to. */
+const resolve = (page: Page, value: string) =>
+  page.evaluate((value) => {
+    const probe = document.createElement("i");
+    probe.style.backgroundColor = value;
+    document.body.append(probe);
+    const color = getComputedStyle(probe).backgroundColor;
+    probe.remove();
+    return color;
+  }, value);
 async function install(page: Page, name: string) {
   await manage(page);
   await page.getByRole("button", { name: "安装扩展", exact: true }).click();
@@ -31,8 +41,15 @@ for (const width of [320, 375, 768, 1440])
       "sample.ocean",
     );
     await expect(page.locator("html")).toHaveCSS("--accent", "#176B63");
+    // Without its own layout colours, the shell derives them from the palette.
+    expect(await resolve(page, "var(--chat)")).toBe("rgb(245, 250, 248)");
+    expect(await resolve(page, "var(--chrome)")).not.toBe("rgb(238, 238, 240)");
+    expect(await resolve(page, "var(--selection)")).toBe("rgb(23, 107, 99)");
     await dialog.getByRole("radio", { name: /^使用 墨夜/ }).click();
     await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
+    // A palette that names them is used as given.
+    expect(await resolve(page, "var(--chrome)")).toBe("rgb(26, 29, 50)");
+    expect(await resolve(page, "var(--row-pinned)")).toBe("rgb(36, 40, 66)");
     await expect(page.locator("html")).toHaveAttribute(
       "data-theme-id",
       "sample.ink",

@@ -75,10 +75,10 @@ export function Workbench({ runtime }: { runtime: Runtime }) {
         workspace={workspace}
         navigation={navigation}
       />
-      {/* The content is one rounded, raised pane on the chrome beside the rail,
-          unless the view draws its own panels there (see `.pane`). */}
+      {/* The content is one card floating on the window colour beside the
+          rail, unless the view draws its own card there (see `.pane`). */}
       <div
-        className="flex min-h-0 min-w-0 flex-1 flex-col md:p-2 md:pl-0"
+        className="flex min-h-0 min-w-0 flex-1 flex-col"
         data-tauri-drag-region
       >
         <div
@@ -87,7 +87,7 @@ export function Workbench({ runtime }: { runtime: Runtime }) {
         >
           {/* Desktop keeps the sidebar button in the pane's top-right corner; headers leave room for it. */}
           {!navigation.manager.open && (
-            <div className="pane-toggle absolute right-2 z-3 max-md:hidden">
+            <div className="pane-toggle absolute z-3 max-md:hidden">
               <SidebarToggle chrome={chrome} side="bottom" />
             </div>
           )}

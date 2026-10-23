@@ -19,8 +19,26 @@ export const themeColorNames = [
   "running",
   "shadow",
 ] as const;
+/**
+ * The shell's layout colours. A palette may name any of them; the shell
+ * derives the rest from the required colours above.
+ */
+export const optionalThemeColorNames = [
+  "chrome",
+  "chat",
+  "bubble",
+  "row-pinned",
+  "selection",
+  "selection-text",
+  "rail-icon",
+] as const;
 export type Appearance = "light" | "dark";
-export type ThemeColors = Record<(typeof themeColorNames)[number], string>;
+export type ThemeColors = Record<(typeof themeColorNames)[number], string> &
+  Partial<Record<(typeof optionalThemeColorNames)[number], string>>;
+const known: readonly string[] = [
+  ...themeColorNames,
+  ...optionalThemeColorNames,
+];
 export interface Theme {
   id: string;
   label: string;
@@ -58,17 +76,16 @@ export function copyTheme(input: Theme): Theme {
     return invalid();
   object(rawColors, "extension.invalid", check("theme.colors"));
   if (
-    Object.keys(rawColors).length !== themeColorNames.length ||
-    Object.keys(rawColors).some(
-      (key) => !themeColorNames.includes(key as keyof ThemeColors),
-    )
+    Object.keys(rawColors).some((key) => !known.includes(key)) ||
+    themeColorNames.some((key) => !Object.hasOwn(rawColors, key))
   )
     return invalid();
+  const names = known.filter((key) => Object.hasOwn(rawColors, key));
   const colors = Object.fromEntries(
-    themeColorNames.map((k) => [k, rawColors[k]]),
+    names.map((k) => [k, rawColors[k as keyof ThemeColors]]),
   ) as ThemeColors;
-  for (const key of themeColorNames)
-    string(colors[key], "extension.invalid", {
+  for (const key of names)
+    string(colors[key as keyof ThemeColors], "extension.invalid", {
       path: `theme.colors.${key}`,
       label: "Invalid theme contribution",
       pattern:

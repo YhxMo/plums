@@ -5,7 +5,6 @@ import { cn } from "cn";
 import type { Agent } from "@modules/agents/contract";
 import { formatTime } from "./time";
 import { Avatar } from "./Avatar";
-import { panel } from "./panel";
 import { AgentMenuItems, type AgentAction } from "./AgentMenu";
 import { Tooltip } from "@/components/Tooltip";
 import { Button } from "@/components/ui/button";
@@ -214,10 +213,7 @@ export function AgentList({
   const rest = shown.filter((a) => !a.pinned);
   return (
     <aside
-      className={cn(
-        "flex h-full min-h-0 w-full flex-col md:bg-sidebar md:[--list-bg:var(--sidebar-bg)]",
-        panel,
-      )}
+      className="flex h-full min-h-0 w-full flex-col [--list-bg:var(--chrome)] max-md:bg-chrome"
       aria-label="Agent 列表"
     >
       <div

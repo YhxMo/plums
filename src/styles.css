@@ -1,7 +1,8 @@
 /*
- * Semantic colours: the 17 public theme keys (docs/THEMES.md) plus the shell's
- * sidebar tones. shadcn/ui tokens map onto these in app.css. Contributed
- * themes write the same names as inline variables on :root.
+ * Semantic colours: the 17 public theme keys and the optional layout colours
+ * (docs/THEMES.md), plus the shell's sidebar tones. shadcn/ui tokens map onto
+ * these in app.css. Contributed themes write the same names as inline
+ * variables on :root.
  */
 :root {
   color-scheme: light;
@@ -31,11 +32,16 @@
   --sidebar-divider: #ececef;
   --sidebar-hover: #ebebee;
   --sidebar-active: #e2e2e7;
-  /* The outer layer (rail and the gaps between panels), a step darker than
-   * the panels on it, and the conversation canvas between them. Derived, so
-   * contributed themes keep them. */
-  --chrome-bg: color-mix(in srgb, #000 9%, var(--background));
-  --chat-bg: color-mix(in srgb, #000 4%, var(--background));
+  /* Layout colours: the window behind the rail and list, the floating
+   * conversation card, reply bubbles, pinned and selected list rows, and the
+   * rail's icons. */
+  --chrome: #eeeef0;
+  --chat: #ffffff;
+  --bubble: #f2f2f3;
+  --row-pinned: #e6e6e8;
+  --selection: #e8692f;
+  --selection-text: #ffffff;
+  --rail-icon: #5a5a5f;
   --radius: 10px;
   --space-1: 8px;
   --space-2: 16px;
@@ -66,8 +72,24 @@
   --sidebar-divider: #2a2a2d;
   --sidebar-hover: #2c2c2f;
   --sidebar-active: #343438;
-  --chrome-bg: color-mix(in srgb, #000 30%, var(--background));
-  --chat-bg: color-mix(in srgb, #000 16%, var(--background));
+  --chrome: #2f2f30;
+  --chat: #1e1e1f;
+  --bubble: #2c2c2f;
+  --row-pinned: #3b3b3d;
+  --selection: #e8692f;
+  --selection-text: #ffffff;
+  --rail-icon: #b0b0b5;
+}
+/* A contributed palette that leaves out layout colours gets these, derived
+ * from its own colours; the ones it names are set inline and win. */
+:root[data-theme-id] {
+  --chrome: color-mix(in srgb, var(--text) 7%, var(--background));
+  --chat: var(--background);
+  --bubble: var(--subtle);
+  --row-pinned: color-mix(in srgb, var(--text) 12%, var(--background));
+  --selection: var(--accent);
+  --selection-text: var(--accent-ink);
+  --rail-icon: var(--muted);
 }
 :root[data-theme="dark"] img[src="/brand/plums.png"] {
   content: url("/brand/plums-dark.png");

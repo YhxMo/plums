@@ -25,8 +25,8 @@ export function TitleBar({
   return (
     <header
       className={cn(
-        "sticky top-0 z-2 flex min-h-12 shrink-0 items-center justify-between gap-3 bg-chrome pr-2 pl-4 md:pr-14 select-none max-md:min-h-14 max-md:border-b max-md:bg-background max-md:px-4",
-        desktopTitle ? "md:bg-background" : "md:hidden",
+        "sticky top-0 z-2 flex min-h-12 shrink-0 items-center justify-between gap-3 bg-chrome pr-2 pl-4 md:pr-14 select-none max-md:min-h-14 max-md:px-4",
+        desktopTitle ? "md:bg-chat" : "md:hidden",
       )}
       data-tauri-drag-region="deep"
     >

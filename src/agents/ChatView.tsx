@@ -5,7 +5,6 @@ import {
   EllipsisIcon,
   PanelRightIcon,
   PlusIcon,
-  SquarePenIcon,
   Trash2Icon,
 } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
@@ -19,7 +18,7 @@ import type {
 } from "@modules/agents/contract";
 import { cn } from "cn";
 import { Avatar } from "./Avatar";
-import { panel } from "./panel";
+import { card } from "./card";
 import { AgentMenuItems, type AgentAction } from "./AgentMenu";
 import { MessageRow, type MessageAction } from "./MessageRow";
 import { Composer, type Attach, type Blocked } from "./Composer";
@@ -122,14 +121,11 @@ export function ChatView({
   let previous: Message["role"] | undefined;
   const spacing = (role: Message["role"]) =>
     previous === undefined ? "" : previous === role ? "mt-1" : "mt-3";
-  const latestReply = session.messages
-    .filter((m) => m.role !== "user")
-    .at(-1)?.id;
   for (const m of session.messages) {
     if (m.at !== undefined && (last === undefined || m.at - last > TIME_GAP)) {
       lines.push(
         <p
-          className="m-0 mt-3 self-center rounded-full bg-foreground/7 px-2.5 py-0.5 text-[11px] text-muted-foreground first:mt-0"
+          className="m-0 mt-3 mb-1 self-center text-[11.5px] text-muted-foreground/80 first:mt-0"
           key={`time-${m.id}`}
         >
           <time dateTime={new Date(m.at).toISOString()}>
@@ -152,7 +148,6 @@ export function ChatView({
         copied={copied === m.id}
         canDelete={!!onDeleteMessage}
         pointerMenu={desktop}
-        latest={m.id === latestReply && !busy}
         className={spacing(m.role)}
         onAction={act}
       />,
@@ -166,11 +161,13 @@ export function ChatView({
   const typingSpacing = spacing("agent");
   return (
     <section
-      className={cn("flex min-h-0 flex-1 flex-col bg-chat", panel)}
+      className={cn("flex min-h-0 flex-1 flex-col bg-chat", card)}
       aria-label={`${agent.name} 的会话`}
     >
+      {/* Same colour as the messages and no line under it; the shell's
+          sidebar button takes the right end on desktop. */}
       <header
-        className="flex h-14 shrink-0 items-center gap-2 border-b border-border/70 bg-background pr-2.5 pl-6 md:pr-12 max-md:pr-3 max-md:pl-1"
+        className="flex h-[52px] shrink-0 items-center gap-2 pr-12 pl-5 max-md:h-14 max-md:pr-3 max-md:pl-1"
         data-tauri-drag-region="deep"
       >
         <Button
@@ -189,93 +186,77 @@ export function ChatView({
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -4 }}
             transition={{ duration: 0.16 }}
-            className="flex min-w-0 flex-1 items-center gap-2.5"
+            className="flex min-w-0 flex-1 items-center gap-2"
           >
             <Avatar agent={agent} className="size-9 text-base md:hidden" />
-            <div className="min-w-0 flex-1">
-              <h1 className="truncate text-[15px] leading-tight font-semibold tracking-tight">
-                {agent.name}
-              </h1>
-              {/* The button stays while busy so focus can return to it. */}
-              <DropdownMenu modal={false}>
-                <DropdownMenuTrigger asChild>
-                  <Button
-                    ref={sessions}
-                    variant="ghost"
-                    size="xs"
-                    className="h-5 max-w-full min-w-0 gap-0.5 rounded-md px-1 text-xs font-normal text-muted-foreground -ml-1 aria-expanded:bg-muted"
-                    aria-label={`会话：${session.title}`}
-                  >
-                    {busy ? (
-                      <span className="flex items-center gap-1.5 text-running">
-                        <span
-                          aria-hidden="true"
-                          className="size-1.5 animate-pulse rounded-full bg-running"
-                        />
-                        正在回复…
-                      </span>
-                    ) : (
-                      <>
-                        <span className="truncate">{session.title}</span>
-                        <ChevronDownIcon />
-                      </>
-                    )}
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent
-                  align="start"
-                  className="w-60"
-                  aria-label="会话"
+            <h1 className="min-w-0 shrink truncate text-[15px] leading-tight font-semibold tracking-tight">
+              {agent.name}
+            </h1>
+            {/* The button stays while busy so focus can return to it. */}
+            <DropdownMenu modal={false}>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  ref={sessions}
+                  variant="ghost"
+                  size="xs"
+                  className="h-6 max-w-[50%] min-w-0 shrink-0 gap-0.5 rounded-md bg-muted px-2 text-xs font-normal text-muted-foreground hover:bg-muted hover:text-foreground aria-expanded:text-foreground max-md:bg-transparent"
+                  aria-label={`会话：${session.title}`}
                 >
-                  <DropdownMenuRadioGroup
-                    value={session.id}
-                    onValueChange={(id) => onSession("select", id)}
-                  >
-                    {agent.sessions.map((s) => (
-                      <DropdownMenuRadioItem
-                        key={s.id}
-                        value={s.id}
-                        disabled={busy}
-                      >
-                        <span className="truncate">{s.title}</span>
-                      </DropdownMenuRadioItem>
-                    ))}
-                  </DropdownMenuRadioGroup>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem
-                    disabled={busy}
-                    onSelect={() => onSession("create")}
-                  >
-                    <PlusIcon />
-                    新建会话
-                  </DropdownMenuItem>
-                  <DropdownMenuItem
-                    variant="destructive"
-                    disabled={busy}
-                    onSelect={() =>
-                      onDeleteSession(session.id, sessions.current)
-                    }
-                  >
-                    <Trash2Icon />
-                    删除此会话
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            </div>
+                  {busy ? (
+                    <span className="flex items-center gap-1.5 text-running">
+                      <span
+                        aria-hidden="true"
+                        className="size-1.5 animate-pulse rounded-full bg-running"
+                      />
+                      正在回复…
+                    </span>
+                  ) : (
+                    <>
+                      <span className="truncate">{session.title}</span>
+                      <ChevronDownIcon />
+                    </>
+                  )}
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent
+                align="start"
+                className="w-60"
+                aria-label="会话"
+              >
+                <DropdownMenuRadioGroup
+                  value={session.id}
+                  onValueChange={(id) => onSession("select", id)}
+                >
+                  {agent.sessions.map((s) => (
+                    <DropdownMenuRadioItem
+                      key={s.id}
+                      value={s.id}
+                      disabled={busy}
+                    >
+                      <span className="truncate">{s.title}</span>
+                    </DropdownMenuRadioItem>
+                  ))}
+                </DropdownMenuRadioGroup>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem
+                  disabled={busy}
+                  onSelect={() => onSession("create")}
+                >
+                  <PlusIcon />
+                  新建会话
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  variant="destructive"
+                  disabled={busy}
+                  onSelect={() => onDeleteSession(session.id, sessions.current)}
+                >
+                  <Trash2Icon />
+                  删除此会话
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </motion.div>
         </AnimatePresence>
-        <Tooltip label="新建会话" side="bottom">
-          <Button
-            variant="ghost"
-            size="icon-sm"
-            className="ml-auto text-muted-foreground"
-            aria-label="新建会话"
-            disabled={busy}
-            onClick={() => onSession("create")}
-          >
-            <SquarePenIcon />
-          </Button>
-        </Tooltip>
         <DropdownMenu modal={false}>
           {/* Below, so it never covers the title bar above. */}
           <Tooltip label="更多操作" side="bottom">
@@ -283,7 +264,7 @@ export function ChatView({
               <Button
                 ref={more}
                 variant="ghost"
-                size="icon-sm"
+                size="icon"
                 className="text-muted-foreground aria-expanded:bg-muted aria-expanded:text-foreground"
                 aria-label="更多操作"
               >
@@ -306,7 +287,7 @@ export function ChatView({
         </DropdownMenu>
       </header>
       <div
-        className="relative flex min-h-0 flex-1 flex-col overflow-auto px-[max(16px,calc((100%-760px)/2))] pt-5 pb-4 max-md:px-3.5"
+        className="relative flex min-h-0 flex-1 flex-col overflow-auto px-[max(24px,calc((100%-600px)/2))] pt-3 pb-4 max-md:px-3.5"
         role="log"
         aria-label="会话消息"
         onDragOver={(e) => {
