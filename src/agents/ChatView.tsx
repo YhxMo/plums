@@ -27,6 +27,7 @@ import { copyText } from "./clipboard";
 import { formatTime, TIME_GAP } from "./time";
 import { Tooltip } from "@/components/Tooltip";
 import { useMediaQuery } from "@/components/useMediaQuery";
+import { atLeast } from "@/components/breakpoints";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -87,7 +88,7 @@ export function ChatView({
 }) {
   const session = agent.sessions.find((s) => s.id === agent.currentSessionId)!;
   const busy = agent.status === "busy";
-  const desktop = useMediaQuery("(width >= 40.5rem)");
+  const desktop = useMediaQuery(atLeast("md"));
   const bottom = useRef<HTMLDivElement>(null);
   const input = useRef<HTMLTextAreaElement>(null);
   const more = useRef<HTMLButtonElement>(null);

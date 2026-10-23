@@ -109,7 +109,7 @@ export function ModelPicker({
           个，请取消部分选择或移除已添加的模型。
         </p>
       )}
-      <div className="flex justify-end gap-2 max-[520px]:*:flex-1">
+      <div className="flex justify-end gap-2 max-form:*:flex-1">
         <Button type="button" variant="outline" size="sm" onClick={onClose}>
           收起
         </Button>

@@ -22,6 +22,7 @@ import { Dialog } from "@/components/Dialog";
 import { Button } from "@/components/ui/button";
 import { ActionToast } from "@/components/Toast";
 import { useMediaQuery } from "@/components/useMediaQuery";
+import { atLeast, below } from "@/components/breakpoints";
 import {
   ResizableHandle,
   ResizablePanel,
@@ -62,10 +63,9 @@ export function AgentWorkspace({
   );
   const snapshot = useCallback(() => api.list(), [api]);
   const agents = useSyncExternalStore(subscribe, snapshot);
-  // Match the two-pane minimum and Tailwind's md breakpoint in app.css.
-  const mobile = useMediaQuery("(width < 40.5rem)");
+  const mobile = useMediaQuery(below("md"));
   // Wide windows make room for the details drawer; narrower ones let it cover.
-  const wide = useMediaQuery("(min-width: 1100px)");
+  const wide = useMediaQuery(atLeast("wide"));
   const [selected, setSelected] = useState<string | null>(null);
   const [detail, setDetail] = useState(false);
   const workspaceRoot = useRef<HTMLDivElement>(null);

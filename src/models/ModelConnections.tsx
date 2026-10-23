@@ -134,7 +134,7 @@ export function ModelConnections({ api }: { api: ModelConnectionsApi }) {
               animate={{ opacity: 1, y: 0 }}
               className="grid gap-3 rounded-xl bg-card p-3.5 shadow-panel"
             >
-              <div className="flex items-start justify-between gap-3 max-[520px]:flex-col max-[520px]:items-stretch">
+              <div className="flex items-start justify-between gap-3 max-form:flex-col max-form:items-stretch">
                 <div className="grid min-w-0 gap-0.5 text-[13px]">
                   <span className="flex flex-wrap items-center gap-x-2 gap-y-1">
                     <strong className="font-semibold">{provider.name}</strong>
@@ -155,7 +155,7 @@ export function ModelConnections({ api }: { api: ModelConnectionsApi }) {
                     {provider.base}
                   </span>
                 </div>
-                <div className="flex shrink-0 gap-2 max-[520px]:*:flex-1">
+                <div className="flex shrink-0 gap-2 max-form:*:flex-1">
                   <Button
                     variant="outline"
                     size="sm"

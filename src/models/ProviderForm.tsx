@@ -337,7 +337,7 @@ export function ProviderForm({
               />
             </Field>
           )}
-          <div className="grid grid-cols-2 gap-3 max-[520px]:grid-cols-1">
+          <div className="grid grid-cols-2 gap-3 max-form:grid-cols-1">
             <Field>
               <FieldLabel htmlFor={`${ids}-name`}>名称</FieldLabel>
               <Input

@@ -7,10 +7,13 @@
 /* Light/dark follows the shell's data-theme, which contributed themes also set. */
 @custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
 
-/* Two panes need 64px rail + 208px list + 8px gap + 360px chat + 8px inset.
-   Keep the Agent workspace media queries at this same 648px boundary. */
+/* Layout widths; src/components/breakpoints.ts holds the same values for
+   media queries in script, and tests keep the two equal. */
 @theme {
+  --breakpoint-form: 32.5rem;
   --breakpoint-md: 40.5rem;
+  --breakpoint-manager: 48rem;
+  --breakpoint-wide: 68.75rem;
 }
 
 /*
@@ -101,7 +104,7 @@
     @apply bg-background text-sm text-foreground;
   }
   /* Touch layouts keep at least 44 CSS px targets. */
-  @media (width < 40.5rem) {
+  @media (width < theme(--breakpoint-md)) {
     :is(
       [data-slot="button"],
       [data-slot="select-trigger"],

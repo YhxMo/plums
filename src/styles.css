@@ -187,7 +187,7 @@
     vertical-align: middle;
     flex-shrink: 0;
   }
-  @media (width < 40.5rem) {
+  @media (width < theme(--breakpoint-md)) {
     :where(button:not([data-slot]), select) {
       min-height: 44px;
       padding: 9px 14px;
@@ -281,7 +281,7 @@
     min-height: 88px;
     max-height: 240px;
   }
-  @media (width < 40.5rem) {
+  @media (width < theme(--breakpoint-md)) {
     .field input {
       min-height: 44px;
     }
