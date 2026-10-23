@@ -54,7 +54,6 @@ it.each([
   ["state-schema", "状态版本不支持或已损坏，原数据已保留。"],
   ["state-read", "状态读取失败，原数据已保留。"],
   ["state-write", "状态写入失败，原数据已保留。"],
-  ["state-temporary", "状态临时文件不可用，原数据已保留。"],
   ["state-too-large", "状态超过 64 KiB 实验上限，未保存。"],
   ["revision-conflict", "状态已被其他操作更新，请重新加载应用后重试。"],
   ["state-directory", "状态目录不可用，原数据已保留。"],

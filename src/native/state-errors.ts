@@ -19,7 +19,6 @@ const copy: Record<StateErrorCode, string> = {
   "revision-limit": "状态修订号已达上限，未保存。",
   "revision-conflict": "状态已被其他操作更新，请重新加载应用后重试。",
   "state-directory": "状态目录不可用，原数据已保留。",
-  "state-temporary": "状态临时文件不可用，原数据已保留。",
   "state-write": "状态写入失败，原数据已保留。",
   "state-sync": "状态已写入但未确认落盘，请重新加载应用后再修改。",
   serialization: "状态序列化失败，原数据已保留。",
