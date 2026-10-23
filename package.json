@@ -20,7 +20,7 @@
     "release:mac": "node scripts/release-mac.mjs",
     "native:test": "node scripts/cargo.mjs test --locked",
     "native:check": "node scripts/cargo.mjs clippy --locked --all-targets -- -D warnings",
-    "format:check": "prettier --check src modules extensions scripts tests *.json *.ts eslint.config.js index.html",
+    "format:check": "prettier --check src modules extensions public scripts tests *.json *.ts eslint.config.js index.html",
     "native:fmt": "node scripts/cargo.mjs fmt -- --check",
     "check:project": "node scripts/check-project.mjs",
     "snapshot": "node scripts/snapshot.mjs",

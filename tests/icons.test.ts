@@ -36,8 +36,8 @@ it("keeps the Android foreground mark inside the launcher safe zone without the 
 
 it("still derives the committed dark brand mark from the light one", () => {
   expect(
-    buildDarkIcon(read("../extensions/brand/plums.png")).equals(
-      read("../extensions/brand/plums-dark.png"),
+    buildDarkIcon(read("../public/brand/plums.png")).equals(
+      read("../public/brand/plums-dark.png"),
     ),
   ).toBe(true);
 });

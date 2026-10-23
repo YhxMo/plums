@@ -239,11 +239,11 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
       ),
       buildAndroidForeground(source, size),
     );
-  mkdirSync(join(root, "extensions/brand"), { recursive: true });
-  cpSync(join(output, "128x128.png"), join(root, "extensions/brand/plums.png"));
+  mkdirSync(join(root, "public/brand"), { recursive: true });
+  cpSync(join(output, "128x128.png"), join(root, "public/brand/plums.png"));
   writeFileSync(
-    join(root, "extensions/brand/plums-dark.png"),
-    buildDarkIcon(readFileSync(join(root, "extensions/brand/plums.png"))),
+    join(root, "public/brand/plums-dark.png"),
+    buildDarkIcon(readFileSync(join(root, "public/brand/plums.png"))),
   );
   console.log("Updated macOS, Android and web icons from source.png.");
 }

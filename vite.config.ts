@@ -1,9 +1,12 @@
-import { rmSync } from "node:fs";
-import { join, resolve } from "node:path";
+import { resolve } from "node:path";
 import tailwindcss from "@tailwindcss/vite";
 import { defineConfig } from "vitest/config";
+import { developmentFiles } from "./scripts/dev-extensions.mjs";
 
-/** Public files that only development and tests load; releases drop them. */
+/**
+ * Files under extensions/ that only the development server serves, at the
+ * site root; releases are built from public/ alone.
+ */
 export const developmentOnly = [
   "catalog.dev.json",
   "contracts.d.ts",
@@ -13,7 +16,6 @@ export const developmentOnly = [
   "ui",
 ];
 export default defineConfig({
-  publicDir: "extensions",
   server: { host: "127.0.0.1", port: 1420, strictPort: true },
   build: { target: "es2022" },
   // Keep in step with tsconfig.json paths and scripts/check-boundaries.mjs.
@@ -27,11 +29,15 @@ export default defineConfig({
   plugins: [
     tailwindcss(),
     {
-      name: "plums-release-files",
-      apply: "build",
-      closeBundle() {
-        for (const path of developmentOnly)
-          rmSync(join("dist", path), { recursive: true, force: true });
+      name: "plums-development-extensions",
+      apply: "serve",
+      configureServer(server) {
+        server.middlewares.use(
+          developmentFiles(
+            resolve(import.meta.dirname, "extensions"),
+            developmentOnly,
+          ),
+        );
       },
     },
   ],
