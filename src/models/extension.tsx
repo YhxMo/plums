@@ -1,8 +1,15 @@
+import { lazy, Suspense } from "react";
 import { createRoot } from "react-dom/client";
 import { MotionConfig } from "motion/react";
 import { modelConnector } from "@modules/models/extension";
-import { ModelConnections } from "./ModelConnections";
 import { LayerContainer } from "@/components/ui/layer";
+
+// The page loads when its dialog first opens, not at startup.
+const ModelConnections = lazy(() =>
+  import("./ModelConnections").then((module) => ({
+    default: module.ModelConnections,
+  })),
+);
 
 /** The built-in model connector with its React connection page. */
 export const modelConnectorWithPage = () =>
@@ -16,7 +23,9 @@ export const modelConnectorWithPage = () =>
       root.render(
         <MotionConfig reducedMotion="user">
           <LayerContainer value={element}>
-            <ModelConnections api={api} />
+            <Suspense fallback={null}>
+              <ModelConnections api={api} />
+            </Suspense>
           </LayerContainer>
         </MotionConfig>,
       );

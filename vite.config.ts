@@ -17,7 +17,24 @@ export const developmentOnly = [
 ];
 export default defineConfig({
   server: { host: "127.0.0.1", port: 1420, strictPort: true },
-  build: { target: "es2022" },
+  build: {
+    target: "es2022",
+    rolldownOptions: {
+      output: {
+        // Libraries in their own chunks; rarely opened pages load on demand.
+        codeSplitting: {
+          groups: [
+            {
+              name: "react",
+              test: /node_modules[\\/](?:react|react-dom|scheduler)[\\/]/,
+              priority: 2,
+            },
+            { name: "vendor", test: /node_modules[\\/]/, priority: 1 },
+          ],
+        },
+      },
+    },
+  },
   // Keep in step with tsconfig.json paths and scripts/check-boundaries.mjs.
   resolve: {
     alias: {

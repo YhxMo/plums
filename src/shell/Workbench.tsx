@@ -1,4 +1,4 @@
-import { useSyncExternalStore } from "react";
+import { lazy, Suspense, useState, useSyncExternalStore } from "react";
 import type { Runtime } from "./runtime";
 import { useOperations } from "./useOperations";
 import { useAppearance } from "./useAppearance";
@@ -15,10 +15,16 @@ import { ShellFeedback } from "./ShellFeedback";
 import { WorkspaceArea } from "./WorkspaceArea";
 import { RecoveryWelcome } from "./RecoveryWelcome";
 import { ShellDialogs } from "./ShellDialogs";
-import { ExtensionManager } from "@/features/extensions/ExtensionManager";
 import { useExtensionManager } from "@/features/extensions/useExtensionManager";
 import { DiagnosticsPanel } from "@/features/extensions/DiagnosticsPanel";
 import { DiagnosticActions } from "@/features/extensions/DiagnosticActions";
+
+// Loaded the first time it is needed, then kept mounted like before.
+const ExtensionManager = lazy(() =>
+  import("@/features/extensions/ExtensionManager").then((module) => ({
+    default: module.ExtensionManager,
+  })),
+);
 
 /** Composes feature owners; it does not own extension form or workspace state. */
 export function Workbench({ runtime }: { runtime: Runtime }) {
@@ -43,6 +49,9 @@ export function Workbench({ runtime }: { runtime: Runtime }) {
     navigation,
     authorization,
   });
+  const [managerLoaded, setManagerLoaded] = useState(false);
+  if (!managerLoaded && (navigation.manager.open || management.dialogs.dialog))
+    setManagerLoaded(true);
   return (
     <div className="flex h-dvh min-h-0 overflow-hidden bg-chrome max-md:flex-col">
       {macOverlay && (
@@ -115,25 +124,29 @@ export function Workbench({ runtime }: { runtime: Runtime }) {
                   onExtensions={() => navigation.openManager()}
                 />
               </WorkspaceArea>
-              <ExtensionManager
-                controller={management}
-                diagnostics={
-                  import.meta.env.DEV && (
-                    <DiagnosticsPanel
-                      open={navigation.manager.diagnostics}
-                      onToggle={navigation.setDiagnostics}
-                    >
-                      <DiagnosticActions
-                        runtime={runtime}
-                        operations={operations}
-                        workspace={workspace}
-                        authorization={authorization}
-                        experiments={experiments}
-                      />
-                    </DiagnosticsPanel>
-                  )
-                }
-              />
+              {managerLoaded && (
+                <Suspense fallback={null}>
+                  <ExtensionManager
+                    controller={management}
+                    diagnostics={
+                      import.meta.env.DEV && (
+                        <DiagnosticsPanel
+                          open={navigation.manager.diagnostics}
+                          onToggle={navigation.setDiagnostics}
+                        >
+                          <DiagnosticActions
+                            runtime={runtime}
+                            operations={operations}
+                            workspace={workspace}
+                            authorization={authorization}
+                            experiments={experiments}
+                          />
+                        </DiagnosticsPanel>
+                      )
+                    }
+                  />
+                </Suspense>
+              )}
             </div>
           </div>
         </div>

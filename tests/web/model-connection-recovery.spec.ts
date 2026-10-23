@@ -213,6 +213,27 @@ async function setup(
   await page.goto("/");
 }
 
+test("the connections page loads when its dialog first opens", async ({
+  page,
+}) => {
+  const urls: string[] = [];
+  page.on("request", (request) => urls.push(new URL(request.url()).pathname));
+  const requested = () => urls.includes("/src/models/ModelConnections.tsx");
+  await setup(page, { empty: true });
+  await expect(
+    page.getByRole("button", { name: "应用菜单", exact: true }),
+  ).toBeVisible();
+  expect(requested()).toBe(false);
+  const dialog = await openConnections(page);
+  await expect(
+    dialog
+      .getByRole("list", { name: "服务商", exact: true })
+      .or(dialog.getByRole("button", { name: /添加服务商/ }))
+      .first(),
+  ).toBeVisible();
+  expect(requested()).toBe(true);
+});
+
 test("an uncertain save replaces the stale form with explicit connection recovery", async ({
   page,
 }) => {
