@@ -12,3 +12,7 @@
 | Android ARM64 | `release/android/plums-0.2.0-android-arm64-debug.apk`；API36 模拟器上的原生 models.dev 读取、拒绝与取消、连接器和表单 |
 
 两端结果不证明当前未提交源码。真实模型调用、Mac 交付包读取 models.dev、Android Keystore 写入、真机、中文 IME 与其他平台不在该交付的受验范围。现行恢复入口见 [HANDOFF](../HANDOFF.md#当前交付与恢复)。
+
+## 开发候选记录
+
+- [Mac 输入法、焦点与管理页布局（2026-10-23）](MAC-INPUT-LAYOUT-2026-10-23.md)：改名前构建的隔离包；不是交付。
