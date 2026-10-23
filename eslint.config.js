@@ -1,6 +1,7 @@
 import js from "@eslint/js";
 import hooks from "eslint-plugin-react-hooks";
 import tseslint from "typescript-eslint";
+import globals from "globals";
 
 // tsc covers types and scripts/check-boundaries.mjs covers import layering;
 // ESLint adds syntax-level TypeScript rules and the React Hooks rules.
@@ -39,34 +40,14 @@ export default [
     languageOptions: {
       ecmaVersion: "latest",
       sourceType: "module",
-      globals: Object.fromEntries(
-        [
-          "AbortController",
-          "AbortSignal",
-          "Buffer",
-          "DOMException",
-          "TextDecoder",
-          "TextEncoder",
-          "URL",
-          "URLSearchParams",
-          "clearInterval",
-          "clearTimeout",
-          "console",
-          "document",
-          "fetch",
-          "location",
-          "performance",
-          "process",
-          "queueMicrotask",
-          "requestAnimationFrame",
-          "setInterval",
-          "setTimeout",
-          "structuredClone",
-          "window",
-        ].map((name) => [name, "readonly"]),
-      ),
+      globals: globals.browser,
       parserOptions: { ecmaFeatures: { jsx: true } },
     },
+  },
+  {
+    // Build scripts, configs and tests also run in Node.
+    files: ["scripts/**", "tests/**", "*.config.{js,ts}"],
+    languageOptions: { globals: { ...globals.browser, ...globals.node } },
   },
   {
     files: ["**/*.{ts,tsx,js,jsx}"],

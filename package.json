@@ -55,6 +55,7 @@
     "@types/react-dom": "19.3.0",
     "eslint": "10.13.0",
     "eslint-plugin-react-hooks": "7.1.1",
+    "globals": "17.13.0",
     "patch-package": "8.0.1",
     "prettier": "3.9.10",
     "shadcn": "4.22.1",
