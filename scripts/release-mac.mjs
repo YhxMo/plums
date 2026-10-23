@@ -13,6 +13,7 @@ import { join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { publishDirectory } from "./publish-directory.mjs";
 import { projectFiles } from "./project-files.mjs";
+import { writeSourcePatch } from "./source-patch.mjs";
 
 const root = fileURLToPath(new URL("../", import.meta.url));
 const run = (command, args, options = {}) =>
@@ -74,21 +75,7 @@ run("ditto", [built, app]);
 run("codesign", ["--verify", "--deep", "--strict", app]);
 
 const sourceFiles = new Set(projectFiles(root));
-let patch = run("git", ["diff", "--binary", "HEAD"]);
-for (const path of run("git", [
-  "ls-files",
-  "--others",
-  "--exclude-standard",
-]).split("\n")) {
-  if (!sourceFiles.has(path) || path === "goal.md") continue;
-  try {
-    patch += run("git", ["diff", "--no-index", "--", "/dev/null", path]);
-  } catch (error) {
-    if (error.status !== 1) throw error;
-    patch += error.stdout;
-  }
-}
-writeFileSync(join(stage, "source.patch"), patch);
+writeSourcePatch(root, join(stage, "source.patch"), sourceFiles);
 
 const files = {};
 function checksum(directory, prefix = "") {

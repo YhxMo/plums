@@ -3,6 +3,8 @@ export default defineConfig({
   testDir: "tests/web",
   outputDir: ".cache/test-results",
   fullyParallel: true,
+  // One browser at a time on local machines; opt into more with --workers.
+  workers: 1,
   use: {
     baseURL: "http://127.0.0.1:1420",
     channel: process.env.PLAYWRIGHT_CHANNEL ?? "chrome",

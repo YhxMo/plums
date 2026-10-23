@@ -2,6 +2,7 @@
   "name": "plums",
   "version": "0.2.0",
   "private": true,
+  "license": "MIT",
   "type": "module",
   "scripts": {
     "dev": "vite --host 127.0.0.1",
@@ -28,7 +29,8 @@
     "android:prepare": "node scripts/android.mjs prepare",
     "android:build": "node scripts/android.mjs build",
     "ipc:generate": "node scripts/ipc.mjs",
-    "ipc:check": "node scripts/ipc.mjs --check"
+    "ipc:check": "node scripts/ipc.mjs --check",
+    "postinstall": "patch-package --error-on-fail"
   },
   "dependencies": {
     "@tauri-apps/api": "2.12.4",
@@ -53,6 +55,7 @@
     "@types/react-dom": "19.3.0",
     "eslint": "10.13.0",
     "eslint-plugin-react-hooks": "7.1.1",
+    "patch-package": "8.0.1",
     "prettier": "3.9.10",
     "shadcn": "4.22.1",
     "tailwindcss": "4.3.3",
