@@ -28,7 +28,8 @@ const reasons: Record<string, string> = {
   "not-ready": "连接未就绪，请重新填写 API Key。",
   "not-confirmed": "已取消发送，请求未发出。",
   "proxy-unsupported": "当前版本只支持直连，请把连接方式改为直连。",
-  "secret-unavailable": "找不到已保存的 API Key，请重新填写。",
+  "secret-unavailable":
+    "无法读取已保存的 API Key。请检查凭据存储的访问权限后重试；确认密钥已丢失时再重新填写。",
   "invalid-request": "请求格式无效或超过 8 MiB，未发送。",
   stale: "连接或授权已变化，本次结果未交付。",
   timeout: "请求超时，远端结果未确认。",

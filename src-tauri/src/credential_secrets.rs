@@ -1,10 +1,10 @@
 //! Desktop key storage, and secret cleanup over the native store; cleanup
 //! callers hold the binding ticket.
 //!
-//! Desktop keeps API keys in one file in the app data folder that only this
-//! user can read, as local developer tools keep theirs. There is no system
-//! keychain, so no build ever asks for the login password. Keys are read
-//! natively when a request is sent and never reach a WebView response.
+//! Desktop keeps plaintext keys in an owner-only file, separate from ordinary
+//! configuration. Same-user processes can read it; this is not a security
+//! sandbox. No Keychain or signing identity is needed to read existing keys.
+//! Keys are read natively and never reach a WebView response.
 use crate::credential_bindings::Bindings;
 use crate::credentials_native::delete_key;
 
@@ -20,7 +20,7 @@ mod vault {
     use super::key_valid;
     use crate::credential_bindings::{persist, Failure};
     use serde::{Deserialize, Serialize};
-    use std::{collections::BTreeMap, fs, path::PathBuf, sync::Mutex};
+    use std::{collections::BTreeMap, fs, io::Read, path::PathBuf};
 
     const FILE: &str = "credential-secrets.json";
     /// Room for every binding's key and the retired ones awaiting removal.
@@ -35,18 +35,14 @@ mod vault {
     /// Keys by binding reference, in `credential-secrets.json`.
     pub struct Vault {
         root: PathBuf,
-        lock: Mutex<()>,
     }
     impl Vault {
         pub fn new(root: PathBuf) -> Self {
-            Self {
-                root,
-                lock: Mutex::new(()),
-            }
+            Self { root }
         }
         fn load(&self) -> Result<Saved, Failure> {
-            let bytes = match fs::read(self.root.join(FILE)) {
-                Ok(bytes) => bytes,
+            let file = match fs::File::open(self.root.join(FILE)) {
+                Ok(file) => file,
                 Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
                     return Ok(Saved {
                         schema: 1,
@@ -55,11 +51,16 @@ mod vault {
                 }
                 Err(_) => return Err("unavailable"),
             };
+            private_file(&file)?;
+            let mut bytes = Vec::new();
+            file.take(MAX_BYTES as u64 + 1)
+                .read_to_end(&mut bytes)
+                .map_err(|_| "unavailable")?;
             if bytes.len() > MAX_BYTES {
                 return Err("corrupt");
             }
             let saved: Saved = serde_json::from_slice(&bytes).map_err(|_| "corrupt")?;
-            if saved.schema != 1 {
+            if saved.schema != 1 || saved.keys.values().any(|key| !key_valid(key.as_bytes())) {
                 return Err("corrupt");
             }
             Ok(saved)
@@ -68,7 +69,23 @@ mod vault {
             &self,
             change: impl FnOnce(&mut BTreeMap<String, String>) -> Result<bool, Failure>,
         ) -> Result<(), Failure> {
-            let _guard = self.lock.lock().map_err(|_| "unknown")?;
+            fs::create_dir_all(&self.root).map_err(|_| "unavailable")?;
+            let mut options = fs::OpenOptions::new();
+            options.read(true).write(true).create(true).truncate(false);
+            #[cfg(unix)]
+            {
+                use std::os::unix::fs::OpenOptionsExt;
+                options.mode(0o600);
+            }
+            // A separate, stable inode survives atomic replacement of the data
+            // file. Closing releases the OS lock, including after process exit.
+            let lock = options
+                .open(self.root.join("credential-secrets.lock"))
+                .map_err(|_| "unavailable")?;
+            private_file(&lock)?;
+            lock.lock().map_err(|_| "unavailable")?;
+            // Reread only after acquiring the lock; multiple Vaults/processes
+            // must not overwrite a completed update from another writer.
             let mut saved = self.load()?;
             if !change(&mut saved.keys)? {
                 return Ok(());
@@ -93,7 +110,7 @@ mod vault {
             })
         }
         pub fn get(&self, reference: &str) -> Result<Option<Vec<u8>>, Failure> {
-            let _guard = self.lock.lock().map_err(|_| "unknown")?;
+            // Atomic rename gives readers a complete old or new snapshot.
             Ok(self
                 .load()?
                 .keys
@@ -104,6 +121,20 @@ mod vault {
         pub fn remove(&self, reference: &str) -> Result<(), Failure> {
             self.update(|keys| Ok(keys.remove(reference).is_some()))
         }
+    }
+    fn private_file(file: &fs::File) -> Result<(), Failure> {
+        let metadata = file.metadata().map_err(|_| "unavailable")?;
+        if !metadata.is_file() {
+            return Err("unavailable");
+        }
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            if metadata.permissions().mode() & 0o777 != 0o600 {
+                return Err("unavailable");
+            }
+        }
+        Ok(())
     }
 }
 

@@ -163,3 +163,18 @@ it("releases confirmations when the extension stops", async () => {
     ["credential_release", { owner }],
   ]);
 });
+
+it("a vault access failure does not tell the user their saved key is lost", async () => {
+  const adapter = await ready();
+  invoke.mockRejectedValueOnce({
+    code: "secret-unavailable",
+    outcome: "not-dispatched",
+  });
+  await expect(
+    adapter.call(owner, "credential.request", request),
+  ).rejects.toMatchObject({
+    code: "secret-unavailable",
+    outcome: "not-dispatched",
+    message: expect.stringContaining("访问权限"),
+  });
+});
