@@ -79,9 +79,7 @@ for (const width of [375, 1440]) {
     await expect(page.getByRole("log").getByText(reply)).toBeVisible();
     await expectConversationTitle(page, width, "编程助手", "hello agent");
     await page.getByRole("button", { name: "更多操作", exact: true }).click();
-    await page
-      .getByRole("menuitem", { name: "设为特别关注", exact: true })
-      .click();
+    await page.getByRole("menuitem", { name: "置顶", exact: true }).click();
     await sessions(page, "hello agent").click();
     await page.getByRole("menuitem", { name: "新建会话", exact: true }).click();
     await expectConversationTitle(page, width, "编程助手", "未命名会话");
@@ -91,7 +89,10 @@ for (const width of [375, 1440]) {
       name: "与 编程助手 交互",
       exact: true,
     });
-    await expect(page.locator('[data-slot="agent-tile"]')).toHaveCount(1);
+    await expect(page.locator("[data-agent-row]").first()).toHaveAttribute(
+      "data-pinned",
+      "true",
+    );
     await row.click();
     await sessions(page, "未命名会话").click();
     await page
@@ -338,9 +339,7 @@ test("mobile list failures stay visible and rename cancel restores the operation
     exact: true,
   });
   await trigger.click();
-  await page
-    .getByRole("menuitem", { name: "设为特别关注", exact: true })
-    .click();
+  await page.getByRole("menuitem", { name: "置顶", exact: true }).click();
   await expect(page.getByRole("alert")).toContainText("注入的写入故障");
   await expect(page.getByRole("alert")).toBeHidden({ timeout: 15000 });
   await trigger.click();
@@ -677,7 +676,7 @@ test("a long conversation scrolls inside the log, never the whole workspace", as
   ).toEqual([]);
 });
 
-test("a special-attention Agent moves to a large-avatar section above the rows", async ({
+test("a pinned Agent moves to the top of the list and back when unpinned", async ({
   page,
 }) => {
   await page.goto("/");
@@ -687,32 +686,24 @@ test("a special-attention Agent moves to a large-avatar section above the rows",
     .getByRole("dialog")
     .getByRole("button", { name: /添加 Agent/ })
     .click();
-  await page.getByRole("textbox", { name: "名称", exact: true }).fill("关注者");
+  await page.getByRole("textbox", { name: "名称", exact: true }).fill("置顶者");
   await page
     .getByRole("dialog")
     .getByRole("button", { name: "添加", exact: true })
     .click();
   const list = page.getByRole("complementary", { name: "Agent 列表" });
   const rows = list.locator('[data-slot="agent-row"]');
-  const tiles = list.locator('[data-slot="agent-tile"]');
-  const row = list.getByRole("button", { name: "与 关注者 交互", exact: true });
+  const row = list.getByRole("button", { name: "与 置顶者 交互", exact: true });
   await expect(rows.first()).toHaveAccessibleName("与 普通 交互");
   await page
-    .getByRole("button", { name: "关注者 的操作", exact: true })
+    .getByRole("button", { name: "置顶者 的操作", exact: true })
     .click();
-  await page
-    .getByRole("menuitem", { name: "设为特别关注", exact: true })
-    .click();
-  await expect(tiles).toHaveCount(1);
-  await expect(tiles.first()).toHaveAccessibleName("与 关注者 交互");
-  await expect(rows).toHaveCount(1);
-  await expect(rows.first()).toHaveAccessibleName("与 普通 交互");
-  await row.click({ button: "right" });
-  await page
-    .getByRole("menuitem", { name: "取消特别关注", exact: true })
-    .click();
-  await expect(tiles).toHaveCount(0);
+  await page.getByRole("menuitem", { name: "置顶", exact: true }).click();
+  await expect(rows.first()).toHaveAccessibleName("与 置顶者 交互");
   await expect(rows).toHaveCount(2);
+  await row.click({ button: "right" });
+  await page.getByRole("menuitem", { name: "取消置顶", exact: true }).click();
+  await expect(rows.first()).toHaveAccessibleName("与 普通 交互");
 });
 
 test("each part of an Agent can be switched off, and says what that means", async ({

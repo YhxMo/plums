@@ -90,7 +90,7 @@ export function NavRail({
           <span className="text-sm font-semibold">{[...view.label][0]}</span>
         </Destination>
       ))}
-      <Separator className="my-1 w-5! bg-sidebar-border" />
+      <Separator className="my-1 w-5! bg-border" />
       <Destination
         label="扩展管理"
         active={managerOpen}

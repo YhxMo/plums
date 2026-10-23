@@ -44,14 +44,6 @@
   --color-border: var(--border);
   --color-input: var(--control-border);
   --color-ring: var(--accent);
-  --color-sidebar: var(--sidebar-bg);
-  --color-sidebar-foreground: var(--text);
-  --color-sidebar-border: var(--sidebar-border);
-  --color-sidebar-accent: var(--sidebar-hover);
-  --color-sidebar-accent-foreground: var(--text);
-  --color-sidebar-primary: var(--sidebar-active);
-  --color-sidebar-primary-foreground: var(--text);
-  --color-sidebar-ring: var(--accent);
   /* Shell surfaces and the brand colour under their own names. */
   --color-surface: var(--surface);
   --color-chrome: var(--chrome);

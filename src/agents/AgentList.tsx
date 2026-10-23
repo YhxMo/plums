@@ -31,6 +31,10 @@ const enter = {
   transition: { duration: 0.18, ease: "easeOut" },
 } as const;
 
+/**
+ * One full-width row in one of three tones: selected (brand fill, white
+ * text), pinned, or plain on the list's colour.
+ */
 function AgentRow({
   agent: a,
   selected,
@@ -48,26 +52,39 @@ function AgentRow({
     ? (session.messages.at(-1)?.at ?? session.lastMessageAt)
     : undefined;
   const act = (action: AgentAction) => onAction(action, more.current);
+  // Secondary text on the selected row is 86% of its text colour.
+  const quiet = selected
+    ? "text-selection-foreground/86"
+    : "text-muted-foreground";
   return (
     <ContextMenu>
       <ContextMenuTrigger asChild>
         <motion.div
           layout="position"
           {...enter}
-          // The status dot's ring follows the row's tint.
-          className="group/row relative flex items-center rounded-xl transition-colors [--row-bg:var(--list-bg,var(--background))] hover:bg-sidebar-accent hover:[--row-bg:var(--sidebar-hover)] data-[selected=true]:[--row-bg:var(--sidebar-active)] data-[selected=true]:hover:bg-transparent data-[selected=true]:hover:[--row-bg:var(--sidebar-active)]"
+          data-agent-row
+          // The status dot's ring follows the row's tone.
+          className={cn(
+            "group/row relative flex h-[68px] shrink-0 items-center [--row-bg:var(--list-bg)]",
+            a.pinned && "bg-row-pinned [--row-bg:var(--row-pinned)]",
+            selected
+              ? "text-selection-foreground [--row-bg:var(--selection)]"
+              : "after:pointer-events-none after:absolute after:inset-0 after:bg-foreground/4 after:opacity-0 after:transition-opacity hover:after:opacity-100",
+          )}
           data-selected={selected}
+          data-pinned={a.pinned}
         >
           {selected && (
             <motion.span
               layoutId="agent-row-selected"
+              data-slot="row-selected"
               transition={{ type: "spring", stiffness: 520, damping: 40 }}
-              className="absolute inset-0 rounded-xl bg-sidebar-primary"
+              className="absolute inset-0 bg-selection"
             />
           )}
           <button
             data-slot="agent-row"
-            className="relative flex min-w-0 flex-1 items-center gap-3 rounded-xl py-2.5 pr-1.5 pl-3 text-left outline-none focus-visible:ring-3 focus-visible:ring-ring/50 md:pointer-fine:pr-2.5 max-md:py-3"
+            className="relative flex h-full min-w-0 flex-1 items-center gap-[11px] px-3.5 text-left outline-none focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:ring-inset"
             data-agent-id={a.id}
             onClick={onSelect}
             aria-label={`与 ${a.name} 交互`}
@@ -75,16 +92,23 @@ function AgentRow({
             <Avatar agent={a} status={a.status} className="size-11 text-lg" />
             <span className="flex min-w-0 flex-1 flex-col gap-0.5">
               <span className="flex min-w-0 items-baseline justify-between gap-2">
-                <strong className="truncate text-sm font-medium max-md:text-[15px]">
+                <strong className="truncate text-[14.5px] leading-5 font-semibold">
                   {a.name}
                 </strong>
-                <span className="min-w-7 shrink-0 text-right text-[11px] text-muted-foreground transition-opacity md:pointer-fine:group-hover/row:opacity-0 md:pointer-fine:group-focus-within/row:opacity-0 md:pointer-fine:group-has-aria-expanded/row:opacity-0">
+                <span
+                  className={cn(
+                    "min-w-7 shrink-0 text-right text-[11.5px] transition-opacity md:pointer-fine:group-hover/row:opacity-0 md:pointer-fine:group-focus-within/row:opacity-0 md:pointer-fine:group-has-aria-expanded/row:opacity-0",
+                    quiet,
+                  )}
+                >
                   {lastAt !== undefined && formatTime(lastAt, undefined, true)}
                 </span>
               </span>
-              <span className="truncate text-[13px] text-muted-foreground/90">
+              <span className={cn("truncate text-[12.5px]", quiet)}>
                 {a.status === "busy" ? (
-                  <span className="text-running">正在回复…</span>
+                  <span className={selected ? undefined : "text-running"}>
+                    正在回复…
+                  </span>
                 ) : (
                   session?.messages.at(-1)?.text || a.description
                 )}
@@ -97,8 +121,8 @@ function AgentRow({
                 ref={more}
                 variant="ghost"
                 size="icon-sm"
-                // Its own tint shows over the row's hover and selected tints.
-                className="relative mr-1 shrink-0 hover:bg-foreground/10 aria-expanded:bg-foreground/10 dark:hover:bg-foreground/10 pointer-fine:opacity-0 pointer-fine:group-hover/row:opacity-100 pointer-fine:group-focus-within/row:opacity-100 pointer-fine:aria-expanded:opacity-100 md:pointer-fine:absolute md:pointer-fine:top-1/2 md:pointer-fine:right-1.5 md:pointer-fine:m-0 md:pointer-fine:-translate-y-1/2"
+                // Its own tint shows over every row tone.
+                className="relative mr-1 shrink-0 text-current hover:bg-foreground/10 aria-expanded:bg-foreground/10 group-data-[selected=true]/row:hover:bg-selection-foreground/15 group-data-[selected=true]/row:hover:text-selection-foreground group-data-[selected=true]/row:aria-expanded:bg-selection-foreground/15 dark:hover:bg-foreground/10 pointer-fine:opacity-0 pointer-fine:group-hover/row:opacity-100 pointer-fine:group-focus-within/row:opacity-100 pointer-fine:aria-expanded:opacity-100 md:pointer-fine:absolute md:pointer-fine:top-1/2 md:pointer-fine:right-2 md:pointer-fine:m-0 md:pointer-fine:-translate-y-1/2"
                 aria-label={`${a.name} 的操作`}
               >
                 <EllipsisIcon />
@@ -121,73 +145,6 @@ function AgentRow({
   );
 }
 
-/** A special-attention Agent: a large avatar in the grid above the rows. */
-function AgentTile({
-  agent: a,
-  selected,
-  onSelect,
-  onAction,
-}: {
-  agent: Agent;
-  selected: boolean;
-  onSelect: () => void;
-  onAction: (action: AgentAction, source: HTMLElement | null) => void;
-}) {
-  const tile = useRef<HTMLButtonElement>(null);
-  return (
-    <ContextMenu>
-      <ContextMenuTrigger asChild>
-        <motion.div
-          layout="position"
-          {...enter}
-          className="relative rounded-xl"
-          data-selected={selected}
-        >
-          {selected && (
-            <motion.span
-              layoutId="agent-tile-selected"
-              transition={{ type: "spring", stiffness: 520, damping: 40 }}
-              className="absolute inset-0 rounded-xl bg-sidebar-primary"
-            />
-          )}
-          <button
-            ref={tile}
-            data-slot="agent-tile"
-            className="relative flex w-full min-w-0 flex-col items-center gap-1.5 rounded-xl px-1 py-2.5 outline-none hover:bg-sidebar-accent focus-visible:ring-3 focus-visible:ring-ring/50 max-md:py-3"
-            data-agent-id={a.id}
-            onClick={onSelect}
-            aria-label={`与 ${a.name} 交互`}
-          >
-            <span className="relative">
-              <Avatar
-                agent={a}
-                className={cn(
-                  "size-14 text-xl",
-                  a.status === "busy" &&
-                    "animate-pulse ring-2 ring-running ring-offset-2 ring-offset-(--list-bg,var(--background))",
-                )}
-              />
-            </span>
-            <span className="w-full truncate text-center text-xs">
-              {a.name}
-            </span>
-          </button>
-        </motion.div>
-      </ContextMenuTrigger>
-      <ContextMenuContent className="w-44" aria-label={`${a.name} 的操作菜单`}>
-        <AgentMenuItems
-          agent={a}
-          kind="context"
-          onAction={(action) => onAction(action, tile.current)}
-        />
-      </ContextMenuContent>
-    </ContextMenu>
-  );
-}
-
-const section =
-  "px-3 pt-2 pb-1 text-[11px] font-medium tracking-wide text-muted-foreground";
-
 export function AgentList({
   agents,
   selected,
@@ -209,15 +166,18 @@ export function AgentList({
   const shown = agents.filter((a) =>
     a.name.toLowerCase().includes(query.toLowerCase()),
   );
-  const favourites = shown.filter((a) => a.pinned);
-  const rest = shown.filter((a) => !a.pinned);
+  // Pinned rows first, each group in the provider's order.
+  const ordered = [
+    ...shown.filter((a) => a.pinned),
+    ...shown.filter((a) => !a.pinned),
+  ];
   return (
     <aside
       className="flex h-full min-h-0 w-full flex-col [--list-bg:var(--chrome)] max-md:bg-chrome"
       aria-label="Agent 列表"
     >
       <div
-        className="flex min-h-12 items-center gap-2 px-3 md:h-14 max-md:flex-wrap max-md:px-5 max-md:pt-4 max-md:pb-3"
+        className="flex min-h-12 items-center gap-1.5 pr-2.5 pl-3 md:h-[52px] max-md:flex-wrap max-md:px-5 max-md:pt-4 max-md:pb-3"
         data-tauri-drag-region="deep"
       >
         <h2
@@ -229,7 +189,7 @@ export function AgentList({
           我的 Agent
         </h2>
         {agents.length > 0 && (
-          <InputGroup className="h-8 flex-1 rounded-xl border-transparent bg-muted shadow-none transition-colors has-[[data-slot=input-group-control]:focus-visible]:border-input has-[[data-slot=input-group-control]:focus-visible]:bg-background has-[[data-slot=input-group-control]:focus-visible]:ring-0 max-md:order-3 max-md:h-11 max-md:basis-full dark:bg-muted">
+          <InputGroup className="h-[30px] flex-1 rounded-lg border-transparent bg-foreground/6 shadow-none transition-colors has-[[data-slot=input-group-control]:focus-visible]:border-input has-[[data-slot=input-group-control]:focus-visible]:bg-chat has-[[data-slot=input-group-control]:focus-visible]:ring-0 max-md:order-3 max-md:h-11 max-md:basis-full dark:bg-foreground/6">
             <InputGroupAddon>
               <SearchIcon />
             </InputGroupAddon>
@@ -245,7 +205,7 @@ export function AgentList({
           <Button
             variant="ghost"
             size="icon"
-            className="size-8 rounded-xl bg-muted text-muted-foreground hover:text-foreground max-md:order-2 max-md:size-9 max-md:bg-transparent"
+            className="size-[30px] rounded-lg bg-foreground/6 text-muted-foreground hover:bg-foreground/10 hover:text-foreground max-md:order-2 max-md:size-9 max-md:bg-transparent"
             aria-label="添加"
             onClick={(e) => onAdd(e.currentTarget)}
           >
@@ -253,26 +213,9 @@ export function AgentList({
           </Button>
         </Tooltip>
       </div>
-      <div className="flex min-h-0 flex-1 flex-col gap-0.5 overflow-y-auto px-2 pb-3 max-md:px-3 max-md:pb-5">
+      <div className="flex min-h-0 flex-1 flex-col overflow-y-auto pb-3 max-md:pb-5">
         <LayoutGroup id="agent-rows">
-          {favourites.length > 0 && (
-            <>
-              <h3 className="sr-only">特别关注</h3>
-              <div className="grid grid-cols-[repeat(auto-fill,minmax(76px,1fr))] gap-0.5 pb-1">
-                {favourites.map((a) => (
-                  <AgentTile
-                    key={a.id}
-                    agent={a}
-                    selected={selected === a.id}
-                    onSelect={() => onSelect(a.id)}
-                    onAction={(action, source) => onAction(a, action, source)}
-                  />
-                ))}
-              </div>
-              {rest.length > 0 && <h3 className={section}>全部</h3>}
-            </>
-          )}
-          {rest.map((a) => (
+          {ordered.map((a) => (
             <AgentRow
               key={a.id}
               agent={a}

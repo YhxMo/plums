@@ -25,7 +25,7 @@ export function StartupScreen({ reason }: { reason?: unknown }) {
   }, [confirmRecovery]);
   const [error, setError] = useState(reason ? errorMessage(reason) : "");
   return (
-    <main className="grid min-h-dvh place-items-center bg-sidebar p-6">
+    <main className="grid min-h-dvh place-items-center bg-chrome p-6">
       <motion.div
         initial={{ opacity: 0, y: 8 }}
         animate={{ opacity: 1, y: 0 }}

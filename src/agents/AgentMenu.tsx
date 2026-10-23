@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { PencilIcon, StarIcon, StarOffIcon, Trash2Icon } from "lucide-react";
+import { PencilIcon, PinIcon, PinOffIcon, Trash2Icon } from "lucide-react";
 import type { Agent } from "@modules/agents/contract";
 import {
   DropdownMenuItem,
@@ -38,8 +38,8 @@ export function AgentMenuItems({
     <>
       {item(
         "pin",
-        agent.pinned ? <StarOffIcon /> : <StarIcon />,
-        agent.pinned ? "取消特别关注" : "设为特别关注",
+        agent.pinned ? <PinOffIcon /> : <PinIcon />,
+        agent.pinned ? "取消置顶" : "置顶",
       )}
       {item("rename", <PencilIcon />, "重命名")}
       <Separator />

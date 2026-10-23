@@ -316,7 +316,7 @@ for (const width of [375, 700, 1280]) {
     const menu = page.getByRole("menu", { name: "更多操作" });
     await expect(menu.getByRole("menuitem")).toHaveText([
       "查看 Agent 详情",
-      "设为特别关注",
+      "置顶",
       "重命名",
       "移除 Agent",
     ]);

@@ -1,8 +1,7 @@
 /*
  * Semantic colours: the 17 public theme keys and the optional layout colours
- * (docs/THEMES.md), plus the shell's sidebar tones. shadcn/ui tokens map onto
- * these in app.css. Contributed themes write the same names as inline
- * variables on :root.
+ * (docs/THEMES.md). shadcn/ui tokens map onto these in app.css. Contributed
+ * themes write the same names as inline variables on :root.
  */
 :root {
   color-scheme: light;
@@ -27,11 +26,6 @@
   --error: #b3372d;
   --running: #568064;
   --shadow: #00000014;
-  --sidebar-bg: #f6f6f7;
-  --sidebar-border: #e5e5e8;
-  --sidebar-divider: #ececef;
-  --sidebar-hover: #ebebee;
-  --sidebar-active: #e2e2e7;
   /* Layout colours: the window behind the rail and list, the floating
    * conversation card, reply bubbles, pinned and selected list rows, and the
    * rail's icons. */
@@ -67,11 +61,6 @@
   --error: #ff8f85;
   --running: #7ec495;
   --shadow: #00000080;
-  --sidebar-bg: #1e1e1f;
-  --sidebar-border: #2b2b2e;
-  --sidebar-divider: #2a2a2d;
-  --sidebar-hover: #2c2c2f;
-  --sidebar-active: #343438;
   --chrome: #2f2f30;
   --chat: #1e1e1f;
   --bubble: #2c2c2f;
