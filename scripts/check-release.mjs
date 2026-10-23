@@ -2,7 +2,9 @@
 // no development catalog, samples or fault tools, and every catalog entry.
 import { existsSync, readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { developmentOnly } from "../vite.config.ts";
+import { versionProblems } from "./versions.mjs";
 
 const dist = process.argv[2] ?? "dist";
 const problems = [];
@@ -41,6 +43,9 @@ if (tauri.app.security.csp !== policy)
   problems.push(
     "src-tauri/tauri.conf.json: CSP differs from the reviewed policy",
   );
+problems.push(
+  ...versionProblems(fileURLToPath(new URL("..", import.meta.url))),
+);
 if (problems.length) {
   console.error(problems.join("\n"));
   process.exit(1);

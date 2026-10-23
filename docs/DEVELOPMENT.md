@@ -19,6 +19,8 @@ PLAYWRIGHT_CHANNEL= PLAYWRIGHT_BROWSERS_PATH="$PWD/.cache/ms-playwright" \
 
 提交前运行 `npm run verify:web`，依次检查构建与类型、单元测试、Prettier、项目清单与导入边界、文件行数、ESLint。原生工具齐备时运行 `npm run verify`，串联 Web 与 `npm run verify:native`；后者依次核对 Rust 导出的 IPC 契约、执行 Rust 格式、Clippy 和原生单元。缺少工具或命令失败均单独记录，不作为通过。浏览器回归单独运行 `npm run verify:e2e`，不进入默认门禁。E2E 默认自起隔离 dev server，1420 被占用或来源不明时失败而非复用；只有快速迭代可显式设置 `PLUMS_E2E_REUSE_SERVER=1` 复用本地服务，该模式不作为证据。
 
+版本号只在 `package.json` 维护：`src-tauri/tauri.conf.json` 的 `version` 写作 `"../package.json"` 由 Tauri 读取；Cargo 无法引用外部文件，`src-tauri/Cargo.toml` 须写同一值。`check:release` 用 `scripts/versions.mjs` 检查两处。
+
 ESLint 使用 flat config，对全部 JS/TS/TSX 启用推荐规则、typescript-eslint 推荐规则（不含类型感知规则）与 React Hooks 两条规则（均为错误），不承担排版。TypeScript 固定在 typescript-eslint 支持的版本；升级 TypeScript 前先确认其 peer 范围。以 `_` 开头的未用变量视为有意忽略；确需逐行豁免时写明原因。
 
 `verify:web` 使用 `npm run check:project -- --boundaries`，复用已锁定 TypeScript 的 AST 检查 TS、TSX、JS、MJS 的静态路径 import、export、类型导入、动态 import 和 require。`src`、`modules`、`extensions` 下每个源码文件都必须属于一层，未归层即失败；层与允许目标见 `scripts/check-boundaries.mjs` 的 `layers`。通用层（SDK、宿主、`modules/shell`、`src/shell`、`src/features/extensions`、`src/components`、平台适配）不得引用业务模块；业务模块（`modules/agents`、`modules/text-workbench`）与默认 Agent 界面（`src/agents`）只能引用 SDK、自身与通用组件；只有组合根（`src/App.tsx`、`src/main.tsx`、`src/application.ts`）可接线全部。父目录桶入口（如 `"../"`）与仓库逃逸路径均拒绝。
