@@ -6,6 +6,7 @@
 
 ## 当前开发候选
 
+- 标识符改为 `dev.plums.plums`，数据位于平台数据目录的 `data/`。桌面首次启动把改名前 `dev.plums.m1/m1-experiment` 的数据复制过来，旧目录保留；失败时说明并退出。规则见[开发流程](docs/DEVELOPMENT.md#本地交付目录)。Rust 单元测试与 debug 二进制在假 HOME 下的实际复制已验证；复制失败时的弹窗未实测，打包应用读取真实旧数据待验。
 - API Key 使用数据根内独立的 0600 `credential-secrets.json`，保持 schema 1 与原生引用；文件锁内重读后原子保存，损坏或权限过宽时保留原件并拒绝读取。不使用 Keychain。格式、作用域与同用户明文边界见[凭据契约](docs/CREDENTIAL-BINDINGS.md)。
 - 模型服务商与扩展凭据共用 `SecretInput`：Eye/EyeOff 只显隐当前草稿，不提交表单；保存、清空或禁用时复位，编辑已保存连接不回读密钥。
 - InfoTip 使用标准 Radix Popover；DismissableLayer 的 ESM/CJS 补丁在 Escape 时核对当前最高层，安装时自动应用。维护入口见[开发流程](docs/DEVELOPMENT.md#上游依赖补丁)。

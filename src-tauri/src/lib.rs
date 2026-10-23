@@ -9,6 +9,8 @@ mod credentials;
 mod credentials_native;
 mod documents;
 mod ipc;
+#[cfg(desktop)]
+mod legacy_data;
 mod network;
 mod storage;
 use serde::Serialize;
@@ -208,7 +210,16 @@ pub fn run() {
                     }
                 }
             }
-            let root = data_dir_override().unwrap_or(app.path().app_data_dir()?.join("data"));
+            let root = match data_dir_override() {
+                Some(root) => root,
+                None => {
+                    let root = app.path().app_data_dir()?.join("data");
+                    // Builds from before the identifier rename kept data under `dev.plums.m1`.
+                    #[cfg(desktop)]
+                    legacy_data::prepare(&root);
+                    root
+                }
+            };
             app.manage(credential_bindings::Bindings::new(root.clone()));
             #[cfg(not(target_os = "android"))]
             app.manage(credential_secrets::Vault::new(root.clone()));
