@@ -271,6 +271,42 @@ for (const scheme of ["light", "dark"] as const)
       .toEqual(["与 甲 交互", "与 乙 交互", "与 丙 交互"]);
   });
 
+for (const [scheme, tile, figure] of [
+  ["light", "rgb(217, 222, 229)", "rgb(138, 148, 163)"],
+  ["dark", "rgb(74, 77, 82)", "rgb(168, 174, 183)"],
+] as const)
+  test(`the rail shows the user as a blank grey plum, not a control (${scheme})`, async ({
+    page,
+  }) => {
+    await page.emulateMedia({ colorScheme: scheme });
+    await page.setViewportSize({ width: 1280, height: 800 });
+    await page.goto("/");
+    const rail = page.getByRole("navigation", { name: "应用导航" });
+    const user = rail.locator("[data-slot=user-avatar]");
+    const box = await user.boundingBox();
+    expect(box!.width).toBe(36);
+    expect(box!.height).toBe(36);
+    await expect(user).toHaveAttribute("aria-hidden", "true");
+    expect(await user.evaluate((el) => el.closest("button,a,[tabindex]"))).toBe(
+      null,
+    );
+    expect(
+      await user
+        .locator("[data-part=tile]")
+        .evaluate((el) => getComputedStyle(el).fill),
+    ).toBe(tile);
+    for (const part of ["body", "stem", "leaf"])
+      expect(
+        await user
+          .locator(`[data-part=${part}]`)
+          .evaluate(
+            (el) => getComputedStyle(el).fill + getComputedStyle(el).stroke,
+          ),
+      ).toContain(figure);
+    // A blank plum: no face.
+    await expect(user.locator("ellipse, [data-part=eye]")).toHaveCount(0);
+  });
+
 // The native window is dragged from the top of each pane; a bare region only
 // counts clicks on its own box, so text inside the header would block it.
 test("the pane headers and the rail drag the window from anywhere that is not a control", async ({

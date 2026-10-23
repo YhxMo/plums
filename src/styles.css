@@ -36,6 +36,9 @@
   --selection: #e8692f;
   --selection-text: #ffffff;
   --rail-icon: #5a5a5f;
+  /* The user's blank plum at the top of the rail. */
+  --user: #d9dee5;
+  --user-ink: #8a94a3;
   --radius: 10px;
   --space-1: 8px;
   --space-2: 16px;
@@ -68,6 +71,8 @@
   --selection: #e8692f;
   --selection-text: #ffffff;
   --rail-icon: #b0b0b5;
+  --user: #4a4d52;
+  --user-ink: #a8aeb7;
 }
 /* A contributed palette that leaves out layout colours gets these, derived
  * from its own colours; the ones it names are set inline and win. */
@@ -79,6 +84,8 @@
   --selection: var(--accent);
   --selection-text: var(--accent-ink);
   --rail-icon: var(--muted);
+  --user: color-mix(in srgb, var(--rail-icon) 22%, var(--chrome));
+  --user-ink: color-mix(in srgb, var(--rail-icon) 70%, var(--chrome));
 }
 :root[data-theme="dark"] img[src="/brand/plums.png"] {
   content: url("/brand/plums-dark.png");

@@ -188,7 +188,7 @@ export function ChatView({
             transition={{ duration: 0.16 }}
             className="flex min-w-0 flex-1 items-center gap-2"
           >
-            <Avatar agent={agent} className="size-9 text-base md:hidden" />
+            <Avatar agent={agent} className="size-9 md:hidden" />
             <h1 className="min-w-0 shrink truncate text-[15px] leading-tight font-semibold tracking-tight">
               {agent.name}
             </h1>

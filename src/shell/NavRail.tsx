@@ -4,6 +4,7 @@ import { motion } from "motion/react";
 import { cn } from "cn";
 import type { NavRailProps } from "./controllers";
 import { AppMenu, ThemeToggle } from "./ShellActions";
+import { UserAvatar } from "./UserAvatar";
 import { Tooltip } from "@/components/Tooltip";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
@@ -70,11 +71,7 @@ export function NavRail({
         className={cn("w-full shrink-0", macOverlay ? "h-11" : "h-2")}
         data-tauri-drag-region
       />
-      <img
-        className="mb-2 size-7 shrink-0 rounded-lg object-contain"
-        src="/brand/plums.png"
-        alt=""
-      />
+      <UserAvatar />
       {workspace.views.map((view) => (
         <Destination
           key={view.id}

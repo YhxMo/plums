@@ -1,6 +1,7 @@
 import { deflateSync } from "node:zlib";
 import { expect, test, type Page } from "@playwright/test";
 import { addAgent } from "./helpers";
+import { plumFor, plumParts } from "../../src/agents/plum";
 
 /** A PNG with a gradient, `w` × `h` pixels. */
 function png(w: number, h: number) {
@@ -43,31 +44,41 @@ const fallback = (page: Page, name: string) =>
     .getByRole("button", { name: new RegExp(`与 ${name} 交互`) })
     .locator('[data-slot="avatar-fallback"]');
 
-test("agents without a picture get their own colour from the name", async ({
-  page,
-}) => {
-  await page.setViewportSize({ width: 1280, height: 800 });
-  await page.goto("/");
-  await addAgent(page, "甲助手");
-  await page
-    .getByRole("complementary", { name: "Agent 列表" })
-    .getByRole("button", { name: "添加", exact: true })
-    .click();
-  await page
-    .getByRole("dialog", { name: "添加", exact: true })
-    .getByRole("button", { name: /^添加 Agent/ })
-    .click();
-  await page.getByRole("textbox", { name: "名称", exact: true }).fill("乙助手");
-  await page
-    .getByRole("dialog")
-    .getByRole("button", { name: "添加", exact: true })
-    .click();
-  const colour = (name: string) =>
-    fallback(page, name).evaluate((el) => getComputedStyle(el).backgroundColor);
-  const [a, b] = [await colour("甲助手"), await colour("乙助手")];
-  expect(a).not.toBe(b);
-  await expect(fallback(page, "甲助手")).toHaveText("甲");
-});
+/** The computed colour of a hex value. */
+const rgb = (hex: string) => {
+  const n = parseInt(hex.slice(1), 16);
+  return `rgb(${n >> 16}, ${(n >> 8) & 255}, ${n & 255})`;
+};
+
+for (const scheme of ["light", "dark"] as const)
+  test(`agents without a picture get a flat plum in their name's colours (${scheme})`, async ({
+    page,
+  }) => {
+    await page.emulateMedia({ colorScheme: scheme });
+    await page.setViewportSize({ width: 1280, height: 800 });
+    await page.goto("/");
+    await addAgent(page, "编程助手");
+    const mark = fallback(page, "编程助手");
+    // A drawing, not the first character of the name.
+    await expect(mark).toHaveText("");
+    const plum = plumFor("编程助手");
+    const fill = (part: string) =>
+      mark
+        .locator(`[data-plum="${part}"]`)
+        .evaluate((el) => getComputedStyle(el).fill);
+    expect(await fill("tile")).toBe(rgb(plum[scheme]));
+    expect(await fill("body")).toBe(rgb(plum.body));
+    expect(await fill("leaf")).toBe(rgb(plumParts.leaf));
+    // Flat: no highlight, blush or shadow.
+    await expect(mark.locator("[data-plum]")).toHaveCount(6);
+    expect(
+      await mark
+        .locator("svg")
+        .evaluate(
+          (el) => getComputedStyle(el).filter + getComputedStyle(el).boxShadow,
+        ),
+    ).toBe("nonenone");
+  });
 
 for (const width of [1280, 375]) {
   test(`a picture uploaded in the details is cropped square and shown in the list, header and details, then removed at ${width}`, async ({
@@ -122,9 +133,9 @@ for (const width of [1280, 375]) {
     await details.getByRole("button", { name: "更换头像" }).click();
     await page.getByRole("menuitem", { name: "移除头像" }).click();
     await expect(details.locator('[data-slot="avatar-image"]')).toHaveCount(0);
-    await expect(details.locator('[data-slot="avatar-fallback"]')).toHaveText(
-      "小",
-    );
+    await expect(
+      details.locator('[data-slot="avatar-fallback"] [data-plum="body"]'),
+    ).toBeVisible();
     await page.evaluate(() => localStorage.clear());
   });
 }

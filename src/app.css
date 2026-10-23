@@ -53,6 +53,8 @@
   --color-selection: var(--selection);
   --color-selection-foreground: var(--selection-text);
   --color-rail-icon: var(--rail-icon);
+  --color-user: var(--user);
+  --color-user-ink: var(--user-ink);
   --color-overlay: var(--overlay);
   --color-subtle: var(--subtle);
   --color-brand: var(--accent);

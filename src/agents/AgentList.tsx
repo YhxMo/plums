@@ -89,7 +89,7 @@ function AgentRow({
             onClick={onSelect}
             aria-label={`与 ${a.name} 交互`}
           >
-            <Avatar agent={a} status={a.status} className="size-11 text-lg" />
+            <Avatar agent={a} status={a.status} className="size-11" />
             <span className="flex min-w-0 flex-1 flex-col gap-0.5">
               <span className="flex min-w-0 items-baseline justify-between gap-2">
                 <strong className="truncate text-[14.5px] leading-5 font-semibold">
