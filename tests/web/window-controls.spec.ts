@@ -6,13 +6,13 @@ declare global {
   }
 }
 
-/** Browser coverage checks HTML clearance, not AppKit button behavior. */
-async function native(
-  page: Page,
-  userAgent = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)",
-) {
-  await page.addInitScript((userAgent) => {
-    Object.defineProperty(navigator, "userAgent", { value: userAgent });
+/**
+ * Browser coverage checks HTML clearance, not AppKit button behavior. The OS
+ * comes from the native `platform.info`, as in the app; the runner's own user
+ * agent (a Mac here) must not matter.
+ */
+async function native(page: Page, os = "macos") {
+  await page.addInitScript((os) => {
     const w = window as unknown as Window & {
       isTauri: boolean;
       __TAURI_INTERNALS__: unknown;
@@ -37,13 +37,15 @@ async function native(
         if (command === "document_supported") return false;
         if (command === "credential_inventory") return [];
         if (command === "platform_call") {
+          if (args.capability === "platform.info")
+            return { os, arch: "aarch64", storage: "isolated-experiment" };
           if (args.capability === "state.read") return null;
           if (args.capability === "state.write")
             return { revision: 1, value: null };
         }
       },
     };
-  }, userAgent);
+  }, os);
   await page.goto("/");
   await expect(
     page.getByRole("button", { name: "应用菜单", exact: true }),
@@ -127,13 +129,7 @@ for (const kind of ["browser", "android", "windows"] as const) {
   test(`${kind} does not reserve macOS window chrome`, async ({ page }) => {
     await page.setViewportSize({ width: 640, height: 680 });
     if (kind === "browser") await page.goto("/");
-    else
-      await native(
-        page,
-        kind === "android"
-          ? "Mozilla/5.0 (Linux; Android 16)"
-          : "Mozilla/5.0 (Windows NT 10.0; Win64; x64)",
-      );
+    else await native(page, kind);
     await expect(page.getByRole("group", { name: "窗口控制" })).toHaveCount(0);
     expect((await page.locator(".pane").boundingBox())!.y).toBe(0);
   });

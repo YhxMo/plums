@@ -14,6 +14,7 @@ import { EffortSelect } from "./EffortSelect";
 import { ModelSelect } from "./ModelSelect";
 import { Tooltip } from "@/components/Tooltip";
 import { useMediaQuery } from "@/components/useMediaQuery";
+import { appleKeyboard } from "@/components/keyboard";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -28,7 +29,7 @@ import {
   InputGroupTextarea,
 } from "@/components/ui/input-group";
 
-const mac = /Mac|iPhone|iPad/.test(navigator.platform || navigator.userAgent);
+const mac = appleKeyboard();
 
 /** What the message box can attach; absent when the provider takes none. */
 export type Attach = {

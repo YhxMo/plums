@@ -23,6 +23,8 @@ export type Runtime = Readonly<{
   /** Sources of extensions imported from files, in the shell's own state. */
   sources: SourceStore;
   events: EventTarget;
+  /** The native app's OS from `platform.info` (`std::env::consts::OS`); absent in the browser preview. */
+  os?: string;
   initial: Readonly<
     Pick<
       Preferences,
@@ -100,6 +102,14 @@ export async function bootShell(
     "host.shell",
     "state.read",
   )) as StoredState | null;
+  // Only the native app knows its OS; the browser preview reports none.
+  const info =
+    adapter.kind === "native"
+      ? ((await adapter.call("host.shell", "platform.info")) as {
+          os?: unknown;
+        } | null)
+      : null;
+  const os = typeof info?.os === "string" ? info.os : undefined;
   const preferences = application.restore(
     readPreferences(saved, adapter, [...catalog, ...application.catalog]),
   );
@@ -169,6 +179,7 @@ export async function bootShell(
     adapter,
     catalog: entries,
     sources,
+    os,
     initial: {
       layout: preferences.layout,
       theme: preferences.theme,

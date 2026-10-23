@@ -22,8 +22,8 @@ import { DiagnosticActions } from "@/features/extensions/DiagnosticActions";
 
 /** Composes feature owners; it does not own extension form or workspace state. */
 export function Workbench({ runtime }: { runtime: Runtime }) {
-  const macOverlay =
-    runtime.adapter.kind === "native" && /Macintosh/.test(navigator.userAgent);
+  // AppKit draws the window buttons over the content only in the Mac app.
+  const macOverlay = runtime.os === "macos";
   useSyncExternalStore(runtime.host.subscribe, runtime.host.snapshot);
   const operations = useOperations(runtime);
   const appearance = useAppearance(runtime, operations);
