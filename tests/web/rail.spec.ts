@@ -1,5 +1,5 @@
 import { expect, test, type Locator, type Page } from "@playwright/test";
-import { addAgent, manage } from "./helpers";
+import { addAgent, manage, openSettings } from "./helpers";
 
 const style = (target: Locator, property: string) =>
   target.evaluate(
@@ -94,6 +94,42 @@ for (const scheme of ["light", "dark"] as const)
     await expect(
       page.getByRole("heading", { name: "扩展与状态" }),
     ).toBeHidden();
+  });
+
+for (const [scheme, tile, figure] of [
+  ["light", "rgb(217, 222, 229)", "rgb(138, 148, 163)"],
+  ["dark", "rgb(74, 77, 82)", "rgb(168, 174, 183)"],
+] as const)
+  test(`the rail shows the user as a blank grey plum, not a control (${scheme})`, async ({
+    page,
+  }) => {
+    await page.emulateMedia({ colorScheme: scheme });
+    await page.setViewportSize({ width: 1280, height: 800 });
+    await page.goto("/");
+    const rail = page.getByRole("navigation", { name: "应用导航" });
+    const user = rail.locator("[data-slot=user-avatar]");
+    const box = await user.boundingBox();
+    expect(box!.width).toBe(36);
+    expect(box!.height).toBe(36);
+    await expect(user).toHaveAttribute("aria-hidden", "true");
+    expect(await user.evaluate((el) => el.closest("button,a,[tabindex]"))).toBe(
+      null,
+    );
+    expect(
+      await user
+        .locator("[data-part=tile]")
+        .evaluate((el) => getComputedStyle(el).fill),
+    ).toBe(tile);
+    for (const part of ["body", "stem", "leaf"])
+      expect(
+        await user
+          .locator(`[data-part=${part}]`)
+          .evaluate(
+            (el) => getComputedStyle(el).fill + getComputedStyle(el).stroke,
+          ),
+      ).toContain(figure);
+    // A blank plum: no face.
+    await expect(user.locator("ellipse, [data-part=eye]")).toHaveCount(0);
   });
 
 test("settings holds light/dark, about and the extension manager", async ({
@@ -211,4 +247,65 @@ test("an invalid icon falls back to the generic workspace icon and says why", as
   await expect(
     page.getByRole("region", { name: "所选扩展详情" }),
   ).toContainText("图标无效");
+});
+
+test("a contributed theme recolours the rail and the list; without the Agent interface the rail keeps no trace of it", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1280, height: 800 });
+  await page.goto("/");
+  await addAgent(page, "换肤助手");
+  await manage(page);
+  await page.getByRole("button", { name: "安装扩展", exact: true }).click();
+  const install = page.getByRole("dialog", { name: "安装扩展" });
+  await install.getByLabel("扩展 ID").fill("sample.theme-ink");
+  await install.getByLabel("模块路径").fill("/samples/theme-ink.js");
+  await install.getByRole("button", { name: "加载模块", exact: true }).click();
+  await page
+    .getByRole("button", { name: "启用 sample.theme-ink", exact: true })
+    .click();
+  const settings = await openSettings(page);
+  await settings.getByRole("radio", { name: /^使用 墨夜/ }).click();
+  await page.keyboard.press("Escape");
+  await page.getByRole("button", { name: "返回工作区", exact: true }).click();
+  const rail = page.getByRole("navigation", { name: "应用导航" });
+  const ink = "rgb(185, 181, 255)";
+  await expect
+    .poll(() =>
+      style(
+        rail
+          .getByRole("button", { name: "Agent 界面" })
+          .locator("[data-slot=mask-icon]"),
+        "background-color",
+      ),
+    )
+    .toBe(ink);
+  expect(
+    await style(
+      rail
+        .getByRole("button", { name: "扩展", exact: true })
+        .locator("[data-slot=mask-icon]"),
+      "background-color",
+    ),
+  ).toBe("rgb(192, 199, 231)");
+  expect(
+    await style(page.locator("[data-slot=row-selected]"), "background-color"),
+  ).toBe(ink);
+  expect(await style(rail, "border-right-color")).toBe("rgb(65, 73, 101)");
+  // Stopping the interface removes its rail entry; the shell's stay.
+  await manage(page);
+  await page
+    .getByRole("button", { name: "停用 ui.agents", exact: true })
+    .click();
+  const confirm = page.getByRole("dialog");
+  if (await confirm.isVisible())
+    await confirm.getByRole("button", { name: /停用/ }).last().click();
+  await expect(rail.getByRole("button", { name: "Agent 界面" })).toHaveCount(0);
+  await expect(rail.locator("[data-icon=view]")).toHaveCount(0);
+  await expect(
+    rail.getByRole("button", { name: "扩展", exact: true }),
+  ).toBeVisible();
+  await expect(
+    rail.getByRole("button", { name: "设置", exact: true }),
+  ).toBeVisible();
 });

@@ -64,10 +64,13 @@ export function useShellNavigation(runtime: Runtime) {
     const target = managerTrigger.current;
     if (target.isConnected) target.focus();
     else
-      document
-        .querySelector<HTMLElement>(
-          'button[aria-label="扩展"]:not(:is([hidden], [hidden] *))',
-        )
+      // The visible "扩展" entry: the rail's, or the phone title bar's.
+      [
+        ...document.querySelectorAll<HTMLElement>(
+          '[data-shell-entry="extensions"]',
+        ),
+      ]
+        .find((entry) => entry.getClientRects().length)
         ?.focus();
   }, [manager.open]);
   useEffect(() => {

@@ -2,10 +2,7 @@ import { AnimatePresence, motion } from "motion/react";
 import { cn } from "cn";
 import type { TitleBarProps } from "./controllers";
 import { SidebarToggle } from "./SidebarToggle";
-import { extensionsIcon, settingsIcon } from "./icons";
-import { MaskIcon } from "@/components/MaskIcon";
-import { Tooltip } from "@/components/Tooltip";
-import { Button } from "@/components/ui/button";
+import { ShellEntries } from "./ShellEntries";
 
 /**
  * The phone's top bar. Desktop has none: the rail starts at the window's
@@ -67,38 +64,7 @@ export function TitleBar({ workspace, chrome, navigation }: TitleBarProps) {
         </AnimatePresence>
       </div>
       <div className="flex shrink-0 items-center gap-0.5 md:hidden">
-        {/* The rail's last two destinations, with the same icons. */}
-        <Tooltip label="扩展">
-          <Button
-            variant="ghost"
-            size="icon"
-            aria-label="扩展"
-            aria-current={managerOpen ? "page" : undefined}
-            className="text-rail-icon aria-[current=page]:text-selection"
-            onClick={() =>
-              managerOpen ? navigation.closeManager() : navigation.openManager()
-            }
-          >
-            <MaskIcon
-              svg={extensionsIcon}
-              name="extensions"
-              className="size-5"
-            />
-          </Button>
-        </Tooltip>
-        <Tooltip label="设置">
-          <Button
-            variant="ghost"
-            size="icon"
-            aria-label="设置"
-            className="text-rail-icon"
-            onClick={(event) =>
-              navigation.setDialog("settings", event.currentTarget)
-            }
-          >
-            <MaskIcon svg={settingsIcon} name="settings" className="size-5" />
-          </Button>
-        </Tooltip>
+        <ShellEntries navigation={navigation} place="bar" />
         {!managerOpen && <SidebarToggle chrome={chrome} />}
       </div>
     </header>

@@ -17,6 +17,7 @@ export function MaskIcon({
   name: string;
   className?: string;
 }) {
+  const url = viewIconUrl(svg);
   return (
     <span
       aria-hidden="true"
@@ -26,7 +27,8 @@ export function MaskIcon({
         "inline-block size-6 shrink-0 bg-current [mask-position:center] [mask-repeat:no-repeat] [mask-size:contain]",
         className,
       )}
-      style={{ maskImage: viewIconUrl(svg) } as CSSProperties}
+      // The prefixed property serves WebKit before Safari 15.4.
+      style={{ maskImage: url, WebkitMaskImage: url } as CSSProperties}
     />
   );
 }

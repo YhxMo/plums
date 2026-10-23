@@ -28,7 +28,7 @@
 | selection / selection-text | 选中行与窄栏当前项 / 选中行文字 | `#E8692F` / `#FFFFFF` | accent / accent-ink |
 | rail-icon | 窄栏未选中图标 | `#5A5A5F` / `#B0B0B5` | muted |
 
-自己的消息气泡沿用 accent 与 accent-ink。内置配色中选中行白字对橙底约 3.2:1，低于 WCAG AA 的 4.5:1，是与微信绿底白字同类的取舍；推导值使用 accent-ink，对比由作者负责。
+自己的消息气泡沿用 accent 与 accent-ink。内置选中行的对比取舍见 [UI](UI.md#列表交互与详情)；推导值使用 accent-ink，提供这些键时对比由作者负责。
 
 默认界面的 shadcn/ui 组件不另设颜色：[src/app.css](../src/app.css) 把这些键映射为组件所用的 Tailwind 颜色（如 accent→primary、overlay→popover、subtle→muted），shadow 用于三级阴影，因此贡献的主题同样作用于按钮、菜单、弹窗和提示。
 

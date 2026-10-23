@@ -1,44 +1,10 @@
-import type { ReactNode } from "react";
 import { cn } from "cn";
 import type { NavRailProps } from "./controllers";
 import { UserAvatar } from "./UserAvatar";
-import { extensionsIcon, settingsIcon, workspaceIcon } from "./icons";
+import { RailButton } from "./RailButton";
+import { ShellEntries } from "./ShellEntries";
+import { workspaceIcon } from "./icons";
 import { MaskIcon } from "@/components/MaskIcon";
-import { Tooltip } from "@/components/Tooltip";
-import { Button } from "@/components/ui/button";
-
-/** One rail destination: an icon in rail grey, selection orange when current. */
-export function RailButton({
-  label,
-  active,
-  onClick,
-  children,
-  className,
-}: {
-  label: string;
-  active?: boolean;
-  onClick: (source: HTMLElement) => void;
-  children: ReactNode;
-  className?: string;
-}) {
-  return (
-    <Tooltip label={label} side="right">
-      <Button
-        variant="ghost"
-        size="icon"
-        aria-label={label}
-        aria-current={active ? "page" : undefined}
-        className={cn(
-          "size-11 rounded-xl text-rail-icon hover:bg-foreground/6 hover:text-rail-icon aria-[current=page]:text-selection dark:hover:bg-foreground/8",
-          className,
-        )}
-        onClick={(event) => onClick(event.currentTarget)}
-      >
-        {children}
-      </Button>
-    </Tooltip>
-  );
-}
 
 /**
  * Desktop navigation, full window height: the user, the workspaces
@@ -71,6 +37,7 @@ export function NavRail({
           <RailButton
             key={view.id}
             label={view.label}
+            className="size-11 rounded-xl"
             active={!managerOpen && view.id === workspace.activeView}
             onClick={() => {
               if (managerOpen) navigation.closeManager();
@@ -87,21 +54,7 @@ export function NavRail({
         ))}
       </div>
       <div className="mt-auto mb-3.5 flex flex-col gap-2">
-        <RailButton
-          label="扩展"
-          active={managerOpen}
-          onClick={() =>
-            managerOpen ? navigation.closeManager() : navigation.openManager()
-          }
-        >
-          <MaskIcon svg={extensionsIcon} name="extensions" />
-        </RailButton>
-        <RailButton
-          label="设置"
-          onClick={(source) => navigation.setDialog("settings", source)}
-        >
-          <MaskIcon svg={settingsIcon} name="settings" />
-        </RailButton>
+        <ShellEntries navigation={navigation} place="rail" />
       </div>
     </nav>
   );
