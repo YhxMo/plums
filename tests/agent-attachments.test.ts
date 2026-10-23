@@ -85,7 +85,10 @@ it("sends images only to models that read them, and only the latest three messag
     { text: "now", attachments: [image("now.png")] },
     false,
   );
-  expect(plain.input).toEqual({ text: "now\n[图片：now.png]" });
+  // Not sent, and said so as a file that cannot be read is, for the reply to tell.
+  expect(plain.input).toEqual({
+    text: 'now\nERROR: Cannot read "now.png" (this model does not support image input). Inform the user.',
+  });
   expect(plain.history.every((t) => !t.images)).toBe(true);
 });
 
@@ -116,4 +119,18 @@ it("reads UTF-8 text files and refuses binary, oversized or empty ones", () => {
   expect(() => decodeText("a.txt", enc("x".repeat(LIMITS.text + 1)))).toThrow(
     "太大",
   );
+});
+
+it("counts characters, not bytes, against the text limit", () => {
+  const enc = (text: string) => new TextEncoder().encode(text);
+  // 100,000 Chinese characters are 300,000 bytes but well inside the limit.
+  const han = "汉".repeat(100_000);
+  expect(decodeText("a.txt", enc(han))).toBe(han);
+  expect(() => decodeText("a.txt", enc("汉".repeat(LIMITS.text + 1)))).toThrow(
+    "太大",
+  );
+  // Characters outside the BMP take two units, as `attachmentProblem` counts them.
+  const emoji = "😀".repeat(LIMITS.text / 2);
+  expect(decodeText("a.txt", enc(emoji))).toBe(emoji);
+  expect(() => decodeText("a.txt", enc(emoji + "😀"))).toThrow("太大");
 });

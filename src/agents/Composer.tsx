@@ -1,11 +1,5 @@
-import { useRef, type ReactNode, type RefObject } from "react";
-import {
-  ArrowUpIcon,
-  FileTextIcon,
-  ImageIcon,
-  PlusIcon,
-  SquareIcon,
-} from "lucide-react";
+import { useEffect, useRef, type ReactNode, type RefObject } from "react";
+import { ArrowUpIcon, PaperclipIcon, PlusIcon, SquareIcon } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import type {
   Agent,
@@ -19,10 +13,12 @@ import { DraftAttachments } from "./AttachmentView";
 import { EffortSelect } from "./EffortSelect";
 import { ModelSelect } from "./ModelSelect";
 import { Tooltip } from "../components/Tooltip";
+import { useMediaQuery } from "../components/useMediaQuery";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuShortcut,
   DropdownMenuTrigger,
 } from "../components/ui/dropdown-menu";
 import {
@@ -31,6 +27,8 @@ import {
   InputGroupButton,
   InputGroupTextarea,
 } from "../components/ui/input-group";
+
+const mac = /Mac|iPhone|iPad/.test(navigator.platform || navigator.userAgent);
 
 /** What the message box can attach; absent when the provider takes none. */
 export type Attach = {
@@ -49,7 +47,7 @@ const swap = {
   transition: { duration: 0.15 },
 } as const;
 
-/** The card at the foot of a conversation: the message box, or what blocks it. */
+/** One composer in every state; missing models or disabled parts block sending. */
 export function Composer({
   agent,
   blocked,
@@ -58,14 +56,14 @@ export function Composer({
   onSend,
   onCancel,
   models,
+  onModels,
   onModel,
   onEffort,
   attach,
-  desktop,
   inputRef,
 }: {
   agent: Agent;
-  /** Shown instead of the message box while the Agent cannot reply. */
+  /** Inline recovery action; drafts remain editable while sending is blocked. */
   blocked?: Blocked;
   draft: string;
   onDraft: (value: string) => void;
@@ -73,46 +71,70 @@ export function Composer({
   onCancel: () => void;
   /** Absent for providers without per-Agent models. */
   models?: readonly ModelChoice[];
+  onModels?: () => void;
   onModel?: (model: AgentModel | null) => void;
   /** Absent for providers that do not keep a thinking strength. */
   onEffort?: (effort: Effort | null) => void;
   attach?: Attach;
-  /** Wide layouts send with Enter; phones send with the button. */
-  desktop: boolean;
   inputRef: RefObject<HTMLTextAreaElement | null>;
 }) {
   const busy = agent.status === "busy";
   const saving = agent.canCancel === false;
   // Only a model that lists strengths gets the control; others show nothing.
-  const levels = models?.find(
+  const chosen = models?.find(
     (m) => m.provider === agent.model?.provider && m.id === agent.model?.model,
-  )?.reasoning;
-  const vision = !!models?.find(
-    (m) => m.provider === agent.model?.provider && m.id === agent.model?.model,
-  )?.vision;
-  const textFiles = useRef<HTMLInputElement>(null);
-  const pictures = useRef<HTMLInputElement>(null);
-  if (blocked)
-    return (
-      <div
-        role="status"
-        className="mx-auto mt-1 mb-4 flex min-h-14 w-[calc(100%-32px)] max-w-[760px] flex-wrap items-center justify-between gap-x-4 gap-y-2 rounded-2xl border border-border bg-card py-2 pr-2.5 pl-4 text-sm max-md:mb-[max(12px,env(safe-area-inset-bottom))] max-md:w-[calc(100%-24px)]"
-      >
-        <p className="min-w-48 flex-1 text-muted-foreground">{blocked.text}</p>
-        <div className="flex shrink-0 justify-end max-md:w-full">
-          {blocked.action}
-        </div>
-      </div>
-    );
+  );
+  const levels = chosen?.reasoning;
+  // An empty catalog and an unselected model share the same composer state.
+  const unpicked = models !== undefined && !!onModel && !chosen;
+  const canSend = !!draft.trim() && !busy && !unpicked && !blocked;
+  const files = useRef<HTMLInputElement>(null);
+  const form = useRef<HTMLFormElement>(null);
+  // Input behavior follows the device, not the width of a desktop window.
+  const enterSends = useMediaQuery("(any-pointer: fine)");
+  const canAttach = !!attach && !busy;
+  useEffect(() => {
+    if (!canAttach) return;
+    const open = (e: KeyboardEvent) => {
+      if (
+        e.key.toLowerCase() !== "u" ||
+        e.shiftKey ||
+        e.altKey ||
+        (mac ? !e.metaKey || e.ctrlKey : !e.ctrlKey)
+      )
+        return;
+      // The box stays mounted behind the extension manager and under dialogs;
+      // only a box the person can see and reach takes the shortcut.
+      if (
+        !form.current?.getClientRects().length ||
+        document.querySelector('[role="dialog"][aria-modal="true"]')
+      )
+        return;
+      e.preventDefault();
+      files.current?.click();
+    };
+    window.addEventListener("keydown", open);
+    return () => window.removeEventListener("keydown", open);
+  }, [canAttach]);
   return (
     <form
+      ref={form}
       className="mx-auto mt-1 mb-4 w-[calc(100%-32px)] max-w-[760px] max-md:mb-[max(12px,env(safe-area-inset-bottom))] max-md:w-[calc(100%-24px)]"
       onSubmit={(e) => {
         e.preventDefault();
-        onSend();
+        if (canSend) onSend();
       }}
     >
       <InputGroup className="h-auto rounded-[16px] border-border bg-card shadow-none transition-colors duration-200 has-disabled:bg-card has-disabled:opacity-100 dark:bg-card dark:has-disabled:bg-card has-[[data-slot=input-group-control]:focus-visible]:border-brand/60 has-[[data-slot=input-group-control]:focus-visible]:ring-0">
+        {blocked && (
+          <div
+            role="status"
+            className="flex w-full items-center justify-between gap-3 px-4 pt-3 text-xs text-muted-foreground"
+          >
+            <p>{blocked.text}</p>
+            {blocked.action}
+          </div>
+        )}
         {attach && attach.files.length > 0 && (
           <InputGroupAddon align="block-start" className="p-0">
             <DraftAttachments
@@ -125,7 +147,11 @@ export function Composer({
         <InputGroupTextarea
           ref={inputRef}
           aria-label="消息"
-          placeholder={`发送给 ${agent.name}…`}
+          placeholder={
+            unpicked
+              ? `为 ${agent.name} 选一个模型，它就能回复你…`
+              : `发送给 ${agent.name}…`
+          }
           rows={1}
           maxLength={MAX_TEXT}
           value={draft}
@@ -144,10 +170,12 @@ export function Composer({
               e.key === "Enter" &&
               !e.shiftKey &&
               !e.nativeEvent.isComposing &&
-              desktop
+              // WebKit may end composition before its confirming keydown.
+              e.nativeEvent.keyCode !== 229 &&
+              enterSends
             ) {
               e.preventDefault();
-              if (draft.trim() && !busy) onSend();
+              if (canSend) onSend();
             }
           }}
         />
@@ -159,23 +187,11 @@ export function Composer({
             {attach && (
               <>
                 <input
-                  ref={textFiles}
+                  ref={files}
                   type="file"
                   multiple
                   hidden
-                  aria-label="选择文本文件"
-                  onChange={(e) => {
-                    attach.onAdd([...(e.target.files ?? [])]);
-                    e.target.value = "";
-                  }}
-                />
-                <input
-                  ref={pictures}
-                  type="file"
-                  multiple
-                  hidden
-                  accept="image/png,image/jpeg,image/webp,image/gif"
-                  aria-label="选择图片"
+                  aria-label="选择文件"
                   onChange={(e) => {
                     attach.onAdd([...(e.target.files ?? [])]);
                     e.target.value = "";
@@ -201,25 +217,12 @@ export function Composer({
                     side="top"
                     className="w-56"
                   >
-                    <DropdownMenuItem
-                      onSelect={() => textFiles.current?.click()}
-                    >
-                      <FileTextIcon />
-                      添加文本文件
-                    </DropdownMenuItem>
-                    <DropdownMenuItem
-                      disabled={!vision}
-                      onSelect={() => pictures.current?.click()}
-                    >
-                      <ImageIcon />
-                      <span className="flex min-w-0 flex-col">
-                        添加图片
-                        {!vision && (
-                          <span className="text-xs text-muted-foreground">
-                            当前模型不读图片
-                          </span>
-                        )}
-                      </span>
+                    <DropdownMenuItem onSelect={() => files.current?.click()}>
+                      <PaperclipIcon />
+                      图片和文件
+                      <DropdownMenuShortcut>
+                        {mac ? "⌘U" : "Ctrl+U"}
+                      </DropdownMenuShortcut>
                     </DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
@@ -233,6 +236,7 @@ export function Composer({
                 value={agent.model}
                 disabled={busy}
                 onChange={onModel}
+                onConnect={onModels}
               />
             )}
             {levels && onEffort && (
@@ -270,7 +274,7 @@ export function Composer({
                     size="icon-sm"
                     className="size-[34px] rounded-[10px] max-md:size-11"
                     aria-label="发送"
-                    disabled={!draft.trim()}
+                    disabled={!canSend}
                   >
                     <ArrowUpIcon />
                   </InputGroupButton>

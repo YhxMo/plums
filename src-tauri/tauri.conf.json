@@ -16,12 +16,8 @@
         "title": "Plums",
         "hiddenTitle": true,
         "titleBarStyle": "Overlay",
-        "trafficLightPosition": {
-          "x": 10,
-          "y": 34
-        },
-        "width": 1180,
-        "height": 820,
+        "width": 960,
+        "height": 680,
         "minWidth": 360,
         "minHeight": 600,
         "dragDropEnabled": false

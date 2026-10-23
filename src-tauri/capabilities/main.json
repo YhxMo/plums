@@ -3,5 +3,9 @@
   "identifier": "main-window",
   "description": "Local experiment window; no filesystem, shell, network or credential plugins exposed.",
   "windows": ["main"],
-  "permissions": ["core:default", "core:window:allow-start-dragging"]
+  "permissions": [
+    "core:default",
+    "core:window:allow-start-dragging",
+    "core:window:allow-internal-toggle-maximize"
+  ]
 }

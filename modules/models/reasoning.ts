@@ -1,4 +1,5 @@
 import type { Effort } from "../../extensions/contracts";
+export type { Effort };
 import type { Endpoint, Protocol } from "./protocols";
 
 /**
@@ -8,6 +9,22 @@ import type { Endpoint, Protocol } from "./protocols";
  * no control rather than one that may be refused.
  */
 type Style = "adaptive" | "budget" | "deepseek" | "openai";
+/**
+ * What a user may pick for one model: a way of thinking, or `none` to offer
+ * no control. It replaces the rules below, so any service and model can be
+ * given a control; unset follows the rules.
+ */
+export type ThinkMode = Style | "none";
+/** Each way and the API format it is written for. */
+export const THINK_STYLES: Record<Style, Protocol> = {
+  adaptive: "anthropic-messages",
+  budget: "anthropic-messages",
+  deepseek: "openai-chat",
+  openai: "openai-chat",
+};
+export const isThinkMode = (value: unknown): value is ThinkMode =>
+  value === "none" ||
+  (typeof value === "string" && Object.hasOwn(THINK_STYLES, value));
 
 const claude =
   /(?:^|[^a-z])claude-(?:(?:opus|sonnet|haiku|fable|mythos)-(\d+)(?:-(\d{1,2})(?!\d))?|(\d+)-(\d+)-(?:opus|sonnet|haiku))/;
@@ -16,7 +33,11 @@ function style(
   protocol: Protocol,
   preset: string | undefined,
   model: string,
+  mode?: ThinkMode,
 ): Style | undefined {
+  // A pick for the other API format cannot be sent, so the rules decide.
+  if (mode === "none") return undefined;
+  if (mode && THINK_STYLES[mode] === protocol) return mode;
   const name = model.toLowerCase();
   if (protocol === "anthropic-messages") {
     const found = claude.exec(name);
@@ -46,13 +67,17 @@ const levels: Record<Style, readonly Effort[]> = {
   openai: ["low", "medium", "high"],
 };
 
-/** The strengths a model takes, or undefined when none is confirmed. */
+/** The strengths a way of thinking takes. */
+export const levelsOf = (way: Style) => levels[way];
+
+/** The strengths a model takes, or undefined when none is confirmed or chosen. */
 export function reasoningLevels(
   protocol: Protocol,
   preset: string | undefined,
   model: string,
+  mode?: ThinkMode,
 ): readonly Effort[] | undefined {
-  const found = style(protocol, preset, model);
+  const found = style(protocol, preset, model, mode);
   return found && levels[found];
 }
 
@@ -68,12 +93,12 @@ const REPLY_FLOOR = 4096;
  * stay clear of.
  */
 export function reasoningFields(
-  endpoint: Pick<Endpoint, "protocol" | "preset" | "model">,
+  endpoint: Pick<Endpoint, "protocol" | "preset" | "model" | "thinking">,
   effort: Effort | undefined,
   room: number,
 ): Record<string, unknown> {
-  const { protocol, preset, model } = endpoint;
-  const found = style(protocol, preset, model);
+  const { protocol, preset, model, thinking } = endpoint;
+  const found = style(protocol, preset, model, thinking);
   if (!effort || !found || !levels[found].includes(effort)) return {};
   switch (found) {
     case "adaptive":

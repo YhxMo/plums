@@ -48,8 +48,10 @@ export type ListedModel = { name: string; context?: number };
 /** What the connection page works with; the page itself is supplied by the app. */
 export type ModelConnectionsApi = Pick<
   ProviderStore,
-  "list" | "subscribe" | "save" | "remove" | "refresh"
+  "list" | "subscribe" | "save" | "remove" | "refresh" | "needsReload"
 > & {
+  /** Reconciles an uncertain save before allowing more writes or requests. */
+  reload(): Promise<void>;
   readonly presets: typeof presets;
   readonly formats: typeof formats;
   /** Sends one short message to one model of a provider and returns the reply. */
@@ -121,6 +123,8 @@ export function modelConnector({
       await store.load();
       // Re-read the connection before each send: a stale view may be ready.
       const sendProblem = async (id: string) => {
+        if (store.needsReload)
+          return "的保存结果未确认，请在模型连接中重新读取后核对。";
         try {
           await store.refresh();
         } catch {
@@ -139,17 +143,24 @@ export function modelConnector({
         signal.throwIfAborted();
         const { model, instructions, history, input, effort, images } =
           request ?? {};
-        const chosen =
+        let chosen =
           typeof model === "string" ? store.resolve(model) : undefined;
-        if (!chosen)
-          throw failure(
-            "所选模型已从模型连接中删除，请在 Agent 详情中重新选择模型。",
+        const missingModel = () =>
+          failure(
+            "所选模型已从模型连接中删除，请在对话输入区重新选择模型。",
             "not-dispatched",
           );
-        const { provider } = chosen;
-        const problem = await sendProblem(provider.id);
+        if (!chosen) throw missingModel();
+        const problem = await sendProblem(chosen.provider.id);
         if (problem)
-          throw failure(`「${provider.name}」${problem}`, "not-dispatched");
+          throw failure(
+            `「${chosen.provider.name}」${problem}`,
+            "not-dispatched",
+          );
+        // A save/reload may have changed the selection while readiness was read.
+        chosen = store.resolve(model);
+        if (!chosen) throw missingModel();
+        const { provider } = chosen;
         if (
           typeof input !== "string" ||
           !input.trim() ||
@@ -164,6 +175,7 @@ export function modelConnector({
             ...provider,
             model: chosen.model,
             context: chosen.context,
+            thinking: provider.thinking[chosen.model],
             extra:
               preset?.protocol === provider.protocol ? preset.extra : undefined,
           },
@@ -238,9 +250,9 @@ export function modelConnector({
       };
       // Reads the list where cc-switch looks for it; only the key's site is reached.
       const listModels = async (id: string, signal: AbortSignal) => {
-        const provider = store.list().find((item) => item.id === id);
-        if (!provider) throw new Error("该服务商已被删除。");
         const problem = await sendProblem(id);
+        const provider = store.find(id);
+        if (!provider) throw new Error("该服务商已被删除。");
         if (problem) throw new Error(`「${provider.name}」${problem}`);
         return ctx.task(async (lifecycle) => {
           const combined = AbortSignal.any([signal, lifecycle]);
@@ -265,7 +277,7 @@ export function modelConnector({
               );
             const names =
               response.status < 300 ? readModelList(response.body) : [];
-            if (names.length) return names;
+            if (names.length) return { names, base: provider.base };
             problem =
               response.status < 300
                 ? "返回内容里没有模型"
@@ -281,10 +293,14 @@ export function modelConnector({
         signal: AbortSignal,
       ): Promise<ListedModel[]> => {
         signal.throwIfAborted();
-        const base = store.find(id)?.base ?? "";
+        if (store.needsReload)
+          throw failure(
+            "保存结果未确认，请重新读取连接后核对。",
+            "not-dispatched",
+          );
         // Read alongside the list; the list never waits long for it.
         const pending = loadCatalog();
-        const names = await listModels(id, signal);
+        const { names, base } = await listModels(id, signal);
         const found = await atMost(pending, CATALOG_WAIT, signal);
         return names.map((name) => {
           const context = windowFor(found, base, name);
@@ -300,6 +316,7 @@ export function modelConnector({
               provider.protocol,
               provider.preset,
               model,
+              provider.thinking[model],
             );
             return {
               id: modelId(provider.id, model),
@@ -327,6 +344,10 @@ export function modelConnector({
         save: (draft, id, key) => store.save(draft, id, key),
         remove: (id) => store.remove(id),
         refresh: () => store.refresh(),
+        reload: () => store.load(),
+        get needsReload() {
+          return store.needsReload;
+        },
         test: (provider, model, signal) =>
           reply(
             {

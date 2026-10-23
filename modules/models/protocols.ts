@@ -1,6 +1,6 @@
 import type { CredentialFailureOutcome } from "../sdk";
 import type { ChatImage, Effort } from "../../extensions/contracts";
-import { reasoningFields } from "./reasoning";
+import { reasoningFields, type ThinkMode } from "./reasoning";
 
 export type Protocol = "openai-chat" | "anthropic-messages";
 export type Turn = {
@@ -22,6 +22,8 @@ export type Endpoint = {
   protocol: Protocol;
   /** Preset the provider was made from; some services' thinking fields differ. */
   preset?: string;
+  /** The user's pick of how this model thinks; unset follows the rules. */
+  thinking?: ThinkMode;
   model: string;
   /** Longest reply; null leaves it to the service where the protocol allows. */
   maxTokens: number | null;

@@ -69,6 +69,34 @@ export function ModelConnections({ api }: { api: ModelConnectionsApi }) {
       }
     });
 
+  if (api.needsReload)
+    return (
+      <DialogBody>
+        <p role="status">
+          上次保存结果未确认。已暂停修改和模型请求，请重新读取并核对连接。
+        </p>
+        <Button
+          disabled={busy}
+          onClick={() =>
+            void run(async () => {
+              await api.reload();
+              setEditing(null);
+              setNotice("已重新读取，请核对连接后继续。");
+            })
+          }
+        >
+          {busy ? "正在读取…" : "重新读取连接"}
+        </Button>
+        <ActionToast
+          error={error}
+          notice={notice}
+          onDone={() => {
+            setError("");
+            setNotice("");
+          }}
+        />
+      </DialogBody>
+    );
   if (editing !== null)
     return (
       <ProviderForm
@@ -85,7 +113,7 @@ export function ModelConnections({ api }: { api: ModelConnectionsApi }) {
     <DialogBody>
       <p className="text-muted-foreground">
         先添加服务商（请求地址与你自己的 API Key），再添加或获取它提供的模型；在
-        Agent 详情里为每个 Agent 选择模型。
+        对话输入区为每个 Agent 选择模型。
       </p>
       {providers.length === 0 ? (
         <Empty className="gap-3 border border-dashed p-6 md:p-6">

@@ -18,6 +18,8 @@ export function agentExtension(
       id: "agents.local",
       apiVersion: 1,
       version: "0.0.4",
+      description:
+        "管理 Agent 的角色资料、会话和消息记录，并通过所选模型生成回复。",
       // Agents open without any model and say how to add one.
       optional: { chat: 1 },
       provides: { agents: 1 },

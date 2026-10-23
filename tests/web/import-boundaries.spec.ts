@@ -1,5 +1,55 @@
 import { expect, test } from "@playwright/test";
 
+for (const keyboard of [false, true]) {
+  test(`role-card configuration only advances a step, never saves (${keyboard ? "keyboard" : "pointer"})`, async ({
+    page,
+  }) => {
+    await page.goto("/");
+    await page.getByRole("button", { name: /导入角色卡/ }).click();
+    const raw = JSON.stringify({
+      version: 1,
+      name: "确认后才添加",
+      description: "可修改的介绍",
+    });
+    await page.getByLabel("角色卡内容").fill(raw);
+    const next = page.getByRole("button", { name: "选择模型和扩展" });
+    if (keyboard) await next.press("Enter");
+    else await next.click();
+    const create = page.getByRole("dialog", {
+      name: "添加 Agent",
+      exact: true,
+    });
+    await expect(create).toBeVisible();
+    await expect(
+      create.getByRole("textbox", { name: "名称", exact: true }),
+    ).toHaveValue("确认后才添加");
+    expect(
+      await page.evaluate(() =>
+        localStorage.getItem("plums:m1:extension.agents.local"),
+      ),
+    ).toBeNull();
+    await create.getByRole("button", { name: "取消", exact: true }).click();
+    await page.reload();
+    await expect(
+      page.getByRole("button", { name: "与 确认后才添加 交互" }),
+    ).toHaveCount(0);
+    await page.getByRole("button", { name: /导入角色卡/ }).click();
+    await page.getByLabel("角色卡内容").fill(raw);
+    await page.getByRole("button", { name: "选择模型和扩展" }).click();
+    await create
+      .getByRole("textbox", { name: "名称", exact: true })
+      .fill("最终确认的角色");
+    await create.getByRole("button", { name: "添加", exact: true }).click();
+    await expect(
+      page.getByRole("region", { name: "最终确认的角色 的会话", exact: true }),
+    ).toBeVisible();
+    await page.reload();
+    await expect(
+      page.getByRole("button", { name: "与 最终确认的角色 交互" }),
+    ).toHaveCount(1);
+  });
+}
+
 async function openImport(page: import("@playwright/test").Page) {
   await page.goto("/");
   await page.getByRole("button", { name: /导入角色卡/ }).click();

@@ -28,7 +28,7 @@ export function TitleBar({
         "sticky top-0 z-2 flex min-h-12 shrink-0 items-center justify-between gap-3 bg-chrome pr-2 pl-4 md:pr-14 select-none max-md:min-h-14 max-md:border-b max-md:bg-background max-md:px-4",
         desktopTitle ? "md:bg-background" : "md:hidden",
       )}
-      data-tauri-drag-region
+      data-tauri-drag-region="deep"
     >
       <div
         className="flex min-w-0 flex-1 items-center gap-2.5"
@@ -76,7 +76,7 @@ export function TitleBar({
           navigation={navigation}
           icon={<MenuIcon />}
         />
-        <SidebarToggle chrome={chrome} />
+        {!managerOpen && <SidebarToggle chrome={chrome} />}
       </div>
     </header>
   );

@@ -3,6 +3,7 @@ import type { CredentialConnection, StoredState } from "../sdk";
 import { chatTarget, normalizeBase } from "./addresses";
 import { CUSTOM, presets, type Preset } from "./presets";
 import type { Protocol } from "./protocols";
+import { THINK_STYLES, isThinkMode, type ThinkMode } from "./reasoning";
 
 /**
  * One provider the user set up: a service address and key, and the model
@@ -25,6 +26,8 @@ export type ModelProvider = {
   models: string[];
   /** A model's own context window, from models.dev or the user. */
   windows: Record<string, number>;
+  /** A model's own way of thinking, when the user picked one over the rules. */
+  thinking: Record<string, ThinkMode>;
   /** Longest reply in tokens; null leaves it to the service. */
   maxTokens: number | null;
   /** Context window of models without their own; history is trimmed to fit. */
@@ -107,6 +110,16 @@ export function draftProblem(draft: ProviderDraft) {
     )
   )
     return `模型的上下文窗口须为 ${limits.context.join("–")} 的整数（token）。`;
+  if (
+    !record(draft.thinking) ||
+    Object.entries(draft.thinking).some(
+      ([model, mode]) =>
+        !draft.models.includes(model) ||
+        !isThinkMode(mode) ||
+        (mode !== "none" && THINK_STYLES[mode] !== draft.protocol),
+    )
+  )
+    return "模型的思考方式与 API 格式不符。";
   if (draft.maxTokens !== null && !integer(draft.maxTokens, limits.maxTokens))
     return `最大输出须为 ${limits.maxTokens.join("–")} 的整数，或留空由服务决定。`;
   if (!integer(draft.context, limits.context))
@@ -159,10 +172,16 @@ const fromVersion5 = (entry: Record<string, unknown>) => ({
   windows: {},
 });
 
+/** Version 6 had no chosen ways of thinking: the rules decided. */
+const fromVersion6 = (entry: Record<string, unknown>) => ({
+  ...entry,
+  thinking: {},
+});
+
 function restore(value: unknown): ModelProvider[] {
   if (
     !record(value) ||
-    ![2, 3, 4, 5, 6].includes(value.version as number) ||
+    ![2, 3, 4, 5, 6, 7].includes(value.version as number) ||
     !Array.isArray(value.providers)
   )
     throw corrupt();
@@ -174,6 +193,7 @@ function restore(value: unknown): ModelProvider[] {
     if (record(entry) && version < 4) entry = fromVersion3(entry);
     if (record(entry) && version < 5) entry = fromVersion4(entry);
     if (record(entry) && version < 6) entry = fromVersion5(entry);
+    if (record(entry) && version < 7) entry = fromVersion6(entry);
     if (
       !record(entry) ||
       typeof entry.id !== "string" ||
@@ -212,17 +232,29 @@ export class ProviderStore {
   /** Undefined when the last re-read failed: every status is then unknown. */
   private credentials: CredentialConnection[] | undefined = [];
   private revision = 0;
+  private uncertain = false;
+  private pending: Promise<unknown> = Promise.resolve();
   private listeners = new Set<() => void>();
   private snapshot: ProviderView[] = [];
   constructor(private readonly call: Call) {}
 
-  async load() {
-    const saved = (await this.call("state.read")) as StoredState | null;
-    if (saved) {
-      this.providers = restore(saved.value);
-      this.revision = saved.revision;
-    }
-    await this.refresh();
+  get needsReload() {
+    return this.uncertain;
+  }
+  private enqueue<T>(run: () => Promise<T>): Promise<T> {
+    const result = this.pending.then(run);
+    this.pending = result.catch(() => {});
+    return result;
+  }
+  load() {
+    return this.enqueue(async () => {
+      const saved = (await this.call("state.read")) as StoredState | null;
+      this.providers = saved ? restore(saved.value) : [];
+      this.revision = saved?.revision ?? 0;
+      await this.refresh();
+      this.uncertain = false;
+      this.emit();
+    });
   }
   /** Re-reads which providers hold a key. */
   async refresh() {
@@ -263,13 +295,15 @@ export class ProviderStore {
       );
       return {
         ...provider,
-        status: !this.credentials
-          ? "pending"
-          : !credential
-            ? "missing"
-            : credential.target !== chatTarget(provider.protocol, provider.base)
-              ? "changed"
-              : credential.status,
+        status:
+          this.uncertain || !this.credentials
+            ? "pending"
+            : !credential
+              ? "missing"
+              : credential.target !==
+                  chatTarget(provider.protocol, provider.base)
+                ? "changed"
+                : credential.status,
       };
     });
     for (const listener of this.listeners) listener();
@@ -278,15 +312,27 @@ export class ProviderStore {
     try {
       const receipt = (await this.call("state.write", {
         revision: this.revision,
-        value: { version: 6, providers: next },
+        value: { version: 7, providers: next },
       })) as StoredState;
       this.revision = receipt.revision;
       this.providers = next;
+    } catch (error) {
+      const failure = error as { name?: string; outcome?: string } | null;
+      if (
+        failure?.name !== "AbortError" &&
+        failure?.outcome !== "not-committed"
+      )
+        this.uncertain = true;
+      throw error;
     } finally {
       // A failed refresh publishes "pending"; it must not replace the write's
       // confirmed result or its original failure.
       await this.refresh().catch(() => {});
     }
+  }
+  private assertWritable() {
+    if (this.uncertain)
+      throw new Error("上次保存结果未确认，请在模型连接中重新读取后核对。");
   }
   /**
    * A connection no provider uses, left when a new provider's key was saved
@@ -323,13 +369,26 @@ export class ProviderStore {
    * address or protocol, needs `key`; given for an existing one, it replaces
    * the saved key. Other edits, models included, only save the record.
    */
-  async save(input: ProviderDraft, id?: string, key?: string): Promise<string> {
+  save(input: ProviderDraft, id?: string, key?: string): Promise<string> {
+    return this.enqueue(() => this.saveProvider(input, id, key));
+  }
+  private async saveProvider(
+    input: ProviderDraft,
+    id?: string,
+    key?: string,
+  ): Promise<string> {
+    this.assertWritable();
     const draft = {
       ...input,
       base: normalizeBase(input.protocol, input.base),
       // A removed model takes its window with it.
       windows: Object.fromEntries(
         Object.entries(input.windows ?? {}).filter(([model]) =>
+          input.models.includes(model),
+        ),
+      ),
+      thinking: Object.fromEntries(
+        Object.entries(input.thinking ?? {}).filter(([model]) =>
           input.models.includes(model),
         ),
       ),
@@ -363,6 +422,7 @@ export class ProviderStore {
       ...draft,
       models: [...draft.models],
       windows: { ...draft.windows },
+      thinking: { ...draft.thinking },
       id: existing?.id ?? newId(),
       alias: alias!,
     };
@@ -374,7 +434,11 @@ export class ProviderStore {
     return next.id;
   }
   /** Deletes the key natively, then the record; cancelling keeps both. */
-  async remove(id: string) {
+  remove(id: string) {
+    return this.enqueue(() => this.removeProvider(id));
+  }
+  private async removeProvider(id: string) {
+    this.assertWritable();
     const existing = this.find(id);
     if (!existing) return true;
     await this.refresh();

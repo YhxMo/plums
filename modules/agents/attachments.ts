@@ -58,16 +58,18 @@ export function attachmentProblem(value: unknown): string | undefined {
 
 /** The text of a file, or a plain-language reason it cannot be sent as text. */
 export function decodeText(name: string, bytes: Uint8Array): string {
-  if (bytes.length > LIMITS.text)
-    throw new Error(
-      `文件「${name}」太大，最多约 ${LIMITS.text / 1000}K 个字符。`,
-    );
+  const tooBig = new Error(
+    `文件「${name}」太大，最多约 ${LIMITS.text / 1000}K 个字符。`,
+  );
+  // A character is at most 4 bytes, so more bytes than that cannot fit.
+  if (bytes.length > LIMITS.text * 4) throw tooBig;
   let text: string;
   try {
     text = new TextDecoder("utf-8", { fatal: true }).decode(bytes);
   } catch {
     throw new Error(`文件「${name}」不是 UTF-8 文本，无法添加。`);
   }
+  if (text.length > LIMITS.text) throw tooBig;
   if (text.includes("\0"))
     throw new Error(`文件「${name}」不是文本文件，无法添加。`);
   if (!text.trim()) throw new Error(`文件「${name}」是空的。`);
@@ -103,10 +105,17 @@ type Turn = {
 function render(
   { text, attachments = [] }: { text: string; attachments?: Attachment[] },
   keep: boolean,
+  vision: boolean,
 ) {
   const files = attachments.flatMap((a) => (a.kind === "text" ? [a] : []));
   const pictures = attachments.flatMap((a) => (a.kind === "image" ? [a] : []));
-  const lines = (keep ? [] : pictures).map((a) => `[图片：${a.name}]`);
+  // A model that cannot read pictures is told so, as a missing file is, and
+  // can say it to the user; an older picture is only named.
+  const lines = (keep ? [] : pictures).map((a) =>
+    vision
+      ? `[图片：${a.name}]`
+      : `ERROR: Cannot read "${a.name}" (this model does not support image input). Inform the user.`,
+  );
   const body = [
     ...(files.length ? [`${files.map(fenced).join("\n\n")}\n\n`] : []),
     text,
@@ -121,7 +130,9 @@ function render(
 /**
  * The history and the new message as a `chat@1` request reads them. Pictures
  * go only to a model that reads them, and only for the latest few messages
- * that have any; the rest become a line naming the file.
+ * that have any; the rest become a line naming the file. A model that cannot
+ * read pictures gets an error line in their place, so the picture can still
+ * be added and the reply says why it was not read.
  */
 export function prepareChat(
   history: readonly Turn[],
@@ -136,8 +147,8 @@ export function prepareChat(
   return {
     history: history.map((turn, i) => ({
       role: turn.role,
-      ...render(turn, vision && recent.has(i)),
+      ...render(turn, vision && recent.has(i), vision),
     })),
-    input: render(input, vision && recent.has(history.length)),
+    input: render(input, vision && recent.has(history.length), vision),
   };
 }

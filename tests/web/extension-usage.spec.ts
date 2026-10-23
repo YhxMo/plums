@@ -84,12 +84,27 @@ test("replies come from the Agent's model, which its details can switch off", as
   await expect(model).toBeChecked();
   await model.click();
   await expect(details).toContainText("已关闭：它不会回复");
-  await expect(page.getByRole("textbox", { name: "消息" })).toHaveCount(0);
+  const draft = page.getByRole("textbox", { name: "消息", exact: true });
+  await expect(draft).toBeVisible();
+  await draft.fill("停用时保留草稿");
+  await expect(
+    page.getByRole("button", { name: "发送", exact: true }),
+  ).toBeDisabled();
+  await draft.press("Enter");
+  await draft.evaluate((input) => input.closest("form")!.requestSubmit());
+  await expect(page.getByRole("log")).not.toContainText("停用时保留草稿");
   await expect(
     page.getByRole("status").filter({ hasText: `已关闭「${echo}」` }),
   ).toBeVisible();
-  await page.getByRole("button", { name: "开启", exact: true }).click();
+  const enable = page.getByRole("button", { name: "开启", exact: true });
+  // Recovery changes readiness, but must never submit the surrounding composer.
+  expect(
+    await enable.evaluate((button) => (button as HTMLButtonElement).type),
+  ).toBe("button");
+  await enable.click();
   await expect(model).toBeChecked();
+  await expect(draft).toHaveValue("停用时保留草稿");
+  await expect(page.getByRole("log")).not.toContainText("停用时保留草稿");
   await send("xyz");
   await expect(page.getByRole("log")).toContainText("echo-a｜第 2 轮");
 });
@@ -105,11 +120,24 @@ test("each Agent picks its own model and the model receives the conversation so 
     .click();
   await page.getByRole("button", { name: "返回工作区", exact: true }).click();
   await addAgent(page, "甲");
-  await expect(page.getByRole("status")).toContainText(
-    "先连接一个 AI 模型，它才能理解和回复你。",
+  const emptyBox = page.getByRole("textbox", { name: "消息", exact: true });
+  await expect(emptyBox).toHaveAttribute(
+    "placeholder",
+    "为 甲 选一个模型，它就能回复你…",
   );
+  await expect(
+    page.getByRole("button", { name: "添加附件", exact: true }),
+  ).toBeVisible();
+  await emptyBox.fill("先写好");
+  await expect(
+    page.getByRole("button", { name: "发送", exact: true }),
+  ).toBeDisabled();
+  await emptyBox.press("Enter");
+  await emptyBox.evaluate((input) => input.closest("form")!.requestSubmit());
+  await expect(page.getByRole("log")).not.toContainText("先写好");
   // The browser preview cannot hold keys, so the connector page is unavailable.
-  await page.getByRole("button", { name: "连接模型", exact: true }).click();
+  await page.getByRole("button", { name: "切换模型", exact: true }).click();
+  await page.getByRole("menuitem", { name: "连接模型", exact: true }).click();
   const dialog = page.getByRole("dialog", { name: "模型连接" });
   await dialog.getByRole("button", { name: "查看扩展", exact: true }).click();
   await page
@@ -118,23 +146,29 @@ test("each Agent picks its own model and the model receives the conversation so 
   // Management opened from the connections page returns there.
   await page.getByRole("button", { name: "返回模型连接", exact: true }).click();
   await dialog.getByRole("button", { name: "关闭", exact: true }).click();
-  await expect(page.getByRole("status")).toContainText(
-    "为 甲 选一个模型，它就能回复你。",
+  // Nothing picked: the same message box shows, with the picker saying so.
+  const box = page.getByRole("textbox", { name: "消息", exact: true });
+  await expect(box).toHaveValue("先写好");
+  await expect(box).toHaveAttribute(
+    "placeholder",
+    "为 甲 选一个模型，它就能回复你…",
   );
-  const picker = page.getByRole("combobox", {
-    name: "甲 使用的模型",
-    exact: true,
-  });
+  const picker = page.getByRole("combobox", { name: "切换模型", exact: true });
+  await expect(picker).toHaveText("未选择模型");
+  await box.fill("先写好");
+  await expect(
+    page.getByRole("button", { name: "发送", exact: true }),
+  ).toBeDisabled();
+  await box.press("Enter");
+  await expect(page.getByRole("log").getByText("先写好")).toHaveCount(0);
   await picker.click();
-  const choices = page.getByRole("listbox", { name: "甲 使用的模型" });
+  const choices = page.getByRole("listbox", { name: "切换模型" });
   // Models are grouped under the provider that offers them.
   await expect(choices.getByRole("group", { name: /回显模型/ })).toBeVisible();
   await choices.getByRole("option", { name: /^回显 B/ }).click();
   await expect(choices).toBeHidden();
-  // Once picked, the same choice moves to the composer.
-  await expect(
-    page.getByRole("combobox", { name: "切换模型", exact: true }),
-  ).toHaveText(/回显 B/);
+  await expect(picker).toHaveText(/回显 B/);
+  await box.fill("");
   const send = async (text: string) => {
     await page.getByRole("textbox", { name: "消息", exact: true }).fill(text);
     await page.getByRole("button", { name: "发送", exact: true }).click();
@@ -170,3 +204,45 @@ test("each Agent picks its own model and the model receives the conversation so 
   await send("再来");
   await expect(page.getByRole("log")).toContainText("echo-b｜第 2 轮");
 });
+
+for (const width of [375, 700]) {
+  test(`an empty model catalog keeps the composer and its draft at ${width}px`, async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width, height: 820 });
+    await page.goto("/");
+    await manage(page);
+    await page
+      .getByRole("button", { name: "停用 chat.echo", exact: true })
+      .click();
+    await page.getByRole("button", { name: "返回工作区", exact: true }).click();
+    await addAgent(page, "未接入");
+    const box = page.getByRole("textbox", { name: "消息", exact: true });
+    await expect(box).toBeVisible();
+    await expect(box).toHaveAttribute(
+      "placeholder",
+      "为 未接入 选一个模型，它就能回复你…",
+    );
+    await expect(
+      page.getByRole("button", { name: "添加附件", exact: true }),
+    ).toBeVisible();
+    const picker = page.getByRole("button", { name: "切换模型", exact: true });
+    await expect(picker).toHaveText("未选择模型");
+    await box.fill("尚未连接也能准备草稿");
+    await expect(
+      page.getByRole("button", { name: "发送", exact: true }),
+    ).toBeDisabled();
+    await box.press("Enter");
+    await expect(box).toHaveValue("尚未连接也能准备草稿");
+    await picker.click();
+    await page.getByRole("menuitem", { name: "连接模型", exact: true }).click();
+    const dialog = page.getByRole("dialog", { name: "模型连接" });
+    await expect(dialog).toBeVisible();
+    await dialog.getByRole("button", { name: "关闭", exact: true }).click();
+    await expect(box).toHaveValue("尚未连接也能准备草稿");
+    await expect(picker).toBeFocused();
+    expect(
+      await page.evaluate(() => document.documentElement.scrollWidth),
+    ).toBe(width);
+  });
+}

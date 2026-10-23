@@ -300,14 +300,14 @@ test("icon-only buttons keep their icon centred on phones and desktop", async ({
   expect(await offCentre()).toEqual([]);
 });
 
-for (const width of [375, 1280]) {
+for (const width of [375, 700, 1280]) {
   test(`one sidebar button toggles details; the more menu holds Agent actions at ${width}px`, async ({
     page,
   }) => {
     await page.setViewportSize({ width, height: 820 });
     await page.goto("/");
     await addAgent(page, "菜单");
-    const details = page.getByRole(width < 768 ? "dialog" : "complementary", {
+    const details = page.getByRole(width < 648 ? "dialog" : "complementary", {
       name: "Agent 详情",
     });
     await expect(page.getByRole("button", { name: /详情/ })).toHaveCount(0);
@@ -330,7 +330,7 @@ for (const width of [375, 1280]) {
     });
     await toggle.click();
     await expect(details).toBeVisible();
-    if (width >= 768) {
+    if (width >= 648) {
       // A drawer above the chat that leaves it usable.
       await expect(
         page.getByRole("dialog", { name: "Agent 详情" }),

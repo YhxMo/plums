@@ -16,7 +16,6 @@ import { cn } from "cn";
 import { AgentList } from "./AgentList";
 import { ChatView } from "./ChatView";
 import type { Blocked } from "./Composer";
-import { ModelSelect } from "./ModelSelect";
 import { DetailPanel } from "./DetailPanel";
 import { EmptyState } from "./EmptyState";
 import { Dialog } from "../components/Dialog";
@@ -63,7 +62,8 @@ export function AgentWorkspace({
   );
   const snapshot = useCallback(() => api.list(), [api]);
   const agents = useSyncExternalStore(subscribe, snapshot);
-  const mobile = useMediaQuery("(max-width: 767px)");
+  // Match the two-pane minimum and Tailwind's md breakpoint in app.css.
+  const mobile = useMediaQuery("(width < 40.5rem)");
   // Wide windows make room for the details drawer; narrower ones let it cover.
   const wide = useMediaQuery("(min-width: 1100px)");
   const [selected, setSelected] = useState<string | null>(null);
@@ -179,7 +179,11 @@ export function AgentWorkspace({
   function blocker(a: Agent): Blocked | undefined {
     const off = (part?: Part) => part && !part.on;
     const turnOn = (part: Part) => (
-      <Button size="sm" onClick={() => switchAgentPart(a, part, true)}>
+      <Button
+        type="button"
+        size="sm"
+        onClick={() => switchAgentPart(a, part, true)}
+      >
         开启
       </Button>
     );
@@ -196,35 +200,13 @@ export function AgentWorkspace({
         action: turnOn(core),
       };
     if (!models || !api.setModel) return undefined;
-    if (!models.length)
-      return {
-        text: "先连接一个 AI 模型，它才能理解和回复你。",
-        action: onModels && (
-          <Button size="sm" onClick={onModels}>
-            连接模型
-          </Button>
-        ),
-      };
     const picked =
       a.model &&
       models.some(
         (m) => m.provider === a.model!.provider && m.id === a.model!.model,
       );
-    if (!picked)
-      return {
-        text: `为 ${a.name} 选一个模型，它就能回复你。`,
-        action: (
-          <span className="max-md:w-full [&_button]:border-border [&_button]:bg-muted [&_button]:text-foreground">
-            <ModelSelect
-              compact
-              label={`${a.name} 使用的模型`}
-              models={models}
-              value={a.model}
-              onChange={(model) => void act(() => api.setModel!(a.id, model))}
-            />
-          </span>
-        ),
-      };
+    // Nothing picked yet: the message box shows the model picker itself.
+    if (!picked) return undefined;
     const connection = parts!.find((p) => p.choice.id === a.model!.provider);
     if (off(connection))
       return {
@@ -291,6 +273,7 @@ export function AgentWorkspace({
       onDraft={(value) => setDrafts((d) => ({ ...d, [key]: value }))}
       onBack={returnToList}
       models={models}
+      onModels={onModels}
       onModel={
         api.setModel &&
         ((model) => void act(() => api.setModel!(agent.id, model)))

@@ -7,10 +7,13 @@ type Controls = {
   active: string | null;
   configured: number;
   failRefresh: boolean;
+  failWriteReceipt: boolean;
+  failStateRead: boolean;
   holdRequest: boolean;
   holdSave: boolean;
   releaseSave?: () => void;
   savedModels: () => string[][];
+  savedThinking: () => Array<Record<string, string>>;
 };
 declare global {
   interface Window {
@@ -37,6 +40,7 @@ async function setup(
         base: "https://model.invalid/v1",
         models,
         windows: {},
+        thinking: {},
         maxTokens: null,
         context: 128_000,
       };
@@ -65,7 +69,7 @@ async function setup(
       if (!empty)
         states.set(`${owner}+`, {
           revision: 1,
-          value: { version: 6, providers: [provider] },
+          value: { version: 7, providers: [provider] },
         });
       const controls: Controls = {
         requests: [],
@@ -73,8 +77,16 @@ async function setup(
         active: null,
         configured: 0,
         failRefresh: false,
+        failWriteReceipt: false,
+        failStateRead: false,
         holdRequest: false,
         holdSave: false,
+        savedThinking: () =>
+          (
+            states.get(`${owner}+`)?.value as
+              | { providers: Array<{ thinking: Record<string, string> }> }
+              | undefined
+          )?.providers.map((p) => p.thinking) ?? [],
         savedModels: () =>
           (
             states.get(`${owner}+`)?.value as
@@ -125,8 +137,11 @@ async function setup(
               value: unknown;
             };
             const slot = `${args.owner}+${payload.key ?? ""}`;
-            if (args.capability === "state.read")
+            if (args.capability === "state.read") {
+              if (args.owner === owner && controls.failStateRead)
+                throw { code: "state-read", outcome: "not-committed" };
               return states.get(slot) ?? null;
+            }
             if (args.capability === "state.write") {
               if (payload.revision !== (states.get(slot)?.revision ?? 0))
                 throw {
@@ -139,6 +154,10 @@ async function setup(
               };
               states.set(slot, next);
               if (args.owner === owner) {
+                if (controls.failWriteReceipt) {
+                  controls.failWriteReceipt = false;
+                  throw { code: "state-sync", outcome: "unknown" };
+                }
                 failList = controls.failRefresh;
                 controls.failRefresh = false;
                 if (controls.holdSave)
@@ -193,6 +212,40 @@ async function setup(
   );
   await page.goto("/");
 }
+
+test("an uncertain save replaces the stale form with explicit connection recovery", async ({
+  page,
+}) => {
+  await setup(page, { empty: true });
+  const dialog = await openConnections(page);
+  await dialog.getByRole("button", { name: "添加服务商", exact: true }).click();
+  await dialog.getByLabel("API Key", { exact: true }).fill("sk-synthetic");
+  await page.evaluate(() => {
+    window.modelRecovery.failWriteReceipt = true;
+  });
+  await dialog.getByRole("button", { name: "保存", exact: true }).click();
+  await expect(dialog.getByRole("status")).toContainText("上次保存结果未确认");
+  await expect(
+    dialog.getByRole("button", { name: "保存", exact: true }),
+  ).toHaveCount(0);
+  await page.evaluate(() => {
+    window.modelRecovery.failStateRead = true;
+  });
+  await dialog.getByRole("button", { name: "重新读取连接" }).click();
+  await expect(dialog.getByRole("alert")).toBeVisible();
+  await expect(
+    dialog.getByRole("button", { name: "重新读取连接" }),
+  ).toBeEnabled();
+  await page.evaluate(() => {
+    window.modelRecovery.failStateRead = false;
+  });
+  await dialog.getByRole("button", { name: "重新读取连接" }).click();
+  const providers = dialog.getByRole("list", { name: "服务商", exact: true });
+  await expect(providers.getByRole("listitem")).toHaveCount(1);
+  await expect(providers).toContainText("DeepSeek");
+  await expect(providers).toContainText("可用");
+  expect(await page.evaluate(() => window.modelRecovery.configured)).toBe(1);
+});
 
 test("a committed new provider closes the form even if its status refresh fails", async ({
   page,
@@ -344,4 +397,169 @@ test("model selection rechecks capacity after a manual addition", async ({
   expect(await page.evaluate(() => window.modelRecovery.savedModels())).toEqual(
     [[...models.slice(1), "manual", "listed-a"]],
   );
+});
+
+test("a model's thinking strength can follow the rules, be hidden, or be set by hand", async ({
+  page,
+}) => {
+  await setup(page);
+  const dialog = await openConnections(page);
+  await dialog.getByRole("button", { name: "编辑 合成服务" }).click();
+  const choose = async (label: string) => {
+    await dialog
+      .getByRole("combobox", { name: "saved-model 的思考强度" })
+      .click();
+    await page.getByRole("option", { name: new RegExp(label) }).click();
+  };
+  // A custom service has no rule: automatic shows none, and a way can be set.
+  await expect(
+    dialog.getByRole("combobox", { name: "saved-model 的思考强度" }),
+  ).toContainText("自动（无）");
+  await choose("OpenAI 兼容");
+  await dialog.getByRole("button", { name: "保存", exact: true }).click();
+  await expect(
+    dialog.getByRole("button", { name: "编辑 合成服务" }),
+  ).toBeVisible();
+  expect(
+    await page.evaluate(() => window.modelRecovery.savedThinking()),
+  ).toEqual([{ "saved-model": "openai" }]);
+  // Back to automatic leaves nothing stored.
+  await dialog.getByRole("button", { name: "编辑 合成服务" }).click();
+  await choose("自动");
+  await dialog.getByRole("button", { name: "保存", exact: true }).click();
+  await expect(
+    dialog.getByRole("button", { name: "编辑 合成服务" }),
+  ).toBeVisible();
+  expect(
+    await page.evaluate(() => window.modelRecovery.savedThinking()),
+  ).toEqual([{}]);
+});
+
+for (const width of [375, 1180]) {
+  test(`key visibility only reveals the current draft and never submits at ${width}px`, async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width, height: 900 });
+    await setup(page, { empty: true });
+    const dialog = await openConnections(page);
+    await dialog
+      .getByRole("button", { name: "添加服务商", exact: true })
+      .click();
+    const key = dialog.getByLabel("API Key", { exact: true });
+    const show = dialog.getByRole("button", {
+      name: "显示 API Key",
+      exact: true,
+    });
+    await expect(key).toHaveAttribute("type", "password");
+    await expect(show).toBeDisabled();
+    await key.fill("sk-visibility-synthetic");
+    await show.click();
+    await expect(key).toHaveAttribute("type", "text");
+    await expect(key).toHaveValue("sk-visibility-synthetic");
+    expect(await page.evaluate(() => window.modelRecovery.configured)).toBe(0);
+    const hide = dialog.getByRole("button", {
+      name: "隐藏 API Key",
+      exact: true,
+    });
+    await hide.focus();
+    await hide.press("Space");
+    await expect(key).toHaveAttribute("type", "password");
+    await show.click();
+    await key.fill("");
+    await key.fill("sk-next-synthetic");
+    await expect(key).toHaveAttribute("type", "password");
+    await show.click();
+    await dialog.getByRole("button", { name: "保存", exact: true }).click();
+    await dialog
+      .getByRole("button", { name: "编辑 DeepSeek", exact: true })
+      .click();
+    await expect(key).toHaveValue("");
+    await expect(key).toHaveAttribute("type", "password");
+    await expect(show).toBeDisabled();
+    expect(
+      await page.evaluate(() => document.documentElement.scrollWidth),
+    ).toBe(width);
+  });
+}
+
+test("InfoTip uses a popover and cancelled presses do not break keyboard activation", async ({
+  page,
+}) => {
+  await setup(page, { empty: true });
+  const dialog = await openConnections(page);
+  await dialog.getByRole("button", { name: "添加服务商", exact: true }).click();
+  const info = dialog.getByRole("button", { name: "服务商说明", exact: true });
+  const popover = dialog.getByRole("dialog", {
+    name: "服务商说明",
+    exact: true,
+  });
+  await info.click();
+  await expect(popover).toBeVisible();
+  await expect(info).toHaveAttribute("aria-expanded", "true");
+  // Start a press on the trigger, then cancel it by releasing elsewhere.
+  const box = (await info.boundingBox())!;
+  await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(box.x - 40, box.y + box.height + 30);
+  await page.mouse.up();
+  await info.focus();
+  // Normalize the current open state using Escape, not a second toggle.
+  await info.press("Escape");
+  await expect(popover).toBeHidden();
+  await expect(dialog).toBeVisible();
+  // Continue only after the close transition has returned keyboard focus.
+  await expect(info).toBeFocused();
+  await page.keyboard.press("Enter");
+  await expect(popover).toBeVisible();
+  await expect(popover).toBeFocused();
+  await page.keyboard.press("Escape");
+  await expect(popover).toBeHidden();
+  await expect(info).toBeFocused();
+  await expect(dialog).toBeVisible();
+  await page.keyboard.press("Escape");
+  await expect(dialog).toBeHidden();
+});
+
+test("Escape during Popover registration does not dismiss the parent Dialog", async ({
+  page,
+}) => {
+  await setup(page, { empty: true });
+  const dialog = await openConnections(page);
+  await dialog.getByRole("button", { name: "添加服务商", exact: true }).click();
+  // Reproduce the upstream listener-cleanup race at the exact registration
+  // event, rather than relying on machine timing or repeating a flaky test.
+  await page.evaluate(() => {
+    document.addEventListener(
+      "dismissableLayer.update",
+      () => {
+        document.documentElement.dataset.escapeDuringRegistration = "true";
+        document.dispatchEvent(
+          new KeyboardEvent("keydown", {
+            key: "Escape",
+            bubbles: true,
+            cancelable: true,
+          }),
+        );
+      },
+      { once: true },
+    );
+  });
+  const info = dialog.getByRole("button", { name: "服务商说明", exact: true });
+  await info.click();
+  await expect(page.locator("html")).toHaveAttribute(
+    "data-escape-during-registration",
+    "true",
+  );
+  await expect(dialog).toBeVisible();
+  const popover = dialog.getByRole("dialog", {
+    name: "服务商说明",
+    exact: true,
+  });
+  await expect(popover).toBeFocused();
+  await page.keyboard.press("Escape");
+  await expect(popover).toBeHidden();
+  await expect(info).toBeFocused();
+  await expect(dialog).toBeVisible();
+  await page.keyboard.press("Escape");
+  await expect(dialog).toBeHidden();
 });

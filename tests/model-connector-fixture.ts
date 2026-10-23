@@ -20,6 +20,7 @@ export const deepseek: ProviderDraft = {
   base: "https://api.deepseek.com",
   models: ["user-model-a", "user-model-b"],
   windows: {},
+  thinking: {},
   maxTokens: null,
   context: 128_000,
 };
@@ -34,6 +35,7 @@ export const claude: ProviderDraft = {
   base: "https://gateway.example",
   models: ["user-claude"],
   windows: {},
+  thinking: {},
   maxTokens: 512,
   context: 1_000_000,
 };
@@ -86,8 +88,17 @@ export async function fixture({
     body: catalogText,
   }));
   let next = 0;
-  let writeFailure: Error | undefined;
+  let writeFailure: { error: Error; committed: boolean } | undefined;
+  let readFailures = 0;
   let listFailures = 0;
+  const list = vi.fn(async () => {
+    if (listFailures-- > 0) throw new Error("连接记录不可用");
+    return [...connections].map(([alias, item]) => ({
+      alias,
+      ...item,
+      status: "ready",
+    }));
+  });
   const platform: Platform = {
     kind: credentials ? "native" : "browser",
     available: (name) => credentials || name.startsWith("state."),
@@ -95,27 +106,28 @@ export async function fixture({
     async call(caller, name, payload, signal) {
       expect(caller).toBe(owner);
       const request = (payload ?? {}) as Record<string, unknown>;
-      if (name === "state.read") return states.get(owner) ?? null;
+      if (name === "state.read") {
+        if (readFailures-- > 0) throw new Error("连接配置不可读");
+        return states.get(owner) ?? null;
+      }
       if (name === "state.write") {
         const failure = writeFailure;
         writeFailure = undefined;
-        if (failure) throw failure;
+        if (failure && !failure.committed) throw failure.error;
+        if (request.revision !== (states.get(owner)?.revision ?? 0))
+          throw Object.assign(new Error("修订冲突"), {
+            outcome: "not-committed",
+          });
         const stored = {
           revision: (request.revision as number) + 1,
           value: request.value,
         };
         states.set(owner, stored);
+        if (failure) throw failure.error;
         return stored;
       }
       if (name === "credential.connect") {
-        if (request.action === "list" && listFailures-- > 0)
-          throw new Error("连接记录不可用");
-        if (request.action === "list")
-          return [...connections].map(([alias, item]) => ({
-            alias,
-            ...item,
-            status: "ready",
-          }));
+        if (request.action === "list") return list();
         const status = await connect(request);
         if (status !== "saved") return { alias: request.alias ?? "", status };
         if (request.action === "remove") {
@@ -194,12 +206,20 @@ export async function fixture({
     api,
     chat: () => chat,
     connect,
+    list,
     send,
     read,
     catalog,
     states,
     connections,
-    failNextWrite: () => void (writeFailure = new Error("磁盘已满")),
+    failNextWrite: (committed = false) =>
+      void (writeFailure = {
+        error: Object.assign(new Error(committed ? "回执未确认" : "磁盘已满"), {
+          outcome: committed ? "unknown" : "not-committed",
+        }),
+        committed,
+      }),
+    failReads: (count: number) => void (readFailures = count),
     failLists: (count: number) => void (listFailures = count),
   };
 }

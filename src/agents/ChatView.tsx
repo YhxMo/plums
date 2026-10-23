@@ -49,6 +49,7 @@ export function ChatView({
   onSession,
   onDeleteSession,
   models,
+  onModels,
   onModel,
   onEffort,
   attach,
@@ -59,7 +60,7 @@ export function ChatView({
   onError,
 }: {
   agent: Agent;
-  /** Shown instead of the message box while the Agent cannot reply. */
+  /** Inline recovery action; the message box stays available for drafts. */
   blocked?: Blocked;
   draft: string;
   onDraft: (value: string) => void;
@@ -72,6 +73,7 @@ export function ChatView({
   onDeleteSession: (id: string, source: HTMLElement | null) => void;
   /** Absent for providers without per-Agent models. */
   models?: readonly ModelChoice[];
+  onModels?: () => void;
   onModel?: (model: AgentModel | null) => void;
   onEffort?: (effort: Effort | null) => void;
   /** Absent when the provider takes no attachments. */
@@ -85,7 +87,7 @@ export function ChatView({
 }) {
   const session = agent.sessions.find((s) => s.id === agent.currentSessionId)!;
   const busy = agent.status === "busy";
-  const desktop = useMediaQuery("(min-width: 768px)");
+  const desktop = useMediaQuery("(width >= 40.5rem)");
   const bottom = useRef<HTMLDivElement>(null);
   const input = useRef<HTMLTextAreaElement>(null);
   const more = useRef<HTMLButtonElement>(null);
@@ -168,7 +170,7 @@ export function ChatView({
     >
       <header
         className="flex h-14 shrink-0 items-center gap-2 border-b border-border/70 bg-background pr-2.5 pl-6 md:pr-12 max-md:pr-3 max-md:pl-1"
-        data-tauri-drag-region
+        data-tauri-drag-region="deep"
       >
         <Button
           variant="ghost"
@@ -187,10 +189,9 @@ export function ChatView({
             exit={{ opacity: 0, y: -4 }}
             transition={{ duration: 0.16 }}
             className="flex min-w-0 flex-1 items-center gap-2.5"
-            data-tauri-drag-region
           >
             <Avatar agent={agent} className="size-9 text-base md:hidden" />
-            <div className="min-w-0 flex-1" data-tauri-drag-region>
+            <div className="min-w-0 flex-1">
               <h1 className="truncate text-[15px] leading-tight font-semibold tracking-tight">
                 {agent.name}
               </h1>
@@ -304,7 +305,7 @@ export function ChatView({
         </DropdownMenu>
       </header>
       <div
-        className="relative flex min-h-0 flex-1 flex-col overflow-auto px-[max(24px,calc((100%-720px)/2))] pt-5 pb-4 max-md:px-3.5"
+        className="relative flex min-h-0 flex-1 flex-col overflow-auto px-[max(16px,calc((100%-760px)/2))] pt-5 pb-4 max-md:px-3.5"
         role="log"
         aria-label="会话消息"
         onDragOver={(e) => {
@@ -381,10 +382,10 @@ export function ChatView({
         onSend={onSend}
         onCancel={onCancel}
         models={models}
+        onModels={onModels}
         onModel={onModel}
         onEffort={onEffort}
         attach={attach}
-        desktop={desktop}
         inputRef={input}
       />
     </section>

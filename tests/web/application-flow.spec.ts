@@ -17,7 +17,13 @@ test("cancel returns to the initiating control even when activation does not foc
 
 test("authorization can be cancelled and restores keyboard focus", async ({
   page,
+  browserName,
 }) => {
+  // WebKit follows macOS keyboard preferences; Option-Tab visits controls.
+  const tab =
+    browserName === "webkit" && process.platform === "darwin"
+      ? "Alt+Tab"
+      : "Tab";
   await page.goto("/");
   const launch = await legacyEntry(page);
   await launch.click();
@@ -27,15 +33,15 @@ test("authorization can be cancelled and restores keyboard focus", async ({
   await expect(dialog).toContainText("写入隔离状态");
   // Opening must not paint a keyboard ring on a button.
   await expect(dialog.getByRole("heading", { level: 2 })).toBeFocused();
-  await page.keyboard.press("Tab");
+  await page.keyboard.press(tab);
   await expect(dialog.getByRole("button", { name: "关闭" })).toBeFocused();
-  await page.keyboard.press("Tab");
+  await page.keyboard.press(tab);
   await expect(dialog.getByRole("button", { name: "暂不授权" })).toBeFocused();
   // Focus stays inside: it wraps from the last action to the first control.
-  await page.keyboard.press("Tab");
-  await page.keyboard.press("Tab");
+  await page.keyboard.press(tab);
+  await page.keyboard.press(tab);
   await expect(dialog.getByRole("button", { name: "关闭" })).toBeFocused();
-  await page.keyboard.press("Shift+Tab");
+  await page.keyboard.press(`Shift+${tab}`);
   await expect(
     dialog.getByRole("button", { name: "授权并启动", exact: true }),
   ).toBeFocused();

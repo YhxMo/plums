@@ -15,8 +15,8 @@ export function ExtensionManager({
   diagnostics: ReactNode;
 }) {
   const { detail } = controller;
-  // One column: details open inside the selected card instead of below the list.
-  const narrow = useMediaQuery("(max-width: 1020px)");
+  // 280px list + 320px detail, gap, gutters and rail fit from 48rem.
+  const narrow = useMediaQuery("(width < 48rem)");
   const details = detail.entry && (
     <ExtensionDetails
       host={detail.host}
@@ -35,15 +35,15 @@ export function ExtensionManager({
         aria-label="扩展管理"
       >
         <ManagerHeader controller={controller.header} />
-        <div className="min-h-0 flex-1 overflow-auto px-6 pt-4 pb-5 max-[1020px]:px-4 max-md:px-4">
-          <div className="mx-auto grid max-w-310 grid-cols-[minmax(320px,44%)_minmax(340px,56%)] items-start gap-5 max-[1020px]:grid-cols-1">
+        <div className="min-h-0 flex-1 overflow-auto px-6 pt-4 pb-5 max-[48rem]:px-4">
+          <div className="mx-auto grid max-w-310 grid-cols-[minmax(280px,0.42fr)_minmax(320px,0.58fr)] items-start gap-5 max-[48rem]:grid-cols-1">
             <div className="min-w-0">
               <ExtensionList
                 controller={controller.list}
                 selectedDetail={narrow ? details : undefined}
               />
             </div>
-            <div className="sticky top-0 flex min-w-0 flex-col gap-3.5 max-[1020px]:static">
+            <div className="sticky top-0 flex min-w-0 flex-col gap-3.5 max-[48rem]:static">
               {!narrow && details}
               {diagnostics}
               <RetainedCredentialBindings

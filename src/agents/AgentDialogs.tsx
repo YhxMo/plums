@@ -228,6 +228,7 @@ export function AgentDialogs({
         </DialogBody>
       ) : modal === "import" ? (
         <form
+          key="import"
           onSubmit={(e) => {
             e.preventDefault();
             void act(() => add(parseRoleCard(raw)));
@@ -316,7 +317,8 @@ export function AgentDialogs({
               type="button"
               variant="secondary"
               disabled={busy || reading || !raw.trim()}
-              onClick={() => {
+              onClick={(event) => {
+                event.preventDefault();
                 try {
                   draft.reset(parseRoleCard(raw));
                   open("create");
@@ -336,6 +338,7 @@ export function AgentDialogs({
         </form>
       ) : modal === "create" ? (
         <form
+          key="create"
           onSubmit={(e) => {
             e.preventDefault();
             void act(() =>

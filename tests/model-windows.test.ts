@@ -158,3 +158,57 @@ it("gives version 5 records no per-model windows", async () => {
   expect(api.list()[0]).toMatchObject({ windows: {}, context: 128_000 });
   expect(states.get(owner)?.value).toBe(saved);
 });
+
+it("keeps each model's own way of thinking, and drops or refuses what does not fit", async () => {
+  const { api, chat, send } = await fixture();
+  const id = (await api.save(
+    {
+      ...deepseek,
+      preset: "custom",
+      models: ["user-model-a", "user-model-b"],
+      thinking: { "user-model-a": "openai", gone: "openai" },
+    },
+    undefined,
+    KEY,
+  )) as string;
+  expect(api.list()[0].thinking).toEqual({ "user-model-a": "openai" });
+  const listed = chat().models();
+  expect(listed.find((m) => m.id === `${id}/user-model-a`)?.reasoning).toEqual([
+    "low",
+    "medium",
+    "high",
+  ]);
+  expect(listed.find((m) => m.id === `${id}/user-model-b`)).not.toHaveProperty(
+    "reasoning",
+  );
+  await chat().reply(
+    { model: `${id}/user-model-a`, history: [], input: "想想", effort: "high" },
+    signal(),
+  );
+  expect(body(send, 0).reasoning_effort).toBe("high");
+  // A way of the other format, or an unknown one, is refused.
+  for (const thinking of [
+    { "user-model-a": "adaptive" },
+    { "user-model-a": "x" },
+  ])
+    await expect(
+      api.save({ ...deepseek, preset: "custom", thinking } as never, id),
+    ).rejects.toThrow("思考方式");
+});
+
+it("gives version 6 records no chosen ways of thinking", async () => {
+  const saved = {
+    version: 6,
+    providers: [
+      {
+        ...deepseek,
+        thinking: undefined,
+        id: "p-aaaaaaaa",
+        alias: "c-00000000",
+      },
+    ],
+  };
+  const { api, states } = await fixture({ saved });
+  expect(api.list()[0]).toMatchObject({ thinking: {} });
+  expect(states.get(owner)?.value).toBe(saved);
+});

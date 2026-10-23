@@ -19,7 +19,7 @@ export type TitleBarProps = {
   operations: Pick<ShellOperations, "busy" | "operate">;
 };
 export type NavRailProps = {
-  platformKind: Runtime["adapter"]["kind"];
+  macOverlay: boolean;
   appearance: Pick<Appearance, "appearance" | "toggleTheme">;
   workspace: Pick<
     Workspace,

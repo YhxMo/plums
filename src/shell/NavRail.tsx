@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import { MenuIcon, PuzzleIcon } from "lucide-react";
 import { motion } from "motion/react";
+import { cn } from "cn";
 import type { NavRailProps } from "./controllers";
 import { AppMenu, ThemeToggle } from "./ShellActions";
 import { Tooltip } from "../components/Tooltip";
@@ -52,26 +53,25 @@ function Destination({
  * strip, which also drags the window. Phones keep these in the title bar.
  */
 export function NavRail({
-  platformKind,
+  macOverlay,
   appearance,
   workspace,
   navigation,
   operations,
 }: NavRailProps) {
   const managerOpen = navigation.manager.open;
-  const macOverlay =
-    platformKind === "native" && !/android/i.test(navigator.userAgent);
   return (
     <nav
       aria-label="应用导航"
-      className="flex w-14 shrink-0 flex-col items-center gap-1 pb-2 max-md:hidden"
+      className="flex w-16 shrink-0 flex-col items-center gap-1 pb-2 max-md:hidden"
+      data-tauri-drag-region
     >
       <div
-        className={macOverlay ? "h-12 w-full shrink-0" : "h-2 w-full shrink-0"}
+        className={cn("w-full shrink-0", macOverlay ? "h-11" : "h-2")}
         data-tauri-drag-region
       />
       <img
-        className="mb-3 size-7 shrink-0 rounded-lg object-contain"
+        className="mb-2 size-7 shrink-0 rounded-lg object-contain"
         src="/brand/plums.png"
         alt=""
       />

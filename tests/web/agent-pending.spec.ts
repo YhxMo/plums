@@ -15,8 +15,16 @@ test("a sent message appears at once and the input clears before the reply", asy
       name: "慢模型",
       models: () => [{ id: "slow", label: "慢", description: "" }],
       subscribe: () => () => {},
-      reply: ({ input }) =>
-        new Promise((done) => { window.answer = () => done("答：" + input); }),
+      reply: ({ input }, signal) =>
+        new Promise((done, reject) => {
+          signal.throwIfAborted();
+          const stop = () => reject(signal.reason);
+          signal.addEventListener("abort", stop, { once: true });
+          window.answer = () => {
+            signal.removeEventListener("abort", stop);
+            done("答：" + input);
+          };
+        }),
     });
   },
 };`,
@@ -54,8 +62,26 @@ test("a sent message appears at once and the input clears before the reply", asy
   await expect(log.getByText("show me now", { exact: true })).toBeVisible();
   await expect(input).toHaveValue("");
   await expect(log.getByRole("status")).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "停止处理", exact: true }),
+  ).toBeEnabled();
+  await expect(
+    page.getByRole("button", { name: "添加附件", exact: true }),
+  ).toBeDisabled();
+  await input.fill("下一条草稿");
+  await input.press("Enter");
+  await input.evaluate((box) => box.closest("form")!.requestSubmit());
+  await expect(log).not.toContainText("下一条草稿");
   await page.evaluate(() => (window as unknown as { answer(): void }).answer());
   await expect(log.getByText("答：show me now", { exact: true })).toBeVisible();
   await expect(log.getByRole("status")).toHaveCount(0);
   await expect(log.getByText("show me now", { exact: true })).toHaveCount(1);
+  await expect(input).toHaveValue("下一条草稿");
+  await page.getByRole("button", { name: "发送", exact: true }).click();
+  await expect(log.getByText("下一条草稿", { exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "停止处理", exact: true }).click();
+  await expect(input).toHaveValue("下一条草稿");
+  await expect(
+    page.getByRole("button", { name: "发送", exact: true }),
+  ).toBeEnabled();
 });

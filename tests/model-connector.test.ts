@@ -30,7 +30,7 @@ it("adds a provider with the key typed in the form and offers each of its models
   });
   expect(provider.id).toMatch(/^p-[a-z0-9]{8}$/);
   expect(states.get(owner)?.value).toEqual({
-    version: 6,
+    version: 7,
     providers: [{ ...deepseek, id: provider.id, alias: "c-00000000" }],
   });
   expect(chat().models()).toEqual(

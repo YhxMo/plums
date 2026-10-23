@@ -33,6 +33,8 @@ export function agentUI(): ExtensionDefinition {
       id: "ui.agents",
       version: "0.0.4",
       apiVersion: 1,
+      description:
+        "提供 Agent 列表、对话和详情界面，支持切换会话、选择模型与发送附件。",
       requires: { agents: 1 },
     },
     activate(ctx) {

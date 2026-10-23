@@ -244,9 +244,19 @@ test("connector key entry saves the typed key natively and recovers an unknown s
   await expect(key).toHaveAttribute("type", "password");
   await expect(submit).toBeDisabled();
   await key.fill("sk-test-key");
+  await binding
+    .getByRole("button", { name: "显示 API Key", exact: true })
+    .click();
+  await expect(key).toHaveAttribute("type", "text");
+  await expect(submit).toBeEnabled();
+  await expect(binding).not.toContainText("保存结果待核对");
   await submit.click();
   await expect(binding).toContainText("保存结果待核对");
   await expect(key).toHaveValue("");
+  await expect(key).toHaveAttribute("type", "password");
+  await expect(
+    binding.getByRole("button", { name: "显示 API Key", exact: true }),
+  ).toBeDisabled();
   await expect(key).toBeDisabled();
   await binding
     .getByRole("button", { name: "核对保存状态", exact: true })
@@ -542,8 +552,8 @@ for (const width of [375, 1180])
     // Each row's window picker carries a hidden native select (Radix form
     // support), so rows are matched by their visible start.
     await expect(added.getByRole("listitem")).toHaveText([
-      /^model-one默认（128K）/,
-      /^model-two200K/,
+      /^model-one自动.*默认（128K）/,
+      /^model-two自动.*200K/,
     ]);
     await dialog
       .getByRole("button", { name: "移除 model-one", exact: true })
@@ -566,18 +576,20 @@ for (const width of [375, 1180])
       exact: true,
     });
     await info.click();
-    await expect(dialog.getByRole("tooltip")).toContainText(
-      "模型能接收的总 token 数",
-    );
+    await expect(
+      dialog.getByRole("dialog", { name: "默认上下文窗口说明", exact: true }),
+    ).toContainText("模型能接收的总 token 数");
     await info.click();
-    await expect(dialog.getByRole("tooltip")).toBeHidden();
+    await expect(
+      dialog.getByRole("dialog", { name: "默认上下文窗口说明", exact: true }),
+    ).toBeHidden();
     await context.click();
     await dialog.getByRole("option", { name: "1M", exact: true }).click();
     await expect(context).toHaveText("1M");
     // Models without their own window follow the default.
     await expect(added.getByRole("listitem")).toHaveText([
-      /^model-two200K/,
-      /^model-three默认（1M）/,
+      /^model-two自动.*200K/,
+      /^model-three自动.*默认（1M）/,
     ]);
     expect(
       await page.evaluate(

@@ -136,3 +136,57 @@ it("sends OpenAI's own reasoning models reasoning_effort, and nothing for others
     reasoningFields({ ...openai, preset: "kimi" }, "high", 32_000),
   ).toEqual({});
 });
+
+it("lets the user pick how a model thinks, overriding the rules in either direction", () => {
+  // Switched off for a model the rules would offer strengths on.
+  expect(
+    reasoningLevels("openai-chat", "deepseek", "deepseek-v4-pro", "none"),
+  ).toBeUndefined();
+  expect(
+    reasoningFields({ ...deepseek, thinking: "none" }, "high", 8000),
+  ).toEqual({});
+  // Turned on for a service and model no rule covers.
+  const custom: Endpoint = {
+    protocol: "openai-chat",
+    preset: "custom",
+    model: "my-reasoner",
+    maxTokens: null,
+    context: 128_000,
+  };
+  expect(
+    reasoningLevels("openai-chat", "custom", "my-reasoner"),
+  ).toBeUndefined();
+  expect(
+    reasoningLevels("openai-chat", "custom", "my-reasoner", "openai"),
+  ).toEqual(["low", "medium", "high"]);
+  expect(
+    reasoningFields({ ...custom, thinking: "openai" }, "medium", 8000),
+  ).toEqual({ reasoning_effort: "medium" });
+  expect(
+    reasoningFields({ ...custom, thinking: "deepseek" }, "off", 8000),
+  ).toEqual({ thinking: { type: "disabled" } });
+  // The same on the Anthropic format.
+  const gateway: Endpoint = {
+    ...anthropic,
+    model: "my-claude",
+    maxTokens: 32_000,
+  };
+  expect(
+    reasoningLevels("anthropic-messages", "custom", "my-claude", "adaptive"),
+  ).toEqual(["low", "medium", "high", "max"]);
+  expect(
+    reasoningFields({ ...gateway, thinking: "budget" }, "high", 32_000),
+  ).toEqual({ thinking: { type: "enabled", budget_tokens: 16_000 } });
+  // A way that belongs to the other format is ignored, falling back to the rules.
+  expect(
+    reasoningLevels(
+      "anthropic-messages",
+      "custom",
+      "claude-sonnet-5-5",
+      "openai",
+    ),
+  ).toEqual(["low", "medium", "high", "max"]);
+  expect(
+    reasoningLevels("openai-chat", "custom", "my-reasoner", "adaptive"),
+  ).toBeUndefined();
+});

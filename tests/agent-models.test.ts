@@ -309,14 +309,14 @@ const photo = {
   data: "QUJD",
 };
 
-it("keeps attachments with the message, and gives a model that cannot read pictures their names", async () => {
+it("keeps attachments with the message, and tells a model that cannot read pictures so in their place", async () => {
   const { host, agents, find, requests } = await setup({}, ["m2"]);
   const a = await agents().create({ name: "甲" });
   expect(agents().info.attachments).toBe(true);
   await agents().send(a.id, "看看", [note, photo]);
-  // m1 reads no pictures: the file is in the text, the picture only named.
+  // m1 reads no pictures: the file is in the text, the picture only an error line.
   expect(requests[0].input).toBe(
-    "文件「笔记.md」：\n```\n第一行\n第二行\n```\n\n看看\n[图片：照片.webp]",
+    '文件「笔记.md」：\n```\n第一行\n第二行\n```\n\n看看\nERROR: Cannot read "照片.webp" (this model does not support image input). Inform the user.',
   );
   expect(requests[0]).not.toHaveProperty("images");
   expect(find(a.id).sessions[0].messages[0]).toMatchObject({

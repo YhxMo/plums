@@ -11,8 +11,8 @@ export function ManagerHeader({
 }) {
   return (
     <div
-      className="shrink-0 border-b px-6 py-3 md:pr-14 max-[1020px]:px-4 max-md:px-4"
-      data-tauri-drag-region
+      className="shrink-0 border-b px-6 py-3 max-[48rem]:px-4"
+      data-tauri-drag-region="deep"
     >
       <div className="mx-auto flex max-w-310 flex-wrap items-center justify-between gap-3">
         <div className="flex min-w-0 items-center gap-2">

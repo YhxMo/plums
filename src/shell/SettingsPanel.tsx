@@ -130,20 +130,22 @@ export function SettingsPanel({
           </Button>
         </Row>
       </Section>
-      <Section title="数据与诊断">
-        <Row
-          label={
-            <span className="text-muted-foreground">
-              数据保存在本机。诊断工具可检查任务、权限与恢复状态。
-            </span>
-          }
-        >
-          <Button variant="outline" onClick={() => openManager(true)}>
-            打开诊断工具
-            <ChevronRightIcon data-icon="inline-end" />
-          </Button>
-        </Row>
-      </Section>
+      {import.meta.env.DEV && (
+        <Section title="数据与诊断">
+          <Row
+            label={
+              <span className="text-muted-foreground">
+                数据保存在本机。诊断工具可检查任务、权限与恢复状态。
+              </span>
+            }
+          >
+            <Button variant="outline" onClick={() => openManager(true)}>
+              打开诊断工具
+              <ChevronRightIcon data-icon="inline-end" />
+            </Button>
+          </Row>
+        </Section>
+      )}
     </>
   );
 }

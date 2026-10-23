@@ -191,6 +191,23 @@ pub fn run() {
     let builder = builder.invoke_handler(command_handler());
     builder
         .setup(|app| {
+            #[cfg(target_os = "macos")]
+            if let Some(window) = app.get_webview_window("main") {
+                use objc2_app_kit::{NSControlSize, NSWindow, NSWindowButton};
+                let pointer = window.ns_window()?;
+                // Tauri runs setup on the AppKit thread; the window owns this pointer.
+                let native = unsafe { &*pointer.cast::<NSWindow>() };
+                // Use AppKit's small control specification, not a frame/scale override.
+                for kind in [
+                    NSWindowButton::CloseButton,
+                    NSWindowButton::MiniaturizeButton,
+                    NSWindowButton::ZoomButton,
+                ] {
+                    if let Some(button) = native.standardWindowButton(kind) {
+                        button.setControlSize(NSControlSize::Small);
+                    }
+                }
+            }
             let root =
                 data_dir_override().unwrap_or(app.path().app_data_dir()?.join("data"));
             app.manage(credential_bindings::Bindings::new(root.clone()));

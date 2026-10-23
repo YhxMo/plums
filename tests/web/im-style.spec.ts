@@ -1,5 +1,25 @@
 import { expect, test, type Locator, type Page } from "@playwright/test";
-import { addAgent } from "./helpers";
+import { addAgent, manage } from "./helpers";
+
+test("a narrow desktop keeps attachment shortcuts and Enter-to-send", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 700, height: 680 });
+  await page.goto("/");
+  await addAgent(page, "半屏助手");
+  const input = page.getByRole("textbox", { name: "消息", exact: true });
+  await input.focus();
+  const chooser = page.waitForEvent("filechooser");
+  await page.keyboard.press("ControlOrMeta+U");
+  await chooser;
+  await input.fill("第一行");
+  await input.press("Shift+Enter");
+  await expect(input).toHaveValue("第一行\n");
+  await input.fill("只发送一次");
+  await input.press("Enter");
+  await expect(page.getByRole("log")).toContainText("echo-a｜第 1 轮");
+  await expect(input).toHaveValue("");
+});
 
 /** Adds an Agent and sends one message, so both bubbles are on screen. */
 async function conversation(page: Page) {
@@ -51,7 +71,7 @@ test("desktop shows the list and the conversation as two separate rounded panels
   const rail = await page
     .getByRole("navigation", { name: "应用导航" })
     .boundingBox();
-  expect(rail!.width).toBeLessThanOrEqual(60);
+  expect(rail!.width).toBeLessThanOrEqual(64);
   // Each panel is a step lighter than the surface around it.
   const outer = await resolve(page, "var(--chrome-bg)");
   expect(await style(chat, "background-color")).not.toBe(outer);
@@ -89,6 +109,87 @@ test("own messages use the brand colour, replies the card colour, with one sans 
     await page.evaluate(() => localStorage.clear());
   }
   expect(faces[0]).toBe(faces[1]);
+});
+
+// The native window is dragged from the top of each pane; a bare region only
+// counts clicks on its own box, so text inside the header would block it.
+test("the pane headers and the rail drag the window from anywhere that is not a control", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1280, height: 800 });
+  await page.goto("/");
+  await addAgent(page, "拖动助手");
+  for (const label of ["拖动助手 的会话", "Agent 列表"])
+    await expect(
+      page
+        .getByLabel(label, { exact: true })
+        .locator("[data-tauri-drag-region]")
+        .first(),
+    ).toHaveAttribute("data-tauri-drag-region", "deep");
+  await expect(
+    page.getByRole("navigation", { name: "应用导航" }),
+  ).toHaveAttribute("data-tauri-drag-region", "true");
+});
+
+test("the page behind the shell neither scrolls nor bounces", async ({
+  page,
+}) => {
+  await page.goto("/");
+  for (const selector of ["html", "body", "#root"]) {
+    const rule = await page
+      .locator(selector)
+      .evaluate((el) => getComputedStyle(el).overscrollBehaviorY);
+    expect(rule, selector).toBe("none");
+  }
+  for (const selector of ["html", "body"]) {
+    const rule = await page
+      .locator(selector)
+      .evaluate((el) => getComputedStyle(el).overflowY);
+    expect(rule, selector).toBe("hidden");
+  }
+});
+
+test("the attach shortcut stays quiet behind the extension manager and under dialogs", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1280, height: 800 });
+  await page.goto("/");
+  await addAgent(page, "快捷键助手");
+  await page.getByRole("dialog").waitFor({ state: "hidden" });
+  const chooserOpens = async () => {
+    let opened = false;
+    const seen = () => (opened = true);
+    page.on("filechooser", seen);
+    await page.keyboard.press("ControlOrMeta+U");
+    await page.waitForTimeout(300);
+    page.off("filechooser", seen);
+    return opened;
+  };
+  await manage(page);
+  expect(await chooserOpens()).toBe(false);
+  await page.getByRole("button", { name: "返回工作区", exact: true }).click();
+  await page.getByRole("button", { name: "应用菜单", exact: true }).click();
+  await page.getByRole("menuitem", { name: "应用设置", exact: true }).click();
+  await expect(page.getByRole("dialog", { name: "应用设置" })).toBeVisible();
+  expect(await chooserOpens()).toBe(false);
+  await page.keyboard.press("Escape");
+  await page.getByRole("textbox", { name: "消息", exact: true }).focus();
+  expect(await chooserOpens()).toBe(true);
+});
+
+test("the sidebar button sits on the same line as the conversation header buttons", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 960, height: 680 });
+  await page.goto("/");
+  await addAgent(page, "对齐助手");
+  const middle = async (name: string) => {
+    const box = await page.getByRole("button", { name }).first().boundingBox();
+    return box!.y + box!.height / 2;
+  };
+  const toggle = await middle("展开或收起右侧栏");
+  expect(Math.abs(toggle - (await middle("新建会话")))).toBeLessThanOrEqual(1);
+  expect(Math.abs(toggle - (await middle("更多操作")))).toBeLessThanOrEqual(1);
 });
 
 test("phone replies carry no name label above them", async ({ page }) => {
@@ -199,16 +300,19 @@ for (const width of [1280, 375]) {
     const text = page.getByRole("textbox", { name: "消息", exact: true });
     const log = page.getByRole("log");
     const plus = page.getByRole("button", { name: "添加附件" });
-    // The first model reads no pictures: files only, with the reason shown.
+    // One entry for pictures and files, never greyed out by the model.
     await plus.click();
     await expect(
-      page.getByRole("menuitem", { name: /添加图片/ }),
-    ).toBeDisabled();
-    await expect(
-      page.getByRole("menuitem", { name: /添加图片/ }),
-    ).toContainText("当前模型不读图片");
+      page.getByRole("menuitem", { name: /图片和文件/ }),
+    ).toBeEnabled();
     await page.keyboard.press("Escape");
-    await page.getByLabel("选择文本文件").setInputFiles({
+    if (width >= 768) {
+      await text.focus();
+      const chooser = page.waitForEvent("filechooser");
+      await page.keyboard.press("ControlOrMeta+U");
+      await chooser;
+    }
+    await page.getByLabel("选择文件").setInputFiles({
       name: "笔记.md",
       mimeType: "text/markdown",
       buffer: Buffer.from("第一行\n第二行"),
@@ -227,10 +331,18 @@ for (const width of [1280, 375]) {
       page.getByRole("dialog", { name: "笔记.md" }).getByText("第二行"),
     ).toBeVisible();
     await page.keyboard.press("Escape");
+    // A model that cannot read pictures still takes them, and is told so.
+    await page.getByLabel("选择文件").setInputFiles(picture("无眼.png"));
+    await expect(waiting.getByText("无眼.png")).toBeVisible();
+    await text.fill("看看这张");
+    await page.getByRole("button", { name: "发送", exact: true }).click();
+    await expect(log).toContainText(
+      'ERROR: Cannot read "无眼.png" (this model does not support image input)',
+    );
     // A model that reads pictures takes them, picked, pasted or dropped.
     await page.getByRole("combobox", { name: "切换模型" }).click();
     await page.getByRole("option", { name: /回显 B/ }).click();
-    await page.getByLabel("选择图片").setInputFiles(picture("照片.png"));
+    await page.getByLabel("选择文件").setInputFiles(picture("照片.png"));
     await expect(waiting.getByText("照片.png")).toBeVisible();
     await text.focus();
     await page.evaluate((png) => {
@@ -317,14 +429,14 @@ test("a file that is not text, or too many files, are refused with the reason", 
   await page.setViewportSize({ width: 1280, height: 800 });
   await page.goto("/");
   await addAgent(page, "拒绝助手");
-  await page.getByLabel("选择文本文件").setInputFiles({
+  await page.getByLabel("选择文件").setInputFiles({
     name: "二进制.bin",
     mimeType: "application/octet-stream",
     buffer: Buffer.from([0xff, 0xfe, 0x00, 0x80]),
   });
   await expect(page.getByText(/二进制.bin」不是 UTF-8 文本/)).toBeVisible();
   await expect(page.getByRole("list", { name: "待发送的附件" })).toHaveCount(0);
-  await page.getByLabel("选择文本文件").setInputFiles(
+  await page.getByLabel("选择文件").setInputFiles(
     Array.from({ length: 6 }, (_, i) => ({
       name: `f${i}.txt`,
       mimeType: "text/plain",

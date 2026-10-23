@@ -22,6 +22,8 @@ import { DiagnosticActions } from "../features/extensions/DiagnosticActions";
 
 /** Composes feature owners; it does not own extension form or workspace state. */
 export function Workbench({ runtime }: { runtime: Runtime }) {
+  const macOverlay =
+    runtime.adapter.kind === "native" && /Macintosh/.test(navigator.userAgent);
   useSyncExternalStore(runtime.host.subscribe, runtime.host.snapshot);
   const operations = useOperations(runtime);
   const appearance = useAppearance(runtime, operations);
@@ -43,8 +45,22 @@ export function Workbench({ runtime }: { runtime: Runtime }) {
   });
   return (
     <div className="flex h-dvh min-h-0 overflow-hidden bg-chrome max-md:flex-col">
+      {macOverlay && (
+        <>
+          {/* AppKit owns the buttons. Reserve a row without HTML controls when
+              the rail is absent, and keep a drag strip above wide panes. */}
+          <div
+            className="h-9 shrink-0 bg-chrome md:hidden"
+            data-tauri-drag-region
+          />
+          <div
+            className="fixed inset-x-0 top-0 z-40 h-3 max-md:hidden"
+            data-tauri-drag-region
+          />
+        </>
+      )}
       <NavRail
-        platformKind={runtime.adapter.kind}
+        macOverlay={macOverlay}
         operations={operations}
         appearance={appearance}
         workspace={workspace}
@@ -61,9 +77,11 @@ export function Workbench({ runtime }: { runtime: Runtime }) {
           data-manager={navigation.manager.open}
         >
           {/* Desktop keeps the sidebar button in the pane's top-right corner; headers leave room for it. */}
-          <div className="pane-toggle absolute top-1.5 right-2 z-3 max-md:hidden">
-            <SidebarToggle chrome={chrome} side="bottom" />
-          </div>
+          {!navigation.manager.open && (
+            <div className="pane-toggle absolute right-2 z-3 max-md:hidden">
+              <SidebarToggle chrome={chrome} side="bottom" />
+            </div>
+          )}
           <TitleBar
             operations={operations}
             appearance={appearance}

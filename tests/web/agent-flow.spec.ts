@@ -733,7 +733,11 @@ test("each part of an Agent can be switched off, and says what that means", asyn
   await expect(dialog).toContainText("已关闭：它不会回复");
   await dialog.getByRole("button", { name: "添加", exact: true }).click();
   const message = page.getByRole("textbox", { name: "消息", exact: true });
-  await expect(message).toHaveCount(0);
+  await expect(message).toBeVisible();
+  await message.fill("草稿不因停用消失");
+  await expect(
+    page.getByRole("button", { name: "发送", exact: true }),
+  ).toBeDisabled();
   await expect(page.getByRole("status")).toContainText(
     "此 Agent 已关闭「Agent 核心」，开启后它才会回复。",
   );
@@ -750,6 +754,7 @@ test("each part of an Agent can be switched off, and says what that means", asyn
     "此 Agent 已关闭「默认 Agent 界面」",
   );
   await page.getByRole("button", { name: "开启", exact: true }).click();
+  await expect(message).toHaveValue("草稿不因停用消失");
   await message.fill("hello");
   await page.getByRole("button", { name: "发送", exact: true }).click();
   await expect(page.getByRole("log")).toContainText("echo-a｜第 1 轮");

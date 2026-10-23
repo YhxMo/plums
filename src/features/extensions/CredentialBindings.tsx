@@ -10,7 +10,7 @@ import type {
 } from "../../credentials";
 import type { CredentialOperations } from "../../shell/controllers";
 import { Button } from "../../components/ui/button";
-import { Input } from "../../components/ui/input";
+import { SecretInput } from "../../components/SecretInput";
 import { resultMessage } from "./credential-copy";
 
 const stateLabel = {
@@ -185,9 +185,9 @@ export function CredentialBindings({
                       );
                     }}
                   >
-                    <Input
-                      type="password"
-                      className="min-w-0 flex-[1_1_200px] bg-background"
+                    <SecretInput
+                      containerClassName="flex-[1_1_200px]"
+                      className="bg-background"
                       aria-label={`${declaration.label} 的 API Key`}
                       value={keys[alias] ?? ""}
                       maxLength={4096}

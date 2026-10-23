@@ -34,6 +34,7 @@ export function Select({
   onChange,
   disabled,
   placeholder = "请选择",
+  prefix,
   size,
   className,
 }: {
@@ -43,6 +44,8 @@ export function Select({
   onChange: (value: string) => void;
   disabled?: boolean;
   placeholder?: string;
+  /** Shown before the chosen option, so a short option reads in context. */
+  prefix?: string;
   size?: ComponentProps<typeof SelectTrigger>["size"];
   /** Restyles the button, such as a borderless picker inside a toolbar. */
   className?: string;
@@ -62,6 +65,7 @@ export function Select({
         size={size}
         className={cn("w-full min-w-0 bg-card", className)}
       >
+        {prefix && <span aria-hidden>{prefix}</span>}
         <SelectValue placeholder={placeholder} />
       </SelectTrigger>
       <SelectContent position="popper" align="start" aria-label={label}>

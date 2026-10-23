@@ -221,8 +221,8 @@ export function AgentList({
       aria-label="Agent 列表"
     >
       <div
-        className="flex min-h-12 items-center gap-2 px-3 max-md:flex-wrap max-md:px-5 max-md:pt-4 max-md:pb-3"
-        data-tauri-drag-region
+        className="flex min-h-12 items-center gap-2 px-3 md:h-14 max-md:flex-wrap max-md:px-5 max-md:pt-4 max-md:pb-3"
+        data-tauri-drag-region="deep"
       >
         <h2
           className={cn(
@@ -261,7 +261,7 @@ export function AgentList({
         <LayoutGroup id="agent-rows">
           {favourites.length > 0 && (
             <>
-              <h3 className={section}>特别关注</h3>
+              <h3 className="sr-only">特别关注</h3>
               <div className="grid grid-cols-[repeat(auto-fill,minmax(76px,1fr))] gap-0.5 pb-1">
                 {favourites.map((a) => (
                   <AgentTile

@@ -7,6 +7,12 @@
 /* Light/dark follows the shell's data-theme, which contributed themes also set. */
 @custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
 
+/* Two panes need 64px rail + 208px list + 8px gap + 360px chat + 8px inset.
+   Keep the Agent workspace media queries at this same 648px boundary. */
+@theme {
+  --breakpoint-md: 40.5rem;
+}
+
 /*
  * shadcn/ui tokens read the shell's semantic colours (styles.css and the
  * public theme contract in docs/THEMES.md), so a contributed theme restyles
@@ -77,14 +83,25 @@
   * {
     @apply border-border outline-ring/50;
   }
+  /* The shell fills the window and each pane scrolls itself; the page behind
+     never scrolls or bounces when a pane reaches its end. */
   html {
     @apply font-sans antialiased;
+  }
+  html,
+  body,
+  #root {
+    overscroll-behavior: none;
+  }
+  html,
+  body {
+    @apply overflow-hidden;
   }
   body {
     @apply bg-background text-sm text-foreground;
   }
   /* Touch layouts keep at least 44 CSS px targets. */
-  @media (max-width: 767px) {
+  @media (width < 40.5rem) {
     :is(
       [data-slot="button"],
       [data-slot="select-trigger"],
@@ -105,10 +122,14 @@
   .pane {
     @apply md:rounded-2xl md:border md:border-border/70 md:bg-background md:shadow-panel;
   }
+  /* Centred on the 48px title bar; the own-frame panels' 56px headers sit lower. */
+  .pane-toggle {
+    @apply top-2;
+  }
   .pane[data-manager="false"]:has([data-frame="own"]) {
     @apply md:rounded-none md:border-0 md:bg-transparent md:shadow-none;
     .pane-toggle {
-      @apply md:top-2.5;
+      @apply top-[12.5px];
     }
   }
 }

@@ -16,6 +16,7 @@ import {
 import { DialogActions, DialogBody } from "../components/Dialog";
 import { Select } from "../components/Select";
 import { ActionToast } from "../components/Toast";
+import { SecretInput } from "../components/SecretInput";
 import { InfoTip } from "../components/Tooltip";
 import { useAsyncAction } from "../components/useAsyncAction";
 import { Badge } from "../components/ui/badge";
@@ -36,6 +37,7 @@ import {
 } from "../components/ui/field";
 import { Input } from "../components/ui/input";
 import { ModelPicker } from "./ModelPicker";
+import { ThinkingSelect } from "./ThinkingSelect";
 import { useRequestSignal } from "./useRequestSignal";
 
 export function fromPreset(
@@ -52,6 +54,7 @@ export function fromPreset(
     base: preset.base,
     models: [],
     windows: {},
+    thinking: {},
     maxTokens: null,
     context: preset.context,
   };
@@ -65,6 +68,7 @@ const draftOf = (provider: ProviderView): ProviderDraft => ({
   base: provider.base,
   models: provider.models,
   windows: provider.windows,
+  thinking: provider.thinking,
   maxTokens: provider.maxTokens,
   context: provider.context,
 });
@@ -81,26 +85,30 @@ const windowChoices = (...extra: number[]) =>
 function ModelList({
   models,
   windows,
+  thinking,
+  provider,
   context,
   disabled,
   onChange,
 }: {
   models: string[];
   windows: Record<string, number>;
+  thinking: ProviderDraft["thinking"];
+  provider: Pick<ProviderDraft, "protocol" | "preset">;
   context: number;
   disabled: boolean;
-  onChange: (patch: Pick<ProviderDraft, "models" | "windows">) => void;
+  onChange: (
+    patch: Pick<ProviderDraft, "models" | "windows" | "thinking">,
+  ) => void;
 }) {
-  const without = (model: string) =>
-    Object.fromEntries(
-      Object.entries(windows).filter(([name]) => name !== model),
-    );
+  const without = <T,>(of: Record<string, T>, model: string) =>
+    Object.fromEntries(Object.entries(of).filter(([name]) => name !== model));
   const [name, setName] = useState("");
   const value = name.trim();
   const full = models.length >= MAX_MODELS;
   const add = () => {
     if (!value || models.includes(value) || full) return;
-    onChange({ models: [...models, value], windows });
+    onChange({ models: [...models, value], windows, thinking });
     setName("");
   };
   return (
@@ -113,9 +121,26 @@ function ModelList({
           {models.map((model) => (
             <li
               key={model}
-              className="flex items-center gap-2 py-1 pr-1 pl-3 text-[13px]"
+              className="flex flex-wrap items-center gap-2 py-1 pr-1 pl-3 text-[13px]"
             >
-              <span className="min-w-0 flex-1 break-all">{model}</span>
+              <span className="min-w-0 flex-1 basis-40 break-all">{model}</span>
+              <span className="w-44 shrink-0">
+                <ThinkingSelect
+                  model={model}
+                  provider={provider}
+                  value={thinking[model]}
+                  disabled={disabled}
+                  onChange={(mode) =>
+                    onChange({
+                      models,
+                      windows,
+                      thinking: mode
+                        ? { ...thinking, [model]: mode }
+                        : without(thinking, model),
+                    })
+                  }
+                />
+              </span>
               <span className="w-33 shrink-0">
                 <Select
                   label={`${model} 的上下文窗口`}
@@ -134,9 +159,10 @@ function ModelList({
                   onChange={(value) =>
                     onChange({
                       models,
+                      thinking,
                       windows: value
                         ? { ...windows, [model]: Number(value) }
-                        : without(model),
+                        : without(windows, model),
                     })
                   }
                 />
@@ -151,7 +177,8 @@ function ModelList({
                 onClick={() =>
                   onChange({
                     models: models.filter((m) => m !== model),
-                    windows: without(model),
+                    windows: without(windows, model),
+                    thinking: without(thinking, model),
                   })
                 }
               >
@@ -398,10 +425,9 @@ export function ProviderForm({
           </Field>
           <Field>
             <FieldLabel htmlFor={`${ids}-key`}>API Key</FieldLabel>
-            <Input
+            <SecretInput
               id={`${ids}-key`}
               aria-describedby={`${ids}-key-state`}
-              type="password"
               value={key}
               maxLength={4096}
               required={needsKey}
@@ -479,6 +505,8 @@ export function ProviderForm({
           <ModelList
             models={draft.models}
             windows={draft.windows}
+            thinking={draft.thinking}
+            provider={draft}
             context={draft.context}
             disabled={busy}
             onChange={set}
