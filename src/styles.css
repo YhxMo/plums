@@ -75,24 +75,6 @@
 [hidden] {
   display: none !important;
 }
-/* After a tap or click, focus returned by code stays quiet (WebKit would
-   otherwise ring the opener); the keyboard brings the ring back. */
-:root[data-input="pointer"]
-  :is(
-    button,
-    a,
-    summary,
-    [role="menuitem"],
-    [role="option"],
-    [role="tab"],
-    [role="radio"],
-    [role="switch"],
-    [role="checkbox"]
-  ):focus-visible,
-:root[data-input="pointer"] label:has(> input:focus-visible) {
-  outline-style: none;
-  --tw-ring-shadow: 0 0 #0000;
-}
 /* Programmatic focus targets (headings) mark position for screen readers only. */
 [tabindex="-1"]:focus {
   outline: none;
