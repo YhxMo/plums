@@ -6,7 +6,7 @@
 
 受验提交 `6668ce72799092e1a7de87e0c9219fafeb1511c5`，两端 `source.patch` 均为空。相对上一交付（`015ac2d`，0.0.4）的主要增量：应用内填写 API Key（Mac 存数据根 `credential-secrets.json`，不用钥匙串）、整段对话发送与提示缓存、`network.read` 公开读取能力、获取模型列表时按 models.dev 为每个模型填上下文窗口，以及版本号 0.2.0。
 
-原始 AX 导出、截图、日志与验收脚本保存在本地 `.cache/release-0.2.0/`，不提交。
+原始 AX 导出、截图、日志与验收脚本保存在本地 `.cache/release-0.2.0/`，不提交。 历史提交标识与当前源码的对应关系见[开发流程](../docs/DEVELOPMENT.md#历史提交与交付来源)。
 
 ## 自动化与构建
 
