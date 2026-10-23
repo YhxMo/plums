@@ -1,6 +1,6 @@
 # Plums 工程状态
 
-核对日期：2026-10-23（Asia/Singapore）。当前只收口 macOS arm64 应用本体，Android 冻结。分支 `feat/ui-refresh`，HEAD `5b7dd9e`，开发改动尚未提交。
+核对日期：2026-10-23（Asia/Singapore）。当前只收口 macOS arm64 应用本体，Android 冻结。分支 `feat/ui-refresh`；本候选已分主题提交。2026-10-23 起历史统一使用 `dev.plums.plums` 命名，改写前的包与本地数据仍是旧名，见[历史提交与交付来源](docs/DEVELOPMENT.md#历史提交与交付来源)。
 
 [文档导航](docs/README.md) · [当前阶段](docs/spec/milestone.md) · [整体路线](docs/spec/total.md) · [当前交付](evidence/RESULTS.md)
 
@@ -27,7 +27,7 @@
 | Chromium | `npm run verify:e2e` 全量 224 项通过，1 worker |
 | WebKit | 当前输入法修复下 31 项通过：input-method / dialog-keyboard / application-flow / model-connection-recovery。运行入口见[开发流程](docs/DEVELOPMENT.md#验证入口) |
 | 独立审查 | 文件存储、Popover、文档清理与管理页布局已审查；FocusScope、输入法 Enter/Escape 修复和相应回归的限定只读审查无可行动发现 |
-| macOS 打包应用 | macOS 27.0.1（26A434）arm64 的隔离 `Plums Review`（`dev.plums.plums.review`，0.2.0）构建、`codesign --verify --deep --strict` 与下述简体拼音实际验收通过；VoiceOver 暂缓 |
+| macOS 打包应用 | macOS 27.0.1（26A434）arm64 的隔离 `Plums Review`（改名前构建，`dev.plums.m1.review`，0.2.0）构建、`codesign --verify --deep --strict` 与下述简体拼音实际验收通过；VoiceOver 暂缓 |
 
 两份依赖补丁均经 `npm run postinstall` 成功应用；FocusScope 与 DismissableLayer 补丁均经反向还原后重应用验证，ESM/CJS 语法检查通过。
 
@@ -47,7 +47,7 @@ Mac 当前包默认只有 3 个正式扩展。实测 960px 默认窗口的列表
 
 ## 当前交付与恢复
 
-手测候选位于 `release/mac-manual-2026-10-23/`，0.2.0 arm64 debug / ad-hoc，构建与签名校验通过。先退出其他 Plums，再打开包内 `打开手测.command`，使用 `.dev-data/mac-manual-2026-10-23/` 的独立数据；默认只有三个正式扩展，未附带回显测试扩展。直接打开包内 `Plums.app` 则使用常规数据目录。候选的 `build-info.json` 与 `source.patch` 记录当前未提交源码，包内 README 给出手测入口；所有者手测待进行。
+手测候选位于 `release/mac-manual-2026-10-23/`，0.2.0 arm64 debug / ad-hoc，构建与签名校验通过。先退出其他 Plums，再打开包内 `打开手测.command`，使用独立数据（改名前构建，包内可执行文件仍为 `plums-m1`；其启动脚本指向的 `.m1-data/` 已改名为 `.dev-data/`，需按新源码重建候选后再手测）；默认只有三个正式扩展，未附带回显测试扩展。直接打开包内 `Plums.app` 则使用常规数据目录。候选的 `build-info.json` 与 `source.patch` 记录当前未提交源码，包内 README 给出手测入口；所有者手测待进行。
 
 已交付 0.2.0 来自 `6668ce7`，Mac 入口 `release/mac/Plums.app`，本次未替换；Android 包仅保留其原受验范围。[交付证据](evidence/RELEASE-0.2.0-2026-10-20.md)及包旁的 `build-info.json`、`source.patch` 用于核对来源。0.0.4 恢复包保留在 `.cache/archive/releases/mac-uIizKK/mac` 与 `.cache/archive/releases/android-JS89ll/android`；恢复包不自动回滚数据，操作规则见[开发流程](docs/DEVELOPMENT.md#本地交付目录)。
 
