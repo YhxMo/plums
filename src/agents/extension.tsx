@@ -1,11 +1,8 @@
 import { createRoot } from "react-dom/client";
 import { MotionConfig } from "motion/react";
 import type { ReactNode } from "react";
-import {
-  createWorkspaceChrome,
-  type ExtensionDefinition,
-} from "../../modules/sdk";
-import type { AgentProvider } from "../../modules/agents/contract";
+import { createWorkspaceChrome, type ExtensionDefinition } from "@modules/sdk";
+import type { AgentProvider } from "@modules/agents/contract";
 import { AgentWorkspace } from "./AgentWorkspace";
 
 function mountReactView(

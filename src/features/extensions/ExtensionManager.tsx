@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { useMediaQuery } from "../../components/useMediaQuery";
+import { useMediaQuery } from "@/components/useMediaQuery";
 import type { ExtensionManagerController } from "./controllers";
 import { ManagerHeader } from "./ManagerHeader";
 import { ExtensionList } from "./ExtensionList";

@@ -1,6 +1,6 @@
-import type { DialogFeedback } from "../../shell/controllers";
-import { Dialog, DialogActions, DialogBody } from "../../components/Dialog";
-import { Button } from "../../components/ui/button";
+import type { DialogFeedback } from "@/shell/controllers";
+import { Dialog, DialogActions, DialogBody } from "@/components/Dialog";
+import { Button } from "@/components/ui/button";
 export function UninstallDialog({
   feedback,
   id: removal,

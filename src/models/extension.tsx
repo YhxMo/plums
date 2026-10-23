@@ -1,8 +1,8 @@
 import { createRoot } from "react-dom/client";
 import { MotionConfig } from "motion/react";
-import { modelConnector } from "../../modules/models/extension";
+import { modelConnector } from "@modules/models/extension";
 import { ModelConnections } from "./ModelConnections";
-import { LayerContainer } from "../components/ui/layer";
+import { LayerContainer } from "@/components/ui/layer";
 
 /** The built-in model connector with its React connection page. */
 export const modelConnectorWithPage = () =>

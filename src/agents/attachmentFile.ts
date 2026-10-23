@@ -1,5 +1,5 @@
-import type { Attachment } from "../../modules/agents/contract";
-import { LIMITS, decodeText } from "../../modules/agents/attachments";
+import type { Attachment } from "@modules/agents/contract";
+import { LIMITS, decodeText } from "@modules/agents/attachments";
 import { scaledPicture } from "./imageFile";
 
 /** Fits a name into the attachment name limit, keeping the extension. */

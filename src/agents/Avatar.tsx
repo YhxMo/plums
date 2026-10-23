@@ -1,11 +1,11 @@
 import { cn } from "cn";
-import type { Agent } from "../../modules/agents/contract";
+import type { Agent } from "@modules/agents/contract";
 import {
   Avatar as AvatarRoot,
   AvatarBadge,
   AvatarFallback,
   AvatarImage,
-} from "../components/ui/avatar";
+} from "@/components/ui/avatar";
 
 const sizes = {
   normal: "size-10 text-base",

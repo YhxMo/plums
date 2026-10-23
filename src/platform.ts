@@ -13,7 +13,7 @@ import {
   type Platform,
   type StoredState,
   type Appearance,
-} from "../modules/sdk";
+} from "@modules/sdk";
 
 function validOwner(owner: string) {
   if (!/^[a-z][a-z0-9.-]{0,95}$/.test(owner) || owner.includes(".."))

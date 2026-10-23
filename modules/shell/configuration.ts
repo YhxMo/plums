@@ -1,5 +1,8 @@
-import type { Host } from "../extension-host/host";
-import { resolveConfiguration, type Configuration } from "../sdk/configuration";
+import type { Host } from "@modules/extension-host/host";
+import {
+  resolveConfiguration,
+  type Configuration,
+} from "@modules/sdk/configuration";
 
 /** Validate before stop; publish only after storage confirms. A failed save leaves the extension stopped. */
 export async function saveConfiguration(

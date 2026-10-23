@@ -7,17 +7,17 @@ import {
   persistComposition,
   configureExtension,
   importExtensionFile,
-} from "../../../modules/shell/extension-actions";
+} from "@modules/shell/extension-actions";
 import {
   loadExtensionSource,
   readExtensionFile,
-} from "../../../modules/shell/file-import";
+} from "@modules/shell/file-import";
 import type { ImportPreview } from "./InstallDialog";
 import { waitingNotice } from "./enable-feedback";
-import type { ConfigurationValue } from "../../../modules/sdk/configuration";
-import type { Runtime } from "../../shell/runtime";
-import { errorMessage, stateMessage } from "../../shell/messages";
-import { useExtensionState } from "../../shell/useExtensionState";
+import type { ConfigurationValue } from "@modules/sdk/configuration";
+import type { Runtime } from "@/shell/runtime";
+import { errorMessage, stateMessage } from "@/shell/messages";
+import { useExtensionState } from "@/shell/useExtensionState";
 import type { ManagementInputs, ExtensionCardModel } from "./controllers";
 
 /** Names the step that failed, so the message reads on its own. */

@@ -1,6 +1,6 @@
-import { ContractError } from "../sdk/errors";
-import type { Named } from "../sdk";
-import type { Effort } from "../../extensions/contracts";
+import { ContractError } from "@modules/sdk/errors";
+import type { Named } from "@modules/sdk";
+import type { Effort } from "@extensions/contracts";
 import { LIMITS, attachmentProblem, imageSize } from "./attachments";
 import type {
   Agent,

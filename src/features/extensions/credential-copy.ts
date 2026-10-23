@@ -1,4 +1,4 @@
-import type { CredentialManagementResponse } from "../../credentials";
+import type { CredentialManagementResponse } from "@/credentials";
 
 /** Shared management copy; keeps result-code mapping testable outside React. */
 export function resultMessage(

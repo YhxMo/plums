@@ -5,9 +5,9 @@ import { cn } from "cn";
 import type { NavRailProps, TitleBarProps } from "./controllers";
 import type { Workspace } from "./useWorkspace";
 import type { ShellNavigation } from "./useShellNavigation";
-import { SettingsMenu } from "../components/SettingsMenu";
-import { Tooltip } from "../components/Tooltip";
-import { Button } from "../components/ui/button";
+import { SettingsMenu } from "@/components/SettingsMenu";
+import { Tooltip } from "@/components/Tooltip";
+import { Button } from "@/components/ui/button";
 
 type Side = "bottom" | "right";
 

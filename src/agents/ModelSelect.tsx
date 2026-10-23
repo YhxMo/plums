@@ -1,14 +1,14 @@
 import { cn } from "cn";
 import { ChevronDownIcon } from "lucide-react";
-import type { AgentModel, ModelChoice } from "../../modules/agents/contract";
-import { Select } from "../components/Select";
-import { Button } from "../components/ui/button";
+import type { AgentModel, ModelChoice } from "@modules/agents/contract";
+import { Select } from "@/components/Select";
+import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
-} from "../components/ui/dropdown-menu";
+} from "@/components/ui/dropdown-menu";
 
 const key = (model: AgentModel) => `${model.provider}\n${model.model}`;
 const choiceKey = (m: ModelChoice) =>

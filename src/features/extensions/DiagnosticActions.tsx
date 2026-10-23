@@ -1,8 +1,8 @@
 import { useState } from "react";
-import type { DiagnosticActionsProps } from "../../shell/controllers";
-import { Button } from "../../components/ui/button";
-import { Checkbox } from "../../components/ui/checkbox";
-import { Label } from "../../components/ui/label";
+import type { DiagnosticActionsProps } from "@/shell/controllers";
+import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Label } from "@/components/ui/label";
 export function DiagnosticActions({
   runtime,
   operations,

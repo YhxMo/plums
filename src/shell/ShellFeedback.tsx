@@ -1,11 +1,11 @@
 import { useState, type ReactNode } from "react";
-import { diagnoseLayoutFallback } from "../../modules/shell/diagnostics";
+import { diagnoseLayoutFallback } from "@modules/shell/diagnostics";
 import type { ShellFeedbackProps } from "./controllers";
 import { TriangleAlertIcon, XIcon } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
-import { ActionToast } from "../components/Toast";
-import { Alert, AlertDescription } from "../components/ui/alert";
-import { Button } from "../components/ui/button";
+import { ActionToast } from "@/components/Toast";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
 
 /** A dismissable notice above the workspace. */
 function Banner({ children }: { children: ReactNode }) {

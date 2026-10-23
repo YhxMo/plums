@@ -1,5 +1,5 @@
-import { agentExtension } from "../modules/agents/provider";
-import { textWorkbench } from "../modules/text-workbench/extension";
+import { agentExtension } from "@modules/agents/provider";
+import { textWorkbench } from "@modules/text-workbench/extension";
 import { agentUI } from "./agents/extension";
 import { modelConnectorWithPage } from "./models/extension";
 import { bootShell, type ShellApplication } from "./shell/runtime";

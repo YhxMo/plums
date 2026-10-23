@@ -1,6 +1,6 @@
-import type { ExtensionDefinition, StoredState } from "../sdk";
-import { ContractError } from "../sdk/errors";
-import { validateDefinition } from "../extension-host/definition";
+import type { ExtensionDefinition, StoredState } from "@modules/sdk";
+import { ContractError } from "@modules/sdk/errors";
+import { validateDefinition } from "@modules/extension-host/definition";
 
 /**
  * Single-file extensions imported from the user's device. The source lives in

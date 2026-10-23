@@ -1,4 +1,4 @@
-import type { ExtensionContext, PageRouter, ViewNode } from "../sdk";
+import type { ExtensionContext, PageRouter, ViewNode } from "@modules/sdk";
 import { TextWorkbenchStore, type TextResult } from "./store";
 import "./style.css";
 

@@ -1,6 +1,6 @@
 import { cn } from "cn";
-import type { Effort } from "../../modules/agents/contract";
-import { Select } from "../components/Select";
+import type { Effort } from "@modules/agents/contract";
+import { Select } from "@/components/Select";
 
 const names: Record<Effort, string> = {
   off: "关闭",

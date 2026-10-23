@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import type { AgentConfig, AgentModel } from "../../modules/agents/contract";
+import type { AgentConfig, AgentModel } from "@modules/agents/contract";
 
 /**
  * The Agent being put together in the add dialog. It outlives the dialog,

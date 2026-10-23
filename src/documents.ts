@@ -1,9 +1,9 @@
 import { invokeNative } from "./native/invoke";
 import type { NativeCommands } from "./native/contract.generated";
-import { platformRejection } from "../modules/sdk";
+import { platformRejection } from "@modules/sdk";
 
-export type { SelectedDocument } from "../modules/sdk";
-import type { SelectedDocument } from "../modules/sdk";
+export type { SelectedDocument } from "@modules/sdk";
+import type { SelectedDocument } from "@modules/sdk";
 export type DocumentSelection = NativeCommands["document_select"]["response"];
 type DocumentResult =
   DocumentSelection | NativeCommands["document_read"]["response"];

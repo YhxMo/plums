@@ -1,4 +1,4 @@
-import type { Platform, StoredState } from "../sdk";
+import type { Platform, StoredState } from "@modules/sdk";
 
 function canonical(value: unknown): string {
   if (Array.isArray(value)) return `[${value.map(canonical).join(",")}]`;

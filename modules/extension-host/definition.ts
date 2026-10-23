@@ -1,12 +1,12 @@
-import type { ExtensionDefinition } from "../sdk";
-import { ContractError } from "../sdk/errors";
-import { array, identifier, object, string } from "../sdk/validation";
-import { validateConfigurationDeclaration } from "../sdk/configuration";
+import type { ExtensionDefinition } from "@modules/sdk";
+import { ContractError } from "@modules/sdk/errors";
+import { array, identifier, object, string } from "@modules/sdk/validation";
+import { validateConfigurationDeclaration } from "@modules/sdk/configuration";
 import {
   validateCredentialBindings,
   validateCredentialProtocols,
-} from "../sdk/credential-bindings";
-import { validateNetworkSources } from "../sdk/network";
+} from "@modules/sdk/credential-bindings";
+import { validateNetworkSources } from "@modules/sdk/network";
 
 export function validateDefinition(
   value: unknown,

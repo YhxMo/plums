@@ -1,5 +1,5 @@
 import { cn } from "cn";
-import { Switch } from "../components/ui/switch";
+import { Switch } from "@/components/ui/switch";
 import type { Part } from "./parts";
 
 /**

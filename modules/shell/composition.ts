@@ -1,6 +1,6 @@
-import { ContractError } from "../sdk/errors";
-import { array, identifier, object, string } from "../sdk/validation";
-import type { Host } from "../extension-host/host";
+import { ContractError } from "@modules/sdk/errors";
+import { array, identifier, object, string } from "@modules/sdk/validation";
+import type { Host } from "@modules/extension-host/host";
 
 type Entry = { id: string; version: string };
 /** Capabilities the user granted; they apply only to the recorded version. */

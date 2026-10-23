@@ -2,8 +2,8 @@ import type {
   CredentialResponse,
   ExtensionDefinition,
   NetworkReadResponse,
-} from "../sdk";
-import type { ChatService } from "../../extensions/contracts";
+} from "@modules/sdk";
+import type { ChatService } from "@extensions/contracts";
 import { ProviderStore, limits, modelId, presetOf } from "./providers";
 import {
   CATALOG_SOURCE,

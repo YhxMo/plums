@@ -4,9 +4,9 @@ import { motion } from "motion/react";
 import { cn } from "cn";
 import type { NavRailProps } from "./controllers";
 import { AppMenu, ThemeToggle } from "./ShellActions";
-import { Tooltip } from "../components/Tooltip";
-import { Button } from "../components/ui/button";
-import { Separator } from "../components/ui/separator";
+import { Tooltip } from "@/components/Tooltip";
+import { Button } from "@/components/ui/button";
+import { Separator } from "@/components/ui/separator";
 
 const railButton =
   "relative size-9 rounded-xl text-muted-foreground hover:bg-foreground/6 aria-[current=page]:text-brand-text [&_svg:not([class*='size-'])]:size-[18px]";

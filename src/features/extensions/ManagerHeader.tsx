@@ -1,8 +1,8 @@
 import { ArrowLeftIcon, PlusIcon } from "lucide-react";
 import type { ManagerHeaderController } from "./controllers";
-import { Tooltip } from "../../components/Tooltip";
-import { Button } from "../../components/ui/button";
-import { Badge } from "../../components/ui/badge";
+import { Tooltip } from "@/components/Tooltip";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 
 export function ManagerHeader({
   controller,

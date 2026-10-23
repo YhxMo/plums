@@ -1,6 +1,6 @@
-import type { StoredState, ShellBridge } from "../../modules/sdk";
+import type { StoredState, ShellBridge } from "@modules/sdk";
 export type SaveOptions = { signal?: AbortSignal; onCommit?: () => void };
-import type { PlatformAdapter } from "../platform";
+import type { PlatformAdapter } from "@/platform";
 import type { Preferences } from "./persisted-state";
 
 export function createPersistence(

@@ -1,6 +1,6 @@
 import { motion } from "motion/react";
 import type { RecoveryWelcomeProps } from "./controllers";
-import { Button } from "../components/ui/button";
+import { Button } from "@/components/ui/button";
 
 const steps = ["查看扩展", "确认授权", "运行与保存"];
 

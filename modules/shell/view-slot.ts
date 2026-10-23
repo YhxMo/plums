@@ -1,4 +1,4 @@
-import type { Host } from "../extension-host/host";
+import type { Host } from "@modules/extension-host/host";
 
 /** One writer per outlet. Failed roots stay fenced; a fresh recovery root is allowed. */
 export function createViewSlot(host: Host) {

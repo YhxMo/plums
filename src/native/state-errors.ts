@@ -1,4 +1,4 @@
-import { platformRejection } from "../../modules/sdk";
+import { platformRejection } from "@modules/sdk";
 import type { NativeCommands } from "./contract.generated";
 
 export type StateErrorCode = NativeCommands["platform_call"]["error"]["code"];

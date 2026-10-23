@@ -1,9 +1,9 @@
 import type { ReactNode } from "react";
 import { ChevronRightIcon, MoonIcon, SunIcon } from "lucide-react";
 import type { ShellDialogsProps } from "./controllers";
-import { Tooltip } from "../components/Tooltip";
-import { Button } from "../components/ui/button";
-import { ToggleGroup, ToggleGroupItem } from "../components/ui/toggle-group";
+import { Tooltip } from "@/components/Tooltip";
+import { Button } from "@/components/ui/button";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 
 type Props = Pick<ShellDialogsProps["operations"], "busy" | "operate"> &
   Pick<ShellDialogsProps["workspace"], "views" | "activeView"> & {

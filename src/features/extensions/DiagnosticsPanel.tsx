@@ -4,7 +4,7 @@ import {
   Collapsible,
   CollapsibleContent,
   CollapsibleTrigger,
-} from "../../components/ui/collapsible";
+} from "@/components/ui/collapsible";
 
 export function DiagnosticsPanel({
   open,

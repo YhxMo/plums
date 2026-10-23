@@ -1,12 +1,12 @@
 import { useState } from "react";
-import type { Host } from "../../../modules/extension-host/host";
-import type { ConfigurationValue } from "../../../modules/sdk/configuration";
-import type { DialogFeedback } from "../../shell/controllers";
-import { Dialog, DialogActions, DialogBody } from "../../components/Dialog";
-import { Button } from "../../components/ui/button";
-import { Checkbox } from "../../components/ui/checkbox";
-import { Field, FieldLabel } from "../../components/ui/field";
-import { Input } from "../../components/ui/input";
+import type { Host } from "@modules/extension-host/host";
+import type { ConfigurationValue } from "@modules/sdk/configuration";
+import type { DialogFeedback } from "@/shell/controllers";
+import { Dialog, DialogActions, DialogBody } from "@/components/Dialog";
+import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Field, FieldLabel } from "@/components/ui/field";
+import { Input } from "@/components/ui/input";
 export function ConfigurationDialog({
   host,
   feedback,

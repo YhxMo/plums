@@ -1,11 +1,11 @@
 import type { ReactNode } from "react";
 import { TriangleAlertIcon } from "lucide-react";
 import type { ExtensionListController } from "./controllers";
-import { extensionOwner } from "../../../modules/sdk";
+import { extensionOwner } from "@modules/sdk";
 import { SelectedDocuments } from "./SelectedDocuments";
 import { ExtensionCard } from "./ExtensionCard";
 import { ExtensionActions } from "./ExtensionActions";
-import { Button } from "../../components/ui/button";
+import { Button } from "@/components/ui/button";
 
 export function ExtensionList({
   controller,

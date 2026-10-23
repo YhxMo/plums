@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import type { Host } from "../../modules/extension-host/host";
+import type { Host } from "@modules/extension-host/host";
 import type { Runtime } from "./runtime";
 import type { ShellOperations } from "./useOperations";
 import type { Workspace } from "./useWorkspace";
@@ -7,7 +7,7 @@ import type { Appearance } from "./useAppearance";
 import type { ShellNavigation } from "./useShellNavigation";
 import type { WorkspaceChrome } from "./useWorkspaceChrome";
 import type { Authorization } from "./AuthorizationDialog";
-import type { Experiments } from "../features/extensions/useExperiments";
+import type { Experiments } from "@/features/extensions/useExperiments";
 
 export type CredentialOperations = Pick<ShellOperations, "busy" | "operate">;
 export type DialogFeedback = Pick<ShellOperations, "busy">;

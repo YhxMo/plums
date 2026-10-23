@@ -7,26 +7,26 @@ import type {
   Attachment,
   Effort,
   ModelChoice,
-} from "../../modules/agents/contract";
-import { MAX_TEXT } from "../../modules/agents/store";
+} from "@modules/agents/contract";
+import { MAX_TEXT } from "@modules/agents/store";
 import { DraftAttachments } from "./AttachmentView";
 import { EffortSelect } from "./EffortSelect";
 import { ModelSelect } from "./ModelSelect";
-import { Tooltip } from "../components/Tooltip";
-import { useMediaQuery } from "../components/useMediaQuery";
+import { Tooltip } from "@/components/Tooltip";
+import { useMediaQuery } from "@/components/useMediaQuery";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuShortcut,
   DropdownMenuTrigger,
-} from "../components/ui/dropdown-menu";
+} from "@/components/ui/dropdown-menu";
 import {
   InputGroup,
   InputGroupAddon,
   InputGroupButton,
   InputGroupTextarea,
-} from "../components/ui/input-group";
+} from "@/components/ui/input-group";
 
 const mac = /Mac|iPhone|iPad/.test(navigator.platform || navigator.userAgent);
 

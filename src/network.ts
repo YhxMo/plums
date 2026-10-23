@@ -2,8 +2,8 @@ import { invokeNative } from "./native/invoke";
 import type {
   CredentialFailureOutcome,
   NetworkReadResponse,
-} from "../modules/sdk";
-import { networkOrigin } from "../modules/sdk/network";
+} from "@modules/sdk";
+import { networkOrigin } from "@modules/sdk/network";
 
 const reasons: Record<string, string> = {
   denied: "扩展没有联网读取权限。",

@@ -1,4 +1,4 @@
-import type { CredentialProtocol } from "../sdk";
+import type { CredentialProtocol } from "@modules/sdk";
 import type { Protocol } from "./protocols";
 
 /** Credential templates; the user supplies each connection's target. */

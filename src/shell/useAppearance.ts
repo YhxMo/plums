@@ -1,5 +1,5 @@
 import { useEffect, useLayoutEffect, useState } from "react";
-import { applyTheme } from "../../modules/shell/theme";
+import { applyTheme } from "@modules/shell/theme";
 import type { Runtime } from "./runtime";
 import type { ShellOperations } from "./useOperations";
 import { errorMessage } from "./messages";

@@ -3,29 +3,29 @@ import { ChevronDownIcon, ListPlusIcon, XIcon } from "lucide-react";
 import type {
   ListedModel,
   ModelConnectionsApi,
-} from "../../modules/models/extension";
-import { chatTarget, normalizeBase } from "../../modules/models/addresses";
-import { contextChoices, CUSTOM } from "../../modules/models/presets";
-import { tokenLabel } from "../../modules/models/protocols";
+} from "@modules/models/extension";
+import { chatTarget, normalizeBase } from "@modules/models/addresses";
+import { contextChoices, CUSTOM } from "@modules/models/presets";
+import { tokenLabel } from "@modules/models/protocols";
 import {
   limits,
   MAX_MODELS,
   type ProviderDraft,
   type ProviderView,
-} from "../../modules/models/providers";
-import { DialogActions, DialogBody } from "../components/Dialog";
-import { Select } from "../components/Select";
-import { ActionToast } from "../components/Toast";
-import { SecretInput } from "../components/SecretInput";
-import { InfoTip } from "../components/Tooltip";
-import { useAsyncAction } from "../components/useAsyncAction";
-import { Badge } from "../components/ui/badge";
-import { Button } from "../components/ui/button";
+} from "@modules/models/providers";
+import { DialogActions, DialogBody } from "@/components/Dialog";
+import { Select } from "@/components/Select";
+import { ActionToast } from "@/components/Toast";
+import { SecretInput } from "@/components/SecretInput";
+import { InfoTip } from "@/components/Tooltip";
+import { useAsyncAction } from "@/components/useAsyncAction";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import {
   Collapsible,
   CollapsibleContent,
   CollapsibleTrigger,
-} from "../components/ui/collapsible";
+} from "@/components/ui/collapsible";
 import {
   Field,
   FieldDescription,
@@ -34,8 +34,8 @@ import {
   FieldSeparator,
   FieldSet,
   FieldTitle,
-} from "../components/ui/field";
-import { Input } from "../components/ui/input";
+} from "@/components/ui/field";
+import { Input } from "@/components/ui/input";
 import { ModelPicker } from "./ModelPicker";
 import { ThinkingSelect } from "./ThinkingSelect";
 import { useRequestSignal } from "./useRequestSignal";

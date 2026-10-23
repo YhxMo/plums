@@ -93,33 +93,58 @@ it.each([
 });
 
 it.each([
-  ["modules/sdk/example.ts", "../agents/store"],
-  ["modules/sdk/example.ts", "../../extensions/contracts"],
+  ["modules/sdk/example.ts", "@modules/agents/store"],
+  ["modules/sdk/example.ts", "@extensions/contracts"],
   ["extensions/examples/example.js", "../../modules/agents/store"],
   ["extensions/examples/example.js", "../../modules/text-workbench/store"],
-  ["modules/extension-host/example.ts", "../shell/composition"],
-  ["modules/extension-host/example.ts", "../agents/provider"],
-  ["modules/extension-host/example.ts", "../../src/platform"],
-  ["modules/shell/example.ts", "../agents/store"],
-  ["modules/shell/example.ts", "../text-workbench/extension"],
-  ["modules/shell/example.ts", "../../extensions/ui/default"],
-  ["modules/shell/example.ts", "../../src/shell/runtime"],
+  ["modules/extension-host/example.ts", "@modules/shell/composition"],
+  ["modules/extension-host/example.ts", "@modules/agents/provider"],
+  ["modules/extension-host/example.ts", "@/platform"],
+  ["modules/shell/example.ts", "@modules/agents/store"],
+  ["modules/shell/example.ts", "@modules/text-workbench/extension"],
+  ["modules/shell/example.ts", "@extensions/ui/default"],
+  ["modules/shell/example.ts", "@/shell/runtime"],
+  ["src/shell/example.tsx", "@modules/agents/store"],
 ])("keeps kernel layers off business and app code: %s -> %s", (file, target) =>
   expect(boundaryProblems(file, `import "${target}";`)).toHaveLength(1),
 );
 
 it.each([
   ["modules/sdk/example.ts", "./errors"],
-  ["modules/sdk/nested/example.ts", "../index"],
-  ["modules/extension-host/example.ts", "../sdk"],
-  ["modules/shell/example.ts", "../extension-host/host"],
-  ["modules/shell/example.ts", "../sdk/pages"],
+  ["modules/sdk/nested/example.ts", "@modules/sdk/index"],
+  ["modules/extension-host/example.ts", "@modules/sdk"],
+  ["modules/shell/example.ts", "@modules/extension-host/host"],
+  ["modules/shell/example.ts", "@modules/sdk/pages"],
+  ["modules/agents/example.ts", "@extensions/contracts"],
   ["extensions/examples/example.js", "../../modules/sdk"],
   ["extensions/examples/example.js", "../contracts"],
   ["src/components/ui/example.tsx", "@/components/lib/utils"],
   ["src/agents/example.tsx", "@/components/ui/button"],
+  ["src/agents/example.tsx", "@modules/agents/contract"],
 ])("allows downward imports: %s -> %s", (file, target) =>
   expect(boundaryProblems(file, `import "${target}";`)).toEqual([]),
+);
+
+it.each([
+  ["src/agents/example.tsx", "../components/ui/button"],
+  ["modules/agents/example.ts", "../sdk"],
+  ["modules/sdk/nested/example.ts", "../index"],
+])(
+  "bundled code reaches other folders through aliases: %s -> %s",
+  (file, target) =>
+    expect(boundaryProblems(file, `import "${target}";`)).toEqual([
+      `${file}:1: use an alias (@/, @modules/, @extensions/) instead of ${target}`,
+    ]),
+);
+
+it.each(["@modules/sdk", "@/platform", "@extensions/contracts"])(
+  "extensions load unbundled, so aliases do not resolve there: %s",
+  (target) =>
+    expect(
+      boundaryProblems("extensions/examples/example.js", `import "${target}";`),
+    ).toEqual([
+      `extensions/examples/example.js:1: unbundled extensions cannot use alias ${target}`,
+    ]),
 );
 
 it.each([
@@ -166,7 +191,7 @@ it("allows public SDK imports and ignores non-code references", () => {
     [],
   );
   expect(
-    boundaryProblems("src/shell/runtime.ts", 'import "../../src/platform";'),
+    boundaryProblems("src/shell/runtime.ts", 'import "@/platform";'),
   ).toEqual([]);
 });
 
@@ -277,12 +302,14 @@ it("cannot smuggle Agent contracts through an SDK barrel", () => {
     checkBoundaries([
       [
         "modules/sdk/bridge.ts",
-        'export type { Agent } from "../agents/contract";',
+        'export type { Agent } from "@modules/agents/contract";',
       ],
       ["modules/sdk/index.ts", 'export * from "./bridge";'],
-      ["src/shell/probe.ts", 'import type { Agent } from "../../modules/sdk";'],
+      ["src/shell/probe.ts", 'import type { Agent } from "@modules/sdk";'],
     ]),
-  ).toEqual(["modules/sdk/bridge.ts:1: forbidden import ../agents/contract"]);
+  ).toEqual([
+    "modules/sdk/bridge.ts:1: forbidden import @modules/agents/contract",
+  ]);
 });
 
 it.each([
@@ -296,17 +323,17 @@ it.each([
 });
 
 it.each([
-  ["src/agents/probe.tsx", "../../modules/agents/contract", true],
-  ["src/agents/probe.tsx", "../components/Dialog", true],
-  ["src/agents/probe.tsx", "../../modules/sdk", true],
-  ["src/agents/probe.tsx", "../shell/runtime", false],
-  ["src/agents/probe.tsx", "../features/extensions/controllers", false],
-  ["src/agents/probe.tsx", "../../modules/extension-host/host", false],
-  ["modules/agents/probe.ts", "../../src/agents/AgentList", false],
-  ["src/components/probe.tsx", "../shell/runtime", false],
-  ["src/components/probe.tsx", "../platform", false],
+  ["src/agents/probe.tsx", "@modules/agents/contract", true],
+  ["src/agents/probe.tsx", "@/components/Dialog", true],
+  ["src/agents/probe.tsx", "@modules/sdk", true],
+  ["src/agents/probe.tsx", "@/shell/runtime", false],
+  ["src/agents/probe.tsx", "@/features/extensions/controllers", false],
+  ["src/agents/probe.tsx", "@modules/extension-host/host", false],
+  ["modules/agents/probe.ts", "@/agents/AgentList", false],
+  ["src/components/probe.tsx", "@/shell/runtime", false],
+  ["src/components/probe.tsx", "@/platform", false],
   ["src/application.ts", "./agents/extension", true],
-  ["src/application.ts", "../modules/agents/provider", true],
+  ["src/application.ts", "@modules/agents/provider", true],
 ])("Agent UI and composition root: %s -> %s allowed=%s", (file, target, ok) =>
   expect(boundaryProblems(file, `import "${target}";`)).toHaveLength(
     ok ? 0 : 1,

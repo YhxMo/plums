@@ -7,19 +7,19 @@ import {
   PencilIcon,
   XIcon,
 } from "lucide-react";
-import type { Agent } from "../../modules/agents/contract";
+import type { Agent } from "@modules/agents/contract";
 import { Avatar } from "./Avatar";
 import { AgentParts } from "./AgentParts";
 import type { Part } from "./parts";
-import { InfoTip } from "../components/Tooltip";
-import { Button } from "../components/ui/button";
+import { InfoTip } from "@/components/Tooltip";
+import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
-} from "../components/ui/dropdown-menu";
-import { Textarea } from "../components/ui/textarea";
+} from "@/components/ui/dropdown-menu";
+import { Textarea } from "@/components/ui/textarea";
 
 /**
  * What a person needs to understand an Agent: who it is, and the extensions

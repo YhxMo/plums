@@ -2,28 +2,28 @@ import { useRef, useState } from "react";
 import { EllipsisIcon, PlusIcon, SearchIcon } from "lucide-react";
 import { LayoutGroup, motion } from "motion/react";
 import { cn } from "cn";
-import type { Agent } from "../../modules/agents/contract";
+import type { Agent } from "@modules/agents/contract";
 import { formatTime } from "./time";
 import { Avatar } from "./Avatar";
 import { panel } from "./panel";
 import { AgentMenuItems, type AgentAction } from "./AgentMenu";
-import { Tooltip } from "../components/Tooltip";
-import { Button } from "../components/ui/button";
+import { Tooltip } from "@/components/Tooltip";
+import { Button } from "@/components/ui/button";
 import {
   InputGroup,
   InputGroupAddon,
   InputGroupInput,
-} from "../components/ui/input-group";
+} from "@/components/ui/input-group";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuTrigger,
-} from "../components/ui/dropdown-menu";
+} from "@/components/ui/dropdown-menu";
 import {
   ContextMenu,
   ContextMenuContent,
   ContextMenuTrigger,
-} from "../components/ui/context-menu";
+} from "@/components/ui/context-menu";
 
 // Rows leave at once: a removed row may hold the focus a dialog returns to.
 const enter = {

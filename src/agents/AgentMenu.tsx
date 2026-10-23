@@ -1,14 +1,14 @@
 import type { ReactNode } from "react";
 import { PencilIcon, StarIcon, StarOffIcon, Trash2Icon } from "lucide-react";
-import type { Agent } from "../../modules/agents/contract";
+import type { Agent } from "@modules/agents/contract";
 import {
   DropdownMenuItem,
   DropdownMenuSeparator,
-} from "../components/ui/dropdown-menu";
+} from "@/components/ui/dropdown-menu";
 import {
   ContextMenuItem,
   ContextMenuSeparator,
-} from "../components/ui/context-menu";
+} from "@/components/ui/context-menu";
 
 export type AgentAction = "pin" | "rename" | "remove";
 

@@ -1,4 +1,4 @@
-import type { ExtensionState } from "../../modules/shell/extension-actions";
+import type { ExtensionState } from "@modules/shell/extension-actions";
 
 export type ExtensionPreferences = Pick<
   ExtensionState,

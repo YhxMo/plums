@@ -1,5 +1,5 @@
-import type { Attachment } from "../../modules/agents/contract";
-import { LIMITS } from "../../modules/agents/attachments";
+import type { Attachment } from "@modules/agents/contract";
+import { LIMITS } from "@modules/agents/attachments";
 
 type Picture = Extract<Attachment, { kind: "image" }>;
 

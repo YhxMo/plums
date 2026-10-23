@@ -1,12 +1,12 @@
-import { Host } from "../../modules/extension-host/host";
-import { loadExtension } from "../../modules/extension-host/definition";
-import type { ImportedExtension } from "../../modules/shell/uninstall";
+import { Host } from "@modules/extension-host/host";
+import { loadExtension } from "@modules/extension-host/definition";
+import type { ImportedExtension } from "@modules/shell/uninstall";
 import {
   isFileImport,
   loadExtensionSource,
   type LoadSource,
   type SourceStore,
-} from "../../modules/shell/file-import";
+} from "@modules/shell/file-import";
 import { errorMessage } from "./messages";
 
 const readCatalog = async (path: string): Promise<ImportedExtension[]> => {

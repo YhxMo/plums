@@ -1,6 +1,6 @@
-import { ContractError, type ErrorCode } from "../../modules/sdk/errors";
-import type { WaitReason } from "../../modules/extension-host/lifecycle";
-import type { Manifest } from "../../modules/sdk";
+import { ContractError, type ErrorCode } from "@modules/sdk/errors";
+import type { WaitReason } from "@modules/extension-host/lifecycle";
+import type { Manifest } from "@modules/sdk";
 
 export const preservedMessage = (
   reason: string,

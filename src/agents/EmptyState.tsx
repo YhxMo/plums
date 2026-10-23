@@ -3,7 +3,7 @@ import { ArrowRightIcon, IdCardIcon, PuzzleIcon } from "lucide-react";
 import { motion } from "motion/react";
 import { cn } from "cn";
 import { panel } from "./panel";
-import { Button } from "../components/ui/button";
+import { Button } from "@/components/ui/button";
 
 const rise = (delay: number) =>
   ({

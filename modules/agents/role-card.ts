@@ -1,4 +1,4 @@
-import { sameOrigin } from "../sdk/validation";
+import { sameOrigin } from "@modules/sdk/validation";
 import { parseRoleCard } from "./store";
 
 export async function readRoleCardFile(file: Blob) {

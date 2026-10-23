@@ -2,9 +2,9 @@ import { useRef, useState } from "react";
 import { ShieldCheckIcon } from "lucide-react";
 import type { AuthorizationDialogProps } from "./controllers";
 import { capabilityLabel } from "./messages";
-import { Dialog, DialogActions, DialogBody } from "../components/Dialog";
-import { Button } from "../components/ui/button";
-import { Badge } from "../components/ui/badge";
+import { Dialog, DialogActions, DialogBody } from "@/components/Dialog";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 
 type Request = { ids: string[]; run: () => Promise<void> };
 export function useAuthorization() {

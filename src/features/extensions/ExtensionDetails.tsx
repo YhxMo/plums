@@ -2,14 +2,14 @@ import type { ExtensionDetailsProps } from "./controllers";
 import type { ReactNode } from "react";
 import { CheckIcon, PlusIcon } from "lucide-react";
 import { cn } from "cn";
-import { capabilityLabel } from "../../shell/messages";
+import { capabilityLabel } from "@/shell/messages";
 import { CredentialBindings } from "./CredentialBindings";
-import { sourceLabel } from "../../../modules/shell/file-import";
+import { sourceLabel } from "@modules/shell/file-import";
 import { serviceList } from "./services";
 import { StatusBadge } from "./StatusBadge";
-import { Badge } from "../../components/ui/badge";
-import { Toggle } from "../../components/ui/toggle";
-import { InfoTip } from "../../components/Tooltip";
+import { Badge } from "@/components/ui/badge";
+import { Toggle } from "@/components/ui/toggle";
+import { InfoTip } from "@/components/Tooltip";
 
 /** One titled block of the details, separated from the one above. */
 export function DetailSection({

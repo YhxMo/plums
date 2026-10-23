@@ -1,13 +1,13 @@
-import type { Host } from "../extension-host/host";
+import type { Host } from "@modules/extension-host/host";
 import { captureComposition, type Composition } from "./composition";
 import type { ImportedExtension } from "./uninstall";
 import { uninstallImport } from "./uninstall";
 import { saveConfiguration } from "./configuration";
-import { loadExtension } from "../extension-host/definition";
-import { sameOrigin } from "../sdk/validation";
-import { extensionOwner } from "../sdk";
-import type { ConfigurationValue } from "../sdk/configuration";
-import type { ExtensionDefinition } from "../sdk";
+import { loadExtension } from "@modules/extension-host/definition";
+import { sameOrigin } from "@modules/sdk/validation";
+import { extensionOwner } from "@modules/sdk";
+import type { ConfigurationValue } from "@modules/sdk/configuration";
+import type { ExtensionDefinition } from "@modules/sdk";
 import {
   isFileImport,
   loadExtensionSource,

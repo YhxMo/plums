@@ -1,9 +1,9 @@
 import { useEffect, useRef, useState } from "react";
-import { recoverComposition } from "../../modules/shell/composition-recovery";
+import { recoverComposition } from "@modules/shell/composition-recovery";
 import { motion } from "motion/react";
-import { Dialog, DialogActions, DialogBody } from "../components/Dialog";
-import { Button } from "../components/ui/button";
-import { Spinner } from "../components/ui/spinner";
+import { Dialog, DialogActions, DialogBody } from "@/components/Dialog";
+import { Button } from "@/components/ui/button";
+import { Spinner } from "@/components/ui/spinner";
 import { CompositionRecovery } from "./runtime";
 import { errorMessage } from "./messages";
 

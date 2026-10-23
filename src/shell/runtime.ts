@@ -1,11 +1,11 @@
-import { Host } from "../../modules/extension-host/host";
+import { Host } from "@modules/extension-host/host";
 import {
   restoreComposition,
   startNewDefaults,
-} from "../../modules/shell/composition";
-import type { ImportedExtension } from "../../modules/shell/uninstall";
-import type { ExtensionDefinition, StoredState } from "../../modules/sdk";
-import { PlatformAdapter } from "../platform";
+} from "@modules/shell/composition";
+import type { ImportedExtension } from "@modules/shell/uninstall";
+import type { ExtensionDefinition, StoredState } from "@modules/sdk";
+import { PlatformAdapter } from "@/platform";
 import { errorMessage } from "./messages";
 import {
   parsePersistedState,
@@ -14,7 +14,7 @@ import {
 } from "./persisted-state";
 import { createPersistence, createShellBridge } from "./persistence";
 import { loadCatalog, installCatalog, installImports } from "./extensions";
-import { sourceStore, type SourceStore } from "../../modules/shell/file-import";
+import { sourceStore, type SourceStore } from "@modules/shell/file-import";
 
 export type Runtime = Readonly<{
   host: Host;

@@ -7,8 +7,8 @@ import type {
   CredentialFailureOutcome,
   CredentialProtocol,
   CredentialResponse,
-} from "../modules/sdk";
-import { validateCredentialTarget } from "../modules/sdk/credential-bindings";
+} from "@modules/sdk";
+import { validateCredentialTarget } from "@modules/sdk/credential-bindings";
 
 export type CredentialBinding =
   NativeCommands["credential_list"]["response"][number];

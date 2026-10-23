@@ -1,5 +1,5 @@
-import { ContractError } from "../sdk/errors";
-import { string } from "../sdk/validation";
+import { ContractError } from "@modules/sdk/errors";
+import { string } from "@modules/sdk/validation";
 export interface TextResult {
   id: string;
   input: string;

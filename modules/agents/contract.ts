@@ -1,5 +1,5 @@
-import type { Named } from "../sdk";
-import type { Effort } from "../../extensions/contracts";
+import type { Named } from "@modules/sdk";
+import type { Effort } from "@extensions/contracts";
 export type { Effort };
 /** Experimental `agents@1` service contract owned by the Agent extension, not the SDK. */
 export type Session = {

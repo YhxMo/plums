@@ -1,5 +1,5 @@
-import { ContractError } from "../sdk/errors";
-import type { StoredState } from "../sdk";
+import { ContractError } from "@modules/sdk/errors";
+import type { StoredState } from "@modules/sdk";
 import type { Agent, Session } from "./contract";
 import { restoreAgents, validAvatar, type SaveOptions } from "./store";
 

@@ -81,6 +81,14 @@ const layers = [
   ],
 ];
 const repositorySource = /^(?:src|modules|extensions)\/.*\.(?:ts|tsx|js|mjs)$/;
+/** Vite and TypeScript aliases (vite.config.ts, tsconfig.json) for bundled code. */
+const aliases = [
+  ["@/", "src/"],
+  ["@modules/", "modules/"],
+  ["@extensions/", "extensions/"],
+];
+/** Bundled code leaves its folder through aliases; extensions load as files. */
+const bundled = /^(?:src|modules)\//;
 /** @param {string} file */
 const allowedFor = (file) => layers.find(([origin]) => origin.test(file))?.[1];
 
@@ -131,19 +139,27 @@ export function checkBoundaries(entries) {
       if (
         target &&
         ts.isStringLiteralLike(target) &&
-        /^(?:\.{1,2}(?:\/|$)|\/|@\/)/.test(target.text)
+        /^(?:\.{1,2}(?:\/|$)|\/|@(?:modules|extensions)?\/)/.test(target.text)
       ) {
-        // `@/` is the Vite/TypeScript alias for src/ that shadcn/ui uses.
+        const specifier = target.text;
+        const alias = aliases.find(([prefix]) => specifier.startsWith(prefix));
         const destination = posix.normalize(
-          target.text.startsWith("@/")
-            ? `src/${target.text.slice(2)}`
-            : target.text.startsWith("/")
-              ? target.text.slice(1)
-              : posix.join(posix.dirname(file), target.text),
+          alias
+            ? alias[1] + specifier.slice(alias[0].length)
+            : specifier.startsWith("/")
+              ? specifier.slice(1)
+              : posix.join(posix.dirname(file), specifier),
         );
-        if (!allowed.test(destination))
+        const line = lineOf(source, target);
+        if (alias && file.startsWith("extensions/"))
           problems.push(
-            `${file}:${lineOf(source, target)}: forbidden import ${target.text}`,
+            `${file}:${line}: unbundled extensions cannot use alias ${specifier}`,
+          );
+        else if (!allowed.test(destination))
+          problems.push(`${file}:${line}: forbidden import ${specifier}`);
+        else if (bundled.test(file) && specifier.startsWith("../"))
+          problems.push(
+            `${file}:${line}: use an alias (@/, @modules/, @extensions/) instead of ${specifier}`,
           );
       }
       if (

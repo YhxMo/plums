@@ -1,15 +1,15 @@
 import { hostError } from "./lifecycle";
 import type { Registry, Service } from "./registry";
 import type { Scope } from "./scope";
-import { copyTheme } from "../sdk/theme";
+import { copyTheme } from "@modules/sdk/theme";
 import type {
   ExtensionContext,
   Manifest,
   Platform,
   Provider,
   ShellBridge,
-} from "../sdk";
-import { extensionOwner, platformRejection } from "../sdk";
+} from "@modules/sdk";
+import { extensionOwner, platformRejection } from "@modules/sdk";
 
 /** The Host facts an activation context may consult; everything else stays private. */
 export type ContextHost = {

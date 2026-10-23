@@ -1,11 +1,11 @@
-import type { Host } from "../../../modules/extension-host/host";
-import type { ImportedExtension } from "../../../modules/shell/uninstall";
-import type { CredentialAccess } from "../../credentials";
-import type { ShellOperations } from "../../shell/useOperations";
-import type { Workspace } from "../../shell/useWorkspace";
-import type { ShellNavigation } from "../../shell/useShellNavigation";
-import type { Authorization } from "../../shell/AuthorizationDialog";
-import type { CredentialOperations } from "../../shell/controllers";
+import type { Host } from "@modules/extension-host/host";
+import type { ImportedExtension } from "@modules/shell/uninstall";
+import type { CredentialAccess } from "@/credentials";
+import type { ShellOperations } from "@/shell/useOperations";
+import type { Workspace } from "@/shell/useWorkspace";
+import type { ShellNavigation } from "@/shell/useShellNavigation";
+import type { Authorization } from "@/shell/AuthorizationDialog";
+import type { CredentialOperations } from "@/shell/controllers";
 import type { useExtensionManager } from "./useExtensionManager";
 
 export type ManagementInputs = {

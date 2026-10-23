@@ -8,24 +8,21 @@ import {
   ZapIcon,
 } from "lucide-react";
 import { cn } from "cn";
-import type { ModelConnectionsApi } from "../../modules/models/extension";
-import type {
-  ProviderStatus,
-  ProviderView,
-} from "../../modules/models/providers";
-import { tokenLabel } from "../../modules/models/protocols";
-import { useAsyncAction } from "../components/useAsyncAction";
-import { DialogBody } from "../components/Dialog";
-import { ActionToast } from "../components/Toast";
-import { Badge } from "../components/ui/badge";
-import { Button } from "../components/ui/button";
+import type { ModelConnectionsApi } from "@modules/models/extension";
+import type { ProviderStatus, ProviderView } from "@modules/models/providers";
+import { tokenLabel } from "@modules/models/protocols";
+import { useAsyncAction } from "@/components/useAsyncAction";
+import { DialogBody } from "@/components/Dialog";
+import { ActionToast } from "@/components/Toast";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import {
   Empty,
   EmptyDescription,
   EmptyHeader,
   EmptyMedia,
   EmptyTitle,
-} from "../components/ui/empty";
+} from "@/components/ui/empty";
 import { ProviderForm } from "./ProviderForm";
 import { useRequestSignal } from "./useRequestSignal";
 

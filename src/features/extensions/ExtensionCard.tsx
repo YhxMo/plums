@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 import { cn } from "cn";
 import type { ExtensionCardModel } from "./controllers";
-import { stateMessage } from "../../shell/messages";
+import { stateMessage } from "@/shell/messages";
 import { StatusBadge } from "./StatusBadge";
 
 export function ExtensionCard({

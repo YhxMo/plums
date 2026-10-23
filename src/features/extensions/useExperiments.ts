@@ -1,6 +1,6 @@
 import { useState } from "react";
-import type { Runtime } from "../../shell/runtime";
-import type { Workspace } from "../../shell/useWorkspace";
+import type { Runtime } from "@/shell/runtime";
+import type { Workspace } from "@/shell/useWorkspace";
 export function useExperiments(
   runtime: Runtime,
   workspace: Workspace,

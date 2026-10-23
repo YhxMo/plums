@@ -6,7 +6,7 @@ import { useWorkspace } from "./useWorkspace";
 import { useWorkspaceChrome } from "./useWorkspaceChrome";
 import { useShellNavigation } from "./useShellNavigation";
 import { useSystemBack } from "./useSystemBack";
-import { useExperiments } from "../features/extensions/useExperiments";
+import { useExperiments } from "@/features/extensions/useExperiments";
 import { AuthorizationDialog, useAuthorization } from "./AuthorizationDialog";
 import { TitleBar } from "./TitleBar";
 import { NavRail } from "./NavRail";
@@ -15,10 +15,10 @@ import { ShellFeedback } from "./ShellFeedback";
 import { WorkspaceArea } from "./WorkspaceArea";
 import { RecoveryWelcome } from "./RecoveryWelcome";
 import { ShellDialogs } from "./ShellDialogs";
-import { ExtensionManager } from "../features/extensions/ExtensionManager";
-import { useExtensionManager } from "../features/extensions/useExtensionManager";
-import { DiagnosticsPanel } from "../features/extensions/DiagnosticsPanel";
-import { DiagnosticActions } from "../features/extensions/DiagnosticActions";
+import { ExtensionManager } from "@/features/extensions/ExtensionManager";
+import { useExtensionManager } from "@/features/extensions/useExtensionManager";
+import { DiagnosticsPanel } from "@/features/extensions/DiagnosticsPanel";
+import { DiagnosticActions } from "@/features/extensions/DiagnosticActions";
 
 /** Composes feature owners; it does not own extension form or workspace state. */
 export function Workbench({ runtime }: { runtime: Runtime }) {

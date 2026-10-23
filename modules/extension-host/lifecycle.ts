@@ -1,4 +1,4 @@
-import { ContractError } from "../sdk/errors";
+import { ContractError } from "@modules/sdk/errors";
 
 /** Host-boundary error with the stable `host.invalid` code. */
 export const hostError = (message: string) =>

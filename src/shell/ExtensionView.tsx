@@ -1,5 +1,5 @@
 import { useLayoutEffect, useRef, useState } from "react";
-import type { Host } from "../../modules/extension-host/host";
+import type { Host } from "@modules/extension-host/host";
 
 /** Mount the same public view contract inside a shell-owned dialog. */
 export function ExtensionView({

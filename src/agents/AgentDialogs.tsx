@@ -12,14 +12,14 @@ import type {
   Agent,
   AgentConfig,
   AgentProvider,
-} from "../../modules/agents/contract";
-import { parseRoleCard } from "../../modules/agents/store";
-import type { Named } from "../../modules/sdk";
-import { InfoTip } from "../components/Tooltip";
-import { Dialog, DialogActions, DialogBody } from "../components/Dialog";
-import { Button, buttonVariants } from "../components/ui/button";
-import { Input } from "../components/ui/input";
-import { Textarea } from "../components/ui/textarea";
+} from "@modules/agents/contract";
+import { parseRoleCard } from "@modules/agents/store";
+import type { Named } from "@modules/sdk";
+import { InfoTip } from "@/components/Tooltip";
+import { Dialog, DialogActions, DialogBody } from "@/components/Dialog";
+import { Button, buttonVariants } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import {
   Field,
   FieldDescription,
@@ -28,7 +28,7 @@ import {
   FieldSeparator,
   FieldSet,
   FieldLegend,
-} from "../components/ui/field";
+} from "@/components/ui/field";
 import {
   Item,
   ItemActions,
@@ -36,7 +36,7 @@ import {
   ItemDescription,
   ItemMedia,
   ItemTitle,
-} from "../components/ui/item";
+} from "@/components/ui/item";
 import { AgentParts } from "./AgentParts";
 import { Avatar } from "./Avatar";
 import { ModelSelect } from "./ModelSelect";

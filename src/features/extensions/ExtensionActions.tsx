@@ -5,7 +5,7 @@ import {
   Trash2Icon,
 } from "lucide-react";
 import type { ExtensionCardModel, ExtensionRowActions } from "./controllers";
-import { Button } from "../../components/ui/button";
+import { Button } from "@/components/ui/button";
 
 export function ExtensionActions({
   extension,

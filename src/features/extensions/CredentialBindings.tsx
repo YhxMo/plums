@@ -2,15 +2,15 @@ import { useEffect, useState } from "react";
 import {
   extensionOwner,
   type CredentialBindingDeclaration,
-} from "../../../modules/sdk";
+} from "@modules/sdk";
 import type {
   CredentialAccess,
   CredentialBinding,
   CredentialManagementResponse,
-} from "../../credentials";
-import type { CredentialOperations } from "../../shell/controllers";
-import { Button } from "../../components/ui/button";
-import { SecretInput } from "../../components/SecretInput";
+} from "@/credentials";
+import type { CredentialOperations } from "@/shell/controllers";
+import { Button } from "@/components/ui/button";
+import { SecretInput } from "@/components/SecretInput";
 import { resultMessage } from "./credential-copy";
 
 const stateLabel = {

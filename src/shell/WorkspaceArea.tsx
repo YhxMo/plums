@@ -2,7 +2,7 @@ import { XIcon } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import type { WorkspaceAreaProps } from "./controllers";
 import { ExtensionView } from "./ExtensionView";
-import { Button } from "../components/ui/button";
+import { Button } from "@/components/ui/button";
 
 export function WorkspaceArea({
   host,

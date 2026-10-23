@@ -16,7 +16,7 @@ import type {
   Effort,
   Message,
   ModelChoice,
-} from "../../modules/agents/contract";
+} from "@modules/agents/contract";
 import { cn } from "cn";
 import { Avatar } from "./Avatar";
 import { panel } from "./panel";
@@ -25,9 +25,9 @@ import { MessageRow, type MessageAction } from "./MessageRow";
 import { Composer, type Attach, type Blocked } from "./Composer";
 import { copyText } from "./clipboard";
 import { formatTime, TIME_GAP } from "./time";
-import { Tooltip } from "../components/Tooltip";
-import { useMediaQuery } from "../components/useMediaQuery";
-import { Button } from "../components/ui/button";
+import { Tooltip } from "@/components/Tooltip";
+import { useMediaQuery } from "@/components/useMediaQuery";
+import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -36,7 +36,7 @@ import {
   DropdownMenuRadioItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from "../components/ui/dropdown-menu";
+} from "@/components/ui/dropdown-menu";
 
 export function ChatView({
   agent,

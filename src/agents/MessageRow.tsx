@@ -2,17 +2,17 @@ import { useRef } from "react";
 import { CheckIcon, CopyIcon, RotateCcwIcon, Trash2Icon } from "lucide-react";
 import { motion } from "motion/react";
 import { cn } from "cn";
-import type { Agent, Message } from "../../modules/agents/contract";
+import type { Agent, Message } from "@modules/agents/contract";
 import { MessageAttachments } from "./AttachmentView";
-import { Tooltip } from "../components/Tooltip";
-import { Button } from "../components/ui/button";
+import { Tooltip } from "@/components/Tooltip";
+import { Button } from "@/components/ui/button";
 import {
   ContextMenu,
   ContextMenuContent,
   ContextMenuItem,
   ContextMenuSeparator,
   ContextMenuTrigger,
-} from "../components/ui/context-menu";
+} from "@/components/ui/context-menu";
 
 export type MessageAction = "copy" | "resend" | "delete";
 

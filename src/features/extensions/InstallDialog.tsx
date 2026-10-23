@@ -1,23 +1,20 @@
 import { useState } from "react";
 import { ChevronRightIcon, PuzzleIcon, ShieldAlertIcon } from "lucide-react";
 import { cn } from "cn";
-import { Dialog, DialogActions, DialogBody } from "../../components/Dialog";
-import type { DialogFeedback } from "../../shell/controllers";
-import { capabilityLabel } from "../../shell/messages";
-import type { ExtensionDefinition } from "../../../modules/sdk";
-import {
-  sourceLabel,
-  type ExtensionFile,
-} from "../../../modules/shell/file-import";
+import { Dialog, DialogActions, DialogBody } from "@/components/Dialog";
+import type { DialogFeedback } from "@/shell/controllers";
+import { capabilityLabel } from "@/shell/messages";
+import type { ExtensionDefinition } from "@modules/sdk";
+import { sourceLabel, type ExtensionFile } from "@modules/shell/file-import";
 import { serviceList } from "./services";
-import { buttonVariants, Button } from "../../components/ui/button";
-import { Field, FieldLabel } from "../../components/ui/field";
-import { Input } from "../../components/ui/input";
+import { buttonVariants, Button } from "@/components/ui/button";
+import { Field, FieldLabel } from "@/components/ui/field";
+import { Input } from "@/components/ui/input";
 import {
   Collapsible,
   CollapsibleContent,
   CollapsibleTrigger,
-} from "../../components/ui/collapsible";
+} from "@/components/ui/collapsible";
 
 export type ImportPreview = {
   file: ExtensionFile;

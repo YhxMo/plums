@@ -1,9 +1,9 @@
-import type { Named } from "../../modules/sdk";
+import type { Named } from "@modules/sdk";
 import type {
   AgentModel,
   AgentProvider,
   ExtensionChoice,
-} from "../../modules/agents/contract";
+} from "@modules/agents/contract";
 
 /** One extension an Agent is composed of. */
 export type Part = {

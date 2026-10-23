@@ -1,5 +1,5 @@
-import { translateStatus } from "../../shell/messages";
-import { Badge } from "../../components/ui/badge";
+import { translateStatus } from "@/shell/messages";
+import { Badge } from "@/components/ui/badge";
 
 /** An extension's lifecycle status; running ones carry a live dot. */
 export function StatusBadge({ status }: { status: string }) {

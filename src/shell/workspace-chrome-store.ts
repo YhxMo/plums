@@ -1,4 +1,4 @@
-import type { WorkspaceChrome, WorkspaceChromeState } from "../../modules/sdk";
+import type { WorkspaceChrome, WorkspaceChromeState } from "@modules/sdk";
 
 const empty: WorkspaceChromeState = {};
 type Snapshot = { state: WorkspaceChromeState; failure?: { reason: unknown } };

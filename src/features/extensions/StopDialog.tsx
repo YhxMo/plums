@@ -1,7 +1,7 @@
-import type { Host } from "../../../modules/extension-host/host";
-import type { DialogFeedback } from "../../shell/controllers";
-import { Dialog, DialogActions, DialogBody } from "../../components/Dialog";
-import { Button } from "../../components/ui/button";
+import type { Host } from "@modules/extension-host/host";
+import type { DialogFeedback } from "@/shell/controllers";
+import { Dialog, DialogActions, DialogBody } from "@/components/Dialog";
+import { Button } from "@/components/ui/button";
 
 /** Confirms stopping an extension that something still uses, naming who. */
 export function StopDialog({

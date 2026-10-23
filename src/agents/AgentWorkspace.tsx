@@ -9,24 +9,24 @@ import type {
   Agent,
   AgentProvider,
   Attachment,
-} from "../../modules/agents/contract";
-import { attachmentProblem } from "../../modules/agents/attachments";
-import type { Named, WorkspaceChromeController } from "../../modules/sdk";
+} from "@modules/agents/contract";
+import { attachmentProblem } from "@modules/agents/attachments";
+import type { Named, WorkspaceChromeController } from "@modules/sdk";
 import { cn } from "cn";
 import { AgentList } from "./AgentList";
 import { ChatView } from "./ChatView";
 import type { Blocked } from "./Composer";
 import { DetailPanel } from "./DetailPanel";
 import { EmptyState } from "./EmptyState";
-import { Dialog } from "../components/Dialog";
-import { Button } from "../components/ui/button";
-import { ActionToast } from "../components/Toast";
-import { useMediaQuery } from "../components/useMediaQuery";
+import { Dialog } from "@/components/Dialog";
+import { Button } from "@/components/ui/button";
+import { ActionToast } from "@/components/Toast";
+import { useMediaQuery } from "@/components/useMediaQuery";
 import {
   ResizableHandle,
   ResizablePanel,
   ResizablePanelGroup,
-} from "../components/ui/resizable";
+} from "@/components/ui/resizable";
 import { useAgentModals } from "./useAgentModals";
 import { AgentDialogs } from "./AgentDialogs";
 import type { AgentAction } from "./AgentMenu";

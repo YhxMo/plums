@@ -1,5 +1,5 @@
-import type { Theme } from "../sdk/theme";
-import type { Named, User, UserToggle, View } from "../sdk";
+import type { Theme } from "@modules/sdk/theme";
+import type { Named, User, UserToggle, View } from "@modules/sdk";
 import { hostError } from "./lifecycle";
 
 export type Service = {

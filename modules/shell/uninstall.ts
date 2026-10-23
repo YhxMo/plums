@@ -1,4 +1,4 @@
-import type { Host } from "../extension-host/host";
+import type { Host } from "@modules/extension-host/host";
 export type ImportedExtension = {
   id: string;
   url: string;

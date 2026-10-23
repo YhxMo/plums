@@ -2,8 +2,8 @@ import {
   createPageRouter,
   type ExtensionDefinition,
   type StoredState,
-} from "../sdk";
-import type { Transformer } from "../../extensions/contracts";
+} from "@modules/sdk";
+import type { Transformer } from "@extensions/contracts";
 import { TextWorkbenchStore } from "./store";
 import { mountWorkbench, workbenchPages } from "./view";
 

@@ -1,17 +1,14 @@
-import {
-  readComposition,
-  type Composition,
-} from "../../modules/shell/composition";
-import type { ImportedExtension } from "../../modules/shell/uninstall";
-import { ContractError } from "../../modules/sdk/errors";
-import { isFileImport } from "../../modules/shell/file-import";
+import { readComposition, type Composition } from "@modules/shell/composition";
+import type { ImportedExtension } from "@modules/shell/uninstall";
+import { ContractError } from "@modules/sdk/errors";
+import { isFileImport } from "@modules/shell/file-import";
 import {
   array,
   object,
   optional,
   sameOrigin,
   string,
-} from "../../modules/sdk/validation";
+} from "@modules/sdk/validation";
 
 // Preserve opaque fields and legacy layout intent, including absent page preferences.
 export type Preferences = Record<string, unknown> & {

@@ -1,8 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import {
-  readRoleCardFile,
-  readRoleCardLink,
-} from "../../modules/agents/role-card";
+import { readRoleCardFile, readRoleCardLink } from "@modules/agents/role-card";
 
 export type RoleCardDraft = {
   raw: string;

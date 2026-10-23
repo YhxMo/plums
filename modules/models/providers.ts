@@ -1,5 +1,5 @@
-import { ContractError } from "../sdk/errors";
-import type { CredentialConnection, StoredState } from "../sdk";
+import { ContractError } from "@modules/sdk/errors";
+import type { CredentialConnection, StoredState } from "@modules/sdk";
 import { chatTarget, normalizeBase } from "./addresses";
 import { CUSTOM, presets, type Preset } from "./presets";
 import type { Protocol } from "./protocols";

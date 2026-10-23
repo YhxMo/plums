@@ -1,8 +1,8 @@
 import { useState } from "react";
 import { FileTextIcon, XIcon } from "lucide-react";
 import { cn } from "cn";
-import type { Attachment } from "../../modules/agents/contract";
-import { Dialog } from "../components/Dialog";
+import type { Attachment } from "@modules/agents/contract";
+import { Dialog } from "@/components/Dialog";
 
 const source = (a: Extract<Attachment, { kind: "image" }>) =>
   `data:${a.mime};base64,${a.data}`;

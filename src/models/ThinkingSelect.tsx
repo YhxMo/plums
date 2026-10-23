@@ -4,9 +4,9 @@ import {
   type Effort,
   reasoningLevels,
   type ThinkMode,
-} from "../../modules/models/reasoning";
-import type { ProviderDraft } from "../../modules/models/providers";
-import { Select, type SelectOption } from "../components/Select";
+} from "@modules/models/reasoning";
+import type { ProviderDraft } from "@modules/models/providers";
+import { Select, type SelectOption } from "@/components/Select";
 
 const names: Record<Effort, string> = {
   off: "关闭",

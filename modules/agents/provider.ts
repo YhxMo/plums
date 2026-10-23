@@ -1,5 +1,5 @@
-import type { ExtensionDefinition } from "../sdk";
-import type { ChatService } from "../../extensions/contracts";
+import type { ExtensionDefinition } from "@modules/sdk";
+import type { ChatService } from "@extensions/contracts";
 import { AgentStore, MAX_MODEL_ID, restoreAgents } from "./store";
 import { prepareChat } from "./attachments";
 import { AgentState } from "./sharded-state";

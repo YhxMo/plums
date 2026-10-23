@@ -1,6 +1,6 @@
 import { useRef, useState, type RefObject } from "react";
-import type { Agent } from "../../modules/agents/contract";
-import { useAsyncAction } from "../components/useAsyncAction";
+import type { Agent } from "@modules/agents/contract";
+import { useAsyncAction } from "@/components/useAsyncAction";
 import { useRoleCardDraft, type RoleCardDraft } from "./useRoleCardDraft";
 
 export type AgentModal =

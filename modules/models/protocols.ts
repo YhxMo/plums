@@ -1,5 +1,5 @@
-import type { CredentialFailureOutcome } from "../sdk";
-import type { ChatImage, Effort } from "../../extensions/contracts";
+import type { CredentialFailureOutcome } from "@modules/sdk";
+import type { ChatImage, Effort } from "@extensions/contracts";
 import { reasoningFields, type ThinkMode } from "./reasoning";
 
 export type Protocol = "openai-chat" | "anthropic-messages";

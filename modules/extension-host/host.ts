@@ -3,9 +3,12 @@ import { describeWait, hostError, within, type WaitReason } from "./lifecycle";
 import { Scope, message } from "./scope";
 import { Registry, type ToggleArgs } from "./registry";
 import { createContext, type ContextHost } from "./context";
-import { resolveConfiguration, type Configuration } from "../sdk/configuration";
-import type { ExtensionDefinition, Platform, ShellBridge } from "../sdk";
-import { extensionOwner } from "../sdk";
+import {
+  resolveConfiguration,
+  type Configuration,
+} from "@modules/sdk/configuration";
+import type { ExtensionDefinition, Platform, ShellBridge } from "@modules/sdk";
+import { extensionOwner } from "@modules/sdk";
 
 type Status =
   "disabled" | "waiting" | "active" | "stopping" | "failed" | "cleanup-failed";

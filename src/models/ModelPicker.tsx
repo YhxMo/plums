@@ -1,16 +1,16 @@
 import { useState } from "react";
 import { motion } from "motion/react";
 import { SearchIcon } from "lucide-react";
-import type { ListedModel } from "../../modules/models/extension";
-import { MAX_MODELS } from "../../modules/models/providers";
-import { tokenLabel } from "../../modules/models/protocols";
-import { Button } from "../components/ui/button";
-import { Checkbox } from "../components/ui/checkbox";
+import type { ListedModel } from "@modules/models/extension";
+import { MAX_MODELS } from "@modules/models/providers";
+import { tokenLabel } from "@modules/models/protocols";
+import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   InputGroup,
   InputGroupAddon,
   InputGroupInput,
-} from "../components/ui/input-group";
+} from "@/components/ui/input-group";
 
 /**
  * The service's model list with each one's window from models.dev: filter,

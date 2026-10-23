@@ -16,7 +16,14 @@ export default defineConfig({
   publicDir: "extensions",
   server: { host: "127.0.0.1", port: 1420, strictPort: true },
   build: { target: "es2022" },
-  resolve: { alias: { "@": resolve(import.meta.dirname, "src") } },
+  // Keep in step with tsconfig.json paths and scripts/check-boundaries.mjs.
+  resolve: {
+    alias: {
+      "@": resolve(import.meta.dirname, "src"),
+      "@modules": resolve(import.meta.dirname, "modules"),
+      "@extensions": resolve(import.meta.dirname, "extensions"),
+    },
+  },
   plugins: [
     tailwindcss(),
     {

@@ -1,9 +1,9 @@
 import { useEffect, useRef, useState } from "react";
-import type { PlatformAdapter } from "../../platform";
-import type { SelectedDocument } from "../../documents";
+import type { PlatformAdapter } from "@/platform";
+import type { SelectedDocument } from "@/documents";
 import { FileTextIcon } from "lucide-react";
-import { Button } from "../../components/ui/button";
-import { InfoTip } from "../../components/Tooltip";
+import { Button } from "@/components/ui/button";
+import { InfoTip } from "@/components/Tooltip";
 
 export function SelectedDocuments({
   adapter,

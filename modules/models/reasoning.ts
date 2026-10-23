@@ -1,4 +1,4 @@
-import type { Effort } from "../../extensions/contracts";
+import type { Effort } from "@extensions/contracts";
 export type { Effort };
 import type { Endpoint, Protocol } from "./protocols";
 

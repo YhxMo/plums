@@ -1,4 +1,8 @@
-import { themeColorNames, type Appearance, type Theme } from "../sdk/theme";
+import {
+  themeColorNames,
+  type Appearance,
+  type Theme,
+} from "@modules/sdk/theme";
 
 /** Applies only registered semantic colors; removing a contribution restores CSS defaults. */
 export function applyTheme(

@@ -1,4 +1,4 @@
-import type { ChatImage, ChatTurn } from "../../extensions/contracts";
+import type { ChatImage, ChatTurn } from "@extensions/contracts";
 import type { Attachment } from "./contract";
 
 /** What one message may carry; pictures are scaled before they get here. */

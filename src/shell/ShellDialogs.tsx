@@ -1,8 +1,8 @@
 import { preservedMessage } from "./messages";
 import type { ShellDialogsProps } from "./controllers";
 import { ExtensionView } from "./ExtensionView";
-import { Dialog, DialogBody } from "../components/Dialog";
-import { Button } from "../components/ui/button";
+import { Dialog, DialogBody } from "@/components/Dialog";
+import { Button } from "@/components/ui/button";
 import { SettingsPanel } from "./SettingsPanel";
 export function ShellDialogs({
   host,

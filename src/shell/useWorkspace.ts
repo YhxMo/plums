@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { createViewSlot } from "../../modules/shell/view-slot";
+import { createViewSlot } from "@modules/shell/view-slot";
 import type { Runtime } from "./runtime";
 import type { ShellOperations } from "./useOperations";
 import { errorMessage } from "./messages";
