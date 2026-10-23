@@ -14,7 +14,7 @@ export type ManagementInputs = {
     "busy" | "error" | "operate" | "setError" | "setNotice"
   >;
   workspace: Pick<Workspace, "enableExtension">;
-  navigation: Pick<ShellNavigation, "manager" | "closeManager">;
+  navigation: Pick<ShellNavigation, "manager" | "closeManager" | "setDialog">;
   authorization: Pick<Authorization, "requestAuthorization">;
 };
 export type ExtensionCardModel = {
@@ -24,9 +24,11 @@ export type ExtensionCardModel = {
   users: ReturnType<Host["users"]>;
   selected: boolean;
   imported: boolean;
+  /** Its dialog views, which open from its card. */
+  dialogs: { id: string; label: string }[];
 };
 export type ExtensionDetailsProps = {
-  host: Pick<Host, "inspect" | "manifest" | "users" | "toggleUser">;
+  host: Pick<Host, "inspect" | "manifest" | "users" | "toggleUser" | "views">;
   /** Shown inside the selected card on narrow screens. */
   inline?: boolean;
   access: CredentialAccess;
@@ -60,5 +62,5 @@ export type ExtensionDialogController = Pick<
 >;
 export type ExtensionRowActions = Pick<
   Management["list"]["actions"],
-  "select" | "configure" | "uninstall" | "toggle"
+  "select" | "configure" | "uninstall" | "toggle" | "openView"
 >;

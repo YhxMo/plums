@@ -17,9 +17,8 @@ test("focus returned after a click stays quiet until the keyboard is used", asyn
 }) => {
   const tab = browserName === "webkit" ? "Alt+Tab" : "Tab";
   await page.goto("/");
-  const menu = page.getByRole("button", { name: "应用菜单", exact: true });
+  const menu = page.getByRole("button", { name: "设置", exact: true });
   await menu.click();
-  await page.getByRole("menuitem", { name: "应用设置", exact: true }).click();
   const settings = page.getByRole("dialog", { name: "应用设置", exact: true });
   await settings.getByRole("button", { name: "关闭", exact: true }).click();
   await expect(settings).not.toBeVisible();

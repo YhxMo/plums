@@ -20,7 +20,7 @@
 | [无 UI 事件扩展](../extensions/examples/events.js) | `/examples/events.js` / `sample.events` | 消费计数服务；收到 `sample.increment` 增加计数并发布 `sample.changed` |
 | [非聊天视图](../extensions/examples/panel.js) | `/examples/panel.js` / `sample.panel` | 消费计数服务；按钮发布事件并同步刷新，释放时删除自己创建的 DOM/监听 |
 
-以下是在仓库中开发的方式；不装 Node.js 也可以把单个文件导入应用，见[作者入门](AUTHOR-QUICKSTART.md)。执行 `npm ci`、`npm run dev` 后打开本地预览。应用菜单 → 扩展管理 → 安装扩展，依次填写上述 ID 与模块路径，安装并分别启用。服务先启用后事件/视图可工作；反向顺序会等待依赖。应用设置选择“计数样板”，从扩展管理点“返回工作区”，再点击“增加计数”。停用事件扩展后按钮不会递增，再启用事件扩展后可继续；停用服务会让依赖者等待，重新启用服务会创建新计数器。它是内存样板，不承诺保存计数或长期后台运行。
+以下是在仓库中开发的方式；不装 Node.js 也可以把单个文件导入应用，见[作者入门](AUTHOR-QUICKSTART.md)。执行 `npm ci`、`npm run dev` 后打开本地预览。窄栏的“扩展”→ 安装扩展，依次填写上述 ID 与模块路径，安装并分别启用。服务先启用后事件/视图可工作；反向顺序会等待依赖。应用设置选择“计数样板”，从扩展管理点“返回工作区”，再点击“增加计数”。停用事件扩展后按钮不会递增，再启用事件扩展后可继续；停用服务会让依赖者等待，重新启用服务会创建新计数器。它是内存样板，不承诺保存计数或长期后台运行。
 
 在已有服务消费者中替换提供者：先停用原提供者，再加载一个提供相同服务名及版本的新 ID 并启用。消费者重新激活，必须重新获取服务；不要把服务对象缓存到生命周期之外。缺失必需服务显示 `waiting` 与原因；多个扩展可提供同一服务，同一扩展重复提供才拒绝，已有提供者不被隐式覆盖。
 
@@ -52,7 +52,7 @@ host.serviceNames(); // string[]
 host.manifest(id); // Manifest
 host.inspect(id); // {status, error?: string, desired: boolean, resources: number, tasks: number}
 // status: disabled | waiting | active | stopping | failed | cleanup-failed
-host.views(); // {id, label, owner, generation, presentation, priority, chrome?}[]
+host.views(); // {id, label, owner, generation, presentation, priority, chrome?, icon?, iconProblem?}[]
 host.themes(); // (Theme & {owner, generation})[]，仅开放的 active 贡献
 const close = host.mountView(viewId, root); // () => void | Promise<void>
 ```

@@ -1,8 +1,9 @@
 import { expect, test } from "@playwright/test";
+import { shellButton } from "./helpers";
 
 test("no button relies on a native title tooltip", async ({ page }) => {
   await page.goto("/");
-  await expect(page.getByRole("button", { name: "应用菜单" })).toBeVisible();
+  await expect(shellButton(page, "设置")).toBeVisible();
   await expect(page.locator("[title]")).toHaveCount(0);
 });
 
@@ -12,11 +13,11 @@ for (const width of [375, 1180])
   }) => {
     await page.setViewportSize({ width, height: 800 });
     await page.goto("/");
-    const theme = page.getByRole("button", { name: /^切换到(深色|浅色)模式$/ });
+    const theme = shellButton(page, "设置");
     const tip = page.getByRole("tooltip");
     await theme.hover();
-    await expect(tip).toHaveText(/^切换到(深色|浅色)模式$/);
-    // The button sits near the right edge; the tooltip stays on screen.
+    await expect(tip).toHaveText("设置");
+    // The button sits near an edge; the tooltip stays on screen.
     const box = (await tip.boundingBox())!;
     expect(box.x).toBeGreaterThanOrEqual(0);
     expect(box.x + box.width).toBeLessThanOrEqual(width);
@@ -40,7 +41,7 @@ test("keyboard focus shows a tooltip until focus moves on", async ({
   page,
 }) => {
   await page.goto("/");
-  const theme = page.getByRole("button", { name: /^切换到(深色|浅色)模式$/ });
+  const theme = shellButton(page, "设置");
   await page.keyboard.press("Tab");
   for (let i = 0; i < 20; i++) {
     if (await theme.evaluate((e) => e === document.activeElement)) break;
@@ -48,12 +49,10 @@ test("keyboard focus shows a tooltip until focus moves on", async ({
   }
   await expect(theme).toBeFocused();
   // Tooltips of buttons tabbed past may still be fading out.
-  await expect(
-    page.getByRole("tooltip", { name: /^切换到(深色|浅色)模式$/ }),
-  ).toBeVisible();
+  await expect(page.getByRole("tooltip", { name: "设置" })).toBeVisible();
   await page.keyboard.press("Tab");
   await expect(
-    page.getByRole("tooltip").filter({ hasText: /^切换到(深色|浅色)模式$/ }),
+    page.getByRole("tooltip").filter({ hasText: /^设置$/ }),
   ).toHaveCount(0);
 });
 
@@ -61,10 +60,9 @@ test("a tap acts without leaving a tooltip behind", async ({ browser }) => {
   const context = await browser.newContext({ hasTouch: true });
   const page = await context.newPage();
   await page.goto("/");
-  const theme = page.getByRole("button", { name: /^切换到(深色|浅色)模式$/ });
-  const before = await theme.getAttribute("aria-label");
-  await theme.tap();
-  await expect(theme).not.toHaveAttribute("aria-label", before!);
+  const extensions = shellButton(page, "扩展");
+  await extensions.tap();
+  await expect(extensions).toHaveAttribute("aria-current", "page");
   await page.waitForTimeout(600);
   await expect(page.getByRole("tooltip")).toHaveCount(0);
   await context.close();

@@ -1,25 +1,38 @@
 import { expect, type Locator, type Page } from "@playwright/test";
+/** The rail's (or, on phones, the title bar's) button with this name. */
+export const shellButton = (page: Page, name: "扩展" | "设置") =>
+  page
+    .getByRole("navigation", { name: "应用导航" })
+    .or(page.getByRole("banner"))
+    .getByRole("button", { name, exact: true })
+    .filter({ visible: true });
 export async function manage(page: Page, diagnostics = false) {
   const manager = page.getByRole("heading", { name: "扩展与状态" });
-  if (!(await manager.isVisible())) {
-    await page.getByRole("button", { name: "应用菜单", exact: true }).click();
-    await page
-      .getByRole("menuitem", {
-        name: diagnostics ? "诊断工具" : "扩展管理",
-        exact: true,
-      })
-      .click();
-  }
+  if (!(await manager.isVisible())) await shellButton(page, "扩展").click();
   if (diagnostics) {
     const panel = page.getByRole("button", { name: "诊断与实验" });
     if ((await panel.getAttribute("aria-expanded")) !== "true")
       await panel.click();
   }
 }
-/** Opens the model connections dialog from the app menu. */
+/** Opens application settings from the rail or the phone title bar. */
+export async function openSettings(page: Page) {
+  await shellButton(page, "设置").click();
+  return page.getByRole("dialog", { name: "应用设置" });
+}
+/** Switches light/dark in settings, then closes them. */
+export async function switchAppearance(page: Page, to: "深色" | "浅色") {
+  const dialog = await openSettings(page);
+  await dialog.getByRole("button", { name: `切换到${to}模式` }).click();
+  await page.keyboard.press("Escape");
+  await expect(dialog).toBeHidden();
+}
+/** Opens the model connections dialog from its extension's card in management. */
 export async function openConnections(page: Page) {
-  await page.getByRole("button", { name: "应用菜单", exact: true }).click();
-  await page.getByRole("menuitem", { name: "模型连接", exact: true }).click();
+  await manage(page);
+  await page
+    .getByRole("button", { name: "打开 模型连接", exact: true })
+    .click();
   return page.getByRole("dialog", { name: "模型连接", exact: true });
 }
 /** Adds an Agent from scratch through the add dialog. */
@@ -53,9 +66,7 @@ export async function chooseLayout(page: Page, id: string) {
     "combo-controls": "组合检查",
     "combo-owner": "组合所有者",
   };
-  await page.getByRole("button", { name: "应用菜单", exact: true }).click();
-  await page.getByRole("menuitem", { name: "应用设置", exact: true }).click();
-  const dialog = page.getByRole("dialog", { name: "应用设置" });
+  const dialog = await openSettings(page);
   const button = dialog.getByRole("radio", {
     name: `使用 ${names[id]}`,
     exact: true,

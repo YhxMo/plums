@@ -44,6 +44,10 @@ export function ExtensionDetails({
   const extManifest = host.manifest(extId);
   const extCaps = extManifest.capabilities ?? [];
   const users = host.users(extId);
+  // Views whose icon could not be drawn; the rail shows a generic one.
+  const badIcons = host
+    .views()
+    .filter((view) => view.owner === extId && view.iconProblem);
   return (
     <section
       aria-label="所选扩展详情"
@@ -142,6 +146,19 @@ export function ExtensionDetails({
           <dd>
             {extState.resources} 项资源 · {extState.tasks} 个在途任务
           </dd>
+          {badIcons.length > 0 && (
+            <>
+              <dt>界面图标</dt>
+              <dd className="text-destructive">
+                {badIcons
+                  .map(
+                    (view) =>
+                      `「${view.label}」图标无效（${view.iconProblem}），已改用通用图标`,
+                  )
+                  .join("；")}
+              </dd>
+            </>
+          )}
         </dl>
       </DetailSection>
       <CredentialBindings

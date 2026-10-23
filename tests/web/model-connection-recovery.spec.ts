@@ -1,5 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
-import { openConnections } from "./helpers";
+import { openConnections, shellButton } from "./helpers";
 
 type Controls = {
   requests: string[];
@@ -220,9 +220,7 @@ test("the connections page loads when its dialog first opens", async ({
   page.on("request", (request) => urls.push(new URL(request.url()).pathname));
   const requested = () => urls.includes("/src/models/ModelConnections.tsx");
   await setup(page, { empty: true });
-  await expect(
-    page.getByRole("button", { name: "应用菜单", exact: true }),
-  ).toBeVisible();
+  await expect(shellButton(page, "设置")).toBeVisible();
   expect(requested()).toBe(false);
   const dialog = await openConnections(page);
   await expect(

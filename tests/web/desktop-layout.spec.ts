@@ -1,7 +1,7 @@
 import { expect, test } from "@playwright/test";
 import { addAgent } from "./helpers";
 
-for (const width of [648, 700, 735]) {
+for (const width of [652, 700, 735]) {
   test(`a ${width}px desktop keeps the Agent list beside the conversation`, async ({
     page,
   }) => {
@@ -60,10 +60,10 @@ test("single-pane mode starts only below the two-column minimum and keeps the dr
   const input = page.getByRole("textbox", { name: "消息", exact: true });
   const list = page.getByRole("complementary", { name: "Agent 列表" });
   await input.fill("跨窗口宽度保留");
-  for (const width of [648, 647, 375, 735, 960]) {
+  for (const width of [652, 651, 375, 735, 960]) {
     await page.setViewportSize({ width, height: 680 });
     await expect(input).toHaveValue("跨窗口宽度保留");
-    if (width >= 648) {
+    if (width >= 652) {
       await expect(list).toBeVisible();
       await expect(
         page.getByRole("navigation", { name: "应用导航" }),

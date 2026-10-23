@@ -24,6 +24,10 @@ function mountReactView(
   };
 }
 
+/** A speech bubble with three dots cut out, for the shell's rail. */
+const icon =
+  '<svg viewBox="0 0 24 24"><path fill-rule="evenodd" d="M12 3.5c5 0 9 3.4 9 7.6s-4 7.6-9 7.6c-1 0-2-.13-2.9-.38L4.6 20.4l1.3-3.6C4.1 15.4 3 13.4 3 11.1 3 6.9 7 3.5 12 3.5ZM7.35 11.1a1.15 1.15 0 1 0 2.3 0a1.15 1.15 0 1 0-2.3 0ZM10.85 11.1a1.15 1.15 0 1 0 2.3 0a1.15 1.15 0 1 0-2.3 0ZM14.35 11.1a1.15 1.15 0 1 0 2.3 0a1.15 1.15 0 1 0-2.3 0Z"/></svg>';
+
 export function agentUI(): ExtensionDefinition {
   return {
     manifest: {
@@ -42,6 +46,7 @@ export function agentUI(): ExtensionDefinition {
       ctx.view({
         id: "agents",
         label: "Agent 界面",
+        icon,
         priority: 100,
         chrome,
         mount(container) {

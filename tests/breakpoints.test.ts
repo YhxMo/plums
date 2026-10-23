@@ -21,7 +21,7 @@ function sources(dir: string): string[] {
 
 it("names every layout width once, in the theme and in TypeScript", () => {
   expect(theme).toEqual(breakpoints);
-  expect(below("md")).toBe("(width < 40.5rem)");
+  expect(below("md")).toBe("(width < 40.75rem)");
   expect(atLeast("wide")).toBe("(width >= 68.75rem)");
 });
 

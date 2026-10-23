@@ -1,4 +1,5 @@
 import {
+  AppWindowIcon,
   PowerIcon,
   PowerOffIcon,
   Settings2Icon,
@@ -14,16 +15,32 @@ export function ExtensionActions({
 }: {
   extension: Pick<
     ExtensionCardModel,
-    "entry" | "manifest" | "state" | "imported" | "users"
+    "entry" | "manifest" | "state" | "imported" | "users" | "dialogs"
   >;
-  actions: Pick<ExtensionRowActions, "configure" | "uninstall" | "toggle">;
+  actions: Pick<
+    ExtensionRowActions,
+    "configure" | "uninstall" | "toggle" | "openView"
+  >;
   busy: boolean;
 }) {
-  const { entry, manifest, state, imported } = extension;
+  const { entry, manifest, state, imported, dialogs } = extension;
   const { id } = entry;
   const active = state.status === "active";
   return (
     <div className="flex flex-wrap items-center justify-end gap-2">
+      {active &&
+        dialogs.map((view) => (
+          <Button
+            key={view.id}
+            variant="outline"
+            size="sm"
+            aria-label={`打开 ${view.label}`}
+            onClick={(event) => actions.openView(view, event.currentTarget)}
+          >
+            <AppWindowIcon data-icon="inline-start" />
+            {view.label}
+          </Button>
+        ))}
       {manifest.configuration && (
         <Button
           variant="outline"

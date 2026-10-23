@@ -1,8 +1,7 @@
 import { expect, test, type Page } from "@playwright/test";
-import { manage, persisted } from "./helpers";
+import { manage, persisted, openSettings } from "./helpers";
 async function settings(page: Page) {
-  await page.getByRole("button", { name: "应用菜单", exact: true }).click();
-  await page.getByRole("menuitem", { name: "应用设置", exact: true }).click();
+  await openSettings(page);
   return page.getByRole("dialog", { name: "应用设置" });
 }
 /** The computed colour a CSS value (such as a variable) resolves to. */

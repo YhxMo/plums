@@ -1,21 +1,18 @@
-import { MenuIcon } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { cn } from "cn";
 import type { TitleBarProps } from "./controllers";
-import { AppMenu, SidebarToggle, ThemeToggle } from "./ShellActions";
+import { SidebarToggle } from "./SidebarToggle";
+import { extensionsIcon, settingsIcon } from "./icons";
+import { MaskIcon } from "@/components/MaskIcon";
+import { Tooltip } from "@/components/Tooltip";
+import { Button } from "@/components/ui/button";
 
 /**
  * The phone's top bar. Desktop has none: the rail starts at the window's
  * top edge and each pane carries its own header. A workspace that sets a
  * title of its own still gets a slim line for it there.
  */
-export function TitleBar({
-  appearance,
-  workspace,
-  chrome,
-  navigation,
-  operations,
-}: TitleBarProps) {
+export function TitleBar({ workspace, chrome, navigation }: TitleBarProps) {
   const managerOpen = navigation.manager.open;
   const title = managerOpen
     ? "扩展管理"
@@ -70,12 +67,38 @@ export function TitleBar({
         </AnimatePresence>
       </div>
       <div className="flex shrink-0 items-center gap-0.5 md:hidden">
-        <ThemeToggle appearance={appearance} operations={operations} />
-        <AppMenu
-          workspace={workspace}
-          navigation={navigation}
-          icon={<MenuIcon />}
-        />
+        {/* The rail's last two destinations, with the same icons. */}
+        <Tooltip label="扩展">
+          <Button
+            variant="ghost"
+            size="icon"
+            aria-label="扩展"
+            aria-current={managerOpen ? "page" : undefined}
+            className="text-rail-icon aria-[current=page]:text-selection"
+            onClick={() =>
+              managerOpen ? navigation.closeManager() : navigation.openManager()
+            }
+          >
+            <MaskIcon
+              svg={extensionsIcon}
+              name="extensions"
+              className="size-5"
+            />
+          </Button>
+        </Tooltip>
+        <Tooltip label="设置">
+          <Button
+            variant="ghost"
+            size="icon"
+            aria-label="设置"
+            className="text-rail-icon"
+            onClick={(event) =>
+              navigation.setDialog("settings", event.currentTarget)
+            }
+          >
+            <MaskIcon svg={settingsIcon} name="settings" className="size-5" />
+          </Button>
+        </Tooltip>
         {!managerOpen && <SidebarToggle chrome={chrome} />}
       </div>
     </header>

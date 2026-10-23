@@ -1,4 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
+import { shellButton } from "./helpers";
 
 declare global {
   interface Window {
@@ -47,9 +48,7 @@ async function native(page: Page, os = "macos") {
     };
   }, os);
   await page.goto("/");
-  await expect(
-    page.getByRole("button", { name: "应用菜单", exact: true }),
-  ).toBeVisible();
+  await expect(shellButton(page, "设置")).toBeVisible();
 }
 
 async function noCustomControls(page: Page) {
@@ -67,14 +66,14 @@ test("Mac rail reserves space for native controls without drawing or driving rep
   await native(page);
   await noCustomControls(page);
   const rail = page.getByRole("navigation", { name: "应用导航" });
-  expect((await rail.boundingBox())!.width).toBe(64);
+  expect((await rail.boundingBox())!.width).toBe(68);
   const reserve = rail.locator(":scope > [data-tauri-drag-region]");
   const box = (await reserve.boundingBox())!;
   expect(box.y).toBe(0);
   expect(box.height).toBeGreaterThanOrEqual(44);
   await expect(reserve.locator("button, input, a")).toHaveCount(0);
   // The native safe area must not steal the adjacent app navigation's click.
-  await page.getByRole("button", { name: "扩展管理", exact: true }).click();
+  await page.getByRole("button", { name: "扩展", exact: true }).click();
   await expect(
     page.getByRole("complementary", { name: "扩展管理", exact: true }),
   ).toBeVisible();

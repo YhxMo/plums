@@ -114,14 +114,19 @@ export function useExtensionManager(
     setError("");
     setDialog({ kind, id, source });
   }
-  const rows: ExtensionCardModel[] = installed.map((entry) => ({
-    entry,
-    manifest: host.manifest(entry.id),
-    state: host.inspect(entry.id),
-    users: host.users(entry.id),
-    selected: selected?.id === entry.id,
-    imported: value.imports.some((item) => item.id === entry.id),
-  }));
+  const views = host.views();
+  const rows: ExtensionCardModel[] = installed.map((entry) => {
+    const own = views.filter((view) => view.owner === entry.id);
+    return {
+      entry,
+      manifest: host.manifest(entry.id),
+      state: host.inspect(entry.id),
+      users: host.users(entry.id),
+      selected: selected?.id === entry.id,
+      imported: value.imports.some((item) => item.id === entry.id),
+      dialogs: own.filter((view) => view.presentation === "dialog"),
+    };
+  });
   return {
     failedImports,
     visible: manager.open,
@@ -140,6 +145,9 @@ export function useExtensionManager(
       adapter: runtime.adapter,
       actions: {
         select: setSelectedId,
+        /** Opens a dialog view over management, like model connections. */
+        openView: (view: { id: string; label: string }, source: HTMLElement) =>
+          navigation.setDialog(view, source),
         configure: (id: string, source: HTMLElement) =>
           open("configure", id, source),
         uninstall: (id: string, source: HTMLElement) =>

@@ -1,5 +1,5 @@
 import { test, expect } from "@playwright/test";
-import { manage } from "./helpers";
+import { manage, openSettings } from "./helpers";
 
 for (const width of [375, 768, 1440]) {
   test(`author samples install and pause/resume without a chat layout at ${width}`, async ({
@@ -21,8 +21,7 @@ for (const width of [375, 768, 1440]) {
         .getByRole("button", { name: `启用 sample.${name}`, exact: true })
         .click();
     }
-    await page.getByRole("button", { name: "应用菜单", exact: true }).click();
-    await page.getByRole("menuitem", { name: "应用设置", exact: true }).click();
+    await openSettings(page);
     await page
       .getByRole("radio", { name: "使用 计数样板", exact: true })
       .click();

@@ -5,8 +5,8 @@
 export const breakpoints = {
   /** Dialog forms stack their two-column rows. */
   form: "32.5rem",
-  /** Two panes: 64px rail + 208px list + 8px gap + 360px chat + 8px inset. */
-  md: "40.5rem",
+  /** Two panes: 68px rail + 208px list + 8px gap + 360px chat + 8px inset. */
+  md: "40.75rem",
   /** Extension management: 280px list + 320px details, gap, gutters, rail. */
   manager: "48rem",
   /** Room for the Agent details beside the conversation. */

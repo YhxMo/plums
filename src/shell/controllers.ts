@@ -12,19 +12,16 @@ import type { Experiments } from "@/features/extensions/useExperiments";
 export type CredentialOperations = Pick<ShellOperations, "busy" | "operate">;
 export type DialogFeedback = Pick<ShellOperations, "busy">;
 export type TitleBarProps = {
-  appearance: Pick<Appearance, "appearance" | "toggleTheme">;
-  workspace: Pick<Workspace, "current" | "allViews">;
+  workspace: Pick<Workspace, "current">;
   chrome: Pick<WorkspaceChrome, "title" | "custom" | "open" | "toggle">;
-  navigation: Pick<ShellNavigation, "manager" | "setDialog" | "openManager">;
-  operations: Pick<ShellOperations, "busy" | "operate">;
+  navigation: Pick<
+    ShellNavigation,
+    "manager" | "setDialog" | "openManager" | "closeManager"
+  >;
 };
 export type NavRailProps = {
   macOverlay: boolean;
-  appearance: Pick<Appearance, "appearance" | "toggleTheme">;
-  workspace: Pick<
-    Workspace,
-    "views" | "allViews" | "activeView" | "selectLayout"
-  >;
+  workspace: Pick<Workspace, "views" | "activeView" | "selectLayout">;
   navigation: Pick<
     ShellNavigation,
     "manager" | "setDialog" | "openManager" | "closeManager"
@@ -55,7 +52,12 @@ export type ShellDialogsProps = {
   >;
   navigation: Pick<
     ShellNavigation,
-    "dialog" | "setDialog" | "back" | "openManager"
+    | "dialog"
+    | "dialogTrigger"
+    | "setDialog"
+    | "openDialog"
+    | "back"
+    | "openManager"
   >;
 };
 export type AuthorizationDialogProps = {

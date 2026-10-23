@@ -15,7 +15,8 @@ export function DiagnosticActions({
   const { activeView, setSelected } = workspace;
   const { requestAuthorization } = authorization;
   const { started, start, writeDenied } = experiments;
-  const [fault, setFault] = useState(false);
+  // The adapter keeps the fault; a remounted panel shows what is in force.
+  const [fault, setFault] = useState(() => adapter.failWrites);
   return (
     <>
       <Button

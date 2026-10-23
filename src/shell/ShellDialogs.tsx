@@ -28,6 +28,7 @@ export function ShellDialogs({
       <Dialog
         key={settings.id}
         title={view?.label ?? settings.label}
+        returnFocusTo={navigation.dialogTrigger}
         onBack={navigation.back}
         onClose={() => setSettings(null)}
       >
@@ -56,6 +57,7 @@ export function ShellDialogs({
     <Dialog
       key={settings}
       title={settings === "about" ? "关于 Plums" : "应用设置"}
+      returnFocusTo={navigation.dialogTrigger}
       onBack={navigation.back}
       onClose={() => setSettings(null)}
     >
@@ -88,6 +90,7 @@ export function ShellDialogs({
             selectLayout={selectLayout}
             appearance={settingsAppearance}
             openManager={(diagnostics) => navigation.openManager(diagnostics)}
+            openAbout={() => navigation.openDialog("about")}
           />
         </DialogBody>
       )}

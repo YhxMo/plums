@@ -1,28 +1,25 @@
 import type { ReactNode } from "react";
-import { MenuIcon, PuzzleIcon } from "lucide-react";
-import { motion } from "motion/react";
 import { cn } from "cn";
 import type { NavRailProps } from "./controllers";
-import { AppMenu, ThemeToggle } from "./ShellActions";
 import { UserAvatar } from "./UserAvatar";
+import { extensionsIcon, settingsIcon, workspaceIcon } from "./icons";
+import { MaskIcon } from "@/components/MaskIcon";
 import { Tooltip } from "@/components/Tooltip";
 import { Button } from "@/components/ui/button";
-import { Separator } from "@/components/ui/separator";
 
-const railButton =
-  "relative size-9 rounded-xl text-muted-foreground hover:bg-foreground/6 aria-[current=page]:text-brand-text [&_svg:not([class*='size-'])]:size-[18px]";
-
-/** One rail destination; the active one carries the sliding marker. */
-function Destination({
+/** One rail destination: an icon in rail grey, selection orange when current. */
+export function RailButton({
   label,
   active,
   onClick,
   children,
+  className,
 }: {
   label: string;
-  active: boolean;
-  onClick: () => void;
+  active?: boolean;
+  onClick: (source: HTMLElement) => void;
   children: ReactNode;
+  className?: string;
 }) {
   return (
     <Tooltip label={label} side="right">
@@ -31,31 +28,26 @@ function Destination({
         size="icon"
         aria-label={label}
         aria-current={active ? "page" : undefined}
-        className={railButton}
-        onClick={onClick}
-      >
-        {active && (
-          <motion.span
-            layoutId="rail-active"
-            transition={{ type: "spring", stiffness: 520, damping: 38 }}
-            className="absolute inset-0 rounded-xl bg-background shadow-panel"
-          />
+        className={cn(
+          "size-11 rounded-xl text-rail-icon hover:bg-foreground/6 hover:text-rail-icon aria-[current=page]:text-selection dark:hover:bg-foreground/8",
+          className,
         )}
-        <span className="relative grid place-items-center">{children}</span>
+        onClick={(event) => onClick(event.currentTarget)}
+      >
+        {children}
       </Button>
     </Tooltip>
   );
 }
 
 /**
- * Desktop navigation, full window height: the workspaces contributed by
- * extensions, extension management, then appearance and
- * the app menu at the foot. On a Mac the window controls sit in its top
- * strip, which also drags the window. Phones keep these in the title bar.
+ * Desktop navigation, full window height: the user, the workspaces
+ * extensions contribute, then extension management with settings right
+ * below it at the foot. On a Mac the window controls sit in its top strip,
+ * which also drags the window. Phones keep the last two in the title bar.
  */
 export function NavRail({
   macOverlay,
-  appearance,
   workspace,
   navigation,
   operations,
@@ -64,53 +56,52 @@ export function NavRail({
   return (
     <nav
       aria-label="应用导航"
-      className="flex w-16 shrink-0 flex-col items-center gap-1 border-r pb-2 max-md:hidden"
+      className="flex w-[68px] shrink-0 flex-col items-center border-r max-md:hidden"
       data-tauri-drag-region
     >
       <div
         className={cn("w-full shrink-0", macOverlay ? "h-11" : "h-2")}
         data-tauri-drag-region
       />
-      <UserAvatar />
-      {workspace.views.map((view) => (
-        <Destination
-          key={view.id}
-          label={view.label}
-          active={!managerOpen && view.id === workspace.activeView}
-          onClick={() => {
-            if (managerOpen) navigation.closeManager();
-            if (view.id !== workspace.activeView)
-              void operations.operate(() => workspace.selectLayout(view.id));
-          }}
+      <div className="mt-1.5">
+        <UserAvatar />
+      </div>
+      <div className="mt-5 flex flex-col gap-2">
+        {workspace.views.map((view) => (
+          <RailButton
+            key={view.id}
+            label={view.label}
+            active={!managerOpen && view.id === workspace.activeView}
+            onClick={() => {
+              if (managerOpen) navigation.closeManager();
+              if (view.id !== workspace.activeView)
+                void operations.operate(() => workspace.selectLayout(view.id));
+            }}
+          >
+            {view.icon ? (
+              <MaskIcon svg={view.icon} name="view" />
+            ) : (
+              <MaskIcon svg={workspaceIcon} name="workspace" />
+            )}
+          </RailButton>
+        ))}
+      </div>
+      <div className="mt-auto mb-3.5 flex flex-col gap-2">
+        <RailButton
+          label="扩展"
+          active={managerOpen}
+          onClick={() =>
+            managerOpen ? navigation.closeManager() : navigation.openManager()
+          }
         >
-          {/* Views carry no icon in their contract; their initial stands in. */}
-          <span className="text-sm font-semibold">{[...view.label][0]}</span>
-        </Destination>
-      ))}
-      <Separator className="my-1 w-5! bg-border" />
-      <Destination
-        label="扩展管理"
-        active={managerOpen}
-        onClick={() =>
-          managerOpen ? navigation.closeManager() : navigation.openManager()
-        }
-      >
-        <PuzzleIcon />
-      </Destination>
-      <div className="mt-auto flex flex-col items-center gap-1">
-        <ThemeToggle
-          appearance={appearance}
-          operations={operations}
-          side="right"
-          className={railButton}
-        />
-        <AppMenu
-          workspace={workspace}
-          navigation={navigation}
-          side="right"
-          icon={<MenuIcon />}
-          className={railButton}
-        />
+          <MaskIcon svg={extensionsIcon} name="extensions" />
+        </RailButton>
+        <RailButton
+          label="设置"
+          onClick={(source) => navigation.setDialog("settings", source)}
+        >
+          <MaskIcon svg={settingsIcon} name="settings" />
+        </RailButton>
       </div>
     </nav>
   );

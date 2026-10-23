@@ -2,6 +2,7 @@ import { hostError } from "./lifecycle";
 import type { Registry, Service } from "./registry";
 import type { Scope } from "./scope";
 import { copyTheme } from "@modules/sdk/theme";
+import { viewIconProblem } from "@modules/sdk/view-icon";
 import type {
   ExtensionContext,
   Manifest,
@@ -234,8 +235,13 @@ export function createContext(
       scope.assertOpen();
       if (registry.views.has(view.id))
         throw hostError(`View conflict: ${view.id}`);
+      // Checked once here; a bad icon is reported, not fatal to the view.
+      const iconProblem =
+        view.icon === undefined ? undefined : viewIconProblem(view.icon);
       const registered = {
         ...view,
+        icon: iconProblem ? undefined : view.icon,
+        iconProblem,
         owner: id,
         generation: registry.nextViewGeneration(),
         mounts: new Set<() => void | Promise<void>>(),

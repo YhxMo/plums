@@ -9,6 +9,8 @@ export type Service = {
   signal: AbortSignal;
 };
 export type RegisteredView = View & {
+  /** Why `icon` was dropped, for management to show. */
+  iconProblem?: string;
   owner: string;
   generation: number;
   mounts: Set<() => void | Promise<void>>;

@@ -184,14 +184,17 @@ for (const scenario of ["resize", "dynamic"]) {
       await expect(
         page.getByRole("complementary", { name: "Agent 详情" }),
       ).toBeVisible();
-      await page.getByRole("button", { name: "应用菜单", exact: true }).click();
+      await manage(page);
       await page
-        .getByRole("menuitem", { name: "侧栏贡献控制", exact: true })
+        .getByRole("button", { name: "打开 侧栏贡献控制", exact: true })
         .click();
       await page.getByRole("button", { name: "注册上下文侧栏" }).click();
       await page
         .getByRole("dialog", { name: "侧栏贡献控制" })
         .getByRole("button", { name: "关闭", exact: true })
+        .click();
+      await page
+        .getByRole("button", { name: "返回工作区", exact: true })
         .click();
     }
     await expect(
@@ -307,7 +310,7 @@ for (const width of [375, 700, 1280]) {
     await page.setViewportSize({ width, height: 820 });
     await page.goto("/");
     await addAgent(page, "菜单");
-    const details = page.getByRole(width < 648 ? "dialog" : "complementary", {
+    const details = page.getByRole(width < 652 ? "dialog" : "complementary", {
       name: "Agent 详情",
     });
     await expect(page.getByRole("button", { name: /详情/ })).toHaveCount(0);
@@ -330,7 +333,7 @@ for (const width of [375, 700, 1280]) {
     });
     await toggle.click();
     await expect(details).toBeVisible();
-    if (width >= 648) {
+    if (width >= 652) {
       // A drawer above the chat that leaves it usable.
       await expect(
         page.getByRole("dialog", { name: "Agent 详情" }),

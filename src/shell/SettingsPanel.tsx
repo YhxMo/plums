@@ -10,6 +10,7 @@ type Props = Pick<ShellDialogsProps["operations"], "busy" | "operate"> &
     selectLayout(id: string): Promise<void>;
     appearance: ShellDialogsProps["appearance"];
     openManager(diagnostics?: boolean): void;
+    openAbout(): void;
   };
 
 function Section({ title, children }: { title: string; children: ReactNode }) {
@@ -44,6 +45,7 @@ export function SettingsPanel({
   selectLayout,
   appearance: { appearance, themes, themeId, selectTheme, toggleTheme },
   openManager,
+  openAbout,
 }: Props) {
   return (
     <>
@@ -126,6 +128,14 @@ export function SettingsPanel({
         >
           <Button variant="outline" onClick={() => openManager()}>
             管理扩展
+            <ChevronRightIcon data-icon="inline-end" />
+          </Button>
+        </Row>
+      </Section>
+      <Section title="关于">
+        <Row label={<span className="text-muted-foreground">版本与说明</span>}>
+          <Button variant="outline" onClick={openAbout}>
+            关于 Plums
             <ChevronRightIcon data-icon="inline-end" />
           </Button>
         </Row>

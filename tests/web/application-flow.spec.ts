@@ -1,4 +1,10 @@
-import { manage, legacyEntry, chooseLayout, extensionDetail } from "./helpers";
+import {
+  manage,
+  legacyEntry,
+  chooseLayout,
+  extensionDetail,
+  switchAppearance,
+} from "./helpers";
 import { test, expect } from "@playwright/test";
 
 test("cancel returns to the initiating control even when activation does not focus it", async ({
@@ -265,9 +271,7 @@ test("legacy unconfigured workbench default boots into Agents without changing s
   expect(
     await page.evaluate(() => localStorage.getItem("plums:m1:host.shell")),
   ).toBe(original);
-  await page
-    .getByRole("button", { name: "切换到浅色模式", exact: true })
-    .click();
+  await switchAppearance(page, "浅色");
   const saved = await page.evaluate(() =>
     JSON.parse(localStorage.getItem("plums:m1:host.shell")!),
   );

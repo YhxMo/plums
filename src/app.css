@@ -11,7 +11,7 @@
    media queries in script, and tests keep the two equal. */
 @theme {
   --breakpoint-form: 32.5rem;
-  --breakpoint-md: 40.5rem;
+  --breakpoint-md: 40.75rem;
   --breakpoint-manager: 48rem;
   --breakpoint-wide: 68.75rem;
 }

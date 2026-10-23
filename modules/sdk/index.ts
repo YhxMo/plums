@@ -67,8 +67,15 @@ export interface Platform {
 export interface View {
   id: string;
   label: string;
-  /** Defaults to workspace for existing extensions. Dialogs appear in the app menu; sidebars mount in the right drawer. */
+  /** Defaults to workspace for existing extensions. Dialogs open from the extension's card in management; sidebars mount in the right drawer. */
   presentation?: "workspace" | "dialog" | "sidebar";
+  /**
+   * SVG text for the rail, at most 8 KiB, with a root `<svg>` that has a
+   * `viewBox`. Drawn as a one-colour mask the host tints, so only its shape
+   * counts; scripts, links and styles in it never run. An invalid icon is
+   * reported in management and the generic workspace icon is shown.
+   */
+  icon?: string;
   /** Deterministic fallback among workspace views; higher wins, then id. */
   priority?: number;
   /** Optional reactive title, contextual sidebar and entity navigation. */

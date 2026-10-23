@@ -10,7 +10,7 @@ import { useExperiments } from "@/features/extensions/useExperiments";
 import { AuthorizationDialog, useAuthorization } from "./AuthorizationDialog";
 import { TitleBar } from "./TitleBar";
 import { NavRail } from "./NavRail";
-import { SidebarToggle } from "./ShellActions";
+import { SidebarToggle } from "./SidebarToggle";
 import { ShellFeedback } from "./ShellFeedback";
 import { WorkspaceArea } from "./WorkspaceArea";
 import { RecoveryWelcome } from "./RecoveryWelcome";
@@ -71,7 +71,6 @@ export function Workbench({ runtime }: { runtime: Runtime }) {
       <NavRail
         macOverlay={macOverlay}
         operations={operations}
-        appearance={appearance}
         workspace={workspace}
         navigation={navigation}
       />
@@ -92,8 +91,6 @@ export function Workbench({ runtime }: { runtime: Runtime }) {
             </div>
           )}
           <TitleBar
-            operations={operations}
-            appearance={appearance}
             workspace={workspace}
             chrome={chrome}
             navigation={navigation}

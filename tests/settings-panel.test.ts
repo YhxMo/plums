@@ -20,6 +20,7 @@ const props: ComponentProps<typeof SettingsPanel> = {
     toggleTheme: async () => {},
   },
   openManager: () => {},
+  openAbout: () => {},
 };
 it.each([false, true])(
   "only advertises diagnostics when available (DEV=%s)",
@@ -29,5 +30,8 @@ it.each([false, true])(
     expect(html.includes("打开诊断工具")).toBe(dev);
     expect(html.includes("数据与诊断")).toBe(dev);
     expect(html).toContain("管理扩展");
+    // What the app menu used to hold now lives here.
+    expect(html).toContain("切换到浅色模式");
+    expect(html).toContain("关于 Plums");
   },
 );

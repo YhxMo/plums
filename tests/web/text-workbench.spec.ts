@@ -1,5 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
-import { manage, persisted } from "./helpers";
+import { manage, persisted, openSettings, shellButton } from "./helpers";
 async function enable(page: Page) {
   await manage(page);
   await page
@@ -68,16 +68,14 @@ for (const width of [375, 1440]) {
     await expect(
       page.getByRole("status").filter({ hasText: "已保存" }),
     ).toBeVisible();
-    await page.getByRole("button", { name: "应用菜单", exact: true }).click();
-    await page.getByRole("menuitem", { name: "应用设置", exact: true }).click();
+    await openSettings(page);
     await page
       .getByRole("radio", { name: "使用 Agent 界面", exact: true })
       .click();
     await expect(
       page.getByRole("heading", { name: "欢迎使用 Plums" }),
     ).toBeVisible();
-    await page.getByRole("button", { name: "应用菜单", exact: true }).click();
-    await page.getByRole("menuitem", { name: "应用设置", exact: true }).click();
+    await openSettings(page);
     await page
       .getByRole("radio", { name: "使用 文本处理工作台", exact: true })
       .click();
@@ -253,10 +251,7 @@ test("mobile result detail keeps host management above extension layers", async 
   await page.getByRole("button", { name: "查看结果", exact: true }).click();
   await page.locator(".tw-result").first().click();
   await expect(page.getByRole("dialog", { name: "结果详情" })).toBeVisible();
-  await page.getByRole("button", { name: "应用菜单", exact: true }).click();
-  await page
-    .getByRole("menuitem", { name: "扩展管理", exact: true })
-    .click({ timeout: 2000 });
+  await shellButton(page, "扩展").click({ timeout: 2000 });
   await expect(page.getByRole("heading", { name: "扩展与状态" })).toBeVisible();
   await page.getByRole("button", { name: "返回工作区", exact: true }).click();
   await expect(page.getByRole("dialog", { name: "结果详情" })).toBeVisible();

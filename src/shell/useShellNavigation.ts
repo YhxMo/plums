@@ -23,12 +23,19 @@ export function useShellNavigation(runtime: Runtime) {
   const stepsNow = useRef(steps);
   stepsNow.current = steps;
   const managerTrigger = useRef<HTMLElement | null>(null);
+  // WebKit does not focus a clicked button, so callers pass the one pressed.
+  const dialogTrigger = useRef<HTMLElement | null>(null);
   // The dialogs extension management was opened from, restored on return.
   const managerFrom = useRef<Step[]>([]);
-  function setDialog(next: ShellDialog) {
+  /** Opens `next` alone (or closes all); focus returns to `source`. */
+  function setDialog(next: ShellDialog, source?: HTMLElement | null) {
+    if (next) dialogTrigger.current = source ?? null;
     setSteps(next ? [next] : []);
   }
   function pushDialog(next: Step) {
+    // Without a pressed button, Dialog finds the opener itself (a menu
+    // item maps to its menu's button).
+    if (!stepsNow.current.length) dialogTrigger.current = null;
     setSteps((previous) => {
       const top = previous.at(-1);
       const same =
@@ -57,7 +64,11 @@ export function useShellNavigation(runtime: Runtime) {
     const target = managerTrigger.current;
     if (target.isConnected) target.focus();
     else
-      document.querySelector<HTMLElement>('[aria-label="应用菜单"]')?.focus();
+      document
+        .querySelector<HTMLElement>(
+          'button[aria-label="扩展"]:not(:is([hidden], [hidden] *))',
+        )
+        ?.focus();
   }, [manager.open]);
   useEffect(() => {
     const open = (event: Event) => {
@@ -86,7 +97,11 @@ export function useShellNavigation(runtime: Runtime) {
       backLabel: from ? `返回${stepLabel(from)}` : "返回工作区",
     },
     dialog: steps.at(-1) ?? null,
+    /** The control that opened the first dialog in the stack. */
+    dialogTrigger: dialogTrigger.current,
     setDialog,
+    /** Opens a dialog on top of the current one, which Back returns to. */
+    openDialog: pushDialog,
     /** Returns to the dialog this one was opened from, when there is one. */
     back:
       steps.length > 1

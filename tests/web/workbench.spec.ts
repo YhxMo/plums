@@ -1,4 +1,10 @@
-import { manage, legacyEntry, chooseLayout } from "./helpers";
+import {
+  manage,
+  legacyEntry,
+  chooseLayout,
+  shellButton,
+  switchAppearance,
+} from "./helpers";
 import { test, expect, type Page } from "@playwright/test";
 async function authorize(page: Page) {
   await page
@@ -101,9 +107,7 @@ test("broken layout recovers to the working default without losing management", 
   ).toBeVisible();
   await page.getByRole("button", { name: "返回工作区", exact: true }).click();
   await expect(page.getByRole("heading", { name: "文本工作台" })).toBeVisible();
-  await expect(
-    page.getByRole("button", { name: "应用菜单", exact: true }),
-  ).toBeEnabled();
+  await expect(shellButton(page, "设置")).toBeEnabled();
 });
 // The development build's defaults, already offered once and turned off.
 const defaults = [
@@ -141,9 +145,7 @@ test("a failed preferred layout keeps a non-empty selection instead of persistin
   await expect(
     page.getByRole("alert").filter({ hasText: "布局不可用" }),
   ).toBeVisible();
-  await page
-    .getByRole("button", { name: "切换到深色模式", exact: true })
-    .click();
+  await switchAppearance(page, "深色");
   await expect
     .poll(() =>
       page.evaluate(
@@ -315,37 +317,4 @@ test("an async release failure stays visible in the React management path", asyn
   await expect(
     page.getByRole("button", { name: "启用 cleanup.fixture", exact: true }),
   ).toBeDisabled();
-});
-
-test("the desktop rail switches between the workspace and extension management", async ({
-  page,
-}) => {
-  await page.setViewportSize({ width: 1180, height: 800 });
-  await page.goto("/");
-  const rail = page.getByRole("navigation", { name: "应用导航" });
-  const workspace = rail.getByRole("button", {
-    name: "Agent 界面",
-    exact: true,
-  });
-  const extensions = rail.getByRole("button", {
-    name: "扩展管理",
-    exact: true,
-  });
-  await expect(workspace).toHaveAttribute("aria-current", "page");
-  await extensions.click();
-  await expect(page.getByRole("heading", { name: "扩展与状态" })).toBeVisible();
-  await expect(extensions).toHaveAttribute("aria-current", "page");
-  await expect(workspace).not.toHaveAttribute("aria-current", "page");
-  await workspace.click();
-  await expect(page.getByRole("heading", { name: "扩展与状态" })).toBeHidden();
-  await expect(workspace).toHaveAttribute("aria-current", "page");
-  await rail.getByRole("button", { name: "应用菜单", exact: true }).click();
-  await expect(page.getByRole("menuitem", { name: "应用设置" })).toBeVisible();
-  await page.keyboard.press("Escape");
-  // Phones keep these actions in the title bar instead.
-  await page.setViewportSize({ width: 375, height: 800 });
-  await expect(rail).toBeHidden();
-  await expect(
-    page.getByRole("banner").getByRole("button", { name: "应用菜单" }),
-  ).toBeVisible();
 });

@@ -185,7 +185,17 @@ export class Host {
     return [...this.registry.views.values()]
       .filter((view) => this.record(view.owner).status === "active")
       .map(
-        ({ id, label, owner, generation, presentation, priority, chrome }) => ({
+        ({
+          id,
+          label,
+          owner,
+          generation,
+          presentation,
+          priority,
+          chrome,
+          icon,
+          iconProblem,
+        }) => ({
           id,
           label,
           owner,
@@ -193,6 +203,8 @@ export class Host {
           presentation: presentation ?? "workspace",
           priority: priority ?? 0,
           ...(chrome ? { chrome } : {}),
+          ...(icon === undefined ? {} : { icon }),
+          ...(iconProblem === undefined ? {} : { iconProblem }),
         }),
       );
   }

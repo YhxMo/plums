@@ -1,5 +1,5 @@
 import { expect, test, type Locator, type Page } from "@playwright/test";
-import { addAgent, manage } from "./helpers";
+import { addAgent, manage, openSettings } from "./helpers";
 
 test("a narrow desktop keeps attachment shortcuts and Enter-to-send", async ({
   page,
@@ -364,8 +364,7 @@ test("the attach shortcut stays quiet behind the extension manager and under dia
   await manage(page);
   expect(await chooserOpens()).toBe(false);
   await page.getByRole("button", { name: "返回工作区", exact: true }).click();
-  await page.getByRole("button", { name: "应用菜单", exact: true }).click();
-  await page.getByRole("menuitem", { name: "应用设置", exact: true }).click();
+  await openSettings(page);
   await expect(page.getByRole("dialog", { name: "应用设置" })).toBeVisible();
   expect(await chooserOpens()).toBe(false);
   await page.keyboard.press("Escape");

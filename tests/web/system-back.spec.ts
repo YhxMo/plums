@@ -129,14 +129,14 @@ for (const throws of [false, true]) {
   });
 }
 
-test("system Back dismisses menu, then authorization, without granting", async ({
+test("system Back dismisses settings, then authorization, without granting", async ({
   page,
 }) => {
   await page.goto("/");
-  const trigger = page.getByRole("button", { name: "应用菜单", exact: true });
+  const trigger = page.getByRole("button", { name: "设置", exact: true });
   await trigger.click();
   expect(await back(page)).toBe(false);
-  await expect(page.getByRole("menu")).toBeHidden();
+  await expect(page.getByRole("dialog", { name: "应用设置" })).toBeHidden();
   await expect(trigger).toBeFocused();
   const launch = await legacyEntry(page);
   await launch.click();
