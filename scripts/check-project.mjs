@@ -73,37 +73,27 @@ const localTargets = (name, text) =>
       resolve(dirname(name), target.split("#")[0] || name.split("/").at(-1)),
     );
 const docIndex = "docs/README.md";
-const archiveIndex = "docs/spec/archive/README.md";
-for (const name of [docIndex, archiveIndex])
-  if (!existsSync(name)) problems.push(`${name}: missing document index`);
+if (!existsSync(docIndex)) problems.push(`${docIndex}: missing document index`);
 const targets = (name) =>
   existsSync(name)
     ? new Set(localTargets(name, readFileSync(name, "utf8")))
     : new Set();
 const indexTargets = targets(docIndex);
-const archiveTargets = targets(archiveIndex);
 const entryTargets = new Set([
   ...targets("AGENTS.md"),
   ...targets("README.md"),
 ]);
 if (!entryTargets.has(resolve(docIndex)))
   problems.push(`${docIndex}: not linked from AGENTS.md or README.md`);
-if (!indexTargets.has(resolve(archiveIndex)))
-  problems.push(`${docIndex}: missing archive index link`);
 const isCurrentDoc = (name) =>
   /^docs\/[^/]+\.md$/.test(name) || /^docs\/spec\/[^/]+\.md$/.test(name);
-const isArchivedDoc = (name) => /^docs\/spec\/archive\/[^/]+\.md$/.test(name);
 for (const name of docs) {
   if (!/^docs\//.test(name)) continue;
-  const isIndex = name === docIndex || name === archiveIndex;
-  const archived = isArchivedDoc(name) && !isIndex;
+  const isIndex = name === docIndex;
   const current = isCurrentDoc(name) && !isIndex;
-  if (!archived && !current && !isIndex)
+  if (!current && !isIndex)
     problems.push(`${name}: unexpected document location`);
-  if (archived) {
-    if (!archiveTargets.has(resolve(name)))
-      problems.push(`${name}: missing archive index entry`);
-  } else if (current) {
+  if (current) {
     if (!indexTargets.has(resolve(name)))
       problems.push(`${name}: missing docs index entry`);
     const firstBlock = readFileSync(name, "utf8").split("\n## ")[0];

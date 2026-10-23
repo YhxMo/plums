@@ -1,8 +1,8 @@
 # 页面导航与文本处理工作台
 
-[SDK 作者入口](SDK-AUTHORING.md) · [视图树](VIEW-TREE.md) · [交互方案（已归档）](spec/archive/M2-interaction-design-2026-10-16.md)
+[SDK 作者入口](SDK-AUTHORING.md) · [视图树](VIEW-TREE.md)
 
-状态：当前有效（2026-10-17 核实）；页面导航与文本工作台当前实现，交互方案设计依据已归档。
+状态：当前有效（2026-10-17 核实）；页面导航与开发文本工作台的当前契约。
 
 ## 使用文本处理工作台
 
@@ -16,13 +16,13 @@
 
 `ctx.shell.open("extensions" | "settings" | "diagnostics")` 打开宿主界面；它不授予权限，也不直接启停其他扩展。`open("extensions", id)` 在扩展管理中选中该扩展；`open("view", viewId)` 打开某个扩展贡献的 dialog 视图（例如从 Agent 详情打开模型连接页）；其他入口传目标会被拒绝。宿主通过 `Host.connectShell(bridge)` 接入自己的呈现与保存逻辑；未接入时 `open`/`savePage` 明确拒绝，`readPage` 返回 undefined（等同无偏好）。已停用的上下文不能再打开入口或写入页面偏好。
 
-`ctx.shell.dependencies()` 返回本扩展及（递归）经 `ctx.use` 绑定的提供者，形如 `{ id, label }`，本扩展在首位；名称由外壳桥提供，未接入时为 ID。`ctx.providers` 取得的列表不算入依赖链。`ctx.shell.publishUsers(kind, users, toggle?)` 公布本扩展服务的对象（例如 `"Agent"` 与各 Agent 的 `{ id, label }`），整体替换上次公布，相同内容不触发刷新，停用时清除。每个对象可用 `uses` 列出它实际使用的提供者 ID；扩展管理把它列在依赖链或 `uses` 中每个扩展的详情里，也列在经 `ctx.use` 建在公布者之上的已启用扩展里（例如呈现 Agent 的界面扩展）。`toggle` 形如 `{ service, set(userId, extensionId, on) }`，`service` 须在 requires 中：该服务的已启用提供者详情页列出全部对象，`uses` 含该扩展的为开启（实心），其余为关闭（虚线），点按后宿主校验并调用 `set`，由扩展自行保存选择；停用仍有使用者的扩展前，外壳确认并列出这些使用者。宿主只按依赖链、`uses` 与服务转交，不理解 kind 或 users 的业务含义。
+`ctx.shell.dependencies()` 返回本扩展及（递归）经 `ctx.use` 绑定的提供者，形如 `{ id, label }`，本扩展在首位；名称由外壳桥提供，未接入时为 ID。`ctx.providers` 取得的列表不算入依赖链。`ctx.shell.publishUsers(kind, users, toggle?)` 公布本扩展服务的对象（例如 `"Agent"` 与各 Agent 的 `{ id, label }`），整体替换上次公布，相同内容不触发刷新，停用时清除。每个对象可用 `uses` 列出它实际使用的提供者 ID；扩展管理把它列在依赖链或 `uses` 中每个扩展的详情里，也列在经 `ctx.use` 建在公布者之上的已启用扩展里（例如呈现 Agent 的界面扩展）。`toggle` 形如 `{ service, set(userId, extensionId, on) }`，`service` 须在 requires 或 optional 中：该服务的已启用提供者详情页列出全部对象，`uses` 含该扩展的为开启（实心），其余为关闭（虚线），点按后宿主校验并调用 `set`，由扩展自行保存选择；停用仍有使用者的扩展前，外壳确认并列出这些使用者。宿主只按依赖链、`uses` 与服务转交，不理解 kind 或 users 的业务含义。
 
 `ctx.shell.readPage(viewId)` 读取页面偏好，`savePage(viewId, route)` 在宿主状态保存成功后完成。Host 自动以扩展 ID 与 viewId 组成键，业务内容仍由扩展另存。没有偏好返回 undefined；旧配置不需要增加 pages 字段。坏页面偏好结构拒绝启动并保留数据。并发写入沿用宿主串行保存与未知回执锁定。未连接宿主桥时 `readPage` 同样返回 undefined（等同无偏好），`open`/`savePage` 显式拒绝；接线错误须通过后两者暴露，不能把 undefined 当作“偏好为空”推断宿主已接线。
 
 `ctx.view` 新增可选字段：
 
-- `presentation: "workspace" | "dialog"`：旧扩展默认 workspace；dialog 在应用菜单中使用贡献的 label，不绑定特定业务 ID。
+- `presentation: "workspace" | "dialog" | "sidebar"`：旧扩展默认 workspace；dialog 在应用菜单中使用贡献的 label，不绑定特定业务 ID。
 - `priority: number`：没有有效选中布局时，较高优先级优先，同级按 ID 排序。默认值 0。内置 Agent 布局声明 100；显式选中其他布局仍优先。
 - `beforeLeave(): Promise<void>`：主动切换布局前结束在途操作。扩展也须在 disposer 中等待任务与页面释放，覆盖停用、卸载和失去依赖的路径。
 
@@ -92,10 +92,10 @@ export default {
 };
 ```
 
-可安装的 [交稿检查](LOCAL-PROOF.md) 由冻结后的内部独立作者只依据公开文档与 SDK 编写，提供页面容器、独立节点服务、动态清单与冲突回退；验证范围见 [接入证据](../evidence/INDEPENDENT-PAGES-2026-10-16.md)。贡献仍在共享 WebView 中运行，页面根约束、权限提示和 DOM 归属不构成恶意代码安全隔离。
+开发样板见 [页面容器](../extensions/examples/local-proof-ui.js)与[页面贡献](../extensions/examples/local-proof-pages.js)。贡献在共享 WebView 中运行，根节点约束、权限提示和 DOM 归属不是恶意代码安全隔离。
 
 ## 取消、保存与验证边界
 
 转换期间可取消；切换页面、布局或停用扩展会取消未提交转换并等待结束。已经派发的保存不能撤回，界面显示“等待保存”；成功回执胜出。未知写回执锁住修改，提示重新启用读取实际状态。失败保留输入和已保存结果。
 
-浏览器、原生包与设备验收分别记录。第 3 步的失败反例、单元与浏览器结果见 [专项证据](../evidence/INTERACTION-2026-10-16.md)，第 4 步内部独立接入单独留证。第 5 步已完成 Mac/Android 同版普通包及旧集成剩余项的限定验收，见 [交付证据](../evidence/M2-NATIVE-DELIVERY-2026-10-16.md)；真机与其他配置仍待验。
+浏览器、原生包与设备分别验收；具体候选结果见 [HANDOFF](../HANDOFF.md)，不以开发样板通过代替正式平台支持。

@@ -16,7 +16,7 @@ Plums 是一个可以被扩展自由组装的应用本体。本体只负责通�
 
 - **默认 Agent 界面**：创建或导入角色卡、特别关注、多会话；详情只显示介绍和组成这个 Agent 的扩展。每个 Agent 选择自己的模型：在「模型连接」中添加 DeepSeek、OpenAI、Anthropic、Kimi 等服务或兼容接口（需自己的 API Key），对话会带上最近的上下文与角色说明；也可导入自己写的扩展。
 - **扩展管理**：查看扩展的来源、能力、权限与资源，启用、停用、卸载；从文件选择或拖入单文件扩展导入，开发时也可按同源模块路径安装。
-- **界面替换样板**：文本工作台、画布、独立嵌套页面、公开主题，用来验证非聊天界面与布局替换，见 [PAGES](docs/PAGES.md)、[THEMES](docs/THEMES.md)。
+- **界面与主题扩展**：可通过公开契约替换布局、页面、导航和主题，见 [PAGES](docs/PAGES.md)、[THEMES](docs/THEMES.md)。文本工作台、画布等示例只供源码开发与测试，打包默认组合只有 Agent 核心、模型连接和 Agent 界面。
 - **平台能力样板**：会话内只读打开所选文档（[说明](docs/SELECTED-DOCUMENT.md)）；在应用内填写模型 API Key 并配置连接（[说明](docs/CREDENTIAL-BINDINGS.md)），密钥只保存在本机，由原生层注入请求。
 - **尚未实现**：MCP 连接器、多 Agent 协作、扩展市场、按扩展隔离。
 
@@ -60,6 +60,6 @@ npm run native -- build --debug --bundles app
 
 - [文档导航](docs/README.md)：所有当前文档的索引
 - [HANDOFF](HANDOFF.md)：工程状态与交付包
-- [架构](docs/ARCHITECTURE.md)、[开发流程](docs/DEVELOPMENT.md)、[经验](LESSONS.md)
+- [架构](docs/ARCHITECTURE.md)、[开发流程](docs/DEVELOPMENT.md)
 
 第三方依赖通过锁文件固定，必要许可证与版权声明须保留。平台技术资料以 [Tauri 2](https://v2.tauri.app/) 官方文档为准。

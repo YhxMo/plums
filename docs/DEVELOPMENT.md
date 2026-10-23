@@ -2,11 +2,20 @@
 
 [文档导航](README.md) · [验收矩阵](ACCEPTANCE.md) · [整体计划](spec/total.md)
 
-状态：当前有效（2026-10-18 核实）；工作规则见 [AGENTS](../AGENTS.md)，命令与门禁细节以此文为准，命令以 package.json 与实际配置为准。
+状态：当前有效（2026-10-23 核实）；工作规则见 [AGENTS](../AGENTS.md)，命令与门禁细节以此文为准，命令以 package.json 与实际配置为准。
 
 可用命令以 [package.json](../package.json) 与 [README](../README.md) 为准；运行数据、缓存与原始日志使用隔离目录，不进入源码提交。
 
 ## 验证入口
+
+本机 Playwright 使用 1 个 worker；浏览器回归与原生构建串行执行。Rust 构建与测试设置 `CARGO_BUILD_JOBS=1 RUST_TEST_THREADS=1`。Mac UI 改动除 Chromium 外还需相关 WebKit 回归，并在隔离打包应用检查实际交互；它们分别证明各自环境。
+
+WebKit 使用现有 Playwright 入口，并清空默认 Chrome channel。浏览器缓存位于项目 `.cache/ms-playwright` 时，例如：
+
+```sh
+PLAYWRIGHT_CHANNEL= PLAYWRIGHT_BROWSERS_PATH="$PWD/.cache/ms-playwright" \
+  npx playwright test --browser=webkit tests/web/dialog-keyboard.spec.ts --workers=1
+```
 
 提交前运行 `npm run verify:web`，依次检查构建与类型、单元测试、Prettier、项目清单与导入边界、文件行数、ESLint。原生工具齐备时运行 `npm run verify`，串联 Web 与 `npm run verify:native`；后者依次核对 Rust 导出的 IPC 契约、执行 Rust 格式、Clippy 和原生单元。缺少工具或命令失败均单独记录，不作为通过。浏览器回归单独运行 `npm run verify:e2e`，不进入默认门禁。E2E 默认自起隔离 dev server，1420 被占用或来源不明时失败而非复用；只有快速迭代可显式设置 `PLUMS_E2E_REUSE_SERVER=1` 复用本地服务，该模式不作为证据。
 
@@ -14,17 +23,21 @@ ESLint 使用 flat config，对全部 JS/TS/TSX 启用推荐规则、typescript-
 
 `verify:web` 使用 `npm run check:project -- --boundaries`，复用已锁定 TypeScript 的 AST 检查 TS、TSX、JS、MJS 的静态路径 import、export、类型导入、动态 import 和 require。`src`、`modules`、`extensions` 下每个源码文件都必须属于一层，未归层即失败；层与允许目标见 `scripts/check-boundaries.mjs` 的 `layers`。通用层（SDK、宿主、`modules/shell`、`src/shell`、`src/features/extensions`、`src/components`、平台适配）不得引用业务模块；业务模块（`modules/agents`、`modules/text-workbench`）与默认 Agent 界面（`src/agents`）只能引用 SDK、自身与通用组件；只有组合根（`src/App.tsx`、`src/main.tsx`、`src/application.ts`）可接线全部。父目录桶入口（如 `"../"`）与仓库逃逸路径均拒绝。
 
-业务视图 ID 字面量不得出现在通用层；R5 前仅诊断实验两个文件按名单豁免。源码解析失败、候选集合为空均失败。非字面量动态 import/require 和包名导入不在此仓库相对路径检查范围；这不是运行时安全沙箱。
+业务视图 ID 字面量不得出现在通用层；诊断实验的例外仅限脚本中的明确名单。源码解析失败、候选集合为空均失败。非字面量动态 import/require 和包名导入不在此仓库相对路径检查范围；这不是运行时安全沙箱。
 
 完整门禁须在仓库根执行以覆盖所有源码与 SDK barrel；裁剪集合不能证明全仓边界。边界与 IPC 导入检查通过 `scripts/parse-sources.mjs` 使用 TypeScript 公开编译器 API 在内存中解析，不做类型解析或文件 I/O。普通 `npm run check:project` 仍只需 Node，检查清单、文档及隐私模式。
 
 `check:size` 扫描项目源码清单的 TS、TSX、JS、MJS、Rust、Kotlin 和 CSS，以物理行数计数（末尾换行不增加空行），阈值见[脚本](../scripts/check-size.mjs)。超过 400 行的文件只列出提醒，改动时留意是否仍是单一职责；超过 800 行才失败。拆分以可维护性为准：按职责拆，不为凑行数把内聚的代码拆散或压缩写法。清单包含测试，生成输出沿用项目清单的排除规则。
 
-启动与声明校验复用 `modules/sdk/validation.ts` 和 `ContractError`：错误码表达类别，detail 保留字段路径，通用中文由 `src/shell/messages.ts` 映射；业务数据错误由提供者提供具体 message，外壳不按 Agent 等业务字段名翻译。已有开发调用需要英文诊断时，通过校验的 label／ContractError 的可选 message 保留原因；不要用裸错误码替代已对外提供的字符串诊断。Host 的配置、激活与清理错误在转为字符串前使用可选格式化回调，等待原因的既有前缀继续供诊断助手解析，界面显示时再映射。
+启动与声明校验复用 `modules/sdk/validation.ts` 和 `ContractError`：错误码表达类别，detail 保留字段路径，通用中文由 `src/shell/messages.ts` 映射；业务数据错误由提供者提供具体 message，外壳不按 Agent 等业务字段名翻译。已有开发调用需要英文诊断时，通过校验的 label／ContractError 的可选 message 保留原因；不要用裸错误码替代已对外提供的字符串诊断。Host 的配置、激活与清理错误在转为字符串前使用可选格式化回调；等待原因读取结构化 `inspect().wait`，诊断与界面不解析等待文本前缀。
 
-## 已删除的传输实验
+## 上游依赖补丁
 
-M2.3.1 TLS/JNI 隔离实验（`tests/tls-jni/`）与原生传输探针（`native-transport-experiment` feature、`transport_probe.rs`、`tests/{host-transport,native-transport,transport-fault}/`）已被生产 `credential.request` 取代，在 R5 删除；原件可从提交 `b27af7b` 取回，结果见[版本证据](../evidence/TLS-JNI-FEASIBILITY-2026-10-18.md)。
+`npm ci` 的 `postinstall` 通过锁定的 patch-package 自动应用 `patches/`；补丁无法应用即失败。不要用 `--ignore-scripts` 跳过后直接构建。本地修改补丁后，停止 dev server 并移除 `node_modules/.vite` 预构建缓存，再开始浏览器验收；旧优化产物可能不会随补丁内容自动失效。
+
+`@radix-ui/react-dismissable-layer@1.2.1` 的 ESM/CJS 补丁在 Escape 处理时重查当前最高层，修复子层注册后父层旧监听尚未清理的竞态（[上游问题 #4143](https://github.com/radix-ui/primitives/issues/4143)、[修复建议 #4145](https://github.com/radix-ui/primitives/pull/4145)）。该补丁也让 `isComposing` 或 `keyCode === 229` 标记的 Escape 留给输入法，避免取消组词时关闭弹窗。界面仍使用标准 Popover，不增加全局键盘拦截或延迟。升级到包含上游修复的版本后移除补丁，并保留 `model-connection-recovery.spec.ts` 中注册时 Escape 与逐层关闭/焦点回归，以及 `input-method.spec.ts` 的组词取消回归；移除补丁前须同时满足这些行为。
+
+`@radix-ui/react-focus-scope@1.3.1` 的 ESM/CJS 补丁让 macOS 的 Option-Tab 进入原有首尾循环，同时保留普通 Tab、非 Mac 的 Alt-Tab、Ctrl/Command 组合键与嵌套层暂停语义；不修改系统偏好或给按钮增加 tabindex。另同步[上游 FocusScope](https://github.com/radix-ui/primitives/blob/main/packages/react/focus-scope/src/focus-scope.tsx) 的 `isComposing` / `keyCode === 229` 保护，循环逻辑不接管输入法组合中的 Tab。Mac 键盘约定见 [Apple 说明](https://support.apple.com/zh-cn/guide/safari/cpsh003/mac)。升级时核对上游是否同时覆盖这些行为，再移除补丁；保留 `dialog-keyboard.spec.ts` 和授权弹窗的真实按键回归。
 
 ## 修改原生命令
 
@@ -60,10 +73,8 @@ npm run verify:native
 | [整体计划](spec/total.md) / [当前阶段](spec/milestone.md) | 路线与阶段门槛 / 正在做的事 |
 | [HANDOFF](../HANDOFF.md) | 实际工程状态、交付与恢复入口 |
 | [RESULTS](../evidence/RESULTS.md) | 交付候选与阶段证据索引 |
-| [LESSONS](../LESSONS.md) | 经验与防再犯措施 |
-| 归档目录 | 已完成阶段与退役实验原件，默认不加载 |
 
-当前文档平铺在 `docs/` 与 `docs/spec/`，首个 `##` 前写一行 `状态：`（计划写 `更新日期：`）。新增或移动当前文档时同步 `docs/README.md`，新增归档时同步 `docs/spec/archive/README.md`，同一提交修正全部引用。`npm run check:project` 校验索引覆盖、状态行、链接、锚点、空白与隐私模式。
+当前文档平铺在 `docs/` 与 `docs/spec/`，首个 `##` 前写一行 `状态：`（计划写 `更新日期：`）。新增或移动当前文档时同步 `docs/README.md`；过期记录直接删除，历史由 Git 追溯，同一改动修正全部引用。有效规则归入 AGENTS 或本页，不维护独立经验流水账。`npm run check:project` 校验索引覆盖、状态行、链接、锚点、空白与隐私模式。
 
 ## 本地愿景文件与忽略规则
 
@@ -73,24 +84,26 @@ npm run verify:native
 
 ## 本地交付目录
 
+Mac API Key 使用独立凭据文件，不需要创建本地签名身份。当前本地预览仍使用 ad-hoc 签名；正式分发的 Developer ID 与 Apple 公证属于后续发布准备。
+
 供本地查看的应用包统一放在仓库根 `release/`。此目录仅保存当前交付产物、精炼使用说明与校验清单，按 `/release/` 忽略并从源码盘点中排除；应用数据、缓存、原始日志、测试签名私钥及私人配置不进入交付目录。
 
-Mac使用 `npm run release:mac` 统一构建普通debug包、本地临时签名、复制内容核对、文件校验及旧包归档；当前入口为 `release/mac/Plums.app`。同目录 build-info.json记录实际包标识、版本、架构、签名和文件校验，source.patch保存基线提交上的公开工作区差异；构建和签名通过不自动代表原生用户路径通过。Android当前包独立放在release/android，保留其受验来源，不因Mac更新而改写为同版验证。
+Mac使用 `npm run release:mac` 统一构建普通debug包、ad-hoc签名、复制内容核对、文件校验及旧包归档；当前入口为 `release/mac/Plums.app`。同目录 build-info.json记录实际包标识、版本、架构、签名和文件校验，source.patch保存基线提交上的公开工作区差异；构建和签名通过不自动代表原生用户路径通过。Android当前包独立放在release/android，保留其受验来源，不因Mac更新而改写为同版验证。
 
 需要先验收再交付时，执行 `npm run release:mac -- --stage`，读取命令输出的候选目录并在独立数据下启动其中的 app。通过验收和独立审查后，先关闭当前应用，再执行 `npm run release:mac -- --publish <候选目录>`，只移动这份受验包，不重新构建。省略参数直接构建并发布。候选与当前目录必须分开；发布保留整份旧平台目录，替换失败恢复旧入口并保留候选。此处是本地包替换，不是业务数据迁移或跨平台原子升级。
 
 发布前核对 `build-info.json` 的源码提交/源码清单与本次受验源码一致，`source.patch` 可重放，校验和与实际包文件一致；工作区未提交差异、未验证的 Android/Mac 增量不得写成已交付。release 只保存当前受验产物，不保存构建缓存、秘密或运行数据。
 
-旧Mac交付按整个平台目录归入 `.cache/archive/releases/`，保留原包及来源；历史实验归入同一归档根下的压缩包。`.cache/archive/INDEX.json`记录已整理历史材料的路径与恢复方式；后续 `release:mac` 自动归档由命令输出和 releases 目录定位。恢复二进制前先关闭对应应用，使用隔离数据；恢复包不回滚应用数据。未知文件、在用模拟器和调试签名材料保持原位置，不通过清理中断当前操作。
+旧 Mac 交付按整个平台目录归入 `.cache/archive/releases/`，保留原包及来源。`.cache/archive/INDEX.json`记录已整理历史材料的路径与恢复方式；后续 `release:mac` 自动归档由命令输出和 releases 目录定位。恢复二进制前先关闭对应应用，使用隔离数据；恢复包不回滚应用数据。早期 `mac-0.0.4-2026-10-16` 与 `mac-titlebar-2026-10-17` 备份缺少完整 bundle 资源签名，不作为严格签名校验通过的回退基线。未知文件、在用模拟器和调试签名材料保持原位置，不通过清理中断当前操作。
 
 清理按用途区分，不以“被忽略”或“日期较旧”作为删除依据：
 
 - 确认没有构建或应用占用后，可删除 Rust 的 `build/deps/incremental/.fingerprint/examples`、Android Gradle 的 `build/.gradle/.kotlin`、`dist/`、图标生成暂存和测试报告。后续构建按原命令重新生成，首次原生编译会更慢。
 - 保留 `node_modules/`、Cargo/npm 下载缓存、Android 生成工程源码及 `.cache/android/debug.keystore`，避免无谓重装、丢失本地更新签名或破坏 JNI 链接。
 - 开发命令把 `PLUMS_DATA_DIR` 指向 `.dev-data/` 以隔离数据；该变量只在 debug 构建（含 Mac 本地预览包）生效，release 构建始终使用平台数据目录。桌面版单实例：数据目录相同或不同，第二次启动都只聚焦已运行的窗口，因此开发进程与已打开的预览包不能同时运行。
-- `release/`、独立受验候选、源码差异/清单、被引用的日志/截图、`.cache/archive/`、`.dev-data/`、隔离模拟器数据与 `goal.md` 不属于构建垃圾。历史记录只移出当前入口并更新引用，不删除原有失败或未验证范围。
+- `release/`、有效候选及其来源文件、历史应用备份、真实运行数据、隔离模拟器与 `goal.md` 不属于构建垃圾。测试完成后删除该次验收专用假数据、临时脚本、测试包与缓存；不按目录年龄批量删除未知数据。文档中的真实未验项随当前契约保留，过期过程不继续归档。
 
-当前操作和版本从README、HANDOFF及RESULTS查阅。阶段历史与失败证据保持原件；入口文档不复制多轮PID、临时脚本路径和交付时间线。项目清单、链接及隐私模式通过check:project检查，原始日志／截图继续忽略。
+当前状态和版本从 README、HANDOFF 及 RESULTS 查阅；入口文档不复制多轮 PID、临时路径和交付时间线。项目清单、链接及隐私模式由 `check:project` 检查，原始日志／截图继续忽略。
 
 ## 历史提交与交付来源
 

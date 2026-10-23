@@ -6,13 +6,13 @@
 
 状态：当前有效（2026-10-18 核实）；实验 SDK 入口，不承诺稳定兼容与发布包。
 
-这是仓库内实验接口，不是已发布 npm 包或稳定 SDK。运行时只需要标准 ESM 与 Web API，不需要 Node.js；Node 仅用于开发工具。`apiVersion: 1` 精确匹配，服务版本也是正整数精确匹配，没有 semver 范围协商。扩展自身 `version` 是显示/追溯字符串，不会自动迁移状态。正式稳定前必须完成 iOS 最小原生实验。
+这是仓库内实验接口，不是已发布 npm 包或稳定 SDK。运行时只需要标准 ESM 与 Web API，不需要 Node.js；Node 仅用于开发工具。`apiVersion: 1` 精确匹配，服务版本也是正整数精确匹配，没有 semver 范围协商。扩展自身 `version` 是显示/追溯字符串，不会自动迁移状态。平台支持按实际包分别声明；iOS 实验属于跨平台声明前置。
 
 ## 创建与运行
 
 扩展默认导出 `ExtensionDefinition`，包含 manifest 与 activate(ctx)。ID 为小写字母开头、最长 64 字符，仅含小写字母、数字、点和连字符且不含连续点。可选 `name`（1–40 字符）作为导入后的显示名称，`description`（1–500 字符）在导入确认与扩展详情中按纯文本显示，不解析 HTML 或 Markdown；不合格的值拒绝导入。先为提供/消费服务填写 `provides`/`requires`，所有资源绑定 ctx 生命周期。同一服务可由多个扩展同时提供，同一扩展重复提供才拒绝；`ctx.use(name)` 取最早启用的提供者并与它绑定，它停用时本扩展随之重启并改用下一个；`ctx.providers(name, onChange?)` 返回全部已启用提供者 `{id, label, value, signal}`（`signal` 在该提供者停用时中止，可用来取消对它的在途调用），列表变化时回调，最后一个提供者停用前本扩展不重启；全部提供者在同一次失效中一起停用时，本扩展随即关闭。`optional` 与 `requires` 格式相同，声明没有提供者也能运行的服务：启用不等待它，最后一个提供者停用也不关闭本扩展；只能经 `ctx.providers` 使用（及在 `publishUsers` 开关中引用），同一服务不能同时写在两处。清理失败会锁存为 `cleanup-failed`，不能当作卸载成功。不要顶层启动业务：模块 import 在确认启用前就会执行，可信模式不是代码沙箱。
 
-可直接复制以下三个随包 ESM 样板；它们不加入默认目录、不自动启用、不读取真实账户或状态：
+以下三个 ESM 样板仅随源码提供，可在 `npm run dev` 中按模块路径加载；打包应用须从本地导入单文件。样板不读取真实账户或状态：
 
 | 样板 | 模块路径 / ID | 行为 |
 | --- | --- | --- |
@@ -22,7 +22,7 @@
 
 以下是在仓库中开发的方式；不装 Node.js 也可以把单个文件导入应用，见[作者入门](AUTHOR-QUICKSTART.md)。执行 `npm ci`、`npm run dev` 后打开本地预览。应用菜单 → 扩展管理 → 安装扩展，依次填写上述 ID 与模块路径，安装并分别启用。服务先启用后事件/视图可工作；反向顺序会等待依赖。应用设置选择“计数样板”，从扩展管理点“返回工作区”，再点击“增加计数”。停用事件扩展后按钮不会递增，再启用事件扩展后可继续；停用服务会让依赖者等待，重新启用服务会创建新计数器。它是内存样板，不承诺保存计数或长期后台运行。
 
-在已有服务消费者中替换提供者：先停用原提供者，再加载一个提供相同服务名及版本的新 ID 并启用。消费者重新激活，必须重新获取服务；不要把服务对象缓存到生命周期之外。缺失服务显示 `waiting` 与原因，重复提供者激活失败，不隐式覆盖。
+在已有服务消费者中替换提供者：先停用原提供者，再加载一个提供相同服务名及版本的新 ID 并启用。消费者重新激活，必须重新获取服务；不要把服务对象缓存到生命周期之外。缺失必需服务显示 `waiting` 与原因；多个扩展可提供同一服务，同一扩展重复提供才拒绝，已有提供者不被隐式覆盖。
 
 ## 宿主管理入口
 
@@ -65,7 +65,7 @@ const close = host.mountView(viewId, root); // () => void | Promise<void>
 
 扩展可通过 `ctx.shell.open("extensions" | "settings" | "diagnostics")` 请求呈现宿主入口，`open("extensions", id)` 选中指定扩展，`open("view", viewId)` 打开某个 dialog 视图；这不授予权限或直接管理其他扩展。`ctx.shell.dependencies()` 列出本扩展及经 `ctx.use` 绑定的提供者，`ctx.shell.publishUsers(kind, users, toggle?)` 让扩展管理显示谁在使用哪个扩展，并可提供按使用者开关某个提供者的操作，规则见页面契约。`View.presentation` 可选声明 workspace/dialog/sidebar，外壳按声明装配主视图、菜单和上下文侧栏，旧视图默认 workspace。动态页面、导航保存、嵌套贡献、焦点与清理见 [页面契约和文本处理工作台](PAGES.md)。
 
-开发构建中，从扩展管理启用内置公开样板 `ui.workbench-board` 并确认状态权限，可体验“处理项→编辑执行→结果详情”的非聊天界面。作者可通过普通服务 `text-workbench.pages@1` 登记自己的页面，无需改内核；冻结后的内部独立作者已通过同源安装接入 [交稿检查页面](LOCAL-PROOF.md)，受验范围见专项证据。
+开发构建中，从扩展管理启用 `ui.workbench-board` 并确认状态权限，可体验非聊天界面。作者可通过公开服务 `text-workbench.pages@1` 登记自己的页面，无需改内核；接口与样板见[页面契约](PAGES.md)。
 
 ## 工作区标题与上下文侧栏
 
@@ -107,13 +107,13 @@ export default {
 
 `getSnapshot()` 在状态未变时返回同一对象；变化时先替换快照，再通知订阅者。外壳只订阅当前工作区，切换或停用时取消订阅。读取或订阅失败会让外壳排除该代视图并回退，管理入口仍可达。
 
-普通包可手动安装 `example.workspace-chrome`（`/examples/workspace-chrome.js`）和 `example.workspace-context`（`/examples/workspace-context.js`）查看标题更新、实体/工作区侧栏优先级、草稿跨管理保留及回调失败回退。它们不在默认启用集合中；“模拟标题回调失败”会隔离该代工作区，停用后重新启用可恢复。样板只消费公开 ctx.view/ctx.shell，不提供持久业务或平台权限。
+开发服务中可按模块路径安装 `example.workspace-chrome`（`/examples/workspace-chrome.js`）和 `example.workspace-context`（`/examples/workspace-context.js`）查看标题更新、实体/工作区侧栏优先级、草稿跨管理保留及回调失败回退。打包应用不含这些路径，可下载源码后通过本地文件导入；“模拟标题回调失败”会隔离该代工作区，停用后重新启用可恢复。样板只消费公开 ctx.view/ctx.shell，不提供持久业务或平台权限。
 
 完整类型见 [workspace-chrome.ts](../modules/sdk/workspace-chrome.ts)。`contextOwner` 指向当前实体所属扩展；外壳优先查找该扩展的 sidebar 贡献，然后查找当前工作区扩展自己的 sidebar，同一所有者内按 priority 降序和 ID 升序选择。无匹配贡献时使用可选 `sidebar` 中的 label、真实 open 状态、toggle(source) 和 close()。默认 inline 详情与扩展侧栏互斥；移动模态详情声明 `presentation: "dialog"`，转为 inline 后重新协调。不要在外壳另存默认详情开关。
 
 工作区存在上一层时，在快照中提供 `back()`；回到根层后发布不含 `back` 的新快照。Android 系统 Back 先处理 IME、顶层弹窗和宿主管理，再调用当前工作区的该方法；方法保留快照对象的接收者。工作区负责保存草稿并在返回后恢复有效焦点，操作抛错时外壳隔离该代视图并保留恢复入口。未提供 `back()` 的既有视图保持原挂载契约，宿主不猜测其业务路由。
 
-可选 `navigation` 包含实体类型 `entityType` 和 `reveal(id)`。调用方先匹配类型，再导航；当前 Agent 管理链接只接受 `agents.agent`，其他类型显示不可用原因。仓库内 TypeScript 视图可用 `createWorkspaceChrome(entityType)`、`publish(state)` 和 `connect(handler)` 组装同一接口；挂载时连接处理器，释放时执行 connect 返回的清理函数，旧挂载的迟到清理不会断开替代处理器。未提供 chrome 的已有视图继续按原挂载契约工作。
+可选 `navigation` 包含实体类型 `entityType` 和 `reveal(id)`。调用方先匹配类型，再导航；宿主目前不消费此字段；扩展若使用它，须先核对 `entityType` 再调用，不能把 Agent ID 传给其他业务。仓库内 TypeScript 视图可用 `createWorkspaceChrome(entityType)`、`publish(state)` 和 `connect(handler)` 组装同一接口；挂载时连接处理器，释放时执行 connect 返回的清理函数，旧挂载的迟到清理不会断开替代处理器。未提供 chrome 的已有视图继续按原挂载契约工作。
 
 ## 状态、取消与演进
 
@@ -125,7 +125,7 @@ ctx.task 跟踪异步任务，使用传入 signal 合作式取消；ctx.onDispos
 
 ## 验证边界
 
-开发时执行 `npm test` 与 `npm run build`；浏览器安装/启停/视图及管理 API 验证使用隔离浏览器上下文。单元模拟平台不证明 Rust 撤权，浏览器不证明打包资源或真机行为。外壳卸载的 Mac 原生与 Android 指定模拟器结果见 [卸载验收](../evidence/UNINSTALL-2026-10-15.md)。其他平台和真机仍未验，普通包以交付摘要为准。
+开发时执行 `npm test` 与 `npm run build`；安装、启停、视图和管理路径使用隔离浏览器上下文验证。浏览器不代表原生撤权、打包资源或真实设备行为，涉及平台能力时须验证实际包。当前交付范围见[交付入口](../evidence/RESULTS.md)。
 
 ## 组合保存与恢复
 
@@ -145,7 +145,7 @@ ctx.task 跟踪异步任务，使用传入 signal 合作式取消；ctx.onDispos
 
 [可选单跳状态迁移助手](STATE-MIGRATION.md)已提供公开 SDK 入口与独立样板：扩展定义业务转换，助手用一次修订号提交保留旧快照；当前不自动迁移默认业务，也不提供通用包升级事务或自动回退。
 
-可选 [固定视图树助手](VIEW-TREE.md) 已完成两作者内部样板与两端限定验收。普通文本处理工作台已通过页面路由使用固定树，独立页面可继续嵌套另一扩展的节点；固定树本身仍不支持挂载结束后追加子节点。Host 异步失败回退、最终原生普通包与更广输入矩阵按证据分别判断。
+可选[固定视图树助手](VIEW-TREE.md)由开发文本工作台通过页面路由使用，页面可嵌套另一扩展的节点；固定树挂载后不能追加子节点，也不承担 Host 异步失败回退。
 
 无业务视图事件服务的启停、撤权与恢复限定结果见 [执行边界](EVENT-SERVICE.md)；暂停映射为 stop，新一代重新订阅，不提供后台常驻或持久事件队列。
 
@@ -155,6 +155,6 @@ ctx.task 跟踪异步任务，使用传入 signal 合作式取消；ctx.onDispos
 
 ## 公开主题样板
 
-[主题颜色契约](THEMES.md)提供 `ctx.theme(Theme)`、17个语义色与生命周期规则。两个独立作者样板 [海湾](../extensions/samples/theme-ocean.js)（`sample.theme-ocean` / `/samples/theme-ocean.js`）和 [墨夜](../extensions/samples/theme-ink.js)（`sample.theme-ink` / `/samples/theme-ink.js`）随源码构建，不自动加入目录或启用。按上述安装流程分别安装、启用，应用设置选择“使用 海湾”或“使用 墨夜”。无需平台权限。选择成功后可关闭设置；停用主题恢复内置外观，重新启用恢复已选主题。启用集合会自动保留到重启后。旧普通release包不包含这些样板。
+[主题颜色契约](THEMES.md)提供 `ctx.theme(Theme)`、17个语义色与生命周期规则。两个独立作者样板 [海湾](../extensions/samples/theme-ocean.js)（`sample.theme-ocean` / `/samples/theme-ocean.js`）和 [墨夜](../extensions/samples/theme-ink.js)（`sample.theme-ink` / `/samples/theme-ink.js`）仅在开发服务中提供，不自动启用。按上述安装流程分别安装、启用，应用设置选择“使用 海湾”或“使用 墨夜”。无需平台权限。选择成功后可关闭设置；停用主题恢复内置外观，重新启用恢复已选主题。启用集合会自动保留到重启后。打包应用不包含这些样板路径，需导入本地单文件。
 
 主题注册的颜色被复制；`Host.themes()` 返回带owner/generation的副本用于管理，重新贡献前应取出主题本身的四个字段。完整主题系统、导航和快捷键仍未稳定。

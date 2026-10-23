@@ -1,46 +1,54 @@
 # Plums 工程状态
 
-核对日期：2026-10-21（Asia/Singapore）。**当前只做 macOS 应用本体，Android 冻结**（代码保留，不再验收，不声称同源）。[整体路线](docs/spec/total.md)维护能力依赖与门槛，[当前阶段](docs/spec/milestone.md)维护正在执行的工作，[验证索引](evidence/RESULTS.md)区分当前交付、开发增量和历史结果。
+核对日期：2026-10-23（Asia/Singapore）。当前只收口 macOS arm64 应用本体，Android 冻结。分支 `feat/ui-refresh`，HEAD `5b7dd9e`，开发改动尚未提交。
 
-## 当前实现
+[文档导航](docs/README.md) · [当前阶段](docs/spec/milestone.md) · [整体路线](docs/spec/total.md) · [当前交付](evidence/RESULTS.md)
 
-App 从 application 装配默认业务组合，通用 bootShell 接收组合定义；Agent 恢复、保存接线和诊断归业务提供者与应用 feature。Workbench 组合工作区、外观、导航、授权和管理，Runtime 提供稳定服务和只读启动初值。公开 View.chrome 提供标题、上下文侧栏、实体导航及可选工作区返回；布局、页面、主题与业务通过公开契约挂载，入口见[架构](docs/ARCHITECTURE.md)。
+## 当前开发候选
 
-默认 Agent 支持角色导入、关注和多会话；回复只来自每个 Agent 选择的模型，由内置[模型连接器](docs/MODELS.md)经 `chat@1` 生成（用户添加服务商：名称、备注、官网、Base URL、API 格式与密钥，再从服务获取或自填模型名），发送当前会话历史与介绍；Agent 不再经过 `text.transform` 后处理（文本服务只留给开发构建的文本处理工作台）。开发构建默认启用不联网的回显模型。不能回复时会话区用一行说明代替输入框并给出下一步（开启、连接模型或就地选模型）；扩展可用 `optional` 声明这类可缺省的服务。零角色显示欢迎页；桌面已有角色未选择时显示品牌占位。管理页固定页头并保留业务草稿；弹窗保留悬停反馈和键盘焦点，视觉约定见[UI](docs/UI.md)。默认界面统一使用本仓库维护的 shadcn/ui 组件源码、Lucide 图标和 Motion 动效；桌面没有独立顶栏，最左为通栏到窗口顶边的外壳导航栏（工作区、扩展管理、明暗与应用菜单；右侧栏开关在内容区右上角；Mac 红绿灯落在其顶部，布局未在打包应用中实机核对），其右列表与会话两栏可拖动调宽、详情为右侧弹出抽屉。Agent 详情只有头像（点开可上传或移除，存为每个 Agent 一份独立状态文档，角色卡可带 `avatar`；无图时按名称取柔和底色加首字）、介绍（可就地编辑）和「组成扩展」：Agent 核心、界面、所选模型的连接各一个开关，默认开启，关闭只影响此 Agent 并显示后果；模型在输入区切换，会话在会话头部的菜单中切换、新建和删除；特别关注在列表顶部以带星标的大头像网格呈现，其余为行。由另一步进入的弹窗提供返回上一步。桌面最左是 56px 导航栏，其右列表与会话是两块各自圆角的独立面板（三层色阶：导航栏最深、会话画布略灰、会话头部与输入卡片最亮）。会话为 IM 风格：回复为左侧卡片色气泡、自己的消息为右侧品牌色气泡，带时间胶囊和复制／重发／删除消息操作；手机用同一套样式（已删除手机专用的 Claude 配色与衬线），手机暂无长按消息菜单。输入区是一张卡片：文字在上，下方工具栏左侧是模型选择，所选模型列出思考强度时再出现强度选择，右侧是方形发送钮；提供者支持附件时最左有「+」添加文本文件与图片（拖入、粘贴同样可用，图片仅读图片的模型可添加，该判断按模型名规则，未逐个服务核对，真实服务是否接受图片块未用真实密钥验证）；强度按[模型连接](docs/MODELS.md)里核对过官方文档的组合开放，其他服务不显示，真实服务是否接受这些字段尚未用真实密钥验证。同一服务可由多个扩展同时提供；停用在用扩展前确认。扩展经 `ctx.shell.publishUsers` 公布使用者与开关操作，管理页把它们列在公布者依赖的扩展和建在公布者之上的扩展（如 `ui.agents`）下，宿主不理解业务含义。
+- API Key 使用数据根内独立的 0600 `credential-secrets.json`，保持 schema 1 与原生引用；文件锁内重读后原子保存，损坏或权限过宽时保留原件并拒绝读取。不使用 Keychain。格式、作用域与同用户明文边界见[凭据契约](docs/CREDENTIAL-BINDINGS.md)。
+- 模型服务商与扩展凭据共用 `SecretInput`：Eye/EyeOff 只显隐当前草稿，不提交表单；保存、清空或禁用时复位，编辑已保存连接不回读密钥。
+- InfoTip 使用标准 Radix Popover；DismissableLayer 的 ESM/CJS 补丁在 Escape 时核对当前最高层，安装时自动应用。维护入口见[开发流程](docs/DEVELOPMENT.md#上游依赖补丁)。
+- 中文输入的 Enter 与 Escape 同时检查 `isComposing` 和 WebKit 的 229 标记：确认组词不发送消息，取消组词不关闭弹窗；正常发送与逐层关闭保留。
+- 授权弹窗沿用标准 Radix Dialog。FocusScope 的 ESM/CJS 补丁补齐 macOS Option-Tab 首尾循环与输入法组合保护，保留嵌套作用域、普通 Tab 和系统快捷键；不修改系统键盘偏好。
+- 保留原生 Small 红绿灯、64px 导航栏、648px 半屏列表断点和无模型时的输入卡片。模型写入恢复、角色卡提交、窄窗键盘及附件路径的既有修复保留。
+- 打包默认组合仅 Agent 核心、模型连接和 Agent 界面。文本工作台、回声模型等只存在于开发目录，不恢复到正式组合。
+- 扩展管理在 768px 起保留列表与右侧详情，补齐两个内置扩展的用途介绍；更窄时在所选卡片内展示。管理页不再显示控制隐藏工作区的侧栏按钮，返回后保留工作区状态与草稿。
 
-宿主偏好、安装路径、主题和组合沿用串行 host.shell 快照，通用外壳保留不透明业务字段；Agent/会话与文本工作台各用自身命名空间，旧 `host.shell.agents` 首启迁移一次。Agent 数据损坏只使 `agents.local` 失败，不阻断启动。不提供 Agent 的组合也可启动、管理、保存和恢复。启用状态与按版本的授权自动保留，未知写入回执锁住继续修改，坏数据保留；状态可按 `key` 分片，每片上限 64 KiB；Agent 会话的消息按页存于多片，单个会话可达数 MB。
+## 本候选验证
 
-[通用绑定与凭据管理](docs/CREDENTIAL-BINDINGS.md)已接入开发版：API Key 在应用内的密码框填写（模型连接表单或扩展管理），只写不读；Mac 存于数据根 `credential-secrets.json`（0600，不用钥匙串，不再要求登录密码），Android 用 Keystore 加密；保存密钥即确认向显示的目标发送。旧钥匙串中的密钥不迁移，升级后须重新填写；改为应用内填写后两端尚未实机调用（Mac 打包应用已验证保存到该文件）。绑定默认指向官方 API、直连；代理配置可保存但当前不用于发送。R4 最小安全集（原生注入、发送确认、受限传输、取消）已在源码实现并接入生产适配器，旧 DeepSeek 连接器曾在 Mac 与 Android 模拟器各完成一次真实调用。扩展可声明协议模板并经 `credential.connect` 让用户自建多条连接（目标与密钥在扩展表单中填写），请求上限为 8 MiB（总计 10 分钟）、响应 2 MiB，还可 GET 同一站点的受限路径读取模型列表；内置模型连接器（取代 `connector.deepseek`）基于它实现，每个模型可有自己的上下文窗口（获取模型列表时经 [`network.read`](docs/NETWORK-READ.md) 读取公开目录 models.dev 填写，不带密钥），其余跟随服务商默认窗口（Anthropic 预设 1M），最大输出默认由服务决定，发送完整历史并利用服务商提示缓存，超出窗口时分批丢弃最早轮次；真实服务调用与 1M 长上下文待手测。`release/` 为 0.2.0 交付包；真实调用前确认范围，密钥由账户所有者填写。
+结果绑定当前工作区的相关实现；浏览器、原生逻辑和实际包各自记录。
 
-开发候选已实现 Android Back 层级：IME、顶层菜单/弹窗、管理页、工作区、系统根层。管理与列表往返保留草稿，嵌套关闭和列表返回恢复焦点。P6 允许名单覆盖未知模块、父目录入口及间接 SDK 依赖；P1/P6/P7 的失败反例、审查与验证见[工程前置证据](evidence/ENGINEERING-PREREQUISITES-2026-10-18.md)。P2 已将 Rust 实际命令/DTO 与生成的 TS 契约绑定，生产调用使用类型入口，状态拒绝按稳定错误码呈现；默认与实验桥接分别登记。
+| 范围 | 实际结果 |
+| --- | --- |
+| Web | `npm run verify:web` 通过：859 单元，以及类型、构建、发布配置、格式、边界、行数与 lint |
+| 打包源码 | `source-patch.test.ts` 覆盖超出进程缓冲上限的已跟踪与新增文件、删除项和完整回放；打包脚本将差异直接写入文件 |
+| 原生逻辑 | 焦点补丁未修改 Rust；同份原生实现已有 `CARGO_BUILD_JOBS=1 RUST_TEST_THREADS=1 npm run verify:native` 的 IPC、格式、Clippy、68 单元通过结果 |
+| Chromium | `npm run verify:e2e` 全量 224 项通过，1 worker |
+| WebKit | 当前输入法修复下 31 项通过：input-method / dialog-keyboard / application-flow / model-connection-recovery。运行入口见[开发流程](docs/DEVELOPMENT.md#验证入口) |
+| 独立审查 | 文件存储、Popover、文档清理与管理页布局已审查；FocusScope、输入法 Enter/Escape 修复和相应回归的限定只读审查无可行动发现 |
+| macOS 打包应用 | macOS 27.0.1（26A434）arm64 的隔离 `Plums Review`（`dev.plums.plums.review`，0.2.0）构建、`codesign --verify --deep --strict` 与下述简体拼音实际验收通过；VoiceOver 暂缓 |
 
-已纳入交付的防御性编程与状态所有权改动分别见[阶段 H](docs/spec/archive/H-defensive-hardening-2026-10-17.md)和[阶段 E](docs/spec/archive/E-ownership-gates-2026-10-17.md)，不在当前交接重复执行历史。
+两份依赖补丁均经 `npm run postinstall` 成功应用；FocusScope 与 DismissableLayer 补丁均经反向还原后重应用验证，ESM/CJS 语法检查通过。
 
-M2.3.1 的独立 Mac/Android TLS 候选及 Android JNI 假字节实验已限定通过，继续首选 Rust 路线；正式 Android 验证器不读取应用测试根，受控正例改用上游官方测试 companion。OS 证书吊销/根获取的独立联网边界成为 M2.3.4 前置门槛，证据与未验范围见[TLS/JNI 实验](evidence/TLS-JNI-FEASIBILITY-2026-10-18.md)。默认应用源码、真实秘密路径和 release 未因此更新。
+Mac 当前包默认只有 3 个正式扩展。实测 960px 默认窗口的列表与右侧介绍、两个内置介绍的切换、明暗外观、系统半屏后内联详情、恢复原尺寸时保留所选扩展，以及管理页隐藏工作区侧栏按钮、返回工作区后恢复控件。
 
-## 工程基线与门禁
+凭据文件与 Popover 实现未再改变：此前隔离包已验证旧格式/引用、两处显隐和保存、留空编辑、退出重启及实际重构建后的三引用读取；文件为 0600，普通配置不含明文密钥，无 Keychain 授权。Popover 的点击、Enter、Escape 逐层关闭及返回焦点已在实际包验证，取消按压由浏览器回归覆盖。
 
-当前交付为 0.2.0（`6668ce7`），见 [0.2.0 交付证据](evidence/RELEASE-0.2.0-2026-10-20.md)；M2.0 基线为 `m2-baseline-2026-10-18`（`015ac2d`）。开发源码为 0.2.0 之后的增量，尚未替换 release；模型连接的行为与回归入口见[模型连接](docs/MODELS.md)。源码清单和旧包恢复入口见[重新基线证据](evidence/BASELINE-2026-10-18.md)。
+授权弹窗焦点实现已在隔离 Mac 包实测：初始焦点位于标题，当前系统设置下 Tab 依次访问关闭、暂不授权、授权并启动，正反向均首尾环绕；Option-Tab 和 Shift-Option-Tab 在两端同样环绕。焦点环清晰可见，Escape 与键盘取消均返回启用按钮，三个扩展仍停用。WebKit 自动化使用 Option-Tab 遍历全部控件；真实包与自动化的键盘设置分别按实际结果记录。
 
-基线交付的 Web 517 单元、浏览器 121 项与 Rust 格式/Clippy/30 单元通过；两端原生范围见基线证据。集成开发增量最终通过 584 单元、129 浏览器、Rust 默认 33 单元与格式/Clippy/契约漂移检查；实验特性另有 39 单元通过。Android 普通候选实测状态 IPC、稳定拒绝/冲突保留及完整返回/焦点路径。首次失败与定向复验单列于工程前置证据。中文 IME 组合输入、真机与其他平台仍有未验范围。TS/TSX 与 React Hooks lint 已随 TypeScript 6.0.3 恢复。
+简体拼音在隔离 Mac 包实测通过：组词中的 Return 确认文本后留在草稿，再次 Enter 才单次发送；Shift+Enter 换行保留，组词期间 Option-Tab 保持原字段焦点。最终包冷启动后输入 `nihao`，选择第 2 候选得到“你好”，草稿未发送；再次 Return 仅产生一条消息及一次本地回复。在“添加 Agent”名称字段输入 `ceshi`，第一次 Escape 只取消组词，弹窗保持打开且焦点留在名称；第二次 Escape 关闭弹窗并返回“添加”按钮。验收使用单独导入的无权限本地回显扩展，不连接真实服务。VoiceOver 验收暂缓，开关已恢复关闭、实用工具已退出，不记为通过。
 
-应用构建的闲置 Rust/Gradle 中间产物已清理；TLS/JNI 实验使用独立 `.cache/m2-3-1/`，首次应用原生编译仍会重新生成缓存；目录保留与清理边界见[开发流程](docs/DEVELOPMENT.md#本地交付目录)。
+## 收尾与下一步
 
-正在执行的负责人、验收和后续顺序见[当前阶段](docs/spec/milestone.md)；M2 整体仍未退出。
+输入法修复、自动化验证、独立审查与上述原生验收已完成。自动验收专用扩展、隔离数据、脚本、报告、测试包和测试应用缓存已清理；下方手测候选保留供使用。VoiceOver 暂不继续。当前未提交、未推送，现有交付包未替换。
 
-## 交付与恢复
+后续真实模型调用、带密钥模型列表与 models.dev 联动、长上下文/图片/思考强度的服务兼容及正式签名分发仍未验；输入与辅助技术状态见上文。实际账户调用须先确认目标、次数和输出上限；任务顺序只在[当前阶段](docs/spec/milestone.md)维护。M2 尚未整体退出。
 
-| 平台          | 当前入口                                            | 来源与范围                                                |
-| ------------- | --------------------------------------------------- | --------------------------------------------------------- |
-| Mac arm64     | release/mac/Plums.app                               | 0.2.0 debug、ad-hoc 签名；绑定 6668ce7，source.patch 为空 |
-| Android ARM64 | release/android/plums-0.2.0-android-arm64-debug.apk | 同源 debug；API36 ARM64 模拟器限定验收                    |
+## 当前交付与恢复
 
-Android 包是冻结的 0.2.0 历史结果，后续只替换 Mac 包。build-info.json 与 acceptance.json 保存来源和验收范围。0.0.4 旧包保留于 `.cache/archive/releases/mac-uIizKK/mac` 与 `.cache/archive/releases/android-JS89ll/android`；恢复不自动回滚应用数据。范围与未验项见 [0.2.0 交付证据](evidence/RELEASE-0.2.0-2026-10-20.md)。
+手测候选位于 `release/mac-manual-2026-10-23/`，0.2.0 arm64 debug / ad-hoc，构建与签名校验通过。先退出其他 Plums，再打开包内 `打开手测.command`，使用 `.dev-data/mac-manual-2026-10-23/` 的独立数据；默认只有三个正式扩展，未附带回显测试扩展。直接打开包内 `Plums.app` 则使用常规数据目录。候选的 `build-info.json` 与 `source.patch` 记录当前未提交源码，包内 README 给出手测入口；所有者手测待进行。
 
-## 后续范围
-
-2026-10-18 全项目审阅后转为**真实路径优先**：先恢复 TS/TSX lint、修复默认 Agent 绕过公开契约与边界门禁漏洞、按会话分片存储并限制单实例，再以最小安全集接通真实模型调用，最后清理生产包中的诊断与示例。R1–R3 已完成；R4 已在 Mac 与 Android 模拟器完成真实调用；R5 已清理发布包，第 7d 试用前进一步只保留 Agent 提供者、Agent 界面与 DeepSeek 连接，诊断与故障注入只在开发构建出现，传输实验已删除。第 7 步（外部作者写扩展）进行中：打包应用已可导入单文件扩展，起步模板是一个本地 `chat@1` 模型；替换导入会禁用旧代码的凭据绑定并移出已保存组合，加载失败的导入可再次导入修复，作者入门见 [AUTHOR-QUICKSTART](docs/AUTHOR-QUICKSTART.md)。工作包见[当前阶段](docs/spec/milestone.md)的“Mac 本体收尾”（Mac-1 至 Mac-6：收口界面刷新、打包应用实机核对、所有者试用、模型连接后续、Mac 交付候选、Mac 发布准备）；日常流程见 [AGENTS](AGENTS.md)，证据只在交付候选与阶段退出时记录。
-
-M2.4 以 Mac 范围退出 M2，SDK 稳定声明仅限 Mac；iOS 最小实验与 Android 真机移到 M3 前置，完成前不声明跨平台支持。开放扩展市场前须先完成按扩展隔离与来源签名，见[整体计划](docs/spec/total.md#支持范围与未决项)。可信 ESM 与宿主共享 WebView，权限 UI 不构成安全沙箱。
+已交付 0.2.0 来自 `6668ce7`，Mac 入口 `release/mac/Plums.app`，本次未替换；Android 包仅保留其原受验范围。[交付证据](evidence/RELEASE-0.2.0-2026-10-20.md)及包旁的 `build-info.json`、`source.patch` 用于核对来源。0.0.4 恢复包保留在 `.cache/archive/releases/mac-uIizKK/mac` 与 `.cache/archive/releases/android-JS89ll/android`；恢复包不自动回滚数据，操作规则见[开发流程](docs/DEVELOPMENT.md#本地交付目录)。
 
 既有交付的原始提交与当前历史的对应关系见[开发流程](docs/DEVELOPMENT.md#历史提交与交付来源)。

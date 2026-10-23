@@ -1,6 +1,6 @@
 # 凭据代用请求契约
 
-状态：当前有效（2026-10-19 核实；同站读取与 2 MiB 响应上限已在两端源码实现并通过单元测试与编译，真实调用待手测）；R4 最小安全集已在 Mac（Rust）与 Android（Kotlin）实现并通过单元测试与两端编译，生产 `PlatformAdapter` 在原生应用中提供 `credential.request`。Mac debug 包与 Android 模拟器各完成一次真实调用，见[当前阶段](spec/milestone.md)。
+状态：当前有效（2026-10-23 核实）；生产原生适配已实现。当前验收范围以 Mac 为主，Android 代码冻结；当前文件存储后的真实模型调用尚未验收。实际候选结果见 [HANDOFF](../HANDOFF.md)。
 
 本契约是凭据请求、授权、失败边界的唯一详细来源；路线与当前任务见[整体计划](spec/total.md)与[当前阶段](spec/milestone.md)。绑定记录与密钥录入见[通用绑定与原生凭据管理](CREDENTIAL-BINDINGS.md)。
 
