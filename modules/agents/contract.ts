@@ -128,4 +128,10 @@ export interface AgentProvider {
     sessionId: string,
     messageId: string,
   ): Promise<void>;
+  /**
+   * Puts back the Agent's last removed message or session, while its
+   * conversation has not moved on since; kept until the provider stops.
+   * Added after agents@1 shipped, so optional.
+   */
+  undo?(id: string): Promise<void>;
 }

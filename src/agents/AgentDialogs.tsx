@@ -86,6 +86,7 @@ export function AgentDialogs({
   modals,
   onCreated,
   onRemoved,
+  onSessionDeleted,
   onExtensions,
   onModels,
   fallbackFocus,
@@ -110,6 +111,8 @@ export function AgentDialogs({
   >;
   onCreated(agent: Agent): void;
   onRemoved(id: string): void;
+  /** After a session of `agentId` is deleted. */
+  onSessionDeleted(agentId: string): void;
   onExtensions(): void;
   onModels?: () => void;
   fallbackFocus(): HTMLElement | null;
@@ -482,8 +485,10 @@ export function AgentDialogs({
                 else if (modal.action === "remove") {
                   await api.remove(modal.agent.id);
                   onRemoved(modal.agent.id);
-                } else
+                } else {
                   await api.session(modal.agent.id, "delete", modal.session);
+                  onSessionDeleted(modal.agent.id);
+                }
                 setModal(null);
               });
             }}
@@ -505,7 +510,9 @@ export function AgentDialogs({
                 <p>
                   {modal.action === "remove"
                     ? `移除「${modal.agent.name}」并删除它在此应用中的本地会话？`
-                    : "删除此会话及其本地消息？此操作不能撤销。"}
+                    : api.undo
+                      ? "删除此会话及其本地消息？删除后可以在提示中撤销。"
+                      : "删除此会话及其本地消息？此操作不能撤销。"}
                 </p>
               )}
             </DialogBody>

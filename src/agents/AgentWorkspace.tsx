@@ -96,6 +96,16 @@ export function AgentWorkspace({
   }, [selected]);
   const modals = useAgentModals();
   const { error, notice, setError, setNotice, open, act, report } = modals;
+  // The removal the current notice can take back, if the provider can.
+  const [undoable, setUndoable] = useState<{
+    agentId: string;
+    notice: string;
+  } | null>(null);
+  function offerUndo(agentId: string, text: string) {
+    if (!api.undo) return;
+    setNotice(text);
+    setUndoable({ agentId, notice: text });
+  }
   useEffect(
     () =>
       chrome.connect((id) => {
@@ -168,9 +178,24 @@ export function AgentWorkspace({
     <ActionToast
       error={error}
       notice={notice}
+      action={
+        undoable && notice === undoable.notice
+          ? {
+              label: "撤销",
+              onClick: () => {
+                setUndoable(null);
+                void act(async () => {
+                  await api.undo!(undoable.agentId);
+                  setNotice("已恢复");
+                });
+              },
+            }
+          : undefined
+      }
       onDone={() => {
         setError("");
         setNotice("");
+        setUndoable(null);
       }}
     />
   );
@@ -365,9 +390,10 @@ export function AgentWorkspace({
       onDeleteMessage={
         api.removeMessage
           ? (id) =>
-              void act(() =>
-                api.removeMessage!(agent.id, agent.currentSessionId, id),
-              )
+              void act(async () => {
+                await api.removeMessage!(agent.id, agent.currentSessionId, id);
+                offerUndo(agent.id, "已删除消息");
+              })
           : undefined
       }
       onOpenLink={(url) =>
@@ -390,6 +416,7 @@ export function AgentWorkspace({
       onRemoved={(id) => {
         if (selected === id) setSelected(null);
       }}
+      onSessionDeleted={(id) => offerUndo(id, "已删除会话")}
       onExtensions={() => onExtensions()}
       onModels={onModels}
     />

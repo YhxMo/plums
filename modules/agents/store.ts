@@ -12,6 +12,7 @@ import {
   validAvatar,
 } from "./validation";
 import { unreadReplies } from "./unread";
+import { putBack, type Removal } from "./undo";
 import type {
   Agent,
   AgentConfig,
@@ -69,6 +70,8 @@ export class AgentStore implements AgentProvider {
   >();
   private structural = new Set<string>();
   private committing = new Set<string>();
+  /** Each Agent's last removal, which `undo` can put back until restart. */
+  private removed = new Map<string, Removal>();
   /** The Agent on screen, as told by `view`. */
   private viewed: string | null = null;
   private queue: Promise<unknown> = Promise.resolve();
@@ -291,6 +294,7 @@ export class AgentStore implements AgentProvider {
       );
     this.structural.add(agentId);
     this.emit();
+    let removal: Removal | undefined;
     return this.change((agents) => {
       const a = this.find(agents, agentId);
       if (action === "create") {
@@ -305,16 +309,31 @@ export class AgentStore implements AgentProvider {
           const s = a.sessions.find((s) => s.id === sessionId)!;
           if (this.viewed === agentId && unreadReplies(s)) readAll(s);
         } else {
-          a.sessions = a.sessions.filter((s) => s.id !== sessionId);
-          if (!a.sessions.length) a.sessions.push(newSession());
+          const index = a.sessions.findIndex((s) => s.id === sessionId);
+          removal = {
+            kind: "session",
+            session: a.sessions[index],
+            index,
+            current: a.currentSessionId === sessionId,
+          };
+          a.sessions.splice(index, 1);
+          if (!a.sessions.length) {
+            const placeholder = newSession();
+            a.sessions.push(placeholder);
+            removal.placeholder = placeholder.id;
+          }
           if (a.currentSessionId === sessionId)
             a.currentSessionId = a.sessions[0].id;
         }
       }
-    }).finally(() => {
-      this.structural.delete(agentId);
-      this.emit();
-    });
+    })
+      .then(() => {
+        if (removal) this.removed.set(agentId, removal);
+      })
+      .finally(() => {
+        this.structural.delete(agentId);
+        this.emit();
+      });
   }
   async send(agentId: string, input: string, attachments?: Attachment[]) {
     if (!input.trim() || input.length > MAX_TEXT)
@@ -446,14 +465,49 @@ export class AgentStore implements AgentProvider {
       return Promise.reject(
         new Error("请等待回复完成或先停止当前任务，再删除消息。"),
       );
-    return this.change((agents) => {
+    return this.change((agents): Removal => {
       const s = this.find(agents, agentId).sessions.find(
         (s) => s.id === sessionId,
       );
       const index = s?.messages.findIndex((m) => m.id === messageId) ?? -1;
       if (!s || index < 0) throw new Error("消息不存在。");
+      const before = [...s.messages];
       s.messages.splice(index, 1);
-    });
+      return {
+        kind: "messages",
+        sessionId,
+        before,
+        after: s.messages.map((m) => m.id),
+      };
+    }).then((removal) => void this.removed.set(agentId, removal));
+  }
+  /** Puts back the Agent's last removed message or session. */
+  undo(agentId: string) {
+    const removal = this.removed.get(agentId);
+    if (!removal) return Promise.reject(new Error("没有可撤销的删除。"));
+    const waiting =
+      removal.kind === "messages" &&
+      this.pending.get(agentId)?.sessionId === removal.sessionId;
+    if (waiting || this.structural.has(agentId))
+      return Promise.reject(
+        new Error("请等待回复完成或先停止当前任务，再撤销。"),
+      );
+    // Bringing a session back is structural, like deleting it.
+    const structural = removal.kind === "session";
+    if (structural) {
+      this.structural.add(agentId);
+      this.emit();
+    }
+    return this.change((agents) => putBack(this.find(agents, agentId), removal))
+      .then(() => {
+        // A later removal may have replaced it while this one was saving.
+        if (this.removed.get(agentId) === removal) this.removed.delete(agentId);
+      })
+      .finally(() => {
+        if (!structural) return;
+        this.structural.delete(agentId);
+        this.emit();
+      });
   }
   cancel(agentId: string) {
     if (!this.committing.has(agentId)) this.running.get(agentId)?.abort();

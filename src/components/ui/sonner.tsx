@@ -50,6 +50,9 @@ const Toaster = ({ ...props }: ToasterProps) => {
       toastOptions={{
         classNames: {
           toast: "cn-toast",
+          // A text button in the brand colour, like the app's other actions.
+          actionButton:
+            "bg-transparent! font-semibold! text-brand-text! hover:bg-muted!",
         },
       }}
       {...props}
