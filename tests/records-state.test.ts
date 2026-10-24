@@ -8,13 +8,21 @@ import type {
 
 let values: Map<string, string>;
 let failAfter = Infinity;
+let quota = Infinity;
 beforeEach(() => {
   values = new Map();
   failAfter = Infinity;
+  quota = Infinity;
   vi.stubGlobal("localStorage", {
     getItem: (key: string) => values.get(key) ?? null,
     setItem: (key: string, value: string) => {
       if (failAfter-- === 0)
+        throw new DOMException("full", "QuotaExceededError");
+      const used = [...values.values()].reduce(
+        (sum, value) => sum + value.length,
+        0,
+      );
+      if (used - (values.get(key)?.length ?? 0) + value.length > quota)
         throw new DOMException("full", "QuotaExceededError");
       values.set(key, value);
     },
@@ -148,6 +156,59 @@ it("restores every key when storage fails part way", async () => {
     }),
   ).rejects.toMatchObject({ code: "state-write" });
   expect(values).toEqual(before);
+});
+
+it("rolls back in reverse order when shrinking one document made room for another", async () => {
+  const { batch } = await adapter();
+  await batch({
+    documents: ["a", "b", "c"].map((key) => ({
+      key,
+      revision: 0,
+      value: "x".repeat(100),
+    })),
+  });
+  const before = new Map(values);
+  quota = [...values.values()].reduce((sum, value) => sum + value.length, 0);
+  await expect(
+    batch({
+      documents: [
+        { key: "a", revision: 1, value: "x".repeat(10) },
+        { key: "b", revision: 1, value: "x".repeat(180) },
+        { key: "c", revision: 1, value: "x".repeat(200) },
+      ],
+    }),
+  ).rejects.toMatchObject({ outcome: "not-committed" });
+  expect(values).toEqual(before);
+});
+
+it("reports unknown when rollback fails and still restores the other completed writes", async () => {
+  const { batch, read } = await adapter();
+  await batch({
+    documents: ["a", "b", "c"].map((key) => ({
+      key,
+      revision: 0,
+      value: "old",
+    })),
+  });
+  const set = localStorage.setItem;
+  let writes = 0;
+  vi.spyOn(localStorage, "setItem").mockImplementation((key, value) => {
+    if (++writes === 3 || (key.endsWith("+b") && value.includes('"old"')))
+      throw new DOMException("unavailable", "SecurityError");
+    set(key, value);
+  });
+  await expect(
+    batch({
+      documents: ["a", "b", "c"].map((key) => ({
+        key,
+        revision: 1,
+        value: "new",
+      })),
+    }),
+  ).rejects.toMatchObject({ outcome: "unknown" });
+  expect(await read({ key: "a" })).toMatchObject({ revision: 1, value: "old" });
+  expect(await read({ key: "b" })).toMatchObject({ revision: 2, value: "new" });
+  expect(await read({ key: "c" })).toMatchObject({ revision: 1, value: "old" });
 });
 
 it("keeps record order, revisions and removal like documents", async () => {

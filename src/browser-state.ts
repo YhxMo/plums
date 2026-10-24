@@ -355,14 +355,32 @@ export class BrowserState {
     const earlier = changes.map(
       ([key]) => [key, this.storage().getItem(key)] as const,
     );
+    let written = 0;
     try {
-      for (const [key, value] of changes)
+      for (const [key, value] of changes) {
         if (value === null) this.storage().removeItem(key);
         else this.storage().setItem(key, value);
+        written++;
+      }
     } catch (error) {
-      for (const [key, value] of earlier)
-        if (value === null) this.storage().removeItem(key);
-        else this.storage().setItem(key, value);
+      let restored = true;
+      // Undo only completed writes, in reverse: later growth must give back
+      // the quota an earlier shrink released before that shrink is undone.
+      for (const [key, value] of earlier.slice(0, written).reverse()) {
+        try {
+          if (value === null) this.storage().removeItem(key);
+          else this.storage().setItem(key, value);
+        } catch {
+          restored = false;
+        }
+      }
+      if (!restored)
+        throw Object.assign(
+          new Error("状态回滚未完成，请重新加载应用后再修改。", {
+            cause: error,
+          }),
+          { code: "state-write", outcome: "unknown" as const },
+        );
       throw error;
     }
   }

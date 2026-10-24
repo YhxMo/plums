@@ -101,7 +101,7 @@ release 构建始终使用平台数据目录（Mac 为 `~/Library/Application Su
 
 桌面版单实例：数据目录相同或不同，第二次启动都只聚焦已运行的窗口。
 
-扩展与外壳的状态（[状态规则](SDK-AUTHORING.md#状态取消与演进)）由原生 Broker 为每个所属者保存在数据根的 `state/<所属者>.sqlite3`（WAL、完全同步，一次 `state.write` 或 `state.batch` 是一个事务）。库结构版本 2 含 `documents`、`records` 与按 `text` 建的 FTS5 trigram 索引（随 bundled SQLite 启用；三个字符以上的查询走索引，更短的扫描文本）；版本 1 的库在打开时原地升级，未知版本拒绝读写。提交时发生 I/O 错误报 `state-sync`（结果 unknown，不可盲目重试），其他失败为 not-committed。库首次创建时在同一事务中导入该所属者此前的 `<所属者>.json` / `<所属者>+<key>.json`，原文件移入 `legacy-json/`；目录枚举、条目或文件类型读取失败时中止整个事务，不提交库结构版本，恢复访问后可重试；无法读取的旧文件（损坏、未知 schema、超过 1 MiB，超限时不读取内容）导入为同样无法读写的记录，不当作空状态。所属者只能是 `host.shell` 或 `extension.<id>`，因此无法读写同目录的凭据绑定等原生文件。多进程事务未实现。浏览器预览按同一规则与上限把文档存为 localStorage 的 `plums:<所属者>` / `plums:<所属者>+<key>`，一个所属者的记录共用 `plums:<所属者>#records`，批量写中途失败时写回原值；实现见 `src/browser-state.ts`。
+扩展与外壳的状态（[状态规则](SDK-AUTHORING.md#状态取消与演进)）由原生 Broker 为每个所属者保存在数据根的 `state/<所属者>.sqlite3`（WAL、完全同步，一次 `state.write` 或 `state.batch` 是一个事务）。库结构版本 2 含 `documents`、`records` 与按 `text` 建的 FTS5 trigram 索引（随 bundled SQLite 启用；三个字符以上的查询走索引，更短的扫描文本）；版本 1 的库在打开时原地升级，未知版本拒绝读写。提交时发生 I/O 错误报 `state-sync`（结果 unknown，不可盲目重试），其他失败为 not-committed。库首次创建时在同一事务中导入该所属者此前的 `<所属者>.json` / `<所属者>+<key>.json`，原文件移入 `legacy-json/`；目录枚举、条目或文件类型读取失败时中止整个事务，不提交库结构版本，恢复访问后可重试；无法读取的旧文件（损坏、未知 schema、超过 1 MiB，超限时不读取内容）导入为同样无法读写的记录，不当作空状态。所属者只能是 `host.shell` 或 `extension.<id>`，因此无法读写同目录的凭据绑定等原生文件。多进程事务未实现。浏览器预览按同一规则与上限把文档存为 localStorage 的 `plums:<所属者>` / `plums:<所属者>+<key>`，一个所属者的记录共用 `plums:<所属者>#records`；批量写与回执的规则见上述状态规则，实现见 `src/browser-state.ts`。
 
 ## 信任与复用边界
 
