@@ -130,6 +130,30 @@ it("stores a package once and refuses a missing or altered copy", async () => {
   await expect(packages.read(read.url)).rejects.toThrow("已丢失");
 });
 
+it.each(["main", "version"])(
+  "repairs a damaged package's %s when the same package is imported again",
+  async (field) => {
+    const { packages, call, storage } = setup();
+    const pkg = await readPackage(files());
+    await packages.write(pkg);
+    const key = "plums:host.shell#records";
+    const saved = JSON.parse(storage.get(key)!);
+    saved.records[0].value[field] = field === "main" ? "damaged" : 0;
+    storage.set(key, JSON.stringify(saved));
+    await expect(packages.read(pkg.url)).rejects.toThrow("已损坏");
+    await packages.write(pkg);
+    expect(await packages.read(pkg.url)).toEqual(pkg);
+    expect(call).toHaveBeenLastCalledWith("records.list", {
+      collection: `extension-package:${pkg.hash}`,
+    });
+    const stored = JSON.parse(storage.get(key)!);
+    expect(stored.records).toHaveLength(1);
+    expect(stored.records[0].revision).toBe(2);
+    await packages.write(pkg);
+    expect(JSON.parse(storage.get(key)!).records[0].revision).toBe(2);
+  },
+);
+
 it("writes the package before the shell record and installs only after both", async () => {
   const { host, state, packages, stored } = setup();
   const read = await readPackage(files("export default 'a';"));

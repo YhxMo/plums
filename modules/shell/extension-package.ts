@@ -228,13 +228,27 @@ export function packageStore(call: Call) {
       };
     },
     async write({ hash, manifestText, main }: ExtensionPackage) {
-      if (await find(hash)) return;
+      const stored = await find(hash);
+      const value = stored?.value as
+        | {
+            version?: unknown;
+            manifest?: unknown;
+            main?: unknown;
+          }
+        | undefined;
+      // The confirmed source repairs a damaged copy at the same address.
+      if (
+        value?.version === 1 &&
+        value.manifest === manifestText &&
+        value.main === main
+      )
+        return;
       await call("state.batch", {
         records: [
           {
             collection: collection(hash),
             id: "package",
-            revision: 0,
+            revision: stored?.revision ?? 0,
             value: { version: 1, manifest: manifestText, main },
           },
         ],
