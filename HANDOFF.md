@@ -13,15 +13,16 @@
 - **输入与弹窗**：密钥输入可显隐、中文输入法组词不触发发送或关闭、Option-Tab 焦点循环与 Escape 逐层关闭（[UI](docs/UI.md#列表交互与详情)；Radix 补丁见[开发流程](docs/DEVELOPMENT.md#上游依赖补丁)）。
 - **扩展管理**：768px 起列表与详情两栏，补齐内置扩展的用途介绍（[UI](docs/UI.md#菜单外观与扩展管理)）。
 - **默认组合**：打包只含 Agent 核心、模型连接和 Agent 界面；文本工作台、回显模型等只在开发目录。
+- **联系人式回复**：回复整条送达，等待时会话头部显示“正在输入”、列表头像为橙色状态点；切走后到达的回复显示未读数并随会话保存；停止即撤回、不留消息（[UI](docs/UI.md#列表交互与详情)）。
 
 ## 本候选验证
 
 | 范围 | 实际结果 |
 | --- | --- |
-| Web | 最新提交上 `npm run verify:web` 通过（929 单元及类型、构建、发布配置、格式、边界、行数、lint），构建无单块体积警告 |
+| Web | 最新提交上 `npm run verify:web` 通过（933 单元及类型、构建、发布配置、格式、边界、行数、lint），构建无单块体积警告 |
 | 原生逻辑 | Agent 记录存储提交上 `npm run verify:native` 通过：IPC、格式、Clippy、84 单元（含 11 项记录与批量写用例）；SQLite 第一步时 debug 应用在真实格式开发数据副本上导入 `host.shell`（修订 11）并在其上保存，版本 1 → 2 的原地升级只有单元验证 |
-| Chromium | 安装预览提交上 `npm run verify:e2e` 全量 240 项通过，1 worker |
-| WebKit | 安装预览提交上 application-flow / focus-ring / file-import 18 项通过；样板改文件夹提交上另含 sdk-authoring 共 23 项通过；存储审查提交上 application-flow / focus-ring / agent-flow 37 项通过，agent-flow 的“dialog close is quiet…”浅深两项失败（Tab 未把焦点移到弹窗关闭按钮）；该失败在界面改版前的 `b7de43e` 上同样出现，未修；界面改版审查提交上 application-flow / focus-ring / rail / agent-list 共 24 项通过；此前 focus-ring / dialog-keyboard / input-method / application-flow / model-connection-recovery / lazy-pages 共 35 项通过（改版前） |
+| Chromium | 联系人式回复提交上 `npm run verify:e2e` 全量 241 项中 240 通过，失败的 agent-flow “each part of an Agent can be switched off…”因页面多了会话头部的状态区而定位歧义，改为按文字筛选后 agent-flow 27 项重跑通过；此前安装预览提交上全量 240 项通过，1 worker |
+| WebKit | 联系人式回复提交上 agent-pending / im-style 18 项通过；安装预览提交上 application-flow / focus-ring / file-import 18 项通过；样板改文件夹提交上另含 sdk-authoring 共 23 项通过；存储审查提交上 application-flow / focus-ring / agent-flow 37 项通过，agent-flow 的“dialog close is quiet…”浅深两项失败（Tab 未把焦点移到弹窗关闭按钮）；该失败在界面改版前的 `b7de43e` 上同样出现，未修；界面改版审查提交上 application-flow / focus-ring / rail / agent-list 共 24 项通过；此前 focus-ring / dialog-keyboard / input-method / application-flow / model-connection-recovery / lazy-pages 共 35 项通过（改版前） |
 | 启动耗时 | 生产构建、浏览器冷启动 20 次中位数：Chrome 97.6 → 85.8 ms，WebKit 81 → 70 ms（按需加载与分块前后） |
 | 打包应用 | 改名前候选的实测见[输入法、焦点与布局记录](evidence/MAC-INPUT-LAYOUT-2026-10-23.md)；改名后的源码尚未重新打包验收 |
 
@@ -43,7 +44,7 @@
 
 阶段 U、SQLite 存储与扩展包格式的审查结论分别记在 `4f4bc97`、存储审查提交与扩展包审查提交的说明中。仍待处理的遗留：`AgentWorkspace.tsx`（420 行）与 `AgentDialogs.tsx`（520 行）超过 400 行提示线；外壳右侧栏按钮的 18px 偏移与会话卡片几何耦合，随窗口框架一并处理；`View.icon` 无效原因为英文作者提示，在中文界面中原样显示。另有：`modules/agents/store.ts`（562 行）早于存储阶段即超过提示线；WebKit 下 agent-flow 的“dialog close is quiet…”两项失败（Tab 未聚焦弹窗关闭按钮），界面改版前已存在。此前导入的单文件扩展的源码分片（`host.shell` 的 `x-` 文档）不再读取，也不自动清理。
 
-扩展包格式已完成并通过阶段审查：已改为导入 `manifest.json + main.js` 的扩展包（文件夹、zip 或两个文件，确认前不执行代码，存为外壳记录；旧单文件导入提示重新导入），规则见[作者入门](docs/AUTHOR-QUICKSTART.md)与[架构](docs/ARCHITECTURE.md#应用-ui-的扩展边界)；样板、开发目录与开发者路径安装已改为文件夹形式；安装预览默认只显示名称、作者、说明与需要的权限，扩展 ID、版本、服务与来源收进“技术详情”。之后依次为联系人式回复、对话体验、外观与快捷键、窗口框架。当前未推送，现有交付包未替换。M2 尚未整体退出。
+扩展包格式已完成并通过阶段审查：已改为导入 `manifest.json + main.js` 的扩展包（文件夹、zip 或两个文件，确认前不执行代码，存为外壳记录；旧单文件导入提示重新导入），规则见[作者入门](docs/AUTHOR-QUICKSTART.md)与[架构](docs/ARCHITECTURE.md#应用-ui-的扩展边界)；样板、开发目录与开发者路径安装已改为文件夹形式；安装预览默认只显示名称、作者、说明与需要的权限，扩展 ID、版本、服务与来源收进“技术详情”。联系人式回复已完成：等待时会话头部副标题“正在输入”并以 polite live region 播报一次，消息区不再有占位气泡；列表摘要保持末条消息，等待以头像橙色状态点表示；会话新增 `lastReadAt` 与可选 `view(id | null)`，切走后到达的回复显示未读数、打开即清除、重启后保留；停止提示“已取消，对方不会回复这条消息。”。“回到最新”按钮的“新消息”标记依赖滚动跟随，移入对话体验；等待回复时整个 Agent 界面共用一个忙碌状态，添加 Agent 等弹窗会停在“正在添加…”，随对话体验的按会话忙碌一并处理。之后依次为对话体验、外观与快捷键、窗口框架。当前未推送，现有交付包未替换。M2 尚未整体退出。
 
 ## 当前交付与恢复
 

@@ -36,7 +36,7 @@ export type AgentModals = {
 
 export function useAgentModals(): AgentModals {
   const { run: act, ...feedback } = useAsyncAction({
-    abortNotice: "已停止，未保存本次结果。",
+    abortNotice: "已取消，对方不会回复这条消息。",
   });
   const [steps, setSteps] = useState<NonNullable<AgentModal>[]>([]);
   const [name, setName] = useState("");

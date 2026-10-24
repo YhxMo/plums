@@ -18,6 +18,7 @@ import type {
 } from "@modules/agents/contract";
 import { cn } from "cn";
 import { Avatar } from "./Avatar";
+import { TypingDots } from "./TypingDots";
 import { card } from "./card";
 import { AgentMenuItems, type AgentAction } from "./AgentMenu";
 import { MessageRow, type MessageAction } from "./MessageRow";
@@ -96,7 +97,7 @@ export function ChatView({
   const [dropping, setDropping] = useState(false);
   useEffect(() => {
     bottom.current?.scrollIntoView({ block: "end" });
-  }, [session.id, session.messages.length, agent.status, agent.pending]);
+  }, [session.id, session.messages.length, agent.pending]);
   useEffect(() => {
     if (!copied) return;
     const timer = setTimeout(() => setCopied(undefined), 1500);
@@ -157,8 +158,6 @@ export function ChatView({
   const pending =
     agent.pending?.sessionId === session.id ? agent.pending : undefined;
   const pendingSpacing = spacing("user");
-  if (pending) previous = "user";
-  const typingSpacing = spacing("agent");
   return (
     <section
       className={cn("flex min-h-0 flex-1 flex-col bg-chat", card)}
@@ -189,72 +188,80 @@ export function ChatView({
             className="flex min-w-0 flex-1 items-center gap-2"
           >
             <Avatar agent={agent} className="size-9 md:hidden" />
-            <h1 className="min-w-0 shrink truncate text-[15px] leading-tight font-semibold tracking-tight">
-              {agent.name}
-            </h1>
-            {/* The button stays while busy so focus can return to it. */}
-            <DropdownMenu modal={false}>
-              <DropdownMenuTrigger asChild>
-                <Button
-                  ref={sessions}
-                  variant="ghost"
-                  size="xs"
-                  className="h-6 max-w-[50%] min-w-0 shrink-0 gap-0.5 rounded-md bg-muted px-2 text-xs font-normal text-muted-foreground hover:bg-muted hover:text-foreground aria-expanded:text-foreground max-md:bg-transparent"
-                  aria-label={`会话：${session.title}`}
-                >
-                  {busy ? (
-                    <span className="flex items-center gap-1.5 text-running">
-                      <span
-                        aria-hidden="true"
-                        className="size-1.5 animate-pulse rounded-full bg-running"
-                      />
-                      正在回复…
-                    </span>
-                  ) : (
-                    <>
+            <div className="flex min-w-0 flex-1 flex-col">
+              <div className="flex min-w-0 items-center gap-2">
+                <h1 className="min-w-0 shrink truncate text-[15px] leading-tight font-semibold tracking-tight">
+                  {agent.name}
+                </h1>
+                {/* The button stays while busy so focus can return to it. */}
+                <DropdownMenu modal={false}>
+                  <DropdownMenuTrigger asChild>
+                    <Button
+                      ref={sessions}
+                      variant="ghost"
+                      size="xs"
+                      className="h-6 max-w-[50%] min-w-0 shrink-0 gap-0.5 rounded-md bg-muted px-2 text-xs font-normal text-muted-foreground hover:bg-muted hover:text-foreground aria-expanded:text-foreground max-md:bg-transparent"
+                      aria-label={`会话：${session.title}`}
+                    >
                       <span className="truncate">{session.title}</span>
                       <ChevronDownIcon />
-                    </>
-                  )}
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent
-                align="start"
-                className="w-60"
-                aria-label="会话"
-              >
-                <DropdownMenuRadioGroup
-                  value={session.id}
-                  onValueChange={(id) => onSession("select", id)}
-                >
-                  {agent.sessions.map((s) => (
-                    <DropdownMenuRadioItem
-                      key={s.id}
-                      value={s.id}
-                      disabled={busy}
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent
+                    align="start"
+                    className="w-60"
+                    aria-label="会话"
+                  >
+                    <DropdownMenuRadioGroup
+                      value={session.id}
+                      onValueChange={(id) => onSession("select", id)}
                     >
-                      <span className="truncate">{s.title}</span>
-                    </DropdownMenuRadioItem>
-                  ))}
-                </DropdownMenuRadioGroup>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem
-                  disabled={busy}
-                  onSelect={() => onSession("create")}
-                >
-                  <PlusIcon />
-                  新建会话
-                </DropdownMenuItem>
-                <DropdownMenuItem
-                  variant="destructive"
-                  disabled={busy}
-                  onSelect={() => onDeleteSession(session.id, sessions.current)}
-                >
-                  <Trash2Icon />
-                  删除此会话
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
+                      {agent.sessions.map((s) => (
+                        <DropdownMenuRadioItem
+                          key={s.id}
+                          value={s.id}
+                          disabled={busy}
+                        >
+                          <span className="truncate">{s.title}</span>
+                        </DropdownMenuRadioItem>
+                      ))}
+                    </DropdownMenuRadioGroup>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem
+                      disabled={busy}
+                      onSelect={() => onSession("create")}
+                    >
+                      <PlusIcon />
+                      新建会话
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      variant="destructive"
+                      disabled={busy}
+                      onSelect={() =>
+                        onDeleteSession(session.id, sessions.current)
+                      }
+                    >
+                      <Trash2Icon />
+                      删除此会话
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </div>
+              {/* Always present and empty when idle, so "typing" is announced
+                  once as it starts; the reply itself is read from the log. */}
+              <p
+                role="status"
+                className="flex items-center gap-1 text-[11.5px] leading-4 text-brand-text"
+              >
+                {pending && (
+                  <>
+                    <span className="sr-only">{agent.name} </span>
+                    正在输入
+                    <TypingDots className="mt-1" />
+                  </>
+                )}
+              </p>
+            </div>
           </motion.div>
         </AnimatePresence>
         <DropdownMenu modal={false}>
@@ -333,7 +340,8 @@ export function ChatView({
           </motion.div>
         )}
         <AnimatePresence initial={false}>{lines}</AnimatePresence>
-        {/* The pending turn and the typing line give way to the saved ones at once. */}
+        {/* The pending turn gives way to the saved one at once; the reply
+            arrives whole, with no placeholder before it. */}
         {pending && (
           <MessageRow
             key="pending"
@@ -342,16 +350,6 @@ export function ChatView({
             className={pendingSpacing}
             text={pending.text}
             attachments={pending.attachments}
-          />
-        )}
-        {busy && (
-          <MessageRow
-            key="typing"
-            agent={agent}
-            role="agent"
-            className={typingSpacing}
-            status
-            text={`${agent.name} 正在回复…`}
           />
         )}
         <div ref={bottom} />

@@ -1,8 +1,9 @@
-import { useRef, useState } from "react";
+import { useId, useRef, useState } from "react";
 import { EllipsisIcon, PlusIcon, SearchIcon } from "lucide-react";
 import { LayoutGroup, motion } from "motion/react";
 import { cn } from "cn";
 import type { Agent } from "@modules/agents/contract";
+import { unreadReplies } from "@modules/agents/unread";
 import { formatTime } from "./time";
 import { Avatar } from "./Avatar";
 import { AgentMenuItems, type AgentAction } from "./AgentMenu";
@@ -47,6 +48,13 @@ function AgentRow({
   onAction: (action: AgentAction, source: HTMLElement | null) => void;
 }) {
   const more = useRef<HTMLButtonElement>(null);
+  const described = useId();
+  const typing = !!a.pending;
+  const unread = a.sessions.reduce((sum, s) => sum + unreadReplies(s), 0);
+  // The dot and the badge speak through the row's description.
+  const state = [typing && "正在输入", unread && `${unread} 条未读`]
+    .filter(Boolean)
+    .join("，");
   const session = a.sessions.find((x) => x.id === a.currentSessionId);
   const lastAt = session?.messages.length
     ? (session.messages.at(-1)?.at ?? session.lastMessageAt)
@@ -63,12 +71,13 @@ function AgentRow({
           layout="position"
           {...enter}
           data-agent-row
-          // The status dot's ring follows the row's tone.
+          // The status dot's ring follows the row's tone; on the brand-filled
+          // selected row the typing dot takes the row's text colour.
           className={cn(
             "group/row relative flex h-[68px] shrink-0 items-center [--row-bg:var(--list-bg)]",
             a.pinned && "bg-row-pinned [--row-bg:var(--row-pinned)]",
             selected
-              ? "text-selection-foreground [--row-bg:var(--selection)]"
+              ? "text-selection-foreground [--row-bg:var(--selection)] [--row-typing:var(--selection-text)]"
               : "after:pointer-events-none after:absolute after:inset-0 after:bg-foreground/4 after:opacity-0 after:transition-opacity hover:after:opacity-100",
           )}
           data-selected={selected}
@@ -88,8 +97,15 @@ function AgentRow({
             data-agent-id={a.id}
             onClick={onSelect}
             aria-label={`与 ${a.name} 交互`}
+            aria-describedby={state ? described : undefined}
           >
-            <Avatar agent={a} status={a.status} className="size-11" />
+            <Avatar
+              agent={a}
+              dot={
+                typing ? "typing" : a.status === "online" ? "online" : undefined
+              }
+              className="size-11"
+            />
             <span className="flex min-w-0 flex-1 flex-col gap-0.5">
               <span className="flex min-w-0 items-baseline justify-between gap-2">
                 <strong className="truncate text-[14.5px] leading-5 font-semibold">
@@ -104,14 +120,26 @@ function AgentRow({
                   {lastAt !== undefined && formatTime(lastAt, undefined, true)}
                 </span>
               </span>
-              <span className={cn("truncate text-[12.5px]", quiet)}>
-                {a.status === "busy" ? (
-                  <span className={selected ? undefined : "text-running"}>
-                    正在回复…
+              <span className="flex min-w-0 items-center justify-between gap-2">
+                <span className={cn("truncate text-[12.5px]", quiet)}>
+                  {session?.messages.at(-1)?.text || a.description}
+                </span>
+                {unread > 0 && (
+                  <span
+                    aria-hidden="true"
+                    className={cn(
+                      "grid h-[18px] min-w-[18px] shrink-0 place-items-center rounded-full px-1.5 text-[11px] leading-none font-semibold tabular-nums transition-opacity md:pointer-fine:group-hover/row:opacity-0 md:pointer-fine:group-focus-within/row:opacity-0 md:pointer-fine:group-has-aria-expanded/row:opacity-0",
+                      selected
+                        ? "bg-selection-foreground text-selection"
+                        : "bg-brand text-primary-foreground",
+                    )}
+                  >
+                    {unread > 99 ? "99+" : unread}
                   </span>
-                ) : (
-                  session?.messages.at(-1)?.text || a.description
                 )}
+              </span>
+              <span id={described} hidden>
+                {state}
               </span>
             </span>
           </button>

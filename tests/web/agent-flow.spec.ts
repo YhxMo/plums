@@ -714,9 +714,11 @@ test("each part of an Agent can be switched off, and says what that means", asyn
   await expect(
     page.getByRole("button", { name: "发送", exact: true }),
   ).toBeDisabled();
-  await expect(page.getByRole("status")).toContainText(
-    "此 Agent 已关闭「Agent 核心」，开启后它才会回复。",
-  );
+  await expect(
+    page
+      .getByRole("status")
+      .filter({ hasText: "此 Agent 已关闭「Agent 核心」，开启后它才会回复。" }),
+  ).toBeVisible();
   await sidebarToggle(page).click();
   const details = page.getByRole("complementary", { name: "Agent 详情" });
   await details
@@ -726,9 +728,11 @@ test("each part of an Agent can be switched off, and says what that means", asyn
     .getByRole("switch", { name: "在 拼装 中使用 默认 Agent 界面" })
     .click();
   await expect(details).toContainText("已关闭：不能在这里和它对话");
-  await expect(page.getByRole("status")).toContainText(
-    "此 Agent 已关闭「默认 Agent 界面」",
-  );
+  await expect(
+    page
+      .getByRole("status")
+      .filter({ hasText: "此 Agent 已关闭「默认 Agent 界面」" }),
+  ).toBeVisible();
   await page.getByRole("button", { name: "开启", exact: true }).click();
   await expect(message).toHaveValue("草稿不因停用消失");
   await message.fill("hello");

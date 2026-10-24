@@ -102,6 +102,12 @@ export function AgentWorkspace({
   const filesNow = useRef(files);
   filesNow.current = files;
   const agent = agents.find((a) => a.id === selected);
+  // The open conversation is read; replies elsewhere count as unread.
+  const viewing = agent?.id ?? null;
+  useEffect(() => {
+    api.view?.(viewing);
+    return () => api.view?.(null);
+  }, [api, viewing]);
   async function addFiles(to: string, added: File[]) {
     const read: Attachment[] = [];
     for (const file of added) {

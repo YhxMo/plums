@@ -6,6 +6,8 @@ import {
   parseRoleCard,
   restoreAgents,
 } from "../modules/agents/store";
+import { unreadReplies } from "../modules/agents/unread";
+import type { Agent } from "../modules/agents/contract";
 import { legacyAgent } from "./fixtures/agents";
 
 function deferred() {
@@ -453,5 +455,60 @@ describe("Agent avatars", () => {
     ]);
     expect(good.avatar).toBe(image);
     expect(bad).not.toHaveProperty("avatar");
+  });
+});
+
+describe("unread replies", () => {
+  function chat() {
+    const saved: Agent[][] = [];
+    const store = new AgentStore(
+      [],
+      async (agents) => {
+        saved.push(structuredClone(agents));
+      },
+      async (text) => `答：${text}`,
+    );
+    const current = () => store.list()[0].sessions[0];
+    return { store, saved, current };
+  }
+  it("a reply that arrives while its Agent is away stays unread until it is viewed, also after a restart", async () => {
+    const { store, saved, current } = chat();
+    const a = await store.create({ name: "助手" });
+    await store.send(a.id, "你好");
+    expect(unreadReplies(current())).toBe(1);
+    expect(unreadReplies(restoreAgents(saved.at(-1))[0].sessions[0])).toBe(1);
+    store.view(a.id);
+    await expect.poll(() => unreadReplies(current())).toBe(0);
+    expect(unreadReplies(restoreAgents(saved.at(-1))[0].sessions[0])).toBe(0);
+  });
+  it("a reply that arrives on screen is read in the save that brings it", async () => {
+    const { store, saved, current } = chat();
+    const a = await store.create({ name: "助手" });
+    store.view(a.id);
+    const writes = saved.length;
+    await store.send(a.id, "你好");
+    expect(unreadReplies(current())).toBe(0);
+    expect(saved).toHaveLength(writes + 1);
+    store.view(null);
+    await store.send(a.id, "还在吗");
+    expect(unreadReplies(current())).toBe(1);
+  });
+  it("viewing with nothing unread saves nothing", async () => {
+    const { store, saved } = chat();
+    const a = await store.create({ name: "助手" });
+    const writes = saved.length;
+    store.view(a.id);
+    store.view(null);
+    await store.update(a.id, { pinned: true });
+    expect(saved).toHaveLength(writes + 1);
+  });
+  it("sessions saved before read times count nothing as unread, and a damaged time is refused", () => {
+    const [agent] = restoreAgents([legacyAgent()]);
+    expect(agent.sessions.map(unreadReplies)).toEqual(
+      agent.sessions.map(() => 0),
+    );
+    const damaged = legacyAgent();
+    (damaged.sessions[0] as { lastReadAt?: unknown }).lastReadAt = "昨天";
+    expect(() => restoreAgents([damaged])).toThrow("会话配置损坏");
   });
 });

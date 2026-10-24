@@ -33,7 +33,6 @@ export function MessageRow({
   role,
   text,
   attachments,
-  status,
   message,
   busy,
   copied,
@@ -47,9 +46,7 @@ export function MessageRow({
   text: string;
   /** Files and pictures shown under the text. */
   attachments?: Message["attachments"];
-  /** Live region for the typing line. */
-  status?: boolean;
-  /** Saved messages get actions; pending and typing lines do not. */
+  /** Saved messages get actions; the pending line does not. */
   message?: Message;
   busy?: boolean;
   copied?: boolean;
@@ -68,29 +65,15 @@ export function MessageRow({
   );
   const bubble = (
     <p
-      role={status ? "status" : undefined}
       className={cn(
         "m-0 min-w-0 wrap-anywhere whitespace-pre-wrap",
         "max-w-[75%] rounded-[18px] px-[13px] py-2 text-sm leading-[22px] max-md:max-w-[85%] max-md:text-[15px]",
         user
           ? "rounded-br-[5px] bg-brand text-primary-foreground"
           : "rounded-bl-[5px] bg-bubble text-foreground",
-        status && "flex items-center gap-2 text-[13px] text-muted-foreground",
         "data-[state=open]:ring-2 data-[state=open]:ring-brand/50 data-[state=open]:ring-offset-2 data-[state=open]:ring-offset-chat",
       )}
     >
-      {status && (
-        <span aria-hidden="true" className="flex gap-1">
-          {[0, 1, 2].map((i) => (
-            <motion.span
-              key={i}
-              className="size-1.5 rounded-full bg-brand"
-              animate={{ opacity: [0.25, 1, 0.25], y: [0, -2, 0] }}
-              transition={{ duration: 1.2, repeat: Infinity, delay: i * 0.2 }}
-            />
-          ))}
-        </span>
-      )}
       {text}
     </p>
   );

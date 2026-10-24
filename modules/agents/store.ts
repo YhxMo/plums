@@ -3,6 +3,7 @@ import { isRecordName } from "@modules/sdk";
 import type { Named } from "@modules/sdk";
 import type { Effort } from "@extensions/contracts";
 import { LIMITS, attachmentProblem, imageSize } from "./attachments";
+import { unreadReplies } from "./unread";
 import type {
   Agent,
   AgentConfig,
@@ -99,6 +100,7 @@ export function restoreAgents(value: unknown): Agent[] {
         !text(s.title) ||
         !Number.isFinite(s.createdAt) ||
         !Number.isFinite(s.lastMessageAt) ||
+        (s.lastReadAt !== undefined && !Number.isFinite(s.lastReadAt)) ||
         !Array.isArray(s.messages) ||
         !s.messages.every(
           (m) =>
@@ -195,6 +197,10 @@ export type ReplyContext = {
   /** Files and pictures sent with the new message. */
   attachments?: Attachment[];
 };
+/** Marks a session read up to `at`, and every message in it, even one stamped ahead of this clock. */
+const readAll = (s: Session, at = Date.now()) => {
+  s.lastReadAt = Math.max(at, ...s.messages.map((m) => m.at ?? 0));
+};
 const DEFAULT_DESCRIPTION = "简洁、友好地回答用户的问题。";
 const sameModel = (choice: ModelChoice, model: AgentModel) =>
   choice.provider === model.provider && choice.id === model.model;
@@ -208,6 +214,8 @@ export class AgentStore implements AgentProvider {
   >();
   private structural = new Set<string>();
   private committing = new Set<string>();
+  /** The Agent on screen, as told by `view`. */
+  private viewed: string | null = null;
   private queue: Promise<unknown> = Promise.resolve();
   private closed = false;
   constructor(
@@ -283,6 +291,18 @@ export class AgentStore implements AgentProvider {
     });
   }
   list = () => this.agents;
+  view(agentId: string | null) {
+    this.viewed = agentId;
+    const a = this.agents.find((a) => a.id === agentId);
+    const s = a?.sessions.find((s) => s.id === a.currentSessionId);
+    if (!s || !unreadReplies(s)) return;
+    // Being read again on the next view is all a failed save costs.
+    this.change((agents) => {
+      const a = agents.find((a) => a.id === agentId);
+      const s = a?.sessions.find((s) => s.id === a.currentSessionId);
+      if (s) readAll(s);
+    }).catch(() => {});
+  }
   subscribe = (listener: () => void) => {
     this.listeners.add(listener);
     return () => {
@@ -419,8 +439,11 @@ export class AgentStore implements AgentProvider {
       } else {
         if (!a.sessions.some((s) => s.id === sessionId))
           throw new Error("会话不存在。");
-        if (action === "select") a.currentSessionId = sessionId!;
-        else {
+        if (action === "select") {
+          a.currentSessionId = sessionId!;
+          const s = a.sessions.find((s) => s.id === sessionId)!;
+          if (this.viewed === agentId && unreadReplies(s)) readAll(s);
+        } else {
           a.sessions = a.sessions.filter((s) => s.id !== sessionId);
           if (!a.sessions.length) a.sessions.push(newSession());
           if (a.currentSessionId === sessionId)
@@ -503,11 +526,13 @@ export class AgentStore implements AgentProvider {
       await this.change(
         (agents) => {
           controller.signal.throwIfAborted();
-          const s = this.find(agents, agentId).sessions.find(
-            (s) => s.id === sessionId,
-          );
+          const current = this.find(agents, agentId);
+          const s = current.sessions.find((s) => s.id === sessionId);
           if (!s) throw new Error("会话已被移除。");
-          const repliedAt = Date.now();
+          // Sending reads what came before; the reply sorts after all of
+          // it, also within the same millisecond.
+          readAll(s, sentAt);
+          const repliedAt = Math.max(Date.now(), s.lastReadAt! + 1);
           s.messages.push(
             {
               id: id(),
@@ -519,6 +544,8 @@ export class AgentStore implements AgentProvider {
             { id: id(), role: "agent", text: output, at: repliedAt },
           );
           s.lastMessageAt = repliedAt;
+          if (this.viewed === agentId && current.currentSessionId === sessionId)
+            s.lastReadAt = repliedAt;
           if (s.messages.length === 2) s.title = input.slice(0, 24);
         },
         {

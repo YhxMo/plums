@@ -7,6 +7,8 @@ export type Session = {
   title: string;
   createdAt: number;
   lastMessageAt: number;
+  /** Replies after it are unread; absent on sessions saved before it was added, which count none. */
+  lastReadAt?: number;
   messages: Message[];
 };
 /** A file or picture attached to a message, kept with it in the conversation. */
@@ -102,6 +104,12 @@ export interface AgentProvider {
   ): Promise<void>;
   send(id: string, text: string, attachments?: Attachment[]): Promise<void>;
   cancel(id: string): void;
+  /**
+   * The Agent whose current session is on screen, or `null` for none: its
+   * unread replies become read, and so do replies arriving while it stays.
+   * Added after agents@1 shipped, so optional.
+   */
+  view?(id: string | null): void;
   /** Models any Agent can use; added after agents@1 shipped. */
   modelChoices?(): readonly ModelChoice[];
   /** Picks one of `modelChoices()` for an Agent, or none, and switches its connection on. */

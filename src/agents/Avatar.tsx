@@ -71,17 +71,19 @@ function PlumMark({ name }: { name: string }) {
 
 /**
  * An Agent's mark: its picture, or a flat plum in colours taken from its
- * name. With `status`, a dot shows whether it is working (pulsing) or online.
+ * name. With `dot`, a corner dot shows the Agent typing a reply (the brand
+ * colour, breathing) or online (green); rows set `--row-typing` where the
+ * brand colour would not show.
  */
 export function Avatar({
   agent,
   size = "normal",
-  status,
+  dot,
   className,
 }: {
   agent: Pick<Agent, "name" | "avatar">;
   size?: keyof typeof sizes;
-  status?: Agent["status"];
+  dot?: "typing" | "online";
   className?: string;
 }) {
   return (
@@ -99,12 +101,15 @@ export function Avatar({
       <AvatarFallback className="rounded-[27%] bg-transparent">
         <PlumMark name={agent.name} />
       </AvatarFallback>
-      {status && status !== "idle" && (
+      {dot && (
         <AvatarBadge
+          data-state={dot}
           className={cn(
             // Rows set --row-bg so the ring matches their tint.
-            "size-3! bg-running ring-(--row-bg,var(--background))",
-            status === "busy" && "animate-pulse",
+            "size-3! ring-(--row-bg,var(--background))",
+            dot === "typing"
+              ? "bg-(--row-typing,var(--accent)) motion-safe:animate-pulse"
+              : "bg-running",
           )}
         />
       )}
