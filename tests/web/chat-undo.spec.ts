@@ -21,6 +21,12 @@ test("a deleted message comes back with 撤销 in the notice", async ({
   await expect(log.locator("p", { hasText: reply })).toHaveCount(0);
   await expect(page.getByText("已删除消息")).toBeVisible();
   await page.getByRole("button", { name: "撤销", exact: true }).click();
+  // A click does not pull focus into the notice, so nothing jumps back later.
+  expect(
+    await page.evaluate(
+      () => !!document.activeElement?.closest("[data-sonner-toaster]"),
+    ),
+  ).toBe(false);
   await expect(log.locator("p", { hasText: reply })).toHaveCount(1);
   await expect(page.getByText("已恢复")).toBeVisible();
   // Restored for good: it is saved, not only shown.
@@ -48,6 +54,7 @@ test("a deleted session comes back, opened, with 撤销 in the notice", async ({
   await expect(page.getByText("已删除会话")).toBeVisible();
   await page.getByRole("button", { name: "撤销", exact: true }).click();
   await expect(chip).toHaveAccessibleName("会话：留下");
+  await expect(page.getByText("已恢复")).toBeVisible();
   await expect(page.getByRole("log")).toContainText("｜留下");
   await chip.click();
   await expect(page.getByRole("menuitemradio")).toHaveCount(1);

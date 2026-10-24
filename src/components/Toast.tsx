@@ -55,14 +55,23 @@ export function ActionToast({
         ? Math.max(ACTION_TIME, readingTime(message))
         : readingTime(message),
       className: error ? "text-destructive!" : undefined,
-      action: label && {
-        label,
-        onClick: () => {
-          // The action ends the notice; it is not a dismissal to report.
-          silent = true;
-          choose();
-        },
-      },
+      action: label && (
+        <button
+          type="button"
+          className="ml-auto shrink-0 rounded-md px-2 py-1 text-[13px] font-semibold text-brand-text hover:bg-muted focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none"
+          // A click leaves focus where it was: WebKit would otherwise focus
+          // the toast, and the toaster would later pull focus back from
+          // whatever the person moved on to.
+          onMouseDown={(event) => event.preventDefault()}
+          onClick={() => {
+            // The action ends the notice; it is not a dismissal to report.
+            silent = true;
+            choose();
+          }}
+        >
+          {label}
+        </button>
+      ),
       onAutoClose: finish,
       onDismiss: finish,
     });
