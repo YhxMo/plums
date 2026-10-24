@@ -42,7 +42,7 @@
 路线已改为按用户能做到什么排序的[四级阶梯](docs/spec/total.md#路线阶梯)；当前是第 1 级“认识你的联系人”（Mac 第一版），顺序与剩余内容只在[当前阶段](docs/spec/milestone.md#第-1-级mac-第一版)维护。
 
 - **已完成**：规范化改造，包括统一命名与历史改写、旧数据迁移、工程小项（版本号、ESLint、别名、`public/`、Radix 补丁跟踪、断点、平台检测、按需加载）、SQLite 存储与记录能力（[SDK 参考](docs/SDK-AUTHORING.md#状态取消与演进)）、扩展包格式（[作者入门](docs/AUTHOR-QUICKSTART.md)）、界面改版（[UI](docs/UI.md)、[主题契约](docs/THEMES.md)、[页面契约](docs/PAGES.md)）、联系人式回复；对话体验的 7a–7c（列表按最近活跃排序、按会话忙碌与会话改名、只在底部时跟随滚动），行为见 [UI](docs/UI.md#列表交互与详情)。各阶段的审查结论记在阶段 U 的 `4f4bc97` 及各阶段审查提交的说明里。
-- **当前焦点**：打包检查点已完成（[记录](evidence/MAC-CHECKPOINT-2026-10-24.md)），所有者试用中；窗口框架实验已完成，结论（原生红绿灯、最小宽度约 652、窄栏需重新设计）并入[当前阶段](docs/spec/milestone.md#第-1-级mac-第一版)第 6 项；下一步是对话体验剩余项。
+- **当前焦点**：打包检查点已完成（[记录](evidence/MAC-CHECKPOINT-2026-10-24.md)），所有者试用中；窗口框架实验已完成，结论（原生红绿灯、自定 20pt 间距、窄栏保持 68pt、最小宽度约 652）并入[当前阶段](docs/spec/milestone.md#第-1-级mac-第一版)第 6 项；下一步是对话体验剩余项。
 - **遗留**：`AgentWorkspace.tsx` 与 `AgentDialogs.tsx` 超过 400 行提示线，`modules/agents/store.ts` 接近；外壳右侧栏按钮的 18px 偏移与会话卡片几何耦合，随窗口框架处理；`View.icon` 无效原因是英文作者提示，在中文界面中原样显示；WebKit 下 agent-flow 的“dialog close is quiet…”两项失败（Tab 未聚焦弹窗关闭按钮），界面改版前已存在；此前导入的单文件扩展的源码分片（`host.shell` 的 `x-` 文档）不再读取，也不自动清理。
 
 当前未推送，现有交付包未替换，第 1 级尚未完成。
