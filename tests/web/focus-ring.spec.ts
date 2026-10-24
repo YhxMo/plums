@@ -38,8 +38,8 @@ test("the file picker shows its ring for the keyboard only", async ({
   await page.goto("/");
   await manage(page);
   await page.getByRole("button", { name: "安装扩展", exact: true }).click();
-  const pick = page.locator("label").filter({ hasText: "选择扩展文件" });
-  const input = page.getByLabel("选择扩展文件");
+  const pick = page.locator("label").filter({ hasText: "选择扩展包" });
+  const input = page.getByLabel("选择扩展包");
   const chooser = page.waitForEvent("filechooser");
   await pick.click();
   await (await chooser).setFiles([]);

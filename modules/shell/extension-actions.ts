@@ -9,12 +9,14 @@ import { extensionOwner } from "@modules/sdk";
 import type { ConfigurationValue } from "@modules/sdk/configuration";
 import type { ExtensionDefinition } from "@modules/sdk";
 import {
-  isFileImport,
-  loadExtensionSource,
-  type ExtensionFile,
-  type LoadSource,
-  type SourceStore,
-} from "./file-import";
+  isPackageImport,
+  isRetiredFileImport,
+  loadPackage as loadStoredPackage,
+  retiredFileImport,
+  type ExtensionPackage,
+  type LoadPackage,
+  type PackageStore,
+} from "./extension-package";
 
 export type ExtensionSavePatch = {
   imports?: ImportedExtension[];
@@ -74,31 +76,31 @@ const notCommitted = (error: unknown) =>
   (error as { outcome?: string } | null)?.outcome === "not-committed";
 
 /**
- * Installs a file the user imported, or replaces an earlier import with the
- * same ID, including one whose code failed to load. The source is stored
+ * Installs a package the user imported, or replaces an earlier import with
+ * the same ID, including one whose code failed to load. The package is stored
  * before the shell record that references it. A replaced extension is
  * stopped, its grants revoked, its credential bindings disabled and its
  * entry dropped from the saved composition first; it stays disabled until
  * the user enables and authorizes the new code.
  */
-export async function importExtensionFile(
+export async function importExtensionPackage(
   host: RemovalHost & Pick<Host, "install" | "stop" | "grant" | "uninstall">,
   state: RemovalState & Pick<ExtensionState, "catalog" | "configurations">,
-  file: ExtensionFile,
+  pkg: ExtensionPackage,
   definition: ExtensionDefinition,
-  sources: SourceStore,
+  packages: PackageStore,
   prepareUninstall: PrepareUninstall,
 ) {
   const id = definition.manifest.id;
   const previous = state.imports.find((entry) => entry.id === id);
   const installed = host.ids().includes(id);
   if (!previous && installed)
-    throw Error("此 ID 属于内置扩展，不能用导入的文件替换。");
+    throw Error("此 ID 属于内置扩展，不能用导入的扩展包替换。");
   const replacing = !!previous && installed;
-  await sources.write(file);
-  // The new source goes again when no record referencing it was saved.
+  await packages.write(pkg);
+  // The new package goes again when no record referencing it was saved.
   const discard = async () => {
-    if (previous?.url !== file.url) await sources.remove(file.url);
+    if (previous?.url !== pkg.url) await packages.remove(pkg.url);
   };
   if (replacing) {
     await host.stop(id);
@@ -106,7 +108,7 @@ export async function importExtensionFile(
   }
   const entry: ImportedExtension = {
     id,
-    url: file.url,
+    url: pkg.url,
     label: definition.manifest.name ?? id,
   };
   const imports = [...state.imports.filter((saved) => saved.id !== id), entry];
@@ -131,15 +133,15 @@ export async function importExtensionFile(
   const index = state.catalog.findIndex((saved) => saved.id === id);
   if (index === -1) state.catalog.push(entry);
   else state.catalog[index] = entry;
-  if (previous && isFileImport(previous.url) && previous.url !== file.url)
-    await sources.remove(previous.url);
+  if (previous && isPackageImport(previous.url) && previous.url !== pkg.url)
+    await packages.remove(previous.url);
   return { entry, replaced: !!previous };
 }
 
 export type ImportLoaders = {
   load?: Loader;
-  sources?: SourceStore;
-  loadSource?: LoadSource;
+  packages?: PackageStore;
+  loadPackage?: LoadPackage;
 };
 
 export async function retryImport(
@@ -150,15 +152,16 @@ export async function retryImport(
   retry: number,
   {
     load = loadExtension,
-    sources,
-    loadSource = loadExtensionSource,
+    packages,
+    loadPackage = loadStoredPackage,
   }: ImportLoaders = {},
 ) {
   const entry = state.imports.find((item) => item.id === id)!;
   let definition: ExtensionDefinition;
-  if (isFileImport(entry.url)) {
-    if (!sources) throw Error("导入的扩展文件暂不可读取。");
-    definition = await loadSource(await sources.read(entry.url), id);
+  if (isRetiredFileImport(entry.url)) throw Error(retiredFileImport);
+  if (isPackageImport(entry.url)) {
+    if (!packages) throw Error("导入的扩展包暂不可读取。");
+    definition = await loadPackage(await packages.read(entry.url), id);
   } else {
     const target = new URL(entry.url, baseUrl);
     target.searchParams.set("_retry", String(retry));
@@ -205,14 +208,15 @@ export async function uninstallExtension(
   state: RemovalState & Pick<ExtensionState, "catalog">,
   id: string,
   prepareUninstall: PrepareUninstall,
-  sources?: SourceStore,
+  packages?: PackageStore,
 ) {
   const removed = state.imports.find((entry) => entry.id === id);
   const imports = await uninstallImport(host, id, state.imports, (next) =>
     saveRemovedImport(host, state, id, next, prepareUninstall),
   );
   state.imports = imports;
-  if (removed && isFileImport(removed.url)) await sources?.remove(removed.url);
+  if (removed && isPackageImport(removed.url))
+    await packages?.remove(removed.url);
   const index = state.catalog.findIndex((entry) => entry.id === id);
   if (index !== -1) state.catalog.splice(index, 1);
   return imports;
@@ -223,13 +227,14 @@ export async function removeFailedImport(
   state: RemovalState,
   id: string,
   prepareUninstall: PrepareUninstall,
-  sources?: SourceStore,
+  packages?: PackageStore,
 ) {
   const removed = state.imports.find((entry) => entry.id === id);
   const imports = state.imports.filter((entry) => entry.id !== id);
   await saveRemovedImport(host, state, id, imports, prepareUninstall);
   state.imports = imports;
-  if (removed && isFileImport(removed.url)) await sources?.remove(removed.url);
+  if (removed && isPackageImport(removed.url))
+    await packages?.remove(removed.url);
   return imports;
 }
 

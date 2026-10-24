@@ -2,11 +2,13 @@ import { Host } from "@modules/extension-host/host";
 import { loadExtension } from "@modules/extension-host/definition";
 import type { ImportedExtension } from "@modules/shell/uninstall";
 import {
-  isFileImport,
-  loadExtensionSource,
-  type LoadSource,
-  type SourceStore,
-} from "@modules/shell/file-import";
+  isPackageImport,
+  isRetiredFileImport,
+  loadPackage as loadStoredPackage,
+  retiredFileImport,
+  type LoadPackage,
+  type PackageStore,
+} from "@modules/shell/extension-package";
 import { errorMessage } from "./messages";
 
 const readCatalog = async (path: string): Promise<ImportedExtension[]> => {
@@ -37,9 +39,9 @@ export async function installImports(
   configurations: Record<string, unknown>,
   catalog: ImportedExtension[],
   {
-    sources,
-    loadSource = loadExtensionSource,
-  }: { sources: SourceStore; loadSource?: LoadSource },
+    packages,
+    loadPackage = loadStoredPackage,
+  }: { packages: PackageStore; loadPackage?: LoadPackage },
 ): Promise<{
   catalog: ImportedExtension[];
   failedImports: Record<string, string>;
@@ -47,9 +49,10 @@ export async function installImports(
   const failedImports: Record<string, string> = {};
   for (const entry of imports) {
     try {
+      if (isRetiredFileImport(entry.url)) throw Error(retiredFileImport);
       host.install(
-        isFileImport(entry.url)
-          ? await loadSource(await sources.read(entry.url), entry.id)
+        isPackageImport(entry.url)
+          ? await loadPackage(await packages.read(entry.url), entry.id)
           : await loadExtension(
               new URL(entry.url, location.href).href,
               entry.id,

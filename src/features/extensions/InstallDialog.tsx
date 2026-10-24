@@ -4,9 +4,13 @@ import { cn } from "cn";
 import { Dialog, DialogActions, DialogBody } from "@/components/Dialog";
 import type { DialogFeedback } from "@/shell/controllers";
 import { capabilityLabel } from "@modules/shell/capabilities";
-import type { ExtensionDefinition } from "@modules/sdk";
-import { sourceLabel, type ExtensionFile } from "@modules/shell/file-import";
+import {
+  sourceLabel,
+  type ExtensionPackage,
+  type PackageFile,
+} from "@modules/shell/extension-package";
 import { serviceList } from "./services";
+import { droppedFiles, pickedFiles } from "./package-files";
 import { buttonVariants, Button } from "@/components/ui/button";
 import { Field, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
@@ -16,14 +20,10 @@ import {
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
 
-export type ImportPreview = {
-  file: ExtensionFile;
-  definition: ExtensionDefinition;
-  replacing: boolean;
-};
+export type ImportPreview = { pkg: ExtensionPackage; replacing: boolean };
 
-function PreviewDetails({ file, definition, replacing }: ImportPreview) {
-  const { manifest } = definition;
+function PreviewDetails({ pkg, replacing }: ImportPreview) {
+  const { manifest } = pkg;
   const bindings = Object.values(manifest.credentialBindings ?? {});
   return (
     <>
@@ -70,7 +70,7 @@ function PreviewDetails({ file, definition, replacing }: ImportPreview) {
           </>
         )}
         <dt>来源</dt>
-        <dd>{sourceLabel(file.url)}</dd>
+        <dd>{sourceLabel(pkg.url)}</dd>
       </dl>
       <p className="text-muted-foreground">
         {replacing
@@ -95,7 +95,10 @@ export function InstallDialog({
   source: HTMLElement | null;
   onClose(): void;
   onInstall(id: string, url: string): Promise<void>;
-  onPreview(file: Blob): Promise<ImportPreview | undefined>;
+  /** `files` may unpack a zip or walk a folder, so errors show as feedback. */
+  onPreview(
+    files: () => PackageFile[] | Promise<PackageFile[]>,
+  ): Promise<ImportPreview | undefined>;
   onImport(preview: ImportPreview): Promise<void>;
 }) {
   const { busy } = feedback;
@@ -109,9 +112,26 @@ export function InstallDialog({
     setPreview(undefined);
     onClose();
   };
-  const choose = async (file: File | undefined) => {
-    if (file) setPreview(await onPreview(file));
-  };
+  const choose = async (files: () => PackageFile[] | Promise<PackageFile[]>) =>
+    setPreview(await onPreview(files));
+  const picker = (folder: boolean) => (
+    <input
+      type="file"
+      className="sr-only"
+      disabled={busy}
+      {...(folder
+        ? { webkitdirectory: "" }
+        : { accept: ".zip,.json,.js,application/zip", multiple: true })}
+      onChange={(event) => {
+        const input = event.currentTarget;
+        const files = [...(input.files ?? [])];
+        if (!files.length) return;
+        void choose(() => pickedFiles(files)).finally(() => {
+          input.value = "";
+        });
+      }}
+    />
+  );
   return (
     <Dialog
       title="安装扩展"
@@ -124,7 +144,10 @@ export function InstallDialog({
           <PreviewDetails {...preview} />
         ) : (
           <>
-            <p>导入下载或自己编写的扩展文件（单个 .js 文件）。</p>
+            <p>
+              导入下载或自己编写的扩展包：含 manifest.json 与 main.js 的文件夹或
+              zip 文件，也可以同时选择这两个文件。
+            </p>
             <p
               className="flex gap-2 rounded-lg bg-brand-soft/60 p-3 text-xs leading-relaxed text-muted-foreground"
               role="note"
@@ -134,7 +157,7 @@ export function InstallDialog({
                 <strong className="font-semibold text-brand-text">
                   只导入你信任来源的文件。
                 </strong>
-                扩展与应用在同一环境中运行：选择文件后其代码就会执行，并可使用你之后授予的权限。
+                扩展与应用在同一环境中运行：确认导入后其代码就会执行，并可使用你之后授予的权限。确认前只读取清单，不执行代码。
               </span>
             </p>
             <div
@@ -150,33 +173,35 @@ export function InstallDialog({
               onDrop={(event) => {
                 event.preventDefault();
                 setDragging(false);
-                if (!busy) void choose(event.dataTransfer.files[0]);
+                const transfer = event.dataTransfer;
+                if (!busy) void choose(() => droppedFiles(transfer));
               }}
             >
               <PuzzleIcon className="size-7" />
-              <label
-                className={cn(
-                  buttonVariants(),
-                  "cursor-pointer has-[input:focus-visible]:ring-3 has-[input:focus-visible]:ring-ring/50",
-                  busy && "pointer-events-none opacity-50",
-                )}
-              >
-                选择扩展文件
-                <input
-                  type="file"
-                  className="sr-only"
-                  accept=".js,.mjs,text/javascript"
-                  disabled={busy}
-                  onChange={(event) => {
-                    const input = event.currentTarget;
-                    void choose(input.files?.[0]).finally(() => {
-                      input.value = "";
-                    });
-                  }}
-                />
-              </label>
+              <div className="flex flex-wrap justify-center gap-2">
+                <label
+                  className={cn(
+                    buttonVariants(),
+                    "cursor-pointer has-[input:focus-visible]:ring-3 has-[input:focus-visible]:ring-ring/50",
+                    busy && "pointer-events-none opacity-50",
+                  )}
+                >
+                  选择扩展包
+                  {picker(false)}
+                </label>
+                <label
+                  className={cn(
+                    buttonVariants({ variant: "outline" }),
+                    "cursor-pointer has-[input:focus-visible]:ring-3 has-[input:focus-visible]:ring-ring/50",
+                    busy && "pointer-events-none opacity-50",
+                  )}
+                >
+                  选择文件夹
+                  {picker(true)}
+                </label>
+              </div>
               <span className="text-xs text-muted-foreground pointer-coarse:hidden">
-                也可以把文件拖到这里
+                也可以把文件夹或 zip 拖到这里
               </span>
             </div>
             {/* Open by default only in development builds. */}

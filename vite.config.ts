@@ -29,6 +29,12 @@ export default defineConfig({
               test: /node_modules[\\/](?:react|react-dom|scheduler)[\\/]/,
               priority: 2,
             },
+            // Unzipping only runs when a zip is imported.
+            {
+              name: "fflate",
+              test: /node_modules[\\/]fflate[\\/]/,
+              priority: 3,
+            },
             { name: "vendor", test: /node_modules[\\/]/, priority: 1 },
           ],
         },

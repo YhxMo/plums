@@ -14,14 +14,17 @@ import {
 } from "./persisted-state";
 import { createPersistence, createShellBridge } from "./persistence";
 import { loadCatalog, installCatalog, installImports } from "./extensions";
-import { sourceStore, type SourceStore } from "@modules/shell/file-import";
+import {
+  packageStore,
+  type PackageStore,
+} from "@modules/shell/extension-package";
 
 export type Runtime = Readonly<{
   host: Host;
   adapter: PlatformAdapter;
   catalog: ImportedExtension[];
-  /** Sources of extensions imported from files, in the shell's own state. */
-  sources: SourceStore;
+  /** Packages of imported extensions, in the shell's own records. */
+  packages: PackageStore;
   events: EventTarget;
   /** The native app's OS from `platform.info` (`std::env::consts::OS`); absent in the browser preview. */
   os?: string;
@@ -96,6 +99,8 @@ export async function bootShell(
   await adapter.grant("host.shell", [
     "state.read",
     "state.write",
+    "state.batch",
+    "records.list",
     "platform.info",
   ]);
   const saved = (await adapter.call(
@@ -115,7 +120,7 @@ export async function bootShell(
   );
   const { imports, configurations, composition } = preferences;
   await installCatalog(host, catalog, configurations);
-  const sources = sourceStore((capability, payload) =>
+  const packages = packageStore((capability, payload) =>
     adapter.call("host.shell", capability, payload),
   );
   const { failedImports } = await installImports(
@@ -123,7 +128,7 @@ export async function bootShell(
     imports,
     configurations,
     catalog,
-    { sources },
+    { packages },
   );
   const { save, current } = createPersistence(
     adapter,
@@ -178,7 +183,7 @@ export async function bootShell(
     host,
     adapter,
     catalog: entries,
-    sources,
+    packages,
     os,
     initial: {
       layout: preferences.layout,

@@ -1,4 +1,4 @@
-import type { ExtensionDefinition } from "@modules/sdk";
+import type { ExtensionDefinition, Manifest } from "@modules/sdk";
 import { ContractError } from "@modules/sdk/errors";
 import { array, identifier, object, string } from "@modules/sdk/validation";
 import { validateConfigurationDeclaration } from "@modules/sdk/configuration";
@@ -22,7 +22,16 @@ export function validateDefinition(
       "manifest",
       "Invalid extension module",
     );
-  const manifest = candidate.manifest;
+  validateManifest(candidate.manifest);
+}
+
+/** Checks a manifest on its own, as read from a package before any code runs. */
+export function validateManifest(value: unknown): asserts value is Manifest {
+  object(value, "extension.invalid", {
+    path: "manifest",
+    label: "Invalid extension module",
+  });
+  const manifest = value as Manifest;
   validateConfigurationDeclaration(manifest.configuration);
   const identity = {
     path: "manifest.id",

@@ -4,7 +4,7 @@ import { CheckIcon, PlusIcon } from "lucide-react";
 import { cn } from "cn";
 import { capabilityLabel } from "@modules/shell/capabilities";
 import { CredentialBindings } from "./CredentialBindings";
-import { sourceLabel } from "@modules/shell/file-import";
+import { sourceLabel } from "@modules/shell/extension-package";
 import { serviceList } from "./services";
 import { StatusBadge } from "./StatusBadge";
 import { Badge } from "@/components/ui/badge";

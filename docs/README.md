@@ -9,7 +9,7 @@
 | 文档 | 何时读 |
 | --- | --- |
 | [ARCHITECTURE](ARCHITECTURE.md) | 了解当前模块边界、状态所有权与信任模型 |
-| [AUTHOR-QUICKSTART](AUTHOR-QUICKSTART.md) | 第一次写扩展：单文件模板、导入与替换、常见用途 |
+| [AUTHOR-QUICKSTART](AUTHOR-QUICKSTART.md) | 第一次写扩展：扩展包模板、导入与替换、常见用途 |
 | [SDK-AUTHORING](SDK-AUTHORING.md) | 入门之后：精确版本与依赖、开发样板、宿主管理接口、工作区标题与侧栏、状态与取消 |
 | [EXTENSION-CONTRACTS](EXTENSION-CONTRACTS.md) | 查公开扩展契约、生命周期与失败语义（实验），并索引各能力的专题契约 |
 | [EXTENSION-CONFIGURATION](EXTENSION-CONFIGURATION.md) | 实现非敏感扩展配置与宿主管理接口 |

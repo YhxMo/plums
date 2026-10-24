@@ -1,7 +1,10 @@
 import { readComposition, type Composition } from "@modules/shell/composition";
 import type { ImportedExtension } from "@modules/shell/uninstall";
 import { ContractError } from "@modules/sdk/errors";
-import { isFileImport } from "@modules/shell/file-import";
+import {
+  isPackageImport,
+  isRetiredFileImport,
+} from "@modules/shell/extension-package";
 import {
   array,
   object,
@@ -64,7 +67,11 @@ export function parsePersistedState(input: unknown): Preferences {
             path: `${path}.url`,
           });
           string(entry.label, "state.imports", { path: `${path}.label` });
-          if (!isFileImport(url) && !sameOrigin(url, location.href))
+          if (
+            !isPackageImport(url) &&
+            !isRetiredFileImport(url) &&
+            !sameOrigin(url, location.href)
+          )
             throw new ContractError("state.imports", `${path}.url`);
           if (seen.has(id))
             throw new ContractError("state.imports", `${path}.id`);

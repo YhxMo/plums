@@ -6,12 +6,13 @@ import {
   uninstallExtension,
   persistComposition,
   configureExtension,
-  importExtensionFile,
+  importExtensionPackage,
 } from "@modules/shell/extension-actions";
 import {
-  loadExtensionSource,
-  readExtensionFile,
-} from "@modules/shell/file-import";
+  loadPackage,
+  readPackage,
+  type PackageFile,
+} from "@modules/shell/extension-package";
 import type { ImportPreview } from "./InstallDialog";
 import { waitingNotice } from "./enable-feedback";
 import type { ConfigurationValue } from "@modules/sdk/configuration";
@@ -186,7 +187,7 @@ export function useExtensionManager(
           operate(async () => {
             await run((draft) =>
               retryImport(host, draft, id, location.href, Date.now(), {
-                sources: runtime.sources,
+                packages: runtime.packages,
               }),
             );
             clearFailure(id);
@@ -199,7 +200,7 @@ export function useExtensionManager(
                 draft,
                 id,
                 prepareUninstall,
-                runtime.sources,
+                runtime.packages,
               ),
             );
             clearFailure(id);
@@ -232,29 +233,30 @@ export function useExtensionManager(
             "模块路径已保存。请检查来源与能力，再启用扩展；下次启动会重新加载模块。",
           );
         }),
-      /** Runs the file's code to read its manifest; nothing is saved yet. */
-      preview: async (file: Blob) => {
+      /** Reads the package's manifest; no code runs and nothing is saved yet. */
+      preview: async (files: () => PackageFile[] | Promise<PackageFile[]>) => {
         let preview: ImportPreview | undefined;
         await operate(async () => {
-          const read = await readExtensionFile(file);
-          const definition = await loadExtensionSource(read.source);
-          const id = definition.manifest.id;
+          const pkg = await readPackage(await files());
+          const id = pkg.manifest.id;
           const replacing = value.imports.some((entry) => entry.id === id);
           if (!replacing && host.ids().includes(id))
-            throw Error("此 ID 属于内置扩展，不能用导入的文件替换。");
-          preview = { file: read, definition, replacing };
+            throw Error("此 ID 属于内置扩展，不能用导入的扩展包替换。");
+          preview = { pkg, replacing };
         });
         return preview;
       },
-      importFile: ({ file, definition }: ImportPreview) =>
+      /** Runs main.js now that the user has confirmed, then saves. */
+      importPackage: ({ pkg }: ImportPreview) =>
         operate(async () => {
+          const definition = await loadPackage(pkg);
           const { entry, replaced } = await run((draft) =>
-            importExtensionFile(
+            importExtensionPackage(
               host,
               draft,
-              file,
+              pkg,
               definition,
-              runtime.sources,
+              runtime.packages,
               prepareUninstall,
             ),
           );
@@ -280,7 +282,7 @@ export function useExtensionManager(
               draft,
               id,
               prepareUninstall,
-              runtime.sources,
+              runtime.packages,
             ),
           ).catch(
             failed(

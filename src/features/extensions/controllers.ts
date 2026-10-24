@@ -54,7 +54,7 @@ export type ExtensionDialogController = Pick<
   | "close"
   | "install"
   | "preview"
-  | "importFile"
+  | "importPackage"
   | "uninstall"
   | "stop"
   | "label"

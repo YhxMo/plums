@@ -67,7 +67,7 @@ Runtime 的 initial 只作外观、布局、恢复诊断和扩展状态的启动
 
 状态只发布已确认的结果，写入拒绝时无需撤回乐观值；未知回执仍由 persistence 锁住后续写入。最终卸载失败时保留实时 imports，同时发布已经确认的 composition 裁剪；路径保存成功后安装失败也保留已确认路径。生命周期、模块目录和扩展数据的原语义保持。
 
-从文件导入的单文件扩展（[file-import.ts](../modules/shell/file-import.ts)）：源码按 SHA-256 存入 `host.shell` 的 `x-<哈希前 48 位>` 分片（存储后不超过 60 KiB），imports 记录 `imported:sha256:<hex>` 代替模块路径，启动时读取分片、核对哈希后以 Blob URL 加载；缺失或不符时进入失败导入列表，记录保留。先写源码分片再写 imports，imports 确定未提交时删除新分片。同 ID 再次导入为替换，加载失败的导入也可这样修复：先停用、撤销授权、禁用旧代码的凭据绑定，与新 imports 同次保存时从已保存组合中移去该扩展；imports 提交后才换下宿主记录并删除旧分片，替换后保持停用。禁用凭据绑定失败时不保存，旧版本保留。内置扩展 ID 不能被文件覆盖。卸载或移除失败导入后尽力删除分片，删除失败只留下无引用分片。原生 CSP 的 `script-src` 为此只增加 `blob:`，`check:release` 校验策略未再放宽；凭据绑定的来源即该 `imported:` 标识，替换后的新代码须重新填写 API Key。
+从文件导入的扩展包（[extension-package.ts](../modules/shell/extension-package.ts)）：`manifest.json` 加单文件 ESM `main.js`（默认导出 `{ activate }`），可来自文件夹、zip（[fflate](https://github.com/101arrowz/fflate) 只解出这两个文件，按需加载）或同时选中的两个文件；文件夹或 zip 只有一层外包文件夹时自动进入。读取包时只解析并校验 manifest，不执行代码；用户确认导入后才以 Blob URL 加载 `main.js`，其默认导出须有 `activate`，若也带 `manifest`，其 ID 须与 `manifest.json` 一致。包按 SHA-256 存为 `host.shell` 的记录（集合 `extension-package:<哈希>`，`manifest.json` 最大 64 KiB，`main.js` 最大 3 MiB），imports 记录 `package:sha256:<hex>` 代替模块路径，启动时读取、核对哈希后加载；缺失或不符时进入失败导入列表，记录保留。先写包再写 imports，imports 确定未提交时删除新包。同 ID 再次导入为替换，加载失败的导入也可这样修复：先停用、撤销授权、禁用旧代码的凭据绑定，与新 imports 同次保存时从已保存组合中移去该扩展；imports 提交后才换下宿主记录并删除旧包，替换后保持停用。禁用凭据绑定失败时不保存，旧版本保留。内置扩展 ID 不能被导入覆盖。卸载或移除失败导入后尽力清空包的集合，失败只留下无引用的包。此前导入的单文件扩展（`imported:sha256:`）不再加载，在失败导入列表中提示按新格式重新导入，其旧源码分片不再读取。原生 CSP 的 `script-src` 为此只增加 `blob:`，`check:release` 校验策略未再放宽；凭据绑定的来源即该 `package:` 标识，替换后的新代码须重新填写 API Key。
 
 外壳订阅当前视图的 `chrome`，由视图发布标题和默认详情状态。自定义侧栏依次匹配当前实体的扩展所有者、当前工作区所有者，再使用工作区默认详情；同类贡献按 priority 和 ID 确定顺序。自定义侧栏出现时关闭默认 inline 详情；移动端默认详情可用 dialog 呈现，转为桌面后参与互斥。
 
@@ -87,7 +87,7 @@ Rust 命令与 wire 类型是 IPC 的来源：[ipc.rs](../src-tauri/src/ipc.rs) 
 
 ## 平台适配与动态扩展
 
-当前采用 Tauri 2、React/TypeScript/Vite 与 Rust 平台层。Tauri 原生插件随应用构建，动态扩展是 SDK/Host 加载的可信 ESM；公开 `ctx.platform` 经平台适配器桥接原生能力。新增原生能力需要重新打包，导入单文件 ESM 不需要重新构建应用。远程分发、非可信执行和其他平台的加载政策仍待验证，范围见[整体路线](spec/total.md#支持范围与未决项)。
+当前采用 Tauri 2、React/TypeScript/Vite 与 Rust 平台层。Tauri 原生插件随应用构建，动态扩展是 SDK/Host 加载的可信 ESM；公开 `ctx.platform` 经平台适配器桥接原生能力。新增原生能力需要重新打包，导入扩展包不需要重新构建应用。远程分发、非可信执行和其他平台的加载政策仍待验证，范围见[整体路线](spec/total.md#支持范围与未决项)。
 
 Android 系统栏与键盘 Insets 由 [MainActivity 模板](../native/android/MainActivity.kt) 适配，[外观插件](../native/android/AppearancePlugin.kt) 同步系统栏颜色；两者不进入扩展宿主。该平台当前冻结，生成工程与恢复构建方式见 [Android 工程](ANDROID.md)。
 
