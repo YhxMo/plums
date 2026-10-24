@@ -61,6 +61,7 @@ export default {
 | 保存很多条目（如聊天记录）并搜索 | 声明 `state.batch` 与 `records.list`，要搜索再加 `records.search` | [批量写与记录](SDK-AUTHORING.md#状态取消与演进) |
 | 让用户调整设置 | `manifest.configuration` 声明字段，`ctx.configuration` 读取；用户在扩展管理中修改 | [配置契约](EXTENSION-CONFIGURATION.md) |
 | 读取公开资源 | 声明 `capabilities: ["network.read"]` 与 `networkSources: ["https://…"]`，用 `ctx.platform("network.read", { version: 1, url })` GET 声明来源下的地址，不带密钥 | [公开网络读取](NETWORK-READ.md) |
+| 在浏览器中打开链接 | 声明 `capabilities: ["link.open"]`，用 `ctx.platform("link.open", { version: 1, url })` 打开 `https://` 地址 | [平台能力](EXTENSION-CONTRACTS.md#平台能力与可选助手) |
 | 连接真实模型 | 声明 `credentialBindings` 和 `capabilities: ["credential.request"]`，用 `ctx.platform("credential.request", { version: 1, binding, body })` 发请求；API Key 由用户在扩展详情中填写，扩展读不回密钥 | [请求契约](CREDENTIAL-REQUEST.md)；要让用户自建多条连接见[扩展自建连接](CREDENTIAL-BINDINGS.md#扩展自建连接) |
 | 让扩展管理显示谁在用 | `ctx.shell.publishUsers("Agent", [{ id, label, uses }], toggle)`；停用时自动清除 | [页面契约](PAGES.md#让扩展使用宿主入口) |
 | 使用别的扩展提供的服务 | `requires: { "服务名": 版本 }`，`ctx.use("服务名")` 取一个，`ctx.providers("服务名")` 列出全部；没有提供者也要能启用时改用 `optional: { "服务名": 版本 }`，只能用 `ctx.providers` | [事件样板](../extensions/examples/events/main.js) |

@@ -11,6 +11,7 @@ mod documents;
 mod ipc;
 #[cfg(desktop)]
 mod legacy_data;
+mod links;
 mod network;
 mod storage;
 use serde::Serialize;
@@ -95,6 +96,7 @@ macro_rules! native_commands {
             network::network_read,
             network::network_abort,
             network::network_release,
+            links::link_open,
             crate::platform_grant,
             crate::platform_call,
             appearance::shell_set_theme

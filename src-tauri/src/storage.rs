@@ -118,6 +118,7 @@ impl Broker {
                 "records.list",
                 "records.search",
                 "platform.info",
+                "link.open",
                 "document.read",
                 "credential.request",
                 "credential.connect",

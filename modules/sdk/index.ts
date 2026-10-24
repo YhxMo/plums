@@ -178,6 +178,7 @@ export type {
   CredentialConnectResult,
 } from "./credential";
 export type { NetworkReadRequest, NetworkReadResponse } from "./network";
+export type { LinkOpenRequest } from "./links";
 export type {
   DocumentWrite,
   RecordWrite,

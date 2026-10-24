@@ -114,6 +114,8 @@ DI isolate 若仅隔离依赖作用域，就只按该范围表述。进程隔离
 
 [凭据代用请求](CREDENTIAL-REQUEST.md)已接入原生适配与模型连接器，浏览器预览不可用。扩展引用所属绑定，由原生侧确定目标并注入凭据；存储、录入、授权与未知回执见[凭据绑定](CREDENTIAL-BINDINGS.md)；需要让用户自建多条连接的扩展声明 `credentialProtocols` 并申请 `credential.connect`，见[扩展自建连接](CREDENTIAL-BINDINGS.md#扩展自建连接)。内置[模型连接器](MODELS.md)是参考实现：协议载荷、回复解析和错误脱敏留在扩展，不直接调用 fetch 或读取密钥。
 
+`link.open` 在默认浏览器中打开网页链接：扩展声明该能力并获授权后调用 `ctx.platform("link.open", { version: 1, url })`（类型 `LinkOpenRequest`），交给浏览器后即返回。`url` 只能是带主机名的 `https://` 地址，不带用户信息，≤ 2048 字符；TS 宿主核对载荷与授权，Rust 再核对授权与地址后调用 opener，opener 不注册为插件，WebView 没有自己的打开命令。浏览器预览以 `noopener,noreferrer` 打开新标签页；Android 冻结期间未实现，调用返回失败。授权提示为「在浏览器中打开网页链接（仅 https）」；回归见 `tests/link-open.test.ts` 与 `src-tauri/src/links_tests.rs`。
+
 [可选单跳状态迁移助手](STATE-MIGRATION.md)已提供公开 SDK 入口与独立样板：扩展定义业务转换，助手用一次修订号提交保留旧快照；当前不自动迁移默认业务，也不提供通用包升级事务或自动回退。
 
 可选[固定视图树助手](VIEW-TREE.md)供页面路由及开发文本工作台使用；固定树挂载后不能追加子节点，也不承担 Host 自动异步失败回退。

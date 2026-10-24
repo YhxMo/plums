@@ -178,6 +178,11 @@ export interface NativeCommands {
     error: never;
   };
   network_release: { args: { owner: string }; response: null; error: never };
+  link_open: {
+    args: { owner: string; url: string };
+    response: null;
+    error: string;
+  };
   platform_grant: {
     args: { owner: string; capabilities: Array<string> };
     response: null;

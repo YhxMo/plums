@@ -1,6 +1,7 @@
 import { DocumentAccess } from "./documents";
 import { CredentialAccess } from "./credentials";
 import { NetworkAccess } from "./network";
+import { openLink } from "./links";
 import { isTauri } from "@tauri-apps/api/core";
 import { invokeNative } from "./native/invoke";
 import { BrowserState } from "./browser-state";
@@ -80,6 +81,7 @@ export class PlatformAdapter implements Platform {
     )
       return this.kind === "native" && this.credentials.supported;
     if (capability === "network.read") return this.kind === "native";
+    if (capability === "link.open") return true;
     return stateCapabilities.includes(capability);
   }
   async grant(owner: string, capabilities: string[]) {
@@ -119,6 +121,8 @@ export class PlatformAdapter implements Platform {
       return this.credentials.connect(owner, payload);
     if (capability === "network.read")
       return this.network.read(owner, payload, signal);
+    if (capability === "link.open")
+      return openLink(owner, payload, this.kind === "native");
     if (this.failWrites && writes.has(capability))
       throw platformRejection("注入的写入故障：原数据保持不变");
     if (this.kind === "native") {
