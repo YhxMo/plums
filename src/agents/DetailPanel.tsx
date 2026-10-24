@@ -48,7 +48,8 @@ export function DetailPanel({
   onOpenExtension: (id?: string) => void;
   onClose: () => void;
 }) {
-  const busy = agent.status === "busy";
+  // Only a save in progress holds the details; a pending reply does not.
+  const busy = agent.status === "busy" && !agent.pending;
   const [editing, setEditing] = useState<string | null>(null);
   const picker = useRef<HTMLInputElement>(null);
   return (

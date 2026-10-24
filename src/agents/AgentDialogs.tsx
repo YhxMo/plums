@@ -179,6 +179,7 @@ export function AgentDialogs({
           rename: "重命名 Agent",
           remove: "移除 Agent",
           deleteSession: "删除会话",
+          renameSession: "重命名会话",
         }[modal.action];
   const cancel = (
     <Button
@@ -472,6 +473,12 @@ export function AgentDialogs({
               void act(async () => {
                 if (modal.action === "rename")
                   await api.update(modal.agent.id, { name });
+                else if (modal.action === "renameSession")
+                  await api.renameSession!(
+                    modal.agent.id,
+                    modal.session!,
+                    name,
+                  );
                 else if (modal.action === "remove") {
                   await api.remove(modal.agent.id);
                   onRemoved(modal.agent.id);
@@ -482,7 +489,7 @@ export function AgentDialogs({
             }}
           >
             <DialogBody>
-              {modal.action === "rename" ? (
+              {modal.action === "rename" || modal.action === "renameSession" ? (
                 <Field>
                   <FieldLabel htmlFor="agent-rename">名称</FieldLabel>
                   <Input
@@ -506,10 +513,12 @@ export function AgentDialogs({
               {cancel}
               <Button
                 type="submit"
-                variant={modal.action === "rename" ? "default" : "destructive"}
+                variant={
+                  modal.action.startsWith("rename") ? "default" : "destructive"
+                }
                 disabled={busy}
               >
-                {modal.action === "rename" ? "保存" : "确认删除"}
+                {modal.action.startsWith("rename") ? "保存" : "确认删除"}
               </Button>
             </DialogActions>
           </form>

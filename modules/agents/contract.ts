@@ -120,6 +120,8 @@ export interface AgentProvider {
   connectors?(): readonly Named[];
   /** Switches one of the Agent's extensions off or back on for one Agent. */
   setOff?(id: string, extensionId: string, off: boolean): Promise<void>;
+  /** Names a session, 1–60 characters; added after agents@1 shipped. */
+  renameSession?(id: string, sessionId: string, title: string): Promise<void>;
   /** Deletes one saved message; added after agents@1 shipped, so optional. */
   removeMessage?(
     id: string,

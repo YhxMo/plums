@@ -8,7 +8,7 @@ export type AgentModal =
   | "create"
   | "import"
   | {
-      action: "rename" | "remove" | "deleteSession";
+      action: "rename" | "remove" | "deleteSession" | "renameSession";
       agent: Agent;
       session?: string;
     }
@@ -32,6 +32,8 @@ export type AgentModals = {
   back(): void;
   closeModal(): void;
   act(run: () => Promise<void>): Promise<void>;
+  /** Like `act`, for work no dialog waits for, such as a reply. */
+  report(run: () => Promise<void>): Promise<void>;
 };
 
 export function useAgentModals(): AgentModals {
@@ -55,7 +57,14 @@ export function useAgentModals(): AgentModals {
     if (!modal) modalTrigger.current = source ?? null;
     setSteps((current) => (next ? [...current, next] : []));
     feedback.setError("");
-    setName(typeof next === "object" && next ? next.agent.name : "");
+    setName(
+      typeof next !== "object" || !next
+        ? ""
+        : next.action === "renameSession"
+          ? (next.agent.sessions.find((s) => s.id === next.session)?.title ??
+            "")
+          : next.agent.name,
+    );
   }
   function back() {
     if (feedback.busy) return;

@@ -3,7 +3,8 @@ import { useCallback, useRef, type FocusEvent } from "react";
 /**
  * Opening a menu puts focus on its first enabled item, whether a press or a
  * key opened it, as in the WAI-ARIA menu button pattern. Radix focuses the
- * menu itself on a press; its first focus is passed on to the first item.
+ * menu itself on a press; its first focus is passed on to the first item,
+ * or to a filter field marked `data-menu-filter` that comes before it.
  */
 export function useFirstItemFocus(
   onFocus?: (event: FocusEvent<HTMLDivElement>) => void,
@@ -21,7 +22,9 @@ export function useFirstItemFocus(
       opened.current = false;
       if (event.target === event.currentTarget)
         event.currentTarget
-          .querySelector<HTMLElement>("[role^=menuitem]:not([data-disabled])")
+          .querySelector<HTMLElement>(
+            "[data-menu-filter], [role^=menuitem]:not([data-disabled])",
+          )
           ?.focus({ preventScroll: true });
     },
   };

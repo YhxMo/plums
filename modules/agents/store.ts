@@ -25,9 +25,11 @@ import type {
 } from "./contract";
 
 const id = () => crypto.randomUUID();
+/** A new session's title, until its first message names it. */
+const UNTITLED = "未命名会话";
 const newSession = (): Session => ({
   id: id(),
-  title: "未命名会话",
+  title: UNTITLED,
   createdAt: Date.now(),
   lastMessageAt: Date.now(),
   messages: [],
@@ -277,9 +279,15 @@ export class AgentStore implements AgentProvider {
     action: "create" | "select" | "delete",
     sessionId?: string,
   ) {
-    if (this.running.has(agentId) || this.structural.has(agentId))
+    if (this.structural.has(agentId))
+      return Promise.reject(new Error("请等待保存完成，再切换会话。"));
+    // Other sessions stay usable while one waits for its reply.
+    if (
+      action === "delete" &&
+      this.pending.get(agentId)?.sessionId === sessionId
+    )
       return Promise.reject(
-        new Error("请等待保存或先停止当前任务，再切换会话。"),
+        new Error("正在等待这个会话的回复，请等它回复或先停止，再删除。"),
       );
     this.structural.add(agentId);
     this.emit();
@@ -320,11 +328,11 @@ export class AgentStore implements AgentProvider {
     );
     if (input.length + filesText > MAX_TEXT)
       throw new Error("文字与文件合计过长，请减少文件或缩短文字。");
-    if (
-      this.closed ||
-      this.running.has(agentId) ||
-      this.structural.has(agentId)
-    )
+    if (this.running.has(agentId))
+      throw new Error(
+        "正在等待此 Agent 的另一条回复，请等它回复或先停止，再发送。",
+      );
+    if (this.closed || this.structural.has(agentId))
       throw new Error("Agent 暂不可运行。");
     // The reply could not be saved, and asking again may be billed again.
     const blocked = this.saveBlocked();
@@ -399,7 +407,9 @@ export class AgentStore implements AgentProvider {
           s.lastMessageAt = repliedAt;
           if (this.viewed === agentId && current.currentSessionId === sessionId)
             s.lastReadAt = repliedAt;
-          if (s.messages.length === 2) s.title = input.slice(0, 24);
+          // The first message names the session, unless it was named already.
+          if (s.messages.length === 2 && s.title === UNTITLED)
+            s.title = input.slice(0, 24);
         },
         {
           signal: controller.signal,
@@ -416,8 +426,23 @@ export class AgentStore implements AgentProvider {
       this.emit();
     }
   }
+  renameSession(agentId: string, sessionId: string, title: string) {
+    const name = title.trim();
+    if (!name || name.length > 60)
+      return Promise.reject(new Error("会话名称需要 1–60 个字符。"));
+    return this.change((agents) => {
+      const s = this.find(agents, agentId).sessions.find(
+        (s) => s.id === sessionId,
+      );
+      if (!s) throw new Error("会话不存在。");
+      s.title = name;
+    });
+  }
   removeMessage(agentId: string, sessionId: string, messageId: string) {
-    if (this.running.has(agentId) || this.structural.has(agentId))
+    if (
+      this.pending.get(agentId)?.sessionId === sessionId ||
+      this.structural.has(agentId)
+    )
       return Promise.reject(
         new Error("请等待回复完成或先停止当前任务，再删除消息。"),
       );

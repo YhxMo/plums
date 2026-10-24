@@ -138,3 +138,53 @@ test("the list shows typing as a dot, and a reply that arrives elsewhere as unre
   await page.reload();
   await expect(row("慢助手")).not.toHaveAccessibleDescription(/未读/);
 });
+
+test("while one session waits, the others and the dialogs stay usable", async ({
+  page,
+}) => {
+  await slowAgent(page, "慢助手");
+  const input = page.getByRole("textbox", { name: "消息", exact: true });
+  await input.fill("先问这个");
+  await page.getByRole("button", { name: "发送", exact: true }).click();
+  const chip = page.getByRole("button", { name: /^会话：/ });
+  await chip.click();
+  await expect(
+    page.getByRole("menuitem", { name: "删除此会话", exact: true }),
+  ).toBeDisabled();
+  await page.getByRole("menuitem", { name: "新建会话", exact: true }).click();
+  const chat = page.getByRole("region", { name: "慢助手 的会话" });
+  await expect(chat.locator("header")).not.toContainText("正在输入");
+  // Sending waits for the other reply, and says where it is.
+  await input.fill("再问那个");
+  await expect(chat).toContainText(
+    "正在等「未命名会话」里的回复，回复后才能再发一条。",
+  );
+  await expect(
+    page.getByRole("button", { name: "发送", exact: true }),
+  ).toBeDisabled();
+  await expect(
+    page.getByRole("button", { name: "停止处理", exact: true }),
+  ).toHaveCount(0);
+  // Adding an Agent does not wait for the reply.
+  await page.getByRole("button", { name: "添加", exact: true }).click();
+  await page
+    .getByRole("dialog", { name: "添加", exact: true })
+    .getByRole("button", { name: /^添加 Agent/ })
+    .click();
+  const add = page.getByRole("dialog", { name: "添加 Agent", exact: true });
+  await add.getByRole("textbox", { name: "名称", exact: true }).fill("旁人");
+  await add.getByRole("button", { name: "添加", exact: true }).click();
+  await expect(add).toBeHidden();
+  await page
+    .getByRole("complementary", { name: "Agent 列表" })
+    .getByRole("button", { name: "慢助手", exact: true })
+    .click();
+  await chat.getByRole("button", { name: "查看", exact: true }).click();
+  await expect(chat.locator("header")).toContainText("正在输入");
+  await answer(page);
+  await expect(page.getByRole("log")).toContainText("答：先问这个");
+  // The previous Agent's header may still be fading out.
+  await expect(
+    page.getByRole("button", { name: "会话：先问这个", exact: true }),
+  ).toBeVisible();
+});

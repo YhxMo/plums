@@ -15,8 +15,8 @@ export function useAsyncAction({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(initialError);
   const [notice, setNotice] = useState("");
-  async function run(action: () => Promise<void>) {
-    setBusy(true);
+  /** Runs an action and shows how it ended, without marking anything busy. */
+  async function report(action: () => Promise<void>) {
     setError("");
     setNotice("");
     try {
@@ -29,9 +29,16 @@ export function useAsyncAction({
       )
         setNotice(abortNotice);
       else setError(describeError(reason));
+    }
+  }
+  /** Runs an action the open form waits for; `busy` holds it until it ends. */
+  async function run(action: () => Promise<void>) {
+    setBusy(true);
+    try {
+      await report(action);
     } finally {
       setBusy(false);
     }
   }
-  return { busy, error, notice, setError, setNotice, run };
+  return { busy, error, notice, setError, setNotice, run, report };
 }

@@ -512,3 +512,68 @@ describe("unread replies", () => {
     expect(() => restoreAgents([damaged])).toThrow("会话配置损坏");
   });
 });
+
+describe("sessions while a reply is awaited", () => {
+  function slow() {
+    let finish: (text: string) => void = () => {};
+    const store = new AgentStore(
+      [],
+      async () => {},
+      () =>
+        new Promise<string>((resolve) => {
+          finish = resolve;
+        }),
+    );
+    return { store, finish: (text: string) => finish(text) };
+  }
+  const sessionsOf = (store: AgentStore) => store.list()[0].sessions;
+  it("other sessions can be created, opened, renamed and edited; the replying one stays", async () => {
+    const { store, finish } = slow();
+    const a = await store.create({ name: "助手" });
+    const replying = a.currentSessionId;
+    const sent = store.send(a.id, "第一句");
+    await Promise.resolve();
+    await store.session(a.id, "create");
+    const other = store.list()[0].currentSessionId;
+    await store.renameSession(a.id, other, "  预算  ");
+    await store.session(a.id, "select", replying);
+    await store.session(a.id, "select", other);
+    await expect(store.session(a.id, "delete", replying)).rejects.toThrow(
+      "正在等待这个会话的回复",
+    );
+    await expect(store.send(a.id, "第二句")).rejects.toThrow(
+      "正在等待此 Agent 的另一条回复",
+    );
+    finish("答");
+    await sent;
+    const [first, second] = sessionsOf(store);
+    expect(first.messages.map((m) => m.text)).toEqual(["第一句", "答"]);
+    expect(first.title).toBe("第一句");
+    expect(second.title).toBe("预算");
+    // The reply landed in a session that was not on screen.
+    expect(unreadReplies(first)).toBe(1);
+  });
+  it("a session renamed before its first reply keeps the name", async () => {
+    const { store, finish } = slow();
+    const a = await store.create({ name: "助手" });
+    const sent = store.send(a.id, "你好");
+    await Promise.resolve();
+    await store.renameSession(a.id, a.currentSessionId, "问候");
+    finish("你好呀");
+    await sent;
+    expect(sessionsOf(store)[0].title).toBe("问候");
+  });
+  it("refuses empty or long session names and unknown sessions", async () => {
+    const { store } = slow();
+    const a = await store.create({ name: "助手" });
+    await expect(
+      store.renameSession(a.id, a.currentSessionId, " "),
+    ).rejects.toThrow("会话名称需要 1–60 个字符。");
+    await expect(
+      store.renameSession(a.id, a.currentSessionId, "长".repeat(61)),
+    ).rejects.toThrow("会话名称需要 1–60 个字符。");
+    await expect(store.renameSession(a.id, "missing", "名")).rejects.toThrow(
+      "会话不存在。",
+    );
+  });
+});

@@ -87,7 +87,7 @@ export function AgentWorkspace({
     returnToAgent.current = null;
   }, [selected]);
   const modals = useAgentModals();
-  const { error, notice, setError, setNotice, open, act } = modals;
+  const { error, notice, setError, setNotice, open, act, report } = modals;
   useEffect(
     () =>
       chrome.connect((id) => {
@@ -183,6 +183,21 @@ export function AgentWorkspace({
   const models = api.modelChoices?.();
   /** The first thing stopping this Agent from replying here, if any. */
   function blocker(a: Agent): Blocked | undefined {
+    // One reply at a time per Agent; the session waiting for it is a click away.
+    const waiting = a.pending?.sessionId;
+    if (waiting && waiting !== a.currentSessionId)
+      return {
+        text: `正在等「${a.sessions.find((s) => s.id === waiting)?.title}」里的回复，回复后才能再发一条。`,
+        action: (
+          <Button
+            type="button"
+            size="sm"
+            onClick={() => void act(() => api.session(a.id, "select", waiting))}
+          >
+            查看
+          </Button>
+        ),
+      };
     const off = (part?: Part) => part && !part.on;
     const turnOn = (part: Part) => (
       <Button
@@ -299,6 +314,11 @@ export function AgentWorkspace({
       onDeleteSession={(id, source) =>
         open({ action: "deleteSession", agent, session: id }, source)
       }
+      onRenameSession={
+        api.renameSession &&
+        ((id, source) =>
+          open({ action: "renameSession", agent, session: id }, source))
+      }
       onCancel={() => api.cancel(agent.id)}
       attach={
         api.info.attachments
@@ -320,7 +340,8 @@ export function AgentWorkspace({
         // back unless the user has started a new draft.
         setDrafts((d) => ({ ...d, [key]: "" }));
         setFiles((f) => ({ ...f, [key]: [] }));
-        void act(async () => {
+        // A reply can take minutes; dialogs need not wait for it.
+        void report(async () => {
           try {
             await api.send(agent.id, input, attached);
           } catch (error) {
@@ -331,7 +352,7 @@ export function AgentWorkspace({
         });
       }}
       onResend={(text, attachments) =>
-        void act(() => api.send(agent.id, text, attachments))
+        void report(() => api.send(agent.id, text, attachments))
       }
       onDeleteMessage={
         api.removeMessage

@@ -78,7 +78,11 @@ export function Composer({
   attach?: Attach;
   inputRef: RefObject<HTMLTextAreaElement | null>;
 }) {
-  const busy = agent.status === "busy";
+  // A reply in another session leaves this one free; the workspace then
+  // blocks sending with the reason.
+  const busy =
+    agent.status === "busy" &&
+    (!agent.pending || agent.pending.sessionId === agent.currentSessionId);
   const saving = agent.canCancel === false;
   // Only a model that lists strengths gets the control; others show nothing.
   const chosen = models?.find(

@@ -1,12 +1,5 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
-import {
-  ChevronDownIcon,
-  ChevronLeftIcon,
-  EllipsisIcon,
-  PanelRightIcon,
-  PlusIcon,
-  Trash2Icon,
-} from "lucide-react";
+import { ChevronLeftIcon, EllipsisIcon, PanelRightIcon } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import type {
   Agent,
@@ -18,6 +11,7 @@ import type {
 } from "@modules/agents/contract";
 import { cn } from "cn";
 import { Avatar } from "./Avatar";
+import { SessionMenu } from "./SessionMenu";
 import { TypingDots } from "./TypingDots";
 import { card } from "./card";
 import { AgentMenuItems, type AgentAction } from "./AgentMenu";
@@ -33,8 +27,6 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuRadioGroup,
-  DropdownMenuRadioItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
@@ -49,6 +41,7 @@ export function ChatView({
   onAction,
   onSession,
   onDeleteSession,
+  onRenameSession,
   models,
   onModels,
   onModel,
@@ -72,6 +65,8 @@ export function ChatView({
   onAction: (action: AgentAction, source: HTMLElement | null) => void;
   onSession: (action: "create" | "select", id?: string) => void;
   onDeleteSession: (id: string, source: HTMLElement | null) => void;
+  /** Absent when the provider cannot rename sessions. */
+  onRenameSession?: (id: string, source: HTMLElement | null) => void;
   /** Absent for providers without per-Agent models. */
   models?: readonly ModelChoice[];
   onModels?: () => void;
@@ -87,7 +82,10 @@ export function ChatView({
   onError: (message: string) => void;
 }) {
   const session = agent.sessions.find((s) => s.id === agent.currentSessionId)!;
-  const busy = agent.status === "busy";
+  // A reply in another session leaves this one free.
+  const busy =
+    agent.status === "busy" &&
+    (!agent.pending || agent.pending.sessionId === session.id);
   const desktop = useMediaQuery(atLeast("md"));
   const bottom = useRef<HTMLDivElement>(null);
   const input = useRef<HTMLTextAreaElement>(null);
@@ -193,59 +191,14 @@ export function ChatView({
                 <h1 className="min-w-0 shrink truncate text-[15px] leading-tight font-semibold tracking-tight">
                   {agent.name}
                 </h1>
-                {/* The button stays while busy so focus can return to it. */}
-                <DropdownMenu modal={false}>
-                  <DropdownMenuTrigger asChild>
-                    <Button
-                      ref={sessions}
-                      variant="ghost"
-                      size="xs"
-                      className="h-6 max-w-[50%] min-w-0 shrink-0 gap-0.5 rounded-md bg-muted px-2 text-xs font-normal text-muted-foreground hover:bg-muted hover:text-foreground aria-expanded:text-foreground max-md:bg-transparent"
-                      aria-label={`会话：${session.title}`}
-                    >
-                      <span className="truncate">{session.title}</span>
-                      <ChevronDownIcon />
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent
-                    align="start"
-                    className="w-60"
-                    aria-label="会话"
-                  >
-                    <DropdownMenuRadioGroup
-                      value={session.id}
-                      onValueChange={(id) => onSession("select", id)}
-                    >
-                      {agent.sessions.map((s) => (
-                        <DropdownMenuRadioItem
-                          key={s.id}
-                          value={s.id}
-                          disabled={busy}
-                        >
-                          <span className="truncate">{s.title}</span>
-                        </DropdownMenuRadioItem>
-                      ))}
-                    </DropdownMenuRadioGroup>
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem
-                      disabled={busy}
-                      onSelect={() => onSession("create")}
-                    >
-                      <PlusIcon />
-                      新建会话
-                    </DropdownMenuItem>
-                    <DropdownMenuItem
-                      variant="destructive"
-                      disabled={busy}
-                      onSelect={() =>
-                        onDeleteSession(session.id, sessions.current)
-                      }
-                    >
-                      <Trash2Icon />
-                      删除此会话
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
+                <SessionMenu
+                  agent={agent}
+                  session={session}
+                  trigger={sessions}
+                  onSession={onSession}
+                  onRename={onRenameSession}
+                  onDelete={onDeleteSession}
+                />
               </div>
               {/* Always present and empty when idle, so "typing" is announced
                   once as it starts; the reply itself is read from the log. */}
