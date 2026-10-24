@@ -9,13 +9,8 @@ import {
 } from "@modules/sdk";
 import type { Agent, Message, Session } from "./contract";
 import { readEarlier } from "./earlier-formats";
-import {
-  corrupt,
-  object,
-  restoreAgents,
-  validAvatar,
-  type SaveOptions,
-} from "./store";
+import type { SaveOptions } from "./store";
+import { corrupt, object, restoreAgents, validAvatar } from "./validation";
 
 type Call = (
   capability: string,

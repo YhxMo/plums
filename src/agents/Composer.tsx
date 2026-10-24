@@ -8,7 +8,7 @@ import type {
   Effort,
   ModelChoice,
 } from "@modules/agents/contract";
-import { MAX_TEXT } from "@modules/agents/store";
+import { MAX_TEXT } from "@modules/agents/validation";
 import { DraftAttachments } from "./AttachmentView";
 import { EffortSelect } from "./EffortSelect";
 import { ModelSelect } from "./ModelSelect";

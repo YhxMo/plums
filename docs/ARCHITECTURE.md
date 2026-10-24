@@ -42,7 +42,7 @@
 
 | 所有者 | 持有的状态与副作用 | 调用边界 |
 | --- | --- | --- |
-| `src/application.ts` | 默认应用组合、Agent 恢复接线和旧布局兼容 | App 调用无参数 `boot()`；业务格式由 `modules/agents/store.ts` 校验，未安装该业务的组合可保留其不透明数据 |
+| `src/application.ts` | 默认应用组合、Agent 恢复接线和旧布局兼容 | App 调用无参数 `boot()`；业务格式由 `modules/agents/validation.ts` 校验，未安装该业务的组合可保留其不透明数据 |
 | `src/shell/runtime.ts` | 通用启动编排、接收应用组合、安装与恢复 | 返回稳定服务与只读启动初值，保留 `CompositionRecovery` 入口 |
 | `persisted-state.ts`、`extensions.ts` | 通用偏好解析、目录／手动扩展安装 | 业务字段不透明保留，内置 ID 冲突按注入目录检查，坏数据与导入失败保留归属 |
 | `persistence.ts` | 串行快照、revision、未知写入锁存和页面保存队列 | 成功回执后发布偏好；已提交回执胜出，未知结果先重载 |

@@ -1,5 +1,6 @@
 import { Host } from "../../modules/extension-host/host";
-import { AgentStore, restoreAgents } from "../../modules/agents/store";
+import { AgentStore } from "../../modules/agents/store";
+import { restoreAgents } from "../../modules/agents/validation";
 import type {
   ExtensionDefinition,
   Platform,

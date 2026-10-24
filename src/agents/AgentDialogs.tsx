@@ -13,7 +13,7 @@ import type {
   AgentConfig,
   AgentProvider,
 } from "@modules/agents/contract";
-import { parseRoleCard } from "@modules/agents/store";
+import { parseRoleCard } from "@modules/agents/validation";
 import type { Named } from "@modules/sdk";
 import { InfoTip } from "@/components/Tooltip";
 import { Dialog, DialogActions, DialogBody } from "@/components/Dialog";

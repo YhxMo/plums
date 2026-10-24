@@ -1,5 +1,5 @@
 import { sameOrigin } from "@modules/sdk/validation";
-import { parseRoleCard } from "./store";
+import { parseRoleCard } from "./validation";
 
 export async function readRoleCardFile(file: Blob) {
   if (file.size > 32000) throw Error("角色卡不能超过 32 KB。");

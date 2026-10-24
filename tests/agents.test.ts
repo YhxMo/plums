@@ -1,11 +1,11 @@
 import { describe, expect, it } from "vitest";
+import { AgentStore } from "../modules/agents/store";
 import {
-  AgentStore,
   MAX_AVATAR,
   MAX_TEXT,
   parseRoleCard,
   restoreAgents,
-} from "../modules/agents/store";
+} from "../modules/agents/validation";
 import { unreadReplies } from "../modules/agents/unread";
 import type { Agent } from "../modules/agents/contract";
 import { legacyAgent } from "./fixtures/agents";

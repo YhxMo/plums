@@ -3,7 +3,7 @@ import { Host } from "../modules/extension-host/host";
 import type { ExtensionDefinition } from "../modules/sdk";
 import type { ChatService, Effort } from "../extensions/contracts";
 import { agentExtension } from "../modules/agents/provider";
-import { restoreAgents } from "../modules/agents/store";
+import { restoreAgents } from "../modules/agents/validation";
 import type { AgentProvider } from "../modules/agents/contract";
 import { legacyAgent, memoryPlatform } from "./fixtures/agents";
 

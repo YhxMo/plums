@@ -1,5 +1,5 @@
 import type { StoredState } from "@modules/sdk";
-import { corrupt, object, validAvatar } from "./store";
+import { corrupt, object, validAvatar } from "./validation";
 
 /**
  * Versions 2 and 3 of the Agent index, read and never written: version 2

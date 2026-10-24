@@ -1,5 +1,6 @@
 import { expect, it } from "vitest";
-import { AgentStore, restoreAgents } from "../modules/agents/store";
+import { AgentStore } from "../modules/agents/store";
+import { restoreAgents } from "../modules/agents/validation";
 
 async function savedConversation() {
   const store = new AgentStore(
