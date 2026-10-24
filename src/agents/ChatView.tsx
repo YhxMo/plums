@@ -191,8 +191,24 @@ export function ChatView({
   const pendingSpacing = spacing("user");
   return (
     <section
-      className={cn("flex min-h-0 flex-1 flex-col bg-chat", card)}
+      className={cn("relative flex min-h-0 flex-1 flex-col bg-chat", card)}
       aria-label={`${agent.name} 的会话`}
+      // Files dropped anywhere on the card, the message box included.
+      onDragOver={(e) => {
+        if (!attach || !e.dataTransfer.types.includes("Files")) return;
+        e.preventDefault();
+        setDropping(true);
+      }}
+      onDragLeave={(e) => {
+        if (!e.currentTarget.contains(e.relatedTarget as Node))
+          setDropping(false);
+      }}
+      onDrop={(e) => {
+        setDropping(false);
+        if (!attach || !e.dataTransfer.files.length) return;
+        e.preventDefault();
+        attach.onAdd([...e.dataTransfer.files]);
+      }}
     >
       {/* Same colour as the messages and no line under it; the shell's
           sidebar button takes the right end on desktop. */}
@@ -285,30 +301,7 @@ export function ChatView({
           className="relative flex min-h-0 flex-1 flex-col overflow-auto"
           role="log"
           aria-label="会话消息"
-          onDragOver={(e) => {
-            if (!attach || !e.dataTransfer.types.includes("Files")) return;
-            e.preventDefault();
-            setDropping(true);
-          }}
-          onDragLeave={(e) => {
-            if (!e.currentTarget.contains(e.relatedTarget as Node))
-              setDropping(false);
-          }}
-          onDrop={(e) => {
-            setDropping(false);
-            if (!attach || !e.dataTransfer.files.length) return;
-            e.preventDefault();
-            attach.onAdd([...e.dataTransfer.files]);
-          }}
         >
-          {dropping && (
-            <div
-              aria-hidden="true"
-              className="pointer-events-none absolute inset-2 z-10 grid place-items-center rounded-2xl border-2 border-dashed border-brand/60 bg-chat/80 text-sm text-muted-foreground"
-            >
-              松开以添加附件
-            </div>
-          )}
           <div
             ref={contentRef}
             className="flex min-h-full flex-col px-[max(24px,calc((100%-600px)/2))] pt-3 pb-4 max-md:px-3.5"
@@ -392,6 +385,14 @@ export function ChatView({
         attach={attach}
         inputRef={input}
       />
+      {dropping && (
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute inset-2 z-20 grid place-items-center rounded-2xl border-2 border-dashed border-brand/60 bg-chat/80 text-sm text-muted-foreground"
+        >
+          松开以添加附件
+        </div>
+      )}
     </section>
   );
 }
