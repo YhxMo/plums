@@ -22,42 +22,40 @@ import {
 
 export type ImportPreview = { pkg: ExtensionPackage; replacing: boolean };
 
+const facts =
+  "grid grid-cols-[88px_1fr] gap-x-3 gap-y-1.5 [&_dd]:[overflow-wrap:anywhere] [&_dt]:text-muted-foreground";
+
+/** What the user decides on in plain words; IDs and contracts fold away. */
 function PreviewDetails({ pkg, replacing }: ImportPreview) {
   const { manifest } = pkg;
   const bindings = Object.values(manifest.credentialBindings ?? {});
   return (
     <>
       <dl
-        className="grid grid-cols-[88px_1fr] gap-x-3 gap-y-1.5 rounded-xl bg-muted/50 p-4 [&_dd]:[overflow-wrap:anywhere] [&_dt]:text-muted-foreground"
+        className={cn(facts, "rounded-xl bg-muted/50 p-4")}
         aria-label="导入内容"
       >
-        {manifest.name && (
+        <dt>名称</dt>
+        <dd className="font-medium">{manifest.name ?? manifest.id}</dd>
+        {manifest.author && (
           <>
-            <dt>名称</dt>
-            <dd className="font-medium">{manifest.name}</dd>
+            <dt>作者</dt>
+            <dd>{manifest.author}</dd>
           </>
         )}
-        <dt>扩展 ID</dt>
-        <dd>{manifest.id}</dd>
         {manifest.description && (
           <>
             <dt>说明</dt>
             <dd className="whitespace-pre-line">{manifest.description}</dd>
           </>
         )}
-        <dt>版本</dt>
-        <dd>{manifest.version}</dd>
-        <dt>提供服务</dt>
-        <dd>{serviceList(manifest.provides)}</dd>
-        <dt>所需服务</dt>
-        <dd>{serviceList(manifest.requires, manifest.optional)}</dd>
-        <dt>系统权限</dt>
+        <dt>需要的权限</dt>
         <dd>
           {manifest.capabilities?.length
             ? manifest.capabilities
                 .map((cap) => capabilityLabel(cap, manifest))
                 .join("、")
-            : "无需原生能力"}
+            : "不需要额外权限"}
         </dd>
         {bindings.length > 0 && (
           <>
@@ -69,9 +67,27 @@ function PreviewDetails({ pkg, replacing }: ImportPreview) {
             </dd>
           </>
         )}
-        <dt>来源</dt>
-        <dd>{sourceLabel(pkg.url)}</dd>
       </dl>
+      <Collapsible>
+        <CollapsibleTrigger className="group flex items-center gap-1 text-xs text-muted-foreground outline-none hover:text-foreground focus-visible:underline">
+          <ChevronRightIcon className="size-3.5 transition-transform group-data-[state=open]:rotate-90" />
+          技术详情
+        </CollapsibleTrigger>
+        <CollapsibleContent>
+          <dl className={cn(facts, "px-4 pt-3 text-xs")} aria-label="技术详情">
+            <dt>扩展 ID</dt>
+            <dd>{manifest.id}</dd>
+            <dt>版本</dt>
+            <dd>{manifest.version}</dd>
+            <dt>提供服务</dt>
+            <dd>{serviceList(manifest.provides)}</dd>
+            <dt>所需服务</dt>
+            <dd>{serviceList(manifest.requires, manifest.optional)}</dd>
+            <dt>来源</dt>
+            <dd>{sourceLabel(pkg.url)}</dd>
+          </dl>
+        </CollapsibleContent>
+      </Collapsible>
       <p className="text-muted-foreground">
         {replacing
           ? "将替换已导入的同 ID 扩展：旧版本先停用并撤销权限，扩展数据保留；替换后需重新启用并确认权限。"

@@ -49,14 +49,18 @@ it("defines the id and origin rules in one place", () => {
   expect(offenders).toEqual([]);
 });
 
-it("accepts a short display name and a plain-text description", () => {
+it("accepts a short display name, author and a plain-text description", () => {
   const manifest = (fields: object) => ({
     manifest: { id: "a", version: "1", apiVersion: 1, ...fields },
     activate() {},
   });
   expect(() =>
     validateDefinition(
-      manifest({ name: "回声", description: "把你的话说回来。" }),
+      manifest({
+        name: "回声",
+        author: "梅子工作室",
+        description: "把你的话说回来。",
+      }),
     ),
   ).not.toThrow();
   for (const fields of [
@@ -65,8 +69,11 @@ it("accepts a short display name and a plain-text description", () => {
     { name: 1 },
     { description: "说".repeat(501) },
     { description: ["x"] },
+    { author: "" },
+    { author: "作".repeat(81) },
+    { author: 7 },
   ])
     expect(() => validateDefinition(manifest(fields))).toThrow(
-      "Invalid extension name or description",
+      "Invalid extension name, author or description",
     );
 });

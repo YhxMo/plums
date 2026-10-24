@@ -3,6 +3,9 @@
   "version": "0.1.0",
   "apiVersion": 1,
   "name": "起步模型",
+  "author": "Plums 起步模板",
   "description": "统计字数后回显你的消息，不联网、不保存数据。",
-  "provides": { "chat": 1 }
+  "provides": {
+    "chat": 1
+  }
 }

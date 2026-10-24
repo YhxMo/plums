@@ -32,6 +32,8 @@ export interface Manifest {
   apiVersion: 1;
   /** Display name shown in place of the ID, 1–40 characters. */
   name?: string;
+  /** Who made it, as shown before importing; 1–80 characters of plain text. */
+  author?: string;
   /** Plain-text description for extension management, at most 500 characters; never rendered as markup. */
   description?: string;
   requires?: Record<string, number>;

@@ -81,12 +81,21 @@ test("an imported folder drives the Agent and stays enabled after reload", async
   await page.goto("/");
   const dialog = await openInstall(page);
   await dialog.getByLabel("选择文件夹").setInputFiles(starter);
-  const summary = dialog.getByRole("definition");
-  await expect(dialog).toContainText("starter.model");
-  await expect(dialog).toContainText("起步模型");
-  await expect(dialog).toContainText("统计字数后回显你的消息");
-  await expect(dialog).toContainText("chat@1");
-  await expect(summary.filter({ hasText: "导入的扩展包 · " })).toBeVisible();
+  // Plain words first: name, author, what it does, what it may use.
+  await expect(dialog.getByLabel("导入内容")).toContainText("起步模型");
+  await expect(dialog.getByLabel("导入内容")).toContainText("Plums 起步模板");
+  await expect(dialog.getByLabel("导入内容")).toContainText(
+    "统计字数后回显你的消息",
+  );
+  await expect(dialog.getByLabel("导入内容")).toContainText("不需要额外权限");
+  await expect(dialog).not.toContainText("starter.model");
+  await expect(dialog).not.toContainText("chat@1");
+  // The ID, version, services and source wait under 技术详情.
+  await dialog.getByRole("button", { name: "技术详情" }).click();
+  const technical = dialog.getByLabel("技术详情");
+  await expect(technical).toContainText("starter.model");
+  await expect(technical).toContainText("chat@1");
+  await expect(technical).toContainText("导入的扩展包 · ");
   await dialog.getByRole("button", { name: "导入", exact: true }).click();
   await expect(page.getByRole("status")).toContainText("扩展已导入");
   await page.getByRole("button", { name: "起步模型", exact: true }).click();

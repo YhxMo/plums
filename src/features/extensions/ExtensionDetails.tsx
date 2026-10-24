@@ -134,13 +134,13 @@ export function ExtensionDetails({
           <dd>{serviceList(extManifest.requires, extManifest.optional)}</dd>
           <dt>提供服务</dt>
           <dd>{serviceList(extManifest.provides)}</dd>
-          <dt>系统权限</dt>
+          <dt>需要的权限</dt>
           <dd>
             {extCaps.length
               ? extCaps
                   .map((cap) => capabilityLabel(cap, extManifest))
                   .join("、")
-              : "无需原生能力"}
+              : "不需要额外权限"}
           </dd>
           <dt>运行资源</dt>
           <dd>
