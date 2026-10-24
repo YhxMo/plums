@@ -1,24 +1,24 @@
-# 实验 SDK 作者入口
+# 实验 SDK 进阶参考
 
-第一次写扩展请先读[作者入门](AUTHOR-QUICKSTART.md)；本文是详细参考。
+第一次写扩展请先读[作者入门](AUTHOR-QUICKSTART.md)。本文补充入门之外的规则与开发样板；各项能力的完整契约与失败语义由[扩展契约](EXTENSION-CONTRACTS.md)统一索引。
 
 [SDK 类型](../modules/sdk/index.ts) · [契约与失败语义](EXTENSION-CONTRACTS.md) · [整体计划](spec/total.md)
 
-状态：当前有效（2026-10-18 核实）；实验 SDK 入口，不承诺稳定兼容与发布包。
+状态：当前有效（2026-10-24 核实）；实验 SDK 参考，不承诺稳定兼容与发布包。
 
-这是仓库内实验接口，不是已发布 npm 包或稳定 SDK。运行时只需要标准 ESM 与 Web API，不需要 Node.js；Node 仅用于开发工具。`apiVersion: 1` 精确匹配，服务版本也是正整数精确匹配，没有 semver 范围协商。扩展自身 `version` 是显示/追溯字符串，不会自动迁移状态。平台支持按实际包分别声明；iOS 实验属于跨平台声明前置。
+这是仓库内实验接口，不是已发布 npm 包或稳定 SDK。运行时只需要标准 ESM 与 Web API，不需要 Node.js；Node 仅用于开发工具。`apiVersion: 1` 精确匹配，服务版本也是正整数精确匹配，没有 semver 范围协商。扩展自身 `version` 是显示/追溯字符串，不会自动迁移状态。
 
 ## 创建与运行
 
 扩展默认导出 `ExtensionDefinition`，包含 manifest 与 activate(ctx)。ID 为小写字母开头、最长 64 字符，仅含小写字母、数字、点和连字符且不含连续点。可选 `name`（1–40 字符）作为导入后的显示名称，`description`（1–500 字符）在导入确认与扩展详情中按纯文本显示，不解析 HTML 或 Markdown；不合格的值拒绝导入。先为提供/消费服务填写 `provides`/`requires`，所有资源绑定 ctx 生命周期。同一服务可由多个扩展同时提供，同一扩展重复提供才拒绝；`ctx.use(name)` 取最早启用的提供者并与它绑定，它停用时本扩展随之重启并改用下一个；`ctx.providers(name, onChange?)` 返回全部已启用提供者 `{id, label, value, signal}`（`signal` 在该提供者停用时中止，可用来取消对它的在途调用），列表变化时回调，最后一个提供者停用前本扩展不重启；全部提供者在同一次失效中一起停用时，本扩展随即关闭。`optional` 与 `requires` 格式相同，声明没有提供者也能运行的服务：启用不等待它，最后一个提供者停用也不关闭本扩展；只能经 `ctx.providers` 使用（及在 `publishUsers` 开关中引用），同一服务不能同时写在两处。清理失败会锁存为 `cleanup-failed`，不能当作卸载成功。不要顶层启动业务：模块 import 在确认启用前就会执行，可信模式不是代码沙箱。
 
-以下三个 ESM 样板仅随源码提供，可在 `npm run dev` 中按模块路径加载；打包应用须从本地导入单文件。样板不读取真实账户或状态：
+以下三个 ESM 样板仅随源码提供，可在 `npm run dev` 中按模块路径加载；打包应用须从本地导入单文件。样板不读取真实账户或状态；版本变化后，已保存的组合需核对精确版本：
 
-| 样板 | 模块路径 / ID | 行为 |
+| 样板 | 模块路径 / ID / 版本 | 行为 |
 | --- | --- | --- |
-| [服务](../extensions/examples/counter.js) | `/examples/counter.js` / `sample.counter` | 提供 `sample.counter@1`，含 read() 与 increment()；激活时计数从零开始 |
-| [无 UI 事件扩展](../extensions/examples/events.js) | `/examples/events.js` / `sample.events` | 消费计数服务；收到 `sample.increment` 增加计数并发布 `sample.changed` |
-| [非聊天视图](../extensions/examples/panel.js) | `/examples/panel.js` / `sample.panel` | 消费计数服务；按钮发布事件并同步刷新，释放时删除自己创建的 DOM/监听 |
+| [服务](../extensions/examples/counter.js) | `/examples/counter.js` / `sample.counter` / 1.1.0 | 提供 `sample.counter@1`，含 read() 与 increment()；激活时计数从零开始 |
+| [无 UI 事件扩展](../extensions/examples/events.js) | `/examples/events.js` / `sample.events` / 1.0.0 | 消费计数服务；收到 `sample.increment` 增加计数并发布 `sample.changed` |
+| [非聊天视图](../extensions/examples/panel.js) | `/examples/panel.js` / `sample.panel` / 1.1.0 | 消费计数服务；按钮发布事件并同步刷新，释放时删除自己创建的 DOM/监听 |
 
 以下是在仓库中开发的方式；不装 Node.js 也可以把单个文件导入应用，见[作者入门](AUTHOR-QUICKSTART.md)。执行 `npm ci`、`npm run dev` 后打开本地预览。窄栏的“扩展”→ 安装扩展，依次填写上述 ID 与模块路径，安装并分别启用。服务先启用后事件/视图可工作；反向顺序会等待依赖。应用设置选择“计数样板”，从扩展管理点“返回工作区”，再点击“增加计数”。停用事件扩展后按钮不会递增，再启用事件扩展后可继续；停用服务会让依赖者等待，重新启用服务会创建新计数器。它是内存样板，不承诺保存计数或长期后台运行。
 
@@ -59,13 +59,11 @@ const close = host.mountView(viewId, root); // () => void | Promise<void>
 
 管理查询未知 ID 会抛错；公开服务通过另一个声明 requires 的扩展 ctx.use 获取，管理者不直接读取内部服务表。管理操作 start/stop/grant/uninstall 串行执行；install 是同步登记。Platform 为注入适配器，测试可以实现 SDK 中的接口，不能把模拟结果当原生证据。
 
-应用外壳仅为手动安装的扩展提供“卸载（保留数据）”：先停用、撤权，再保存安装路径移除结果，最后移除宿主记录。内置扩展只能停用；模块文件与扩展数据不删除。配置保存或撤权失败显示未完成，可重试；回执未知时须重载确认。升级需保留旧模块与数据、核对兼容，再停用/卸载/重装；业务迁移可使用[可选状态助手](STATE-MIGRATION.md)，包升级事务和自动数据删除待实现。ESM 由环境缓存，同 URL 重新 import 不保证新代码；新版本使用新 URL 并记录来源。
+外壳的“卸载（保留数据）”顺序与失败处理见[扩展契约](EXTENSION-CONTRACTS.md#最小作者与管理入口)。升级需保留旧模块与数据、核对兼容，再停用/卸载/重装；业务迁移可使用[可选状态助手](STATE-MIGRATION.md)，包升级事务和自动数据删除待实现。ESM 由环境缓存，同 URL 重新 import 不保证新代码；新版本使用新 URL 并记录来源。
 
 ## 页面与公开宿主入口
 
-扩展可通过 `ctx.shell.open("extensions" | "settings" | "diagnostics")` 请求呈现宿主入口，`open("extensions", id)` 选中指定扩展，`open("view", viewId)` 打开某个 dialog 视图；这不授予权限或直接管理其他扩展。`ctx.shell.dependencies()` 列出本扩展及经 `ctx.use` 绑定的提供者，`ctx.shell.publishUsers(kind, users, toggle?)` 让扩展管理显示谁在使用哪个扩展，并可提供按使用者开关某个提供者的操作，规则见页面契约。`View.presentation` 可选声明 workspace/dialog/sidebar，外壳按声明装配主视图、菜单和上下文侧栏，旧视图默认 workspace。动态页面、导航保存、嵌套贡献、焦点与清理见 [页面契约和文本处理工作台](PAGES.md)。
-
-开发构建中，从扩展管理启用 `ui.workbench-board` 并确认状态权限，可体验非聊天界面。作者可通过公开服务 `text-workbench.pages@1` 登记自己的页面，无需改内核；接口与样板见[页面契约](PAGES.md)。
+扩展可通过 `ctx.shell.open("extensions" | "settings" | "diagnostics")` 请求呈现宿主入口，`open("extensions", id)` 选中指定扩展，`open("view", viewId)` 打开某个 dialog 视图；这不授予权限或直接管理其他扩展。`ctx.shell.dependencies()` 列出本扩展及经 `ctx.use` 绑定的提供者，`ctx.shell.publishUsers(kind, users, toggle?)` 让扩展管理显示谁在使用哪个扩展，并可提供按使用者开关某个提供者的操作，规则见页面契约。`View.presentation` 可选声明 workspace/dialog/sidebar，外壳按声明装配主视图、菜单和上下文侧栏，旧视图默认 workspace。动态页面、导航保存、嵌套贡献、焦点与清理，以及向开发文本工作台登记页面，见 [页面契约](PAGES.md)。
 
 ## 工作区标题与上下文侧栏
 
@@ -127,31 +125,9 @@ ctx.task 跟踪异步任务，使用传入 signal 合作式取消；ctx.onDispos
 
 开发时执行 `npm test` 与 `npm run build`；安装、启停、视图和管理路径使用隔离浏览器上下文验证。浏览器不代表原生撤权、打包资源或真实设备行为，涉及平台能力时须验证实际包。当前交付范围见[交付入口](../evidence/RESULTS.md)。
 
-## 组合保存与恢复
+## 其他能力
 
-外壳自动记录启用集合与按版本的授权，下次启动恢复；版本变化后权限须重新确认。提供者选择由集合确定，缺失的扩展跳过。配置所有权、部分恢复边界与卸载同步见 [组合契约](COMPOSITION.md)。
-
-## 非敏感配置
-
-通过 manifest.configuration 声明带默认值的 string/number/boolean 字段，activate 读取只读 ctx.configuration；外壳提供配置编辑、验证和持久化。示例与保存/重启/失败边界见 [配置契约](EXTENSION-CONFIGURATION.md)。普通配置禁止存放密钥或令牌，不提供凭据授权。counter/panel 当前为 1.1.0，旧组合需核对精确版本。
-
-## 凭据代用请求
-
-[凭据代用请求契约](CREDENTIAL-REQUEST.md)在 Mac 与 Android 应用中可用，浏览器预览不可用。绑定确定内容类型、固定头和认证注入，扩展只提交别名与序列化载荷，秘密留在原生侧；不在普通配置中保存秘密。
-
-内置[模型连接器](MODELS.md)是当前的实际服务实现：`connector.models` 用 `credential.connect` 让用户自建连接，提供 `chat@1`；协议载荷、回复解析和错误脱敏留在扩展，不直接调用 fetch 或读取密钥。浏览器预览中保持等待。
-
-可选 `manifest.credentialBindings` 声明非秘密连接建议，沿用现有扩展安装与管理入口；声明不创建绑定或授予请求权限。[通用绑定与原生录入](CREDENTIAL-BINDINGS.md)说明每绑定媒体类型、固定头、秘密注入、显式代理配置及取消/未知/卸载清理状态。既有扩展可继续不声明该字段。需要让用户自建多条连接（例如多个模型服务）的扩展改为声明 `credentialProtocols` 协议模板并申请 `credential.connect`，见[扩展自建连接](CREDENTIAL-BINDINGS.md#扩展自建连接)。
-
-[可选单跳状态迁移助手](STATE-MIGRATION.md)已提供公开 SDK 入口与独立样板：扩展定义业务转换，助手用一次修订号提交保留旧快照；当前不自动迁移默认业务，也不提供通用包升级事务或自动回退。
-
-可选[固定视图树助手](VIEW-TREE.md)由开发文本工作台通过页面路由使用，页面可嵌套另一扩展的节点；固定树挂载后不能追加子节点，也不承担 Host 异步失败回退。
-
-无业务视图事件服务的启停、撤权与恢复限定结果见 [执行边界](EVENT-SERVICE.md)；暂停映射为 stop，新一代重新订阅，不提供后台常驻或持久事件队列。
-
-可选 [显式旧快照恢复](STATE-MIGRATION.md#按确认修订号显式恢复旧快照)要求已确认的 revision/from/to 与业务校验，一次恢复保留被替换目标；不自动回滚包或用户状态。
-
-[会话内文档只读访问](SELECTED-DOCUMENT.md)提供实验类型、宿主选择/撤销及扩展 document.read；仅支持探测成功的 Mac/Android，浏览器不可用。样板 `/samples/documents.js`（仅开发构建目录）从扩展管理选择文档后，经公开契约列举/读取；停用即失效，不保存文件授权。实际支持范围以专项证据为准。
+组合保存、非敏感配置、凭据请求与自建连接、状态迁移、视图树、事件服务和会话内文档访问的契约见[扩展契约](EXTENSION-CONTRACTS.md#本地组合)及其链接的专题文档。
 
 ## 公开主题样板
 

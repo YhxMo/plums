@@ -46,7 +46,7 @@ npm run native -- build --debug --bundles app
 
 ## 写一个扩展
 
-扩展是一个 ESM 模块，默认导出 `manifest`（ID、版本、配置、提供与依赖的服务、所需能力）和 `activate(ctx)`。通过 `ctx.provide`/`ctx.use` 提供或使用服务，`ctx.view` 挂载界面，`ctx.platform` 调用平台能力，`ctx.onDispose` 登记清理。入门与样板见 [SDK-AUTHORING](docs/SDK-AUTHORING.md)，完整契约见 [EXTENSION-CONTRACTS](docs/EXTENSION-CONTRACTS.md)。
+扩展是一个 ESM 模块，默认导出 `manifest`（ID、版本、配置、提供与依赖的服务、所需能力）和 `activate(ctx)`。通过 `ctx.provide`/`ctx.use` 提供或使用服务，`ctx.view` 挂载界面，`ctx.platform` 调用平台能力，`ctx.onDispose` 登记清理。第一次写扩展见[作者入门](docs/AUTHOR-QUICKSTART.md)，开发样板与进阶规则见 [SDK-AUTHORING](docs/SDK-AUTHORING.md)，完整契约见 [EXTENSION-CONTRACTS](docs/EXTENSION-CONTRACTS.md)。
 
 ## 信任边界
 

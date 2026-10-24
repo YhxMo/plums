@@ -1,6 +1,6 @@
 # 写你的第一个 Plums 扩展
 
-状态：当前有效（2026-10-21 核实）；SDK 仍是实验版本，接口可能变化。
+状态：当前有效（2026-10-24 核实）；SDK 仍是实验版本，接口可能变化。
 
 Plums 的扩展是**一个 .js 文件**。把文件导入 Plums，在扩展管理里启用，它就能作为 Agent 可选的模型、添加界面、保存数据或连接真实模型服务。你只需要一个文本编辑器和 Plums 应用（Mac、Android，或开发者的浏览器预览）。不需要 Node.js、npm 或构建工具。
 
@@ -52,7 +52,7 @@ export default {
 | 想做的事 | 怎么写 | 参考 |
 | --- | --- | --- |
 | 提供 Agent 可选的模型 | `provides: { chat: 1 }`，`ctx.provide` 一个含 `name`、`models()`、`subscribe`、`reply(request, signal)` 的对象 | 起步模板、[回显模型](../extensions/services/echo-chat.js)（仅开发构建）、[接口](../extensions/contracts.d.ts)、[模型连接](MODELS.md#chat1) |
-| 添加一个界面 | `ctx.view(...)`，见下方示例 | [界面契约](VIEW-TREE.md) |
+| 添加一个界面 | `ctx.view(...)`，见下方示例 | [界面契约](EXTENSION-CONTRACTS.md#ui-组合与替换) |
 | 保存数据 | 声明 `capabilities: ["state.read", "state.write"]`，见下方示例 | [状态规则](SDK-AUTHORING.md#状态取消与演进) |
 | 让用户调整设置 | `manifest.configuration` 声明字段，`ctx.configuration` 读取；用户在扩展管理中修改 | [配置契约](EXTENSION-CONFIGURATION.md) |
 | 读取公开资源 | 声明 `capabilities: ["network.read"]` 与 `networkSources: ["https://…"]`，用 `ctx.platform("network.read", { version: 1, url })` GET 声明来源下的地址，不带密钥 | [公开网络读取](NETWORK-READ.md) |
@@ -105,4 +105,4 @@ revision = receipt.revision; // 下次写入用它
 - 替换一个连接模型的扩展后，来源会变化，需要在扩展详情中重新填写 API Key。
 - 浏览器预览中不能调用真实模型，要在 Mac 或 Android 应用中试。
 
-更完整的接口与规则见 [SDK 参考](SDK-AUTHORING.md) 和 [扩展契约](EXTENSION-CONTRACTS.md)，类型定义在 [modules/sdk/index.ts](../modules/sdk/index.ts)。
+开发样板与进阶规则见 [SDK 参考](SDK-AUTHORING.md)，各项能力的完整契约见[扩展契约](EXTENSION-CONTRACTS.md)，类型定义在 [modules/sdk/index.ts](../modules/sdk/index.ts)。
