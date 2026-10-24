@@ -19,11 +19,10 @@
 
 | 范围 | 实际结果 |
 | --- | --- |
-| Web | 最新提交上 `npm run verify:web` 通过（936 单元及类型、构建、发布配置、格式、边界、行数、lint），构建无单块体积警告 |
+| Web | `4b46da3` 上 `npm run verify:web` 通过；其后只有文档提交 |
 | 原生逻辑 | Agent 记录存储提交上 `npm run verify:native` 通过：IPC、格式、Clippy、84 单元（含 11 项记录与批量写用例）；SQLite 第一步时 debug 应用在真实格式开发数据副本上导入 `host.shell`（修订 11）并在其上保存，版本 1 → 2 的原地升级只有单元验证 |
 | Chromium | 联系人式回复审查提交 `d249c04` 上 `npm run verify:e2e` 全量 241 项通过（1 worker）；7a–7c 只跑了相关的 spec，见各提交说明 |
 | WebKit | 7a–7c 期间只跑了相关的 spec（见各提交说明）；已知失败：agent-flow 的“dialog close is quiet…”浅深两项，界面改版前已存在，未修 |
-| 启动耗时 | 生产构建、浏览器冷启动 20 次中位数：Chrome 97.6 → 85.8 ms，WebKit 81 → 70 ms（按需加载与分块前后） |
 | 打包应用 | `eb5c68b` 的检查点候选在真实改名前数据副本上完成迁移、消息转为记录、一次真实模型调用（输出上限未生效）、文件夹导入与模型窗口填写，见[打包检查点记录](evidence/MAC-CHECKPOINT-2026-10-24.md)；输入法与焦点的实测仍是改名前候选的[记录](evidence/MAC-INPUT-LAYOUT-2026-10-23.md) |
 
 ## 未验范围
@@ -39,13 +38,12 @@
 
 ## 进行中与下一步
 
-路线已改为按用户能做到什么排序的[四级阶梯](docs/spec/total.md#路线阶梯)；当前是第 1 级“认识你的联系人”（Mac 第一版），顺序与剩余内容只在[当前阶段](docs/spec/milestone.md#第-1-级mac-第一版)维护。
+当前是[路线阶梯](docs/spec/total.md#路线阶梯)第 1 级（Mac 第一版），顺序与剩余内容只在[当前阶段](docs/spec/milestone.md#第-1-级mac-第一版)维护；自 0.2.0 以来的工作见 git log。
 
-- **已完成**：规范化改造，包括统一命名与历史改写、旧数据迁移、工程小项（版本号、ESLint、别名、`public/`、Radix 补丁跟踪、断点、平台检测、按需加载）、SQLite 存储与记录能力（[SDK 参考](docs/SDK-AUTHORING.md#状态取消与演进)）、扩展包格式（[作者入门](docs/AUTHOR-QUICKSTART.md)）、界面改版（[UI](docs/UI.md)、[主题契约](docs/THEMES.md)、[页面契约](docs/PAGES.md)）、联系人式回复；对话体验的 7a–7c（列表按最近活跃排序、按会话忙碌与会话改名、只在底部时跟随滚动），行为见 [UI](docs/UI.md#列表交互与详情)。各阶段的审查结论记在阶段 U 的 `4f4bc97` 及各阶段审查提交的说明里。
-- **当前焦点**：打包检查点已完成（[记录](evidence/MAC-CHECKPOINT-2026-10-24.md)），所有者试用中；窗口框架实验已完成，结论（原生红绿灯、自定 20pt 间距、窄栏保持 68pt、最小宽度约 652）并入[当前阶段](docs/spec/milestone.md#第-1-级mac-第一版)第 6 项；下一步是对话体验剩余项。
+- **当前焦点**：当前阶段第 3 项对话体验的剩余项。打包检查点候选由所有者试用中，反馈可能调整其顺序。
 - **遗留**：`AgentWorkspace.tsx` 与 `AgentDialogs.tsx` 超过 400 行提示线，`modules/agents/store.ts` 接近；外壳右侧栏按钮的 18px 偏移与会话卡片几何耦合，随窗口框架处理；`View.icon` 无效原因是英文作者提示，在中文界面中原样显示；WebKit 下 agent-flow 的“dialog close is quiet…”两项失败（Tab 未聚焦弹窗关闭按钮），界面改版前已存在；此前导入的单文件扩展的源码分片（`host.shell` 的 `x-` 文档）不再读取，也不自动清理。
 
-当前未推送，现有交付包未替换，第 1 级尚未完成。
+当前未推送，现有交付包未替换。
 
 ## 当前交付与恢复
 
