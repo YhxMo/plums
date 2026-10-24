@@ -133,7 +133,7 @@ export function definitionOf(
   if (main.manifest && main.manifest.id !== manifest.id)
     throw new ContractError(
       "extension.invalid",
-      "manifest.id",
+      "main.manifest.id",
       "main.js names another extension than manifest.json",
     );
   if (expectedId !== undefined && manifest.id !== expectedId)

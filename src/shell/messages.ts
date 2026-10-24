@@ -65,6 +65,9 @@ export function errorMessage(error: unknown): string {
       return "凭据绑定声明无效。";
     if (detail.startsWith("networkSources")) return "联网来源声明无效。";
     if (detail.startsWith("theme")) return "主题声明无效。";
+    if (detail === "activate") return "main.js 须默认导出 { activate }。";
+    if (detail === "main.manifest.id")
+      return "main.js 声明的扩展与 manifest.json 不一致。";
     return reason;
   }
   if (code === "state.corrupt") {

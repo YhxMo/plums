@@ -66,7 +66,7 @@ it.each([
   [
     "manifest not an extension",
     files(undefined, '{"id":"A"}'),
-    "manifest.json",
+    "manifest.json 不是有效的扩展清单（manifest.id）",
   ],
   [
     "main.js not UTF-8",

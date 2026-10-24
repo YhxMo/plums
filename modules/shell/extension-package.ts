@@ -128,8 +128,10 @@ export async function readPackage(
   try {
     validateManifest(manifest);
   } catch (error) {
+    // The field, not the contract's English label.
+    const field = (error as { detail?: string }).detail;
     throw Error(
-      `manifest.json 不是有效的扩展清单：${(error as Error).message}`,
+      `manifest.json 不是有效的扩展清单${field ? `（${field}）` : ""}。`,
       { cause: error },
     );
   }

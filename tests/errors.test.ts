@@ -38,6 +38,12 @@ it.each([
   ],
   ["extension.invalid", "configuration.values", "扩展配置无效。"],
   ["extension.invalid", "credentialBindings.text.target", "凭据绑定声明无效。"],
+  ["extension.invalid", "activate", "main.js 须默认导出 { activate }。"],
+  [
+    "extension.invalid",
+    "main.manifest.id",
+    "main.js 声明的扩展与 manifest.json 不一致。",
+  ],
   ["extension.invalid", "theme.colors.text", "主题声明无效。"],
 ] as const)("preserves the message for %s at %s", (code, path, copy) => {
   expect(errorMessage(new ContractError(code, path))).toBe(copy);
