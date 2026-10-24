@@ -165,6 +165,33 @@ fn unreadable_earlier_documents_stay_unreadable_and_backed_up() {
         );
     }
 }
+#[cfg(unix)]
+#[test]
+fn failed_legacy_enumeration_can_retry_without_committing_an_empty_database() {
+    use std::os::unix::fs::PermissionsExt;
+    let fixture = Fixture::new();
+    let original = r#"{"schema":1,"revision":7,"value":"kept"}"#;
+    let legacy = fixture.legacy("extension.sample", original);
+    let broker = fixture.broker();
+    // Creating a database is still possible, but discovering legacy files is not.
+    fs::set_permissions(&fixture.0, fs::Permissions::from_mode(0o300)).unwrap();
+    let enforced = fs::read_dir(&fixture.0).is_err();
+    let result = enforced.then(|| read(&broker, Value::Null));
+    fs::set_permissions(&fixture.0, fs::Permissions::from_mode(0o700)).unwrap();
+    let Some(result) = result else {
+        return;
+    };
+    assert_eq!(result.unwrap_err(), StateErrorCode::StateRead);
+    let connection = Connection::open(fixture.0.join("state/extension.sample.sqlite3")).unwrap();
+    let version: i64 = connection
+        .pragma_query_value(None, "user_version", |row| row.get(0))
+        .unwrap();
+    assert_eq!(version, 0);
+    assert_eq!(fs::read_to_string(&legacy).unwrap(), original);
+    let saved = read(&broker, Value::Null).unwrap();
+    assert_eq!(saved["revision"], 7);
+    assert_eq!(saved["value"], "kept");
+}
 #[test]
 fn an_oversized_earlier_document_is_refused_without_reading_it() {
     let fixture = Fixture::new();

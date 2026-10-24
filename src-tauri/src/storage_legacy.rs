@@ -9,7 +9,7 @@ pub(super) fn import(
     owner: &str,
 ) -> Result<Vec<PathBuf>, StateErrorCode> {
     let mut imported = Vec::new();
-    for (key, path) in documents(root, owner) {
+    for (key, path) in documents(root, owner)? {
         let (revision, value, error) = match document(&path) {
             Ok(document) => (
                 document.revision as i64,
@@ -47,27 +47,35 @@ pub(super) fn back_up(root: &Path, files: &[PathBuf]) {
 }
 
 /// The owner's earlier `<owner>.json` and `<owner>+<key>.json` files, by key.
-fn documents(root: &Path, owner: &str) -> Vec<(String, PathBuf)> {
-    let Ok(entries) = fs::read_dir(root) else {
-        return Vec::new();
-    };
+fn documents(root: &Path, owner: &str) -> Result<Vec<(String, PathBuf)>, StateErrorCode> {
+    let entries = fs::read_dir(root).map_err(|_| StateErrorCode::StateRead)?;
     let keyed = format!("{owner}+");
-    entries
-        .flatten()
-        .filter(|entry| entry.file_type().is_ok_and(|kind| kind.is_file()))
-        .filter_map(|entry| {
-            let name = entry.file_name().into_string().ok()?;
-            let stem = name.strip_suffix(".json")?;
-            let key = if stem == owner {
-                String::new()
-            } else {
-                stem.strip_prefix(&keyed)
-                    .filter(|key| valid_key(key))?
-                    .into()
-            };
-            Some((key, entry.path()))
-        })
-        .collect()
+    let mut found = Vec::new();
+    for entry in entries {
+        let entry = entry.map_err(|_| StateErrorCode::StateRead)?;
+        if !entry
+            .file_type()
+            .map_err(|_| StateErrorCode::StateRead)?
+            .is_file()
+        {
+            continue;
+        }
+        let Ok(name) = entry.file_name().into_string() else {
+            continue;
+        };
+        let Some(stem) = name.strip_suffix(".json") else {
+            continue;
+        };
+        let key = if stem == owner {
+            String::new()
+        } else if let Some(key) = stem.strip_prefix(&keyed).filter(|key| valid_key(key)) {
+            key.into()
+        } else {
+            continue;
+        };
+        found.push((key, entry.path()));
+    }
+    Ok(found)
 }
 
 fn document(path: &Path) -> Result<Document, StateErrorCode> {
