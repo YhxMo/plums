@@ -31,7 +31,7 @@ for (const keyboard of [false, true]) {
     await create.getByRole("button", { name: "取消", exact: true }).click();
     await page.reload();
     await expect(
-      page.getByRole("button", { name: "与 确认后才添加 交互" }),
+      page.getByRole("button", { name: "确认后才添加", exact: true }),
     ).toHaveCount(0);
     await page.getByRole("button", { name: /导入角色卡/ }).click();
     await page.getByLabel("角色卡内容").fill(raw);
@@ -45,7 +45,7 @@ for (const keyboard of [false, true]) {
     ).toBeVisible();
     await page.reload();
     await expect(
-      page.getByRole("button", { name: "与 最终确认的角色 交互" }),
+      page.getByRole("button", { name: "最终确认的角色", exact: true }),
     ).toHaveCount(1);
   });
 }

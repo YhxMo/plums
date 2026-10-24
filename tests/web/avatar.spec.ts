@@ -41,7 +41,7 @@ function png(w: number, h: number) {
 
 const fallback = (page: Page, name: string) =>
   page
-    .getByRole("button", { name: new RegExp(`与 ${name} 交互`) })
+    .getByRole("button", { name: name, exact: true })
     .locator('[data-slot="avatar-fallback"]');
 
 /** The computed colour of a hex value. */
@@ -119,7 +119,7 @@ for (const width of [1280, 375]) {
     const places = [page.getByRole("region", { name: "小梅 的会话" })];
     // On phones the list is a page of its own, not on screen beside the chat.
     if (width >= 768)
-      places.push(page.getByRole("button", { name: "与 小梅 交互" }));
+      places.push(page.getByRole("button", { name: "小梅", exact: true }));
     for (const place of places)
       await expect(
         place.locator('[data-slot="avatar-image"]').first(),

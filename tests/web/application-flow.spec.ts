@@ -262,7 +262,7 @@ test("legacy unconfigured workbench default boots into Agents without changing s
   });
   await page.reload();
   await expect(
-    page.getByRole("button", { name: "与 代码助手 交互", exact: true }),
+    page.getByRole("button", { name: "代码助手", exact: true }),
   ).toBeVisible();
   await expect(
     page.getByRole("status").filter({ hasText: "所选界面" }),

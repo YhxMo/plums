@@ -22,18 +22,12 @@ for (const width of [652, 700, 735]) {
     await expect(list).toBeVisible();
     const rail = page.getByRole("navigation", { name: "应用导航" });
     await expect(rail).toBeVisible();
-    await list
-      .getByRole("button", { name: "与 助手 A 交互", exact: true })
-      .click();
+    await list.getByRole("button", { name: "助手 A", exact: true }).click();
     const input = page.getByRole("textbox", { name: "消息", exact: true });
     await input.fill("助手 A 的草稿");
-    await list
-      .getByRole("button", { name: "与 助手 B 交互", exact: true })
-      .click();
+    await list.getByRole("button", { name: "助手 B", exact: true }).click();
     await input.fill("助手 B 的草稿");
-    await list
-      .getByRole("button", { name: "与 助手 A 交互", exact: true })
-      .click();
+    await list.getByRole("button", { name: "助手 A", exact: true }).click();
     await expect(input).toHaveValue("助手 A 的草稿");
     await expect(
       page.getByRole("button", { name: "返回 Agent 列表" }),

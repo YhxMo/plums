@@ -74,7 +74,7 @@ test("legacy shell roles move to the Agent provider's own state once", async ({
   }, state("user"));
   await page.goto("/");
   await expect(
-    page.getByRole("button", { name: "与 RestoreRole 交互", exact: true }),
+    page.getByRole("button", { name: "RestoreRole", exact: true }),
   ).toBeVisible();
   const stored = () =>
     page.evaluate(() => ({
@@ -86,7 +86,7 @@ test("legacy shell roles move to the Agent provider's own state once", async ({
   expect(first.own.value.agents[0].name).toBe("RestoreRole");
   await page.reload();
   await expect(
-    page.getByRole("button", { name: "与 RestoreRole 交互", exact: true }),
+    page.getByRole("button", { name: "RestoreRole", exact: true }),
   ).toBeVisible();
   expect((await stored()).own.revision).toBe(first.own.revision);
 });
@@ -101,7 +101,7 @@ test("valid saved roles restore with correct attribution after reload", async ({
   await page.goto("/");
   for (let attempt = 0; attempt < 2; attempt++) {
     await page
-      .getByRole("button", { name: "与 RestoreRole 交互", exact: true })
+      .getByRole("button", { name: "RestoreRole", exact: true })
       .click();
     const question = page
       .getByRole("log")

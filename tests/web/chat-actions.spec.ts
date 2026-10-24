@@ -60,7 +60,7 @@ test("desktop messages show a time, copy, resend and delete from hover and right
   await expect(log.locator("p", { hasText: reply })).toHaveCount(1);
   await expect(log.locator("p", { hasText: /^hi$/ })).toHaveCount(2);
   await page.reload();
-  await page.getByRole("button", { name: "与 助手 交互", exact: true }).click();
+  await page.getByRole("button", { name: "助手", exact: true }).click();
   await expect(log.locator("p", { hasText: reply })).toHaveCount(1);
   await expect(log.locator("time")).toHaveCount(1);
 });

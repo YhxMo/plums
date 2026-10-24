@@ -35,7 +35,7 @@ for (const width of [375, 1180]) {
     if (width === 375) {
       expect(await back(page)).toBe(false);
       const agent = page.getByRole("button", {
-        name: "与 Back probe 交互",
+        name: "Back probe",
         exact: true,
       });
       await expect(agent).toBeVisible();

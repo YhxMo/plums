@@ -77,9 +77,7 @@ for (const width of [375, 1280])
       );
     });
     await page.goto("/");
-    await page
-      .getByRole("button", { name: "与 Layout 交互", exact: true })
-      .click();
+    await page.getByRole("button", { name: "Layout", exact: true }).click();
     const log = page.getByRole("log");
     await expect(log).toBeVisible();
     expect(await log.evaluate((el) => el.scrollHeight > el.clientHeight)).toBe(

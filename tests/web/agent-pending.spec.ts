@@ -78,7 +78,7 @@ test("a sent message appears at once and the input clears before the reply", asy
   await expect(chat.locator("header")).not.toContainText("正在输入");
   // It arrived on screen, so nothing is left unread.
   await expect(
-    page.getByRole("button", { name: "与 即时助手 交互", exact: true }),
+    page.getByRole("button", { name: "即时助手", exact: true }),
   ).not.toHaveAccessibleDescription(/未读/);
   await expect(log.getByText("show me now", { exact: true })).toHaveCount(1);
   await expect(input).toHaveValue("下一条草稿");
@@ -102,8 +102,7 @@ test("the list shows typing as a dot, and a reply that arrives elsewhere as unre
 }) => {
   await slowAgent(page, "慢助手");
   const list = page.getByRole("complementary", { name: "Agent 列表" });
-  const row = (name: string) =>
-    list.getByRole("button", { name: `与 ${name} 交互`, exact: true });
+  const row = (name: string) => list.getByRole("button", { name, exact: true });
   await page.getByRole("button", { name: "添加", exact: true }).click();
   await page
     .getByRole("dialog", { name: "添加", exact: true })
@@ -127,12 +126,12 @@ test("the list shows typing as a dot, and a reply that arrives elsewhere as unre
   await row("旁人").click();
   await expect(page.getByRole("region", { name: "旁人 的会话" })).toBeVisible();
   await answer(page);
-  await expect(row("慢助手")).toHaveAccessibleDescription("1 条未读");
+  await expect(row("慢助手")).toHaveAccessibleDescription(/1 条未读$/);
   await expect(row("慢助手").getByText("1", { exact: true })).toBeVisible();
   await expect(row("慢助手")).toContainText("答：等我一下");
 
   await page.reload();
-  await expect(row("慢助手")).toHaveAccessibleDescription("1 条未读");
+  await expect(row("慢助手")).toHaveAccessibleDescription(/1 条未读$/);
   await row("慢助手").click();
   await expect(page.getByRole("log")).toContainText("答：等我一下");
   await expect(row("慢助手")).not.toHaveAccessibleDescription(/未读/);

@@ -32,7 +32,7 @@ for (const width of [375, 1180]) {
     await add(page, "已有角色");
     await page.reload();
     const existing = page.getByRole("button", {
-      name: "与 已有角色 交互",
+      name: "已有角色",
       exact: true,
     });
     await expect(existing).toBeVisible();
@@ -89,7 +89,7 @@ for (const width of [375, 1440]) {
     await expect(page.getByRole("log").getByText(reply)).toHaveCount(0);
     await page.reload();
     const row = page.getByRole("button", {
-      name: "与 编程助手 交互",
+      name: "编程助手",
       exact: true,
     });
     await expect(page.locator("[data-agent-row]").first()).toHaveAttribute(
@@ -223,7 +223,7 @@ test("mobile details trap focus, and the session menu and list rename work", asy
     .fill("重命名后");
   await page.getByRole("button", { name: "保存", exact: true }).click();
   await expect(
-    page.getByRole("button", { name: "与 重命名后 交互", exact: true }),
+    page.getByRole("button", { name: "重命名后", exact: true }),
   ).toBeVisible();
 });
 
@@ -254,9 +254,7 @@ test("imports persist and an external agent provider drives the default UI", asy
     .getByRole("button", { name: "启用 external.agents", exact: true })
     .click();
   await page.getByRole("button", { name: "返回工作区", exact: true }).click();
-  await page
-    .getByRole("button", { name: "与 外部角色 交互", exact: true })
-    .click();
+  await page.getByRole("button", { name: "外部角色", exact: true }).click();
   await expect(page.getByRole("log")).toContainText("独立作者的角色说明");
   await page
     .getByRole("textbox", { name: "消息", exact: true })
@@ -361,9 +359,7 @@ for (const width of [375, 1440])
     ).toHaveCount(0);
     await page.getByRole("button", { name: "收起详情" }).click();
     await page.reload();
-    await page
-      .getByRole("button", { name: "与 角色设置 交互", exact: true })
-      .click();
+    await page.getByRole("button", { name: "角色设置", exact: true }).click();
     await expect(page.getByRole("log")).toContainText("新的角色边界与工作方式");
   });
 
@@ -567,9 +563,7 @@ test("service reply boundary rejects without losing draft and valid output survi
     .getByRole("button", { name: "启用 chat.boundary", exact: true })
     .click();
   await page.getByRole("button", { name: "返回工作区", exact: true }).click();
-  await page
-    .getByRole("button", { name: "与 Boundary 交互", exact: true })
-    .click();
+  await page.getByRole("button", { name: "Boundary", exact: true }).click();
   await page.getByRole("combobox", { name: "切换模型", exact: true }).click();
   await page
     .getByRole("listbox", { name: "切换模型" })
@@ -586,9 +580,7 @@ test("service reply boundary rejects without losing draft and valid output survi
   await expect(input).toHaveValue("");
   await expect.poll(() => firstSessionMessageCount(page, "Boundary")).toBe(2);
   await page.reload();
-  await page
-    .getByRole("button", { name: "与 Boundary 交互", exact: true })
-    .click();
+  await page.getByRole("button", { name: "Boundary", exact: true }).click();
   expect(
     await page
       .getByRole("log")
@@ -664,30 +656,31 @@ test("a pinned Agent moves to the top of the list and back when unpinned", async
   page,
 }) => {
   await page.goto("/");
-  await add(page, "普通");
+  await add(page, "置顶者");
   await page.getByRole("button", { name: "添加", exact: true }).first().click();
   await page
     .getByRole("dialog")
     .getByRole("button", { name: /添加 Agent/ })
     .click();
-  await page.getByRole("textbox", { name: "名称", exact: true }).fill("置顶者");
+  // The newer Agent is the more recently active one, so it comes first.
+  await page.getByRole("textbox", { name: "名称", exact: true }).fill("普通");
   await page
     .getByRole("dialog")
     .getByRole("button", { name: "添加", exact: true })
     .click();
   const list = page.getByRole("complementary", { name: "Agent 列表" });
   const rows = list.locator('[data-slot="agent-row"]');
-  const row = list.getByRole("button", { name: "与 置顶者 交互", exact: true });
-  await expect(rows.first()).toHaveAccessibleName("与 普通 交互");
+  const row = list.getByRole("button", { name: "置顶者", exact: true });
+  await expect(rows.first()).toHaveAccessibleName("普通");
   await page
     .getByRole("button", { name: "置顶者 的操作", exact: true })
     .click();
   await page.getByRole("menuitem", { name: "置顶", exact: true }).click();
-  await expect(rows.first()).toHaveAccessibleName("与 置顶者 交互");
+  await expect(rows.first()).toHaveAccessibleName("置顶者");
   await expect(rows).toHaveCount(2);
   await row.click({ button: "right" });
   await page.getByRole("menuitem", { name: "取消置顶", exact: true }).click();
-  await expect(rows.first()).toHaveAccessibleName("与 普通 交互");
+  await expect(rows.first()).toHaveAccessibleName("普通");
 });
 
 test("each part of an Agent can be switched off, and says what that means", async ({

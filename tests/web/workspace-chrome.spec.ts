@@ -162,9 +162,7 @@ for (const scenario of ["resize", "dynamic"]) {
       .click();
     await install(page, "test.agents");
     await page.getByRole("button", { name: "返回工作区", exact: true }).click();
-    await page
-      .getByRole("button", { name: "与 外部角色 交互", exact: true })
-      .click();
+    await page.getByRole("button", { name: "外部角色", exact: true }).click();
     if (scenario === "resize") {
       // The title bar button belongs to the extension's sidebar here.
       await page.getByRole("button", { name: "更多操作", exact: true }).click();

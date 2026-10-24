@@ -25,6 +25,12 @@ import {
   ContextMenuTrigger,
 } from "@/components/ui/context-menu";
 
+/** Characters of the last message a row keeps; the rest is cut off anyway. */
+const PREVIEW = 120;
+/** When an Agent was last active: its latest message or new session. */
+const activity = (a: Agent) =>
+  Math.max(...a.sessions.map((s) => s.lastMessageAt));
+
 // Rows leave at once: a removed row may hold the focus a dialog returns to.
 const enter = {
   initial: { opacity: 0, y: 6 },
@@ -48,10 +54,11 @@ function AgentRow({
   onAction: (action: AgentAction, source: HTMLElement | null) => void;
 }) {
   const more = useRef<HTMLButtonElement>(null);
-  const described = useId();
+  const id = useId();
   const typing = !!a.pending;
   const unread = a.sessions.reduce((sum, s) => sum + unreadReplies(s), 0);
-  // The dot and the badge speak through the row's description.
+  // The dot and the badge speak through the row's description, after the
+  // last message and its time.
   const state = [typing && "正在输入", unread && `${unread} 条未读`]
     .filter(Boolean)
     .join("，");
@@ -59,6 +66,17 @@ function AgentRow({
   const lastAt = session?.messages.length
     ? (session.messages.at(-1)?.at ?? session.lastMessageAt)
     : undefined;
+  const preview = (session?.messages.at(-1)?.text || a.description).slice(
+    0,
+    PREVIEW,
+  );
+  const described = [
+    `${id}-preview`,
+    lastAt !== undefined && `${id}-time`,
+    state && `${id}-state`,
+  ]
+    .filter(Boolean)
+    .join(" ");
   const act = (action: AgentAction) => onAction(action, more.current);
   // Secondary text on the selected row is 86% of its text colour.
   const quiet = selected
@@ -96,8 +114,9 @@ function AgentRow({
             className="relative flex h-full min-w-0 flex-1 items-center gap-[11px] px-3.5 text-left outline-none focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:ring-inset"
             data-agent-id={a.id}
             onClick={onSelect}
-            aria-label={`与 ${a.name} 交互`}
-            aria-describedby={state ? described : undefined}
+            aria-labelledby={`${id}-name`}
+            aria-describedby={described}
+            aria-current={selected ? "true" : undefined}
           >
             <Avatar
               agent={a}
@@ -108,10 +127,14 @@ function AgentRow({
             />
             <span className="flex min-w-0 flex-1 flex-col gap-0.5">
               <span className="flex min-w-0 items-baseline justify-between gap-2">
-                <strong className="truncate text-[14.5px] leading-5 font-semibold">
+                <strong
+                  id={`${id}-name`}
+                  className="truncate text-[14.5px] leading-5 font-semibold"
+                >
                   {a.name}
                 </strong>
                 <span
+                  id={`${id}-time`}
                   className={cn(
                     "min-w-7 shrink-0 text-right text-[11.5px] transition-opacity md:pointer-fine:group-hover/row:opacity-0 md:pointer-fine:group-focus-within/row:opacity-0 md:pointer-fine:group-has-aria-expanded/row:opacity-0",
                     quiet,
@@ -121,8 +144,11 @@ function AgentRow({
                 </span>
               </span>
               <span className="flex min-w-0 items-center justify-between gap-2">
-                <span className={cn("truncate text-[12.5px]", quiet)}>
-                  {session?.messages.at(-1)?.text || a.description}
+                <span
+                  id={`${id}-preview`}
+                  className={cn("truncate text-[12.5px]", quiet)}
+                >
+                  {preview}
                 </span>
                 {unread > 0 && (
                   <span
@@ -138,7 +164,7 @@ function AgentRow({
                   </span>
                 )}
               </span>
-              <span id={described} hidden>
+              <span id={`${id}-state`} hidden>
                 {state}
               </span>
             </span>
@@ -194,10 +220,10 @@ export function AgentList({
   const shown = agents.filter((a) =>
     a.name.toLowerCase().includes(query.toLowerCase()),
   );
-  // Pinned rows first, each group in the provider's order.
+  // Pinned rows first in the provider's order, then the most recently active.
   const ordered = [
     ...shown.filter((a) => a.pinned),
-    ...shown.filter((a) => !a.pinned),
+    ...shown.filter((a) => !a.pinned).sort((a, b) => activity(b) - activity(a)),
   ];
   return (
     <aside

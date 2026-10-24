@@ -11,7 +11,9 @@ const style = (target: Locator, property: string) =>
 const order = (list: Locator) =>
   list
     .locator("[data-slot=agent-row]")
-    .evaluateAll((all) => all.map((el) => el.getAttribute("aria-label")));
+    .evaluateAll((all) =>
+      all.map((el) => el.querySelector("strong")!.textContent),
+    );
 
 const rows = {
   light: { selected: "rgb(232, 105, 47)", pinned: "rgb(230, 230, 232)" },
@@ -50,15 +52,20 @@ for (const scheme of ["light", "dark"] as const)
     const list = page.getByRole("complementary", { name: "Agent 列表" });
     await list.getByRole("button", { name: "丙 的操作", exact: true }).click();
     await page.getByRole("menuitem", { name: "置顶", exact: true }).click();
-    await list.getByRole("button", { name: "与 乙 交互", exact: true }).click();
+    await list.getByRole("button", { name: "乙", exact: true }).click();
     const row = (name: string) =>
       list.locator("[data-agent-row]", {
-        has: page.getByRole("button", { name: `与 ${name} 交互`, exact: true }),
+        has: page.getByRole("button", { name, exact: true }),
       });
-    // Pinned rows come first; the rest keep their order.
-    await expect
-      .poll(() => order(list))
-      .toEqual(["与 丙 交互", "与 甲 交互", "与 乙 交互"]);
+    // Pinned rows come first; the rest by latest activity, newest first.
+    await expect.poll(() => order(list)).toEqual(["丙", "乙", "甲"]);
+    // The selected row is the current one; its name is the visible name.
+    await expect(
+      list.getByRole("button", { name: "乙", exact: true }),
+    ).toHaveAttribute("aria-current", "true");
+    await expect(
+      list.locator("[data-slot=agent-row]:not([aria-current])"),
+    ).toHaveCount(2);
     const tones = rows[scheme];
     await expect
       .poll(() =>
@@ -87,10 +94,16 @@ for (const scheme of ["light", "dark"] as const)
       0,
     );
     await expect(list.locator("[data-slot=agent-tile]")).toHaveCount(0);
-    // Unpinning returns the row to its place.
+    // Unpinning returns the row to its place, and a reply moves its Agent up.
     await row("丙").click({ button: "right" });
     await page.getByRole("menuitem", { name: "取消置顶", exact: true }).click();
-    await expect
-      .poll(() => order(list))
-      .toEqual(["与 甲 交互", "与 乙 交互", "与 丙 交互"]);
+    await expect.poll(() => order(list)).toEqual(["丙", "乙", "甲"]);
+    await list.getByRole("button", { name: "甲", exact: true }).click();
+    await page.getByRole("textbox", { name: "消息", exact: true }).fill("你好");
+    await page.getByRole("button", { name: "发送", exact: true }).click();
+    await expect.poll(() => order(list)).toEqual(["甲", "丙", "乙"]);
+    // The last message and its time describe the row.
+    await expect(
+      list.getByRole("button", { name: "甲", exact: true }),
+    ).toHaveAccessibleDescription(/^echo-a｜第 1 轮.* \d{2}:\d{2}$/);
   });

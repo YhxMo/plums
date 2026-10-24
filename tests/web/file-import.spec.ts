@@ -134,7 +134,7 @@ test("re-importing the same ID replaces the code and requires enabling again", a
     page.getByRole("status").filter({ hasText: "已替换为新版本" }),
   ).toBeVisible();
   await useService(page, "author.echo");
-  await page.getByRole("button", { name: "与 作者 交互", exact: true }).click();
+  await page.getByRole("button", { name: "作者", exact: true }).click();
   await send(page, "again");
   await expect(page.getByRole("log")).toContainText("二：again");
 });
