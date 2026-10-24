@@ -57,6 +57,8 @@
 
 布局回退诊断优先使用已注册视图的 owner/label；未注册时读取目录项的可选 `views: { [viewId]: label }` 提示。默认目录和应用组合声明各自视图，通用诊断不维护业务 ID 表；缺少提示仍保留原视图 ID 和管理入口。提示用于定位来源，不授予注册或执行权限。
 
+React视图每次挂载创建独立节点；释放先移除该节点，跨微任务卸载root并向Host返回清理Promise，避免外壳提交期间同步卸载或旧释放清空替换视图。Agent工作区节点继续填满可用高度，角色设置节点保持自然高度；长会话滚动和交叠替换/订阅释放由 `react-view-lifecycle.spec.ts` 覆盖。
+
 `src/features/extensions/useExperiments.ts` 拥有文本工作台实验接线；该实验只在开发构建的目录中，没有安装它的组合（包括发布包）不展示恢复启动按钮，管理入口仍可用。
 
 `src/components/useAsyncAction.ts` 共用忙碌、错误与通知状态。Agent 将 AbortError 显示为停止通知，外壳 `useOperations` 保留 `errorMessage` 错误映射；共用 Hook 不改变两者的反馈语义。

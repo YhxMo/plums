@@ -37,6 +37,10 @@ ESLint 使用 flat config，对全部 JS/TS/TSX 启用推荐规则、typescript-
 
 启动与声明校验复用 `modules/sdk/validation.ts` 和 `ContractError`，错误码、字段路径、中文映射与等待原因的分工见[架构](ARCHITECTURE.md#当前前端的状态所有权)。
 
+## 界面组件
+
+默认界面统一使用 shadcn/ui（radix-nova 风格）组件，源码放在 [src/components/ui](../src/components/ui/) 由本项目维护，按需修改而不是另写同类组件；图标统一用 Lucide，动效用 Motion，可调分栏用 react-resizable-panels，跨组件的界面草稿用 Zustand，浮层提示用 sonner。同类需求只用其中一个库，`components.json` 记录生成配置。 颜色、阴影与动效的视觉约定见 [UI](UI.md#所有权与公开契约)。
+
 ## 上游依赖补丁
 
 `npm ci` 的 `postinstall` 通过锁定的 patch-package 自动应用 `patches/`；补丁无法应用即失败。不要用 `--ignore-scripts` 跳过后直接构建。本地修改补丁后，停止 dev server 并移除 `node_modules/.vite` 预构建缓存，再开始浏览器验收；旧优化产物可能不会随补丁内容自动失效。

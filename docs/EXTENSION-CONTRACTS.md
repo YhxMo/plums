@@ -70,7 +70,7 @@
 
 [contract.ts](../modules/agents/contract.ts) 定义扩展层 `agents@1`，归 Agent 扩展所有，不属于 SDK 或通用 Host。提供者通过 `ctx.provide("agents", 1, provider)` 注册，消费者声明 `requires: { agents: 1 }`，通过 `ctx.use` 获取。
 
-提供者公开 `info`（label、version、description）、稳定的 `list()` 快照、`subscribe()` 及取消订阅函数，以及 `create`、`update`、`remove`、`session`、`send`、`cancel`。`update` 支持名称、介绍和特别关注。快照包含名称、介绍、来源、状态、特别关注、所选模型、按 Agent 关闭的组成部分、会话与消息。每次可观察变化发布新的快照，UI 通过订阅读取，不检查私有对象。来源与执行范围由公开说明呈现；UI 调用保留提供者方法的接收对象。
+提供者公开 `info`（label、version、description）、稳定的 `list()` 快照、`subscribe()` 及取消订阅函数，以及 `create`、`update`、`remove`、`session`、`send`、`cancel`；可选的 `removeMessage(id, sessionId, messageId)` 删除单条已保存消息，处理中拒绝。消息的可选 `at` 记录发送或回复时间（毫秒，旧消息可缺省）。`update` 支持名称、介绍和特别关注。快照包含名称、介绍、来源、状态、特别关注、所选模型、按 Agent 关闭的组成部分、会话与消息。每次可观察变化发布新的快照，UI 通过订阅读取，不检查私有对象。来源与执行范围由公开说明呈现；UI 调用保留提供者方法的接收对象。
 
 `agents.local`（界面名称“Agent 核心”）提供当前本地实现，以 `optional` 声明 `chat@1`：回复只来自每个 Agent 所选的模型（`model` 记录提供者扩展 ID 与模型 ID），发送当前会话历史与 Agent 介绍；没有可用模型时照常启动，发送时提示选择模型或先添加模型连接。新建时默认使用第一个可选模型。旧数据中的 `extensions`、`capabilities`、`multiSession` 在恢复时丢弃，所有 Agent 都可有多个会话。组成部分（提供者自身、显示它的界面、模型所属的 `chat@1` 连接）用可选的 `off` 列表按 Agent 关闭，经可选 `setOff(id, extensionId, off)` 修改（`connectors()` 列出全部连接，含尚无模型的），旧数据缺省即全部开启：关闭提供者或模型所属连接时拒绝发送并保留所选模型，`setModel` 选中模型即重新开启其连接；界面是否显示由界面自己读取 `off` 决定，提供者只保存。扩展经 `publishUsers`（`service: "chat"`）的 `uses` 与 `toggle` 公布每个 Agent 使用的模型连接，扩展管理可按 Agent 开关：开启尚未被该 Agent 使用的连接时改用它的第一个模型，没有模型时拒绝并提示先添加。回复途中停用的连接，其在途调用经 `signal` 取消，结果不保存。思考强度用可选 `Agent.effort` 与 `setEffort(id, effort | null)` 保存，只接受所选模型在 `ModelChoice.reasoning`（来自 `chat@1` 的 `ChatModel.reasoning`，缺省即不支持）里列出的档位；发送时仅当当前模型仍列出该档位才作为 `reply` 的可选 `effort` 传给连接，换模型后保留记录但不发送。头像是可选 `Agent.avatar`：`data:image/(png|jpeg|webp);base64,…`，至多 40,000 个字符，经 `update(id, { avatar: string | null })` 设置或移除（`null` 移除，非法值拒绝），`create` 的 `AgentConfig.avatar` 与角色卡的 `avatar` 同样受此限制；外部链接不接受，需要网络图片的扩展先把它下载成字节再编码。恢复时损坏的头像只是被丢弃。消息可带 `attachments`（文本文件或图片，上限见[模型连接](MODELS.md)），`send(id, text, attachments?)` 校验并随消息保存，提供者以 `info.attachments` 声明支持，界面据此显示添加入口；`ModelChoice.vision` 为真才把图片作为 `reply` 的 `images`（历史轮次的 `images`）传给连接，否则换成一行 `ERROR: Cannot read "文件名" (this model does not support image input). Inform the user.`（超出最近 3 条的旧图片只换成 `[图片：文件名]`），界面不因模型而禁用添加。写入串行执行，收到成功回执后才发布已保存修改；`busy` 状态和 `canCancel` 不持久化。会话结构修改与移除即时占用对应 Agent，避免与发送交叠。处理取消在排队及派发前检查，迟到结果丢弃；已派发写入进入不可取消提交段，`canCancel: false`，成功回执胜出。停止扩展关闭新修改、取消在途处理并等待已派发保存，依赖恢复后从最近已确认快照创建新实例。
 
@@ -108,7 +108,7 @@ DI isolate 若仅隔离依赖作用域，就只按该范围表述。进程隔离
 
 ## 非敏感扩展配置
 
-扩展管理支持声明字段编辑、取消焦点返回和保存后应用；操作区采用可换行布局。生命周期、坏值保留与迁移限制见 [配置契约](EXTENSION-CONFIGURATION.md)。
+扩展通过 `manifest.configuration` 声明带默认值的字段，`activate` 读取只读的 `ctx.configuration`；生命周期、坏值保留与迁移限制见 [配置契约](EXTENSION-CONFIGURATION.md)，扩展管理中的编辑行为见 [UI](UI.md#非敏感扩展配置)。
 
 ## 平台能力与可选助手
 
