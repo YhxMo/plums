@@ -122,7 +122,7 @@ test("a failed preferred layout keeps a non-empty selection instead of persistin
   await page.goto("/");
   await page.evaluate((defaults) => {
     localStorage.setItem(
-      "plums:m1:host.shell",
+      "plums:host.shell",
       JSON.stringify({
         schema: 1,
         revision: 1,
@@ -149,12 +149,12 @@ test("a failed preferred layout keeps a non-empty selection instead of persistin
   await expect
     .poll(() =>
       page.evaluate(
-        () => JSON.parse(localStorage.getItem("plums:m1:host.shell")!).revision,
+        () => JSON.parse(localStorage.getItem("plums:host.shell")!).revision,
       ),
     )
     .toBe(2);
   const saved = await page.evaluate(
-    () => JSON.parse(localStorage.getItem("plums:m1:host.shell")!).value,
+    () => JSON.parse(localStorage.getItem("plums:host.shell")!).value,
   );
   expect(saved.theme).toBe("dark");
   expect(saved.layout).toBe("broken");
@@ -165,7 +165,7 @@ test("enabling a workspace with a missing dependency explains the wait in Chines
   await page.goto("/");
   await page.evaluate((defaults) => {
     localStorage.setItem(
-      "plums:m1:host.shell",
+      "plums:host.shell",
       JSON.stringify({
         schema: 1,
         revision: 1,

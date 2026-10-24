@@ -277,7 +277,7 @@ test("unavailable saved import retains startup and offers removal and retry", as
 }) => {
   await page.addInitScript(() =>
     localStorage.setItem(
-      "plums:m1:host.shell",
+      "plums:host.shell",
       JSON.stringify({
         schema: 1,
         revision: 1,
@@ -317,8 +317,7 @@ test("unavailable saved import retains startup and offers removal and retry", as
   ).toHaveCount(0);
   expect(
     await page.evaluate(
-      () =>
-        JSON.parse(localStorage.getItem("plums:m1:host.shell")!).value.imports,
+      () => JSON.parse(localStorage.getItem("plums:host.shell")!).value.imports,
     ),
   ).toEqual([]);
 });
@@ -375,9 +374,9 @@ test("reinstalling a failed import replaces its path and remains bootable", asyn
   page,
 }) => {
   await page.addInitScript(() => {
-    if (!localStorage.getItem("plums:m1:host.shell"))
+    if (!localStorage.getItem("plums:host.shell"))
       localStorage.setItem(
-        "plums:m1:host.shell",
+        "plums:host.shell",
         JSON.stringify({
           schema: 1,
           revision: 1,
@@ -408,8 +407,7 @@ test("reinstalling a failed import replaces its path and remains bootable", asyn
   await expect(page.getByRole("status")).toContainText("模块路径已保存");
   expect(
     await page.evaluate(
-      () =>
-        JSON.parse(localStorage.getItem("plums:m1:host.shell")!).value.imports,
+      () => JSON.parse(localStorage.getItem("plums:host.shell")!).value.imports,
     ),
   ).toEqual([
     {

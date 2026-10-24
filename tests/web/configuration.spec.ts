@@ -5,7 +5,7 @@ async function seed(page: Page, bad = false) {
   await page.evaluate((bad) => {
     const ids = ["counter", "events", "panel"];
     localStorage.setItem(
-      "plums:m1:host.shell",
+      "plums:host.shell",
       JSON.stringify({
         schema: 1,
         revision: 1,
@@ -80,7 +80,7 @@ test("ordinary fields apply, persist on reload, remain isolated and survive unin
   expect(
     await page.evaluate(
       () =>
-        JSON.parse(localStorage.getItem("plums:m1:host.shell")!).value
+        JSON.parse(localStorage.getItem("plums:host.shell")!).value
           .configurations["sample.counter"].values.step,
     ),
   ).toBe(3);
@@ -90,7 +90,7 @@ test("cancel and failed persistence preserve prior configuration", async ({
 }) => {
   await seed(page);
   const before = await page.evaluate(() =>
-    localStorage.getItem("plums:m1:host.shell"),
+    localStorage.getItem("plums:host.shell"),
   );
   const trigger = page.getByRole("button", {
     name: "配置 sample.counter",
@@ -107,7 +107,7 @@ test("cancel and failed persistence preserve prior configuration", async ({
   await dialog.getByRole("button", { name: "保存并应用" }).click();
   await expect(dialog.getByRole("alert")).toContainText("未完成");
   expect(
-    await page.evaluate(() => localStorage.getItem("plums:m1:host.shell")),
+    await page.evaluate(() => localStorage.getItem("plums:host.shell")),
   ).toBe(before);
 });
 test("incompatible stored configuration waits without overwriting original until explicit edit", async ({
@@ -120,7 +120,7 @@ test("incompatible stored configuration waits without overwriting original until
     }),
   ).toBeVisible();
   const before = await page.evaluate(() =>
-    localStorage.getItem("plums:m1:host.shell"),
+    localStorage.getItem("plums:host.shell"),
   );
   await page
     .getByRole("button", { name: "配置 sample.counter", exact: true })
@@ -130,7 +130,7 @@ test("incompatible stored configuration waits without overwriting original until
   );
   await page.getByRole("button", { name: "取消", exact: true }).click();
   expect(
-    await page.evaluate(() => localStorage.getItem("plums:m1:host.shell")),
+    await page.evaluate(() => localStorage.getItem("plums:host.shell")),
   ).toBe(before);
   await page
     .getByRole("button", { name: "配置 sample.counter", exact: true })

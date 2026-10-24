@@ -35,7 +35,7 @@ test("a failed write keeps the previous record and imported uninstall prunes it"
     .click();
   await persisted(page, "transform.upper", false);
   const before = await page.evaluate(() =>
-    localStorage.getItem("plums:m1:host.shell"),
+    localStorage.getItem("plums:host.shell"),
   );
   await page.getByLabel("注入存储写入失败").check();
   await page
@@ -43,7 +43,7 @@ test("a failed write keeps the previous record and imported uninstall prunes it"
     .click();
   await expect(page.getByRole("alert")).toContainText("扩展启用状态未保存");
   expect(
-    await page.evaluate(() => localStorage.getItem("plums:m1:host.shell")),
+    await page.evaluate(() => localStorage.getItem("plums:host.shell")),
   ).toBe(before);
   await page.getByLabel("注入存储写入失败").uncheck();
   await page.getByRole("button", { name: "安装扩展", exact: true }).click();
@@ -84,7 +84,7 @@ test("missing extensions are skipped and a changed version still starts", async 
     .click();
   await persisted(page, "transform.upper", false);
   await page.evaluate(() => {
-    const key = "plums:m1:host.shell";
+    const key = "plums:host.shell";
     const data = JSON.parse(localStorage.getItem(key)!);
     data.value.composition.enabled.push(
       { id: "missing.extension", version: "1" },
@@ -109,7 +109,7 @@ test("an unknown composition schema preserves original state and offers recovery
     .click();
   await persisted(page, "transform.upper", false);
   const raw = await page.evaluate(() => {
-    const key = "plums:m1:host.shell";
+    const key = "plums:host.shell";
     const data = JSON.parse(localStorage.getItem(key)!);
     data.value.composition = { schema: 99, enabled: [] };
     const raw = JSON.stringify(data);
@@ -119,6 +119,6 @@ test("an unknown composition schema preserves original state and offers recovery
   await page.reload();
   await expect(page.getByRole("alert")).toContainText("组合配置");
   expect(
-    await page.evaluate(() => localStorage.getItem("plums:m1:host.shell")),
+    await page.evaluate(() => localStorage.getItem("plums:host.shell")),
   ).toBe(raw);
 });

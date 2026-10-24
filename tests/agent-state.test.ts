@@ -508,7 +508,7 @@ it("a damaged message record fails only the Agent provider and keeps it", async 
   const host = await start(platform);
   const agent = await provider(host).create({ name: "一" });
   await provider(host).send(agent.id, "你好");
-  const key = `plums:m1:${owner}#records`;
+  const key = `plums:${owner}#records`;
   const stored = JSON.parse(storage.get(key)!);
   stored.records[0].value = { role: "nobody" };
   storage.set(key, JSON.stringify(stored));
@@ -555,7 +555,7 @@ it("starts without the avatar when its record is damaged, and replaces it later"
   const host = await start(platform);
   const agent = await provider(host).create({ name: "有头像" });
   await provider(host).update(agent.id, { avatar: image });
-  const key = `plums:m1:${owner}#records`;
+  const key = `plums:${owner}#records`;
   const stored = JSON.parse(storage.get(key)!);
   for (const record of stored.records)
     if (record.collection === "avatars")

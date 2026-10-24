@@ -34,8 +34,8 @@ it("keeps keyed documents beside the main one with their own revision", async ()
   expect(await read("s-1")).toMatchObject({ revision: 2, value: "two" });
   expect(await read("s-2")).toBeNull();
   expect([...values.keys()].sort()).toEqual([
-    "plums:m1:extension.sample",
-    "plums:m1:extension.sample+s-1",
+    "plums:extension.sample",
+    "plums:extension.sample+s-1",
   ]);
 });
 

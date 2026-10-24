@@ -3,7 +3,7 @@ import type { Platform, StoredRecord, StoredState } from "../../modules/sdk";
 import type { Agent } from "../../modules/agents/contract";
 import { BrowserState } from "../../src/browser-state";
 
-const prefix = "plums:m1:";
+const prefix = "plums:";
 /**
  * Owner storage in memory with the browser preview's rules and limits, which
  * are the native store's. `initial` holds documents by `owner` or

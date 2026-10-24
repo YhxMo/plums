@@ -18,9 +18,9 @@ for (const width of [375, 1180]) {
       route.fulfill({ json: [] }),
     );
     await page.addInitScript(() => {
-      if (!localStorage.getItem("plums:m1:host.shell"))
+      if (!localStorage.getItem("plums:host.shell"))
         localStorage.setItem(
-          "plums:m1:host.shell",
+          "plums:host.shell",
           JSON.stringify({
             schema: 1,
             revision: 1,
@@ -52,7 +52,7 @@ for (const width of [375, 1180]) {
     expect(
       await page.evaluate(
         () =>
-          JSON.parse(localStorage.getItem("plums:m1:host.shell")!).value.agents,
+          JSON.parse(localStorage.getItem("plums:host.shell")!).value.agents,
       ),
     ).toEqual({ externalFormat: true });
     await manage(page);

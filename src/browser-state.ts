@@ -33,12 +33,12 @@ const absent = (payload: Payload, field: string) =>
 /** Same key rule as the native Broker; `+` separates owner and key. */
 function documentKey(owner: string, payload: Payload) {
   const key = payload.key;
-  if (key === undefined || key === null) return `plums:m1:${owner}`;
+  if (key === undefined || key === null) return `plums:${owner}`;
   if (typeof key !== "string" || !/^[a-z0-9][a-z0-9-]{0,63}$/.test(key))
     throw stateRejection("invalid-key");
-  return `plums:m1:${owner}+${key}`;
+  return `plums:${owner}+${key}`;
 }
-const recordsKey = (owner: string) => `plums:m1:${owner}#records`;
+const recordsKey = (owner: string) => `plums:${owner}#records`;
 
 function storedDocument(raw: string | null): StoredState | null {
   if (raw === null) return null;

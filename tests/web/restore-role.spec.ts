@@ -44,8 +44,8 @@ test("invalid saved role fails only the Agent provider and keeps persisted bytes
 }) => {
   const original = state(["user"]);
   await page.addInitScript((raw) => {
-    if (!localStorage.getItem("plums:m1:host.shell"))
-      localStorage.setItem("plums:m1:host.shell", raw);
+    if (!localStorage.getItem("plums:host.shell"))
+      localStorage.setItem("plums:host.shell", raw);
   }, original);
   await page.goto("/");
   const alert = page.getByRole("alert").filter({ hasText: "扩展启动失败" });
@@ -59,8 +59,8 @@ test("invalid saved role fails only the Agent provider and keeps persisted bytes
   ).toContainText("会话配置损坏");
   expect(
     await page.evaluate(() => [
-      localStorage.getItem("plums:m1:host.shell"),
-      localStorage.getItem("plums:m1:extension.agents.local"),
+      localStorage.getItem("plums:host.shell"),
+      localStorage.getItem("plums:extension.agents.local"),
     ]),
   ).toEqual([original, null]);
 });
@@ -69,8 +69,8 @@ test("legacy shell roles move to the Agent provider's own state once", async ({
   page,
 }) => {
   await page.addInitScript((raw) => {
-    if (!localStorage.getItem("plums:m1:host.shell"))
-      localStorage.setItem("plums:m1:host.shell", raw);
+    if (!localStorage.getItem("plums:host.shell"))
+      localStorage.setItem("plums:host.shell", raw);
   }, state("user"));
   await page.goto("/");
   await expect(
@@ -78,8 +78,8 @@ test("legacy shell roles move to the Agent provider's own state once", async ({
   ).toBeVisible();
   const stored = () =>
     page.evaluate(() => ({
-      shell: JSON.parse(localStorage.getItem("plums:m1:host.shell")!).value,
-      own: JSON.parse(localStorage.getItem("plums:m1:extension.agents.local")!),
+      shell: JSON.parse(localStorage.getItem("plums:host.shell")!).value,
+      own: JSON.parse(localStorage.getItem("plums:extension.agents.local")!),
     }));
   const first = await stored();
   expect(first.shell).not.toHaveProperty("agents");
@@ -95,8 +95,8 @@ test("valid saved roles restore with correct attribution after reload", async ({
   page,
 }) => {
   await page.addInitScript((raw) => {
-    if (!localStorage.getItem("plums:m1:host.shell"))
-      localStorage.setItem("plums:m1:host.shell", raw);
+    if (!localStorage.getItem("plums:host.shell"))
+      localStorage.setItem("plums:host.shell", raw);
   }, state("user"));
   await page.goto("/");
   for (let attempt = 0; attempt < 2; attempt++) {

@@ -196,7 +196,7 @@ it.each([
   '""',
   '{"schema":99,"revision":1,"value":"future"}',
 ])("preserves malformed or unsupported browser state %s", async (raw) => {
-  const values = new Map([["plums:m1:sample", raw]]);
+  const values = new Map([["plums:sample", raw]]);
   vi.stubGlobal("localStorage", {
     getItem: (key: string) => values.get(key) ?? null,
     setItem: (key: string, value: string) => values.set(key, value),
@@ -211,7 +211,7 @@ it.each([
         value: "replacement",
       }),
     ).rejects.toThrow();
-    expect(values.get("plums:m1:sample")).toBe(raw);
+    expect(values.get("plums:sample")).toBe(raw);
   } finally {
     vi.unstubAllGlobals();
   }

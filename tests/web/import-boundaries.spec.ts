@@ -25,7 +25,7 @@ for (const keyboard of [false, true]) {
     ).toHaveValue("确认后才添加");
     expect(
       await page.evaluate(() =>
-        localStorage.getItem("plums:m1:extension.agents.local"),
+        localStorage.getItem("plums:extension.agents.local"),
       ),
     ).toBeNull();
     await create.getByRole("button", { name: "取消", exact: true }).click();

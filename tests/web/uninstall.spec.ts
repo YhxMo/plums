@@ -40,7 +40,7 @@ test("uninstall preserves extension data and cold reload does not restore import
     value: { synthetic: "keep" },
   });
   await page.evaluate(
-    (raw) => localStorage.setItem("plums:m1:extension.sample.counter", raw),
+    (raw) => localStorage.setItem("plums:extension.sample.counter", raw),
     raw,
   );
   await page
@@ -63,7 +63,7 @@ test("uninstall preserves extension data and cold reload does not restore import
   ).toHaveCount(0);
   expect(
     await page.evaluate(() =>
-      localStorage.getItem("plums:m1:extension.sample.counter"),
+      localStorage.getItem("plums:extension.sample.counter"),
     ),
   ).toBe(raw);
 });

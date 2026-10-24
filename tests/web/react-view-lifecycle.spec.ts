@@ -42,7 +42,7 @@ for (const width of [375, 1280])
     await page.setViewportSize({ width, height: 812 });
     await page.addInitScript(() => {
       localStorage.setItem(
-        "plums:m1:host.shell",
+        "plums:host.shell",
         JSON.stringify({
           schema: 1,
           revision: 1,

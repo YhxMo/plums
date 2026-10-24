@@ -77,7 +77,7 @@ export async function chooseLayout(page: Page, id: string) {
 /** Messages saved for an Agent's first session, read from its stored records. */
 export function firstSessionMessageCount(page: Page, agent: string) {
   return page.evaluate((agent) => {
-    const owner = "plums:m1:extension.agents.local";
+    const owner = "plums:extension.agents.local";
     const index = JSON.parse(localStorage.getItem(owner)!).value;
     const entry = index.agents.find(
       (item: { name: string }) => item.name === agent,
@@ -121,7 +121,7 @@ export async function persisted(page: Page, id: string, enabled = true) {
     .poll(() =>
       page.evaluate((id) => {
         const saved = JSON.parse(
-          localStorage.getItem("plums:m1:host.shell") ?? "null",
+          localStorage.getItem("plums:host.shell") ?? "null",
         );
         return (saved?.value?.composition?.enabled ?? []).some(
           (entry: { id: string }) => entry.id === id,

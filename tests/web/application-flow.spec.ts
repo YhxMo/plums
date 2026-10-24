@@ -157,7 +157,7 @@ test("dismissible fallback notice, independent extension manager page and topbar
   await page.goto("/");
   await page.evaluate(() => {
     localStorage.setItem(
-      "plums:m1:host.shell",
+      "plums:host.shell",
       JSON.stringify({
         schema: 1,
         revision: 1,
@@ -189,8 +189,7 @@ test("dismissible fallback notice, independent extension manager page and topbar
   await expect(fallback).toHaveCount(0);
   expect(
     await page.evaluate(
-      () =>
-        JSON.parse(localStorage.getItem("plums:m1:host.shell")!).value.layout,
+      () => JSON.parse(localStorage.getItem("plums:host.shell")!).value.layout,
     ),
   ).toBe("default");
 
@@ -247,7 +246,7 @@ test("legacy unconfigured workbench default boots into Agents without changing s
     .getByRole("button", { name: "添加", exact: true })
     .click();
   const original = await page.evaluate(() => {
-    const key = "plums:m1:host.shell";
+    const key = "plums:host.shell";
     // Agents save to their own state, so the shell may not have written yet.
     const data = JSON.parse(
       localStorage.getItem(key) ??
@@ -269,11 +268,11 @@ test("legacy unconfigured workbench default boots into Agents without changing s
     page.getByRole("status").filter({ hasText: "所选界面" }),
   ).toHaveCount(0);
   expect(
-    await page.evaluate(() => localStorage.getItem("plums:m1:host.shell")),
+    await page.evaluate(() => localStorage.getItem("plums:host.shell")),
   ).toBe(original);
   await switchAppearance(page, "浅色");
   const saved = await page.evaluate(() =>
-    JSON.parse(localStorage.getItem("plums:m1:host.shell")!),
+    JSON.parse(localStorage.getItem("plums:host.shell")!),
   );
   expect(saved.value.layout).toBe("agents");
   expect(saved.value.agents).toEqual(JSON.parse(original).value.agents);
@@ -301,7 +300,7 @@ test("deliberately selected workbench keeps its preference and diagnoses unavail
   const fallback = page.getByRole("status").filter({ hasText: "所选界面" });
   await expect(fallback).toContainText("工作台 (default)");
   const saved = await page.evaluate(() =>
-    JSON.parse(localStorage.getItem("plums:m1:host.shell")!),
+    JSON.parse(localStorage.getItem("plums:host.shell")!),
   );
   expect(saved.value.layout).toBe("default");
   expect(saved.value.layoutIntent).toBe("explicit");

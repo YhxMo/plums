@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-const key = "plums:m1:host.shell";
+const key = "plums:host.shell";
 async function broken(page: import("@playwright/test").Page) {
   await page.goto("/");
   const value = {
@@ -45,7 +45,7 @@ test("cancel preserves data; confirmed recovery backs up original and cold reloa
     (key) => ({
       current: JSON.parse(localStorage.getItem(key)!),
       backups: Object.keys(localStorage)
-        .filter((k) => k.startsWith("plums:m1:host.recovery."))
+        .filter((k) => k.startsWith("plums:host.recovery."))
         .map((k) => JSON.parse(localStorage.getItem(k)!)),
     }),
     key,
@@ -65,7 +65,7 @@ test("failed backup never resets source and requires reload before retry", async
   await page.evaluate(() => {
     const set = Storage.prototype.setItem;
     Storage.prototype.setItem = function (key, value) {
-      if (key.startsWith("plums:m1:host.recovery."))
+      if (key.startsWith("plums:host.recovery."))
         throw new Error("synthetic backup failure");
       set.call(this, key, value);
     };
