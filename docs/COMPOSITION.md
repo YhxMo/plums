@@ -1,6 +1,6 @@
 # 本地组合快照
 
-状态：当前有效（2026-10-19 核实）；M2 限定实现，完整组合升级事务与恢复未完成。
+状态：当前有效（2026-10-19 核实）；第 1 级限定实现，完整组合升级事务与恢复未完成。
 
 扩展的启用状态与授权自动记录为一个本地快照：用户启用、停用或授权扩展后，扩展管理在同一串行队列里比对当前状态，有变化才写入，不需要手动保存。外壳 `host.shell` 的既有 version 1 配置含可选 `composition: { schema: 1, enabled: [{ id, version }], granted?: [{ id, version, capabilities }] }`；未设置时沿用默认启用集合，首次改动后开始记录。旧配置无需迁移，未知 schema 和损坏结构拒绝启动且不覆盖原数据。默认启用集合、布局兼容与业务恢复在 `src/application.ts` 接线；`bootShell(application)` 本身不要求 `agents` 服务。`host.shell` 中的其他不透明字段保留原位置，与主题、页面、安装路径共用串行写入和 revision；旧版 Agent 字段由 `agents.local` 迁出后移除。
 
