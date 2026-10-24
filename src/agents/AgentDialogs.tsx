@@ -183,6 +183,7 @@ export function AgentDialogs({
           remove: "移除 Agent",
           deleteSession: "删除会话",
           renameSession: "重命名会话",
+          truncate: "删除后续消息",
         }[modal.action];
   const cancel = (
     <Button
@@ -473,6 +474,12 @@ export function AgentDialogs({
           <form
             onSubmit={(e) => {
               e.preventDefault();
+              // The reply can take minutes; the dialog does not wait for it.
+              if (modal.action === "truncate") {
+                setModal(null);
+                modal.run();
+                return;
+              }
               void act(async () => {
                 if (modal.action === "rename")
                   await api.update(modal.agent.id, { name });
@@ -510,9 +517,11 @@ export function AgentDialogs({
                 <p>
                   {modal.action === "remove"
                     ? `移除「${modal.agent.name}」并删除它在此应用中的本地会话？`
-                    : api.undo
-                      ? "删除此会话及其本地消息？删除后可以在提示中撤销。"
-                      : "删除此会话及其本地消息？此操作不能撤销。"}
+                    : modal.action === "truncate"
+                      ? `这会删除此后的 ${modal.count} 条消息，再等待新的回复。删除后可以在提示中撤销。`
+                      : api.undo
+                        ? "删除此会话及其本地消息？删除后可以在提示中撤销。"
+                        : "删除此会话及其本地消息？此操作不能撤销。"}
                 </p>
               )}
             </DialogBody>
@@ -525,7 +534,11 @@ export function AgentDialogs({
                 }
                 disabled={busy}
               >
-                {modal.action.startsWith("rename") ? "保存" : "确认删除"}
+                {modal.action.startsWith("rename")
+                  ? "保存"
+                  : modal.action === "truncate"
+                    ? "继续"
+                    : "确认删除"}
               </Button>
             </DialogActions>
           </form>

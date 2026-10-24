@@ -39,7 +39,13 @@ export type Agent = {
   pinned: boolean;
   canCancel?: boolean;
   /** Text being sent and not yet saved with its reply; never persisted. */
-  pending?: { sessionId: string; text: string; attachments?: Attachment[] };
+  pending?: {
+    sessionId: string;
+    text: string;
+    attachments?: Attachment[];
+    /** The saved message an edit or regeneration replaces; it and what follows give way once the reply is saved. */
+    replaces?: string;
+  };
   extensionId: string;
   /** The `chat@1` model that answers this Agent, by provider extension and model id. */
   model?: AgentModel;
@@ -129,9 +135,23 @@ export interface AgentProvider {
     messageId: string,
   ): Promise<void>;
   /**
-   * Puts back the Agent's last removed message or session, while its
-   * conversation has not moved on since; kept until the provider stops.
-   * Added after agents@1 shipped, so optional.
+   * Sends new text in place of one of the user's messages, with its
+   * attachments; once the reply is saved, the messages from it on are
+   * replaced. Added after agents@1 shipped, so optional.
+   */
+  edit?(
+    id: string,
+    sessionId: string,
+    messageId: string,
+    text: string,
+  ): Promise<void>;
+  /** Asks again for a reply with the user's message before it; later turns are replaced. Optional. */
+  regenerate?(id: string, sessionId: string, replyId: string): Promise<void>;
+  /**
+   * Puts back the Agent's last removed message or session, or what an edit
+   * or regeneration replaced, while its conversation has not moved on
+   * since; kept until the provider stops. Added after agents@1 shipped,
+   * so optional.
    */
   undo?(id: string): Promise<void>;
 }

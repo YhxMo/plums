@@ -12,6 +12,13 @@ export type AgentModal =
       agent: Agent;
       session?: string;
     }
+  | {
+      /** Asks before an edit or regeneration drops `count` later messages. */
+      action: "truncate";
+      agent: Agent;
+      count: number;
+      run: () => void;
+    }
   | null;
 export type AgentModals = {
   modal: AgentModal;

@@ -1,5 +1,12 @@
 import { useEffect, useRef, type ReactNode, type RefObject } from "react";
-import { ArrowUpIcon, PaperclipIcon, PlusIcon, SquareIcon } from "lucide-react";
+import {
+  ArrowUpIcon,
+  PaperclipIcon,
+  PencilIcon,
+  PlusIcon,
+  SquareIcon,
+  XIcon,
+} from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import type {
   Agent,
@@ -37,6 +44,9 @@ export type Attach = {
   onRemove: (index: number) => void;
 };
 
+/** An own message being edited: its text as sent, and how to leave. */
+export type Editing = { original: string; onCancel: () => void };
+
 /** Why this Agent cannot reply here yet, and the one step that fixes it. */
 export type Blocked = { text: string; action: ReactNode };
 
@@ -60,6 +70,7 @@ export function Composer({
   onModel,
   onEffort,
   attach,
+  editing,
   inputRef,
 }: {
   agent: Agent;
@@ -76,6 +87,8 @@ export function Composer({
   /** Absent for providers that do not keep a thinking strength. */
   onEffort?: (effort: Effort | null) => void;
   attach?: Attach;
+  /** Sending replaces this message; Escape or the close button leaves. */
+  editing?: Editing;
   inputRef: RefObject<HTMLTextAreaElement | null>;
 }) {
   // A reply in another session leaves this one free; the workspace then
@@ -139,6 +152,29 @@ export function Composer({
           >
             <p>{blocked.text}</p>
             {blocked.action}
+          </div>
+        )}
+        {editing && (
+          <div className="flex basis-full items-center gap-2 px-1.5 pt-0.5 pb-1.5 text-xs">
+            <PencilIcon className="size-3.5 shrink-0 text-brand-text" />
+            <div className="min-w-0 flex-1">
+              <p className="font-medium text-brand-text">编辑消息</p>
+              <p className="truncate text-muted-foreground">
+                {editing.original}
+              </p>
+            </div>
+            <Tooltip label="取消编辑">
+              <InputGroupButton
+                type="button"
+                variant="ghost"
+                size="icon-xs"
+                className="text-muted-foreground max-md:size-11"
+                aria-label="取消编辑"
+                onClick={editing.onCancel}
+              >
+                <XIcon />
+              </InputGroupButton>
+            </Tooltip>
           </div>
         )}
         {attach && attach.files.length > 0 && (
@@ -212,6 +248,11 @@ export function Composer({
             attach.onAdd(pictures);
           }}
           onKeyDown={(e) => {
+            if (editing && e.key === "Escape" && !e.nativeEvent.isComposing) {
+              e.preventDefault();
+              editing.onCancel();
+              return;
+            }
             if (
               e.key === "Enter" &&
               !e.shiftKey &&

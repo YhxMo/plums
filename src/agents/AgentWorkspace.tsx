@@ -29,6 +29,7 @@ import {
   ResizablePanel,
   ResizablePanelGroup,
 } from "@/components/ui/resizable";
+import { useRewrite } from "./useRewrite";
 import { useAgentModals } from "./useAgentModals";
 import { AgentDialogs } from "./AgentDialogs";
 import type { AgentAction } from "./AgentMenu";
@@ -119,6 +120,13 @@ export function AgentWorkspace({
   const [files, setFiles] = useState<Record<string, Attachment[]>>({});
   const filesNow = useRef(files);
   filesNow.current = files;
+  const rewrite = useRewrite({
+    api,
+    modals,
+    drafts,
+    setDrafts,
+    offerUndo,
+  });
   const agent = agents.find((a) => a.id === selected);
   // The open conversation is read; replies elsewhere count as unread.
   const viewing = visible ? (agent?.id ?? null) : null;
@@ -366,7 +374,9 @@ export function AgentWorkspace({
             }
           : undefined
       }
+      editing={rewrite.editing(key)}
       onSend={() => {
+        if (rewrite.send(agent, key)) return;
         const input = drafts[key] ?? "";
         const attached = files[key] ?? [];
         // The sent text shows as a pending bubble; a failed send puts it
@@ -384,8 +394,11 @@ export function AgentWorkspace({
           }
         });
       }}
-      onResend={(text, attachments) =>
-        void report(() => api.send(agent.id, text, attachments))
+      onEdit={
+        rewrite.start && ((message) => rewrite.start!(agent, key, message))
+      }
+      onRegenerate={
+        rewrite.regenerate && ((message) => rewrite.regenerate!(agent, message))
       }
       onDeleteMessage={
         api.removeMessage

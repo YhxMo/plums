@@ -1,5 +1,11 @@
 import { useRef } from "react";
-import { CheckIcon, CopyIcon, RotateCcwIcon, Trash2Icon } from "lucide-react";
+import {
+  CheckIcon,
+  CopyIcon,
+  PencilIcon,
+  RefreshCwIcon,
+  Trash2Icon,
+} from "lucide-react";
 import { motion } from "motion/react";
 import { cn } from "cn";
 import type { Agent, Message } from "@modules/agents/contract";
@@ -15,12 +21,13 @@ import {
   ContextMenuTrigger,
 } from "@/components/ui/context-menu";
 
-export type MessageAction = "copy" | "resend" | "delete";
+export type MessageAction = "copy" | "edit" | "regenerate" | "delete";
 
 const actions: Record<MessageAction, { label: string; icon: typeof CopyIcon }> =
   {
     copy: { label: "复制", icon: CopyIcon },
-    resend: { label: "重新发送", icon: RotateCcwIcon },
+    edit: { label: "编辑", icon: PencilIcon },
+    regenerate: { label: "重新生成", icon: RefreshCwIcon },
     delete: { label: "删除", icon: Trash2Icon },
   };
 
@@ -37,7 +44,7 @@ export function MessageRow({
   message,
   busy,
   copied,
-  canDelete,
+  can,
   pointerMenu,
   className,
   onAction,
@@ -53,7 +60,8 @@ export function MessageRow({
   message?: Message;
   busy?: boolean;
   copied?: boolean;
-  canDelete?: boolean;
+  /** What the provider supports besides copying; edit applies to own lines, regenerate to replies. */
+  can?: { edit?: boolean; regenerate?: boolean; delete?: boolean };
   /** Offers the right-click menu (desktop only). */
   pointerMenu?: boolean;
   /** Spacing from the line above, set by the list. */
@@ -66,8 +74,12 @@ export function MessageRow({
   const user = role === "user";
   const row = useRef<HTMLDivElement>(null);
   const chosen = useRef(false);
-  const available = (["copy", "resend", "delete"] as const).filter(
-    (a) => (a !== "resend" || user) && (a !== "delete" || canDelete),
+  const available = (["copy", "edit", "regenerate", "delete"] as const).filter(
+    (a) =>
+      a === "copy" ||
+      (a === "edit" && user && can?.edit) ||
+      (a === "regenerate" && !user && can?.regenerate) ||
+      (a === "delete" && can?.delete),
   );
   // The own turn shows what was typed; a reply is Markdown.
   const Bubble = user ? "p" : "div";

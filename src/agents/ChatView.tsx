@@ -10,7 +10,6 @@ import { useStickToBottom } from "use-stick-to-bottom";
 import type {
   Agent,
   AgentModel,
-  Attachment,
   Effort,
   Message,
   ModelChoice,
@@ -22,7 +21,7 @@ import { TypingDots } from "./TypingDots";
 import { card } from "./card";
 import { AgentMenuItems, type AgentAction } from "./AgentMenu";
 import { MessageRow, type MessageAction } from "./MessageRow";
-import { Composer, type Attach, type Blocked } from "./Composer";
+import { Composer, type Attach, type Blocked, type Editing } from "./Composer";
 import { copyText } from "./clipboard";
 import { formatTime, TIME_GAP } from "./time";
 import { Tooltip } from "@/components/Tooltip";
@@ -55,7 +54,9 @@ export function ChatView({
   attach,
   onSend,
   onCancel,
-  onResend,
+  onEdit,
+  onRegenerate,
+  editing,
   onDeleteMessage,
   onOpenLink,
   onError,
@@ -83,7 +84,11 @@ export function ChatView({
   attach?: Attach;
   onSend: () => void;
   onCancel: () => void;
-  onResend: (text: string, attachments?: Attachment[]) => void;
+  /** Absent when the provider cannot rewrite a message or a reply. */
+  onEdit?: (message: Message) => void;
+  onRegenerate?: (message: Message) => void;
+  /** The own message being edited in the message box. */
+  editing?: Editing;
   /** Absent when the provider cannot delete single messages. */
   onDeleteMessage?: (id: string) => void;
   onOpenLink: (url: string) => void;
@@ -140,7 +145,10 @@ export function ChatView({
         () => setCopied(message.id),
         (error: Error) => onError(error.message),
       );
-    else if (action === "resend") onResend(message.text, message.attachments);
+    else if (action === "edit") {
+      onEdit?.(message);
+      input.current?.focus();
+    } else if (action === "regenerate") onRegenerate?.(message);
     else {
       // The pressed button disappears with its message; keep focus nearby.
       input.current?.focus();
@@ -153,7 +161,13 @@ export function ChatView({
   let previous: Message["role"] | undefined;
   const spacing = (role: Message["role"]) =>
     previous === undefined ? "" : previous === role ? "mt-1" : "mt-3";
-  for (const m of session.messages) {
+  // A rewrite waiting for its reply hides what it replaces.
+  const replaced = session.messages.findIndex(
+    (m) => m.id === pending?.replaces,
+  );
+  const shown =
+    replaced < 0 ? session.messages : session.messages.slice(0, replaced);
+  for (const m of shown) {
     if (m.at !== undefined && (last === undefined || m.at - last > TIME_GAP)) {
       lines.push(
         <p
@@ -178,7 +192,11 @@ export function ChatView({
         message={m}
         busy={busy}
         copied={copied === m.id}
-        canDelete={!!onDeleteMessage}
+        can={{
+          edit: !!onEdit,
+          regenerate: !!onRegenerate,
+          delete: !!onDeleteMessage,
+        }}
         pointerMenu={desktop}
         className={spacing(m.role)}
         onAction={act}
@@ -382,7 +400,8 @@ export function ChatView({
         onModels={onModels}
         onModel={onModel}
         onEffort={onEffort}
-        attach={attach}
+        attach={editing ? undefined : attach}
+        editing={editing}
         inputRef={input}
       />
       {dropping && (

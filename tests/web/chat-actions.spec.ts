@@ -20,7 +20,7 @@ async function startChat(page: Page, width: number) {
   ).toHaveCount(1);
 }
 
-test("desktop messages show a time, copy, resend and delete from hover and right-click", async ({
+test("desktop messages show a time, copy, edit, regenerate and delete from hover and right-click", async ({
   page,
   context,
 }) => {
@@ -37,16 +37,17 @@ test("desktop messages show a time, copy, resend and delete from hover and right
   expect(await page.evaluate(() => navigator.clipboard.readText())).toBe("hi");
 
   await own.hover();
-  await page.getByRole("button", { name: "重新发送", exact: true }).click();
+  await expect(
+    page.getByRole("button", { name: "编辑", exact: true }),
+  ).toBeVisible();
+  // A second turn, so one reply can go while another stays.
+  await page.getByRole("textbox", { name: "消息", exact: true }).fill("hi");
+  await page.getByRole("button", { name: "发送", exact: true }).click();
   await expect(log.locator("p", { hasText: reply })).toHaveCount(2);
 
   await own.first().click({ button: "right" });
   const menu = page.getByRole("menu", { name: "消息操作" });
-  await expect(menu.getByRole("menuitem")).toHaveText([
-    "复制",
-    "重新发送",
-    "删除",
-  ]);
+  await expect(menu.getByRole("menuitem")).toHaveText(["复制", "编辑", "删除"]);
   await expect(menu.getByRole("menuitem", { name: "复制" })).toBeFocused();
   await page.keyboard.press("Escape");
   await expect(menu).toBeHidden();
@@ -55,7 +56,11 @@ test("desktop messages show a time, copy, resend and delete from hover and right
   ).toBeFocused();
 
   await log.locator("p", { hasText: reply }).first().click({ button: "right" });
-  await expect(menu.getByRole("menuitem")).toHaveText(["复制", "删除"]);
+  await expect(menu.getByRole("menuitem")).toHaveText([
+    "复制",
+    "重新生成",
+    "删除",
+  ]);
   await menu.getByRole("menuitem", { name: "删除" }).click();
   await expect(log.locator("p", { hasText: reply })).toHaveCount(1);
   await expect(log.locator("p", { hasText: /^hi$/ })).toHaveCount(2);
