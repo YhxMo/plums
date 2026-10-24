@@ -1,4 +1,5 @@
 import type { Host } from "@modules/extension-host/host";
+import { capabilityLabel } from "./capabilities";
 import type { ImportedExtension } from "./uninstall";
 
 export type FallbackDiagnosis = {
@@ -11,14 +12,6 @@ export type FallbackDiagnosis = {
   signature: string;
   message: string;
 };
-
-const capabilityText = (capability: string) =>
-  ({
-    "state.read": "读取隔离状态",
-    "state.write": "写入隔离状态",
-    "platform.info": "查看平台信息",
-    "document.read": "只读访问所选文档",
-  })[capability] ?? capability;
 
 function ownString(record: Record<string, string> | undefined, key: string) {
   if (!record || !Object.hasOwn(record, key)) return undefined;
@@ -63,12 +56,12 @@ function explainWaitReason(
   const wait = info.wait;
   if (wait?.kind === "permission")
     return {
-      reason: `扩展 ${name}（${extensionId}）等待「${capabilityText(wait.capability)}」授权`,
+      reason: `扩展 ${name}（${extensionId}）等待「${capabilityLabel(wait.capability)}」授权`,
       targetId: extensionId,
     };
   if (wait?.kind === "capability-unavailable")
     return {
-      reason: `当前平台不支持能力 ${capabilityText(wait.capability)}`,
+      reason: `当前平台不支持能力 ${capabilityLabel(wait.capability)}`,
       targetId: extensionId,
     };
   if (wait?.kind === "configuration")

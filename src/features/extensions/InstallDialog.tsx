@@ -3,7 +3,7 @@ import { ChevronRightIcon, PuzzleIcon, ShieldAlertIcon } from "lucide-react";
 import { cn } from "cn";
 import { Dialog, DialogActions, DialogBody } from "@/components/Dialog";
 import type { DialogFeedback } from "@/shell/controllers";
-import { capabilityLabel } from "@/shell/messages";
+import { capabilityLabel } from "@modules/shell/capabilities";
 import type { ExtensionDefinition } from "@modules/sdk";
 import { sourceLabel, type ExtensionFile } from "@modules/shell/file-import";
 import { serviceList } from "./services";

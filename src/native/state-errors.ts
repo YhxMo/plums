@@ -10,7 +10,7 @@ const copy: Record<StateErrorCode, string> = {
   "grant-unavailable": "授权更新失败，请重新启动应用。",
   "grant-lock": "授权状态不可用，请重新启动应用。",
   "state-lock": "状态锁不可用，原数据已保留。",
-  "state-too-large": "状态超过 64 KiB 实验上限，未保存。",
+  "state-too-large": "状态超过 1 MiB 上限，未保存。",
   "state-corrupt": "应用状态已损坏，原数据已保留。",
   "state-schema": "状态版本不支持或已损坏，原数据已保留。",
   "state-read": "状态读取失败，原数据已保留。",
@@ -22,6 +22,10 @@ const copy: Record<StateErrorCode, string> = {
   "state-write": "状态写入失败，原数据已保留。",
   "state-sync": "状态已写入但未确认落盘，请重新加载应用后再修改。",
   serialization: "状态序列化失败，原数据已保留。",
+  "invalid-batch": "批量写入无效，未保存。",
+  "invalid-collection": "记录集合名无效，未保存。",
+  "invalid-record": "记录无效，未保存。",
+  "invalid-query": "记录查询无效。",
 };
 export function isStateErrorCode(code: unknown): code is StateErrorCode {
   return typeof code === "string" && Object.hasOwn(copy, code);

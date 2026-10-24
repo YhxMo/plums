@@ -3,6 +3,7 @@ import { CredentialAccess } from "./credentials";
 import { NetworkAccess } from "./network";
 import { isTauri } from "@tauri-apps/api/core";
 import { invokeNative } from "./native/invoke";
+import { BrowserState } from "./browser-state";
 import {
   isStateErrorCode,
   stateRejection,
@@ -11,7 +12,6 @@ import {
 import {
   platformRejection,
   type Platform,
-  type StoredState,
   type Appearance,
 } from "@modules/sdk";
 
@@ -20,46 +20,21 @@ function validOwner(owner: string) {
     throw stateRejection("invalid-owner");
 }
 
-/** Same key rule as the native Broker; `+` separates owner and key. */
-function storageKey(owner: string, payload: unknown) {
-  const key = (payload as { key?: unknown } | null | undefined)?.key;
-  if (key === undefined || key === null) return `plums:m1:${owner}`;
-  if (typeof key !== "string" || !/^[a-z0-9][a-z0-9-]{0,63}$/.test(key))
-    throw stateRejection("invalid-key");
-  return `plums:m1:${owner}+${key}`;
-}
-
-function browserState(raw: string | null): StoredState | null {
-  if (raw === null) return null;
-  if (new TextEncoder().encode(raw).length > 65536)
-    throw stateRejection("state-too-large");
-  let saved: unknown;
-  try {
-    saved = JSON.parse(raw);
-  } catch {
-    throw stateRejection("state-corrupt");
-  }
-  if (typeof saved !== "object" || saved === null || Array.isArray(saved))
-    throw stateRejection("state-corrupt");
-  const document = saved as {
-    schema?: unknown;
-    revision?: unknown;
-    value?: unknown;
-  };
-  if (
-    document.schema !== 1 ||
-    !Number.isSafeInteger(document.revision) ||
-    Number(document.revision) < 1 ||
-    !Object.hasOwn(document, "value")
-  )
-    throw stateRejection("state-schema");
-  return document as StoredState;
-}
+/** Capabilities that write; their native receipt is a commit. */
+const writes = new Set(["state.write", "state.batch"]);
+const stateCapabilities = [
+  "state.read",
+  ...writes,
+  "records.list",
+  "records.search",
+  "platform.info",
+];
 
 export class PlatformAdapter implements Platform {
   readonly kind = isTauri() ? "native" : "browser";
   readonly credentials = new CredentialAccess();
   readonly network = new NetworkAccess();
+  private readonly browserState = new BrowserState();
   failWrites = false;
   async setTheme(theme: Appearance) {
     await invokeNative("shell_set_theme", { theme });
@@ -105,7 +80,7 @@ export class PlatformAdapter implements Platform {
     )
       return this.kind === "native" && this.credentials.supported;
     if (capability === "network.read") return this.kind === "native";
-    return ["state.read", "state.write", "platform.info"].includes(capability);
+    return stateCapabilities.includes(capability);
   }
   async grant(owner: string, capabilities: string[]) {
     validOwner(owner);
@@ -144,7 +119,7 @@ export class PlatformAdapter implements Platform {
       return this.credentials.connect(owner, payload);
     if (capability === "network.read")
       return this.network.read(owner, payload, signal);
-    if (this.failWrites && capability === "state.write")
+    if (this.failWrites && writes.has(capability))
       throw platformRejection("注入的写入故障：原数据保持不变");
     if (this.kind === "native") {
       let value: unknown;
@@ -163,7 +138,7 @@ export class PlatformAdapter implements Platform {
           throw stateRejection(failure.code);
         if (failure?.outcome === "unknown" && isStateErrorCode(failure.code))
           throw stateUncertain(failure.code);
-        if (capability === "state.write")
+        if (writes.has(capability))
           throw Object.assign(new Error("Native write receipt unavailable"), {
             outcome: "unknown" as const,
           });
@@ -173,7 +148,7 @@ export class PlatformAdapter implements Platform {
         );
       }
       // A dispatched native write is a non-cancellable commit segment. Its receipt wins.
-      if (capability !== "state.write") signal?.throwIfAborted();
+      if (!writes.has(capability)) signal?.throwIfAborted();
       return value;
     }
     if (capability === "platform.info")
@@ -182,50 +157,18 @@ export class PlatformAdapter implements Platform {
         arch: "unverified",
         storage: "browser-localStorage",
       };
-    try {
-      const key = storageKey(owner, payload);
-      const saved = browserState(localStorage.getItem(key));
-      if (capability === "state.read") return saved;
-      const update = payload as (StoredState & { remove?: unknown }) | null;
-      if (
-        !update ||
-        typeof update !== "object" ||
-        !Number.isSafeInteger(update.revision) ||
-        update.revision < 0
-      )
-        throw stateRejection("missing-revision");
-      if (update.revision !== (saved?.revision ?? 0))
-        throw stateRejection("revision-conflict");
-      if (update.remove === true) {
-        signal?.throwIfAborted();
-        if (saved) localStorage.removeItem(key);
-        return null;
-      }
-      if (
-        !Object.hasOwn(update, "value") ||
-        ["undefined", "function", "symbol"].includes(typeof update.value)
-      )
-        throw stateRejection("missing-value");
-      if (!Number.isSafeInteger(update.revision + 1))
-        throw stateRejection("revision-limit");
-      const document = {
-        schema: 1,
-        revision: update.revision + 1,
-        value: update.value,
-      };
-      const encoded = JSON.stringify(document);
-      if (new TextEncoder().encode(encoded).length > 65536)
-        throw stateRejection("state-too-large");
-      signal?.throwIfAborted();
-      localStorage.setItem(key, encoded);
-      return document;
-    } catch (error) {
-      if (error instanceof Error && error.name === "AbortError") throw error;
-      if (isStateErrorCode((error as { code?: unknown } | null)?.code))
-        throw error;
-      throw stateRejection(
-        capability === "state.write" ? "state-write" : "state-read",
-      );
+    switch (capability) {
+      case "state.read":
+        return this.browserState.read(owner, payload);
+      case "state.write":
+        return this.browserState.write(owner, payload, signal);
+      case "state.batch":
+        return this.browserState.batch(owner, payload, signal);
+      case "records.list":
+        return this.browserState.list(owner, payload);
+      case "records.search":
+        return this.browserState.search(owner, payload);
     }
+    throw stateRejection("unknown-capability");
   }
 }

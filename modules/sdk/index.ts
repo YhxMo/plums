@@ -174,6 +174,17 @@ export type {
   CredentialConnectResult,
 } from "./credential";
 export type { NetworkReadRequest, NetworkReadResponse } from "./network";
+export type {
+  DocumentWrite,
+  RecordWrite,
+  StateBatch,
+  StateBatchReceipt,
+  StoredRecord,
+  RecordListRequest,
+  RecordPage,
+  RecordSearchRequest,
+  RecordSearchResult,
+} from "./records";
 export { migrateState, restorePreviousState } from "./state-migration";
 export type {
   StateMigration,

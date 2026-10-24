@@ -1,5 +1,7 @@
 use crate::ipc::wire_enum;
-use rusqlite::{params, Connection, ErrorCode, OptionalExtension, TransactionBehavior};
+use rusqlite::{
+    params, Connection, ErrorCode, OptionalExtension, Transaction, TransactionBehavior,
+};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::{
@@ -32,6 +34,10 @@ pub enum StateErrorCode {
     StateSync => "state-sync",
     PermissionDenied => "permission-denied",
     Serialization => "serialization",
+    InvalidBatch => "invalid-batch",
+    InvalidCollection => "invalid-collection",
+    InvalidRecord => "invalid-record",
+    InvalidQuery => "invalid-query",
 }
 }
 
@@ -42,11 +48,14 @@ pub struct Document {
     pub value: Value,
 }
 
-/// Largest stored document, envelope included, as in the JSON files before SQLite.
-const MAX_DOCUMENT: usize = 65536;
+/// Largest stored document (envelope included) or record (value and text).
+const MAX_ITEM: usize = 1 << 20;
 const MAX_REVISION: u64 = 9_007_199_254_740_991;
+/// Writes in one `state.batch`, and the value and text bytes they may carry.
+const MAX_BATCH_OPERATIONS: usize = 1000;
+const MAX_BATCH_BYTES: usize = 16 << 20;
 
-/// Owner-scoped documents, one SQLite database per owner under `root/state/`.
+/// Owner-scoped documents and records, one SQLite database per owner under `root/state/`.
 pub struct Broker {
     root: PathBuf,
     grants: Mutex<HashMap<String, HashSet<String>>>,
@@ -101,6 +110,9 @@ impl Broker {
             ![
                 "state.read",
                 "state.write",
+                "state.batch",
+                "records.list",
+                "records.search",
                 "platform.info",
                 "document.read",
                 "credential.request",
@@ -128,14 +140,6 @@ impl Broker {
                 .is_some_and(|caps| caps.contains(capability))
         })
     }
-    /// The document key: `""` for the owner's main document.
-    fn key(payload: &Value) -> Result<String, StateErrorCode> {
-        match payload.get("key") {
-            None | Some(Value::Null) => Ok(String::new()),
-            Some(Value::String(key)) if valid_key(key) => Ok(key.clone()),
-            Some(_) => Err(StateErrorCode::InvalidKey),
-        }
-    }
     pub fn call(
         &self,
         owner: &str,
@@ -146,24 +150,16 @@ impl Broker {
         if !self.allows(owner, capability) {
             return Err(StateErrorCode::PermissionDenied);
         }
-        match capability {
-            "platform.info" => {
-                return Ok(
-                    serde_json::json!({ "os": std::env::consts::OS, "arch": std::env::consts::ARCH, "storage": "isolated-experiment" }),
-                )
-            }
-            "state.read" | "state.write" => {}
-            _ => return Err(StateErrorCode::UnknownCapability),
+        if capability == "platform.info" {
+            return Ok(
+                serde_json::json!({ "os": std::env::consts::OS, "arch": std::env::consts::ARCH, "storage": "isolated-experiment" }),
+            );
         }
         // Validate before opening, so a bad request never creates storage.
-        let key = Self::key(&payload)?;
+        let request = Request::parse(capability, &payload)?;
         let mut databases = self.databases()?;
         let database = self.open(&mut databases, owner)?;
-        if capability == "state.read" {
-            return serde_json::to_value(read(database, &key)?)
-                .map_err(|_| StateErrorCode::Serialization);
-        }
-        write(database, &key, &payload)
+        request.run(database)
     }
     fn databases(&self) -> Result<MutexGuard<'_, HashMap<String, Connection>>, StateErrorCode> {
         self.databases.lock().map_err(|_| StateErrorCode::StateLock)
@@ -194,14 +190,15 @@ impl Broker {
             .pragma_query_value(None, "user_version", |row| row.get(0))
             .map_err(|_| StateErrorCode::StateRead)?;
         match version {
-            1 => Ok(connection),
+            2 => {}
+            1 => records::upgrade(&mut connection)?,
             0 => {
                 let imported = self.create(&mut connection, owner)?;
-                self.back_up(&imported);
-                Ok(connection)
+                legacy::back_up(&self.root, &imported);
             }
-            _ => Err(StateErrorCode::StateSchema),
+            _ => return Err(StateErrorCode::StateSchema),
         }
+        Ok(connection)
     }
     /// Creates the schema and, in the same transaction, imports the owner's
     /// documents from the JSON files used before SQLite. Returns those files.
@@ -216,52 +213,21 @@ impl Broker {
         // `error` keeps an earlier file that could not be read unreadable,
         // instead of letting it look empty and be overwritten.
         transaction
-            .execute_batch(
+            .execute_batch(&format!(
                 "CREATE TABLE IF NOT EXISTS documents (
                     key TEXT PRIMARY KEY NOT NULL,
                     revision INTEGER NOT NULL,
                     value TEXT,
                     error TEXT
                 ) STRICT;
-                PRAGMA user_version = 1;",
-            )
+                {}
+                PRAGMA user_version = 2;",
+                records::SCHEMA
+            ))
             .map_err(|_| StateErrorCode::StateWrite)?;
-        let mut imported = Vec::new();
-        for (key, path) in legacy_documents(&self.root, owner) {
-            let (revision, value, error) = match legacy_document(&path) {
-                Ok(document) => (
-                    document.revision as i64,
-                    Some(document.value.to_string()),
-                    None,
-                ),
-                Err(code) => (0, None, Some(import_error(code))),
-            };
-            transaction
-                .execute(
-                    "INSERT INTO documents (key, revision, value, error) VALUES (?1, ?2, ?3, ?4)",
-                    params![key, revision, value, error],
-                )
-                .map_err(|_| StateErrorCode::StateWrite)?;
-            imported.push(path);
-        }
+        let imported = legacy::import(&transaction, &self.root, owner)?;
         transaction.commit().map_err(commit_failure)?;
         Ok(imported)
-    }
-    /// Moves imported files to `legacy-json/`; one left behind is harmless,
-    /// since only a new database imports.
-    fn back_up(&self, files: &[PathBuf]) {
-        if files.is_empty() {
-            return;
-        }
-        let backup = self.root.join("legacy-json");
-        if fs::create_dir_all(&backup).is_err() {
-            return;
-        }
-        for file in files {
-            if let Some(name) = file.file_name() {
-                let _ = fs::rename(file, backup.join(name));
-            }
-        }
     }
 }
 
@@ -271,65 +237,6 @@ fn valid_key(key: &str) -> bool {
         && key
             .bytes()
             .all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == b'-')
-}
-
-/// The owner's earlier `<owner>.json` and `<owner>+<key>.json` files, by key.
-fn legacy_documents(root: &Path, owner: &str) -> Vec<(String, PathBuf)> {
-    let Ok(entries) = fs::read_dir(root) else {
-        return Vec::new();
-    };
-    let keyed = format!("{owner}+");
-    entries
-        .flatten()
-        .filter(|entry| entry.file_type().is_ok_and(|kind| kind.is_file()))
-        .filter_map(|entry| {
-            let name = entry.file_name().into_string().ok()?;
-            let stem = name.strip_suffix(".json")?;
-            let key = if stem == owner {
-                String::new()
-            } else {
-                stem.strip_prefix(&keyed)
-                    .filter(|key| valid_key(key))?
-                    .into()
-            };
-            Some((key, entry.path()))
-        })
-        .collect()
-}
-
-fn legacy_document(path: &Path) -> Result<Document, StateErrorCode> {
-    // The size is checked before reading, so a huge file is never loaded.
-    let size = fs::metadata(path)
-        .map_err(|_| StateErrorCode::StateRead)?
-        .len();
-    if size > MAX_DOCUMENT as u64 {
-        return Err(StateErrorCode::StateTooLarge);
-    }
-    let bytes = fs::read(path).map_err(|_| StateErrorCode::StateRead)?;
-    let document: Document =
-        serde_json::from_slice(&bytes).map_err(|_| StateErrorCode::StateCorrupt)?;
-    if document.schema != 1 || document.revision == 0 || document.revision > MAX_REVISION {
-        return Err(StateErrorCode::StateSchema);
-    }
-    Ok(document)
-}
-
-/// The reason an earlier file could not be imported, as stored in `error`.
-fn import_error(code: StateErrorCode) -> &'static str {
-    match code {
-        StateErrorCode::StateTooLarge => "state-too-large",
-        StateErrorCode::StateSchema => "state-schema",
-        StateErrorCode::StateRead => "state-read",
-        _ => "state-corrupt",
-    }
-}
-fn imported_error(stored: &str) -> StateErrorCode {
-    match stored {
-        "state-too-large" => StateErrorCode::StateTooLarge,
-        "state-schema" => StateErrorCode::StateSchema,
-        "state-read" => StateErrorCode::StateRead,
-        _ => StateErrorCode::StateCorrupt,
-    }
 }
 
 /// The stored document at `key`, or the error an unreadable import recorded.
@@ -344,7 +251,7 @@ fn current(connection: &Connection, key: &str) -> Result<Option<Document>, State
         .map_err(|_| StateErrorCode::StateRead)?;
     match row {
         None => Ok(None),
-        Some((_, _, Some(error))) => Err(imported_error(&error)),
+        Some((_, _, Some(error))) => Err(legacy::imported_error(&error)),
         Some((revision, Some(value), None)) => Ok(Some(Document {
             schema: 1,
             revision: u64::try_from(revision).map_err(|_| StateErrorCode::StateCorrupt)?,
@@ -354,55 +261,125 @@ fn current(connection: &Connection, key: &str) -> Result<Option<Document>, State
     }
 }
 
-fn read(connection: &Connection, key: &str) -> Result<Option<Document>, StateErrorCode> {
-    current(connection, key)
+/// A state call checked before its database is opened.
+enum Request {
+    Read(String),
+    Write(DocumentWrite),
+    Batch(records::Batch),
+    List(records::List),
+    Search(records::Search),
 }
 
-fn write(connection: &mut Connection, key: &str, payload: &Value) -> Result<Value, StateErrorCode> {
-    let expected = payload
-        .get("revision")
-        .and_then(Value::as_u64)
-        .ok_or(StateErrorCode::MissingRevision)?;
-    let transaction = connection
-        .transaction_with_behavior(TransactionBehavior::Immediate)
-        .map_err(|_| StateErrorCode::StateWrite)?;
-    let current = current(&transaction, key)?.map_or(0, |document| document.revision);
-    if expected != current {
-        return Err(StateErrorCode::RevisionConflict);
+impl Request {
+    fn parse(capability: &str, payload: &Value) -> Result<Self, StateErrorCode> {
+        Ok(match capability {
+            "state.read" => Self::Read(key(payload)?),
+            "state.write" => Self::Write(DocumentWrite::parse(payload)?),
+            "state.batch" => Self::Batch(records::Batch::parse(payload)?),
+            "records.list" => Self::List(records::List::parse(payload)?),
+            "records.search" => Self::Search(records::Search::parse(payload)?),
+            _ => return Err(StateErrorCode::UnknownCapability),
+        })
     }
-    if payload.get("remove") == Some(&Value::Bool(true)) {
-        if current > 0 {
-            transaction
-                .execute("DELETE FROM documents WHERE key = ?1", params![key])
-                .map_err(|_| StateErrorCode::StateWrite)?;
-            transaction.commit().map_err(commit_failure)?;
+    fn run(self, connection: &mut Connection) -> Result<Value, StateErrorCode> {
+        let document = match self {
+            Self::Read(key) => current(connection, &key)?,
+            Self::Write(write) => {
+                let transaction = connection
+                    .transaction_with_behavior(TransactionBehavior::Immediate)
+                    .map_err(|_| StateErrorCode::StateWrite)?;
+                let document = write.apply(&transaction)?;
+                transaction.commit().map_err(commit_failure)?;
+                document
+            }
+            Self::Batch(batch) => return batch.apply(connection),
+            Self::List(list) => return list.run(connection),
+            Self::Search(search) => return search.run(connection),
+        };
+        serde_json::to_value(document).map_err(|_| StateErrorCode::Serialization)
+    }
+}
+
+/// The document key: `""` for the owner's main document.
+fn key(payload: &Value) -> Result<String, StateErrorCode> {
+    match payload.get("key") {
+        None | Some(Value::Null) => Ok(String::new()),
+        Some(Value::String(key)) if valid_key(key) => Ok(key.clone()),
+        Some(_) => Err(StateErrorCode::InvalidKey),
+    }
+}
+
+/// A checked document write or, without a value, removal.
+struct DocumentWrite {
+    key: String,
+    revision: u64,
+    value: Option<Value>,
+}
+
+impl DocumentWrite {
+    fn parse(payload: &Value) -> Result<Self, StateErrorCode> {
+        let key = key(payload)?;
+        let revision = payload
+            .get("revision")
+            .and_then(Value::as_u64)
+            .ok_or(StateErrorCode::MissingRevision)?;
+        let value = if payload.get("remove") == Some(&Value::Bool(true)) {
+            None
+        } else {
+            Some(
+                payload
+                    .get("value")
+                    .ok_or(StateErrorCode::MissingValue)?
+                    .clone(),
+            )
+        };
+        Ok(Self {
+            key,
+            revision,
+            value,
+        })
+    }
+    /// The bytes of the value this write stores.
+    fn size(&self) -> usize {
+        self.value
+            .as_ref()
+            .map_or(0, |value| value.to_string().len())
+    }
+    /// Applies the write in `transaction`: the stored document, or `None` once removed.
+    fn apply(self, transaction: &Transaction) -> Result<Option<Document>, StateErrorCode> {
+        let current = current(transaction, &self.key)?.map_or(0, |document| document.revision);
+        if self.revision != current {
+            return Err(StateErrorCode::RevisionConflict);
         }
-        return Ok(Value::Null);
+        let Some(value) = self.value else {
+            transaction
+                .execute("DELETE FROM documents WHERE key = ?1", params![self.key])
+                .map_err(|_| StateErrorCode::StateWrite)?;
+            return Ok(None);
+        };
+        if current >= MAX_REVISION {
+            return Err(StateErrorCode::RevisionLimit);
+        }
+        let document = Document {
+            schema: 1,
+            revision: current + 1,
+            value,
+        };
+        let size = serde_json::to_vec(&document)
+            .map_err(|_| StateErrorCode::Serialization)?
+            .len();
+        if size > MAX_ITEM {
+            return Err(StateErrorCode::StateTooLarge);
+        }
+        transaction
+            .execute(
+                "INSERT INTO documents (key, revision, value, error) VALUES (?1, ?2, ?3, NULL)
+                 ON CONFLICT (key) DO UPDATE SET revision = excluded.revision, value = excluded.value",
+                params![self.key, document.revision as i64, document.value.to_string()],
+            )
+            .map_err(|_| StateErrorCode::StateWrite)?;
+        Ok(Some(document))
     }
-    let value = payload.get("value").ok_or(StateErrorCode::MissingValue)?;
-    if current >= MAX_REVISION {
-        return Err(StateErrorCode::RevisionLimit);
-    }
-    let document = Document {
-        schema: 1,
-        revision: current + 1,
-        value: value.clone(),
-    };
-    let size = serde_json::to_vec(&document)
-        .map_err(|_| StateErrorCode::Serialization)?
-        .len();
-    if size > MAX_DOCUMENT {
-        return Err(StateErrorCode::StateTooLarge);
-    }
-    transaction
-        .execute(
-            "INSERT INTO documents (key, revision, value, error) VALUES (?1, ?2, ?3, NULL)
-             ON CONFLICT (key) DO UPDATE SET revision = excluded.revision, value = excluded.value",
-            params![key, document.revision as i64, value.to_string()],
-        )
-        .map_err(|_| StateErrorCode::StateWrite)?;
-    transaction.commit().map_err(commit_failure)?;
-    serde_json::to_value(document).map_err(|_| StateErrorCode::Serialization)
 }
 
 /// An I/O failure while committing may have reached the disk or not.
@@ -413,9 +390,17 @@ fn commit_failure(error: rusqlite::Error) -> StateErrorCode {
     }
 }
 
+#[path = "storage_legacy.rs"]
+mod legacy;
+#[path = "storage_records.rs"]
+mod records;
+
 #[cfg(test)]
 #[path = "storage_keyed_tests.rs"]
 mod keyed_tests;
+#[cfg(test)]
+#[path = "storage_records_tests.rs"]
+mod records_tests;
 #[cfg(test)]
 #[path = "storage_tests.rs"]
 mod tests;

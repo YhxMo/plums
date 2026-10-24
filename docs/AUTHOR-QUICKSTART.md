@@ -54,6 +54,7 @@ export default {
 | 提供 Agent 可选的模型 | `provides: { chat: 1 }`，`ctx.provide` 一个含 `name`、`models()`、`subscribe`、`reply(request, signal)` 的对象 | 起步模板、[回显模型](../extensions/services/echo-chat.js)（仅开发构建）、[接口](../extensions/contracts.d.ts)、[模型连接](MODELS.md#chat1) |
 | 添加一个界面 | `ctx.view(...)`，见下方示例 | [界面契约](EXTENSION-CONTRACTS.md#ui-组合与替换) |
 | 保存数据 | 声明 `capabilities: ["state.read", "state.write"]`，见下方示例 | [状态规则](SDK-AUTHORING.md#状态取消与演进) |
+| 保存很多条目（如聊天记录）并搜索 | 声明 `state.batch` 与 `records.list`，要搜索再加 `records.search` | [批量写与记录](SDK-AUTHORING.md#状态取消与演进) |
 | 让用户调整设置 | `manifest.configuration` 声明字段，`ctx.configuration` 读取；用户在扩展管理中修改 | [配置契约](EXTENSION-CONFIGURATION.md) |
 | 读取公开资源 | 声明 `capabilities: ["network.read"]` 与 `networkSources: ["https://…"]`，用 `ctx.platform("network.read", { version: 1, url })` GET 声明来源下的地址，不带密钥 | [公开网络读取](NETWORK-READ.md) |
 | 连接真实模型 | 声明 `credentialBindings` 和 `capabilities: ["credential.request"]`，用 `ctx.platform("credential.request", { version: 1, binding, body })` 发请求；API Key 由用户在扩展详情中填写，扩展读不回密钥 | [请求契约](CREDENTIAL-REQUEST.md)；要让用户自建多条连接见[扩展自建连接](CREDENTIAL-BINDINGS.md#扩展自建连接) |
@@ -75,7 +76,7 @@ ctx.view({
 });
 ```
 
-**数据**：每个扩展有一份自己的数据，最大 64 KiB（按保存后的 JSON 计）。`value` 可以是任意 JSON。写入时传入读取时得到的 `revision`（还没有数据时为 `0`），成功后返回新的 `{ revision, value }`；如果期间数据被改过，写入会被拒绝，原数据不变，重新读取后再写即可。
+**数据**：每个扩展有一份自己的数据，最大 1 MiB（按保存后的 JSON 计）。`value` 可以是任意 JSON。写入时传入读取时得到的 `revision`（还没有数据时为 `0`），成功后返回新的 `{ revision, value }`；如果期间数据被改过，写入会被拒绝，原数据不变，重新读取后再写即可。
 
 ```js
 const saved = await ctx.platform("state.read"); // null 或 { revision, value }

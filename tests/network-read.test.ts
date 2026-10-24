@@ -5,7 +5,7 @@ import { networkOrigin } from "../modules/sdk/network";
 const invoke = vi.hoisted(() => vi.fn());
 vi.mock("@tauri-apps/api/core", () => ({ invoke, isTauri: () => true }));
 const { PlatformAdapter } = await import("../src/platform");
-const { capabilityLabel } = await import("../src/shell/messages");
+const { capabilityLabel } = await import("../modules/shell/capabilities");
 
 const owner = "extension.connector.models";
 const url = "https://models.dev/api.json";

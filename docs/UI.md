@@ -62,7 +62,7 @@ Android 开发候选的系统 Back 先收起 IME，再关闭顶层菜单/下拉�
 
 Agent 界面的组合、弹窗、卡片草稿与后备焦点位于 [src/agents](../src/agents/)。弹窗组件随工作区常驻，关闭仅移除 Dialog，保留创建说明、多会话选择及卡片输入；成功添加后沿用原重置规则。媒体查询在 Hook 内创建和订阅，模块导入不访问 matchMedia。
 
-角色、会话、文本处理与卡片解析位于扩展层；`src/application.ts` 接线默认组合、内置授权与旧数据迁移，通用外壳只保存不透明业务字段。Agent/会话存于 `extension.agents.local`；文本处理工作台通过自身 `ctx.platform` 另存于 `extension.ui.workbench-board`，页面贡献的业务数据归各贡献者管理。每个状态快照均受现有 64 KiB 限制；长期存储与通用升级迁移尚未实现。置顶直接保存为每个 Agent 的 `pinned` 字段，避免维护第二份 ID 列表。
+角色、会话、文本处理与卡片解析位于扩展层；`src/application.ts` 接线默认组合、内置授权与旧数据迁移，通用外壳只保存不透明业务字段。Agent/会话存于 `extension.agents.local`；文本处理工作台通过自身 `ctx.platform` 另存于 `extension.ui.workbench-board`，页面贡献的业务数据归各贡献者管理。每个状态文档受[状态层上限](SDK-AUTHORING.md#状态取消与演进)约束；通用升级迁移尚未实现。置顶直接保存为每个 Agent 的 `pinned` 字段，避免维护第二份 ID 列表。
 
 外壳保留扩展管理、授权与无布局恢复入口。启用提供新视图的扩展时优先选中其视图；用户可在设置切回。`ui.default` 与 `ui.board` 保留公开挂载路径。挂载失败排除该代视图并回退到可用界面；无布局时展示宿主恢复入口；未安装文本工作台实验的组合仅提供扩展管理，不展示该实验的授权启动按钮。无 `agents` 服务的独立组合可照常启动、管理与恢复。共享 WebView 的可信模式不构成防恶意代码或界面伪装的沙箱。
 

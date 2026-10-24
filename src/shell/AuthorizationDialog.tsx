@@ -1,7 +1,7 @@
 import { useRef, useState } from "react";
 import { ShieldCheckIcon } from "lucide-react";
 import type { AuthorizationDialogProps } from "./controllers";
-import { capabilityLabel } from "./messages";
+import { capabilityLabel } from "@modules/shell/capabilities";
 import { Dialog, DialogActions, DialogBody } from "@/components/Dialog";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";

@@ -200,7 +200,11 @@ export interface NativeCommands {
       | "state-write"
       | "state-sync"
       | "permission-denied"
-      | "serialization";
+      | "serialization"
+      | "invalid-batch"
+      | "invalid-collection"
+      | "invalid-record"
+      | "invalid-query";
   };
   platform_call: {
     args: { owner: string; capability: string; payload?: unknown | null };
@@ -225,7 +229,11 @@ export interface NativeCommands {
         | "state-write"
         | "state-sync"
         | "permission-denied"
-        | "serialization";
+        | "serialization"
+        | "invalid-batch"
+        | "invalid-collection"
+        | "invalid-record"
+        | "invalid-query";
       outcome: "not-committed" | "unknown";
     };
   };
