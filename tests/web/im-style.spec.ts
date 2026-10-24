@@ -41,6 +41,12 @@ const style = (target: Locator, property: string) =>
     property,
   );
 
+/** Markdown's paragraphs sit inside the bubble, which owns paint and geometry. */
+const replyBubble = (log: Locator) =>
+  log.locator('[data-slot="context-menu-trigger"]').filter({
+    hasText: /^echo-a｜第 1 轮｜/,
+  });
+
 /** The computed colour a CSS value (such as a variable) resolves to. */
 const resolve = (page: Page, value: string) =>
   page.evaluate((value) => {
@@ -109,7 +115,7 @@ for (const scheme of ["light", "dark"] as const)
     expect(parseFloat(await style(header, "border-bottom-width"))).toBe(0);
     // Replies sit on the bubble colour, own turns on the brand colour.
     const log = chat.getByRole("log");
-    const reply = log.getByText(/^echo-a｜第 1 轮｜/);
+    const reply = replyBubble(log);
     expect(await style(reply, "background-color")).toBe(colours.bubble);
     expect(
       await style(log.getByText("你好", { exact: true }), "background-color"),
@@ -124,7 +130,7 @@ test("own messages use the brand colour, replies the bubble colour, with one san
     await page.setViewportSize({ width, height: 844 });
     const log = await conversation(page);
     const own = log.getByText("你好", { exact: true });
-    const reply = log.getByText(/^echo-a｜第 1 轮｜/);
+    const reply = replyBubble(log);
     expect(await style(own, "background-color")).toBe(
       await resolve(page, "var(--accent)"),
     );
@@ -167,7 +173,7 @@ test("desktop messages keep a 600px column and show actions only on hover or foc
 }) => {
   await page.setViewportSize({ width: 1440, height: 900 });
   const log = await conversation(page);
-  const reply = log.getByText(/^echo-a｜第 1 轮｜/);
+  const reply = replyBubble(log);
   const own = log.getByText("你好", { exact: true });
   const [r, o] = await Promise.all([reply.boundingBox(), own.boundingBox()]);
   expect(o!.x + o!.width - r!.x).toBeLessThanOrEqual(600);

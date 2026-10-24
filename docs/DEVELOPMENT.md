@@ -23,7 +23,7 @@ PLAYWRIGHT_CHANNEL= PLAYWRIGHT_BROWSERS_PATH="$PWD/.cache/ms-playwright" \
 
 发布包的静态文件只来自 `public/`（品牌图与正式 `catalog.json`）。`extensions/` 下的开发目录、样板、服务与故障扩展由开发服务器按原 URL（如 `/examples/counter/manifest.json`、`/examples/counter/main.js`）原样提供（`scripts/dev-extensions.mjs`，清单为 `vite.config.ts` 的 `developmentOnly`），构建时不进入 `dist/`；`check:release` 仍确认它们不在 `dist/`。
 
-构建把 React 与其余第三方库各分一块，扩展管理与模型连接页面按需加载（`React.lazy`），任一块不触发 Vite 的体积警告。启动时只加载入口、React、第三方库与运行时四块；`lazy-pages.spec.ts` 与 `model-connection-recovery.spec.ts` 确认两个页面在打开前不加载。新增常驻页面前先考虑同样按需加载。
+构建把 React、回复用的 Markdown 库与其余第三方库各分一块，扩展管理与模型连接页面按需加载（`React.lazy`），任一块不触发 Vite 的体积警告。Markdown 不按需加载：启动即显示会话，按需加载会让回复先以原文闪现。启动时只加载入口、React、Markdown、第三方库与运行时五块；`lazy-pages.spec.ts` 与 `model-connection-recovery.spec.ts` 确认两个页面在打开前不加载。新增常驻页面前先考虑同样按需加载。
 
 ESLint 使用 flat config，对全部 JS/TS/TSX 启用推荐规则、typescript-eslint 推荐规则（不含类型感知规则）与 React Hooks 两条规则（均为错误），不承担排版。全局变量取自 `globals` 包：源码按浏览器环境，`scripts/`、`tests/` 与配置文件另加 Node 环境。TypeScript 固定在 typescript-eslint 支持的版本；升级 TypeScript 前先确认其 peer 范围。以 `_` 开头的未用变量视为有意忽略；确需逐行豁免时写明原因。
 

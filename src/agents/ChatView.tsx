@@ -57,6 +57,7 @@ export function ChatView({
   onCancel,
   onResend,
   onDeleteMessage,
+  onOpenLink,
   onError,
 }: {
   agent: Agent;
@@ -85,6 +86,7 @@ export function ChatView({
   onResend: (text: string, attachments?: Attachment[]) => void;
   /** Absent when the provider cannot delete single messages. */
   onDeleteMessage?: (id: string) => void;
+  onOpenLink: (url: string) => void;
   onError: (message: string) => void;
 }) {
   const session = agent.sessions.find((s) => s.id === agent.currentSessionId)!;
@@ -180,6 +182,8 @@ export function ChatView({
         pointerMenu={desktop}
         className={spacing(m.role)}
         onAction={act}
+        onOpenLink={onOpenLink}
+        onError={onError}
       />,
     );
     previous = m.role;
@@ -338,6 +342,8 @@ export function ChatView({
                 className={pendingSpacing}
                 text={pending.text}
                 attachments={pending.attachments}
+                onOpenLink={onOpenLink}
+                onError={onError}
               />
             )}
           </div>

@@ -27,13 +27,20 @@ export default defineConfig({
             {
               name: "react",
               test: /node_modules[\\/](?:react|react-dom|scheduler)[\\/]/,
-              priority: 2,
+              // Above markdown, which would otherwise take React with it.
+              priority: 4,
             },
             // Unzipping only runs when a zip is imported.
             {
               name: "fflate",
               test: /node_modules[\\/]fflate[\\/]/,
               priority: 3,
+            },
+            // Markdown for replies: the unified family and its larger tables.
+            {
+              name: "markdown",
+              test: /node_modules[\\/](?:react-markdown|remark-|micromark|mdast-util-|hast-util-|unist-util-|unified|vfile|character-entities|parse-entities|decode-named-character-reference|property-information|stringify-entities)/,
+              priority: 2,
             },
             { name: "vendor", test: /node_modules[\\/]/, priority: 1 },
           ],

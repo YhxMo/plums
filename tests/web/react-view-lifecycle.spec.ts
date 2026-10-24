@@ -106,7 +106,7 @@ test("overlapping React view releases retain the replacement and release subscri
     const agents: unknown[] = [];
     const host = new Host({
       kind: "browser",
-      available: () => false,
+      available: (capability: string) => capability === "link.open",
       grant: async () => {},
       call: async () => {},
     });
@@ -129,6 +129,7 @@ test("overlapping React view releases retain the replacement and release subscri
       },
     });
     host.install(agentUI());
+    await host.grant("ui.agents", ["link.open"]);
     await host.start("test.agents");
     await host.start("ui.agents");
     const container = document.createElement("div");

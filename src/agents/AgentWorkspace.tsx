@@ -48,6 +48,7 @@ export function AgentWorkspace({
   ui,
   onExtensions,
   onModels,
+  onOpenLink,
 }: {
   api: AgentProvider;
   chrome: WorkspaceChromeController;
@@ -57,6 +58,8 @@ export function AgentWorkspace({
   onExtensions: (id?: string) => void;
   /** Opens the page where the user manages model connections. */
   onModels?: () => void;
+  /** Hands an https link to the browser. */
+  onOpenLink: (url: string) => Promise<unknown>;
 }) {
   const subscribe = useCallback(
     (listener: () => void) => api.subscribe(listener),
@@ -64,13 +67,13 @@ export function AgentWorkspace({
   );
   const snapshot = useCallback(() => api.list(), [api]);
   const agents = useSyncExternalStore(subscribe, snapshot);
-  const mobile = useMediaQuery(below("md"));
-  // Wide windows make room for the details drawer; narrower ones let it cover.
-  const wide = useMediaQuery(atLeast("wide"));
   const visible = useSyncExternalStore(
     chrome.visibility.subscribe,
     chrome.visibility.getSnapshot,
   );
+  const mobile = useMediaQuery(below("md"));
+  // Wide windows make room for the details drawer; narrower ones let it cover.
+  const wide = useMediaQuery(atLeast("wide"));
   const [selected, setSelected] = useState<string | null>(null);
   const [detail, setDetail] = useState(false);
   const workspaceRoot = useRef<HTMLDivElement>(null);
@@ -366,6 +369,9 @@ export function AgentWorkspace({
                 api.removeMessage!(agent.id, agent.currentSessionId, id),
               )
           : undefined
+      }
+      onOpenLink={(url) =>
+        void onOpenLink(url).catch(() => setError("未能在浏览器中打开链接。"))
       }
       onError={setError}
     />

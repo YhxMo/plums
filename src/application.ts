@@ -67,6 +67,7 @@ export const defaultApplication: ShellApplication = {
       "credential.connect",
       "network.read",
     ],
+    "ui.agents": ["link.open"],
   },
   start: [
     // Development Agents answer with the local echo model; the upper-case

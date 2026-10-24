@@ -4,6 +4,7 @@ import { motion } from "motion/react";
 import { cn } from "cn";
 import type { Agent, Message } from "@modules/agents/contract";
 import { MessageAttachments } from "./AttachmentView";
+import { Markdown } from "./Markdown";
 import { Tooltip } from "@/components/Tooltip";
 import { Button } from "@/components/ui/button";
 import {
@@ -40,6 +41,8 @@ export function MessageRow({
   pointerMenu,
   className,
   onAction,
+  onOpenLink,
+  onError,
 }: {
   agent: Agent;
   role: Message["role"];
@@ -56,6 +59,9 @@ export function MessageRow({
   /** Spacing from the line above, set by the list. */
   className?: string;
   onAction?: (action: MessageAction, message: Message) => void;
+  /** Opens an https link from a reply outside the app. */
+  onOpenLink: (url: string) => void;
+  onError: (message: string) => void;
 }) {
   const user = role === "user";
   const row = useRef<HTMLDivElement>(null);
@@ -63,19 +69,25 @@ export function MessageRow({
   const available = (["copy", "resend", "delete"] as const).filter(
     (a) => (a !== "resend" || user) && (a !== "delete" || canDelete),
   );
+  // The own turn shows what was typed; a reply is Markdown.
+  const Bubble = user ? "p" : "div";
   const bubble = (
-    <p
+    <Bubble
       className={cn(
-        "m-0 min-w-0 wrap-anywhere whitespace-pre-wrap",
+        "m-0 min-w-0 wrap-anywhere",
         "max-w-[75%] rounded-[18px] px-[13px] py-2 text-sm leading-[22px] max-md:max-w-[85%] max-md:text-[15px]",
         user
-          ? "rounded-br-[5px] bg-brand text-primary-foreground"
+          ? "rounded-br-[5px] bg-brand whitespace-pre-wrap text-primary-foreground"
           : "rounded-bl-[5px] bg-bubble text-foreground",
         "data-[state=open]:ring-2 data-[state=open]:ring-brand/50 data-[state=open]:ring-offset-2 data-[state=open]:ring-offset-chat",
       )}
     >
-      {text}
-    </p>
+      {user ? (
+        text
+      ) : (
+        <Markdown text={text} onOpenLink={onOpenLink} onError={onError} />
+      )}
+    </Bubble>
   );
   return (
     <motion.div

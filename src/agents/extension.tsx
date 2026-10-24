@@ -37,6 +37,7 @@ export function agentUI(): ExtensionDefinition {
       description:
         "提供 Agent 列表、对话和详情界面，支持切换会话、选择模型与发送附件。",
       requires: { agents: 1 },
+      capabilities: ["link.open"],
     },
     activate(ctx) {
       const agents = ctx.use<AgentProvider>("agents");
@@ -62,6 +63,9 @@ export function agentUI(): ExtensionDefinition {
                   : ctx.shell.open("extensions"));
               }}
               onModels={() => void ctx.shell.open("view", "model-connections")}
+              onOpenLink={(url) =>
+                ctx.platform("link.open", { version: 1, url })
+              }
             />,
             true,
           );
