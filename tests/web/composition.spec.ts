@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { manage, persisted } from "./helpers";
+import { manage, persisted, installByPath } from "./helpers";
 test("the enabled provider choice is kept for the next start without saving", async ({
   page,
 }) => {
@@ -47,10 +47,7 @@ test("a failed write keeps the previous record and imported uninstall prunes it"
   ).toBe(before);
   await page.getByLabel("注入存储写入失败").uncheck();
   await page.getByRole("button", { name: "安装扩展", exact: true }).click();
-  const dialog = page.getByRole("dialog", { name: "安装扩展" });
-  await dialog.getByLabel("扩展 ID").fill("sample.counter");
-  await dialog.getByLabel("模块路径").fill("/examples/counter.js");
-  await dialog.getByRole("button", { name: "加载模块" }).click();
+  await installByPath(page, "/examples/counter/");
   await page
     .getByRole("button", { name: "启用 sample.counter", exact: true })
     .click();

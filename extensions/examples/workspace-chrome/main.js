@@ -1,11 +1,10 @@
 /** Public-contract workspace sample; install manually, never enabled by default. */
-/** @type {import("../../modules/sdk").ExtensionDefinition} */
+/** @type {import("../../../modules/sdk").ExtensionMain} */
 export default {
-  manifest: { id: "example.workspace-chrome", version: "1.0.0", apiVersion: 1 },
   activate(ctx) {
     let broken = false;
     let revision = 1;
-    /** @type {import("../../modules/sdk").WorkspaceChromeState} */
+    /** @type {import("../../../modules/sdk").WorkspaceChromeState} */
     let state = {
       title: "外部任务 · 1",
       contextOwner: "example.workspace-context",

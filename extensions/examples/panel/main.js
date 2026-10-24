@@ -1,23 +1,5 @@
-/** @type {import('../../modules/sdk').ExtensionDefinition} */
+/** @type {import('../../../modules/sdk').ExtensionMain} */
 export default {
-  manifest: {
-    id: "sample.panel",
-    version: "1.1.0",
-    apiVersion: 1,
-    configuration: {
-      version: 1,
-      fields: {
-        title: {
-          type: "string",
-          label: "面板标题",
-          default: "事件计数器",
-          maxLength: 60,
-        },
-        showCount: { type: "boolean", label: "显示计数", default: true },
-      },
-    },
-    requires: { "sample.counter": 1 },
-  },
   activate(ctx) {
     /** @type {{read(): number}} */
     const counter = ctx.use("sample.counter");

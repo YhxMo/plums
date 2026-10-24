@@ -10,7 +10,7 @@
 // 改完代码后重新导入即可替换。启用状态会自动保留，重启后仍然启用。
 
 // 下面的 @type 注释只给编辑器提供类型提示，运行时会被忽略；在仓库外使用可以删掉。
-/** @type {Pick<import('../../../modules/sdk').ExtensionDefinition, "activate">} */
+/** @type {Pick<import('../../../modules/sdk').ExtensionMain, "activate">} */
 export default {
   activate(ctx) {
     /** @type {import('../../contracts').ChatService} */

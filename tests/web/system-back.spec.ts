@@ -1,5 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
-import { manage, legacyEntry } from "./helpers";
+import { manage, legacyEntry, installByPath, serveModule } from "./helpers";
 
 const back = (page: Page) =>
   page.evaluate(() =>
@@ -78,10 +78,10 @@ for (const throws of [false, true]) {
   test(`workspace Back keeps its receiver and isolates failures (${throws})`, async ({
     page,
   }) => {
-    await page.route("**/back-probe.js", (route) =>
-      route.fulfill({
-        contentType: "text/javascript",
-        body: `export default {
+    await serveModule(
+      page,
+      "back-probe",
+      `export default {
         manifest:{id:'back.probe',version:'1.0.0',apiVersion:1},
         activate(ctx) {
           const output=document.createElement('output');
@@ -93,15 +93,11 @@ for (const throws of [false, true]) {
             mount(root){root.append(output);return ()=>output.remove();}});
         }
       };`,
-      }),
     );
     await page.goto("/");
     await manage(page);
     await page.getByRole("button", { name: "安装扩展", exact: true }).click();
-    const dialog = page.getByRole("dialog", { name: "安装扩展" });
-    await dialog.getByLabel("扩展 ID", { exact: true }).fill("back.probe");
-    await dialog.getByLabel("模块路径", { exact: true }).fill("/back-probe.js");
-    await dialog.getByRole("button", { name: "加载模块", exact: true }).click();
+    await installByPath(page, "/back-probe/");
     await page
       .getByRole("button", { name: "启用 back.probe", exact: true })
       .click();

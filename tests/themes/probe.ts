@@ -3,10 +3,17 @@ import { Host } from "../../modules/extension-host/host";
 import { applyTheme } from "../../modules/shell/theme";
 import { PlatformAdapter } from "../../src/platform";
 import type { ExtensionContext, StoredState } from "../../modules/sdk";
-import ocean from "../../extensions/samples/theme-ocean.js";
-import ink from "../../extensions/samples/theme-ink.js";
+import { loadExtension } from "../../modules/extension-host/definition";
 import "../../src/styles.css";
 import "./style.css";
+
+// The two theme samples, loaded from their folders as the app loads them.
+const ocean = await loadExtension(
+  new URL("/samples/theme-ocean/", location.href).href,
+);
+const ink = await loadExtension(
+  new URL("/samples/theme-ink/", location.href).href,
+);
 
 const adapter = new PlatformAdapter();
 const host = new Host(adapter);

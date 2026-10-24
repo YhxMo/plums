@@ -8,11 +8,11 @@ export const catalog = [
 ].map(([id, label]) => ({
   id,
   label,
-  url: `/fixtures/dependency-chain.js?owner=${id}`,
+  url: `/fixtures/dependency-chain/?owner=${id}`,
 }));
 
 /** @type {Record<string, import('../../modules/sdk').ExtensionDefinition>} */
-const definitions = {
+export const definitions = {
   "combo.provider": {
     manifest: {
       id: "combo.provider",

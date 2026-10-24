@@ -1,5 +1,5 @@
 import { test, expect } from "@playwright/test";
-import { manage, openSettings } from "./helpers";
+import { manage, openSettings, installByPath } from "./helpers";
 
 for (const width of [375, 768, 1440]) {
   test(`author samples install and pause/resume without a chat layout at ${width}`, async ({
@@ -11,11 +11,7 @@ for (const width of [375, 768, 1440]) {
     for (const name of ["events", "panel", "counter"]) {
       await page.getByRole("button", { name: "安装扩展", exact: true }).click();
       const dialog = page.getByRole("dialog", { name: "安装扩展" });
-      await dialog.getByLabel("扩展 ID").fill(`sample.${name}`);
-      await dialog.getByLabel("模块路径").fill(`/examples/${name}.js`);
-      await dialog
-        .getByRole("button", { name: "加载模块", exact: true })
-        .click();
+      await installByPath(page, `/examples/${name}/`);
       await expect(dialog).not.toBeVisible();
       await page
         .getByRole("button", { name: `启用 sample.${name}`, exact: true })
@@ -130,7 +126,7 @@ test("sample provider replacement releases the mounted panel and rebinds both co
     for (const name of ["counter", "events", "panel"]) {
       host.install(
         await loadExtension(
-          new URL(`/examples/${name}.js`, location.href).href,
+          new URL(`/examples/${name}/`, location.href).href,
           `sample.${name}`,
         ),
       );

@@ -16,7 +16,7 @@ async function seed(page: Page, bad = false) {
           agents: [],
           imports: ids.map((id) => ({
             id: "sample." + id,
-            url: "/examples/" + id + ".js",
+            url: "/examples/" + id + "/",
             label: id,
           })),
           composition: {

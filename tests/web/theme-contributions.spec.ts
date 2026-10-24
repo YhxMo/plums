@@ -1,5 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
-import { manage, persisted, openSettings } from "./helpers";
+import { manage, persisted, openSettings, installByPath } from "./helpers";
 async function settings(page: Page) {
   await openSettings(page);
   return page.getByRole("dialog", { name: "应用设置" });
@@ -18,9 +18,7 @@ async function install(page: Page, name: string) {
   await manage(page);
   await page.getByRole("button", { name: "安装扩展", exact: true }).click();
   const dialog = page.getByRole("dialog", { name: "安装扩展" });
-  await dialog.getByLabel("扩展 ID").fill(`sample.theme-${name}`);
-  await dialog.getByLabel("模块路径").fill(`/samples/theme-${name}.js`);
-  await dialog.getByRole("button", { name: "加载模块", exact: true }).click();
+  await installByPath(page, `/samples/theme-${name}/`);
   await expect(dialog).not.toBeVisible();
   await page
     .getByRole("button", { name: `启用 sample.theme-${name}`, exact: true })
@@ -126,7 +124,7 @@ test("a palette getter invalidating its scope cannot reserve a theme id", async 
   const result = await page.evaluate(async () => {
     const hostPath = "/modules/extension-host/host.ts";
     const { Host } = await import(hostPath);
-    const samplePath = "/samples/theme-ocean.js";
+    const samplePath = "/samples/theme-ocean/main.js";
     const { default: ocean } = await import(samplePath);
     const host = new Host({
       kind: "browser",

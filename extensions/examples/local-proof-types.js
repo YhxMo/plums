@@ -3,7 +3,7 @@
  * @typedef {import("../../modules/sdk").ViewNode} ViewNode
  * @typedef {import("../../modules/sdk").ViewTreeScope} ViewScope
  * @typedef {import("../../modules/sdk").PageContribution} PageContribution
- * @typedef {import("../../modules/sdk").ExtensionDefinition} ExtensionDefinition
+ * @typedef {import("../../modules/sdk").ExtensionMain} ExtensionMain
  * @typedef {Pick<import("../../modules/sdk").PageRouter, "register">} PageService
  * @typedef {Pick<import("../../modules/sdk").ExtensionContext, "id" | "signal" | "onDispose" | "use" | "provide">} AuthorContext
  * @typedef {Parameters<AuthorContext["onDispose"]>[0]} Dispose

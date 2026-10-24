@@ -21,7 +21,7 @@ PLAYWRIGHT_CHANNEL= PLAYWRIGHT_BROWSERS_PATH="$PWD/.cache/ms-playwright" \
 
 版本号只在 `package.json` 维护：`src-tauri/tauri.conf.json` 的 `version` 写作 `"../package.json"` 由 Tauri 读取；Cargo 无法引用外部文件，`src-tauri/Cargo.toml` 须写同一值。`check:release` 用 `scripts/versions.mjs` 检查两处。
 
-发布包的静态文件只来自 `public/`（品牌图与正式 `catalog.json`）。`extensions/` 下的开发目录、样板、服务与故障扩展由开发服务器按原 URL（如 `/examples/counter.js`）原样提供（`scripts/dev-extensions.mjs`，清单为 `vite.config.ts` 的 `developmentOnly`），构建时不进入 `dist/`；`check:release` 仍确认它们不在 `dist/`。
+发布包的静态文件只来自 `public/`（品牌图与正式 `catalog.json`）。`extensions/` 下的开发目录、样板、服务与故障扩展由开发服务器按原 URL（如 `/examples/counter/manifest.json`、`/examples/counter/main.js`）原样提供（`scripts/dev-extensions.mjs`，清单为 `vite.config.ts` 的 `developmentOnly`），构建时不进入 `dist/`；`check:release` 仍确认它们不在 `dist/`。
 
 构建把 React 与其余第三方库各分一块，扩展管理与模型连接页面按需加载（`React.lazy`），任一块不触发 Vite 的体积警告。启动时只加载入口、React、第三方库与运行时四块；`lazy-pages.spec.ts` 与 `model-connection-recovery.spec.ts` 确认两个页面在打开前不加载。新增常驻页面前先考虑同样按需加载。
 

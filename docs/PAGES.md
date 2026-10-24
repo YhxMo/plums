@@ -93,7 +93,7 @@ export default {
 };
 ```
 
-开发样板见 [页面容器](../extensions/examples/local-proof-ui.js)与[页面贡献](../extensions/examples/local-proof-pages.js)。贡献在共享 WebView 中运行，根节点约束、权限提示和 DOM 归属不是恶意代码安全隔离。
+开发样板见 [页面容器](../extensions/examples/local-proof-ui.js)与[页面贡献](../extensions/examples/local-proof-pages/main.js)。贡献在共享 WebView 中运行，根节点约束、权限提示和 DOM 归属不是恶意代码安全隔离。
 
 ## 取消、保存与验证边界
 

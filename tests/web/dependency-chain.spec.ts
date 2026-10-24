@@ -1,7 +1,7 @@
 import { manage, legacyEntry, chooseLayout, extensionDetail } from "./helpers";
 import { readFileSync } from "node:fs";
 import { test, expect } from "@playwright/test";
-import { catalog } from "../fixtures/dependency-chain.js";
+import { catalog, definitions } from "../fixtures/dependency-chain.js";
 
 for (const failCleanup of [false, true]) {
   test(`withdraws a composed service chain after view release failure (consumer cleanup fails: ${failCleanup})`, async ({
@@ -11,8 +11,19 @@ for (const failCleanup of [false, true]) {
       const response = await route.fetch();
       await route.fulfill({ json: [...(await response.json()), ...catalog] });
     });
-    for (const name of ["dependency-chain.js", "dependency-state.js"]) {
-      await page.route(`**/fixtures/${name}*`, (route) =>
+    // One module serves every owner as the folder /fixtures/dependency-chain/.
+    await page.route("**/fixtures/dependency-chain/manifest.json*", (route) =>
+      route.fulfill({
+        json: definitions[
+          new URL(route.request().url()).searchParams.get("owner") ?? ""
+        ].manifest,
+      }),
+    );
+    for (const [path, name] of [
+      ["dependency-chain/main.js", "dependency-chain.js"],
+      ["dependency-chain/dependency-state.js", "dependency-state.js"],
+    ]) {
+      await page.route(`**/fixtures/${path}*`, (route) =>
         route.fulfill({
           contentType: "text/javascript",
           body: readFileSync(

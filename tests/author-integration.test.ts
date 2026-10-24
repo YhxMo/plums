@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { Host } from "../modules/extension-host/host";
-import { loadExtension } from "../modules/extension-host/definition";
+import { loadFolder } from "./fixtures/folders";
 import type {
   ExtensionContext,
   ExtensionDefinition,
@@ -8,8 +8,6 @@ import type {
 } from "../modules/sdk";
 
 const id = "author.batch-ledger";
-const moduleUrl = new URL("./fixtures/author-batch-ledger.mjs", import.meta.url)
-  .href;
 type Snapshot = { total: number; accepted: number };
 
 function fixture() {
@@ -75,7 +73,9 @@ describe("independent public SDK author integration", () => {
   it("reports missing dependency and recovers when the declared provider starts", async () => {
     const f = fixture();
     try {
-      f.host.install(await loadExtension(moduleUrl, id));
+      f.host.install(
+        await loadFolder("tests/fixtures/author-batch-ledger", id),
+      );
       await f.host.start(id);
       expect(f.host.inspect(id).status).toBe("waiting");
       expect(f.host.inspect(id).error).toContain("author.unit-price");
@@ -94,7 +94,9 @@ describe("independent public SDK author integration", () => {
   it("runs new business contracts, releases registrations, restarts fresh and uninstalls", async () => {
     const f = fixture();
     try {
-      f.host.install(await loadExtension(moduleUrl, id));
+      f.host.install(
+        await loadFolder("tests/fixtures/author-batch-ledger", id),
+      );
       expect(f.host.inspect(id).status).toBe("disabled");
       f.host.install(f.pricing);
       await f.host.start("author.pricing");

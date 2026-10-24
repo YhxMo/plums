@@ -4,6 +4,7 @@ import {
   chooseLayout,
   shellButton,
   switchAppearance,
+  serveModule,
 } from "./helpers";
 import { test, expect, type Page } from "@playwright/test";
 async function authorize(page: Page) {
@@ -219,17 +220,16 @@ test("loads and enables an unknown external view through the public catalog and 
         ...catalog,
         {
           id: "external.view",
-          url: "/external-view.js",
+          url: "/external-view/",
           label: "未知作者界面",
         },
       ],
     });
   });
-  await page.route("**/external-view.js", (route) =>
-    route.fulfill({
-      contentType: "text/javascript",
-      body: 'export default {manifest:{id:"external.view",version:"1.0.0",apiVersion:1},activate(ctx){ctx.view({id:"external",label:"未知界面",mount(root){const h=document.createElement("h1");h.textContent="独立模块的新交互";root.append(h);return()=>root.replaceChildren();}})}}',
-    }),
+  await serveModule(
+    page,
+    "external-view",
+    'export default {manifest:{id:"external.view",version:"1.0.0",apiVersion:1},activate(ctx){ctx.view({id:"external",label:"未知界面",mount(root){const h=document.createElement("h1");h.textContent="独立模块的新交互";root.append(h);return()=>root.replaceChildren();}})}}',
   );
   await start(page);
   await manage(page);
@@ -288,17 +288,16 @@ test("an async release failure stays visible in the React management path", asyn
         ...catalog,
         {
           id: "cleanup.fixture",
-          url: "/cleanup-fixture.js",
+          url: "/cleanup-fixture/",
           label: "异步释放夹具",
         },
       ],
     });
   });
-  await page.route("**/cleanup-fixture.js", (route) =>
-    route.fulfill({
-      contentType: "text/javascript",
-      body: 'export default {manifest:{id:"cleanup.fixture",version:"1.0.0",apiVersion:1},activate(ctx){ctx.view({id:"cleanup",label:"释放夹具",mount(root){root.textContent="等待释放";return async()=>{await Promise.resolve();throw Error("teardown failed")}}})}}',
-    }),
+  await serveModule(
+    page,
+    "cleanup-fixture",
+    'export default {manifest:{id:"cleanup.fixture",version:"1.0.0",apiVersion:1},activate(ctx){ctx.view({id:"cleanup",label:"释放夹具",mount(root){root.textContent="等待释放";return async()=>{await Promise.resolve();throw Error("teardown failed")}}})}}',
   );
   await start(page);
   await manage(page);

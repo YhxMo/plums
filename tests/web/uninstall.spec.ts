@@ -1,13 +1,10 @@
 import { expect, test, type Page } from "@playwright/test";
-import { manage } from "./helpers";
+import { manage, installByPath } from "./helpers";
 async function install(page: Page) {
   await page.goto("/");
   await manage(page, true);
   await page.getByRole("button", { name: "安装扩展", exact: true }).click();
-  const dialog = page.getByRole("dialog", { name: "安装扩展" });
-  await dialog.getByLabel("扩展 ID").fill("sample.counter");
-  await dialog.getByLabel("模块路径").fill("/examples/counter.js");
-  await dialog.getByRole("button", { name: "加载模块" }).click();
+  await installByPath(page, "/examples/counter/");
   await page
     .getByRole("button", { name: "启用 sample.counter", exact: true })
     .click();

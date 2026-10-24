@@ -130,3 +130,32 @@ export async function persisted(page: Page, id: string, enabled = true) {
     )
     .toBe(enabled);
 }
+
+/**
+ * Serves a test module as the extension folder `/<name>/`: main.js is the
+ * module, and manifest.json the manifest it exports.
+ */
+export async function serveModule(page: Page, name: string, body: string) {
+  const { default: definition } = await import(
+    `data:text/javascript,${encodeURIComponent(body)}`
+  );
+  await page.route(`**/${name}/manifest.json`, (route) =>
+    route.fulfill({
+      contentType: "application/json",
+      body: JSON.stringify(definition.manifest),
+    }),
+  );
+  await page.route(`**/${name}/main.js`, (route) =>
+    route.fulfill({ contentType: "text/javascript", body }),
+  );
+}
+/** Loads an extension folder through the install dialog's developer path. */
+export async function installByPath(page: Page, folder: string) {
+  const dialog = page.getByRole("dialog", { name: "安装扩展" });
+  if (!(await dialog.isVisible())) {
+    await manage(page);
+    await page.getByRole("button", { name: "安装扩展", exact: true }).click();
+  }
+  await dialog.getByLabel("扩展文件夹路径", { exact: true }).fill(folder);
+  await dialog.getByRole("button", { name: "加载扩展", exact: true }).click();
+}

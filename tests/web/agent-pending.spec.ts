@@ -1,14 +1,14 @@
 import { expect, test } from "@playwright/test";
-import { manage } from "./helpers";
+import { manage, installByPath, serveModule } from "./helpers";
 
 test("a sent message appears at once and the input clears before the reply", async ({
   page,
 }) => {
   // A model that answers only when the test says so.
-  await page.route("**/slow-chat.js", (route) =>
-    route.fulfill({
-      contentType: "text/javascript",
-      body: `export default {
+  await serveModule(
+    page,
+    "slow-chat",
+    `export default {
   manifest: { id: "chat.slow", version: "1", apiVersion: 1, provides: { chat: 1 } },
   activate(ctx) {
     ctx.provide("chat", 1, {
@@ -28,14 +28,11 @@ test("a sent message appears at once and the input clears before the reply", asy
     });
   },
 };`,
-    }),
   );
   await page.goto("/");
   await manage(page);
   await page.getByRole("button", { name: "安装扩展", exact: true }).click();
-  await page.getByLabel("扩展 ID", { exact: true }).fill("chat.slow");
-  await page.getByLabel("模块路径", { exact: true }).fill("/slow-chat.js");
-  await page.getByRole("button", { name: "加载模块", exact: true }).click();
+  await installByPath(page, "/slow-chat/");
   await page
     .getByRole("button", { name: "启用 chat.slow", exact: true })
     .click();

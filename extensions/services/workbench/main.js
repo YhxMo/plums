@@ -1,23 +1,15 @@
-/** @type {import('../../modules/sdk').ExtensionDefinition} */
+/** @type {import('../../../modules/sdk').ExtensionMain} */
 export default {
-  manifest: {
-    id: "workbench",
-    version: "1.0.0",
-    apiVersion: 1,
-    requires: { "text.transform": 1 },
-    provides: { workbench: 1 },
-    capabilities: ["state.read", "state.write"],
-  },
   async activate(ctx) {
-    /** @type {import('../contracts').Transformer} */
+    /** @type {import('../../contracts').Transformer} */
     const processor = ctx.use("text.transform");
-    /** @type {import('../../modules/sdk').StoredState | null} */
+    /** @type {import('../../../modules/sdk').StoredState | null} */
     const saved =
-      /** @type {import('../../modules/sdk').StoredState | null} */ (
+      /** @type {import('../../../modules/sdk').StoredState | null} */ (
         await ctx.platform("state.read")
       );
     let revision = saved?.revision ?? 0;
-    /** @type {import('../contracts').WorkbenchSnapshot} */
+    /** @type {import('../../contracts').WorkbenchSnapshot} */
     let state = {
       input: "Build something unexpected.",
       output: "",
@@ -28,7 +20,7 @@ export default {
     };
     if (saved) {
       const value =
-        /** @type {Partial<import('../contracts').WorkbenchSnapshot> & { version?: number }} */ (
+        /** @type {Partial<import('../../contracts').WorkbenchSnapshot> & { version?: number }} */ (
           saved.value
         );
       if (
@@ -54,7 +46,7 @@ export default {
     const notify = () => {
       for (const listener of listeners) listener();
     };
-    /** @type {import('../contracts').Workbench} */
+    /** @type {import('../../contracts').Workbench} */
     const api = {
       snapshot: () => state,
       subscribe(listener) {
@@ -87,7 +79,7 @@ export default {
               notify();
               writing = true;
               const result =
-                /** @type {import('../../modules/sdk').StoredState} */ (
+                /** @type {import('../../../modules/sdk').StoredState} */ (
                   await ctx.platform(
                     "state.write",
                     { revision, value },

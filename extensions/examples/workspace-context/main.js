@@ -1,11 +1,6 @@
 /** Context owner is separate from the workspace owner. */
-/** @type {import("../../modules/sdk").ExtensionDefinition} */
+/** @type {import("../../../modules/sdk").ExtensionMain} */
 export default {
-  manifest: {
-    id: "example.workspace-context",
-    version: "1.0.0",
-    apiVersion: 1,
-  },
   activate(ctx) {
     ctx.view({
       id: "example.workspace-context.sidebar",

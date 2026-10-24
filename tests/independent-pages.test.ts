@@ -8,8 +8,8 @@ import type {
 import {
   analyzeText,
   createTextService,
-} from "../extensions/examples/local-text-node.js";
-import { createPageManager } from "../extensions/examples/local-proof-pages.js";
+} from "../extensions/examples/local-text-node/main.js";
+import { createPageManager } from "../extensions/examples/local-proof-pages/main.js";
 
 function context() {
   const controller = new AbortController();

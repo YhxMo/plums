@@ -58,7 +58,7 @@ test("authorization can be cancelled and restores keyboard focus", async ({
   const workbench = page.locator("article").filter({ hasText: "文本工作台" });
   await expect(workbench).toContainText("已停用");
   await expect(await extensionDetail(page, workbench)).toContainText(
-    "/services/workbench.js",
+    "/services/workbench/",
   );
   await workbench
     .getByRole("button", { name: "启用 workbench", exact: true })

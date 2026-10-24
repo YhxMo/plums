@@ -1,12 +1,10 @@
 import { expect, test, type Page } from "@playwright/test";
-import { addAgent, manage } from "./helpers";
+import { addAgent, manage, installByPath, serveModule } from "./helpers";
 
 async function install(page: Page, id: string) {
   await manage(page);
   await page.getByRole("button", { name: "安装扩展", exact: true }).click();
-  await page.getByLabel("扩展 ID", { exact: true }).fill(id);
-  await page.getByLabel("模块路径", { exact: true }).fill(`/${id}.js`);
-  await page.getByRole("button", { name: "加载模块", exact: true }).click();
+  await installByPath(page, `/${id}/`);
   await page.getByRole("button", { name: `启用 ${id}`, exact: true }).click();
 }
 
@@ -15,22 +13,21 @@ test("workspace-owned chrome publishes titles, scopes sidebars, and releases on 
 }) => {
   await page.setViewportSize({ width: 1440, height: 900 });
   for (const id of ["test.unrelated", "test.context"])
-    await page.route(`**/${id}.js`, (route) =>
-      route.fulfill({
-        contentType: "text/javascript",
-        body: `export default {
+    await serveModule(
+      page,
+      id,
+      `export default {
           manifest: {id:"${id}",version:"1",apiVersion:1},
           activate(ctx) {
             ctx.view({id:"${id}.sidebar",label:"${id}",presentation:"sidebar",
               mount(root) {root.textContent="${id} sidebar";return()=>root.replaceChildren();}});
           }
         };`,
-      }),
     );
-  await page.route("**/test.workspace.js", (route) =>
-    route.fulfill({
-      contentType: "text/javascript",
-      body: `export default {
+  await serveModule(
+    page,
+    "test.workspace",
+    `export default {
         manifest:{id:"test.workspace",version:"1",apiVersion:1},
         activate(ctx) {
           let state={title:"扩展任务标题",contextOwner:"test.context"};
@@ -48,7 +45,6 @@ test("workspace-owned chrome publishes titles, scopes sidebars, and releases on 
           });
         }
       };`,
-    }),
   );
   await page.goto("/");
   await install(page, "test.unrelated");
@@ -81,10 +77,10 @@ for (const failure of ["snapshot", "subscribe", "notification"]) {
   test(`a workspace chrome ${failure} failure preserves host recovery`, async ({
     page,
   }) => {
-    await page.route("**/test.broken.js", (route) =>
-      route.fulfill({
-        contentType: "text/javascript",
-        body: `export default {
+    await serveModule(
+      page,
+      "test.broken",
+      `export default {
           manifest:{id:"test.broken",version:"1",apiVersion:1},
           activate(ctx) {
             let broken=${failure === "snapshot"};
@@ -102,7 +98,6 @@ for (const failure of ["snapshot", "subscribe", "notification"]) {
             }});
           }
         };`,
-      }),
     );
     await page.goto("/");
     await install(page, "test.broken");
@@ -135,10 +130,10 @@ for (const scenario of ["resize", "dynamic"]) {
       width: scenario === "resize" ? 375 : 1440,
       height: 900,
     });
-    await page.route("**/test.agents.js", (route) =>
-      route.fulfill({
-        contentType: "text/javascript",
-        body: `export default {
+    await serveModule(
+      page,
+      "test.agents",
+      `export default {
           manifest:{id:"test.agents",version:"1",apiVersion:1,provides:{agents:1}},
           activate(ctx){
             const agents=[{id:"external",name:"外部角色",description:"侧栏夹具",status:"idle",
@@ -159,7 +154,6 @@ for (const scenario of ["resize", "dynamic"]) {
             }});
           }
         };`,
-      }),
     );
     await page.goto("/");
     await manage(page);
@@ -219,11 +213,7 @@ for (const width of [375, 1180]) {
     for (const name of ["workspace-context", "workspace-chrome"]) {
       await manage(page);
       await page.getByRole("button", { name: "安装扩展", exact: true }).click();
-      await page.getByLabel("扩展 ID", { exact: true }).fill(`example.${name}`);
-      await page
-        .getByLabel("模块路径", { exact: true })
-        .fill(`/examples/${name}.js`);
-      await page.getByRole("button", { name: "加载模块", exact: true }).click();
+      await installByPath(page, `/examples/${name}/`);
       await page
         .getByRole("button", { name: `启用 example.${name}`, exact: true })
         .click();

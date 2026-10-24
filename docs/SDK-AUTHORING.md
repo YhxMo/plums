@@ -10,17 +10,17 @@
 
 ## 创建与运行
 
-扩展默认导出 `ExtensionDefinition`，包含 manifest 与 activate(ctx)。ID 为小写字母开头、最长 64 字符，仅含小写字母、数字、点和连字符且不含连续点。可选 `name`（1–40 字符）作为导入后的显示名称，`description`（1–500 字符）在导入确认与扩展详情中按纯文本显示，不解析 HTML 或 Markdown；不合格的值拒绝导入。先为提供/消费服务填写 `provides`/`requires`，所有资源绑定 ctx 生命周期。同一服务可由多个扩展同时提供，同一扩展重复提供才拒绝；`ctx.use(name)` 取最早启用的提供者并与它绑定，它停用时本扩展随之重启并改用下一个；`ctx.providers(name, onChange?)` 返回全部已启用提供者 `{id, label, value, signal}`（`signal` 在该提供者停用时中止，可用来取消对它的在途调用），列表变化时回调，最后一个提供者停用前本扩展不重启；全部提供者在同一次失效中一起停用时，本扩展随即关闭。`optional` 与 `requires` 格式相同，声明没有提供者也能运行的服务：启用不等待它，最后一个提供者停用也不关闭本扩展；只能经 `ctx.providers` 使用（及在 `publishUsers` 开关中引用），同一服务不能同时写在两处。清理失败会锁存为 `cleanup-failed`，不能当作卸载成功。不要顶层启动业务：模块 import 在确认启用前就会执行，可信模式不是代码沙箱。
+扩展是一个文件夹：`manifest.json` 是清单，`main.js` 默认导出 `{ activate(ctx) }`（类型 `ExtensionMain`），宿主把两者组合为 `ExtensionDefinition`；`main.js` 若也导出 `manifest`，其 ID 须与清单一致。导入、开发服务路径与开发目录都用这一形式，只有随应用打包的内置模块在 TypeScript 中直接声明 manifest。ID 为小写字母开头、最长 64 字符，仅含小写字母、数字、点和连字符且不含连续点。可选 `name`（1–40 字符）作为导入后的显示名称，`description`（1–500 字符）在导入确认与扩展详情中按纯文本显示，不解析 HTML 或 Markdown；不合格的值拒绝导入。先为提供/消费服务填写 `provides`/`requires`，所有资源绑定 ctx 生命周期。同一服务可由多个扩展同时提供，同一扩展重复提供才拒绝；`ctx.use(name)` 取最早启用的提供者并与它绑定，它停用时本扩展随之重启并改用下一个；`ctx.providers(name, onChange?)` 返回全部已启用提供者 `{id, label, value, signal}`（`signal` 在该提供者停用时中止，可用来取消对它的在途调用），列表变化时回调，最后一个提供者停用前本扩展不重启；全部提供者在同一次失效中一起停用时，本扩展随即关闭。`optional` 与 `requires` 格式相同，声明没有提供者也能运行的服务：启用不等待它，最后一个提供者停用也不关闭本扩展；只能经 `ctx.providers` 使用（及在 `publishUsers` 开关中引用），同一服务不能同时写在两处。清理失败会锁存为 `cleanup-failed`，不能当作卸载成功。不要顶层启动业务：模块 import 在确认启用前就会执行，可信模式不是代码沙箱。
 
-以下三个 ESM 样板仅随源码提供，可在 `npm run dev` 中按模块路径加载；打包应用须导入扩展包（见[作者入门](AUTHOR-QUICKSTART.md)）。样板不读取真实账户或状态；版本变化后，已保存的组合需核对精确版本：
+以下三个样板文件夹仅随源码提供，可在 `npm run dev` 中按路径加载；打包应用须导入扩展包（见[作者入门](AUTHOR-QUICKSTART.md)）。样板不读取真实账户或状态；版本变化后，已保存的组合需核对精确版本：
 
-| 样板 | 模块路径 / ID / 版本 | 行为 |
+| 样板 | 路径 / ID / 版本 | 行为 |
 | --- | --- | --- |
-| [服务](../extensions/examples/counter.js) | `/examples/counter.js` / `sample.counter` / 1.1.0 | 提供 `sample.counter@1`，含 read() 与 increment()；激活时计数从零开始 |
-| [无 UI 事件扩展](../extensions/examples/events.js) | `/examples/events.js` / `sample.events` / 1.0.0 | 消费计数服务；收到 `sample.increment` 增加计数并发布 `sample.changed` |
-| [非聊天视图](../extensions/examples/panel.js) | `/examples/panel.js` / `sample.panel` / 1.1.0 | 消费计数服务；按钮发布事件并同步刷新，释放时删除自己创建的 DOM/监听 |
+| [服务](../extensions/examples/counter/) | `/examples/counter/` / `sample.counter` / 1.1.0 | 提供 `sample.counter@1`，含 read() 与 increment()；激活时计数从零开始 |
+| [无 UI 事件扩展](../extensions/examples/events/) | `/examples/events/` / `sample.events` / 1.0.0 | 消费计数服务；收到 `sample.increment` 增加计数并发布 `sample.changed` |
+| [非聊天视图](../extensions/examples/panel/) | `/examples/panel/` / `sample.panel` / 1.1.0 | 消费计数服务；按钮发布事件并同步刷新，释放时删除自己创建的 DOM/监听 |
 
-以下是在仓库中开发的方式；不装 Node.js 也可以把扩展包导入应用，见[作者入门](AUTHOR-QUICKSTART.md)。执行 `npm ci`、`npm run dev` 后打开本地预览。窄栏的“扩展”→ 安装扩展，依次填写上述 ID 与模块路径，安装并分别启用。服务先启用后事件/视图可工作；反向顺序会等待依赖。应用设置选择“计数样板”，从扩展管理点“返回工作区”，再点击“增加计数”。停用事件扩展后按钮不会递增，再启用事件扩展后可继续；停用服务会让依赖者等待，重新启用服务会创建新计数器。它是内存样板，不承诺保存计数或长期后台运行。
+以下是在仓库中开发的方式；不装 Node.js 也可以把扩展包导入应用，见[作者入门](AUTHOR-QUICKSTART.md)。执行 `npm ci`、`npm run dev` 后打开本地预览。窄栏的“扩展”→ 安装扩展，展开“开发者：按路径安装”，依次填写上述路径（ID 从清单读取），安装并分别启用。服务先启用后事件/视图可工作；反向顺序会等待依赖。应用设置选择“计数样板”，从扩展管理点“返回工作区”，再点击“增加计数”。停用事件扩展后按钮不会递增，再启用事件扩展后可继续；停用服务会让依赖者等待，重新启用服务会创建新计数器。它是内存样板，不承诺保存计数或长期后台运行。
 
 在已有服务消费者中替换提供者：先停用原提供者，再加载一个提供相同服务名及版本的新 ID 并启用。消费者重新激活，必须重新获取服务；不要把服务对象缓存到生命周期之外。缺失必需服务显示 `waiting` 与原因；多个扩展可提供同一服务，同一扩展重复提供才拒绝，已有提供者不被隐式覆盖。
 
@@ -30,7 +30,7 @@
 
 | 操作 | 当前保证与失败行为 |
 | --- | --- |
-| loadExtension(url, expectedId) | 加载默认导出、校验 ID 与 API；同源限制由应用安装入口执行，此函数不是网络安全策略。导入的扩展包走 `loadPackage`（Blob URL），见[架构](ARCHITECTURE.md) |
+| loadExtension(folderUrl, expectedId?) | 先读取并校验 `manifest.json`，再加载 `main.js` 并组合；校验 ID 与 API；同源限制由应用安装入口执行，此函数不是网络安全策略。导入的扩展包走 `loadPackage`（Blob URL），见[架构](ARCHITECTURE.md) |
 | install(definition) | 校验后只登记 disabled，不激活；重复 ID 拒绝，不能用它覆盖升级 |
 | grant(id, capabilities) / start(id) | 仅授予已声明能力；启动等待缺失依赖/授权/平台能力，激活失败有诊断 |
 | stop(id) | 取消任务并释放服务、监听、视图；依赖者等待；失败保留诊断且要求重启 |
@@ -105,7 +105,7 @@ export default {
 
 `getSnapshot()` 在状态未变时返回同一对象；变化时先替换快照，再通知订阅者。外壳只订阅当前工作区，切换或停用时取消订阅。读取或订阅失败会让外壳排除该代视图并回退，管理入口仍可达。
 
-开发服务中可按模块路径安装 `example.workspace-chrome`（`/examples/workspace-chrome.js`）和 `example.workspace-context`（`/examples/workspace-context.js`）查看标题更新、实体/工作区侧栏优先级、草稿跨管理保留及回调失败回退。打包应用不含这些路径，可下载源码后改成扩展包导入；“模拟标题回调失败”会隔离该代工作区，停用后重新启用可恢复。样板只消费公开 ctx.view/ctx.shell，不提供持久业务或平台权限。
+开发服务中可按路径安装 `example.workspace-chrome`（`/examples/workspace-chrome/`）和 `example.workspace-context`（`/examples/workspace-context/`）查看标题更新、实体/工作区侧栏优先级、草稿跨管理保留及回调失败回退。打包应用不含这些路径，可下载源码后把文件夹作为扩展包导入；“模拟标题回调失败”会隔离该代工作区，停用后重新启用可恢复。样板只消费公开 ctx.view/ctx.shell，不提供持久业务或平台权限。
 
 完整类型见 [workspace-chrome.ts](../modules/sdk/workspace-chrome.ts)。`contextOwner` 指向当前实体所属扩展；外壳优先查找该扩展的 sidebar 贡献，然后查找当前工作区扩展自己的 sidebar，同一所有者内按 priority 降序和 ID 升序选择。无匹配贡献时使用可选 `sidebar` 中的 label、真实 open 状态、toggle(source) 和 close()。默认 inline 详情与扩展侧栏互斥；移动模态详情声明 `presentation: "dialog"`，转为 inline 后重新协调。不要在外壳另存默认详情开关。
 
@@ -140,6 +140,6 @@ ctx.task 跟踪异步任务，使用传入 signal 合作式取消；ctx.onDispos
 
 ## 公开主题样板
 
-[主题颜色契约](THEMES.md)提供 `ctx.theme(Theme)`、17个语义色、可选布局色与生命周期规则。两个独立作者样板 [海湾](../extensions/samples/theme-ocean.js)（`sample.theme-ocean` / `/samples/theme-ocean.js`）和 [墨夜](../extensions/samples/theme-ink.js)（`sample.theme-ink` / `/samples/theme-ink.js`）仅在开发服务中提供，不自动启用。按上述安装流程分别安装、启用，应用设置选择“使用 海湾”或“使用 墨夜”。无需平台权限。选择成功后可关闭设置；停用主题恢复内置外观，重新启用恢复已选主题。启用集合会自动保留到重启后。打包应用不包含这些样板路径，需导入本地单文件。
+[主题颜色契约](THEMES.md)提供 `ctx.theme(Theme)`、17个语义色、可选布局色与生命周期规则。两个独立作者样板 [海湾](../extensions/samples/theme-ocean/)（`sample.theme-ocean` / `/samples/theme-ocean/`）和 [墨夜](../extensions/samples/theme-ink/)（`sample.theme-ink` / `/samples/theme-ink/`）仅在开发服务中提供，不自动启用。按上述安装流程分别安装、启用，应用设置选择“使用 海湾”或“使用 墨夜”。无需平台权限。选择成功后可关闭设置；停用主题恢复内置外观，重新启用恢复已选主题。启用集合会自动保留到重启后。打包应用不包含这些样板路径，可把样板文件夹作为扩展包导入。
 
 主题注册的颜色被复制；`Host.themes()` 返回带owner/generation的副本用于管理，重新贡献前应取出主题本身的四个字段。完整主题系统、导航和快捷键仍未稳定。

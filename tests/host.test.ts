@@ -266,12 +266,36 @@ describe("M1 extension lifecycle contract", () => {
     expect(host.views()).toEqual([]);
   });
 
-  it("loads a previously unknown ESM extension without a core edit", async () => {
-    const code =
-      'export default {manifest:{id:"external",version:"1.0.0",apiVersion:1,provides:{novel:1}},activate(ctx){ctx.provide("novel",1,"unknown")}}';
+  /** A folder whose manifest.json and main.js are given, read in place of a fetch. */
+  const folder = (manifest: object, main: string) => {
+    const read = vi.fn(async (_url: string) => manifest);
+    const importModule = vi.fn(
+      async (_url: string) =>
+        import("data:text/javascript," + encodeURIComponent(main)),
+    );
+    return { read, importModule };
+  };
+
+  it("loads a previously unknown ESM extension folder without a core edit", async () => {
+    const access = folder(
+      {
+        id: "external",
+        version: "1.0.0",
+        apiVersion: 1,
+        provides: { novel: 1 },
+      },
+      'export default {activate(ctx){ctx.provide("novel",1,"unknown")}}',
+    );
     const imported = await loadExtension(
-      "data:text/javascript," + encodeURIComponent(code),
+      "https://app.test/external/?_retry=2",
       "external",
+      access,
+    );
+    expect(access.read).toHaveBeenCalledWith(
+      "https://app.test/external/manifest.json?_retry=2",
+    );
+    expect(access.importModule).toHaveBeenCalledWith(
+      "https://app.test/external/main.js?_retry=2",
     );
     const host = new Host(platform());
     host.install(imported);
@@ -280,25 +304,42 @@ describe("M1 extension lifecycle contract", () => {
   });
 
   it("rejects an identity mismatch with an otherwise compatible SDK version", async () => {
-    const code =
-      'export default {manifest:{id:"other",version:"1.0.0",apiVersion:1},activate(){}}';
+    const access = folder(
+      { id: "other", version: "1.0.0", apiVersion: 1 },
+      "export default {activate(){}}",
+    );
     await expect(
-      loadExtension(
-        "data:text/javascript," + encodeURIComponent(code),
-        "expected",
-      ),
+      loadExtension("https://app.test/external/", "expected", access),
     ).rejects.toThrow("identity");
   });
 
-  it("rejects an unsupported SDK version with a matching identity", async () => {
-    const code =
-      'export default {manifest:{id:"expected",version:"1.0.0",apiVersion:99},activate(){}}';
+  it("rejects an unsupported SDK version before running main.js", async () => {
+    const access = folder(
+      { id: "expected", version: "1.0.0", apiVersion: 99 },
+      "export default {activate(){}}",
+    );
+    await expect(
+      loadExtension("https://app.test/external/", "expected", access),
+    ).rejects.toThrow("SDK version");
+    expect(access.importModule).not.toHaveBeenCalled();
+  });
+
+  it("refuses a path that is not a folder, and a main.js naming another extension", async () => {
+    const manifest = { id: "expected", version: "1.0.0", apiVersion: 1 };
     await expect(
       loadExtension(
-        "data:text/javascript," + encodeURIComponent(code),
-        "expected",
+        "https://app.test/main.js",
+        undefined,
+        folder(manifest, "export default {activate(){}}"),
       ),
-    ).rejects.toThrow("SDK version");
+    ).rejects.toThrow("文件夹");
+    await expect(
+      loadExtension(
+        "https://app.test/expected/",
+        undefined,
+        folder(manifest, 'export default {manifest:{id:"other"},activate(){}}'),
+      ),
+    ).rejects.toThrow("manifest.json");
   });
 
   it("diagnoses cycles without executing either activation", async () => {

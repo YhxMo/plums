@@ -1,5 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
-import { manage, extensionDetail, persisted } from "./helpers";
+import { manage, extensionDetail, persisted, installByPath } from "./helpers";
 
 const nodeId = "example.local-text-node";
 const pageId = "example.local-proof-pages";
@@ -14,9 +14,7 @@ const card = (page: Page, id: string) =>
 async function install(page: Page, name: string) {
   await page.getByRole("button", { name: "安装扩展", exact: true }).click();
   const dialog = page.getByRole("dialog", { name: "安装扩展" });
-  await dialog.getByLabel("扩展 ID").fill(`example.${name}`);
-  await dialog.getByLabel("模块路径").fill(`/examples/${name}.js`);
-  await dialog.getByRole("button", { name: "加载模块", exact: true }).click();
+  await installByPath(page, `/examples/${name}/`);
   await expect(dialog).not.toBeVisible();
 }
 async function enable(page: Page, id: string) {

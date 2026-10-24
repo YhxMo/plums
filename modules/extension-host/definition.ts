@@ -109,18 +109,81 @@ export function validateManifest(value: unknown): asserts value is Manifest {
   validateNetworkSources(manifest.networkSources, manifest.capabilities);
 }
 
-/** Modules execute as trusted code in the same JS environment. Import is not sandboxed. */
-export async function loadExtension(
-  url: string,
-  expectedId: string,
-): Promise<ExtensionDefinition> {
-  const module = await import(/* @vite-ignore */ url);
-  validateDefinition(module.default);
-  if (module.default.manifest.id !== expectedId)
+/**
+ * Pairs a package's main.js default export with the manifest it came with:
+ * the export must hold `activate`, and a manifest it also exports must name
+ * the same extension.
+ */
+export function definitionOf(
+  manifest: Manifest,
+  exported: unknown,
+  expectedId?: string,
+): ExtensionDefinition {
+  const main = exported as {
+    manifest?: { id?: unknown };
+    activate?: unknown;
+  } | null;
+  if (typeof main?.activate !== "function")
+    throw new ContractError(
+      "extension.invalid",
+      "activate",
+      "main.js must export default { activate }",
+    );
+  if (main.manifest && main.manifest.id !== manifest.id)
+    throw new ContractError(
+      "extension.invalid",
+      "manifest.id",
+      "main.js names another extension than manifest.json",
+    );
+  if (expectedId !== undefined && manifest.id !== expectedId)
     throw new ContractError(
       "extension.invalid",
       "manifest.id",
       "Module identity does not match catalog",
     );
-  return module.default;
+  const definition = {
+    manifest,
+    activate: main.activate as ExtensionDefinition["activate"],
+  };
+  validateDefinition(definition);
+  return definition;
+}
+
+export type FolderAccess = {
+  /** manifest.json, parsed. */
+  read?: (url: string) => Promise<unknown>;
+  importModule?: (url: string) => Promise<{ default?: unknown }>;
+};
+const readJson = async (url: string) => {
+  const response = await fetch(url);
+  if (!response.ok) throw Error(`扩展清单读取失败（${response.status}）。`);
+  return response.json();
+};
+
+/**
+ * Loads an extension folder served with the app or by the development
+ * server: manifest.json first, then main.js. A query on the folder (such as
+ * a retry marker) is kept for both. Modules execute as trusted code in the
+ * same JS environment; import is not sandboxed.
+ */
+export async function loadExtension(
+  url: string,
+  expectedId?: string,
+  {
+    read = readJson,
+    importModule = (url) => import(/* @vite-ignore */ url),
+  }: FolderAccess = {},
+): Promise<ExtensionDefinition> {
+  const folder = new URL(url);
+  if (!folder.pathname.endsWith("/"))
+    throw Error("扩展路径须是以 / 结尾的文件夹。");
+  const child = (name: string) => {
+    const file = new URL(name, folder);
+    file.search = folder.search;
+    return file.href;
+  };
+  const manifest = await read(child("manifest.json"));
+  validateManifest(manifest);
+  const module = await importModule(child("main.js"));
+  return definitionOf(manifest, module.default, expectedId);
 }

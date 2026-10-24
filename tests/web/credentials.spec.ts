@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { addAgent, manage, openConnections } from "./helpers";
+import { addAgent, manage, openConnections, serveModule } from "./helpers";
 
 const extensionId = "sample.credential-test";
 const declaration = {
@@ -16,11 +16,10 @@ for (const width of [375, 1180]) {
       page,
     }) => {
       await page.setViewportSize({ width, height: 900 });
-      await page.route("**/test-credential.js", (route) =>
-        route.fulfill({
-          contentType: "text/javascript",
-          body: `export default { manifest: { id: "${extensionId}", version: "1", apiVersion: 1 }, activate() {} };`,
-        }),
+      await serveModule(
+        page,
+        "test-credential",
+        `export default { manifest: { id: "${extensionId}", version: "1", apiVersion: 1 }, activate() {} };`,
       );
       await page.addInitScript(
         ({ extensionId, declaration, theme }) => {
@@ -35,7 +34,7 @@ for (const width of [375, 1180]) {
             {
               owner: `extension.${extensionId}`,
               alias: "old-text",
-              source: "/test-credential.js",
+              source: "/test-credential/",
               version: "1",
               declaration,
               route: { type: "direct" },
@@ -53,7 +52,7 @@ for (const width of [375, 1180]) {
                 {
                   id: extensionId,
                   label: "凭据测试扩展",
-                  url: "/test-credential.js",
+                  url: "/test-credential/",
                 },
               ],
             },
@@ -159,11 +158,10 @@ test("connector key entry saves the typed key natively and recovers an unknown s
   page,
 }) => {
   // A connector with a fixed manifest binding, imported like an author's file.
-  await page.route("**/test-connector.js", (route) =>
-    route.fulfill({
-      contentType: "text/javascript",
-      body: `export default { manifest: { id: "sample.connector", version: "0.1.0", apiVersion: 1, capabilities: ["credential.request"], credentialBindings: { text: ${JSON.stringify(declaration)} } }, activate() {} };`,
-    }),
+  await serveModule(
+    page,
+    "test-connector",
+    `export default { manifest: { id: "sample.connector", version: "0.1.0", apiVersion: 1, capabilities: ["credential.request"], credentialBindings: { text: ${JSON.stringify(declaration)} } }, activate() {} };`,
   );
   await page.addInitScript(() => {
     const w = window as unknown as {
@@ -175,7 +173,7 @@ test("connector key entry saves the typed key natively and recovers an unknown s
     w.__credentialPayloads = [];
     let records: unknown[] = [];
     let entries = 0;
-    const source = "/test-connector.js";
+    const source = "/test-connector/";
     let saved = {
       revision: 1,
       value: {
@@ -292,11 +290,10 @@ test("rebinding shows and saves the address the extension now declares", async (
   page,
 }) => {
   const old = "https://old.invalid/chat/completions";
-  await page.route("**/test-connector.js", (route) =>
-    route.fulfill({
-      contentType: "text/javascript",
-      body: `export default { manifest: { id: "sample.connector", version: "0.2.0", apiVersion: 1, capabilities: ["credential.request"], credentialBindings: { text: ${JSON.stringify(declaration)} } }, activate() {} };`,
-    }),
+  await serveModule(
+    page,
+    "test-connector",
+    `export default { manifest: { id: "sample.connector", version: "0.2.0", apiVersion: 1, capabilities: ["credential.request"], credentialBindings: { text: ${JSON.stringify(declaration)} } }, activate() {} };`,
   );
   await page.addInitScript(
     ({ declaration, old }) => {
@@ -307,7 +304,7 @@ test("rebinding shows and saves the address the extension now declares", async (
       };
       w.isTauri = true;
       w.__credentialPayloads = [];
-      const source = "/test-connector.js";
+      const source = "/test-connector/";
       // Saved by an earlier version that declared another address.
       const records = [
         {

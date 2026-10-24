@@ -1,10 +1,5 @@
-/** @type {import("../../modules/sdk/index").ExtensionDefinition} */
+/** @type {import("../../../modules/sdk/index").ExtensionMain} */
 const extension = {
-  manifest: {
-    id: "sample.theme-ink",
-    version: "0.1.0",
-    apiVersion: 1,
-  },
   activate(ctx) {
     ctx.theme({
       id: "sample.ink",

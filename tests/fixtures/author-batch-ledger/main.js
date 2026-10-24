@@ -1,13 +1,6 @@
 // An independently authored, memory-only ESM extension. No host internals.
-/** @type {import('../../modules/sdk').ExtensionDefinition} */
+/** @type {import('../../../modules/sdk').ExtensionMain} */
 export default {
-  manifest: {
-    id: "author.batch-ledger",
-    version: "1.0.0",
-    apiVersion: 1,
-    requires: { "author.unit-price": 1 },
-    provides: { "author.batch-total": 1 },
-  },
   activate(ctx) {
     /** @type {{ price(sku: string): number }} */
     const pricing = ctx.use("author.unit-price");

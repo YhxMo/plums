@@ -1,8 +1,10 @@
 import { expect, it, vi } from "vitest";
 import { Host } from "../modules/extension-host/host";
 import { PlatformAdapter } from "../src/platform";
-import workbench from "../extensions/services/workbench.js";
-import reverse from "../extensions/services/reverse.js";
+import { loadFolder } from "./fixtures/folders";
+
+const workbench = await loadFolder("extensions/services/workbench");
+const reverse = await loadFolder("extensions/services/reverse");
 import type { ExtensionDefinition, Platform } from "../modules/sdk";
 import type { Workbench } from "../extensions/contracts";
 

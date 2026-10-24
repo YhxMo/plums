@@ -5,6 +5,8 @@ import {
   firstSessionMessageCount,
   manage,
   openSettings,
+  installByPath,
+  serveModule,
 } from "./helpers";
 import { expect, test, type Page } from "@playwright/test";
 const sidebarToggle = (page: Page) =>
@@ -228,26 +230,21 @@ test("mobile details trap focus, and the session menu and list rename work", asy
 test("imports persist and an external agent provider drives the default UI", async ({
   page,
 }) => {
-  await page.route("**/external-agents.js", (route) =>
-    route.fulfill({
-      contentType: "text/javascript",
-      body: `
+  await serveModule(
+    page,
+    "external-agents",
+    `
     export default {manifest:{id:'external.agents',apiVersion:1,version:'2.1.0',provides:{agents:1}},activate(ctx){
       const session={id:'s',title:'外部会话',createdAt:1,lastMessageAt:1,messages:[]};
       let agents=[{id:'external',name:'外部角色',description:'独立作者的角色说明',status:'online',pinned:false,extensionId:'external.agents',currentSessionId:'s',sessions:[session]}];
       const listeners=new Set();ctx.provide('agents',1,{agents,listeners,info:{label:'独立提供者',version:'2.1.0',description:'外部回声服务'},list(){return this.agents},subscribe(f){this.listeners.add(f);return()=>this.listeners.delete(f)},async send(id,text){this.agents=this.agents.map(a=>({...a,sessions:[{...session,messages:[{id:'m1',role:'user',text},{id:'m2',role:'agent',text:'外部：'+text}]}]}));this.listeners.forEach(f=>f())},cancel(){}});
     }};`,
-    }),
   );
   await page.goto("/");
   await manage(page);
   await page.getByRole("button", { name: "安装扩展", exact: true }).click();
-  await page.getByLabel("扩展 ID", { exact: true }).fill("external.agents");
-  await page
-    .getByLabel("模块路径", { exact: true })
-    .fill("/external-agents.js");
-  await page.getByRole("button", { name: "加载模块", exact: true }).click();
-  await expect(page.getByRole("status")).toContainText("模块路径已保存");
+  await installByPath(page, "/external-agents/");
+  await expect(page.getByRole("status")).toContainText("扩展路径已保存");
   await page.reload();
   await manage(page);
   await page
@@ -286,13 +283,13 @@ test("unavailable saved import retains startup and offers removal and retry", as
           theme: "light",
           layout: "agents",
           imports: [
-            { id: "missing.extension", url: "/missing.js", label: "missing" },
+            { id: "missing.extension", url: "/missing/", label: "missing" },
           ],
         },
       }),
     ),
   );
-  await page.route("**/missing.js", (route) =>
+  await page.route("**/missing/manifest.json", (route) =>
     route.fulfill({ status: 404, body: "missing" }),
   );
   await page.goto("/");
@@ -383,28 +380,25 @@ test("reinstalling a failed import replaces its path and remains bootable", asyn
           value: {
             version: 1,
             imports: [
-              { id: "recover.extension", url: "/missing.js", label: "recover" },
+              { id: "recover.extension", url: "/missing/", label: "recover" },
             ],
           },
         }),
       );
   });
-  await page.route("**/missing.js", (route) =>
+  await page.route("**/missing/manifest.json", (route) =>
     route.fulfill({ status: 404, body: "missing" }),
   );
-  await page.route("**/recovered.js", (route) =>
-    route.fulfill({
-      contentType: "text/javascript",
-      body: `export default {manifest:{id:"recover.extension",version:"1.0.0",apiVersion:1},activate(){}};`,
-    }),
+  await serveModule(
+    page,
+    "recovered",
+    `export default {manifest:{id:"recover.extension",version:"1.0.0",apiVersion:1},activate(){}};`,
   );
   await page.goto("/");
   await manage(page);
   await page.getByRole("button", { name: "安装扩展", exact: true }).click();
-  await page.getByLabel("扩展 ID", { exact: true }).fill("recover.extension");
-  await page.getByLabel("模块路径", { exact: true }).fill("/recovered.js");
-  await page.getByRole("button", { name: "加载模块" }).click();
-  await expect(page.getByRole("status")).toContainText("模块路径已保存");
+  await installByPath(page, "/recovered/");
+  await expect(page.getByRole("status")).toContainText("扩展路径已保存");
   expect(
     await page.evaluate(
       () => JSON.parse(localStorage.getItem("plums:host.shell")!).value.imports,
@@ -412,7 +406,7 @@ test("reinstalling a failed import replaces its path and remains bootable", asyn
   ).toEqual([
     {
       id: "recover.extension",
-      url: "/recovered.js",
+      url: "/recovered/",
       label: "recover.extension",
     },
   ]);
@@ -559,19 +553,16 @@ test("settings reports rejected layout and theme writes inside the modal and ret
 test("service reply boundary rejects without losing draft and valid output survives reload", async ({
   page,
 }) => {
-  await page.route("**/boundary-chat.js", (route) =>
-    route.fulfill({
-      contentType: "text/javascript",
-      body: readFileSync("tests/fixtures/boundary-chat.js", "utf8"),
-    }),
+  await serveModule(
+    page,
+    "boundary-chat",
+    readFileSync("tests/fixtures/boundary-chat.js", "utf8"),
   );
   await page.goto("/");
   await add(page, "Boundary");
   await manage(page);
   await page.getByRole("button", { name: "安装扩展", exact: true }).click();
-  await page.getByLabel("扩展 ID", { exact: true }).fill("chat.boundary");
-  await page.getByLabel("模块路径", { exact: true }).fill("/boundary-chat.js");
-  await page.getByRole("button", { name: "加载模块", exact: true }).click();
+  await installByPath(page, "/boundary-chat/");
   await page
     .getByRole("button", { name: "启用 chat.boundary", exact: true })
     .click();

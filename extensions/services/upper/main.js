@@ -1,13 +1,7 @@
-/** @type {import('../../modules/sdk').ExtensionDefinition} */
+/** @type {import('../../../modules/sdk').ExtensionMain} */
 export default {
-  manifest: {
-    id: "transform.upper",
-    version: "1.0.0",
-    apiVersion: 1,
-    provides: { "text.transform": 1 },
-  },
   activate(ctx) {
-    /** @type {import('../contracts').Transformer} */
+    /** @type {import('../../contracts').Transformer} */
     const service = {
       name: "Uppercase",
       description: "本地示例：把输入转为大写，不连接语言模型。",

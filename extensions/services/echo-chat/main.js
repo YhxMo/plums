@@ -1,18 +1,11 @@
 /**
  * Development `chat@1` provider: answers locally with what it was sent, so
  * per-Agent models and conversation history can be checked without a key.
- * @type {import('../../modules/sdk').ExtensionDefinition}
+ * @type {import('../../../modules/sdk').ExtensionMain}
  */
 export default {
-  manifest: {
-    id: "chat.echo",
-    version: "1.0.0",
-    apiVersion: 1,
-    description: "开发示例：本地回显对话，不连接任何模型服务。",
-    provides: { chat: 1 },
-  },
   activate(ctx) {
-    /** @type {import('../contracts').ChatService} */
+    /** @type {import('../../contracts').ChatService} */
     const service = {
       name: "回显模型",
       models: () =>

@@ -1,6 +1,5 @@
-/** @type {import('../../modules/sdk').ExtensionDefinition} */
+/** @type {import('../../../modules/sdk').ExtensionMain} */
 export default {
-  manifest: { id: "ui.broken", version: "1.0.0", apiVersion: 1 },
   activate(ctx) {
     ctx.view({
       id: "broken",

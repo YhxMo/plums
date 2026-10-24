@@ -1,27 +1,27 @@
 [
   {
     "id": "transform.upper",
-    "url": "/services/upper.js",
+    "url": "/services/upper/",
     "label": "大写转换服务"
   },
   {
     "id": "transform.reverse",
-    "url": "/services/reverse.js",
+    "url": "/services/reverse/",
     "label": "逆序转换服务"
   },
   {
     "id": "chat.echo",
-    "url": "/services/echo-chat.js",
+    "url": "/services/echo-chat/",
     "label": "回显模型（开发）"
   },
   {
     "id": "workbench",
-    "url": "/services/workbench.js",
+    "url": "/services/workbench/",
     "label": "文本工作台"
   },
   {
     "id": "ui.default",
-    "url": "/ui/default.js",
+    "url": "/ui/default/",
     "label": "默认工作台布局",
     "views": {
       "default": "工作台"
@@ -29,7 +29,7 @@
   },
   {
     "id": "ui.board",
-    "url": "/ui/board.js",
+    "url": "/ui/board/",
     "label": "画布布局",
     "views": {
       "board": "画布"
@@ -37,7 +37,7 @@
   },
   {
     "id": "ui.broken",
-    "url": "/ui/broken.js",
+    "url": "/ui/broken/",
     "label": "故障布局实验",
     "views": {
       "broken": "故障布局实验"
@@ -45,7 +45,7 @@
   },
   {
     "id": "sample.documents",
-    "url": "/samples/documents.js",
+    "url": "/samples/documents/",
     "label": "文档只读样板"
   }
 ]

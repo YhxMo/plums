@@ -1,0 +1,12 @@
+{
+  "id": "workbench",
+  "version": "1.0.0",
+  "apiVersion": 1,
+  "requires": {
+    "text.transform": 1
+  },
+  "provides": {
+    "workbench": 1
+  },
+  "capabilities": ["state.read", "state.write"]
+}

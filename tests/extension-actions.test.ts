@@ -12,7 +12,7 @@ import {
 } from "../modules/shell/extension-actions";
 
 const id = "sample.imported";
-const entry = { id, url: "/sample.js", label: "Sample" };
+const entry = { id, url: "/sample/", label: "Sample" };
 const definition: ExtensionDefinition = {
   manifest: {
     id,
@@ -46,8 +46,7 @@ function setup() {
   const prepareUninstall = vi.fn(async () => {});
   const load = vi.fn(async () => definition);
   const request = {
-    id,
-    url: "/sample.js?v=1#ignored",
+    url: "/sample/?v=1#ignored",
     baseUrl: "https://app.test/",
   };
   return { host, state, platform, data, prepareUninstall, load, request };
@@ -72,16 +71,13 @@ it("publishes a saved import before installing and preserves unrelated paths", a
     expect(state.catalog).toEqual([]);
   });
   await installExtension(host, state, request, load);
-  expect(load).toHaveBeenCalledWith(
-    "https://app.test/sample.js?v=1#ignored",
-    id,
-  );
+  expect(load).toHaveBeenCalledWith("https://app.test/sample/?v=1#ignored");
   expect(state.imports).toEqual([
     other,
-    { id, url: "/sample.js?v=1", label: id },
+    { id, url: "/sample/?v=1", label: id },
   ]);
   expect(host.ids()).toContain(id);
-  expect(state.catalog).toEqual([{ id, url: "/sample.js?v=1", label: id }]);
+  expect(state.catalog).toEqual([{ id, url: "/sample/?v=1", label: id }]);
 });
 
 it("failed installation persistence retains memory and can retry", async () => {
@@ -114,10 +110,10 @@ it("cross-origin installation is refused before loading code", async () => {
     installExtension(
       host,
       state,
-      { ...request, url: "https://other.test/module.js" },
+      { ...request, url: "https://other.test/module/" },
       load,
     ),
-  ).rejects.toThrow("本地可信 ESM");
+  ).rejects.toThrow("同源扩展文件夹");
   expect(load).not.toHaveBeenCalled();
   expect(state.save).not.toHaveBeenCalled();
 });
@@ -150,10 +146,7 @@ it("retry loads a fresh URL with the saved configuration and keeps the durable p
   state.imports = [entry];
   state.configurations[id] = { version: 1, values: { step: 3 } };
   await retryImport(host, state, id, "https://app.test/", 123, { load });
-  expect(load).toHaveBeenCalledWith(
-    "https://app.test/sample.js?_retry=123",
-    id,
-  );
+  expect(load).toHaveBeenCalledWith("https://app.test/sample/?_retry=123", id);
   expect(host.configuration(id).value.values.step).toBe(3);
   expect(state.imports).toEqual([entry]);
   expect(state.catalog).toEqual([entry]);

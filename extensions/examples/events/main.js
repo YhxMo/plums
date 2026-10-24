@@ -1,11 +1,5 @@
-/** @type {import('../../modules/sdk').ExtensionDefinition} */
+/** @type {import('../../../modules/sdk').ExtensionMain} */
 export default {
-  manifest: {
-    id: "sample.events",
-    version: "1.0.0",
-    apiVersion: 1,
-    requires: { "sample.counter": 1 },
-  },
   activate(ctx) {
     /** @type {{increment(): number}} */
     const counter = ctx.use("sample.counter");

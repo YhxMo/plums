@@ -1,5 +1,11 @@
 import { expect, test, type Locator, type Page } from "@playwright/test";
-import { addAgent, manage, openSettings } from "./helpers";
+import {
+  addAgent,
+  manage,
+  openSettings,
+  installByPath,
+  serveModule,
+} from "./helpers";
 
 const style = (target: Locator, property: string) =>
   target.evaluate(
@@ -20,25 +26,22 @@ const resolve = (page: Page, value: string) =>
 
 /** A workspace extension served at `/<id>.js` with the given icon source. */
 async function serve(page: Page, id: string, icon: string) {
-  await page.route(`**/${id}.js`, (route) =>
-    route.fulfill({
-      contentType: "text/javascript",
-      body: `export default {
+  await serveModule(
+    page,
+    id,
+    `export default {
         manifest: {id:"${id}",version:"1",apiVersion:1},
         activate(ctx) {
           ctx.view({id:"${id}.view",label:"${id} 界面",icon:${JSON.stringify(icon)},
             mount(root) {root.textContent="${id} 工作区";return()=>root.replaceChildren();}});
         }
       };`,
-    }),
   );
 }
 async function install(page: Page, id: string) {
   await manage(page);
   await page.getByRole("button", { name: "安装扩展", exact: true }).click();
-  await page.getByLabel("扩展 ID", { exact: true }).fill(id);
-  await page.getByLabel("模块路径", { exact: true }).fill(`/${id}.js`);
-  await page.getByRole("button", { name: "加载模块", exact: true }).click();
+  await installByPath(page, `/${id}/`);
   await page.getByRole("button", { name: `启用 ${id}`, exact: true }).click();
 }
 
@@ -175,17 +178,16 @@ test("dialog views open from their extension's card in management", async ({
   page,
 }) => {
   await page.setViewportSize({ width: 1280, height: 800 });
-  await page.route("**/test.dialog.js", (route) =>
-    route.fulfill({
-      contentType: "text/javascript",
-      body: `export default {
+  await serveModule(
+    page,
+    "test.dialog",
+    `export default {
         manifest: {id:"test.dialog",version:"1",apiVersion:1},
         activate(ctx) {
           ctx.view({id:"test.dialog.view",label:"连接设置",presentation:"dialog",
             mount(root) {root.textContent="对话框内容";return()=>root.replaceChildren();}});
         }
       };`,
-    }),
   );
   await page.goto("/");
   await install(page, "test.dialog");
@@ -257,10 +259,7 @@ test("a contributed theme recolours the rail and the list; without the Agent int
   await addAgent(page, "换肤助手");
   await manage(page);
   await page.getByRole("button", { name: "安装扩展", exact: true }).click();
-  const install = page.getByRole("dialog", { name: "安装扩展" });
-  await install.getByLabel("扩展 ID").fill("sample.theme-ink");
-  await install.getByLabel("模块路径").fill("/samples/theme-ink.js");
-  await install.getByRole("button", { name: "加载模块", exact: true }).click();
+  await installByPath(page, "/samples/theme-ink/");
   await page
     .getByRole("button", { name: "启用 sample.theme-ink", exact: true })
     .click();

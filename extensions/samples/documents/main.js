@@ -1,11 +1,5 @@
-/** @type {import("../../modules/sdk").ExtensionDefinition} */
+/** @type {import("../../../modules/sdk").ExtensionMain} */
 const extension = {
-  manifest: {
-    id: "sample.documents",
-    version: "1.0.0",
-    apiVersion: 1,
-    capabilities: ["document.read"],
-  },
   activate(ctx) {
     ctx.view({
       id: "sample.documents",
@@ -34,7 +28,7 @@ const extension = {
         async function list() {
           try {
             const items =
-              /** @type {import("../../modules/sdk").SelectedDocument[]} */ (
+              /** @type {import("../../../modules/sdk").SelectedDocument[]} */ (
                 await ctx.platform("document.read", { action: "list" })
               );
             if (disposed) return;
@@ -73,7 +67,7 @@ const extension = {
             show("正在只读访问…");
             try {
               const result =
-                /** @type {import("../../modules/sdk").SelectedDocumentResponse} */ (
+                /** @type {import("../../../modules/sdk").SelectedDocumentResponse} */ (
                   await ctx.platform(
                     "document.read",
                     { handle: select.value, maxBytes: 65536 },

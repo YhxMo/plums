@@ -94,7 +94,7 @@ export function InstallDialog({
   open: boolean;
   source: HTMLElement | null;
   onClose(): void;
-  onInstall(id: string, url: string): Promise<void>;
+  onInstall(url: string): Promise<void>;
   /** `files` may unpack a zip or walk a folder, so errors show as feedback. */
   onPreview(
     files: () => PackageFile[] | Promise<PackageFile[]>,
@@ -103,7 +103,6 @@ export function InstallDialog({
 }) {
   const { busy } = feedback;
   const [moduleUrl, setModuleUrl] = useState("");
-  const [moduleId, setModuleId] = useState("");
   const [preview, setPreview] = useState<ImportPreview>();
   const [dragging, setDragging] = useState(false);
   if (!open) return null;
@@ -208,38 +207,30 @@ export function InstallDialog({
             <Collapsible defaultOpen={import.meta.env.DEV}>
               <CollapsibleTrigger className="group flex items-center gap-1 text-xs text-muted-foreground outline-none hover:text-foreground focus-visible:underline">
                 <ChevronRightIcon className="size-3.5 transition-transform group-data-[state=open]:rotate-90" />
-                开发者：按模块路径安装
+                开发者：按路径安装
               </CollapsibleTrigger>
               <CollapsibleContent>
                 <form
                   className="grid gap-3 pt-3"
                   onSubmit={(e) => {
                     e.preventDefault();
-                    void onInstall(moduleId, moduleUrl);
+                    void onInstall(moduleUrl);
                   }}
                 >
                   <p className="text-xs text-muted-foreground">
-                    加载随应用提供或开发服务器上的同源 ESM
-                    模块；路径保存在本地。
+                    加载随应用提供或开发服务器上的同源扩展文件夹（含
+                    manifest.json 与 main.js），立即执行；路径保存在本地。
                   </p>
                   <Field>
-                    <FieldLabel htmlFor="install-id">扩展 ID</FieldLabel>
-                    <Input
-                      id="install-id"
-                      value={moduleId}
-                      onChange={(e) => setModuleId(e.target.value)}
-                      required
-                      placeholder="example.extension"
-                    />
-                  </Field>
-                  <Field>
-                    <FieldLabel htmlFor="install-url">模块路径</FieldLabel>
+                    <FieldLabel htmlFor="install-url">
+                      扩展文件夹路径
+                    </FieldLabel>
                     <Input
                       id="install-url"
                       value={moduleUrl}
                       onChange={(e) => setModuleUrl(e.target.value)}
                       required
-                      placeholder="/extensions/example.js"
+                      placeholder="/examples/counter/"
                     />
                   </Field>
                   <Button
@@ -247,7 +238,7 @@ export function InstallDialog({
                     className="justify-self-start"
                     disabled={busy}
                   >
-                    加载模块
+                    加载扩展
                   </Button>
                 </form>
               </CollapsibleContent>

@@ -1,4 +1,4 @@
-import { element, listen, panel, action } from "./local-proof-ui.js";
+import { element, listen, panel, action } from "../local-proof-ui.js";
 
 /** Counts code points, not grapheme clusters; original line breaks count too.
  * @param {string} text
@@ -49,8 +49,8 @@ export function analyzeText(text) {
 }
 
 /**
- * @param {import("./local-proof-types.js").AuthorContext} ctx
- * @returns {import("./local-proof-types.js").TextNodeService}
+ * @param {import("../local-proof-types.js").AuthorContext} ctx
+ * @returns {import("../local-proof-types.js").TextNodeService}
  */
 export function createTextService(ctx) {
   let text = "";
@@ -246,14 +246,8 @@ export function createTextService(ctx) {
   };
 }
 
-/** @type {import("./local-proof-types.js").ExtensionDefinition} */
+/** @type {import("../local-proof-types.js").ExtensionMain} */
 const definition = {
-  manifest: {
-    id: "example.local-text-node",
-    version: "0.1.0",
-    apiVersion: 1,
-    provides: { "example.local-text.node": 1 },
-  },
   activate(ctx) {
     ctx.provide("example.local-text.node", 1, createTextService(ctx));
   },

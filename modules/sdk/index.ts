@@ -148,6 +148,8 @@ export interface ExtensionDefinition {
   manifest: Manifest;
   activate(context: ExtensionContext): void | Promise<void>;
 }
+/** The default export of a package's main.js; its manifest is manifest.json. */
+export type ExtensionMain = Pick<ExtensionDefinition, "activate">;
 
 export interface StoredState {
   revision: number;

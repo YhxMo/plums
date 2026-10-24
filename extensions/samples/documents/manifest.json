@@ -1,0 +1,6 @@
+{
+  "id": "sample.documents",
+  "version": "1.0.0",
+  "apiVersion": 1,
+  "capabilities": ["document.read"]
+}

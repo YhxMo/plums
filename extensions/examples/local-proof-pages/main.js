@@ -1,4 +1,4 @@
-import { element, listen, panel, action } from "./local-proof-ui.js";
+import { element, listen, panel, action } from "../local-proof-ui.js";
 
 /** @typedef {"main" | "z" | "a" | "priority"} PageKey */
 /** @typedef {{key: PageKey, id: string, route: string, label: string, priority: number}} PageSpec */
@@ -36,9 +36,9 @@ export const pageSpecs = [
 
 /**
  * Owns async registration and removal, including registration racing disposal.
- * @param {import("./local-proof-types.js").AuthorContext} ctx
- * @param {import("./local-proof-types.js").PageService} pages
- * @param {(spec: PageSpec) => import("./local-proof-types.js").ViewNode} makeNode
+ * @param {import("../local-proof-types.js").AuthorContext} ctx
+ * @param {import("../local-proof-types.js").PageService} pages
+ * @param {(spec: PageSpec) => import("../local-proof-types.js").ViewNode} makeNode
  */
 export function createPageManager(ctx, pages, makeNode) {
   /** @type {Map<PageKey, () => Promise<void>>} */
@@ -153,22 +153,16 @@ export function createPageManager(ctx, pages, makeNode) {
   };
 }
 
-/** @type {import("./local-proof-types.js").ExtensionDefinition} */
+/** @type {import("../local-proof-types.js").ExtensionMain} */
 const definition = {
-  manifest: {
-    id: "example.local-proof-pages",
-    version: "0.1.0",
-    apiVersion: 1,
-    requires: { "text-workbench.pages": 1, "example.local-text.node": 1 },
-  },
   async activate(ctx) {
-    /** @type {import("./local-proof-types.js").PageService} */
+    /** @type {import("../local-proof-types.js").PageService} */
     const pages = ctx.use("text-workbench.pages");
-    /** @type {import("./local-proof-types.js").TextNodeService} */
+    /** @type {import("../local-proof-types.js").TextNodeService} */
     const textNode = ctx.use("example.local-text.node");
     const manager = createPageManager(ctx, pages, makeNode);
     /** @param {PageSpec} spec
-     * @returns {import("./local-proof-types.js").ViewNode}
+     * @returns {import("../local-proof-types.js").ViewNode}
      */
     function makeNode(spec) {
       return {

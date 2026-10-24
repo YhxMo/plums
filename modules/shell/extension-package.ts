@@ -1,7 +1,6 @@
 import type { ExtensionDefinition, Manifest, RecordPage } from "@modules/sdk";
-import { ContractError } from "@modules/sdk/errors";
 import {
-  validateDefinition,
+  definitionOf,
   validateManifest,
 } from "@modules/extension-host/definition";
 
@@ -188,34 +187,7 @@ export async function loadPackage(
   expectedId?: string,
   evaluate: Evaluate = importBlob,
 ): Promise<ExtensionDefinition> {
-  const exported = (await evaluate(main)).default as {
-    manifest?: { id?: unknown };
-    activate?: unknown;
-  } | null;
-  if (typeof exported?.activate !== "function")
-    throw new ContractError(
-      "extension.invalid",
-      "activate",
-      "main.js must export default { activate }",
-    );
-  if (exported.manifest && exported.manifest.id !== manifest.id)
-    throw new ContractError(
-      "extension.invalid",
-      "manifest.id",
-      "main.js names another extension than manifest.json",
-    );
-  if (expectedId !== undefined && manifest.id !== expectedId)
-    throw new ContractError(
-      "extension.invalid",
-      "manifest.id",
-      "Module identity does not match catalog",
-    );
-  const definition = {
-    manifest,
-    activate: exported.activate as ExtensionDefinition["activate"],
-  };
-  validateDefinition(definition);
-  return definition;
+  return definitionOf(manifest, (await evaluate(main)).default, expectedId);
 }
 
 /** Packages in the shell's records, one collection each. */

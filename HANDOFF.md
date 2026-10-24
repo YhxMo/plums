@@ -18,10 +18,10 @@
 
 | 范围 | 实际结果 |
 | --- | --- |
-| Web | 最新提交上 `npm run verify:web` 通过（924 单元及类型、构建、发布配置、格式、边界、行数、lint），构建无单块体积警告 |
+| Web | 最新提交上 `npm run verify:web` 通过（925 单元及类型、构建、发布配置、格式、边界、行数、lint），构建无单块体积警告 |
 | 原生逻辑 | Agent 记录存储提交上 `npm run verify:native` 通过：IPC、格式、Clippy、84 单元（含 11 项记录与批量写用例）；SQLite 第一步时 debug 应用在真实格式开发数据副本上导入 `host.shell`（修订 11）并在其上保存，版本 1 → 2 的原地升级只有单元验证 |
-| Chromium | 扩展包提交上 `npm run verify:e2e` 全量 240 项中 239 项通过，失败的 focus-ring 一项因按钮改名，改测试后该文件与 file-import 重跑通过；1 worker |
-| WebKit | 扩展包提交上 application-flow / focus-ring / file-import 18 项通过（file-import 连跑 3 次）；存储审查提交上 application-flow / focus-ring / agent-flow 37 项通过，agent-flow 的“dialog close is quiet…”浅深两项失败（Tab 未把焦点移到弹窗关闭按钮）；该失败在界面改版前的 `b7de43e` 上同样出现，未修；界面改版审查提交上 application-flow / focus-ring / rail / agent-list 共 24 项通过；此前 focus-ring / dialog-keyboard / input-method / application-flow / model-connection-recovery / lazy-pages 共 35 项通过（改版前） |
+| Chromium | 样板改文件夹提交上 `npm run verify:e2e` 全量 240 项中 235 项通过，5 项失败均为 configuration 与 dependency-chain 仍用单文件路径，改为文件夹后这两个文件及 composition、system-back、uninstall、rail 重跑通过；1 worker |
+| WebKit | 样板改文件夹提交上 application-flow / focus-ring / file-import / sdk-authoring 23 项通过；存储审查提交上 application-flow / focus-ring / agent-flow 37 项通过，agent-flow 的“dialog close is quiet…”浅深两项失败（Tab 未把焦点移到弹窗关闭按钮）；该失败在界面改版前的 `b7de43e` 上同样出现，未修；界面改版审查提交上 application-flow / focus-ring / rail / agent-list 共 24 项通过；此前 focus-ring / dialog-keyboard / input-method / application-flow / model-connection-recovery / lazy-pages 共 35 项通过（改版前） |
 | 启动耗时 | 生产构建、浏览器冷启动 20 次中位数：Chrome 97.6 → 85.8 ms，WebKit 81 → 70 ms（按需加载与分块前后） |
 | 打包应用 | 改名前候选的实测见[输入法、焦点与布局记录](evidence/MAC-INPUT-LAYOUT-2026-10-23.md)；改名后的源码尚未重新打包验收 |
 
@@ -43,7 +43,7 @@
 
 阶段 U 与 SQLite 存储阶段的审查结论分别记在提交 `4f4bc97` 与存储审查提交的说明中。仍待处理的遗留：`AgentWorkspace.tsx`（420 行）与 `AgentDialogs.tsx`（520 行）超过 400 行提示线；外壳右侧栏按钮的 18px 偏移与会话卡片几何耦合，随窗口框架一并处理；`View.icon` 无效原因为英文作者提示，在中文界面中原样显示。另有：`modules/agents/store.ts`（562 行）早于存储阶段即超过提示线；WebKit 下 agent-flow 的“dialog close is quiet…”两项失败（Tab 未聚焦弹窗关闭按钮），界面改版前已存在。
 
-扩展包格式进行中：已改为导入 `manifest.json + main.js` 的扩展包（文件夹、zip 或两个文件，确认前不执行代码，存为外壳记录；旧单文件导入提示重新导入），规则见[作者入门](docs/AUTHOR-QUICKSTART.md)与[架构](docs/ARCHITECTURE.md#应用-ui-的扩展边界)；样板与开发目录改为目录形式、安装预览改为白话与“技术详情”待做。之后依次为联系人式回复、对话体验、外观与快捷键、窗口框架。当前未推送，现有交付包未替换。M2 尚未整体退出。
+扩展包格式进行中：已改为导入 `manifest.json + main.js` 的扩展包（文件夹、zip 或两个文件，确认前不执行代码，存为外壳记录；旧单文件导入提示重新导入），规则见[作者入门](docs/AUTHOR-QUICKSTART.md)与[架构](docs/ARCHITECTURE.md#应用-ui-的扩展边界)；样板、开发目录与开发者路径安装已改为文件夹形式；安装预览改为白话与“技术详情”待做。之后依次为联系人式回复、对话体验、外观与快捷键、窗口框架。当前未推送，现有交付包未替换。M2 尚未整体退出。
 
 ## 当前交付与恢复
 

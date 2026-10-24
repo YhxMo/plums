@@ -1,10 +1,5 @@
-/** @type {import("../../modules/sdk/index").ExtensionDefinition} */
+/** @type {import("../../../modules/sdk/index").ExtensionMain} */
 export default {
-  manifest: {
-    id: "sample.theme-ocean",
-    version: "1.0.0",
-    apiVersion: 1,
-  },
   activate(ctx) {
     ctx.theme({
       id: "sample.ocean",

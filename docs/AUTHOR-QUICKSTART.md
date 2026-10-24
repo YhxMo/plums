@@ -55,7 +55,7 @@ export default {
 
 | 想做的事 | 怎么写 | 参考 |
 | --- | --- | --- |
-| 提供 Agent 可选的模型 | `provides: { chat: 1 }`，`ctx.provide` 一个含 `name`、`models()`、`subscribe`、`reply(request, signal)` 的对象 | 起步模板、[回显模型](../extensions/services/echo-chat.js)（仅开发构建）、[接口](../extensions/contracts.d.ts)、[模型连接](MODELS.md#chat1) |
+| 提供 Agent 可选的模型 | `provides: { chat: 1 }`，`ctx.provide` 一个含 `name`、`models()`、`subscribe`、`reply(request, signal)` 的对象 | 起步模板、[回显模型](../extensions/services/echo-chat/main.js)（仅开发构建）、[接口](../extensions/contracts.d.ts)、[模型连接](MODELS.md#chat1) |
 | 添加一个界面 | `ctx.view(...)`，见下方示例 | [界面契约](EXTENSION-CONTRACTS.md#ui-组合与替换) |
 | 保存数据 | 声明 `capabilities: ["state.read", "state.write"]`，见下方示例 | [状态规则](SDK-AUTHORING.md#状态取消与演进) |
 | 保存很多条目（如聊天记录）并搜索 | 声明 `state.batch` 与 `records.list`，要搜索再加 `records.search` | [批量写与记录](SDK-AUTHORING.md#状态取消与演进) |
@@ -63,7 +63,7 @@ export default {
 | 读取公开资源 | 声明 `capabilities: ["network.read"]` 与 `networkSources: ["https://…"]`，用 `ctx.platform("network.read", { version: 1, url })` GET 声明来源下的地址，不带密钥 | [公开网络读取](NETWORK-READ.md) |
 | 连接真实模型 | 声明 `credentialBindings` 和 `capabilities: ["credential.request"]`，用 `ctx.platform("credential.request", { version: 1, binding, body })` 发请求；API Key 由用户在扩展详情中填写，扩展读不回密钥 | [请求契约](CREDENTIAL-REQUEST.md)；要让用户自建多条连接见[扩展自建连接](CREDENTIAL-BINDINGS.md#扩展自建连接) |
 | 让扩展管理显示谁在用 | `ctx.shell.publishUsers("Agent", [{ id, label, uses }], toggle)`；停用时自动清除 | [页面契约](PAGES.md#让扩展使用宿主入口) |
-| 使用别的扩展提供的服务 | `requires: { "服务名": 版本 }`，`ctx.use("服务名")` 取一个，`ctx.providers("服务名")` 列出全部；没有提供者也要能启用时改用 `optional: { "服务名": 版本 }`，只能用 `ctx.providers` | [事件样板](../extensions/examples/events.js) |
+| 使用别的扩展提供的服务 | `requires: { "服务名": 版本 }`，`ctx.use("服务名")` 取一个，`ctx.providers("服务名")` 列出全部；没有提供者也要能启用时改用 `optional: { "服务名": 版本 }`，只能用 `ctx.providers` | [事件样板](../extensions/examples/events/main.js) |
 
 **界面**：`id` 在所有扩展中唯一，用你的扩展 ID 即可。默认（`presentation: "workspace"`）在 设置 →「界面布局」中选「使用 + label」后占据整个工作区，取代 Agent 界面，并在窄栏显示 `icon`（可选的单色 SVG，规则见[页面契约](PAGES.md)）；`"dialog"` 在扩展管理里本扩展的卡片上打开，`"sidebar"` 出现在右侧栏。`root` 是一个空容器，应用的字体、颜色和按钮样式会作用于其中的普通元素。
 

@@ -218,19 +218,15 @@ export function useExtensionManager(
       close,
       label: (id: string) =>
         catalog.find((entry) => entry.id === id)?.label ?? id,
-      install: (id: string, url: string) =>
+      install: (url: string) =>
         operate(async () => {
-          await run((draft) =>
-            installExtension(host, draft, {
-              id,
-              url,
-              baseUrl: location.href,
-            }),
+          const entry = await run((draft) =>
+            installExtension(host, draft, { url, baseUrl: location.href }),
           );
-          clearFailure(id);
+          clearFailure(entry.id);
           close();
           setNotice(
-            "模块路径已保存。请检查来源与能力，再启用扩展；下次启动会重新加载模块。",
+            "扩展路径已保存。请检查来源与能力，再启用扩展；下次启动会重新加载。",
           );
         }),
       /** Reads the package's manifest; no code runs and nothing is saved yet. */

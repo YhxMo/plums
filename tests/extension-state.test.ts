@@ -77,13 +77,16 @@ async function setup(enabled: Composition["enabled"] = []) {
   });
   const current = () => value;
   const run = createExtensionState(initial, services, publish);
-  const load = vi.fn(async (_url: string, id: string) => definition(id));
+  // The folder's manifest names the extension: /<id>/.
+  const load = vi.fn(async (url: string) =>
+    definition(new URL(url).pathname.slice(1, -1)),
+  );
   const install = (id: string) =>
     run((draft) =>
       installExtension(
         host,
         draft,
-        { id, url: `/${id}.js`, baseUrl: "https://app.test/" },
+        { url: `/${id}/`, baseUrl: "https://app.test/" },
         load,
       ),
     );

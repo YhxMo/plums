@@ -1,0 +1,8 @@
+{
+  "id": "ui.board",
+  "version": "1.0.0",
+  "apiVersion": 1,
+  "requires": {
+    "workbench": 1
+  }
+}

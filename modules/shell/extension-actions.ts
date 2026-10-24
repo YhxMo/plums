@@ -34,7 +34,7 @@ export type ExtensionState = {
 
 type Loader = (
   url: string,
-  id: string,
+  expectedId?: string,
 ) => Promise<Parameters<Host["install"]>[0]>;
 
 export async function installExtension(
@@ -43,28 +43,24 @@ export async function installExtension(
     ExtensionState,
     "imports" | "catalog" | "configurations" | "save"
   >,
-  input: { id: string; url: string; baseUrl: string },
+  input: { url: string; baseUrl: string },
   load: Loader = loadExtension,
 ) {
   const target = sameOrigin(input.url, input.baseUrl);
   if (!target)
-    throw Error(
-      "当前 M1 仅加载本地可信 ESM 模块。请将扩展放入应用目录后填写模块路径。",
-    );
-  const definition = await load(target.href, input.id);
-  if (host.ids().includes(input.id)) throw Error("此扩展 ID 已存在。");
+    throw Error("按路径只能加载随应用提供或开发服务器上的同源扩展文件夹。");
+  const definition = await load(target.href);
+  const id = definition.manifest.id;
+  if (host.ids().includes(id)) throw Error("此扩展 ID 已存在。");
   const entry: ImportedExtension = {
-    id: input.id,
+    id,
     url: target.pathname + target.search,
-    label: definition.manifest.name ?? input.id,
+    label: definition.manifest.name ?? id,
   };
-  const imports = [
-    ...state.imports.filter((saved) => saved.id !== input.id),
-    entry,
-  ];
+  const imports = [...state.imports.filter((saved) => saved.id !== id), entry];
   await state.save({ imports });
   state.imports = imports;
-  host.install(definition, state.configurations[input.id]);
+  host.install(definition, state.configurations[id]);
   state.catalog.push(entry);
   return entry;
 }
