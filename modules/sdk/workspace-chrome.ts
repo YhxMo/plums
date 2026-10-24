@@ -19,6 +19,12 @@ export interface WorkspaceChrome {
   /** Stable snapshot until a subscription notification. */
   getSnapshot(): WorkspaceChromeState;
   subscribe(listener: () => void): () => void;
+  /** Host-owned workspace visibility; optional for earlier views. */
+  readonly visibility?: {
+    getSnapshot(): boolean;
+    subscribe(listener: () => void): () => void;
+    set(visible: boolean): void;
+  };
   readonly navigation?: {
     /** Callers must match the entity type before revealing an ID. */
     readonly entityType: string;
@@ -31,11 +37,28 @@ export function createWorkspaceChrome(entityType: string) {
   let snapshot: WorkspaceChromeState = {};
   let reveal: ((id: string) => void) | undefined;
   const listeners = new Set<() => void>();
+  // Standalone mounts remain visible unless their host says otherwise.
+  let visible = true;
+  const visibilityListeners = new Set<() => void>();
   const publish = (next: WorkspaceChromeState) => {
     snapshot = next;
     listeners.forEach((listener) => listener());
   };
   return {
+    visibility: {
+      getSnapshot: () => visible,
+      subscribe(listener: () => void) {
+        visibilityListeners.add(listener);
+        return () => {
+          visibilityListeners.delete(listener);
+        };
+      },
+      set(next: boolean) {
+        if (visible === next) return;
+        visible = next;
+        visibilityListeners.forEach((listener) => listener());
+      },
+    },
     getSnapshot: () => snapshot,
     subscribe(listener: () => void) {
       listeners.add(listener);

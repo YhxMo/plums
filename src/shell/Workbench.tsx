@@ -33,9 +33,9 @@ export function Workbench({ runtime }: { runtime: Runtime }) {
   useSyncExternalStore(runtime.host.subscribe, runtime.host.snapshot);
   const operations = useOperations(runtime);
   const appearance = useAppearance(runtime, operations);
-  const workspace = useWorkspace(runtime, operations);
-  const chrome = useWorkspaceChrome(workspace);
   const navigation = useShellNavigation(runtime);
+  const workspace = useWorkspace(runtime, operations, !navigation.manager.open);
+  const chrome = useWorkspaceChrome(workspace);
   useSystemBack(navigation, chrome);
   const authorization = useAuthorization();
   const experiments = useExperiments(

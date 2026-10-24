@@ -1,5 +1,43 @@
 import { expect, test } from "@playwright/test";
-import { answer, slowAgent } from "./helpers";
+import { answer, manage, slowAgent } from "./helpers";
+
+for (const width of [375, 1280])
+  test(`a reply hidden by extension management stays unread until returning (${width}px)`, async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width, height: 844 });
+    await slowAgent(page, "隐藏的会话");
+    const input = page.getByRole("textbox", { name: "消息", exact: true });
+    await input.fill("等我回来");
+    await page.getByRole("button", { name: "发送", exact: true }).click();
+    await input.fill("保留草稿");
+    await manage(page);
+    await expect(page.locator("[data-workspace]")).toBeHidden();
+    await answer(page);
+    const unread = () =>
+      page.evaluate(() => {
+        const owner = "plums:extension.agents.local";
+        const index = JSON.parse(localStorage.getItem(owner)!).value;
+        const session = index.agents[0].sessions[0];
+        const { records } = JSON.parse(
+          localStorage.getItem(`${owner}#records`)!,
+        );
+        return records.filter(
+          (record: {
+            collection: string;
+            value: { role: string; at: number };
+          }) =>
+            record.collection === `session:${session.id}` &&
+            record.value.role === "agent" &&
+            record.value.at > session.lastReadAt,
+        ).length;
+      });
+    await expect.poll(unread).toBe(1);
+    await page.getByRole("button", { name: "返回工作区", exact: true }).click();
+    await expect(page.getByRole("log")).toContainText("答：等我回来");
+    await expect(input).toHaveValue("保留草稿");
+    await expect.poll(unread).toBe(0);
+  });
 
 test("a sent message appears at once and the input clears before the reply", async ({
   page,

@@ -1,6 +1,7 @@
 import {
   useCallback,
   useEffect,
+  useLayoutEffect,
   useRef,
   useState,
   useSyncExternalStore,
@@ -66,6 +67,10 @@ export function AgentWorkspace({
   const mobile = useMediaQuery(below("md"));
   // Wide windows make room for the details drawer; narrower ones let it cover.
   const wide = useMediaQuery(atLeast("wide"));
+  const visible = useSyncExternalStore(
+    chrome.visibility.subscribe,
+    chrome.visibility.getSnapshot,
+  );
   const [selected, setSelected] = useState<string | null>(null);
   const [detail, setDetail] = useState(false);
   const workspaceRoot = useRef<HTMLDivElement>(null);
@@ -103,8 +108,8 @@ export function AgentWorkspace({
   filesNow.current = files;
   const agent = agents.find((a) => a.id === selected);
   // The open conversation is read; replies elsewhere count as unread.
-  const viewing = agent?.id ?? null;
-  useEffect(() => {
+  const viewing = visible ? (agent?.id ?? null) : null;
+  useLayoutEffect(() => {
     api.view?.(viewing);
     return () => api.view?.(null);
   }, [api, viewing]);

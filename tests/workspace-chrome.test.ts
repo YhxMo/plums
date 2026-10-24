@@ -31,6 +31,26 @@ test("independent workspaces keep separate snapshots and release subscriptions",
   expect(second.getSnapshot().title).toBe("Second");
 });
 
+test("host visibility is independent of published chrome and unsubscribes cleanly", () => {
+  const first = createWorkspaceChrome("test.first");
+  const second = createWorkspaceChrome("test.second");
+  const seen: boolean[] = [];
+  expect(first.visibility.getSnapshot()).toBe(true);
+  const stop = first.visibility.subscribe(() =>
+    seen.push(first.visibility.getSnapshot()),
+  );
+  first.visibility.set(false);
+  first.publish({ title: "Hidden workspace" });
+  first.visibility.set(false);
+  expect(first.visibility.getSnapshot()).toBe(false);
+  expect(second.visibility.getSnapshot()).toBe(true);
+  first.visibility.set(true);
+  stop();
+  first.visibility.set(false);
+  expect(seen).toEqual([false, true]);
+  expect(first.getSnapshot().title).toBe("Hidden workspace");
+});
+
 test("chrome failures become stable failure snapshots without escaping render", () => {
   const reason = new Error("snapshot failure");
   const chrome = {

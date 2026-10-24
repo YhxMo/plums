@@ -1,11 +1,21 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+} from "react";
 import { createViewSlot } from "@modules/shell/view-slot";
 import type { Runtime } from "./runtime";
 import type { ShellOperations } from "./useOperations";
 import { errorMessage } from "./messages";
 import { selectionAfterFailure } from "./selection";
 
-export function useWorkspace(runtime: Runtime, operations: ShellOperations) {
+export function useWorkspace(
+  runtime: Runtime,
+  operations: ShellOperations,
+  visible = true,
+) {
   const { host } = runtime;
   const { setError } = operations;
   const [selected, setSelected] = useState(runtime.initial.layout);
@@ -27,6 +37,7 @@ export function useWorkspace(runtime: Runtime, operations: ShellOperations) {
     )[0];
   const activeView = current?.id;
   const generation = current?.generation;
+  const visibility = current?.chrome?.visibility;
   const failView = useCallback(
     (id: string, failedGeneration: number, reason: unknown) => {
       if (
@@ -48,6 +59,18 @@ export function useWorkspace(runtime: Runtime, operations: ShellOperations) {
     },
     [host, setError],
   );
+  useLayoutEffect(() => {
+    if (!visibility || !activeView) return;
+    const publish = (visible: boolean) => {
+      try {
+        visibility.set(visible);
+      } catch (reason) {
+        failView(activeView, generation!, reason);
+      }
+    };
+    publish(visible);
+    return () => publish(false);
+  }, [visibility, visible, activeView, generation, failView]);
   useEffect(() => {
     const root = slot.current;
     if (!root || !activeView) return;

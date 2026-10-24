@@ -113,6 +113,8 @@ export default {
 
 可选 `navigation` 包含实体类型 `entityType` 和 `reveal(id)`。调用方先匹配类型，再导航；宿主目前不消费此字段；扩展若使用它，须先核对 `entityType` 再调用，不能把 Agent ID 传给其他业务。仓库内 TypeScript 视图可用 `createWorkspaceChrome(entityType)`、`publish(state)` 和 `connect(handler)` 组装同一接口；挂载时连接处理器，释放时执行 connect 返回的清理函数，旧挂载的迟到清理不会断开替代处理器。未提供 chrome 的已有视图继续按原挂载契约工作。
 
+工作区需要区分“仍挂载”和“正在展示”时，可使用可选 `chrome.visibility`：外壳通过 `set(boolean)` 发布是否显示工作区，扩展通过 `getSnapshot()` 与 `subscribe(listener)` 消费。扩展管理隐藏工作区、切换布局或卸载时为 false，返回时为 true；它不代表操作系统窗口焦点。`createWorkspaceChrome` 自带该接口，独立挂载默认 true；发布标题不会覆盖可见状态，订阅返回的清理函数须在释放时调用。没有该接口的已有视图不受影响。
+
 ## 状态、取消与演进
 
 能力通过 manifest 声明并经授权后用 ctx.platform 调用。`state.read` 返回 null 或 `{revision, value}`；`state.write` 使用 `{revision, value}` 并返回提交回执。作用域为 `extension.<id>`，同 ID 重装保留原数据；未知 schema/修订冲突/超过 1 MiB（按保存后含外层的 JSON 计）拒绝，不自动清空。两者都可带 `key`（`[a-z0-9][a-z0-9-]{0,63}`）读写同一作用域下的独立分片，每个分片有自己的修订号与 1 MiB 上限；`state.write` 传 `{key, revision, remove: true}` 在修订号匹配时删除该分片（不存在且修订号为 0 时为空操作）。宿主不提供分片枚举，扩展自行在主文档中记录分片名。不要在样板中存储凭据。业务状态结构和迁移由扩展明确设计，宿主不解析其业务对象。
