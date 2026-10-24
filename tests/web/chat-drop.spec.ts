@@ -70,3 +70,30 @@ for (const width of [375, 1280])
       page.getByRole("button", { name: "移除 消息区.txt", exact: true }),
     ).toBeVisible();
   });
+
+test("a file dropped where nothing takes it never replaces the app", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1280, height: 844 });
+  await page.goto("/");
+  await addAgent(page, "拖放助手");
+  const outcome = await page.evaluate(() => {
+    const data = new DataTransfer();
+    data.items.add(new File(["x"], "x.txt", { type: "text/plain" }));
+    const list = document.querySelector('[aria-label="Agent 列表"]')!;
+    const fire = (type: string) => {
+      const event = new DragEvent(type, {
+        dataTransfer: data,
+        bubbles: true,
+        cancelable: true,
+      });
+      list.dispatchEvent(event);
+      return { prevented: event.defaultPrevented, effect: data.dropEffect };
+    };
+    return { over: fire("dragover"), drop: fire("drop") };
+  });
+  // The cursor says no, and the browser's "open the file" never runs.
+  expect(outcome.over).toEqual({ prevented: true, effect: "none" });
+  expect(outcome.drop.prevented).toBe(true);
+  await expect(page.getByText("松开以添加附件")).toBeHidden();
+});
