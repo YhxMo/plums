@@ -1,5 +1,6 @@
 import {
   isRecordName,
+  STATE_LIMITS,
   type RecordPage,
   type StoredRecord,
   type StoredState,
@@ -13,14 +14,13 @@ import { isStateErrorCode, stateRejection } from "./native/state-errors";
  * and puts the earlier values back if one of them fails.
  */
 
-/** Largest document, envelope included. */
-const MAX_DOCUMENT = 1 << 20;
-/** Largest record's value and text. */
-const MAX_RECORD = 8 << 20;
-/** Values and text one list or search page returns. */
-const MAX_PAGE_BYTES = 16 << 20;
-const MAX_BATCH_OPERATIONS = 1000;
-const MAX_BATCH_BYTES = 16 << 20;
+const {
+  document: MAX_DOCUMENT,
+  record: MAX_RECORD,
+  batchOperations: MAX_BATCH_OPERATIONS,
+  batchBytes: MAX_BATCH_BYTES,
+  pageBytes: MAX_PAGE_BYTES,
+} = STATE_LIMITS;
 
 const bytes = (text: string) => new TextEncoder().encode(text).length;
 type Payload = Record<string, unknown>;

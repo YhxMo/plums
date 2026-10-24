@@ -1,4 +1,5 @@
 import { ContractError } from "@modules/sdk/errors";
+import { isRecordName } from "@modules/sdk";
 import type { Named } from "@modules/sdk";
 import type { Effort } from "@extensions/contracts";
 import { LIMITS, attachmentProblem, imageSize } from "./attachments";
@@ -22,7 +23,7 @@ const newSession = (): Session => ({
   lastMessageAt: Date.now(),
   messages: [],
 });
-const object = (value: unknown): value is Record<string, unknown> =>
+export const object = (value: unknown): value is Record<string, unknown> =>
   typeof value === "object" && value !== null && !Array.isArray(value);
 const text = (value: unknown, max = 4000): value is string =>
   typeof value === "string" && value.length <= max;
@@ -60,10 +61,12 @@ export function parseRoleCard(raw: string): AgentConfig {
 export const MAX_MODEL_ID = 256;
 /** Longest message, sent or received: room for a document in a 1M-token context. */
 export const MAX_TEXT = 1_000_000;
+/** Stored Agents that cannot be read; the data is kept as it is. */
+export const corrupt = () =>
+  new ContractError("state.corrupt", "agents", "Agent 配置损坏");
 export function restoreAgents(value: unknown): Agent[] {
   if (value === undefined) return [];
-  if (!Array.isArray(value))
-    throw new ContractError("state.corrupt", "agents", "Agent 配置损坏");
+  if (!Array.isArray(value)) throw corrupt();
   const ids = new Set<string>();
   for (const a of value) {
     if (
@@ -85,7 +88,7 @@ export function restoreAgents(value: unknown): Agent[] {
       a.sessions.length === 0 ||
       !text(a.currentSessionId)
     )
-      throw new ContractError("state.corrupt", "agents", "Agent 配置损坏");
+      throw corrupt();
     ids.add(a.id);
     const sessions = new Set<string>();
     for (const s of a.sessions) {
@@ -133,12 +136,45 @@ export function restoreAgents(value: unknown): Agent[] {
       avatar,
       ...a
     }) => ({
-      ...a,
+      ...renameForRecords(a),
       // A damaged picture only costs the picture.
       ...(validAvatar(avatar) && { avatar }),
       status: "idle",
     }),
   );
+}
+
+/**
+ * Gives ids that cannot name a stored record (`isRecordName`), and message
+ * ids repeated in a session, new ones. Ids have always been UUIDs, so only
+ * hand-made or damaged data changes; nothing outside an Agent keeps them.
+ */
+function renameForRecords<
+  A extends { id: string; currentSessionId: string; sessions: Session[] },
+>(agent: A): A {
+  const fresh = (valid: boolean, id: string) =>
+    valid ? id : crypto.randomUUID();
+  let { currentSessionId } = agent;
+  const sessions = agent.sessions.map((session) => {
+    const id = fresh(isRecordName(`session:${session.id}`), session.id);
+    if (session.id === agent.currentSessionId) currentSessionId = id;
+    const seen = new Set<string>();
+    const messages = session.messages.map((message) => {
+      const renamed = fresh(
+        isRecordName(message.id) && !seen.has(message.id),
+        message.id,
+      );
+      seen.add(renamed);
+      return renamed === message.id ? message : { ...message, id: renamed };
+    });
+    return { ...session, id, messages };
+  });
+  return {
+    ...agent,
+    id: fresh(isRecordName(agent.id), agent.id),
+    currentSessionId,
+    sessions,
+  };
 }
 
 /** Extension-owned model; writes publish only after a successful receipt. */

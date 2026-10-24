@@ -48,7 +48,11 @@ async function setup(
   const host = new Host(memoryPlatform().platform);
   host.install(chat("chat.a", ["m1", "m2"], requests, reasoning, vision));
   host.install(agentExtension());
-  await host.grant("agents.local", ["state.read", "state.write"]);
+  await host.grant("agents.local", [
+    "state.read",
+    "state.batch",
+    "records.list",
+  ]);
   await host.start("chat.a");
   await host.start("agents.local");
   const agents = () => host.peekService<AgentProvider>("agents", 1)!;

@@ -74,7 +74,7 @@ export async function chooseLayout(page: Page, id: string) {
   await button.click();
   await expect(dialog).not.toBeVisible();
 }
-/** Messages saved for an Agent's first session, read from its stored pages. */
+/** Messages saved for an Agent's first session, read from its stored records. */
 export function firstSessionMessageCount(page: Page, agent: string) {
   return page.evaluate((agent) => {
     const owner = "plums:m1:extension.agents.local";
@@ -82,13 +82,12 @@ export function firstSessionMessageCount(page: Page, agent: string) {
     const entry = index.agents.find(
       (item: { name: string }) => item.name === agent,
     );
-    const json = (entry.sessions[0].pages as string[])
-      .map(
-        (key) =>
-          JSON.parse(localStorage.getItem(`${owner}+${key}`)!).value.part,
-      )
-      .join("");
-    return json ? JSON.parse(json).length : 0;
+    const stored = localStorage.getItem(`${owner}#records`);
+    const records: { collection: string }[] = stored
+      ? JSON.parse(stored).records
+      : [];
+    const collection = `session:${entry.sessions[0].id}`;
+    return records.filter((record) => record.collection === collection).length;
   }, agent);
 }
 

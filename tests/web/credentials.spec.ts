@@ -392,8 +392,11 @@ for (const width of [375, 1180])
       w.__reads = [];
       let records: Array<Record<string, unknown>> = [];
       const states = new Map<string, { revision: number; value: unknown }>();
+      type Item = Record<string, unknown> & { seq: number; revision: number };
+      const items = new Map<string, Item>();
+      let seq = 0;
       (w as unknown as { __states: () => string }).__states = () =>
-        JSON.stringify([...states]);
+        JSON.stringify([...states, ...items]);
       w.__TAURI_INTERNALS__ = {
         invoke: async (command: string, args: Record<string, unknown>) => {
           if (command === "credential_supported") return true;
@@ -464,6 +467,62 @@ for (const width of [375, 1180])
               };
               states.set(slot, next);
               return next;
+            }
+            // The Agent store: a batch and its records, without checks.
+            const owner = String(args.owner);
+            if (args.capability === "state.batch") {
+              const batch = args.payload as {
+                documents?: {
+                  key?: string;
+                  revision: number;
+                  value: unknown;
+                }[];
+                clear?: string[];
+                records?: (Record<string, unknown> & {
+                  collection: string;
+                  id: string;
+                  revision: number;
+                  remove?: true;
+                })[];
+              };
+              const documents = (batch.documents ?? []).map((write) => {
+                const next = {
+                  revision: write.revision + 1,
+                  value: write.value,
+                };
+                states.set(`${owner}+${write.key ?? ""}`, next);
+                return { revision: next.revision };
+              });
+              for (const name of batch.clear ?? [])
+                for (const key of [...items.keys()])
+                  if (key.startsWith(`${owner}\n${name}\n`)) items.delete(key);
+              const records = (batch.records ?? []).map((write) => {
+                const key = `${owner}\n${write.collection}\n${write.id}`;
+                if (write.remove) {
+                  items.delete(key);
+                  return null;
+                }
+                const item = {
+                  ...write,
+                  seq: items.get(key)?.seq ?? ++seq,
+                  revision: write.revision + 1,
+                };
+                items.set(key, item);
+                return { seq: item.seq, revision: item.revision };
+              });
+              return { documents, records };
+            }
+            if (args.capability === "records.list") {
+              const { collection } = args.payload as { collection: string };
+              return {
+                records: [...items]
+                  .filter(([key]) =>
+                    key.startsWith(`${owner}\n${collection}\n`),
+                  )
+                  .map(([, item]) => item)
+                  .sort((a, b) => a.seq - b.seq),
+                next: null,
+              };
             }
           }
         },

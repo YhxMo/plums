@@ -54,7 +54,7 @@ it.each([
   ["state-schema", "状态版本不支持或已损坏，原数据已保留。"],
   ["state-read", "状态读取失败，原数据已保留。"],
   ["state-write", "状态写入失败，原数据已保留。"],
-  ["state-too-large", "状态超过 1 MiB 上限，未保存。"],
+  ["state-too-large", "内容超过存储上限，未保存。"],
   ["invalid-batch", "批量写入无效，未保存。"],
   ["invalid-query", "记录查询无效。"],
   ["revision-conflict", "状态已被其他操作更新，请重新加载应用后重试。"],

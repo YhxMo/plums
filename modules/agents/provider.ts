@@ -2,11 +2,11 @@ import type { ExtensionDefinition } from "@modules/sdk";
 import type { ChatService } from "@extensions/contracts";
 import { AgentStore, MAX_MODEL_ID, restoreAgents } from "./store";
 import { prepareChat } from "./attachments";
-import { AgentState } from "./sharded-state";
+import { AgentState } from "./persistence";
 
 /**
- * Agents live in this extension's own `state.*` namespace as an index plus one
- * shard per session. `legacy` is the pre-namespace `host.shell.agents` field;
+ * Agents live in this extension's own storage as an index document plus one
+ * record per message. `legacy` is the pre-namespace `host.shell.agents` field;
  * it is migrated once and then retired by the composition root. Corrupt data
  * fails only this extension and is kept.
  */
@@ -23,7 +23,7 @@ export function agentExtension(
       // Agents open without any model and say how to add one.
       optional: { chat: 1 },
       provides: { agents: 1 },
-      capabilities: ["state.read", "state.write"],
+      capabilities: ["state.read", "state.batch", "records.list"],
     },
     async activate(ctx) {
       // Each connector's model list can change while it runs.

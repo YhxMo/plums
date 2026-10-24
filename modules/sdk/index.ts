@@ -184,7 +184,7 @@ export type {
   RecordPage,
   RecordSearchRequest,
 } from "./records";
-export { isRecordName } from "./records";
+export { isRecordName, STATE_LIMITS } from "./records";
 export { migrateState, restorePreviousState } from "./state-migration";
 export type {
   StateMigration,

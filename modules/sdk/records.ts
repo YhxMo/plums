@@ -75,6 +75,19 @@ export interface RecordSearchRequest {
   limit?: number;
 }
 
+/** Current platform limits, in UTF-8 bytes of JSON values and text. */
+export const STATE_LIMITS = {
+  /** One document, envelope included. */
+  document: 1 << 20,
+  /** One record's value and text. */
+  record: 8 << 20,
+  /** Writes in one `state.batch`, and their values and text. */
+  batchOperations: 1000,
+  batchBytes: 16 << 20,
+  /** Values and text of one `records.list` or `records.search` page. */
+  pageBytes: 16 << 20,
+} as const;
+
 /** Whether `name` can be a collection, record id or `parent`. */
 export const isRecordName = (name: unknown): name is string =>
   typeof name === "string" && /^[A-Za-z0-9][A-Za-z0-9:._-]{0,127}$/.test(name);

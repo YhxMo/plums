@@ -59,7 +59,7 @@ export const defaultApplication: ShellApplication = {
     modelConnectorWithPage(),
   ],
   grants: {
-    "agents.local": ["state.read", "state.write"],
+    "agents.local": ["state.read", "state.batch", "records.list"],
     "connector.models": [
       "state.read",
       "state.write",
