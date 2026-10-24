@@ -1,6 +1,6 @@
 # 凭据代用请求契约
 
-状态：当前有效（2026-10-23 核实）；生产原生适配已实现。当前验收范围以 Mac 为主，Android 代码冻结；当前文件存储后的真实模型调用尚未验收。实际候选结果见 [HANDOFF](../HANDOFF.md)。
+状态：当前有效（2026-10-24 核实）；生产原生适配已实现，回归见[回归测试](#回归测试)；平台实际结果见 [HANDOFF](../HANDOFF.md#未验范围)。
 
 本契约是凭据请求、授权、失败边界的唯一详细来源；路线与当前任务见[整体计划](spec/total.md)与[当前阶段](spec/milestone.md)。绑定记录与密钥录入见[通用绑定与原生凭据管理](CREDENTIAL-BINDINGS.md)。
 
@@ -39,14 +39,14 @@
 
 适配器为常见代码提供中文说明（如 `not-ready` 提示重新填写 API Key）。unknown 提示用户先核对，再决定是否重试。
 
-## 验证
+## 回归测试
 
 - `src-tauri/src/credential_transport_tests.rs`：用回环 HTTP 服务验证注入头、4xx 透传、3xx 不访问跳转目标、声明/流式超限、静默服务超时、生产客户端拒绝明文 HTTP、UTF-8/状态校验。
 - `src-tauri/src/credential_request_tests.rs`：每 owner 单请求、按 ID 取消（含先于注册到达的取消）、确认按修订生效、`release` 清除确认并取消在途，确认面板打开期间被释放的请求即使随后获确认也不记入缓存。`credential_bindings_tests.rs` 覆盖只解析就绪绑定、管理操作进行中为 busy、保存密钥即确认且改路由后失效。
 - `tests/native-credential-request.test.ts`：适配器可用性、载荷校验零原生调用、outcome 保留、取消转发与停用释放。
 - `tests/fixtures/credential-platform.ts` 的 FakeCredentialPlatform 仍是连接器协议测试用的参考模型，不是原生实现。
 
-已验证（Mac，2026-10-17，钥匙串版本）：账户所有者在 debug 包中完成一次真实调用，系统证书校验与首次发送确认实际生效；应用数据与 WebView 存储扫描无密钥。已验证（Android 模拟器，同期）：账户所有者完成一次真实调用，Keystore 解密与首次发送确认实际生效。改为应用内填写与 Mac 文件存储后尚未实机调用。未验证：Android 应用数据与 logcat 的无密钥扫描；Android 传输的单元测试（Kotlin 仅编译通过）；统一日志在扫描时段无该进程条目，日志无密钥未被正面证明。真实调用由账户所有者填写密钥，每端一次、`max_tokens` ≤ 256、不自动重试。
+以上均为隔离回归，不代表真实服务调用；真实调用的条件与结果见[当前阶段](spec/milestone.md#真实数据与外发)和 [HANDOFF](../HANDOFF.md#未验范围)。
 
 ## 后续加固
 

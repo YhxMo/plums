@@ -75,10 +75,10 @@ npm run verify:native
 | --- | --- |
 | [README](../README.md) | 项目介绍、现在能做什么、快速开始与信任边界 |
 | [docs/README.md](README.md) | 当前文档索引（每篇一行“何时读”） |
-| [ARCHITECTURE](ARCHITECTURE.md) 与子系统文档 | 当前有效的边界、契约与实现映射 |
+| [ARCHITECTURE](ARCHITECTURE.md) 与子系统文档 | 当前有效的边界、契约与实现映射；只列回归测试，不记平台或打包应用的验证结果 |
 | [整体计划](spec/total.md) / [当前阶段](spec/milestone.md) | 路线与阶段门槛 / 正在做的事 |
-| [HANDOFF](../HANDOFF.md) | 实际工程状态、交付与恢复入口 |
-| [RESULTS](../evidence/RESULTS.md) | 交付候选与阶段证据索引 |
+| [HANDOFF](../HANDOFF.md) | 实际工程状态、开发候选的验证结果与[未验范围](../HANDOFF.md#未验范围)、交付与恢复入口 |
+| [RESULTS](../evidence/RESULTS.md) | 已交付包的受验范围与证据索引 |
 
 当前文档平铺在 `docs/` 与 `docs/spec/`，首个 `##` 前写一行 `状态：`（计划写 `更新日期：`）。新增或移动当前文档时同步 `docs/README.md`；过期记录直接删除，历史由 Git 追溯，同一改动修正全部引用。有效规则归入 AGENTS 或本页，不维护独立经验流水账。`npm run check:project` 校验索引覆盖、状态行、链接、锚点、空白与隐私模式。
 
@@ -107,7 +107,7 @@ Mac使用 `npm run release:mac` 统一构建普通debug包、ad-hoc签名、复�
 - 确认没有构建或应用占用后，可删除 Rust 的 `build/deps/incremental/.fingerprint/examples`、Android Gradle 的 `build/.gradle/.kotlin`、`dist/`、图标生成暂存和测试报告。后续构建按原命令重新生成，首次原生编译会更慢。
 - 保留 `node_modules/`、Cargo/npm 下载缓存、Android 生成工程源码及 `.cache/android/debug.keystore`，避免无谓重装、丢失本地更新签名或破坏 JNI 链接。
 - 开发命令把 `PLUMS_DATA_DIR` 指向 `.dev-data/` 以隔离数据；该变量只在 debug 构建（含 Mac 本地预览包）生效，release 构建始终使用平台数据目录（Mac 为 `~/Library/Application Support/dev.plums.plums/data`）。未设该变量的桌面启动在读取数据前检查改名前的 `dev.plums.m1/m1-experiment`：新目录不存在或为空时整体复制过去（暂存后改名，保留文件权限，写入 `migrated-from.json`，拒绝链接），旧目录不改动、留作备份；复制失败时弹窗说明并退出，不写新数据，下次启动重试。迁移前应退出旧版本，两者标识不同，单实例互不感知。Android 的旧包名是另一个应用，数据不能读取，不迁移。实现见 `src-tauri/src/legacy_data.rs`。桌面版单实例：数据目录相同或不同，第二次启动都只聚焦已运行的窗口，因此开发进程与已打开的预览包不能同时运行。
-- `release/`、有效候选及其来源文件、历史应用备份、真实运行数据、隔离模拟器与 `goal.md` 不属于构建垃圾。测试完成后删除该次验收专用假数据、临时脚本、测试包与缓存；不按目录年龄批量删除未知数据。文档中的真实未验项随当前契约保留，过期过程不继续归档。
+- `release/`、有效候选及其来源文件、历史应用备份、真实运行数据、隔离模拟器与 `goal.md` 不属于构建垃圾。测试完成后删除该次验收专用假数据、临时脚本、测试包与缓存；不按目录年龄批量删除未知数据。真实未验项保留在 HANDOFF 的未验范围，过期过程不继续归档。
 
 当前状态和版本从 README、HANDOFF 及 RESULTS 查阅；入口文档不复制多轮 PID、临时路径和交付时间线。项目清单、链接及隐私模式由 `check:project` 检查，原始日志／截图继续忽略。
 

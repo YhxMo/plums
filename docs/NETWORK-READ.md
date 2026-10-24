@@ -1,6 +1,6 @@
 # 公开网络读取
 
-状态：当前有效（2026-10-20 核实）；`network.read` 已在 TS 宿主、Mac（Rust）与 Android（Kotlin）源码实现，TS 与 Rust 单元测试通过；内置模型连接器用它读取 models.dev。Android 0.2.0 打包应用已真实读取、拒绝与取消（[证据](../evidence/RELEASE-0.2.0-2026-10-20.md)）；Mac 打包应用的真实读取未验。
+状态：当前有效（2026-10-24 核实）；`network.read` 已在 TS 宿主、Mac（Rust）与 Android（Kotlin）源码实现，回归见[回归测试](#回归测试)；内置模型连接器用它读取 models.dev。打包应用的实际结果见[交付入口](../evidence/RESULTS.md)与 [HANDOFF](../HANDOFF.md#未验范围)。
 
 扩展读取不需要密钥的公开资源（如公开的模型目录）时使用本能力。它不带任何凭据，与[凭据代用请求](CREDENTIAL-REQUEST.md)分开：需要 API Key 的请求一律走凭据请求。
 
@@ -33,6 +33,6 @@ networkSources: ["https://models.dev"],
 
 扩展是与宿主共享 WebView 的本地可信代码：来源声明与授权提示让用户看见扩展会访问哪些站点，并阻止经公开接口访问未声明的地址，但不是安全沙箱，不能阻止恶意扩展直接调用 WebView 的网络接口。
 
-## 验证
+## 回归测试
 
 `tests/network-read.test.ts`（声明校验、授权文案、原生调用参数、拒绝时零调用、需授权、按 id 取消、停用释放）、`src-tauri/src/network_tests.rs`（URL 形状、上限、同一扩展并发与提前取消）、`tests/android-project.test.ts`（生成工程注册 `NetworkPlugin`）。

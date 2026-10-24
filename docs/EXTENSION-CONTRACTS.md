@@ -2,13 +2,11 @@
 
 [文档导航](README.md) · [架构](ARCHITECTURE.md) · [验收](ACCEPTANCE.md)
 
-状态：当前有效（2026-10-23 核实）；说明 [实验 SDK](../modules/sdk/index.ts) 与 [宿主](../modules/extension-host/host.ts) 的当前契约，不承诺稳定 API 或长期兼容。平台结果见[交付证据](../evidence/RESULTS.md)，开发候选见 [HANDOFF](../HANDOFF.md)。
+状态：当前有效（2026-10-24 核实）；说明 [实验 SDK](../modules/sdk/index.ts) 与 [宿主](../modules/extension-host/host.ts) 的当前契约，不承诺稳定 API 或长期兼容。平台范围见[整体计划](spec/total.md#平台范围先做好-mac-应用本体)，实际结果见[交付证据](../evidence/RESULTS.md)与 [HANDOFF](../HANDOFF.md)。
 
 ## 最小作者与管理入口
 
 [作者指南](SDK-AUTHORING.md)提供三个可直接加载的 ESM 样板、精确版本规则、状态/取消和演进边界。`Host.uninstall(id)` 仅接受已成功停用（或从未启动）的 disabled 记录；撤销平台授权成功后才移除记录，失败保持可诊断和可重试。状态数据与模块文件保留，同 ID 重新安装须重新授权。不提供热升级、迁移或数据删除。外壳对手动安装扩展提供确认卸载，依次停用/撤权、保存安装路径移除、移除 Host 注册；失败保持诊断并可重试或重载确认，跨重启不再加载已确认移除的路径。
-
-当前按 Mac 范围收口；项目外独立作者与跨平台验收仍未完成。iOS 最小原生实验属于跨平台声明的前置，不阻塞仅限 Mac 的收口。
 
 ## 契约覆盖范围
 

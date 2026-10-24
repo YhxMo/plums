@@ -2,7 +2,7 @@
 
 [源码](../modules/models/) · [连接页面](../src/models/ModelConnections.tsx) · [服务商表单](../src/models/ProviderForm.tsx) · [扩展自建连接](CREDENTIAL-BINDINGS.md#扩展自建连接) · [凭据请求契约](CREDENTIAL-REQUEST.md)
 
-状态：当前有效（2026-10-21 核实）；内置模型连接器、获取模型列表（含按 models.dev 填写每个模型的上下文窗口）与按 Agent 选模型、带上下文发送已实现并通过单元与浏览器测试；真实服务调用待在 Mac 与 Android 手测。
+状态：当前有效（2026-10-24 核实）；内置模型连接器、获取模型列表（含按 models.dev 填写每个模型的上下文窗口）与按 Agent 选模型、带上下文发送已实现，回归见[回归测试](#回归测试)；真实服务调用等平台结果见 [HANDOFF](../HANDOFF.md#未验范围)。
 
 ## 用户路径
 
@@ -78,7 +78,7 @@ Agent 可以按模型选择思考强度（关闭、低、中、高、最大）�
 
 替代旧 `connector.deepseek`：旧扩展及其凭据绑定不再加载，原密钥需要在新页面重新录入一次（旧绑定可在扩展管理「卸载后保留的凭据」或对应条目删除）。`connector.models` 是默认扩展，更新后首次启动自动开启。版本 2 的记录（保存完整地址、两个「自定义」预设）读取时换算为 Base URL 与单个「自定义」，下次保存写成版本 7。不支持流式与工具调用；图片只作输入（见上）；长期记忆（跨会话事实）是后续的 `memory@1`，见[整体计划](spec/total.md)。
 
-## 验证
+## 回归测试
 
 `tests/model-protocols.test.ts`（两种协议组装、裁剪、响应校验）、`tests/model-addresses.test.ts`（Base URL 还原、对话地址、模型列表候选路径与解析）、`tests/model-catalog.test.ts`（models.dev 地址匹配、厂商回退、GPT 上限、名称归一）、`tests/model-connector.test.ts`（表单密钥只交给原生、缺少或格式不符的密钥不保存、服务商与模型列表、只改模型不需密钥、删除、请求路由、单个模型测试、获取模型列表、版本 2/3 换算、损坏数据保留、刷新失败不覆盖保存/删除回执或原写入错误）、`tests/model-windows.test.ts`（models.dev 窗口填入、目录缓存与失败重试、目录慢时列表不等待、按模型窗口裁剪、移除模型清理窗口、版本 5 换算）、`tests/agent-models.test.ts`（按 Agent 选模型、只取当前会话、指令、停用提示、持久化）、`tests/credential-connect.test.ts`（模板组装、只写密钥与 owner 隔离）；浏览器测试 `tests/web/extension-usage.spec.ts` 用回显模型检查两个 Agent 选不同模型且第二问带上第一问，`tests/web/credentials.spec.ts` 用假原生桥在 375 与 1180 宽度检查添加自定义服务商、粘贴完整地址、填写 API Key（密码框，密钥只进入原生保存、不进扩展记录、编辑时不回显）、获取并勾选模型（显示并填入 models.dev 的窗口，不带密钥读取声明的来源）、调整默认窗口、按模板组装连接，新 Agent 在扩展管理中同时列在连接器与 Agent 界面下，且无横向溢出；`tests/web/model-connection-recovery.spec.ts` 经假原生桥覆盖已保存服务商不重复创建、关闭窗口取消测试与模型列表请求并释放请求槽、保存中关闭不再读取，以及手动添加与勾选混用时的去重和容量检查。
 
