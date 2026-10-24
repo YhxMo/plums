@@ -159,3 +159,49 @@ export async function installByPath(page: Page, folder: string) {
   await dialog.getByLabel("扩展文件夹路径", { exact: true }).fill(folder);
   await dialog.getByRole("button", { name: "加载扩展", exact: true }).click();
 }
+
+/** Installs a model that answers only when the test calls `answer()`, and an Agent on it. */
+export async function slowAgent(page: Page, name: string) {
+  await serveModule(
+    page,
+    "slow-chat",
+    `export default {
+  manifest: { id: "chat.slow", version: "1", apiVersion: 1, provides: { chat: 1 } },
+  activate(ctx) {
+    ctx.provide("chat", 1, {
+      name: "慢模型",
+      models: () => [{ id: "slow", label: "慢", description: "" }],
+      subscribe: () => () => {},
+      reply: ({ input }, signal) =>
+        new Promise((done, reject) => {
+          signal.throwIfAborted();
+          const stop = () => reject(signal.reason);
+          signal.addEventListener("abort", stop, { once: true });
+          window.answer = () => {
+            signal.removeEventListener("abort", stop);
+            done("答：" + input);
+          };
+        }),
+    });
+  },
+};`,
+  );
+  await page.goto("/");
+  await manage(page);
+  await page.getByRole("button", { name: "安装扩展", exact: true }).click();
+  await installByPath(page, "/slow-chat/");
+  await page
+    .getByRole("button", { name: "启用 chat.slow", exact: true })
+    .click();
+  await page.getByRole("button", { name: "返回工作区", exact: true }).click();
+  await addAgent(page, name);
+  await page.getByRole("combobox", { name: "切换模型", exact: true }).click();
+  await page
+    .getByRole("listbox", { name: "切换模型" })
+    .getByRole("option", { name: /^慢/ })
+    .click();
+}
+
+/** Lets the slow model answer the message it holds. */
+export const answer = (page: Page) =>
+  page.evaluate(() => (window as unknown as { answer(): void }).answer());

@@ -1,6 +1,12 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
-import { ChevronLeftIcon, EllipsisIcon, PanelRightIcon } from "lucide-react";
-import { AnimatePresence, motion } from "motion/react";
+import {
+  ArrowDownIcon,
+  ChevronLeftIcon,
+  EllipsisIcon,
+  PanelRightIcon,
+} from "lucide-react";
+import { AnimatePresence, motion, useReducedMotion } from "motion/react";
+import { useStickToBottom } from "use-stick-to-bottom";
 import type {
   Agent,
   AgentModel,
@@ -87,15 +93,40 @@ export function ChatView({
     agent.status === "busy" &&
     (!agent.pending || agent.pending.sessionId === session.id);
   const desktop = useMediaQuery(atLeast("md"));
-  const bottom = useRef<HTMLDivElement>(null);
   const input = useRef<HTMLTextAreaElement>(null);
   const more = useRef<HTMLButtonElement>(null);
   const sessions = useRef<HTMLButtonElement>(null);
   const [copied, setCopied] = useState<string>();
   const [dropping, setDropping] = useState(false);
+  // The log follows new messages only while it is at the bottom.
+  const motionless = useReducedMotion();
+  const { scrollRef, contentRef, isAtBottom, scrollToBottom } =
+    useStickToBottom({
+      initial: "instant",
+      resize: motionless ? "instant" : "smooth",
+    });
+  const pending =
+    agent.pending?.sessionId === session.id ? agent.pending : undefined;
+  // Another session opens at its end, and what the person sends is shown.
   useEffect(() => {
-    bottom.current?.scrollIntoView({ block: "end" });
-  }, [session.id, session.messages.length, agent.pending]);
+    void scrollToBottom("instant");
+  }, [session.id, scrollToBottom]);
+  useEffect(() => {
+    if (pending) void scrollToBottom(motionless ? "instant" : "smooth");
+  }, [pending, motionless, scrollToBottom]);
+  // Messages seen at the bottom; a reply after them is new until reached.
+  const [seen, setSeen] = useState({
+    session: session.id,
+    count: session.messages.length,
+  });
+  if (
+    isAtBottom &&
+    (seen.session !== session.id || seen.count !== session.messages.length)
+  )
+    setSeen({ session: session.id, count: session.messages.length });
+  const unseen =
+    seen.session === session.id &&
+    session.messages.slice(seen.count).some((m) => m.role === "agent");
   useEffect(() => {
     if (!copied) return;
     const timer = setTimeout(() => setCopied(undefined), 1500);
@@ -153,8 +184,6 @@ export function ChatView({
     );
     previous = m.role;
   }
-  const pending =
-    agent.pending?.sessionId === session.id ? agent.pending : undefined;
   const pendingSpacing = spacing("user");
   return (
     <section
@@ -246,66 +275,102 @@ export function ChatView({
           </DropdownMenuContent>
         </DropdownMenu>
       </header>
-      <div
-        className="relative flex min-h-0 flex-1 flex-col overflow-auto px-[max(24px,calc((100%-600px)/2))] pt-3 pb-4 max-md:px-3.5"
-        role="log"
-        aria-label="会话消息"
-        onDragOver={(e) => {
-          if (!attach || !e.dataTransfer.types.includes("Files")) return;
-          e.preventDefault();
-          setDropping(true);
-        }}
-        onDragLeave={(e) => {
-          if (!e.currentTarget.contains(e.relatedTarget as Node))
+      <div className="relative flex min-h-0 flex-1 flex-col">
+        <div
+          ref={scrollRef}
+          className="relative flex min-h-0 flex-1 flex-col overflow-auto"
+          role="log"
+          aria-label="会话消息"
+          onDragOver={(e) => {
+            if (!attach || !e.dataTransfer.types.includes("Files")) return;
+            e.preventDefault();
+            setDropping(true);
+          }}
+          onDragLeave={(e) => {
+            if (!e.currentTarget.contains(e.relatedTarget as Node))
+              setDropping(false);
+          }}
+          onDrop={(e) => {
             setDropping(false);
-        }}
-        onDrop={(e) => {
-          setDropping(false);
-          if (!attach || !e.dataTransfer.files.length) return;
-          e.preventDefault();
-          attach.onAdd([...e.dataTransfer.files]);
-        }}
-      >
-        {dropping && (
+            if (!attach || !e.dataTransfer.files.length) return;
+            e.preventDefault();
+            attach.onAdd([...e.dataTransfer.files]);
+          }}
+        >
+          {dropping && (
+            <div
+              aria-hidden="true"
+              className="pointer-events-none absolute inset-2 z-10 grid place-items-center rounded-2xl border-2 border-dashed border-brand/60 bg-chat/80 text-sm text-muted-foreground"
+            >
+              松开以添加附件
+            </div>
+          )}
           <div
-            aria-hidden="true"
-            className="pointer-events-none absolute inset-2 z-10 grid place-items-center rounded-2xl border-2 border-dashed border-brand/60 bg-chat/80 text-sm text-muted-foreground"
+            ref={contentRef}
+            className="flex min-h-full flex-col px-[max(24px,calc((100%-600px)/2))] pt-3 pb-4 max-md:px-3.5"
           >
-            松开以添加附件
-          </div>
-        )}
-        {!session.messages.length && (
-          <motion.div
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.3, ease: "easeOut" }}
-            className="my-auto flex flex-col items-center gap-3 text-center"
-          >
-            <Avatar agent={agent} size="large" />
-            <h2 className="text-lg font-semibold tracking-tight max-md:text-[22px]">
-              {agent.name}
-            </h2>
-            {agent.description && (
-              <p className="line-clamp-4 max-w-md text-[13px] leading-relaxed whitespace-pre-wrap text-muted-foreground wrap-anywhere">
-                {agent.description}
-              </p>
+            {!session.messages.length && (
+              <motion.div
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.3, ease: "easeOut" }}
+                className="my-auto flex flex-col items-center gap-3 text-center"
+              >
+                <Avatar agent={agent} size="large" />
+                <h2 className="text-lg font-semibold tracking-tight max-md:text-[22px]">
+                  {agent.name}
+                </h2>
+                {agent.description && (
+                  <p className="line-clamp-4 max-w-md text-[13px] leading-relaxed whitespace-pre-wrap text-muted-foreground wrap-anywhere">
+                    {agent.description}
+                  </p>
+                )}
+              </motion.div>
             )}
-          </motion.div>
-        )}
-        <AnimatePresence initial={false}>{lines}</AnimatePresence>
-        {/* The pending turn gives way to the saved one at once; the reply
+            <AnimatePresence initial={false}>{lines}</AnimatePresence>
+            {/* The pending turn gives way to the saved one at once; the reply
             arrives whole, with no placeholder before it. */}
-        {pending && (
-          <MessageRow
-            key="pending"
-            agent={agent}
-            role="user"
-            className={pendingSpacing}
-            text={pending.text}
-            attachments={pending.attachments}
-          />
-        )}
-        <div ref={bottom} />
+            {pending && (
+              <MessageRow
+                key="pending"
+                agent={agent}
+                role="user"
+                className={pendingSpacing}
+                text={pending.text}
+                attachments={pending.attachments}
+              />
+            )}
+          </div>
+        </div>
+        <AnimatePresence>
+          {!isAtBottom && (
+            <motion.div
+              key="back"
+              initial={{ opacity: 0, y: 6 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: 6 }}
+              transition={{ duration: 0.15 }}
+              className="absolute bottom-3 left-1/2 -translate-x-1/2"
+            >
+              <Button
+                variant="outline"
+                size={unseen ? "sm" : "icon-sm"}
+                className={cn(
+                  // Solid in both themes: it floats over bubbles.
+                  "rounded-full bg-popover shadow-float hover:bg-muted dark:bg-popover dark:hover:bg-muted",
+                  unseen && "text-brand-text",
+                )}
+                aria-label={unseen ? "新消息，回到最新" : "回到最新"}
+                onClick={() =>
+                  void scrollToBottom(motionless ? "instant" : "smooth")
+                }
+              >
+                <ArrowDownIcon />
+                {unseen && "新消息"}
+              </Button>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
       <Composer
         agent={agent}
