@@ -35,7 +35,7 @@ ESLint 使用 flat config，对全部 JS/TS/TSX 启用推荐规则、typescript-
 
 `check:size` 扫描项目源码清单的 TS、TSX、JS、MJS、Rust、Kotlin 和 CSS，以物理行数计数（末尾换行不增加空行），阈值见[脚本](../scripts/check-size.mjs)。超过 400 行的文件只列出提醒，改动时留意是否仍是单一职责；超过 800 行才失败。拆分以可维护性为准：按职责拆，不为凑行数把内聚的代码拆散或压缩写法。清单包含测试，生成输出沿用项目清单的排除规则。
 
-启动与声明校验复用 `modules/sdk/validation.ts` 和 `ContractError`：错误码表达类别，detail 保留字段路径，通用中文由 `src/shell/messages.ts` 映射；业务数据错误由提供者提供具体 message，外壳不按 Agent 等业务字段名翻译。已有开发调用需要英文诊断时，通过校验的 label／ContractError 的可选 message 保留原因；不要用裸错误码替代已对外提供的字符串诊断。Host 的配置、激活与清理错误在转为字符串前使用可选格式化回调；等待原因读取结构化 `inspect().wait`，诊断与界面不解析等待文本前缀。
+启动与声明校验复用 `modules/sdk/validation.ts` 和 `ContractError`，错误码、字段路径、中文映射与等待原因的分工见[架构](ARCHITECTURE.md#当前前端的状态所有权)。
 
 ## 上游依赖补丁
 
@@ -106,7 +106,7 @@ Mac使用 `npm run release:mac` 统一构建普通debug包、ad-hoc签名、复�
 
 - 确认没有构建或应用占用后，可删除 Rust 的 `build/deps/incremental/.fingerprint/examples`、Android Gradle 的 `build/.gradle/.kotlin`、`dist/`、图标生成暂存和测试报告。后续构建按原命令重新生成，首次原生编译会更慢。
 - 保留 `node_modules/`、Cargo/npm 下载缓存、Android 生成工程源码及 `.cache/android/debug.keystore`，避免无谓重装、丢失本地更新签名或破坏 JNI 链接。
-- 开发命令把 `PLUMS_DATA_DIR` 指向 `.dev-data/` 以隔离数据；该变量只在 debug 构建（含 Mac 本地预览包）生效，release 构建始终使用平台数据目录（Mac 为 `~/Library/Application Support/dev.plums.plums/data`）。未设该变量的桌面启动在读取数据前检查改名前的 `dev.plums.m1/m1-experiment`：新目录不存在或为空时整体复制过去（暂存后改名，保留文件权限，写入 `migrated-from.json`，拒绝链接），旧目录不改动、留作备份；复制失败时弹窗说明并退出，不写新数据，下次启动重试。迁移前应退出旧版本，两者标识不同，单实例互不感知。Android 的旧包名是另一个应用，数据不能读取，不迁移。实现见 `src-tauri/src/legacy_data.rs`。桌面版单实例：数据目录相同或不同，第二次启动都只聚焦已运行的窗口，因此开发进程与已打开的预览包不能同时运行。
+- 开发命令把 `PLUMS_DATA_DIR` 指向 `.dev-data/` 以隔离数据；该变量只在 debug 构建（含 Mac 本地预览包）生效。桌面版单实例，开发进程与已打开的预览包不能同时运行。正式数据目录与改名前旧数据的迁移见[架构](ARCHITECTURE.md#应用数据目录)。
 - `release/`、有效候选及其来源文件、历史应用备份、真实运行数据、隔离模拟器与 `goal.md` 不属于构建垃圾。测试完成后删除该次验收专用假数据、临时脚本、测试包与缓存；不按目录年龄批量删除未知数据。真实未验项保留在 HANDOFF 的未验范围，过期过程不继续归档。
 
 当前状态和版本从 README、HANDOFF 及 RESULTS 查阅；入口文档不复制多轮 PID、临时路径和交付时间线。项目清单、链接及隐私模式由 `check:project` 检查，原始日志／截图继续忽略。

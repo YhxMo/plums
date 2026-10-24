@@ -69,7 +69,7 @@ Runtime 的 initial 只作外观、布局、恢复诊断和扩展状态的启动
 
 外壳订阅当前视图的 `chrome`，由视图发布标题和默认详情状态。自定义侧栏依次匹配当前实体的扩展所有者、当前工作区所有者，再使用工作区默认详情；同类贡献按 priority 和 ID 确定顺序。自定义侧栏出现时关闭默认 inline 详情；移动端默认详情可用 dialog 呈现，转为桌面后参与互斥。
 
-SDK 的 `errors.ts` 与零依赖 `validation.ts` 提供错误码和字段路径，扩展/主题/组合 ID 规则（`identifier`）与同源判断（`sameOrigin`）只在 `validation.ts` 定义；通用中文错误由外壳 `messages.ts` 映射，业务数据损坏的具体原因由提供者通过 `ContractError.message` 传递，外壳补充数据保留提示而不解析业务字段名。Host 保持字符串诊断接口，由外壳在构造时注入错误格式化回调，在配置、生命周期和清理错误转为字符串前映射；等待原因以结构化 `inspect().wait`（`configuration`/`capability-unavailable`/`permission`/`dependency`/`cycle`）给出，诊断与界面文案只读该结构，`error` 中的英文文本仅供开发日志。已有 Host 调用者继续使用原默认开发诊断。Host 按职责拆分：`definition.ts` 声明校验与加载，`scope.ts` 单次激活的资源作用域，`registry.ts` 服务（同一服务可有多个提供者，按启用先后排列）、视图、主题、事件、`use` 绑定形成的依赖链、公布的使用者与按使用者开关登记，`context.ts` 构造扩展 `ctx`，`lifecycle.ts` 宿主错误、超时与等待原因，`host.ts` 只保留安装、授权、启停与协调；`host.ts` 不再转发 `loadExtension`。
+SDK 的 `errors.ts` 与零依赖 `validation.ts` 提供错误码和字段路径，扩展/主题/组合 ID 规则（`identifier`）与同源判断（`sameOrigin`）只在 `validation.ts` 定义；通用中文错误由外壳 `messages.ts` 映射，业务数据损坏的具体原因由提供者通过 `ContractError.message` 传递，外壳补充数据保留提示而不解析业务字段名。Host 保持字符串诊断接口，由外壳在构造时注入错误格式化回调，在配置、生命周期和清理错误转为字符串前映射；等待原因以结构化 `inspect().wait`（`configuration`/`capability-unavailable`/`permission`/`dependency`/`cycle`）给出，诊断与界面文案只读该结构，`error` 中的英文文本仅供开发日志。已有 Host 调用者继续使用原默认开发诊断；需要英文诊断的开发调用通过校验的 label 或 `ContractError` 的可选 message 保留原因，不用裸错误码替代已对外提供的字符串诊断。Host 按职责拆分：`definition.ts` 声明校验与加载，`scope.ts` 单次激活的资源作用域，`registry.ts` 服务（同一服务可有多个提供者，按启用先后排列）、视图、主题、事件、`use` 绑定形成的依赖链、公布的使用者与按使用者开关登记，`context.ts` 构造扩展 `ctx`，`lifecycle.ts` 宿主错误、超时与等待原因，`host.ts` 只保留安装、授权、启停与协调；`host.ts` 不再转发 `loadExtension`。
 
 `chrome` 是可选的框架无关接口。Host 只透传贡献；外壳在消费边界捕获读取、订阅和操作异常，排除失败的视图代并保留管理恢复入口。导航接收方声明实体类型，调用方必须匹配后才传递 ID，避免将 Agent ID 发送给任务等其他工作区。接口和作者示例见 [SDK 作者入口](SDK-AUTHORING.md#工作区标题与上下文侧栏)。
 
@@ -90,6 +90,14 @@ Rust 命令与 wire 类型是 IPC 的来源：[ipc.rs](../src-tauri/src/ipc.rs) 
 Android 系统栏与键盘 Insets 由 [MainActivity 模板](../native/android/MainActivity.kt) 适配，[外观插件](../native/android/AppearancePlugin.kt) 同步系统栏颜色；两者不进入扩展宿主。该平台当前冻结，生成工程与恢复构建方式见 [Android 工程](ANDROID.md)。
 
 角色卡、模型协议与具体 A2A 协作流程归扩展；通用契约只表达参与者、状态、权限、取消及资源所有权。后续跨平台、角色与合作验收按[整体路线](spec/total.md)推进，不预建业务编排内核。
+
+## 应用数据目录
+
+release 构建始终使用平台数据目录（Mac 为 `~/Library/Application Support/dev.plums.plums/data`）；debug 构建可由 `PLUMS_DATA_DIR` 指向隔离目录，开发用法见[开发流程](DEVELOPMENT.md#本地交付目录)。
+
+未设该变量的桌面启动在读取数据前检查改名前的 `dev.plums.m1/m1-experiment`：新目录不存在或为空时整体复制过去（暂存后改名，保留文件权限，写入 `migrated-from.json`，拒绝链接），旧目录不改动、留作备份；复制失败时弹窗说明并退出，不写新数据，下次启动重试。迁移前应退出旧版本，两者标识不同，单实例互不感知。Android 的旧包名是另一个应用，数据不能读取，不迁移。实现见 `src-tauri/src/legacy_data.rs`。
+
+桌面版单实例：数据目录相同或不同，第二次启动都只聚焦已运行的窗口。
 
 ## 信任与复用边界
 
