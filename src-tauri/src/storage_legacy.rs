@@ -75,7 +75,7 @@ fn document(path: &Path) -> Result<Document, StateErrorCode> {
     let size = fs::metadata(path)
         .map_err(|_| StateErrorCode::StateRead)?
         .len();
-    if size > MAX_ITEM as u64 {
+    if size > MAX_DOCUMENT as u64 {
         return Err(StateErrorCode::StateTooLarge);
     }
     let bytes = fs::read(path).map_err(|_| StateErrorCode::StateRead)?;

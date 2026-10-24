@@ -48,8 +48,12 @@ pub struct Document {
     pub value: Value,
 }
 
-/// Largest stored document (envelope included) or record (value and text).
-const MAX_ITEM: usize = 1 << 20;
+/// Largest stored document, envelope included.
+const MAX_DOCUMENT: usize = 1 << 20;
+/// Largest record's value and text: one chat message with its pictures.
+const MAX_RECORD: usize = 8 << 20;
+/// Values and text one `records.list` or `records.search` page returns.
+const MAX_PAGE_BYTES: usize = 16 << 20;
 const MAX_REVISION: u64 = 9_007_199_254_740_991;
 /// Writes in one `state.batch`, and the value and text bytes they may carry.
 const MAX_BATCH_OPERATIONS: usize = 1000;
@@ -368,7 +372,7 @@ impl DocumentWrite {
         let size = serde_json::to_vec(&document)
             .map_err(|_| StateErrorCode::Serialization)?
             .len();
-        if size > MAX_ITEM {
+        if size > MAX_DOCUMENT {
             return Err(StateErrorCode::StateTooLarge);
         }
         transaction

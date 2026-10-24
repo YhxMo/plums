@@ -2,7 +2,6 @@ import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { PlatformAdapter } from "../src/platform";
 import type {
   RecordPage,
-  RecordSearchResult,
   RecordWrite,
   StateBatchReceipt,
 } from "../modules/sdk";
@@ -41,9 +40,7 @@ async function adapter() {
     read: call("state.read"),
     batch: call("state.batch") as (p: unknown) => Promise<StateBatchReceipt>,
     list: call("records.list") as (p: unknown) => Promise<RecordPage>,
-    search: call("records.search") as (
-      p: unknown,
-    ) => Promise<RecordSearchResult>,
+    search: call("records.search") as (p: unknown) => Promise<RecordPage>,
   };
 }
 const put = (collection: string, id: string, text: string): RecordWrite => ({
@@ -266,7 +263,7 @@ it.each([
     "state-too-large",
     {
       records: [
-        { collection: "c", id: "a", revision: 0, value: "x".repeat(1 << 20) },
+        { collection: "c", id: "a", revision: 0, value: "x".repeat(8 << 20) },
       ],
     },
   ],
@@ -279,7 +276,7 @@ it.each([
   },
 );
 
-it("lets documents grow to one mebibyte", async () => {
+it("lets documents grow to one mebibyte and records to eight", async () => {
   const { platform } = await adapter();
   const write = (payload: object) =>
     platform.call(owner, "state.write", payload);
@@ -287,6 +284,17 @@ it("lets documents grow to one mebibyte", async () => {
   await expect(
     write({ revision: 1, value: "x".repeat(1 << 20) }),
   ).rejects.toMatchObject({ code: "state-too-large" });
+  const { batch } = await adapter();
+  await batch({
+    records: [
+      {
+        collection: "c",
+        id: "a",
+        revision: 0,
+        value: "x".repeat((8 << 20) - 1024),
+      },
+    ],
+  });
 });
 
 it("needs its own grant and fails writes the diagnostics inject", async () => {
@@ -307,4 +315,23 @@ it("names the new capabilities in plain words", async () => {
   const { capabilityLabel } = await import("../modules/shell/capabilities");
   for (const capability of ["state.batch", "records.list", "records.search"])
     expect(capabilityLabel(capability)).not.toBe(capability);
+});
+
+it("ends a page before sixteen mebibytes, keeping at least one record", async () => {
+  const { batch, list, search } = await adapter();
+  const big = "x".repeat((8 << 20) - 1024);
+  for (const id of ["a", "b", "c"])
+    await batch({
+      records: [{ collection: "c", id, revision: 0, value: big, text: "长" }],
+    });
+  const first = await list({ collection: "c" });
+  expect(ids(first)).toEqual(["a", "b"]);
+  const rest = await list({ collection: "c", after: first.next });
+  expect(ids(rest)).toEqual(["c"]);
+  expect(rest.next).toBeNull();
+  const found = await search({ query: "长" });
+  expect(ids(found)).toEqual(["c", "b"]);
+  const older = await search({ query: "长", after: found.next });
+  expect(ids(older)).toEqual(["a"]);
+  expect(older.next).toBeNull();
 });

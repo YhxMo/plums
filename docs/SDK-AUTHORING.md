@@ -120,9 +120,9 @@ export default {
 条目多、要一起保存或需要搜索的数据（如聊天记录）用批量写与记录，类型见 [records.ts](../modules/sdk/records.ts)。`state.batch`、`records.list`、`records.search` 是三项独立能力，分别声明并经用户授权，读写范围同样限于自己的作用域。
 
 - **批量写**：`state.batch` 在一个事务里依次写入 `documents`（每项同 `state.write` 的载荷）、清空 `clear` 列出的集合、写入 `records`；任一修订号不符或任一项无效时整批拒绝，什么都不写。同一文档、集合或记录在一批中只能出现一次；一批最多 1000 项，值与文本合计不超过 16 MiB。回执按请求顺序列出 `documents` 的 `{revision}` 与 `records` 的 `{seq, revision}`，删除项为 null；取消与未知回执的规则同 `state.write`。
-- **记录**：集合（`collection`）中按 `id` 区分的 JSON 值，两者与 `parent` 均为 `[A-Za-z0-9][A-Za-z0-9:._-]{0,127}`；修订号与删除（`remove: true`）的规则同文档，`value` 与 `text` 合计不超过 1 MiB。`seq` 是记录首次写入时在作用域内的次序，修改不变，删除后再写入排到最后。`parent` 原样保存，宿主不检查它指向的记录，供分支等结构使用。
-- **列出**：`records.list` 传 `{collection, after?, limit?, order?}`，按 `seq` 返回一页 `{records, next}`；`limit` 1–200（默认 50），`order` 为 `"asc"`（默认）或 `"desc"`，把 `next` 作为下一页的 `after`，最后一页为 null。
-- **搜索**：`records.search` 传 `{query, collection?, limit?}`，返回 `text` 中包含 `query` 的记录，新的在前；`query` 去掉首尾空白后 1–256 个字符，词中间也能匹配，英文字母不区分大小写；`limit` 1–100（默认 20）。`text` 由扩展写入，宿主不从 `value` 提取，没有 `text` 的记录不会被找到。
+- **记录**：集合（`collection`）中按 `id` 区分的 JSON 值，两者与 `parent` 均为 `[A-Za-z0-9][A-Za-z0-9:._-]{0,127}`；修订号与删除（`remove: true`）的规则同文档，`value` 与 `text` 合计不超过 8 MiB（容得下一条带图片的聊天消息）。`seq` 是记录首次写入时在作用域内的次序，修改不变，删除后再写入排到最后。`parent` 原样保存，宿主不检查它指向的记录，供分支等结构使用。
+- **列出**：`records.list` 传 `{collection, after?, limit?, order?}`，按 `seq` 返回一页 `{records, next}`；`limit` 1–200（默认 50），`order` 为 `"asc"`（默认）或 `"desc"`，把 `next` 作为下一页的 `after`，最后一页为 null。一页的值与文本合计超过 16 MiB 前提前结束（至少含一条），所以条数可能少于 `limit`。
+- **搜索**：`records.search` 传 `{query, collection?, after?, limit?}`，返回 `text` 中包含 `query` 的记录，新的在前，分页同 `records.list`；`query` 去掉首尾空白后 1–256 个字符，词中间也能匹配，英文字母不区分大小写；`limit` 1–100（默认 20）。`text` 由扩展写入，宿主不从 `value` 提取，没有 `text` 的记录不会被找到。
 
 请求无效时错误带 `code`：`invalid-batch`、`invalid-collection`、`invalid-record`、`invalid-query`，以及与文档相同的 `invalid-key`、`missing-revision`、`missing-value`、`revision-conflict`、`state-too-large`。
 

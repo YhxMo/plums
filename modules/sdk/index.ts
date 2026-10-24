@@ -183,8 +183,8 @@ export type {
   RecordListRequest,
   RecordPage,
   RecordSearchRequest,
-  RecordSearchResult,
 } from "./records";
+export { isRecordName } from "./records";
 export { migrateState, restorePreviousState } from "./state-migration";
 export type {
   StateMigration,

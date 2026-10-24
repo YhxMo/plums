@@ -58,21 +58,23 @@ export interface RecordListRequest {
   order?: "asc" | "desc";
 }
 
+/** A page also ends before its values and text pass 16 MiB, keeping at least one record. */
 export interface RecordPage {
   records: StoredRecord[];
   /** Pass as `after` for the following page; null on the last page. */
   next: string | null;
 }
 
+/** Pages newest first, like `records.list` with `order: "desc"`. */
 export interface RecordSearchRequest {
   /** Trimmed; 1–256 characters. Matches inside words; ASCII letters ignore case. */
   query: string;
   collection?: string | null;
+  after?: string | null;
   /** 1–100, default 20. */
   limit?: number;
 }
 
-/** Newest first. */
-export interface RecordSearchResult {
-  records: StoredRecord[];
-}
+/** Whether `name` can be a collection, record id or `parent`. */
+export const isRecordName = (name: unknown): name is string =>
+  typeof name === "string" && /^[A-Za-z0-9][A-Za-z0-9:._-]{0,127}$/.test(name);

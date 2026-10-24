@@ -117,7 +117,7 @@ impl RecordWrite {
                 .get("value")
                 .ok_or(StateErrorCode::MissingValue)?
                 .to_string();
-            if value.len() + text.as_ref().map_or(0, String::len) > MAX_ITEM {
+            if value.len() + text.as_ref().map_or(0, String::len) > MAX_RECORD {
                 return Err(StateErrorCode::StateTooLarge);
             }
             Some(RecordPut {
@@ -296,16 +296,26 @@ struct StoredRecord {
     text: Option<String>,
 }
 
-fn rows(
+/// Up to `limit` rows of `sql` as `{records, next}`. A page also ends before
+/// its records' values and text pass `MAX_PAGE_BYTES`, keeping at least one;
+/// `next` is the last record's `seq` when more rows follow.
+fn page(
     connection: &Connection,
     sql: &str,
     params: impl rusqlite::Params,
-) -> Result<Vec<StoredRecord>, StateErrorCode> {
+    limit: i64,
+) -> Result<Value, StateErrorCode> {
     let mut statement = connection
         .prepare(sql)
         .map_err(|_| StateErrorCode::StateRead)?;
-    let found = statement
-        .query_map(params, |row: &Row| {
+    let mut rows = statement
+        .query(params)
+        .map_err(|_| StateErrorCode::StateRead)?;
+    let mut records = Vec::new();
+    let mut bytes = 0;
+    let mut more = false;
+    while let Some(row) = rows.next().map_err(|_| StateErrorCode::StateRead)? {
+        let read = |row: &Row| -> rusqlite::Result<(StoredRecord, String)> {
             Ok((
                 StoredRecord {
                     collection: row.get(0)?,
@@ -316,21 +326,38 @@ fn rows(
                     value: Value::Null,
                     text: row.get(6)?,
                 },
-                row.get::<_, String>(5)?,
+                row.get(5)?,
             ))
-        })
-        .map_err(|_| StateErrorCode::StateRead)?
-        .collect::<Result<Vec<_>, _>>()
-        .map_err(|_| StateErrorCode::StateRead)?;
-    found
-        .into_iter()
-        .map(|(record, value)| {
-            Ok(StoredRecord {
-                value: serde_json::from_str(&value).map_err(|_| StateErrorCode::StateCorrupt)?,
-                ..record
-            })
-        })
-        .collect()
+        };
+        let (record, value) = read(row).map_err(|_| StateErrorCode::StateRead)?;
+        bytes += value.len() + record.text.as_ref().map_or(0, String::len);
+        if records.len() as i64 == limit || (!records.is_empty() && bytes > MAX_PAGE_BYTES) {
+            more = true;
+            break;
+        }
+        records.push(StoredRecord {
+            value: serde_json::from_str(&value).map_err(|_| StateErrorCode::StateCorrupt)?,
+            ..record
+        });
+    }
+    let next = records
+        .last()
+        .filter(|_| more)
+        .map(|record: &StoredRecord| record.seq.to_string());
+    Ok(serde_json::json!({ "records": records, "next": next }))
+}
+/// `after`: the previous page's `next`.
+fn cursor(payload: &Value) -> Result<Option<i64>, StateErrorCode> {
+    match optional(payload, "after") {
+        None => Ok(None),
+        Some(Value::String(cursor)) if cursor.bytes().all(|c| c.is_ascii_digit()) => cursor
+            .parse::<i64>()
+            .ok()
+            .filter(|seq| *seq > 0)
+            .map(Some)
+            .ok_or(StateErrorCode::InvalidQuery),
+        Some(_) => Err(StateErrorCode::InvalidQuery),
+    }
 }
 
 /// One page of a collection in `seq` order; `after` is the previous page's `next`.
@@ -350,20 +377,9 @@ impl List {
             Some(Value::String(order)) if order == "desc" => true,
             Some(_) => return Err(StateErrorCode::InvalidQuery),
         };
-        let after = match optional(payload, "after") {
-            None => None,
-            Some(Value::String(cursor)) => Some(
-                cursor
-                    .parse::<i64>()
-                    .ok()
-                    .filter(|seq| *seq > 0 && cursor.bytes().all(|c| c.is_ascii_digit()))
-                    .ok_or(StateErrorCode::InvalidQuery)?,
-            ),
-            Some(_) => return Err(StateErrorCode::InvalidQuery),
-        };
         Ok(Self {
             collection,
-            after,
+            after: cursor(payload)?,
             limit: limit(payload, 50, 200)?,
             descending,
         })
@@ -375,18 +391,12 @@ impl List {
         } else {
             (self.after.unwrap_or(0), "seq > ?2 ORDER BY seq ASC")
         };
-        let mut found = rows(
+        page(
             connection,
             &format!("SELECT {COLUMNS} FROM records WHERE collection = ?1 AND {order} LIMIT ?3"),
             params![self.collection, bound, self.limit + 1],
-        )?;
-        let more = found.len() as i64 > self.limit;
-        found.truncate(self.limit as usize);
-        let next = found
-            .last()
-            .filter(|_| more)
-            .map(|record| record.seq.to_string());
-        Ok(serde_json::json!({ "records": found, "next": next }))
+            self.limit,
+        )
     }
 }
 
@@ -394,6 +404,7 @@ impl List {
 pub(super) struct Search {
     query: String,
     collection: Option<String>,
+    after: Option<i64>,
     limit: i64,
 }
 
@@ -412,6 +423,7 @@ impl Search {
         Ok(Self {
             query: query.into(),
             collection,
+            after: cursor(payload)?,
             limit: limit(payload, 20, 100)?,
         })
     }
@@ -428,15 +440,20 @@ impl Search {
             self.query
         };
         let escape = if wild { " ESCAPE '\\'" } else { "" };
-        let found = rows(
+        page(
             connection,
             &format!(
                 "SELECT {COLUMNS} FROM records_text JOIN records ON records.seq = records_text.rowid
                  WHERE records_text.text LIKE ?1{escape} AND (?2 IS NULL OR records.collection = ?2)
-                 ORDER BY records.seq DESC LIMIT ?3"
+                 AND records.seq < ?3 ORDER BY records.seq DESC LIMIT ?4"
             ),
-            params![format!("%{pattern}%"), self.collection, self.limit],
-        )?;
-        Ok(serde_json::json!({ "records": found }))
+            params![
+                format!("%{pattern}%"),
+                self.collection,
+                self.after.unwrap_or(i64::MAX),
+                self.limit + 1
+            ],
+            self.limit,
+        )
     }
 }

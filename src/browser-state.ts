@@ -1,4 +1,9 @@
-import type { StoredRecord, StoredState } from "@modules/sdk";
+import {
+  isRecordName,
+  type RecordPage,
+  type StoredRecord,
+  type StoredState,
+} from "@modules/sdk";
 import { isStateErrorCode, stateRejection } from "./native/state-errors";
 
 /**
@@ -8,8 +13,12 @@ import { isStateErrorCode, stateRejection } from "./native/state-errors";
  * and puts the earlier values back if one of them fails.
  */
 
-/** Largest document (envelope included) or record (value and text). */
-const MAX_ITEM = 1 << 20;
+/** Largest document, envelope included. */
+const MAX_DOCUMENT = 1 << 20;
+/** Largest record's value and text. */
+const MAX_RECORD = 8 << 20;
+/** Values and text one list or search page returns. */
+const MAX_PAGE_BYTES = 16 << 20;
 const MAX_BATCH_OPERATIONS = 1000;
 const MAX_BATCH_BYTES = 16 << 20;
 
@@ -33,7 +42,7 @@ const recordsKey = (owner: string) => `plums:m1:${owner}#records`;
 
 function storedDocument(raw: string | null): StoredState | null {
   if (raw === null) return null;
-  if (bytes(raw) > MAX_ITEM) throw stateRejection("state-too-large");
+  if (bytes(raw) > MAX_DOCUMENT) throw stateRejection("state-too-large");
   let saved: unknown;
   try {
     saved = JSON.parse(raw);
@@ -86,13 +95,11 @@ function value(payload: Payload) {
 }
 const removal = (payload: Payload) => payload.remove === true;
 
-const validName = (name: unknown): name is string =>
-  typeof name === "string" && /^[A-Za-z0-9][A-Za-z0-9:._-]{0,127}$/.test(name);
 function name(
   name: unknown,
   code: "invalid-collection" | "invalid-record",
 ): string {
-  if (!validName(name)) throw stateRejection(code);
+  if (!isRecordName(name)) throw stateRejection(code);
   return name;
 }
 function list(payload: Payload, field: string) {
@@ -142,7 +149,7 @@ function recordWrite(payload: Payload): RecordWrite {
   const stored = value(payload);
   const size =
     bytes(JSON.stringify(stored)) + (text === null ? 0 : bytes(text));
-  if (size > MAX_ITEM) throw stateRejection("state-too-large");
+  if (size > MAX_RECORD) throw stateRejection("state-too-large");
   return {
     collection,
     id,
@@ -152,10 +159,39 @@ function recordWrite(payload: Payload): RecordWrite {
   };
 }
 
+/** `after`: the previous page's `next`. */
+function cursor(payload: Payload) {
+  if (absent(payload, "after")) return undefined;
+  const cursor = payload.after;
+  const seq =
+    typeof cursor === "string" && /^\d+$/.test(cursor) ? Number(cursor) : 0;
+  if (!Number.isSafeInteger(seq) || seq < 1)
+    throw stateRejection("invalid-query");
+  return seq;
+}
+/** Up to `count` of `ordered`, ending before `MAX_PAGE_BYTES` but keeping one. */
+function page(ordered: StoredRecord[], count: number): RecordPage {
+  const records: StoredRecord[] = [];
+  let size = 0;
+  for (const record of ordered) {
+    size +=
+      bytes(JSON.stringify(record.value)) +
+      (record.text === null ? 0 : bytes(record.text));
+    if (records.length === count || (records.length && size > MAX_PAGE_BYTES))
+      return { records, next: String(records.at(-1)!.seq) };
+    records.push(record);
+  }
+  return { records, next: null };
+}
+
 export class BrowserState {
+  /** Read lazily: the native app constructs this but never uses it. */
+  constructor(private readonly storage: () => Storage = () => localStorage) {}
   read(owner: string, payload: unknown) {
     return this.guard("state-read", () =>
-      storedDocument(localStorage.getItem(documentKey(owner, fields(payload)))),
+      storedDocument(
+        this.storage().getItem(documentKey(owner, fields(payload))),
+      ),
     );
   }
   write(owner: string, payload: unknown, signal?: AbortSignal) {
@@ -204,7 +240,7 @@ export class BrowserState {
         changes.push([write.key, document && JSON.stringify(document)]);
         return document && { revision: document.revision };
       });
-      const stored = storedRecords(localStorage.getItem(recordsKey(owner)));
+      const stored = storedRecords(this.storage().getItem(recordsKey(owner)));
       const cleared = new Set(clear);
       let all = stored.records.filter(
         (record) => !cleared.has(record.collection),
@@ -252,32 +288,19 @@ export class BrowserState {
       const order = absent(request, "order") ? "asc" : request.order;
       if (order !== "asc" && order !== "desc")
         throw stateRejection("invalid-query");
-      let after: number | undefined;
-      if (!absent(request, "after")) {
-        const cursor = request.after;
-        if (typeof cursor !== "string" || !/^\d+$/.test(cursor))
-          throw stateRejection("invalid-query");
-        after = Number(cursor);
-        if (!Number.isSafeInteger(after) || after < 1)
-          throw stateRejection("invalid-query");
-      }
+      const after = cursor(request);
       const count = limit(request, 50, 200);
-      const { records } = storedRecords(
-        localStorage.getItem(recordsKey(owner)),
+      return page(
+        this.records(owner)
+          .filter((record) => record.collection === collection)
+          .sort((a, b) => (order === "asc" ? a.seq - b.seq : b.seq - a.seq))
+          .filter(
+            (record) =>
+              after === undefined ||
+              (order === "asc" ? record.seq > after : record.seq < after),
+          ),
+        count,
       );
-      const ordered = records
-        .filter((record) => record.collection === collection)
-        .sort((a, b) => (order === "asc" ? a.seq - b.seq : b.seq - a.seq))
-        .filter(
-          (record) =>
-            after === undefined ||
-            (order === "asc" ? record.seq > after : record.seq < after),
-        );
-      const page = ordered.slice(0, count);
-      return {
-        records: page,
-        next: ordered.length > count ? String(page.at(-1)!.seq) : null,
-      };
     });
   }
   search(owner: string, payload: unknown) {
@@ -290,27 +313,29 @@ export class BrowserState {
       const collection = absent(request, "collection")
         ? undefined
         : name(request.collection, "invalid-collection");
+      const after = cursor(request);
       const count = limit(request, 20, 100);
       const needle = query.toLowerCase();
-      const { records } = storedRecords(
-        localStorage.getItem(recordsKey(owner)),
-      );
-      return {
-        records: records
+      return page(
+        this.records(owner)
           .filter(
             (record) =>
               (collection === undefined || record.collection === collection) &&
+              (after === undefined || record.seq < after) &&
               record.text?.toLowerCase().includes(needle),
           )
-          .sort((a, b) => b.seq - a.seq)
-          .slice(0, count),
-      };
+          .sort((a, b) => b.seq - a.seq),
+        count,
+      );
     });
   }
 
+  private records(owner: string) {
+    return storedRecords(this.storage().getItem(recordsKey(owner))).records;
+  }
   /** The document `write` stores, or null once removed; throws on a conflict. */
   private applyDocument(write: DocumentWrite) {
-    const current = storedDocument(localStorage.getItem(write.key));
+    const current = storedDocument(this.storage().getItem(write.key));
     if (write.revision !== (current?.revision ?? 0))
       throw stateRejection("revision-conflict");
     if (!write.value) return null;
@@ -321,23 +346,23 @@ export class BrowserState {
       revision: write.revision + 1,
       value: write.value.raw,
     };
-    if (bytes(JSON.stringify(document)) > MAX_ITEM)
+    if (bytes(JSON.stringify(document)) > MAX_DOCUMENT)
       throw stateRejection("state-too-large");
     return document;
   }
   /** Writes every change, or puts the earlier values back and throws. */
   private commit(changes: [string, string | null][]) {
     const earlier = changes.map(
-      ([key]) => [key, localStorage.getItem(key)] as const,
+      ([key]) => [key, this.storage().getItem(key)] as const,
     );
     try {
       for (const [key, value] of changes)
-        if (value === null) localStorage.removeItem(key);
-        else localStorage.setItem(key, value);
+        if (value === null) this.storage().removeItem(key);
+        else this.storage().setItem(key, value);
     } catch (error) {
       for (const [key, value] of earlier)
-        if (value === null) localStorage.removeItem(key);
-        else localStorage.setItem(key, value);
+        if (value === null) this.storage().removeItem(key);
+        else this.storage().setItem(key, value);
       throw error;
     }
   }

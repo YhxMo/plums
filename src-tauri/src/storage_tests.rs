@@ -185,7 +185,7 @@ fn values_over_the_cap_are_refused_and_keep_the_prior_value() {
     let fixture = Fixture::new();
     let broker = fixture.broker();
     write(&broker, serde_json::json!({"revision":0,"value":"saved"})).unwrap();
-    let big = "x".repeat(MAX_ITEM);
+    let big = "x".repeat(MAX_DOCUMENT);
     assert_eq!(
         write(&broker, serde_json::json!({"revision":1,"value":big})).unwrap_err(),
         StateErrorCode::StateTooLarge

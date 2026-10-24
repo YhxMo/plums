@@ -368,37 +368,56 @@ fn invalid_batches_write_nothing() {
 }
 
 #[test]
-fn documents_and_records_may_reach_one_mebibyte() {
+fn documents_take_one_mebibyte_and_records_eight() {
     let fixture = Fixture::new();
     let broker = broker(&fixture);
-    let fits = "x".repeat(MAX_ITEM - 64);
-    let over = "x".repeat(MAX_ITEM);
-    broker
-        .call(OWNER, "state.write", json!({"revision": 0, "value": fits}))
-        .unwrap();
+    let write = |revision: u64, size: usize| {
+        broker.call(
+            OWNER,
+            "state.write",
+            json!({"revision": revision, "value": "x".repeat(size)}),
+        )
+    };
+    write(0, MAX_DOCUMENT - 64).unwrap();
     assert_eq!(
-        broker
-            .call(OWNER, "state.write", json!({"revision": 1, "value": over}))
-            .unwrap_err(),
+        write(1, MAX_DOCUMENT).unwrap_err(),
         StateErrorCode::StateTooLarge
     );
-    batch(
-        &broker,
-        json!({"records": [{"collection": "c", "id": "a", "revision": 0, "value": fits}]}),
-    )
-    .unwrap();
-    assert_eq!(
+    let record = |id: &str, value: usize, text: usize| {
         batch(
             &broker,
-            json!({"records": [{"collection": "c", "id": "b", "revision": 0, "value": over}]})
+            json!({"records": [{"collection": "c", "id": id, "revision": 0, "value": "x".repeat(value), "text": "y".repeat(text)}]}),
         )
-        .unwrap_err(),
+    };
+    record("a", MAX_RECORD - 1024, 0).unwrap();
+    assert_eq!(
+        record("b", MAX_RECORD, 0).unwrap_err(),
         StateErrorCode::StateTooLarge
     );
     assert_eq!(
-        batch(&broker, json!({"records": [{"collection": "c", "id": "b", "revision": 0, "value": 1, "text": over}]})).unwrap_err(),
+        record("b", MAX_RECORD / 2, MAX_RECORD / 2).unwrap_err(),
         StateErrorCode::StateTooLarge
     );
+}
+
+#[test]
+fn pages_stop_before_sixteen_mebibytes_but_hold_at_least_one_record() {
+    let fixture = Fixture::new();
+    let broker = broker(&fixture);
+    let big = "x".repeat(MAX_RECORD - 1024);
+    for id in ["a", "b", "c"] {
+        batch(&broker, json!({"records": [{"collection": "c", "id": id, "revision": 0, "value": big, "text": "长"}]})).unwrap();
+    }
+    let first = list(&broker, json!({"collection": "c"})).unwrap();
+    assert_eq!(ids(&first), ["a", "b"]);
+    let rest = list(&broker, json!({"collection": "c", "after": first["next"]})).unwrap();
+    assert_eq!(ids(&rest), ["c"]);
+    assert_eq!(rest["next"], Value::Null);
+    let found = search(&broker, json!({"query": "长"})).unwrap();
+    assert_eq!(ids(&found), ["c", "b"]);
+    let older = search(&broker, json!({"query": "长", "after": found["next"]})).unwrap();
+    assert_eq!(ids(&older), ["a"]);
+    assert_eq!(older["next"], Value::Null);
 }
 
 #[test]
