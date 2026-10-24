@@ -457,8 +457,8 @@ it("upgrades version 2 records, which kept the full address", async () => {
   // Earlier versions limited turns; the whole conversation is sent now.
   expect(api.list()[0]).not.toHaveProperty("turns");
   expect(api.list().map(({ context }) => context)).toEqual([128_000, 128_000]);
-  // 1024 was the form's old default, not a choice: the service decides now.
-  expect(api.list().map(({ maxTokens }) => maxTokens)).toEqual([null, null]);
+  // A saved limit stays in force, even when it matches an older default.
+  expect(api.list().map(({ maxTokens }) => maxTokens)).toEqual([1024, 1024]);
   expect(states.get(owner)?.value).toBe(saved);
 });
 
@@ -498,6 +498,43 @@ it("gives version 3 records their preset's context window", async () => {
   ]);
   expect(states.get(owner)?.value).toBe(saved);
 });
+
+it.each([2, 3, 4])(
+  "keeps a version %i output limit through sending and saving",
+  async (version) => {
+    const { base, windows: _windows, thinking: _thinking, ...draft } = deepseek;
+    const saved = {
+      version,
+      providers: [
+        {
+          ...draft,
+          id: "p-aaaaaaaa",
+          alias: "c-00000000",
+          maxTokens: 1024,
+          turns: 10,
+          ...(version === 2 ? { target: deepseekTarget } : { base }),
+        },
+      ],
+    };
+    const { api, chat, send, states, connections } = await fixture({ saved });
+    connections.set("c-00000000", {
+      target: deepseekTarget,
+      protocol: deepseek.protocol,
+      label: deepseek.name,
+    });
+    await chat().reply(
+      { model: "p-aaaaaaaa/user-model-a", history: [], input: "hello" },
+      signal(),
+    );
+    expect(body(send).max_tokens).toBe(1024);
+    const provider = api.list()[0];
+    await api.save(provider, provider.id);
+    expect(states.get(owner)?.value).toMatchObject({
+      version: 7,
+      providers: [{ maxTokens: 1024 }],
+    });
+  },
+);
 
 it("sends a whole long conversation to a 1M-context provider, and less to a 128K one", async () => {
   const { api, chat, send } = await fixture();

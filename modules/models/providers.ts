@@ -155,15 +155,9 @@ const fromVersion3 = (entry: Record<string, unknown>) => ({
   ).context,
 });
 
-/**
- * Version 4 limited the turns sent, and its form defaulted to 1024 output
- * tokens; now the whole conversation goes and the service sets the length.
- */
+/** Version 4 limited turns; saved output limits still apply to the full conversation. */
 function fromVersion4({ turns: _turns, ...entry }: Record<string, unknown>) {
-  return {
-    ...entry,
-    maxTokens: entry.maxTokens === 1024 ? null : entry.maxTokens,
-  };
+  return entry;
 }
 
 /** Version 5 had one context window for all of a provider's models. */
