@@ -96,3 +96,12 @@ it("keeps the chance to undo when saving the undo fails", async () => {
   await store.undo(a.id);
   expect(texts()).toEqual([["one", "ONE"]]);
 });
+
+it("forgets what it could undo once the Agent is removed", async () => {
+  const { store, a } = await setup();
+  await store.send(a.id, "one");
+  const s = store.list()[0].sessions[0];
+  await store.removeMessage(a.id, s.id, s.messages[0].id);
+  await store.remove(a.id);
+  await expect(store.undo(a.id)).rejects.toThrow("没有可撤销的删除。");
+});

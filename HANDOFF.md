@@ -15,6 +15,7 @@
 - **默认组合**：打包只含 Agent 核心、模型连接和 Agent 界面；文本工作台、回显模型等只在开发目录。
 - **联系人式回复**：回复整条送达，等待时会话头部显示“正在输入”、列表头像为橙色状态点；切走后到达的回复显示未读数并随会话保存；停止即撤回、不留消息（[UI](docs/UI.md#列表交互与详情)）。
 
+- **对话操作**：文件可拖到整张会话卡片，拖到别处不会让窗口打开该文件；删除消息或会话后可撤销；自己的消息可编辑、回复可重新生成，会删掉更多消息时先确认，完成后可撤销（[UI](docs/UI.md#列表交互与详情)、[Agent 服务契约](docs/EXTENSION-CONTRACTS.md#agent-服务契约)）。
 - **回复排版与外链**：回复按 Markdown 排版，只有 https 链接可点，经宿主能力 `link.open` 在默认浏览器打开（[UI](docs/UI.md#列表交互与详情)、[平台能力](docs/EXTENSION-CONTRACTS.md#平台能力与可选助手)）。
 - **审查修复**：版本 2–4 模型记录保留已存的输出上限（检查点那次“上限未生效”即因旧升级把 1024 换成了 `null`；已被那个候选保存过的记录不会恢复）；旧 JSON 首次导入在目录不可读时中止并可重试；浏览器批量写逆序回滚；损坏的扩展包可重新导入修复；扩展管理遮住会话时到达的回复计为未读。
 
@@ -22,18 +23,18 @@
 
 | 范围 | 实际结果 |
 | --- | --- |
-| Web | Markdown 提交上 `npm run verify:web` 通过（951 单元及构建、发布内容检查、格式、项目边界、行数与 ESLint）；此前各修复提交各自在暂存内容上通过 |
+| Web | 对话体验阶段审查提交上 `npm run verify:web` 通过（962 单元及构建、发布内容检查、格式、项目边界、行数与 ESLint）；此前各提交各自在暂存内容上通过 |
 | 原生逻辑 | 旧 JSON 导入修复提交 `6ca882e` 上 `npm run verify:native` 通过：IPC、格式、Clippy、87 单元；SQLite 第一步时 debug 应用在真实格式开发数据副本上导入 `host.shell`（修订 11）并在其上保存，版本 1 → 2 的原地升级只有单元验证 |
-| Chromium | Markdown 提交上跑了相关的 spec（见提交说明）；此前全量 250 项中 246 通过，失败的 4 项是消息选择器，已随 Markdown 提交修正 |
-| WebKit | 未读修复时 `agent-pending.spec.ts` 与 `react-view-lifecycle.spec.ts` 共 9 项通过；全量未运行；已知 agent-flow 的“dialog close is quiet…”浅深两项，界面改版前已存在，未修 |
-| 浏览器视觉 | Chromium 抽查 375px 浅色与 1280px 深色的回复与草稿；Markdown 的标题、列表、代码块、表格与链接在 1100px 浅深两种外观下截图检查 |
+| Chromium | 对话体验阶段审查提交上 `npm run verify:e2e` 全量 260 项通过（1 worker） |
+| WebKit | 同一提交上 16 个相关 spec 共 108 项：106 通过；失败的是 agent-flow 的“dialog close is quiet…”浅深两项，界面改版前已存在，未修。剪贴板读回只在 Chromium 检查（Playwright 的 WebKit 没有剪贴板权限） |
+| 浏览器视觉 | Chromium 截图检查浅深两种外观：Markdown 回复（1100px）、带“撤销”的提示、编辑消息横条；回复与草稿另抽查 375px 浅色与 1280px 深色 |
 | 打包应用 | `eb5c68b` 的检查点候选在真实改名前数据副本上完成迁移、消息转为记录、一次真实模型调用（输出上限未生效）、文件夹导入与模型窗口填写，见[打包检查点记录](evidence/MAC-CHECKPOINT-2026-10-24.md)；输入法与焦点的实测仍是改名前候选的[记录](evidence/MAC-INPUT-LAYOUT-2026-10-23.md) |
 
 ## 未验范围
 
 各子系统文档只记录契约与回归测试，平台和打包应用的未验项统一列在这里；已交付包的受验范围见[交付入口](evidence/RESULTS.md)，Android 冻结期间的待补项见 [Android 工程](docs/ANDROID.md#构建和设备)。
 
-- **自检查点以来的改动**：审查修复与 Markdown 都未在重新打包的应用中验证。
+- **自检查点以来的改动**：审查修复、Markdown 与外链、整卡拖放（WKWebView 中的实际拖入与越界拖放）、撤销与编辑都未在重新打包的应用中验证。
 - **数据迁移**：已有版本 1 库升级到版本 2（只影响开发数据，本机无此类库）、复制失败弹窗。
 - **存储**：断电与写入中途崩溃时的一致性依赖 SQLite，未实测；正常重启与转换前中断不证明这一点。
 - **窗口与界面**：Mac 窗口按钮避让依 `platform.info`、点击后归还焦点无焦点环（WKWebView）、明暗抽查与 WKWebView 遮罩绘制、应用内启动耗时；VoiceOver 第一版不验收，列为已知限制。
@@ -45,8 +46,8 @@
 
 当前是[路线阶梯](docs/spec/total.md#路线阶梯)第 1 级（Mac 第一版），顺序与剩余内容只在[当前阶段](docs/spec/milestone.md#第-1-级mac-第一版)维护；自 0.2.0 以来的工作见 git log。
 
-- **当前焦点**：当前阶段第 3 项对话体验的剩余项。打包检查点候选由所有者试用中，反馈可能调整其顺序。
-- **遗留**：`AgentWorkspace.tsx` 与 `AgentDialogs.tsx` 超过 400 行提示线，`modules/agents/store.ts` 也已超过提示线；外壳右侧栏按钮的 18px 偏移与会话卡片几何耦合，随窗口框架处理；`View.icon` 无效原因是英文作者提示，在中文界面中原样显示；WebKit 下 agent-flow 的“dialog close is quiet…”两项失败（Tab 未聚焦弹窗关闭按钮），界面改版前已存在；此前导入的单文件扩展的源码分片（`host.shell` 的 `x-` 文档）不再读取，也不自动清理。
+- **当前焦点**：当前阶段第 3 项只差打包应用抽查；之后是第 4 项 `memory@1`，开工前先单独写计划。
+- **遗留**：`modules/agents/store.ts`（约 590 行）、`AgentDialogs.tsx`、`AgentWorkspace.tsx` 与 `ChatView.tsx` 超过 400 行提示线；外壳右侧栏按钮的 18px 偏移与会话卡片几何耦合，随窗口框架处理；`View.icon` 无效原因是英文作者提示，在中文界面中原样显示；WebKit 下 agent-flow 的“dialog close is quiet…”两项失败（Tab 未聚焦弹窗关闭按钮），界面改版前已存在；此前导入的单文件扩展的源码分片（`host.shell` 的 `x-` 文档）不再读取，也不自动清理。
 
 当前未推送，现有交付包未替换。
 

@@ -269,6 +269,7 @@ export class AgentStore implements AgentProvider {
         if (index < 0) throw new Error("Agent 不存在。");
         agents.splice(index, 1);
       });
+      this.removed.delete(agentId);
     } finally {
       this.structural.delete(agentId);
       this.emit();

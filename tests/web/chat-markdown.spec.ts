@@ -40,8 +40,12 @@ async function chat(page: Page, text: string) {
 test("replies render Markdown; the own message stays as typed", async ({
   page,
   context,
+  browserName,
 }) => {
-  await context.grantPermissions(["clipboard-read", "clipboard-write"]);
+  // Playwright's WebKit has no clipboard permissions; it checks the feedback.
+  const readable = browserName === "chromium";
+  if (readable)
+    await context.grantPermissions(["clipboard-read", "clipboard-write"]);
   const log = await chat(page, message);
   await expect(log.locator("strong", { hasText: "粗体" })).toHaveCount(1);
   await expect(log.getByRole("heading", { name: "小标题" })).toBeVisible();
@@ -62,9 +66,10 @@ test("replies render Markdown; the own message stays as typed", async ({
   await expect(
     log.getByRole("button", { name: "已复制", exact: true }),
   ).toBeVisible();
-  expect(await page.evaluate(() => navigator.clipboard.readText())).toBe(
-    "const answer = 42;",
-  );
+  if (readable)
+    expect(await page.evaluate(() => navigator.clipboard.readText())).toBe(
+      "const answer = 42;",
+    );
 });
 
 test("an https link opens outside the app, not in its window", async ({

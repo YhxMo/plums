@@ -23,8 +23,12 @@ async function startChat(page: Page, width: number) {
 test("desktop messages show a time, copy, edit, regenerate and delete from hover and right-click", async ({
   page,
   context,
+  browserName,
 }) => {
-  await context.grantPermissions(["clipboard-read", "clipboard-write"]);
+  // Playwright's WebKit has no clipboard permissions; it checks the feedback.
+  const readable = browserName === "chromium";
+  if (readable)
+    await context.grantPermissions(["clipboard-read", "clipboard-write"]);
   await startChat(page, 1280);
   const log = page.getByRole("log");
   await expect(log.locator("time")).toHaveCount(1);
@@ -34,7 +38,10 @@ test("desktop messages show a time, copy, edit, regenerate and delete from hover
   await expect(
     page.getByRole("button", { name: "已复制", exact: true }),
   ).toBeVisible();
-  expect(await page.evaluate(() => navigator.clipboard.readText())).toBe("hi");
+  if (readable)
+    expect(await page.evaluate(() => navigator.clipboard.readText())).toBe(
+      "hi",
+    );
 
   await own.hover();
   await expect(
