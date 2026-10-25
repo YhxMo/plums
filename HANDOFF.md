@@ -33,7 +33,7 @@
 | Chromium | `0220ac9` 上 `npm run verify:e2e` 全量 289 项全部通过 |
 | WebKit | 界面改造后未重跑。改造前 `eaa1380` 上 16 个相关 spec 共 108 项：106 通过，失败的是 agent-flow 的“dialog close is quiet…”浅深两项（该测试现改为从名称框反向 Tab 到关闭按钮），见[抽查记录](evidence/MAC-SPOTCHECK-2026-10-25.md)。剪贴板读回只在 Chromium 检查（Playwright 的 WebKit 没有剪贴板权限） |
 | 浏览器视觉 | Chromium 1280px 浅深截图对照效果图：会话、欢迎页、详情、添加两步、导入、记忆、扩展管理、设置，以及导出的角色卡 PNG；模型连接页在浏览器开发服务中连接器停在“等待条件”，未截图，由 e2e 覆盖 |
-| 打包应用 | 界面改造候选 `release/.mac-eibrI5/Plums.app`（`0220ac9` 加 milestone 文档改动）已构建、ad-hoc 签名并以隔离数据启动，未见错误；本会话没有屏幕录制权限，毛玻璃与 0.5px 线条的目视、`file.save` 保存面板与整包导入均未做。此前 `2f3ee6e` 候选上所有者抽查对话体验与窗口框架，抽查中发现的问题已修复并重新打包，见[抽查记录](evidence/MAC-SPOTCHECK-2026-10-25.md)；`eb5c68b` 的检查点候选在真实改名前数据副本上完成迁移、消息转为记录、一次真实模型调用（输出上限未生效）、文件夹导入与模型窗口填写，见[打包检查点记录](evidence/MAC-CHECKPOINT-2026-10-24.md)；输入法与焦点的实测仍是改名前候选的[记录](evidence/MAC-INPUT-LAYOUT-2026-10-23.md) |
+| 打包应用 | 界面改造候选 `release/.mac-eibrI5/Plums.app`（`0220ac9`）已构建并以隔离数据启动，未见错误；所有者在正式数据上打开时提示“权限恢复失败 agents.local”（旧组合记录的 `state.write`），`80afb30` 修复后重建为 `release/.mac-0JyPeB`；本会话没有屏幕录制权限，毛玻璃与 0.5px 线条的目视、`file.save` 保存面板与整包导入均未做。此前 `2f3ee6e` 候选上所有者抽查对话体验与窗口框架，抽查中发现的问题已修复并重新打包，见[抽查记录](evidence/MAC-SPOTCHECK-2026-10-25.md)；`eb5c68b` 的检查点候选在真实改名前数据副本上完成迁移、消息转为记录、一次真实模型调用（输出上限未生效）、文件夹导入与模型窗口填写，见[打包检查点记录](evidence/MAC-CHECKPOINT-2026-10-24.md)；输入法与焦点的实测仍是改名前候选的[记录](evidence/MAC-INPUT-LAYOUT-2026-10-23.md) |
 
 ## 未验范围
 
@@ -61,7 +61,7 @@
 
 ## 当前交付与恢复
 
-界面改造候选是 `release/.mac-eibrI5/Plums.app`（`0220ac9`，未抽查）；记忆实测候选是 `release/.mac-U2abIJ/Plums.app`（`bc9234e`，[记录](evidence/MAC-MEMORY-2026-10-25.md)）；此前的手测候选是 `release/.mac-IuDoPW/Plums.app`（`2f3ee6e`，0.2.0 arm64 debug / ad-hoc，[抽查记录](evidence/MAC-SPOTCHECK-2026-10-25.md)）；`release/.mac-MxLDoZ/Plums.app`（`eb5c68b`）是[检查点记录](evidence/MAC-CHECKPOINT-2026-10-24.md)的来源。直接打开它会使用正式数据目录，并在首次启动时复制改名前的数据；要隔离数据，就用设置了 `HOME` 或 `PLUMS_DATA_DIR` 的命令行启动包内可执行文件。`release/mac-manual-2026-10-23/` 是改名前构建的，启动脚本已失效，不再使用。
+界面改造候选是 `release/.mac-0JyPeB/Plums.app`（`80afb30`，含组合恢复修复，未抽查；此前的 `release/.mac-eibrI5` 在旧数据上会提示“权限恢复失败 agents.local”）；记忆实测候选是 `release/.mac-U2abIJ/Plums.app`（`bc9234e`，[记录](evidence/MAC-MEMORY-2026-10-25.md)）；此前的手测候选是 `release/.mac-IuDoPW/Plums.app`（`2f3ee6e`，0.2.0 arm64 debug / ad-hoc，[抽查记录](evidence/MAC-SPOTCHECK-2026-10-25.md)）；`release/.mac-MxLDoZ/Plums.app`（`eb5c68b`）是[检查点记录](evidence/MAC-CHECKPOINT-2026-10-24.md)的来源。直接打开它会使用正式数据目录，并在首次启动时复制改名前的数据；要隔离数据，就用设置了 `HOME` 或 `PLUMS_DATA_DIR` 的命令行启动包内可执行文件。`release/mac-manual-2026-10-23/` 是改名前构建的，启动脚本已失效，不再使用。
 
 已交付 0.2.0 来自 `6668ce7`，Mac 入口 `release/mac/Plums.app`，本次未替换；Android 包仅保留其原受验范围。[交付证据](evidence/RELEASE-0.2.0-2026-10-20.md)及包旁的 `build-info.json`、`source.patch` 用于核对来源。0.0.4 恢复包保留在 `.cache/archive/releases/mac-uIizKK/mac` 与 `.cache/archive/releases/android-JS89ll/android`；恢复包不自动回滚数据，操作规则见[开发流程](docs/DEVELOPMENT.md#本地交付目录)。
 
