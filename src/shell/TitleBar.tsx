@@ -1,4 +1,3 @@
-import { AnimatePresence, motion } from "motion/react";
 import { cn } from "cn";
 import type { TitleBarProps } from "./controllers";
 import { SidebarToggle } from "./SidebarToggle";
@@ -37,31 +36,25 @@ export function TitleBar({ workspace, chrome, navigation }: TitleBarProps) {
             src="/brand/plums.png"
             alt=""
           />
-          <strong className="text-[13px] font-semibold tracking-tight max-md:text-[17px]">
+          <strong className="text-sm font-semibold max-md:text-base">
             Plums
           </strong>
         </div>
-        <AnimatePresence mode="popLayout" initial={false}>
-          {title && (
-            <motion.span
-              key={title}
-              initial={{ opacity: 0, y: 4 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -4 }}
-              transition={{ duration: 0.16 }}
-              className="flex min-w-0 items-center gap-2.5"
-              data-tauri-drag-region
-            >
-              <span
-                aria-hidden="true"
-                className="h-3.5 w-px shrink-0 bg-border md:hidden"
-              />
-              <span className="truncate text-[13px] font-medium text-muted-foreground">
-                {title}
-              </span>
-            </motion.span>
-          )}
-        </AnimatePresence>
+        {title && (
+          <span
+            key={title}
+            className="flex min-w-0 items-center gap-2.5"
+            data-tauri-drag-region
+          >
+            <span
+              aria-hidden="true"
+              className="h-3.5 w-[0.5px] shrink-0 bg-border md:hidden"
+            />
+            <span className="truncate text-sm font-medium text-muted-foreground">
+              {title}
+            </span>
+          </span>
+        )}
       </div>
       <div className="flex shrink-0 items-center gap-0.5 md:hidden">
         <ShellEntries navigation={navigation} place="bar" />

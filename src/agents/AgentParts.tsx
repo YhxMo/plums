@@ -23,7 +23,7 @@ export function AgentParts({
 }) {
   return (
     <ul
-      className="divide-y divide-border/70 overflow-hidden rounded-lg bg-card ring-1 ring-border/70"
+      className="divide-y overflow-hidden rounded-lg border bg-card"
       aria-label={`${agentName} 的组成扩展`}
     >
       {parts.map((part) => {
@@ -31,9 +31,7 @@ export function AgentParts({
         const warn = !on && note;
         const name = (
           <>
-            <span className="truncate text-[13px] font-medium">
-              {choice.label}
-            </span>
+            <span className="truncate text-sm font-medium">{choice.label}</span>
             <span
               className={cn(
                 "w-full truncate text-xs text-muted-foreground",

@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { ArrowDownIcon, ChevronLeftIcon, EllipsisIcon } from "lucide-react";
-import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import type {
   Agent,
   AgentModel,
@@ -98,7 +97,7 @@ export function ChatView({
   const sessions = useRef<HTMLButtonElement>(null);
   const [copied, setCopied] = useState<string>();
   // The log follows new messages only while it is at the bottom.
-  const motionless = useReducedMotion();
+  const motionless = useMediaQuery("(prefers-reduced-motion: reduce)");
   const { scrollRef, contentRef, isAtBottom, scrollToBottom } =
     useFollowBottom();
   const pending =
@@ -165,7 +164,7 @@ export function ChatView({
     if (m.at !== undefined && (last === undefined || m.at - last > TIME_GAP)) {
       lines.push(
         <p
-          className="m-0 mt-3 mb-1 self-center text-[11.5px] text-muted-foreground/80 first:mt-0"
+          className="m-0 mt-3 mb-1 self-center text-xs text-muted-foreground first:mt-0"
           key={`time-${m.id}`}
         >
           <time dateTime={new Date(m.at).toISOString()}>
@@ -221,47 +220,38 @@ export function ChatView({
         >
           <ChevronLeftIcon />
         </Button>
-        <AnimatePresence mode="popLayout" initial={false}>
-          <motion.div
-            key={agent.id}
-            initial={{ opacity: 0, y: 4 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -4 }}
-            transition={{ duration: 0.16 }}
-            className="flex min-w-0 flex-1 items-center gap-2"
-          >
-            <Avatar agent={agent} className="size-9 md:hidden" />
-            <div className="flex min-w-0 flex-1 flex-col">
-              <div className="flex min-w-0 items-center gap-2">
-                <h1 className="min-w-0 shrink truncate text-[15px] leading-tight font-semibold tracking-tight">
-                  {agent.name}
-                </h1>
-                <SessionMenu
-                  agent={agent}
-                  session={session}
-                  trigger={sessions}
-                  onSession={onSession}
-                  onRename={onRenameSession}
-                  onDelete={onDeleteSession}
-                />
-              </div>
-              {/* Always present and empty when idle, so "typing" is announced
-                  once as it starts; the reply itself is read from the log. */}
-              <p
-                role="status"
-                className="flex items-center gap-1 text-[11.5px] leading-4 text-brand-text"
-              >
-                {pending && (
-                  <>
-                    <span className="sr-only">{agent.name} </span>
-                    正在输入
-                    <TypingDots className="mt-1" />
-                  </>
-                )}
-              </p>
+        <div className="flex min-w-0 flex-1 items-center gap-2">
+          <Avatar agent={agent} className="size-9 md:hidden" />
+          <div className="flex min-w-0 flex-1 flex-col">
+            <div className="flex min-w-0 items-center gap-2">
+              <h1 className="min-w-0 shrink truncate text-sm leading-tight font-semibold">
+                {agent.name}
+              </h1>
+              <SessionMenu
+                agent={agent}
+                session={session}
+                trigger={sessions}
+                onSession={onSession}
+                onRename={onRenameSession}
+                onDelete={onDeleteSession}
+              />
             </div>
-          </motion.div>
-        </AnimatePresence>
+            {/* Always present and empty when idle, so "typing" is announced
+                  once as it starts; the reply itself is read from the log. */}
+            <p
+              role="status"
+              className="flex items-center gap-1 text-xs leading-4 text-brand-text"
+            >
+              {pending && (
+                <>
+                  <span className="sr-only">{agent.name} </span>
+                  正在输入
+                  <TypingDots className="mt-1" />
+                </>
+              )}
+            </p>
+          </div>
+        </div>
         <DropdownMenu modal={false}>
           {/* Below, so it never covers the title bar above. */}
           <Tooltip label="更多操作" side="bottom">
@@ -300,24 +290,17 @@ export function ChatView({
             className="flex min-h-full shrink-0 flex-col px-[max(24px,calc((100%-600px)/2))] pt-3 pb-9 max-md:px-3.5 max-md:pb-4"
           >
             {!session.messages.length && (
-              <motion.div
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.3, ease: "easeOut" }}
-                className="my-auto flex flex-col items-center gap-3 text-center"
-              >
+              <div className="my-auto flex flex-col items-center gap-3 text-center">
                 <Avatar agent={agent} size="large" />
-                <h2 className="text-lg font-semibold tracking-tight max-md:text-[22px]">
-                  {agent.name}
-                </h2>
+                <h2 className="text-xl font-semibold">{agent.name}</h2>
                 {agent.description && (
-                  <p className="line-clamp-4 max-w-md text-[13px] leading-relaxed whitespace-pre-wrap text-muted-foreground wrap-anywhere">
+                  <p className="line-clamp-4 max-w-md text-sm leading-relaxed whitespace-pre-wrap text-muted-foreground wrap-anywhere">
                     {agent.description}
                   </p>
                 )}
-              </motion.div>
+              </div>
             )}
-            <AnimatePresence initial={false}>{lines}</AnimatePresence>
+            {lines}
             {/* The pending turn gives way to the saved one at once; the reply
             arrives whole, with no placeholder before it. */}
             {pending && (
@@ -334,35 +317,24 @@ export function ChatView({
             )}
           </div>
         </div>
-        <AnimatePresence>
-          {!isAtBottom && (
-            <motion.div
-              key="back"
-              initial={{ opacity: 0, y: 6 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: 6 }}
-              transition={{ duration: 0.15 }}
-              className="absolute bottom-3 left-1/2 -translate-x-1/2"
+        {!isAtBottom && (
+          <div className="absolute bottom-3 left-1/2 -translate-x-1/2">
+            <Button
+              variant="outline"
+              size={unseen ? "sm" : "icon-sm"}
+              className={cn(
+                // Solid in both themes: it floats over bubbles.
+                "rounded-full bg-popover shadow-float hover:bg-muted dark:bg-popover dark:hover:bg-muted",
+                unseen && "text-brand-text",
+              )}
+              aria-label={unseen ? "新消息，回到最新" : "回到最新"}
+              onClick={() => scrollToBottom(motionless ? "instant" : "smooth")}
             >
-              <Button
-                variant="outline"
-                size={unseen ? "sm" : "icon-sm"}
-                className={cn(
-                  // Solid in both themes: it floats over bubbles.
-                  "rounded-full bg-popover shadow-float hover:bg-muted dark:bg-popover dark:hover:bg-muted",
-                  unseen && "text-brand-text",
-                )}
-                aria-label={unseen ? "新消息，回到最新" : "回到最新"}
-                onClick={() =>
-                  scrollToBottom(motionless ? "instant" : "smooth")
-                }
-              >
-                <ArrowDownIcon />
-                {unseen && "新消息"}
-              </Button>
-            </motion.div>
-          )}
-        </AnimatePresence>
+              <ArrowDownIcon />
+              {unseen && "新消息"}
+            </Button>
+          </div>
+        )}
       </div>
       <Composer
         agent={agent}

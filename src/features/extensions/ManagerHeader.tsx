@@ -29,7 +29,7 @@ export function ManagerHeader({
           <h2
             ref={controller.heading}
             tabIndex={-1}
-            className="text-[17px] font-semibold tracking-tight outline-none"
+            className="text-base font-semibold outline-none"
           >
             扩展与状态
           </h2>

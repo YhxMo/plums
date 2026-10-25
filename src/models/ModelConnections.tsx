@@ -1,5 +1,4 @@
 import { useCallback, useState, useSyncExternalStore } from "react";
-import { motion } from "motion/react";
 import {
   PencilIcon,
   PlusIcon,
@@ -127,15 +126,13 @@ export function ModelConnections({ api }: { api: ModelConnectionsApi }) {
       ) : (
         <ul className="grid gap-3" aria-label="服务商">
           {providers.map((provider) => (
-            <motion.li
+            <li
               key={provider.id}
               aria-label={provider.name}
-              initial={{ opacity: 0, y: 4 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="grid gap-3 rounded-xl bg-card p-3.5 shadow-panel"
+              className="grid gap-3 rounded-xl border bg-card p-3.5"
             >
               <div className="flex items-start justify-between gap-3 max-form:flex-col max-form:items-stretch">
-                <div className="grid min-w-0 gap-0.5 text-[13px]">
+                <div className="grid min-w-0 gap-0.5 text-sm">
                   <span className="flex flex-wrap items-center gap-x-2 gap-y-1">
                     <strong className="font-semibold">{provider.name}</strong>
                     <Badge
@@ -148,8 +145,8 @@ export function ModelConnections({ api }: { api: ModelConnectionsApi }) {
                   <span className="text-xs text-muted-foreground">
                     {api.presets.find((p) => p.id === provider.preset)?.label ??
                       "自定义"}
-                    {` · 上下文 ${tokenLabel(provider.context)}`}
-                    {provider.notes && ` · ${provider.notes}`}
+                    {`，上下文 ${tokenLabel(provider.context)}`}
+                    {provider.notes && `，${provider.notes}`}
                   </span>
                   <span className="font-mono text-xs break-all text-muted-foreground">
                     {provider.base}
@@ -199,14 +196,14 @@ export function ModelConnections({ api }: { api: ModelConnectionsApi }) {
                     return (
                       <li
                         key={model}
-                        className="flex min-h-10 items-center justify-between gap-3 px-3 py-1.5 text-[13px]"
+                        className="flex min-h-10 items-center justify-between gap-3 px-3 py-1.5 text-sm"
                       >
                         <span className="grid min-w-0 gap-0.5 break-words">
                           <span>
                             {model}
                             {Object.hasOwn(provider.windows, model) && (
                               <span className="text-xs text-muted-foreground">
-                                {` · 上下文 ${tokenLabel(provider.windows[model])}`}
+                                {`上下文 ${tokenLabel(provider.windows[model])}`}
                               </span>
                             )}
                           </span>
@@ -238,7 +235,7 @@ export function ModelConnections({ api }: { api: ModelConnectionsApi }) {
                   })}
                 </ul>
               )}
-            </motion.li>
+            </li>
           ))}
         </ul>
       )}

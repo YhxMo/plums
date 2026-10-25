@@ -1,4 +1,3 @@
-import { motion } from "motion/react";
 import type { RecoveryWelcomeProps } from "./controllers";
 import { Button } from "@/components/ui/button";
 
@@ -15,12 +14,7 @@ export function RecoveryWelcome({
   const { requestAuthorization } = authorization;
   return (
     <main className="h-full p-2 pt-0">
-      <motion.div
-        initial={{ opacity: 0, y: 8 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.28, ease: "easeOut" }}
-        className="h-full overflow-auto rounded-xl bg-card shadow-panel"
-      >
+      <div className="h-full overflow-auto rounded-xl border bg-card">
         <div className="mx-auto max-w-150 px-6 py-[clamp(28px,7vh,72px)]">
           <img
             className="mb-5 size-12 rounded-[10px] object-contain"
@@ -30,7 +24,7 @@ export function RecoveryWelcome({
           <span className="text-xs font-semibold text-muted-foreground">
             你的本地工作空间
           </span>
-          <h1 className="mt-2 mb-3 text-[clamp(20px,2.2vw,26px)] leading-snug font-semibold tracking-tight max-md:text-[27px]">
+          <h1 className="mt-2 mb-3 text-xl leading-snug font-semibold">
             {started
               ? "扩展正在等待条件。"
               : available
@@ -80,7 +74,7 @@ export function RecoveryWelcome({
             </p>
           )}
         </div>
-      </motion.div>
+      </div>
     </main>
   );
 }

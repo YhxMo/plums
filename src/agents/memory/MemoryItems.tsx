@@ -75,7 +75,7 @@ export function ItemForm({
         autoFocus={!!item}
         value={text}
         maxLength={MAX_ITEM_TEXT}
-        className="min-h-16 text-[13px]"
+        className="min-h-16 text-sm"
         placeholder="例如：对花生过敏；每周三下午有吉他课"
         onChange={(e) => setText(e.target.value)}
       />
@@ -131,7 +131,7 @@ export function MemoryItems({
   return (
     <ul
       aria-label={label}
-      className="divide-y divide-border/70 overflow-hidden rounded-lg bg-card ring-1 ring-border/70"
+      className="divide-y overflow-hidden rounded-lg border bg-card"
     >
       {items.map((item) =>
         editing === item.id ? (
@@ -154,7 +154,7 @@ export function MemoryItems({
             className="group/item flex items-start gap-2 px-3 py-2.5"
           >
             <div className="grid min-w-0 flex-1 gap-1">
-              <p className="text-[13px] leading-relaxed whitespace-pre-wrap wrap-anywhere">
+              <p className="text-sm leading-relaxed whitespace-pre-wrap wrap-anywhere">
                 {item.text}
               </p>
               <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground">

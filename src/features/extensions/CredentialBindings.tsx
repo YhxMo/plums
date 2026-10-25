@@ -94,10 +94,10 @@ export function CredentialBindings({
   ];
   return (
     <section
-      className="mt-4 grid gap-3 border-t pt-4 text-[13px] leading-relaxed [overflow-wrap:anywhere]"
+      className="mt-4 grid gap-3 border-t pt-4 text-sm leading-relaxed [overflow-wrap:anywhere]"
       aria-label="连接与凭据"
     >
-      <h3 className="text-[13px] font-semibold">连接与凭据</h3>
+      <h3 className="text-sm font-semibold">连接与凭据</h3>
       {access.supported && access.initializationError && (
         <p role="status">
           初始化读取失败：{access.initializationError}
@@ -322,10 +322,10 @@ export function RetainedCredentialBindings({
   if (!owners.length && !failed) return null;
   return (
     <section
-      className="grid gap-3 rounded-xl bg-card p-5 text-[13px] shadow-panel"
+      className="grid gap-3 rounded-xl border bg-card p-5 text-sm"
       aria-label="卸载后保留的凭据"
     >
-      <h3 className="text-[15px] font-semibold">卸载后保留的凭据</h3>
+      <h3 className="text-base font-semibold">卸载后保留的凭据</h3>
       {failed && <p role="status">凭据记录暂不可用，请重新启动后核对。</p>}
       {owners.map((owner) => {
         const first = retained.find((item) => item.owner === owner)!;

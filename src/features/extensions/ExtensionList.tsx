@@ -20,9 +20,9 @@ export function ExtensionList({
       {Object.entries(controller.failures).map(([id, reason]) => (
         <article
           key={id}
-          className="mb-2 rounded-xl bg-destructive/6 p-3.5 ring-1 ring-destructive/20"
+          className="mb-2 rounded-xl border border-destructive/30 bg-destructive/6 p-3.5"
         >
-          <strong className="flex items-center gap-1.5 text-[13px]">
+          <strong className="flex items-center gap-1.5 text-sm">
             <TriangleAlertIcon className="size-4 text-destructive" />
             {id}
           </strong>

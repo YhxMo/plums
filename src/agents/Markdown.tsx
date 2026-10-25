@@ -20,9 +20,9 @@ import { Button } from "@/components/ui/button";
 const prose = cn(
   "min-w-0 [&>*+*]:mt-2 [&_li+li]:mt-0.5 [&_li>:is(ul,ol)]:mt-0.5",
   "[&_ol]:list-decimal [&_ul]:list-disc [&_:is(ul,ol)]:pl-5",
-  "[&_:is(h1,h2,h3,h4,h5,h6)]:font-semibold [&_h1]:text-base [&_h2]:text-[15px]",
+  "[&_:is(h1,h2,h3,h4,h5,h6)]:font-semibold [&_h1]:text-base [&_h2]:text-base",
   "[&_blockquote]:border-l-2 [&_blockquote]:border-border [&_blockquote]:pl-3 [&_blockquote]:text-muted-foreground",
-  "[&_code]:font-mono [&_code]:text-[0.92em] [&_:not(pre)>code]:rounded [&_:not(pre)>code]:bg-chat [&_:not(pre)>code]:px-1",
+  "[&_code]:font-mono [&_:not(pre)>code]:rounded [&_:not(pre)>code]:bg-chat [&_:not(pre)>code]:px-1",
   "[&_hr]:border-border [&_table]:border-collapse [&_th]:font-semibold [&_:is(th,td)]:border [&_:is(th,td)]:border-border [&_:is(th,td)]:px-2 [&_:is(th,td)]:py-1",
 );
 
@@ -51,7 +51,7 @@ function CodeBlock({ children }: { children?: ReactNode }) {
     <div className="group/code relative">
       <pre
         ref={pre}
-        className="overflow-x-auto rounded-lg bg-chat px-3 py-2 text-[13px] leading-5"
+        className="overflow-x-auto rounded-lg bg-chat px-3 py-2 text-sm leading-5"
       >
         {children}
       </pre>

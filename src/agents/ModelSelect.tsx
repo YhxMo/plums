@@ -47,7 +47,7 @@ export function ModelSelect({
             size="sm"
             aria-label={label}
             disabled={disabled}
-            className="gap-1.5 text-[13px] font-normal text-foreground/80"
+            className="gap-1.5 text-sm font-normal text-foreground/80"
           >
             {missing ? "已不可用的模型" : "未选择模型"}
             <ChevronDownIcon className="size-4 opacity-50" />
@@ -67,7 +67,7 @@ export function ModelSelect({
       className={
         compact
           ? cn(
-              "w-auto max-w-56 border-transparent bg-transparent text-[13px] text-foreground/80 shadow-none hover:bg-muted hover:text-foreground aria-expanded:bg-muted max-md:max-w-44 dark:bg-transparent",
+              "w-auto max-w-56 border-transparent bg-transparent text-sm text-foreground/80 shadow-none hover:bg-muted hover:text-foreground aria-expanded:bg-muted max-md:max-w-44 dark:bg-transparent",
             )
           : undefined
       }

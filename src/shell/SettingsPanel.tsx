@@ -31,10 +31,9 @@ function Row({ label, children }: { label: ReactNode; children: ReactNode }) {
     </div>
   );
 }
-const choices =
-  "flex-wrap justify-end rounded-lg bg-background/70 p-0.5 shadow-panel";
+const choices = "flex-wrap justify-end rounded-lg bg-muted p-0.5";
 const choice =
-  "h-7 px-3 text-muted-foreground data-[state=on]:bg-card data-[state=on]:text-foreground data-[state=on]:shadow-raised";
+  "h-7 px-3 text-muted-foreground data-[state=on]:bg-card data-[state=on]:text-foreground";
 
 /** Application settings: one labelled row per choice, actions on the right. */
 export function SettingsPanel({
@@ -102,10 +101,13 @@ export function SettingsPanel({
               内置外观
             </ToggleGroupItem>
             {themes.map((entry) => (
-              <Tooltip key={entry.id} label={`${entry.id} · ${entry.owner}`}>
+              <Tooltip
+                key={entry.id}
+                label={`${entry.id}，来自 ${entry.owner}`}
+              >
                 <ToggleGroupItem
                   value={entry.id}
-                  aria-label={`使用 ${entry.label} ${entry.id} · ${entry.owner}`}
+                  aria-label={`使用 ${entry.label} ${entry.id}，来自 ${entry.owner}`}
                   className={choice}
                 >
                   {entry.label}

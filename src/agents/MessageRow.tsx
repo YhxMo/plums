@@ -6,7 +6,6 @@ import {
   RefreshCwIcon,
   Trash2Icon,
 } from "lucide-react";
-import { motion } from "motion/react";
 import { cn } from "cn";
 import type { Agent, Message } from "@modules/agents/contract";
 import { MessageAttachments } from "./AttachmentView";
@@ -87,7 +86,7 @@ export function MessageRow({
     <Bubble
       className={cn(
         "m-0 min-w-0 wrap-anywhere",
-        "max-w-[75%] rounded-[18px] px-[13px] py-2 text-sm leading-[22px] max-md:max-w-[85%] max-md:text-[15px]",
+        "max-w-[75%] rounded-[18px] px-[13px] py-2 text-sm leading-[22px] max-md:max-w-[85%] max-md:text-base",
         user
           ? "rounded-br-[5px] bg-brand whitespace-pre-wrap text-primary-foreground"
           : "rounded-bl-[5px] bg-bubble text-foreground",
@@ -119,13 +118,8 @@ export function MessageRow({
       </div>
     );
   return (
-    <motion.div
+    <div
       ref={row}
-      layout="position"
-      initial={{ opacity: 0, y: 10 }}
-      animate={{ opacity: 1, y: 0 }}
-      exit={{ opacity: 0, scale: 0.98 }}
-      transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
       className={cn(
         // The floating actions of a hovered line stay above the line below.
         "group/row relative flex min-w-0 flex-col gap-1 focus-within:z-1 hover:z-1",
@@ -207,13 +201,7 @@ export function MessageRow({
                   onClick={() => onAction(action, message)}
                 >
                   {action === "copy" && copied ? (
-                    <motion.span
-                      initial={{ scale: 0.4, opacity: 0 }}
-                      animate={{ scale: 1, opacity: 1 }}
-                      className="grid place-items-center"
-                    >
-                      <CheckIcon className="text-running" />
-                    </motion.span>
+                    <CheckIcon className="text-running" />
                   ) : (
                     <Icon />
                   )}
@@ -223,6 +211,6 @@ export function MessageRow({
           })}
         </div>
       )}
-    </motion.div>
+    </div>
   );
 }

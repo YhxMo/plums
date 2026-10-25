@@ -1,17 +1,20 @@
 /** One default avatar: the plum's colour and its tile behind it in each mode. */
 export type Plum = { body: string; light: string; dark: string };
 
-/** Teal, orange, blue, pink and purple plums; a name picks one. */
+/**
+ * Teal, orange, blue, pink and purple plums; a name picks one. Radix
+ * Colors: the plum is step 9, its tile step 4 of the light or dark scale.
+ */
 export const plumPalette: readonly Plum[] = [
-  { body: "#36A3A0", light: "#DDF3F2", dark: "#1F3B3A" },
-  { body: "#F57D4A", light: "#FFE9DD", dark: "#4A2E22" },
-  { body: "#4A8BD6", light: "#E1EDFA", dark: "#22344A" },
-  { body: "#E46A8E", light: "#FCE6EC", dark: "#4A2733" },
-  { body: "#7A4FB5", light: "#ECE3F7", dark: "#352A48" },
+  { body: "#12A594", light: "#CCF3EA", dark: "#023B37" },
+  { body: "#F76B15", light: "#FFDFB5", dark: "#462100" },
+  { body: "#0090FF", light: "#D5EFFF", dark: "#003362" },
+  { body: "#D6409F", light: "#FBDCEF", dark: "#4B143D" },
+  { body: "#8E4EC6", light: "#F2E2FC", dark: "#3D224E" },
 ];
 
-/** The parts every plum shares: stem, leaf and eyes. */
-export const plumParts = { stem: "#6B4A2B", leaf: "#4E9F55", eye: "#1A1A1A" };
+/** The parts every plum shares: stem (Brown 11), leaf (Grass 9) and eyes (Gray 12). */
+export const plumParts = { stem: "#815E46", leaf: "#46A758", eye: "#202020" };
 
 /** The plum a name keeps, the same on every start (FNV-1a over code points). */
 export function plumFor(name: string, palette = plumPalette) {

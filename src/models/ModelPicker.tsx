@@ -1,5 +1,4 @@
 import { useState } from "react";
-import { motion } from "motion/react";
 import { SearchIcon } from "lucide-react";
 import type { ListedModel } from "@modules/models/extension";
 import { MAX_MODELS } from "@modules/models/providers";
@@ -45,12 +44,10 @@ export function ModelPicker({
         : [...value, model],
     );
   return (
-    <motion.div
+    <div
       role="group"
       aria-label="服务提供的模型"
-      initial={{ opacity: 0, y: -4 }}
-      animate={{ opacity: 1, y: 0 }}
-      className="grid gap-2 rounded-xl bg-muted/50 p-3 shadow-panel"
+      className="grid gap-2 rounded-xl border bg-muted/50 p-3"
     >
       <span className="text-xs text-muted-foreground">
         找到 {available.length} 个模型
@@ -70,13 +67,13 @@ export function ModelPicker({
           />
         </InputGroup>
       )}
-      <ul className="max-h-60 overflow-y-auto rounded-lg bg-card p-1 shadow-panel">
+      <ul className="max-h-60 overflow-y-auto rounded-lg border bg-card p-1">
         {shown.map(({ name: model, context }) => {
           const exists = added.includes(model);
           const checked = exists || picked.includes(model);
           return (
             <li key={model} className="min-w-0">
-              <label className="flex min-h-9 cursor-pointer items-center gap-2.5 rounded-md px-2 py-1.5 text-[13px] hover:bg-muted/60 has-disabled:cursor-not-allowed has-disabled:opacity-60 max-md:min-h-11">
+              <label className="flex min-h-9 cursor-pointer items-center gap-2.5 rounded-md px-2 py-1.5 text-sm hover:bg-muted/60 has-disabled:cursor-not-allowed has-disabled:opacity-60 max-md:min-h-11">
                 <Checkbox
                   checked={checked}
                   disabled={exists || (!checked && selected.length >= room)}
@@ -122,6 +119,6 @@ export function ModelPicker({
           添加所选（{selected.length}）
         </Button>
       </div>
-    </motion.div>
+    </div>
   );
 }

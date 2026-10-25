@@ -1,6 +1,5 @@
 import { lazy, Suspense } from "react";
 import { createRoot } from "react-dom/client";
-import { MotionConfig } from "motion/react";
 import { modelConnector } from "@modules/models/extension";
 import { LayerContainer } from "@/components/ui/layer";
 
@@ -21,13 +20,11 @@ export const modelConnectorWithPage = () =>
       // Its own React root: popups stay inside the page, and so inside the
       // dialog that shows it.
       root.render(
-        <MotionConfig reducedMotion="user">
-          <LayerContainer value={element}>
-            <Suspense fallback={null}>
-              <ModelConnections api={api} />
-            </Suspense>
-          </LayerContainer>
-        </MotionConfig>,
+        <LayerContainer value={element}>
+          <Suspense fallback={null}>
+            <ModelConnections api={api} />
+          </Suspense>
+        </LayerContainer>,
       );
       return async () => {
         element.remove();

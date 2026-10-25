@@ -95,7 +95,7 @@ test("an imported folder drives the Agent and stays enabled after reload", async
   const technical = dialog.getByLabel("技术详情");
   await expect(technical).toContainText("starter.model");
   await expect(technical).toContainText("chat@1");
-  await expect(technical).toContainText("导入的扩展包 · ");
+  await expect(technical).toContainText("导入的扩展包 ");
   await dialog.getByRole("button", { name: "导入", exact: true }).click();
   await expect(page.getByRole("status")).toContainText("扩展已导入");
   await page.getByRole("button", { name: "起步模型", exact: true }).click();

@@ -102,5 +102,5 @@ test("phones keep the chat layout without hover actions or a pointer menu", asyn
         .getPropertyValue("--background")
         .trim(),
     ),
-  ).toBe("#ffffff");
+  ).toBe("#fcfcfc");
 });

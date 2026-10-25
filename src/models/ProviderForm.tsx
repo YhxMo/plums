@@ -115,13 +115,13 @@ function ModelList({
     <>
       {models.length > 0 && (
         <ul
-          className="divide-y overflow-hidden rounded-lg bg-card shadow-panel"
+          className="divide-y overflow-hidden rounded-lg border bg-card"
           aria-label="已添加的模型"
         >
           {models.map((model) => (
             <li
               key={model}
-              className="flex flex-wrap items-center gap-2 py-1 pr-1 pl-3 text-[13px]"
+              className="flex flex-wrap items-center gap-2 py-1 pr-1 pl-3 text-sm"
             >
               <span className="min-w-0 flex-1 basis-40 break-all">{model}</span>
               <span className="w-44 shrink-0">
@@ -304,7 +304,7 @@ export function ProviderForm({
         <FieldSet className="gap-3">
           <FieldLegend>基本信息</FieldLegend>
           {current ? (
-            <p className="text-[13px] text-muted-foreground">
+            <p className="text-sm text-muted-foreground">
               服务商：
               <strong className="font-medium text-foreground">
                 {preset?.label ?? "自定义"}
@@ -401,7 +401,7 @@ export function ProviderForm({
             <Input
               id={`${ids}-base`}
               aria-describedby={`${ids}-target`}
-              className="font-mono text-[13px]"
+              className="font-mono text-sm"
               value={draft.base}
               type="url"
               required

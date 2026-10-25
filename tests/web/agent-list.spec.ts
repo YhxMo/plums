@@ -16,8 +16,8 @@ const order = (list: Locator) =>
     );
 
 const rows = {
-  light: { selected: "rgb(232, 105, 47)", pinned: "rgb(230, 230, 232)" },
-  dark: { selected: "rgb(232, 105, 47)", pinned: "rgb(59, 59, 61)" },
+  light: { selected: "rgb(247, 107, 21)", pinned: "rgb(232, 232, 232)" },
+  dark: { selected: "rgb(247, 107, 21)", pinned: "rgb(42, 42, 42)" },
 } as const;
 
 for (const scheme of ["light", "dark"] as const)
@@ -68,12 +68,7 @@ for (const scheme of ["light", "dark"] as const)
     ).toHaveCount(2);
     const tones = rows[scheme];
     await expect
-      .poll(() =>
-        style(
-          row("乙").locator("[data-slot=row-selected]"),
-          "background-color",
-        ),
-      )
+      .poll(() => style(row("乙"), "background-color"))
       .toBe(tones.selected);
     expect(await style(row("乙").locator("strong"), "color")).toBe(
       "rgb(255, 255, 255)",

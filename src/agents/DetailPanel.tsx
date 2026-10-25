@@ -61,7 +61,7 @@ export function DetailPanel({
       aria-label="Agent 详情"
     >
       <header className="flex min-h-12 shrink-0 items-center justify-between pr-2.5 pl-5 max-md:min-h-14 max-md:pl-6">
-        <h2 className="text-[13px] font-medium text-muted-foreground max-md:text-base">
+        <h2 className="text-sm font-medium text-muted-foreground max-md:text-base">
           Agent 详情
         </h2>
         <Button

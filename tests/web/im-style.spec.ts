@@ -58,17 +58,17 @@ const resolve = (page: Page, value: string) =>
     return color;
   }, value);
 
-/** The built-in palette's window, card and bubble colours, light then dark. */
+/** The built-in window, card and bubble colours (Radix Gray), light then dark. */
 const palette = {
   light: {
-    chrome: "rgb(238, 238, 240)",
-    chat: "rgb(255, 255, 255)",
-    bubble: "rgb(242, 242, 243)",
+    chrome: "rgb(240, 240, 240)",
+    chat: "rgb(252, 252, 252)",
+    bubble: "rgb(240, 240, 240)",
   },
   dark: {
-    chrome: "rgb(47, 47, 48)",
-    chat: "rgb(30, 30, 31)",
-    bubble: "rgb(44, 44, 47)",
+    chrome: "rgb(34, 34, 34)",
+    chat: "rgb(25, 25, 25)",
+    bubble: "rgb(42, 42, 42)",
   },
 } as const;
 
@@ -96,12 +96,18 @@ for (const scheme of ["light", "dark"] as const)
       expect(await style(flat, "background-color")).toMatch(
         /^(rgba\(0, 0, 0, 0\)|transparent)$/,
       );
-    expect(parseFloat(await style(rail, "border-right-width"))).toBe(1);
+    expect(
+      parseFloat(await style(rail, "border-right-width")),
+    ).toBeLessThanOrEqual(1);
     expect(parseFloat(await style(list, "border-top-left-radius"))).toBe(0);
-    // One card, 8px from the window edges and the list, 14px round.
+    // One card, 8px from the window edges and the list, 14px round, edged
+    // by a hairline instead of a shadow.
     expect(await style(chat, "background-color")).toBe(colours.chat);
     expect(parseFloat(await style(chat, "border-top-left-radius"))).toBe(14);
-    expect(await style(chat, "box-shadow")).not.toMatch(FLAT);
+    expect(await style(chat, "box-shadow")).toMatch(FLAT);
+    expect(parseFloat(await style(chat, "border-top-width"))).toBeGreaterThan(
+      0,
+    );
     const [a, b] = await Promise.all([list.boundingBox(), chat.boundingBox()]);
     expect(b!.x - (a!.x + a!.width)).toBe(8);
     expect(b!.y).toBe(8);

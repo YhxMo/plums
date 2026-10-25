@@ -1,6 +1,5 @@
 import { useId, useRef, useState } from "react";
 import { EllipsisIcon, PlusIcon, SearchIcon } from "lucide-react";
-import { LayoutGroup, motion } from "motion/react";
 import { cn } from "cn";
 import type { Agent } from "@modules/agents/contract";
 import { unreadReplies } from "@modules/agents/unread";
@@ -31,13 +30,6 @@ const PREVIEW = 120;
 /** When an Agent was last active: its latest message or new session. */
 const activity = (a: Agent) =>
   Math.max(...a.sessions.map((s) => s.lastMessageAt));
-
-// Rows leave at once: a removed row may hold the focus a dialog returns to.
-const enter = {
-  initial: { opacity: 0, y: 6 },
-  animate: { opacity: 1, y: 0 },
-  transition: { duration: 0.18, ease: "easeOut" },
-} as const;
 
 /**
  * One full-width row in one of three tones: selected (brand fill, white
@@ -77,37 +69,29 @@ function AgentRow({
     .filter(Boolean)
     .join(" ");
   const act = (action: AgentAction) => onAction(action, more.current);
-  // Secondary text on the selected row is 86% of its text colour.
+  // Secondary text on the selected row is White A11: 90% of its text colour.
   const quiet = selected
-    ? "text-selection-foreground/86"
+    ? "text-selection-foreground/90"
     : "text-muted-foreground";
   return (
     <ContextMenu>
       <ContextMenuTrigger asChild>
-        <motion.div
-          layout="position"
-          {...enter}
+        <div
           data-agent-row
           // The status dot's ring follows the row's tone; on the brand-filled
           // selected row the typing dot takes the row's text colour.
           className={cn(
             "group/row relative flex h-[68px] shrink-0 items-center [--row-bg:var(--list-bg)]",
-            a.pinned && "bg-row-pinned [--row-bg:var(--row-pinned)]",
+            a.pinned &&
+              !selected &&
+              "bg-row-pinned [--row-bg:var(--row-pinned)]",
             selected
-              ? "text-selection-foreground [--row-bg:var(--selection)] [--row-typing:var(--selection-text)]"
+              ? "bg-selection text-selection-foreground [--row-bg:var(--selection)] [--row-typing:var(--selection-text)]"
               : "after:pointer-events-none after:absolute after:inset-0 after:bg-foreground/4 after:opacity-0 after:transition-opacity hover:after:opacity-100",
           )}
           data-selected={selected}
           data-pinned={a.pinned}
         >
-          {selected && (
-            <motion.span
-              layoutId="agent-row-selected"
-              data-slot="row-selected"
-              transition={{ type: "spring", stiffness: 520, damping: 40 }}
-              className="absolute inset-0 bg-selection"
-            />
-          )}
           <button
             data-slot="agent-row"
             className="relative flex h-full min-w-0 flex-1 items-center gap-[11px] px-3.5 text-left outline-none focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:ring-inset"
@@ -128,14 +112,14 @@ function AgentRow({
               <span className="flex min-w-0 items-baseline justify-between gap-2">
                 <strong
                   id={`${id}-name`}
-                  className="truncate text-[14.5px] leading-5 font-semibold"
+                  className="truncate text-sm leading-5 font-semibold"
                 >
                   {a.name}
                 </strong>
                 <span
                   id={`${id}-time`}
                   className={cn(
-                    "min-w-7 shrink-0 text-right text-[11.5px] transition-opacity md:pointer-fine:group-hover/row:opacity-0 md:pointer-fine:group-focus-within/row:opacity-0 md:pointer-fine:group-has-aria-expanded/row:opacity-0",
+                    "min-w-7 shrink-0 text-right text-xs transition-opacity md:pointer-fine:group-hover/row:opacity-0 md:pointer-fine:group-focus-within/row:opacity-0 md:pointer-fine:group-has-aria-expanded/row:opacity-0",
                     quiet,
                   )}
                 >
@@ -145,7 +129,7 @@ function AgentRow({
               <span className="flex min-w-0 items-center justify-between gap-2">
                 <span
                   id={`${id}-preview`}
-                  className={cn("truncate text-[12.5px]", quiet)}
+                  className={cn("truncate text-xs", quiet)}
                 >
                   {preview}
                 </span>
@@ -153,7 +137,7 @@ function AgentRow({
                   <span
                     aria-hidden="true"
                     className={cn(
-                      "grid h-[18px] min-w-[18px] shrink-0 place-items-center rounded-full px-1.5 text-[11px] leading-none font-semibold tabular-nums transition-opacity md:pointer-fine:group-hover/row:opacity-0 md:pointer-fine:group-focus-within/row:opacity-0 md:pointer-fine:group-has-aria-expanded/row:opacity-0",
+                      "grid h-[18px] min-w-[18px] shrink-0 place-items-center rounded-full px-1.5 text-xs leading-none font-semibold tabular-nums transition-opacity md:pointer-fine:group-hover/row:opacity-0 md:pointer-fine:group-focus-within/row:opacity-0 md:pointer-fine:group-has-aria-expanded/row:opacity-0",
                       selected
                         ? "bg-selection-foreground text-selection"
                         : "bg-brand text-primary-foreground",
@@ -189,7 +173,7 @@ function AgentRow({
               <AgentMenuItems agent={a} kind="dropdown" onAction={act} />
             </DropdownMenuContent>
           </DropdownMenu>
-        </motion.div>
+        </div>
       </ContextMenuTrigger>
       <ContextMenuContent className="w-44" aria-label={`${a.name} 的操作菜单`}>
         <AgentMenuItems agent={a} kind="context" onAction={act} />
@@ -235,7 +219,7 @@ export function AgentList({
       >
         <h2
           className={cn(
-            "text-[15px] font-semibold tracking-tight max-md:flex-1 max-md:text-lg",
+            "text-base font-semibold max-md:flex-1 max-md:text-xl",
             agents.length > 0 && "md:sr-only",
           )}
         >
@@ -267,17 +251,15 @@ export function AgentList({
         </Tooltip>
       </div>
       <div className="flex min-h-0 flex-1 flex-col overflow-y-auto pb-3 max-md:pb-5">
-        <LayoutGroup id="agent-rows">
-          {ordered.map((a) => (
-            <AgentRow
-              key={a.id}
-              agent={a}
-              selected={selected === a.id}
-              onSelect={() => onSelect(a.id)}
-              onAction={(action, source) => onAction(a, action, source)}
-            />
-          ))}
-        </LayoutGroup>
+        {ordered.map((a) => (
+          <AgentRow
+            key={a.id}
+            agent={a}
+            selected={selected === a.id}
+            onSelect={() => onSelect(a.id)}
+            onAction={(action, source) => onAction(a, action, source)}
+          />
+        ))}
         {agents.length === 0 && (
           <p className="m-3 text-xs text-muted-foreground">
             添加后，Agent 会出现在这里。

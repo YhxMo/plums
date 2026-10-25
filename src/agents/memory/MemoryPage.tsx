@@ -115,7 +115,7 @@ export function MemoryPage({ api }: { api: MemoryPageApi }) {
           })),
         ]}
       />
-      <p className="text-[13px] leading-relaxed text-muted-foreground">
+      <p className="text-sm leading-relaxed text-muted-foreground">
         {agent
           ? `「${agent.name}」从你们的对话里记下的事，只有它会读到。会话停下 3 分钟、你离开或切换会话后，用下方的模型整理一次。`
           : "写给所有 Agent 的资料，例如你的称呼、所在城市和偏好；每个 Agent 回复你时都会读到。Agent 不会自动往这里写。"}
@@ -215,7 +215,7 @@ function Status({
 }) {
   if (agent.running)
     return (
-      <p role="status" className="text-[13px] text-muted-foreground">
+      <p role="status" className="text-sm text-muted-foreground">
         正在整理…
       </p>
     );
@@ -223,7 +223,7 @@ function Status({
   return (
     <div
       role="status"
-      className="flex items-start justify-between gap-3 rounded-lg bg-subtle/60 px-3 py-2.5 text-[13px]"
+      className="flex items-start justify-between gap-3 rounded-lg bg-subtle/60 px-3 py-2.5 text-sm"
     >
       <p
         className={agent.problem ? "text-destructive" : "text-muted-foreground"}

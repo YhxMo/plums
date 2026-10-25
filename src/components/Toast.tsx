@@ -58,7 +58,7 @@ export function ActionToast({
       action: label && (
         <button
           type="button"
-          className="ml-auto shrink-0 rounded-md px-2 py-1 text-[13px] font-semibold text-brand-text hover:bg-muted focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none"
+          className="ml-auto shrink-0 rounded-md px-2 py-1 text-sm font-semibold text-brand-text hover:bg-muted focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none"
           // A click leaves focus where it was: WebKit would otherwise focus
           // the toast, and the toaster would later pull focus back from
           // whatever the person moved on to.

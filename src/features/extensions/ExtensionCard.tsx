@@ -26,8 +26,8 @@ export function ExtensionCard({
       key={id}
       data-extension-id={id}
       className={cn(
-        "mb-2 cursor-pointer rounded-xl bg-card p-3.5 shadow-panel transition-[box-shadow,transform] duration-150 hover:shadow-raised max-md:px-4",
-        isSelected && "shadow-raised ring-2 ring-brand/70 hover:shadow-raised",
+        "mb-2 cursor-pointer rounded-xl border bg-card p-3.5 hover:bg-muted max-md:px-4",
+        isSelected && "bg-muted",
       )}
       onClick={onSelect}
     >
@@ -38,7 +38,7 @@ export function ExtensionCard({
             <button
               type="button"
               data-slot="extension-title"
-              className="min-w-0 truncate text-left text-[13px] font-semibold outline-none focus-visible:underline"
+              className="min-w-0 truncate text-left text-sm font-semibold outline-none focus-visible:underline"
               aria-pressed={isSelected}
               onClick={onSelect}
             >
@@ -48,11 +48,11 @@ export function ExtensionCard({
           </div>
           <p className="mt-0.5 flex flex-wrap gap-x-1.5 text-xs text-muted-foreground">
             <code>
-              {id} · {manifest.version}
+              {id} {manifest.version}
             </code>
             {users.map((group) =>
               group.users.length ? (
-                <span key={group.owner} className="before:content-['·_']">
+                <span key={group.owner}>
                   {group.users.length} 个 {group.kind} 在使用
                 </span>
               ) : null,

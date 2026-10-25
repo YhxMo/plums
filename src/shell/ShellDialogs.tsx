@@ -64,16 +64,14 @@ export function ShellDialogs({
       {settings === "about" ? (
         <DialogBody className="justify-items-center py-8 text-center">
           <img
-            className="size-16 rounded-2xl object-contain shadow-raised"
+            className="size-16 rounded-2xl object-contain"
             src="/brand/plums.png"
             width="64"
             height="64"
             alt=""
           />
           <div className="grid gap-1">
-            <h3 className="text-lg font-semibold tracking-tight">
-              Plums · 0.2.0
-            </h3>
+            <h3 className="text-xl font-semibold">Plums 0.2.0</h3>
             <p>通过扩展组合角色、能力和界面。</p>
           </div>
           <p className="max-w-sm text-xs text-muted-foreground">

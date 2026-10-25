@@ -32,9 +32,7 @@ it("reads a manifest and main.js into a content-addressed package without runnin
   expect(read.main).toBe(main);
   expect(read.hash).toMatch(/^[0-9a-f]{64}$/);
   expect(read.url).toBe(`package:sha256:${read.hash}`);
-  expect(sourceLabel(read.url)).toBe(
-    `导入的扩展包 · ${read.hash.slice(0, 12)}`,
-  );
+  expect(sourceLabel(read.url)).toBe(`导入的扩展包 ${read.hash.slice(0, 12)}`);
   expect(sourceLabel("/services/upper/")).toBe("/services/upper/");
   expect((globalThis as { ranPackage?: boolean }).ranPackage).toBeUndefined();
   expect((await readPackage(files(main))).hash).toBe(read.hash);

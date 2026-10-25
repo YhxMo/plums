@@ -51,7 +51,7 @@ const bytes = (text: string) => new TextEncoder().encode(text);
 /** What the user sees as the module's location. */
 export const sourceLabel = (url: string) =>
   isPackageImport(url)
-    ? `导入的扩展包 · ${hashOf(url).slice(0, 12)}`
+    ? `导入的扩展包 ${hashOf(url).slice(0, 12)}`
     : isRetiredFileImport(url)
       ? "旧格式的单文件扩展"
       : url;

@@ -7,7 +7,6 @@ import {
   SquareIcon,
   XIcon,
 } from "lucide-react";
-import { AnimatePresence, motion } from "motion/react";
 import type {
   Agent,
   AgentModel,
@@ -54,13 +53,6 @@ export type Editing = {
 
 /** Why this Agent cannot reply here yet, and the one step that fixes it. */
 export type Blocked = { text: string; action: ReactNode };
-
-const swap = {
-  initial: { opacity: 0, scale: 0.6 },
-  animate: { opacity: 1, scale: 1 },
-  exit: { opacity: 0, scale: 0.6 },
-  transition: { duration: 0.15 },
-} as const;
 
 /** One composer in every state; missing models or disabled parts block sending. */
 export function Composer({
@@ -311,41 +303,35 @@ export function Composer({
               onChange={onEffort}
             />
           )}
-          <AnimatePresence mode="popLayout" initial={false}>
-            {busy ? (
-              <motion.span key="stop" {...swap}>
-                <Tooltip label={saving ? "正在保存…" : "停止处理"}>
-                  <InputGroupButton
-                    type="button"
-                    variant="outline"
-                    size="icon-sm"
-                    className="size-[30px] rounded-full max-md:size-11"
-                    aria-label={saving ? "正在保存…" : "停止处理"}
-                    onClick={onCancel}
-                    disabled={saving}
-                  >
-                    <SquareIcon className="size-3 fill-current" />
-                  </InputGroupButton>
-                </Tooltip>
-              </motion.span>
-            ) : (
-              <motion.span key="send" {...swap}>
-                <Tooltip label="发送">
-                  <InputGroupButton
-                    type="submit"
-                    variant="default"
-                    size="icon-sm"
-                    // Grey while there is nothing to send, not a faded brand colour.
-                    className="size-[30px] rounded-full disabled:bg-muted disabled:text-muted-foreground disabled:opacity-100 max-md:size-11"
-                    aria-label="发送"
-                    disabled={!canSend}
-                  >
-                    <ArrowUpIcon />
-                  </InputGroupButton>
-                </Tooltip>
-              </motion.span>
-            )}
-          </AnimatePresence>
+          {busy ? (
+            <Tooltip label={saving ? "正在保存…" : "停止处理"}>
+              <InputGroupButton
+                type="button"
+                variant="outline"
+                size="icon-sm"
+                className="size-[30px] rounded-full max-md:size-11"
+                aria-label={saving ? "正在保存…" : "停止处理"}
+                onClick={onCancel}
+                disabled={saving}
+              >
+                <SquareIcon className="size-3 fill-current" />
+              </InputGroupButton>
+            </Tooltip>
+          ) : (
+            <Tooltip label="发送">
+              <InputGroupButton
+                type="submit"
+                variant="default"
+                size="icon-sm"
+                // Grey while there is nothing to send, not a faded brand colour.
+                className="size-[30px] rounded-full disabled:bg-muted disabled:text-muted-foreground disabled:opacity-100 max-md:size-11"
+                aria-label="发送"
+                disabled={!canSend}
+              >
+                <ArrowUpIcon />
+              </InputGroupButton>
+            </Tooltip>
+          )}
         </div>
       </InputGroup>
     </form>

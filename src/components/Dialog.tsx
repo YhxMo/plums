@@ -98,7 +98,7 @@ export function Dialog({
           side={sheet}
           onInteractOutside={(event) => drawer && event.preventDefault()}
           className={cn(
-            "gap-0 border-0 shadow-float",
+            "gap-0 border shadow-float",
             sheet === "bottom"
               ? "max-h-[88dvh] overflow-auto rounded-t-2xl"
               : "overflow-hidden rounded-xl data-[side=right]:top-14 data-[side=right]:right-2 data-[side=right]:bottom-2 data-[side=right]:h-auto data-[side=right]:w-72 data-[side=right]:max-w-[calc(100vw-1rem)] data-[side=right]:sm:max-w-72",
@@ -128,7 +128,7 @@ export function Dialog({
         >
           <header
             className={cn(
-              "sticky top-0 z-10 flex items-center gap-1 border-b bg-popover/85 py-2.5 pr-3 backdrop-blur-md",
+              "sticky top-0 z-10 flex h-14 items-center gap-1 bg-popover pr-3",
               onBack ? "pl-2" : "pl-5",
             )}
           >
@@ -146,7 +146,7 @@ export function Dialog({
             <DialogTitle
               ref={heading}
               tabIndex={-1}
-              className="mr-auto text-[15px] font-semibold outline-none"
+              className="mr-auto text-base font-semibold outline-none"
             >
               {title}
             </DialogTitle>
@@ -184,7 +184,7 @@ export function DialogActions({
   return (
     <footer
       className={cn(
-        "sticky bottom-0 flex justify-end gap-2 border-t bg-muted/60 px-5 py-3 backdrop-blur-md max-md:*:flex-1",
+        "sticky bottom-0 flex justify-end gap-2 bg-popover px-5 pt-1 pb-5 max-md:*:flex-1",
         className,
       )}
       {...props}

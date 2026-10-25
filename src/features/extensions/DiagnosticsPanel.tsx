@@ -19,9 +19,9 @@ export function DiagnosticsPanel({
     <Collapsible
       open={open}
       onOpenChange={onToggle}
-      className="rounded-xl bg-card shadow-panel"
+      className="rounded-xl border bg-card"
     >
-      <CollapsibleTrigger className="group flex w-full items-center gap-2 rounded-xl px-4 py-3 text-left text-[13px] font-semibold outline-none hover:bg-muted/50 focus-visible:ring-3 focus-visible:ring-ring/50">
+      <CollapsibleTrigger className="group flex w-full items-center gap-2 rounded-xl px-4 py-3 text-left text-sm font-semibold outline-none hover:bg-muted/50 focus-visible:ring-3 focus-visible:ring-ring/50">
         <FlaskConicalIcon className="size-4 text-muted-foreground" />
         诊断与实验
         <ChevronRightIcon className="ml-auto size-4 text-muted-foreground transition-transform group-data-[state=open]:rotate-90" />

@@ -38,7 +38,7 @@ export function EditableText({
       <div className="group/editable flex items-start gap-1">
         <p
           className={cn(
-            "min-w-0 flex-1 text-[13px] leading-relaxed whitespace-pre-wrap text-foreground/85 wrap-anywhere",
+            "min-w-0 flex-1 text-sm leading-relaxed whitespace-pre-wrap text-foreground/85 wrap-anywhere",
             clamp && "line-clamp-6",
           )}
         >
@@ -73,7 +73,7 @@ export function EditableText({
         autoFocus
         value={editing}
         maxLength={maxLength}
-        className="min-h-28 text-[13px]"
+        className="min-h-28 text-sm"
         placeholder={placeholder}
         onChange={(e) => setEditing(e.target.value)}
       />

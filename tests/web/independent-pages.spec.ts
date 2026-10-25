@@ -8,7 +8,7 @@ const nav = (page: Page) =>
   page.getByRole("navigation", { name: "工作台页面" });
 const card = (page: Page, id: string) =>
   page.locator("article").filter({
-    has: page.locator("code").filter({ hasText: `${id} ·` }),
+    has: page.locator("code").filter({ hasText: `${id} ` }),
   });
 
 async function install(page: Page, name: string) {
@@ -198,7 +198,7 @@ test("independent contributions stop, restore, and recover a missing persisted r
     .getByRole("button", { name: `停用 ${pageId}`, exact: true })
     .click();
   await expect(await extensionDetail(page, card(page, pageId))).toContainText(
-    "0 项资源 · 0 个在途任务",
+    "0 项资源，0 个在途任务",
   );
   await workspace(page);
   await expect(
@@ -226,10 +226,10 @@ test("independent contributions stop, restore, and recover a missing persisted r
       .click();
     await expect(card(page, pageId)).toContainText("等待条件");
     await expect(await extensionDetail(page, card(page, pageId))).toContainText(
-      "0 项资源 · 0 个在途任务",
+      "0 项资源，0 个在途任务",
     );
     await expect(await extensionDetail(page, card(page, nodeId))).toContainText(
-      "0 项资源 · 0 个在途任务",
+      "0 项资源，0 个在途任务",
     );
     await workspace(page);
     await expect(

@@ -2,7 +2,7 @@
 
 [SDK](../modules/sdk/index.ts) · [作者入口](SDK-AUTHORING.md) · [UI](UI.md)
 
-状态：当前有效（2026-10-24 核实）；实验主题契约，尚未稳定，不是安全沙箱。
+状态：当前有效（2026-10-25 核实）；实验主题契约，尚未稳定，不是安全沙箱。
 
 主题只提供 Web 内容的语义颜色，不注入 CSS、字体、布局或脚本；共享 WebView 的可信扩展仍可自行改 DOM，因此该校验不是安全沙箱。原生窗口/系统栏仅跟随明暗模式，颜色仍使用原生内置值。
 
@@ -17,18 +17,18 @@
 | accent-soft / accent-text | 弱强调底 / 强调文字 |
 | error / running / shadow | 错误文字、运行状态、阴影 |
 
-布局色决定默认界面的窗口底色、会话卡片、气泡、列表三档与窄栏图标，均可省略；省略的键由外壳按下表从必填色推导，提供的键原样使用。
+布局色决定默认界面的窗口底色、会话卡片、气泡、列表三档与窄栏图标，均可省略；省略的键由外壳按下表从必填色推导，提供的键原样使用。内置值取自 Radix Colors 的浅色与深色色阶（见[设计规范](DESIGN.md#颜色)），斜线前后为浅色与深色。
 
 | 键 | 用途 | 内置浅 / 深 | 省略时 |
 | --- | --- | --- | --- |
-| chrome | 窄栏与 Agent 列表共用的窗口底色，也是列表普通行 | `#EEEEF0` / `#2F2F30` | text 混入 background 7% |
-| chat | 浮起的会话卡片与其他工作区卡片 | `#FFFFFF` / `#1E1E1F` | background |
-| bubble | 对方消息气泡 | `#F2F2F3` / `#2C2C2F` | subtle |
-| row-pinned | 未选中的置顶行 | `#E6E6E8` / `#3B3B3D` | text 混入 background 12% |
-| selection / selection-text | 选中行与窄栏当前项 / 选中行文字 | `#E8692F` / `#FFFFFF` | accent / accent-ink |
-| rail-icon | 窄栏未选中图标 | `#5A5A5F` / `#B0B0B5` | muted |
+| chrome | 窄栏与 Agent 列表共用的窗口底色，也是列表普通行 | Gray 3 | text 混入 background 7% |
+| chat | 会话卡片与其他工作区卡片 | Gray 1 / Gray 2 | background |
+| bubble | 对方消息气泡 | Gray 3 / Gray 4 | subtle |
+| row-pinned | 未选中的置顶行 | Gray 4 | text 混入 background 12% |
+| selection / selection-text | 选中行与窄栏当前项 / 选中行文字 | Orange 9 / 白 | accent / accent-ink |
+| rail-icon | 窄栏未选中图标 | Gray 11 | muted |
 
-自己的消息气泡沿用 accent 与 accent-ink。内置选中行的对比取舍见 [UI](UI.md#列表交互与详情)；推导值使用 accent-ink，提供这些键时对比由作者负责。
+自己的消息气泡沿用 accent 与 accent-ink。内置外观的键盘焦点另用 Orange 8，贡献的主题沿用 accent。内置选中行的对比取舍见 [UI](UI.md#列表交互与详情)；推导值使用 accent-ink，提供这些键时对比由作者负责。
 
 默认界面的 shadcn/ui 组件不另设颜色：[src/app.css](../src/app.css) 把这些键映射为组件所用的 Tailwind 颜色（如 accent→primary、overlay→popover、subtle→muted），shadow 用于三级阴影，因此贡献的主题同样作用于按钮、菜单、弹窗和提示。
 

@@ -54,7 +54,7 @@ export function AuthorizationDialog({
                   {catalog.find((entry) => entry.id === id)?.label ?? id}
                 </strong>
                 <code className="text-xs text-muted-foreground">
-                  {id} · {host.manifest(id).version}
+                  {id} {host.manifest(id).version}
                 </code>
               </div>
               <ul className="mt-2 flex flex-wrap gap-1.5">

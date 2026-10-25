@@ -24,7 +24,7 @@ export function DetailSection({
 }) {
   return (
     <section className="mt-4 border-t pt-3.5 first:mt-0 first:border-0 first:pt-0">
-      <h4 className="mb-2.5 flex items-center gap-1 text-[13px] font-semibold">
+      <h4 className="mb-2.5 flex items-center gap-1 text-sm font-semibold">
         {title}
         {info && <InfoTip label={title} text={info} />}
       </h4>
@@ -54,7 +54,7 @@ export function ExtensionDetails({
       className={cn(
         inline
           ? "mt-3 cursor-default border-t pt-3"
-          : "rounded-xl bg-card p-5 shadow-raised",
+          : "rounded-xl border bg-card p-5",
       )}
       onClick={inline ? (event) => event.stopPropagation() : undefined}
     >
@@ -66,7 +66,7 @@ export function ExtensionDetails({
           <StatusBadge status={extState.status} />
         </div>
         <code className="mt-1 block text-xs text-muted-foreground">
-          {extId} · {extManifest.version}
+          {extId} {extManifest.version}
         </code>
       </header>
       {extManifest.description && (
@@ -144,7 +144,7 @@ export function ExtensionDetails({
           </dd>
           <dt>运行资源</dt>
           <dd>
-            {extState.resources} 项资源 · {extState.tasks} 个在途任务
+            {extState.resources} 项资源，{extState.tasks} 个在途任务
           </dd>
           {badIcons.length > 0 && (
             <>

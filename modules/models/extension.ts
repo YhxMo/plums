@@ -310,7 +310,7 @@ export function modelConnector({
       const models = () =>
         store.list().flatMap((provider) => {
           const label = presetOf(provider)?.label ?? "自定义";
-          const description = `${provider.name === label ? label : `${provider.name} · ${label}`}${provider.status === "ready" ? "" : "（需要填写 API Key）"}`;
+          const description = `${provider.name === label ? label : `${provider.name}，${label}`}${provider.status === "ready" ? "" : "（需要填写 API Key）"}`;
           return provider.models.map((model) => {
             const reasoning = reasoningLevels(
               provider.protocol,

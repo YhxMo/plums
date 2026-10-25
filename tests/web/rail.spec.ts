@@ -100,8 +100,8 @@ for (const scheme of ["light", "dark"] as const)
   });
 
 for (const [scheme, tile, figure] of [
-  ["light", "rgb(217, 222, 229)", "rgb(138, 148, 163)"],
-  ["dark", "rgb(74, 77, 82)", "rgb(168, 174, 183)"],
+  ["light", "rgb(224, 224, 224)", "rgb(141, 141, 141)"],
+  ["dark", "rgb(49, 49, 49)", "rgb(110, 110, 110)"],
 ] as const)
   test(`the rail shows the user as a blank grey plum that opens the shared memory (${scheme})`, async ({
     page,
@@ -154,7 +154,7 @@ test("settings holds light/dark, about and the extension manager", async ({
   await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
   await dialog.getByRole("button", { name: "关于 Plums" }).click();
   const about = page.getByRole("dialog", { name: "关于 Plums" });
-  await expect(about).toContainText("Plums · 0.2.0");
+  await expect(about).toContainText("Plums 0.2.0");
   // About returns to the settings it was opened from.
   await about.getByRole("button", { name: "返回" }).click();
   await expect(dialog).toBeVisible();
@@ -290,7 +290,10 @@ test("a contributed theme recolours the rail and the list; without the Agent int
     ),
   ).toBe("rgb(192, 199, 231)");
   expect(
-    await style(page.locator("[data-slot=row-selected]"), "background-color"),
+    await style(
+      page.locator("[data-agent-row][data-selected=true]"),
+      "background-color",
+    ),
   ).toBe(ink);
   expect(await style(rail, "border-right-color")).toBe("rgb(65, 73, 101)");
   // Stopping the interface removes its rail entry; the shell's stay.

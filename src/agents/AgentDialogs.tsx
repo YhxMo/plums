@@ -60,7 +60,7 @@ function Choice({
     <Item
       asChild
       variant="outline"
-      className="bg-card text-left shadow-panel hover:bg-muted/60 hover:shadow-raised"
+      className="bg-card text-left hover:bg-muted"
     >
       <button onClick={onClick}>
         <ItemMedia
@@ -365,7 +365,7 @@ export function AgentDialogs({
           <DialogBody className="gap-5">
             <FieldGroup className="gap-4">
               {draft.avatar && (
-                <div className="flex items-center gap-3 text-[13px] text-muted-foreground">
+                <div className="flex items-center gap-3 text-sm text-muted-foreground">
                   <Avatar agent={{ name: draft.name, avatar: draft.avatar }} />
                   角色卡自带的头像，创建后可在详情中更换。
                 </div>

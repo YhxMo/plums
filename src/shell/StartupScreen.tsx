@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState } from "react";
 import { recoverComposition } from "@modules/shell/composition-recovery";
-import { motion } from "motion/react";
 import { Dialog, DialogActions, DialogBody } from "@/components/Dialog";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
@@ -26,18 +25,13 @@ export function StartupScreen({ reason }: { reason?: unknown }) {
   const [error, setError] = useState(reason ? errorMessage(reason) : "");
   return (
     <main className="grid min-h-dvh place-items-center bg-chrome p-6">
-      <motion.div
-        initial={{ opacity: 0, y: 8 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.3, ease: "easeOut" }}
-        className="flex max-w-md flex-col items-center gap-3 text-center"
-      >
+      <div className="flex max-w-md flex-col items-center gap-3 text-center">
         <img
           className="size-14 rounded-xl object-contain"
           src="/brand/plums.png"
           alt=""
         />
-        <h1 className="text-2xl font-semibold tracking-tight">Plums</h1>
+        <h1 className="text-xl font-semibold">Plums</h1>
         <p
           role={error ? "alert" : "status"}
           className="flex items-center gap-2 text-muted-foreground"
@@ -67,7 +61,7 @@ export function StartupScreen({ reason }: { reason?: unknown }) {
             </Button>
           )}
         </div>
-      </motion.div>
+      </div>
       {confirmRecovery && recovery && (
         <Dialog
           title="恢复默认组合"

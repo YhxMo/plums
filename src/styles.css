@@ -9,38 +9,40 @@
   background: var(--background);
   font-synthesis: none;
   line-height: 1.5;
-  --text: #1a1a1a;
-  --surface: #f7f7f8;
-  --background: #ffffff;
-  --card: #ffffff;
-  --overlay: #ffffff;
-  --subtle: #ededf0;
-  --border: #e4e4e7;
-  --control-border: #c4c4c9;
-  --muted: #6e6e77;
-  --accent: #f57d4a;
-  --accent-hover: #ee6c37;
-  --accent-ink: #251b16;
-  --accent-soft: #fff0e8;
-  --accent-text: #a34820;
-  --error: #b3372d;
-  --running: #568064;
-  --shadow: #00000014;
+  /* Radix Colors: Gray with Orange (docs/DESIGN.md). */
+  --text: #202020; /* Gray 12 */
+  --surface: #f9f9f9; /* Gray 2 */
+  --background: #fcfcfc; /* Gray 1 */
+  --card: #fcfcfc; /* Gray 1 */
+  --overlay: #fcfcfc; /* Gray 1 */
+  --subtle: #f0f0f0; /* Gray 3 */
+  --border: #d9d9d9; /* Gray 6 */
+  --control-border: #cecece; /* Gray 7 */
+  --muted: #646464; /* Gray 11 */
+  --focus: #ec9455; /* Orange 8 */
+  --accent: #f76b15; /* Orange 9 */
+  --accent-hover: #ef5f00; /* Orange 10 */
+  --accent-ink: #ffffff;
+  --accent-soft: #ffefd6; /* Orange 3 */
+  --accent-text: #cc4e00; /* Orange 11 */
+  --error: #ce2c31; /* Red 11 */
+  --running: #30a46c; /* Green 9 */
+  --shadow: #00000017; /* Gray A4 */
   /* Layout colours: the window behind the rail and list, the floating
    * conversation card, reply bubbles, pinned and selected list rows, and the
    * rail's icons. */
-  --chrome: #eeeef0;
-  --chat: #ffffff;
-  --bubble: #f2f2f3;
-  --row-pinned: #e6e6e8;
-  --selection: #e8692f;
+  --chrome: #f0f0f0; /* Gray 3 */
+  --chat: #fcfcfc; /* Gray 1 */
+  --bubble: #f0f0f0; /* Gray 3 */
+  --row-pinned: #e8e8e8; /* Gray 4 */
+  --selection: #f76b15; /* Orange 9 */
   --selection-text: #ffffff;
-  --rail-icon: #5a5a5f;
+  --rail-icon: #646464; /* Gray 11 */
   /* The Mac app's rail: a tint over the window's sidebar material. */
-  --rail-glass: rgb(255 255 255 / 0.3);
+  --rail-glass: rgb(255 255 255 / 0.3); /* White A5 */
   /* The user's blank plum at the top of the rail. */
-  --user: #d9dee5;
-  --user-ink: #8a94a3;
+  --user: #e0e0e0; /* Gray 5 */
+  --user-ink: #8d8d8d; /* Gray 9 */
   --radius: 10px;
   --space-1: 8px;
   --space-2: 16px;
@@ -49,33 +51,34 @@
 }
 :root[data-theme="dark"] {
   color-scheme: dark;
-  --text: #e8e8e8;
-  --surface: #1f1f20;
-  --background: #171718;
-  --card: #252525;
-  --overlay: #2a2a2c;
-  --subtle: #2d2d2f;
-  --border: #333336;
-  --control-border: #48484b;
-  --muted: #9b9ba0;
-  --accent: #f57d4a;
-  --accent-hover: #ff8b59;
-  --accent-ink: #181818;
-  --accent-soft: #33221a;
-  --accent-text: #ff9868;
-  --error: #ff8f85;
-  --running: #7ec495;
-  --shadow: #00000080;
-  --chrome: #2f2f30;
-  --chat: #1e1e1f;
-  --bubble: #2c2c2f;
-  --row-pinned: #3b3b3d;
-  --selection: #e8692f;
+  --text: #eeeeee; /* Gray 12 */
+  --surface: #222222; /* Gray 3 */
+  --background: #111111; /* Gray 1 */
+  --card: #191919; /* Gray 2 */
+  --overlay: #191919; /* Gray 2 */
+  --subtle: #2a2a2a; /* Gray 4 */
+  --border: #3a3a3a; /* Gray 6 */
+  --control-border: #484848; /* Gray 7 */
+  --muted: #b4b4b4; /* Gray 11 */
+  --focus: #a35829; /* Orange 8 */
+  --accent: #f76b15; /* Orange 9 */
+  --accent-hover: #ff801f; /* Orange 10 */
+  --accent-ink: #ffffff;
+  --accent-soft: #331e0b; /* Orange 3 */
+  --accent-text: #ffa057; /* Orange 11 */
+  --error: #ff9592; /* Red 11 */
+  --running: #30a46c; /* Green 9 */
+  --shadow: #00000080; /* Black A7 */
+  --chrome: #222222; /* Gray 3 */
+  --chat: #191919; /* Gray 2 */
+  --bubble: #2a2a2a; /* Gray 4 */
+  --row-pinned: #2a2a2a; /* Gray 4 */
+  --selection: #f76b15; /* Orange 9 */
   --selection-text: #ffffff;
-  --rail-icon: #b0b0b5;
-  --rail-glass: rgb(255 255 255 / 0.04);
-  --user: #4a4d52;
-  --user-ink: #a8aeb7;
+  --rail-icon: #b4b4b4; /* Gray 11 */
+  --rail-glass: rgb(255 255 255 / 0.05); /* White A1 */
+  --user: #313131; /* Gray 5 */
+  --user-ink: #6e6e6e; /* Gray 9 */
 }
 /* A contributed palette that leaves out layout colours gets these, derived
  * from its own colours; the ones it names are set inline and win. */
@@ -87,6 +90,7 @@
   --selection: var(--accent);
   --selection-text: var(--accent-ink);
   --rail-icon: var(--muted);
+  --focus: var(--accent);
   --user: color-mix(in srgb, var(--rail-icon) 22%, var(--chrome));
   --user-ink: color-mix(in srgb, var(--rail-icon) 70%, var(--chrome));
 }
@@ -134,9 +138,9 @@
   :where(button:not([data-slot])) {
     background: var(--accent);
     color: var(--accent-ink);
-    border: 1px solid var(--accent);
+    border: 0.5px solid var(--accent);
     padding: 6px 12px;
-    font-size: 13px;
+    font-size: 14px;
     font-weight: 500;
     line-height: 1.4;
     transition:
@@ -156,7 +160,7 @@
     min-height: 112px;
     resize: none;
     field-sizing: content;
-    border: 1px solid var(--control-border);
+    border: 0.5px solid var(--control-border);
     border-radius: 8px;
     padding: 12px;
     background: var(--surface);
@@ -170,7 +174,7 @@
     summary,
     input[type="checkbox"]
   ):focus-visible {
-    outline: 2px solid var(--accent);
+    outline: 2px solid var(--focus);
     outline-offset: 2px;
   }
   :where(
@@ -178,8 +182,7 @@
     textarea:not([data-slot])
   ):focus-visible {
     outline: none;
-    border-color: var(--accent);
-    box-shadow: 0 0 0 3px var(--accent-soft);
+    border-color: var(--focus);
   }
   a {
     color: var(--accent);
@@ -244,7 +247,7 @@
   }
   .muted {
     color: var(--muted);
-    font-size: 13px;
+    font-size: 12px;
   }
   .error {
     color: var(--error);
@@ -277,12 +280,12 @@
   .field textarea {
     width: 100%;
     padding: 7px 10px;
-    border: 1px solid var(--control-border);
+    border: 0.5px solid var(--control-border);
     background: var(--card);
     color: var(--text);
     border-radius: 8px;
     min-height: 36px;
-    font-size: 13px;
+    font-size: 14px;
     line-height: 1.5;
     font-weight: 400;
   }

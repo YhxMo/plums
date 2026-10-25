@@ -27,12 +27,12 @@ export function EffortSelect({
   return (
     <Select
       label="思考强度"
-      prefix="思考 ·"
+      prefix="思考"
       value={current}
       disabled={disabled}
       size="sm"
       className={cn(
-        "w-auto border-transparent bg-transparent text-[13px] text-foreground/80 shadow-none hover:bg-muted hover:text-foreground aria-expanded:bg-muted dark:bg-transparent",
+        "w-auto border-transparent bg-transparent text-sm text-foreground/80 shadow-none hover:bg-muted hover:text-foreground aria-expanded:bg-muted dark:bg-transparent",
       )}
       options={[
         { value: "", label: "默认" },

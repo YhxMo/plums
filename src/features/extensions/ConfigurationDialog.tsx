@@ -42,7 +42,7 @@ export function ConfigurationDialog({
       >
         <DialogBody>
           <p className="text-muted-foreground">
-            {configuring} ·
+            {configuring}：
             仅填写普通配置，勿输入密钥或令牌。保存会先停用扩展；已启用的扩展随后重新启动。
           </p>
           {host.configuration(configuring).error && (

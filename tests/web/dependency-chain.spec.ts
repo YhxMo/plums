@@ -72,7 +72,7 @@ for (const failCleanup of [false, true]) {
     await expect(middle).toContainText(failCleanup ? "清理未完成" : "等待条件");
     await expect(leaf).toContainText("等待条件");
     await expect(await extensionDetail(page, leaf)).toContainText(
-      "0 项资源 · 0 个在途任务",
+      "0 项资源，0 个在途任务",
     );
     await expect(
       page.getByRole("button", { name: "启用 combo.provider", exact: true }),
@@ -83,7 +83,7 @@ for (const failCleanup of [false, true]) {
       ).toBeDisabled();
     else
       await expect(await extensionDetail(page, middle)).toContainText(
-        "0 项资源 · 0 个在途任务",
+        "0 项资源，0 个在途任务",
       );
     await page.getByRole("button", { name: "返回工作区", exact: true }).click();
     await chooseLayout(page, "combo-controls");

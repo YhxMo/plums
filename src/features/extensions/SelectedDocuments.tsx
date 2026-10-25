@@ -99,11 +99,11 @@ export function SelectedDocuments({
   }
   return (
     <section
-      className="mt-3 grid gap-2.5 border-t pt-3 text-[13px] leading-relaxed [overflow-wrap:anywhere]"
+      className="mt-3 grid gap-2.5 border-t pt-3 text-sm leading-relaxed [overflow-wrap:anywhere]"
       aria-label="文档只读授权"
       onClick={(event) => event.stopPropagation()}
     >
-      <h3 className="flex items-center gap-1 text-[13px] font-semibold">
+      <h3 className="flex items-center gap-1 text-sm font-semibold">
         本次文档授权
         <InfoTip
           label="本次文档授权"
