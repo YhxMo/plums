@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { shellButton } from "./helpers";
+import { addAgent, shellButton } from "./helpers";
 
 test("no button relies on a native title tooltip", async ({ page }) => {
   await page.goto("/");
@@ -66,4 +66,32 @@ test("a tap acts without leaving a tooltip behind", async ({ browser }) => {
   await page.waitForTimeout(600);
   await expect(page.getByRole("tooltip")).toHaveCount(0);
   await context.close();
+});
+
+test("focus given back by a closing dialog or menu shows no tooltip", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1180, height: 800 });
+  await page.goto("/");
+  await addAgent(page, "甲");
+  const add = page.getByRole("button", { name: "添加", exact: true });
+  await add.click();
+  await page
+    .getByRole("dialog")
+    .getByRole("button", { name: /添加 Agent/ })
+    .click();
+  await page.getByRole("textbox", { name: "名称", exact: true }).fill("乙");
+  await page
+    .getByRole("dialog")
+    .getByRole("button", { name: "添加", exact: true })
+    .click();
+  await expect(page.getByRole("dialog")).toHaveCount(0);
+  await expect(add).toBeFocused();
+  const more = page.getByRole("button", { name: "更多操作" });
+  await more.click();
+  await page.getByRole("menuitem", { name: "置顶" }).click();
+  await expect(more).toBeFocused();
+  // Past the hover delay: nothing the pointer rests on opens one either.
+  await page.waitForTimeout(600);
+  await expect(page.getByRole("tooltip")).toHaveCount(0);
 });

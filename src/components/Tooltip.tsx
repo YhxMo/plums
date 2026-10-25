@@ -26,7 +26,17 @@ export function Tooltip({
   return (
     <TooltipProvider delayDuration={400}>
       <TooltipRoot>
-        <TooltipTrigger asChild>{children}</TooltipTrigger>
+        <TooltipTrigger
+          asChild
+          // Focus given back by a closing dialog or menu after a click is not
+          // keyboard focus; preventing the event skips Radix's opening.
+          onFocus={(event) => {
+            if (!event.currentTarget.matches(":focus-visible"))
+              event.preventDefault();
+          }}
+        >
+          {children}
+        </TooltipTrigger>
         <TooltipContent side={side} sideOffset={6} collisionPadding={8}>
           {label}
         </TooltipContent>
