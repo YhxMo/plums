@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import {
   ImageDownIcon,
+  PackageIcon,
   PencilIcon,
   PinIcon,
   PinOffIcon,
@@ -16,7 +17,7 @@ import {
   ContextMenuSeparator,
 } from "@/components/ui/context-menu";
 
-export type AgentAction = "pin" | "rename" | "export" | "remove";
+export type AgentAction = "pin" | "rename" | "export" | "bundle" | "remove";
 
 /** The same Agent actions for its dropdown and its right-click menu. */
 export function AgentMenuItems({
@@ -49,6 +50,7 @@ export function AgentMenuItems({
       )}
       {item("rename", <PencilIcon />, "重命名")}
       {item("export", <ImageDownIcon />, "导出角色卡…")}
+      {item("bundle", <PackageIcon />, "导出 Agent 和扩展…")}
       <Separator />
       {item("remove", <Trash2Icon />, "移除 Agent")}
     </>

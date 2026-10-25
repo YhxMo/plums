@@ -220,6 +220,15 @@ export function ComposeStep({
             />
           </Field>
         )}
+        {draft.notes.length > 0 && (
+          <ul className="grid gap-1 text-xs text-muted-foreground">
+            {draft.notes.map((note) => (
+              <li key={note.id} role="note">
+                {note.text}
+              </li>
+            ))}
+          </ul>
+        )}
       </DialogBody>
       <DialogActions>
         <Button
@@ -294,7 +303,7 @@ export function ImportStep({
             aria-label="角色卡文件"
             disabled={!idle}
             type="file"
-            accept=".png,.json,image/png,application/json"
+            accept=".png,.json,.plums,image/png,application/json,application/zip"
             onChange={(e) => {
               read(e.target.files?.[0]);
               e.target.value = "";

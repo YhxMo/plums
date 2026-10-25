@@ -17,6 +17,8 @@ export type AgentDraft = {
   model?: AgentModel | null;
   /** Parts such as the provider or a model connection switched off. */
   off: string[];
+  /** Why parts an imported bundle lists stay off here. */
+  notes: { id: string; text: string }[];
 };
 
 const empty: AgentDraft = {
@@ -24,6 +26,7 @@ const empty: AgentDraft = {
   description: "",
   instructions: DEFAULT_INSTRUCTIONS,
   off: [],
+  notes: [],
 };
 
 export const useAgentDraft = create<

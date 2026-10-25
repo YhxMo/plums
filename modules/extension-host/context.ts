@@ -81,6 +81,32 @@ export function createContext(
           label: label(owner),
         }));
       },
+      bundle: async (ids) => {
+        scope.assertOpen();
+        if (!Array.isArray(ids) || ids.some((id) => typeof id !== "string"))
+          throw hostError("Invalid extension IDs");
+        const bridge = host.shell();
+        if (!bridge?.bundle) throw hostError("Shell controls unavailable");
+        return bridge.bundle([...ids]);
+      },
+      offerPackages: async (packages) => {
+        scope.assertOpen();
+        if (
+          !Array.isArray(packages) ||
+          packages.some(
+            (pkg) =>
+              typeof pkg?.manifest !== "string" || typeof pkg.main !== "string",
+          )
+        )
+          throw hostError("Invalid packages");
+        const bridge = host.shell();
+        if (!bridge?.offerPackages)
+          throw hostError("Shell controls unavailable");
+        return bridge.offerPackages(
+          id,
+          packages.map(({ manifest, main }) => ({ manifest, main })),
+        );
+      },
       publishUsers: (kind, users, toggle) => {
         scope.assertOpen();
         const version = toggle && declared(toggle.service);

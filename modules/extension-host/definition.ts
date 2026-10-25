@@ -48,12 +48,13 @@ export function validateManifest(value: unknown): asserts value is Manifest {
   for (const [field, max] of [
     ["name", 40],
     ["author", 80],
+    ["license", 80],
     ["description", 500],
   ] as const)
     if (manifest[field] !== undefined)
       string(manifest[field], "extension.invalid", {
         path: `manifest.${field}`,
-        label: "Invalid extension name, author or description",
+        label: "Invalid extension name, author, license or description",
         min: 1,
         max,
       });

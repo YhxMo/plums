@@ -1,7 +1,7 @@
 import type { Host } from "@modules/extension-host/host";
 import type { DialogFeedback } from "@/shell/controllers";
 import type { ExtensionDialogController } from "./controllers";
-import { InstallDialog } from "./InstallDialog";
+import { InstallDialog, OfferDialog } from "./InstallDialog";
 import { UninstallDialog } from "./UninstallDialog";
 import { StopDialog } from "./StopDialog";
 import { ConfigurationDialog } from "./ConfigurationDialog";
@@ -15,9 +15,18 @@ export function ExtensionDialogs({
   host: Pick<Host, "manifest" | "configuration" | "users">;
   feedback: DialogFeedback;
 }) {
-  const { dialog, close } = controller;
+  const { dialog, close, offer } = controller;
   return (
     <>
+      {offer && (
+        <OfferDialog
+          feedback={feedback}
+          preview={offer.preview}
+          position={offer.position}
+          onAnswer={offer.answer}
+          onClose={offer.close}
+        />
+      )}
       <InstallDialog
         feedback={feedback}
         open={dialog?.kind === "install"}

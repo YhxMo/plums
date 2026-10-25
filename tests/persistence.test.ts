@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { prepareRuntime, runtimeFixture } from "./runtime-fixture";
 import { boot } from "../src/application";
-import type { StoredState } from "../modules/sdk";
+import type { Manifest, StoredState } from "../modules/sdk";
 import { createPersistence, createShellBridge } from "../src/shell/persistence";
 import { parsePersistedState } from "../src/shell/persisted-state";
 
@@ -175,4 +175,69 @@ it("names extensions as listed and forwards a management target", async () => {
   );
   await bridge.open("extensions", "owner", "a.b");
   expect(seen).toHaveBeenCalledWith({ action: "extensions", target: "a.b" });
+});
+it("lends a bundle imported packages, built-ins by version only, and offers packages to management", async () => {
+  const runtime = await boot();
+  const events = new EventTarget();
+  const manifests: Record<string, Manifest> = {
+    "agents.local": { id: "agents.local", version: "0.0.4", apiVersion: 1 },
+    "example.weather": {
+      id: "example.weather",
+      version: "1.2.0",
+      apiVersion: 1,
+      author: "某作者",
+      license: "MIT",
+    },
+  };
+  const read = vi.fn(async (url: string) => ({
+    manifestText: `{"from":"${url}"}`,
+    main: "export default {}",
+  }));
+  const bridge = createShellBridge(
+    createPersistence(
+      runtime.adapter,
+      parsePersistedState({
+        version: 1,
+        imports: [
+          {
+            id: "example.weather",
+            url: `package:sha256:${"a".repeat(64)}`,
+            label: "天气查询",
+          },
+        ],
+      }),
+      7,
+    ),
+    events,
+    [{ id: "agents.local", label: "Agent 核心" }],
+    { manifest: (id) => manifests[id], packages: { read } },
+  );
+  await expect(
+    bridge.bundle!(["agents.local", "example.weather", "missing.one"]),
+  ).resolves.toEqual([
+    { id: "agents.local", version: "0.0.4", label: "Agent 核心" },
+    {
+      id: "example.weather",
+      version: "1.2.0",
+      label: "天气查询",
+      author: "某作者",
+      license: "MIT",
+      package: {
+        manifest: `{"from":"package:sha256:${"a".repeat(64)}"}`,
+        main: "export default {}",
+      },
+    },
+  ]);
+  // Nobody to ask: the offer fails rather than installing anything.
+  await expect(
+    bridge.offerPackages!("ui.agents", [{ manifest: "{}", main: "" }]),
+  ).rejects.toThrow("扩展管理不可用");
+  events.addEventListener("offer-packages", (event) => {
+    event.preventDefault();
+    const { packages, settle } = (event as CustomEvent).detail;
+    settle(packages.map(() => ({ id: "x.y", outcome: "declined" })));
+  });
+  await expect(
+    bridge.offerPackages!("ui.agents", [{ manifest: "{}", main: "" }]),
+  ).resolves.toEqual([{ id: "x.y", outcome: "declined" }]);
 });

@@ -14,7 +14,12 @@ import {
   type Attachment,
 } from "@modules/agents/contract";
 import { attachmentProblem } from "@modules/agents/attachments";
-import type { Named, WorkspaceChromeController } from "@modules/sdk";
+import type {
+  BundleExtension,
+  Named,
+  PackageOutcome,
+  WorkspaceChromeController,
+} from "@modules/sdk";
 import { cn } from "cn";
 import { AgentList } from "./AgentList";
 import { ChatView } from "./ChatView";
@@ -56,6 +61,8 @@ export function AgentWorkspace({
   onModels,
   onOpenLink,
   onSaveFile,
+  onBundle,
+  onOffer,
 }: {
   api: AgentProvider;
   chrome: WorkspaceChromeController;
@@ -71,6 +78,12 @@ export function AgentWorkspace({
   onOpenLink: (url: string) => Promise<unknown>;
   /** Saves a file where the person chooses; base64 bytes. */
   onSaveFile: (name: string, data: string) => Promise<{ saved: boolean }>;
+  /** The installed extensions among `ids`, for a whole-Agent file. */
+  onBundle: (ids: string[]) => Promise<BundleExtension[]>;
+  /** Offers a whole-Agent file's packages for installation. */
+  onOffer: (
+    packages: { manifest: string; main: string }[],
+  ) => Promise<PackageOutcome[]>;
 }) {
   const subscribe = useCallback(
     (listener: () => void) => api.subscribe(listener),
@@ -233,6 +246,13 @@ export function AgentWorkspace({
     dropAdds,
     key,
   ]);
+  /** The extensions an Agent is made of: provider, interface, memory, its model's connection. */
+  const partIds = (a: Agent) => [
+    ...(api.info.extensions ?? []).map((p) => p.id),
+    ...(ui ? [ui.id] : []),
+    ...(api.memories?.() ?? []).map((m) => m.id),
+    ...(a.model ? [a.model.provider] : []),
+  ];
   function agentAction(
     a: Agent,
     action: AgentAction,
@@ -245,6 +265,8 @@ export function AgentWorkspace({
         const { name, data } = await roleCardFile(a);
         if ((await onSaveFile(name, data)).saved) setNotice("已导出角色卡");
       });
+    else if (action === "bundle")
+      open({ action, agent: a, parts: partIds(a) }, source);
     else open({ action, agent: a }, source);
   }
   const feedback = (
@@ -516,6 +538,10 @@ export function AgentWorkspace({
       }}
       onSessionDeleted={(id) => offerUndo(id, "已删除会话")}
       onModels={onModels}
+      onBundle={onBundle}
+      onOffer={onOffer}
+      onSaveFile={onSaveFile}
+      onNotice={setNotice}
     />
   );
   // Details pop out above the conversation: a bottom sheet on phones, a

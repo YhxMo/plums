@@ -140,7 +140,7 @@ test("lines are 0.5px, and only floating layers cast shadows", () => {
     const text = readFileSync(path, "utf8");
     return [
       ...text.matchAll(
-        /\b1px solid\b|\bshadow-(panel|raised|sm|md|lg)(?![\w-])|drop-shadow-\w+|backdrop-blur[\w\-[\]]*/g,
+        /\b1px solid\b|\bborder(-[trblxy])?-\[[\d.]+px\]|\bshadow-(panel|raised|sm|md|lg)(?![\w-])|drop-shadow-\w+|backdrop-blur[\w\-[\]]*/g,
       ),
     ].map((m) => `${path}: ${m[0]}`);
   });

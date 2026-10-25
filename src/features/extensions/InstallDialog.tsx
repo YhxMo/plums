@@ -177,8 +177,8 @@ export function InstallDialog({
             </p>
             <div
               className={cn(
-                "grid justify-items-center gap-2.5 rounded-xl border-[1.5px] border-dashed border-input px-4 py-7 text-brand-text transition-colors",
-                dragging && "scale-[1.01] border-brand bg-brand-soft",
+                "grid justify-items-center gap-2.5 rounded-xl border border-dashed border-input px-4 py-7 text-brand-text",
+                dragging && "border-brand bg-brand-soft",
               )}
               onDragOver={(event) => {
                 event.preventDefault();
@@ -277,6 +277,59 @@ export function InstallDialog({
             {preview.replacing ? "替换" : "导入"}
           </Button>
         )}
+      </DialogActions>
+    </Dialog>
+  );
+}
+
+/**
+ * A package an Agent bundle brings, offered for installation: what it is and
+ * what it may do, and that installing runs its code. Nothing installs unless
+ * the person confirms; it stays off until enabled.
+ */
+export function OfferDialog({
+  feedback,
+  preview,
+  position,
+  onAnswer,
+  onClose,
+}: {
+  feedback: DialogFeedback;
+  preview: ImportPreview;
+  /** "1/2" when the bundle brings several. */
+  position: string;
+  onAnswer(choice: "install" | "skip"): void;
+  onClose(): void;
+}) {
+  const { busy } = feedback;
+  return (
+    <Dialog
+      title={`安装 Agent 用到的扩展${position ? `（${position}）` : ""}`}
+      onClose={onClose}
+    >
+      <DialogBody>
+        <p role="note">
+          这个 Agent
+          用到下面的扩展。安装会把它加进应用并运行其中的代码，它与应用在同一环境中运行；只安装你信任来源的扩展。
+        </p>
+        <PreviewDetails {...preview} />
+      </DialogBody>
+      <DialogActions>
+        <Button
+          variant="outline"
+          type="button"
+          disabled={busy}
+          onClick={() => onAnswer("skip")}
+        >
+          {preview.replacing ? "保留现有" : "跳过"}
+        </Button>
+        <Button
+          type="button"
+          disabled={busy}
+          onClick={() => onAnswer("install")}
+        >
+          {preview.replacing ? "替换" : "安装"}
+        </Button>
       </DialogActions>
     </Dialog>
   );

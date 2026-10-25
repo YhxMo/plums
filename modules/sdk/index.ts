@@ -34,6 +34,8 @@ export interface Manifest {
   name?: string;
   /** Who made it, as shown before importing; 1–80 characters of plain text. */
   author?: string;
+  /** Its licence, such as "MIT", shown before it is passed on in a bundle; 1–80 characters. */
+  license?: string;
   /** Plain-text description for extension management, at most 500 characters; never rendered as markup. */
   description?: string;
   requires?: Record<string, number>;
@@ -106,12 +108,36 @@ export type UserToggle = {
 /** One active provider of a service, named for the user. */
 /** `signal` aborts when this provider stops, e.g. to cancel a call in flight. */
 export type Provider<T> = Named & { value: T; signal: AbortSignal };
+/**
+ * Experimental: an extension as an Agent bundle needs it. Imported (third
+ * party) extensions carry their package, which the bundle passes on;
+ * built-in ones are named by ID and version only.
+ */
+export type BundleExtension = {
+  id: string;
+  version: string;
+  label: string;
+  author?: string;
+  license?: string;
+  package?: { manifest: string; main: string };
+};
+/** What became of a package offered for installation. */
+export type PackageOutcome = {
+  id: string;
+  outcome: "installed" | "replaced" | "kept" | "declined" | "refused";
+  reason?: string;
+};
 export interface ShellBridge {
   open(action: ShellAction, owner: string, target?: string): Promise<void>;
   readPage(key: string): string | undefined;
   savePage(key: string, route: string): Promise<void>;
   /** The name the user knows an extension by; the ID when omitted. */
   label?(id: string): string;
+  bundle?(ids: string[]): Promise<BundleExtension[]>;
+  offerPackages?(
+    owner: string,
+    packages: { manifest: string; main: string }[],
+  ): Promise<PackageOutcome[]>;
 }
 export interface ShellAccess {
   /** `target` selects one extension in `"extensions"`; `"view"` opens the dialog view with that id. */
@@ -123,6 +149,16 @@ export interface ShellAccess {
   dependencies(): Named[];
   /** Replaces what this extension serves, e.g. its Agents; management lists them under every extension in `dependencies()` and their `uses`. Cleared on stop. */
   publishUsers(kind: string, users: User[], toggle?: UserToggle): void;
+  /** Experimental: the installed extensions among `ids`, with the packages of imported ones, for an Agent bundle. */
+  bundle(ids: string[]): Promise<BundleExtension[]>;
+  /**
+   * Experimental: offers packages from a bundle for installation. Management
+   * shows each one's ID, version, permissions and source and installs it only
+   * if the person confirms; it stays off until enabled and authorised.
+   */
+  offerPackages(
+    packages: { manifest: string; main: string }[],
+  ): Promise<PackageOutcome[]>;
 }
 export interface ExtensionContext {
   readonly id: string;

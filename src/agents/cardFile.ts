@@ -47,8 +47,14 @@ async function picture(agent: Pick<Agent, "name" | "avatar">) {
 export const fileName = (name: string, extension: string) =>
   `${name.replace(/[/\\:\0]/g, "_").replace(/^\.+/, "") || "Agent"}${extension}`;
 
+/** The Agent as a picture role card's bytes. */
+export const roleCardPng = async (agent: Agent) =>
+  withRoleCard(await picture(agent), agent);
+
 /** The Agent as a picture role card: its file name and base64 bytes. */
 export async function roleCardFile(agent: Agent) {
-  const png = withRoleCard(await picture(agent), agent);
-  return { name: fileName(agent.name, ".png"), data: bytesToBase64(png) };
+  return {
+    name: fileName(agent.name, ".png"),
+    data: bytesToBase64(await roleCardPng(agent)),
+  };
 }

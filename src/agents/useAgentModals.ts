@@ -14,6 +14,12 @@ export type AgentModal =
       session?: string;
     }
   | {
+      /** Packs the Agent with its extensions; `parts` are their IDs. */
+      action: "bundle";
+      agent: Agent;
+      parts: string[];
+    }
+  | {
       /** Asks before an edit or regeneration drops `count` later messages. */
       action: "truncate";
       agent: Agent;

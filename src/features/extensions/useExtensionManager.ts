@@ -16,6 +16,7 @@ import {
 import type { ImportPreview } from "./InstallDialog";
 import { waitingNotice } from "./enable-feedback";
 import type { ConfigurationValue } from "@modules/sdk/configuration";
+import type { PackageOutcome } from "@modules/sdk";
 import type { Runtime } from "@/shell/runtime";
 import { errorMessage, stateMessage } from "@/shell/messages";
 import { useExtensionState } from "@/shell/useExtensionState";
@@ -28,6 +29,15 @@ const failed =
     const message = errorMessage(reason).replace(/。$/, "");
     throw new Error(`${step}：${message}。${after}`);
   };
+
+/** Packages from a bundle, the one being asked about, and what became of the rest. */
+type Offer = {
+  packages: { manifest: string; main: string }[];
+  index: number;
+  preview?: ImportPreview;
+  outcomes: PackageOutcome[];
+  settle(outcomes: PackageOutcome[]): void;
+};
 
 type ManagementDialog =
   | { kind: "install"; source: HTMLElement }
@@ -50,6 +60,8 @@ export function useExtensionManager(
     () => catalog.find((entry) => host.ids().includes(entry.id))?.id ?? "",
   );
   const [dialog, setDialog] = useState<ManagementDialog>(null);
+  // Packages an Agent bundle offers, asked about one at a time.
+  const [offer, setOffer] = useState<Offer | null>(null);
   const [failedImports, setFailedImports] = useState(
     runtime.initial.failedImports,
   );
@@ -84,6 +96,75 @@ export function useExtensionManager(
       );
     });
   }, [host, run, setError]);
+  // A bundle's packages come one confirmation at a time; a second bundle
+  // waits for nothing and is refused while one is being asked about.
+  const offering = useRef(false);
+  useEffect(() => {
+    const listen = (event: Event) => {
+      event.preventDefault();
+      const { packages, settle } = (event as CustomEvent).detail as Pick<
+        Offer,
+        "packages" | "settle"
+      >;
+      if (offering.current)
+        return settle(
+          packages.map(() => ({
+            id: "",
+            outcome: "refused",
+            reason: "正在确认另一组扩展",
+          })),
+        );
+      offering.current = true;
+      setOffer({ packages, index: 0, outcomes: [], settle });
+    };
+    runtime.events.addEventListener("offer-packages", listen);
+    return () => runtime.events.removeEventListener("offer-packages", listen);
+  }, [runtime.events]);
+  // Reads the next package's manifest; no code runs until it is confirmed.
+  useEffect(() => {
+    if (!offer || offer.preview) return;
+    if (offer.index >= offer.packages.length) {
+      offering.current = false;
+      offer.settle(offer.outcomes);
+      setOffer(null);
+      return;
+    }
+    const { manifest, main } = offer.packages[offer.index];
+    let current = true;
+    readPackage([
+      { path: "manifest.json", data: new Blob([manifest]) },
+      { path: "main.js", data: new Blob([main]) },
+    ]).then(
+      (pkg) => {
+        if (!current) return;
+        const id = pkg.manifest.id;
+        const replacing = value.imports.some((entry) => entry.id === id);
+        if (!replacing && host.ids().includes(id))
+          setOffer({
+            ...offer,
+            index: offer.index + 1,
+            outcomes: [
+              ...offer.outcomes,
+              { id, outcome: "refused", reason: "这里已有同 ID 的内置扩展" },
+            ],
+          });
+        else setOffer({ ...offer, preview: { pkg, replacing } });
+      },
+      (reason) =>
+        current &&
+        setOffer({
+          ...offer,
+          index: offer.index + 1,
+          outcomes: [
+            ...offer.outcomes,
+            { id: "", outcome: "refused", reason: errorMessage(reason) },
+          ],
+        }),
+    );
+    return () => {
+      current = false;
+    };
+  }, [offer, host, value.imports]);
   useEffect(() => {
     if (!dialog && removed.current) {
       removed.current = false;
@@ -105,6 +186,60 @@ export function useExtensionManager(
       return next;
     });
   const close = () => setDialog(null);
+  /** Runs main.js now that the user has confirmed, then saves it, off. */
+  async function importConfirmed(pkg: ImportPreview["pkg"]) {
+    const definition = await loadPackage(pkg);
+    const result = await run((draft) =>
+      importExtensionPackage(
+        host,
+        draft,
+        pkg,
+        definition,
+        runtime.packages,
+        prepareUninstall,
+      ),
+    );
+    clearFailure(result.entry.id);
+    setSelectedId(result.entry.id);
+    return result;
+  }
+  /** The person's answer to the package being offered, then the next. */
+  function answer(choice: "install" | "skip") {
+    if (!offer?.preview) return;
+    const { pkg, replacing } = offer.preview;
+    const id = pkg.manifest.id;
+    const next = (outcome: PackageOutcome) =>
+      setOffer({
+        ...offer,
+        index: offer.index + 1,
+        preview: undefined,
+        outcomes: [...offer.outcomes, outcome],
+      });
+    if (choice === "skip")
+      return next({ id, outcome: replacing ? "kept" : "declined" });
+    void operate(async () => {
+      try {
+        await importConfirmed(pkg);
+        next({ id, outcome: replacing ? "replaced" : "installed" });
+      } catch (reason) {
+        next({ id, outcome: "refused", reason: errorMessage(reason) });
+        throw reason;
+      }
+    });
+  }
+  /** Closing the offer declines what was not yet answered. */
+  function closeOffer() {
+    if (!offer || busy) return;
+    offering.current = false;
+    offer.settle([
+      ...offer.outcomes,
+      ...offer.packages.slice(offer.outcomes.length).map(() => ({
+        id: "",
+        outcome: "declined" as const,
+      })),
+    ]);
+    setOffer(null);
+  }
   const prepareUninstall = (owner: string, declared: boolean) =>
     runtime.adapter.credentials.prepareUninstall(owner, declared);
   function open(
@@ -216,6 +351,15 @@ export function useExtensionManager(
     dialogs: {
       dialog,
       close,
+      offer: offer?.preview && {
+        preview: offer.preview,
+        position:
+          offer.packages.length > 1
+            ? `${offer.index + 1}/${offer.packages.length}`
+            : "",
+        answer,
+        close: closeOffer,
+      },
       label: (id: string) =>
         catalog.find((entry) => entry.id === id)?.label ?? id,
       install: (url: string) =>
@@ -245,19 +389,7 @@ export function useExtensionManager(
       /** Runs main.js now that the user has confirmed, then saves. */
       importPackage: ({ pkg }: ImportPreview) =>
         operate(async () => {
-          const definition = await loadPackage(pkg);
-          const { entry, replaced } = await run((draft) =>
-            importExtensionPackage(
-              host,
-              draft,
-              pkg,
-              definition,
-              runtime.packages,
-              prepareUninstall,
-            ),
-          );
-          clearFailure(entry.id);
-          setSelectedId(entry.id);
+          const { replaced } = await importConfirmed(pkg);
           close();
           setNotice(
             replaced

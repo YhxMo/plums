@@ -67,7 +67,13 @@ export function Workbench({ runtime }: { runtime: Runtime }) {
     };
   }, [macOverlay]);
   const [managerLoaded, setManagerLoaded] = useState(false);
-  if (!managerLoaded && (navigation.manager.open || management.dialogs.dialog))
+  // Its dialogs live with it, including packages a bundle offers.
+  if (
+    !managerLoaded &&
+    (navigation.manager.open ||
+      management.dialogs.dialog ||
+      management.dialogs.offer)
+  )
     setManagerLoaded(true);
   return (
     <div

@@ -74,6 +74,6 @@ it("accepts a short display name, author and a plain-text description", () => {
     { author: 7 },
   ])
     expect(() => validateDefinition(manifest(fields))).toThrow(
-      "Invalid extension name, author or description",
+      "Invalid extension name, author, license or description",
     );
 });

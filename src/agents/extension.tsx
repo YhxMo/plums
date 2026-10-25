@@ -93,6 +93,8 @@ export function agentUI(): ExtensionDefinition {
                   data,
                 }) as Promise<FileSaveResult>
               }
+              onBundle={(ids) => ctx.shell.bundle(ids)}
+              onOffer={(packages) => ctx.shell.offerPackages(packages)}
             />,
             true,
           );

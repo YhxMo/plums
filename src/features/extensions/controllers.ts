@@ -52,6 +52,7 @@ export type ExtensionDialogController = Pick<
   Management["dialogs"],
   | "dialog"
   | "close"
+  | "offer"
   | "install"
   | "preview"
   | "importPackage"
