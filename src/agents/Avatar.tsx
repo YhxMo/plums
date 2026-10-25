@@ -7,7 +7,7 @@ import {
   AvatarFallback,
   AvatarImage,
 } from "@/components/ui/avatar";
-import { plumFor, plumParts } from "./plum";
+import { plumFor, plumParts, plumShape } from "./plum";
 
 const sizes = {
   normal: "size-10",
@@ -32,39 +32,28 @@ function PlumMark({ name }: { name: string }) {
         data-plum="tile"
         width="48"
         height="48"
-        rx="13"
+        rx={plumShape.tileRadius}
         className="fill-(--tile-light) dark:fill-(--tile-dark)"
       />
-      <circle data-plum="body" cx="24" cy="28.5" r="14" fill={plum.body} />
+      <circle data-plum="body" {...plumShape.body} fill={plum.body} />
       <path
         data-plum="stem"
-        d="M24 15c0-3.5 1-5.5 2.5-7"
+        d={plumShape.stem}
         stroke={plumParts.stem}
         strokeWidth="2"
         strokeLinecap="round"
         fill="none"
       />
-      <path
-        data-plum="leaf"
-        d="M26 11.5c2.5-3.5 7-4.5 10-3.5-1 3.5-5.5 5.5-10 3.5z"
-        fill={plumParts.leaf}
-      />
-      <ellipse
-        data-plum="eye"
-        cx="19.5"
-        cy="28"
-        rx="1.8"
-        ry="2.6"
-        fill={plumParts.eye}
-      />
-      <ellipse
-        data-plum="eye"
-        cx="28.5"
-        cy="28"
-        rx="1.8"
-        ry="2.6"
-        fill={plumParts.eye}
-      />
+      <path data-plum="leaf" d={plumShape.leaf} fill={plumParts.leaf} />
+      {plumShape.eyes.map((cx) => (
+        <ellipse
+          key={cx}
+          data-plum="eye"
+          cx={cx}
+          {...plumShape.eye}
+          fill={plumParts.eye}
+        />
+      ))}
     </svg>
   );
 }

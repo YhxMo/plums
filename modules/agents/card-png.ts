@@ -102,14 +102,16 @@ export function withPngText(
   return out;
 }
 
-/** UTF-8 text as base64, for a chunk. */
-export function toBase64(text: string) {
-  const bytes = new TextEncoder().encode(text);
+/** Bytes as base64, in slices that stay within the call stack. */
+export function bytesToBase64(bytes: Uint8Array) {
   let binary = "";
   for (let i = 0; i < bytes.length; i += 0x8000)
     binary += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
   return btoa(binary);
 }
+/** UTF-8 text as base64, for a chunk. */
+export const toBase64 = (text: string) =>
+  bytesToBase64(new TextEncoder().encode(text));
 export const fromBase64 = (value: string) =>
   new TextDecoder("utf-8", { fatal: true }).decode(
     Uint8Array.from(atob(value), (c) => c.charCodeAt(0)),

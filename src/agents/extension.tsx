@@ -1,6 +1,10 @@
 import { createRoot } from "react-dom/client";
 import type { ReactNode } from "react";
-import { createWorkspaceChrome, type ExtensionDefinition } from "@modules/sdk";
+import {
+  createWorkspaceChrome,
+  type ExtensionDefinition,
+  type FileSaveResult,
+} from "@modules/sdk";
 import type { AgentProvider } from "@modules/agents/contract";
 import type { MemoryService } from "@modules/agents/memory/contract";
 import { AgentWorkspace } from "./AgentWorkspace";
@@ -40,7 +44,7 @@ export function agentUI(): ExtensionDefinition {
       requires: { agents: 1 },
       // Shows what each Agent remembers and opens its memory page.
       optional: { memory: 1 },
-      capabilities: ["link.open"],
+      capabilities: ["link.open", "file.save"],
     },
     activate(ctx) {
       const agents = ctx.use<AgentProvider>("agents");
@@ -81,6 +85,13 @@ export function agentUI(): ExtensionDefinition {
               onModels={() => void ctx.shell.open("view", "model-connections")}
               onOpenLink={(url) =>
                 ctx.platform("link.open", { version: 1, url })
+              }
+              onSaveFile={(name, data) =>
+                ctx.platform("file.save", {
+                  version: 1,
+                  name,
+                  data,
+                }) as Promise<FileSaveResult>
               }
             />,
             true,

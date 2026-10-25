@@ -40,6 +40,7 @@ import { toAttachment } from "./attachmentFile";
 import { AVATAR_BASE64, AVATAR_SIDE, scaledPicture } from "./imageFile";
 import { agentParts, switchPart, type Part } from "./parts";
 import { reportText, useMemories, type Memories } from "./useMemories";
+import { roleCardFile } from "./cardFile";
 
 // The handle is the gap between the list and the conversation card; it only
 // shows a brand-coloured line while used.
@@ -54,6 +55,7 @@ export function AgentWorkspace({
   onExtensions,
   onModels,
   onOpenLink,
+  onSaveFile,
 }: {
   api: AgentProvider;
   chrome: WorkspaceChromeController;
@@ -67,6 +69,8 @@ export function AgentWorkspace({
   onModels?: () => void;
   /** Hands an https link to the browser. */
   onOpenLink: (url: string) => Promise<unknown>;
+  /** Saves a file where the person chooses; base64 bytes. */
+  onSaveFile: (name: string, data: string) => Promise<{ saved: boolean }>;
 }) {
   const subscribe = useCallback(
     (listener: () => void) => api.subscribe(listener),
@@ -236,6 +240,11 @@ export function AgentWorkspace({
   ) {
     if (action === "pin")
       void act(() => api.update(a.id, { pinned: !a.pinned }));
+    else if (action === "export")
+      void act(async () => {
+        const { name, data } = await roleCardFile(a);
+        if ((await onSaveFile(name, data)).saved) setNotice("已导出角色卡");
+      });
     else open({ action, agent: a }, source);
   }
   const feedback = (

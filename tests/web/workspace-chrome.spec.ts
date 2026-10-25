@@ -305,6 +305,7 @@ for (const width of [375, 700, 1280]) {
     await expect(menu.getByRole("menuitem")).toHaveText([
       "置顶",
       "重命名",
+      "导出角色卡…",
       "移除 Agent",
     ]);
     await menu.getByRole("menuitem", { name: "重命名" }).click();
