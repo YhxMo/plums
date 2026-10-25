@@ -38,7 +38,7 @@ export default {
 
 `manifest.json` 说明扩展是谁、提供和需要什么；可选的 `name`（最多 40 字）在扩展管理中代替 ID 显示，`author`（最多 80 字）在导入确认页显示作者，`description`（纯文本，最多 500 字，保留换行）显示在导入确认页和扩展详情里。`main.js` 默认导出 `{ activate }`，`activate(ctx)` 在启用时运行，通过 `ctx` 使用 Plums 的能力。导入时只读取 `manifest.json`，确认导入后才执行 `main.js`；文件顶层只放声明（常量、函数），不要读写数据、改页面或联网，真正的工作放进 `activate`。
 
-`models()` 列出用户可以为 Agent 选择的模型；`reply` 收到所选模型的 `id`、Agent 的介绍（`instructions`）、此前的对话（`history`）和这条消息（`input`），必须返回字符串，最长 1,000,000 个字符；抛出的错误会作为失败显示给用户。模型列表会变化时，调用 `subscribe` 收到的回调通知界面。
+`models()` 列出用户可以为 Agent 选择的模型；`reply` 收到所选模型的 `id`、Agent 的系统提示词（`instructions`：它的名字、当天日期与设定，不含给人看的介绍）、此前的对话（`history`）和这条消息（`input`），必须返回字符串，最长 1,000,000 个字符；抛出的错误会作为失败显示给用户。模型列表会变化时，调用 `subscribe` 收到的回调通知界面。
 
 ## 2. 导入并启用
 

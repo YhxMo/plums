@@ -26,7 +26,7 @@ export default {
       ],
       // 模型列表不会变化，所以不需要通知。
       subscribe: () => () => {},
-      // history 是此前的对话，instructions 是 Agent 的介绍。
+      // history 是此前的对话，instructions 是 Agent 的系统提示词（名字、日期与设定）。
       async reply({ input }, signal) {
         // 用户点「停止」或扩展被停用时 signal 会中止；耗时工作中要随时检查。
         signal.throwIfAborted();

@@ -16,7 +16,7 @@
 
 当前是 0.2.0 debug 原型，SDK 仍是实验版本，接口会变。
 
-- **默认 Agent 界面**：创建或导入角色卡、置顶、多会话；详情只显示介绍和组成这个 Agent 的扩展。每个 Agent 选择自己的模型：在「模型连接」中添加 DeepSeek、OpenAI、Anthropic、Kimi 等服务或兼容接口（需自己的 API Key），对话会带上最近的上下文与角色说明；也可导入自己写的扩展。
+- **默认 Agent 界面**：创建或导入角色卡、置顶、多会话；详情显示给人看的介绍、只发给模型的设定和组成这个 Agent 的扩展。每个 Agent 选择自己的模型：在「模型连接」中添加 DeepSeek、OpenAI、Anthropic、Kimi 等服务或兼容接口（需自己的 API Key），对话会带上最近的上下文与设定；也可导入自己写的扩展。
 - **扩展管理**：查看扩展的来源、能力、权限与资源，启用、停用、卸载；选择或拖入扩展包（含 `manifest.json` 与 `main.js` 的文件夹或 zip）导入，开发时也可按同源扩展文件夹路径安装。
 - **界面与主题扩展**：可通过公开契约替换布局、页面、导航和主题，见 [PAGES](docs/PAGES.md)、[THEMES](docs/THEMES.md)。文本工作台、画布等示例只供源码开发与测试，打包默认组合只有 Agent 核心、模型连接和 Agent 界面。
 - **平台能力样板**：会话内只读打开所选文档（[说明](docs/SELECTED-DOCUMENT.md)）；在应用内填写模型 API Key 并配置连接（[说明](docs/CREDENTIAL-BINDINGS.md)），密钥只保存在本机，由原生层注入请求。

@@ -176,7 +176,7 @@ test("each Agent picks its own model and the model receives the conversation so 
   await send("我是 nanan");
   await send("我是谁？");
   await expect(page.getByRole("log")).toContainText(
-    "echo-b｜第 2 轮｜说明：简洁、友好地回答用户的问题。｜最早：我是 nanan｜我是谁？",
+    /echo-b｜第 2 轮｜说明：你是「甲」。今天是 .* 简洁、友好地回答用户的问题。｜最早：我是 nanan｜我是谁？/,
   );
   // A new Agent starts on the first model, apart from 甲's choice.
   await page.getByRole("button", { name: "添加", exact: true }).first().click();

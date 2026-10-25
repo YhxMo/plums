@@ -8,6 +8,7 @@ import {
 } from "react";
 import type {
   Agent,
+  AgentPatch,
   AgentProvider,
   Attachment,
 } from "@modules/agents/contract";
@@ -314,19 +315,26 @@ export function AgentWorkspace({
       };
     return undefined;
   }
+  /** Saves text edited in the details; resolves true once saved. */
+  async function saveText(agentId: string, patch: AgentPatch) {
+    let saved = false;
+    await act(async () => {
+      await api.update(agentId, patch);
+      saved = true;
+    });
+    return saved;
+  }
   const detailContent = agent && (
     <DetailPanel
       agent={agent}
       parts={parts!}
       onPart={api.setOff && ((part, on) => switchAgentPart(agent, part, on))}
-      onDescription={async (description) => {
-        let saved = false;
-        await act(async () => {
-          await api.update(agent.id, { description });
-          saved = true;
-        });
-        return saved;
-      }}
+      onDescription={(description) => saveText(agent.id, { description })}
+      onInstructions={
+        agent.instructions === undefined
+          ? undefined
+          : (instructions) => saveText(agent.id, { instructions })
+      }
       onAvatar={(file) =>
         void act(async () => {
           if (!file) return api.update(agent.id, { avatar: null });

@@ -379,6 +379,42 @@ for (const width of [375, 1440])
     await expect(page.getByRole("log")).toContainText("新的角色边界与工作方式");
   });
 
+test("the model is told the 设定, never the introduction, and an edit in details takes effect", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto("/");
+  await page
+    .getByRole("button", { name: "从头添加 Agent", exact: true })
+    .click();
+  const dialog = page.getByRole("dialog");
+  await dialog.getByRole("textbox", { name: "名称", exact: true }).fill("译者");
+  const instructions = dialog.getByRole("textbox", { name: "设定" });
+  // A new Agent starts from a default 设定 the user can see and change.
+  await expect(instructions).toHaveValue("简洁、友好地回答用户的问题。");
+  await instructions.fill("只用英文回答。");
+  await dialog.getByRole("textbox", { name: /^介绍/ }).fill("给人看的介绍");
+  await dialog.getByRole("button", { name: "添加", exact: true }).click();
+  const input = page.getByRole("textbox", { name: "消息", exact: true });
+  const log = page.getByRole("log");
+  await input.fill("第一句");
+  await page.getByRole("button", { name: "发送", exact: true }).click();
+  await expect(log.getByText(/只用英文回答。.*第一句$/s)).toHaveCount(1);
+  await expect(log.getByText(/给人看的介绍.*第一句$/s)).toHaveCount(0);
+  await sidebarToggle(page).click();
+  await page.getByRole("button", { name: "编辑设定", exact: true }).click();
+  await page
+    .getByRole("textbox", { name: "设定", exact: true })
+    .fill("只用法语回答。");
+  await page.getByRole("button", { name: "保存", exact: true }).click();
+  await expect(
+    page.getByRole("complementary", { name: "Agent 详情" }),
+  ).toContainText("只用法语回答。");
+  await input.fill("第二句");
+  await page.getByRole("button", { name: "发送", exact: true }).click();
+  await expect(log.getByText(/只用法语回答。.*第二句$/s)).toHaveCount(1);
+});
+
 test("reinstalling a failed import replaces its path and remains bootable", async ({
   page,
 }) => {

@@ -1,4 +1,4 @@
-import { expect, it } from "vitest";
+import { afterEach, expect, it, vi } from "vitest";
 import { Host } from "../modules/extension-host/host";
 import type { ExtensionDefinition } from "../modules/sdk";
 import type { ChatService, Effort } from "../extensions/contracts";
@@ -63,7 +63,14 @@ async function setup(
   return { host, agents, find, requests };
 }
 
-it("sends the conversation so far and the role description to the Agent's model", async () => {
+afterEach(() => {
+  vi.useRealTimers();
+});
+
+const zone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+
+it("sends the conversation so far and the Agent's 设定, not its introduction, to its model", async () => {
+  vi.useFakeTimers({ toFake: ["Date"], now: new Date(2026, 9, 25, 12) });
   const { agents, find, requests } = await setup();
   expect(agents().modelChoices!()).toEqual([
     {
@@ -85,14 +92,15 @@ it("sends the conversation so far and the role description to the Agent's model"
   ]);
   const agent = await agents().create({
     name: "助手",
-    description: "简洁回答。",
+    description: "给人看的介绍",
+    instructions: "简洁回答。",
   });
   expect(agent.model).toEqual({ provider: "chat.a", model: "m1" });
   await agents().send(agent.id, "我是 nanan");
   await agents().send(agent.id, "我是谁？");
   expect(requests[1]).toEqual({
     model: "m1",
-    instructions: "简洁回答。",
+    instructions: `你是「助手」。今天是 2026年10月25日星期日（${zone}）。你只能在收到消息时回复，不能主动发消息，也不能到时间再提醒对方。\n\n简洁回答。`,
     history: [
       { role: "user", text: "我是 nanan" },
       { role: "agent", text: "m1:0:我是 nanan" },
@@ -104,10 +112,24 @@ it("sends the conversation so far and the role description to the Agent's model"
   );
 });
 
-it("gives new Agents a description usable as instructions", async () => {
-  const { agents } = await setup();
-  const agent = await agents().create({ name: "默认" });
-  expect(agent.description).toBe("简洁、友好地回答用户的问题。");
+it("copies a card's introduction into the 设定 only when it has none, and sends an empty one as just who and when", async () => {
+  const { agents, requests } = await setup();
+  const card = await agents().create({ name: "旧卡", description: "帮忙翻译" });
+  expect(card).toMatchObject({
+    description: "帮忙翻译",
+    instructions: "帮忙翻译",
+  });
+  const blank = await agents().create({ name: "空白" });
+  expect(blank).toMatchObject({ description: "", instructions: "" });
+  await agents().send(blank.id, "你好");
+  expect(requests[0].instructions).toMatch(/^你是「空白」。今天是 [^\n]+$/);
+  // Editing the introduction later never changes what the model is told.
+  await agents().update(card.id, { description: "新的介绍" });
+  await agents().send(card.id, "你好");
+  expect(requests[1].instructions).toMatch(/\n\n帮忙翻译$/);
+  await agents().update(card.id, { instructions: "只说英文。" });
+  await agents().send(card.id, "你好");
+  expect(requests[2].instructions).toMatch(/\n\n只说英文。$/);
 });
 
 it("lets each Agent use its own model and keeps it across restarts", async () => {

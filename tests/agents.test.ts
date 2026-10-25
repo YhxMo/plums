@@ -37,6 +37,32 @@ describe("agent extension data", () => {
       parseRoleCard('{"version":1,"name":"旧卡","multiSession":true}'),
     ).toEqual({ name: "旧卡", description: undefined });
   });
+  it("keeps the introduction a saved Agent was answering by as its 设定, and reads a card's own 设定", () => {
+    const [restored] = restoreAgents([legacyAgent()]);
+    expect(restored).toMatchObject({
+      description: "旧说明",
+      instructions: "旧说明",
+    });
+    const [split] = restoreAgents([
+      { ...legacyAgent(), description: "介绍", instructions: "" },
+    ]);
+    expect(split).toMatchObject({ description: "介绍", instructions: "" });
+    expect(() =>
+      restoreAgents([{ ...legacyAgent(), instructions: 1 }]),
+    ).toThrow("Agent 配置损坏");
+    expect(
+      parseRoleCard(
+        JSON.stringify({
+          name: "卡",
+          description: "给人看",
+          instructions: "给模型",
+        }),
+      ),
+    ).toEqual({ name: "卡", description: "给人看", instructions: "给模型" });
+    expect(() =>
+      parseRoleCard(JSON.stringify({ name: "卡", instructions: ["x"] })),
+    ).toThrow("instructions");
+  });
   it("adds, pins and restores independent sessions without persisting runtime status", async () => {
     let saved: unknown;
     const store = new AgentStore(

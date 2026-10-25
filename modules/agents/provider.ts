@@ -3,6 +3,7 @@ import type { ChatService } from "@extensions/contracts";
 import { AgentStore } from "./store";
 import { MAX_MODEL_ID, restoreAgents } from "./validation";
 import { prepareChat } from "./attachments";
+import { systemPrompt } from "./instructions";
 import { AgentState } from "./persistence";
 
 /**
@@ -83,7 +84,7 @@ export function agentExtension(
         (
           text,
           signal,
-          { model, effort, instructions, history, attachments },
+          { model, effort, name, instructions, history, attachments },
         ) => {
           if (!model)
             throw new Error(
@@ -114,7 +115,12 @@ export function agentExtension(
             const output = await chat.value.reply(
               {
                 model: model.model,
-                instructions,
+                instructions: systemPrompt({
+                  name,
+                  instructions,
+                  now: Date.now(),
+                  timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+                }),
                 history: conversation.history,
                 input: conversation.input.text,
                 ...(conversation.input.images && {

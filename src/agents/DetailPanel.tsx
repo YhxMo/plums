@@ -1,17 +1,18 @@
-import { useRef, useState } from "react";
+import { useRef } from "react";
 import {
   CameraIcon,
   ChevronRightIcon,
   ImageOffIcon,
   ImagePlusIcon,
-  PencilIcon,
   XIcon,
 } from "lucide-react";
 import type { Agent } from "@modules/agents/contract";
+import { MAX_INSTRUCTIONS } from "@modules/agents/instructions";
 import { Avatar } from "./Avatar";
 import { AgentParts } from "./AgentParts";
+import { EditableText } from "./EditableText";
 import type { Part } from "./parts";
-import { InfoTip, Tooltip } from "@/components/Tooltip";
+import { InfoTip } from "@/components/Tooltip";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -19,11 +20,11 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Textarea } from "@/components/ui/textarea";
 
 /**
- * What a person needs to understand an Agent: who it is, and the extensions
- * it is composed of. Models, sessions and other actions live where they are
+ * What a person needs to understand an Agent: who it is (its introduction
+ * for people and the 设定 its model is told), and the extensions it is
+ * composed of. Models, sessions and other actions live where they are
  * used.
  */
 export function DetailPanel({
@@ -31,6 +32,7 @@ export function DetailPanel({
   parts,
   onPart,
   onDescription,
+  onInstructions,
   onAvatar,
   onOpenExtension,
   onClose,
@@ -42,6 +44,8 @@ export function DetailPanel({
   onPart?: (part: Part, on: boolean) => void;
   /** Resolves true once saved; a failure is reported by the caller. */
   onDescription: (description: string) => Promise<boolean>;
+  /** Saves the 设定 like `onDescription`; absent for providers without one. */
+  onInstructions?: (instructions: string) => Promise<boolean>;
   /** Picks a new picture (a file to scale) or removes it with `null`. */
   onAvatar?: (file: File | null) => void;
   /** Opens extension management, selecting `id` when given. */
@@ -50,7 +54,6 @@ export function DetailPanel({
 }) {
   // Only a save in progress holds the details; a pending reply does not.
   const busy = agent.status === "busy" && !agent.pending;
-  const [editing, setEditing] = useState<string | null>(null);
   const picker = useRef<HTMLInputElement>(null);
   return (
     <aside
@@ -126,62 +129,37 @@ export function DetailPanel({
               {agent.name}
             </h3>
           </div>
-          {editing === null ? (
-            // The pencil comes out under a pointer; touch always shows it.
-            <div className="group/intro flex items-start gap-1">
-              <p className="min-w-0 flex-1 text-[13px] leading-relaxed whitespace-pre-wrap text-foreground/85 wrap-anywhere">
-                {agent.description || (
-                  <span className="text-muted-foreground">还没有介绍。</span>
-                )}
-              </p>
-              <Tooltip label="编辑介绍">
-                <Button
-                  variant="ghost"
-                  size="icon-xs"
-                  className="-mt-0.5 shrink-0 text-muted-foreground transition-opacity pointer-fine:opacity-0 pointer-fine:group-hover/intro:opacity-100 pointer-fine:group-focus-within/intro:opacity-100"
-                  aria-label="编辑介绍"
-                  disabled={busy}
-                  onClick={() => setEditing(agent.description)}
-                >
-                  <PencilIcon />
-                </Button>
-              </Tooltip>
-            </div>
-          ) : (
-            <form
-              className="flex flex-col gap-2"
-              onSubmit={(e) => {
-                e.preventDefault();
-                void onDescription(editing).then((saved) => {
-                  if (saved) setEditing(null);
-                });
-              }}
-            >
-              <Textarea
-                aria-label="介绍"
-                autoFocus
-                value={editing}
-                maxLength={4000}
-                className="min-h-28 text-[13px]"
-                placeholder="它是谁，能帮你做什么，有哪些边界？"
-                onChange={(e) => setEditing(e.target.value)}
-              />
-              <div className="flex justify-end gap-2">
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => setEditing(null)}
-                >
-                  取消
-                </Button>
-                <Button type="submit" size="sm" disabled={busy}>
-                  保存
-                </Button>
-              </div>
-            </form>
-          )}
+          <EditableText
+            label="介绍"
+            value={agent.description}
+            empty="还没有介绍。"
+            placeholder="给人看的介绍：它是谁，能帮你做什么？"
+            maxLength={4000}
+            disabled={busy}
+            onSave={onDescription}
+          />
         </section>
+        {agent.instructions !== undefined && onInstructions && (
+          <section className="flex flex-col gap-2.5" aria-label="设定">
+            <h3 className="flex items-center gap-1 text-xs font-medium text-muted-foreground max-md:text-sm">
+              设定
+              <InfoTip
+                label="设定"
+                text="只发给它的模型，告诉它是谁、怎么说话，不显示给别人。介绍是给人看的，不会发给模型。"
+              />
+            </h3>
+            <EditableText
+              label="设定"
+              value={agent.instructions}
+              empty="没有设定：它只知道自己的名字和今天的日期。"
+              placeholder="它是谁、怎么说话、有哪些边界？"
+              maxLength={MAX_INSTRUCTIONS}
+              disabled={busy}
+              clamp
+              onSave={onInstructions}
+            />
+          </section>
+        )}
         <section className="flex flex-col gap-2.5" aria-label="组成扩展">
           <div className="flex items-center justify-between gap-2">
             <h3 className="flex items-center gap-1 text-xs font-medium text-muted-foreground max-md:text-sm">

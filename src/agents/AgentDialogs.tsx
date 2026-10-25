@@ -14,6 +14,7 @@ import type {
   AgentProvider,
 } from "@modules/agents/contract";
 import { parseRoleCard } from "@modules/agents/validation";
+import { MAX_INSTRUCTIONS } from "@modules/agents/instructions";
 import type { Named } from "@modules/sdk";
 import { InfoTip } from "@/components/Tooltip";
 import { Dialog, DialogActions, DialogBody } from "@/components/Dialog";
@@ -214,13 +215,13 @@ export function AgentDialogs({
             <Choice
               icon={<SparklesIcon />}
               title="添加 Agent"
-              description="写下角色说明，选择模型并拼接已安装的扩展"
+              description="写下设定，选择模型并拼接已安装的扩展"
               onClick={() => open("create")}
             />
             <Choice
               icon={<IdCardIcon />}
               title="导入角色卡"
-              description="从文件或链接读取角色说明，再按需调整"
+              description="从文件或链接读取设定与介绍，再按需调整"
               onClick={() => open("import")}
             />
             <Choice
@@ -307,12 +308,14 @@ export function AgentDialogs({
                 value={raw}
                 onChange={(e) => setRaw(e.target.value)}
                 placeholder={
-                  '{"version":1,"name":"我的助手","description":"帮助整理文字"}'
+                  '{"version":1,"name":"我的助手","description":"帮助整理文字","instructions":"你是一名耐心的编辑。"}'
                 }
                 maxLength={32000}
               />
               <FieldDescription>
-                支持实验 JSON 格式：name、description、version: 1。
+                支持实验 JSON
+                格式：name、description（介绍）、instructions（设定）、avatar、version:
+                1。没有 instructions 时，介绍会作为设定。
               </FieldDescription>
             </Field>
           </DialogBody>
@@ -350,6 +353,7 @@ export function AgentDialogs({
               add({
                 name: draft.name,
                 description: draft.description,
+                instructions: draft.instructions,
                 ...(draft.avatar && { avatar: draft.avatar }),
                 ...(models && { model }),
                 ...(api.setOff && { off: draft.off }),
@@ -378,7 +382,25 @@ export function AgentDialogs({
                 />
               </Field>
               <Field>
-                <FieldLabel htmlFor="agent-description">介绍</FieldLabel>
+                <FieldLabel htmlFor="agent-instructions">设定</FieldLabel>
+                <Textarea
+                  id="agent-instructions"
+                  value={draft.instructions}
+                  onChange={(e) =>
+                    draft.change({ instructions: e.target.value })
+                  }
+                  maxLength={MAX_INSTRUCTIONS}
+                  placeholder="它是谁、怎么说话、有哪些边界？"
+                  className="max-h-60 min-h-24"
+                />
+                <FieldDescription>
+                  只发给它的模型，不显示给别人。
+                </FieldDescription>
+              </Field>
+              <Field>
+                <FieldLabel htmlFor="agent-description">
+                  介绍（可选）
+                </FieldLabel>
                 <Textarea
                   id="agent-description"
                   value={draft.description}
@@ -386,9 +408,12 @@ export function AgentDialogs({
                     draft.change({ description: e.target.value })
                   }
                   maxLength={4000}
-                  placeholder="它是谁，能帮你做什么，有哪些边界？"
-                  className="min-h-20"
+                  placeholder="给人看的介绍：它是谁，能帮你做什么？"
+                  className="min-h-16"
                 />
+                <FieldDescription>
+                  显示在列表和详情里，不会发给模型。
+                </FieldDescription>
               </Field>
             </FieldGroup>
             {models && (

@@ -32,7 +32,14 @@ export type Message = {
 export type Agent = {
   id: string;
   name: string;
+  /** The introduction people read, such as in the list and on its card; never sent to its model. */
   description: string;
+  /**
+   * Its 设定: what its model is told about who it is and how to talk; never
+   * shown to others. Added after agents@1 shipped, so absent from providers
+   * that predate it.
+   */
+  instructions?: string;
   /** A small `data:image/(png|jpeg|webp);base64,` picture; absent shows the name's first letter. */
   avatar?: string;
   status: "online" | "idle" | "busy";
@@ -73,11 +80,13 @@ export type ModelChoice = {
 };
 /** What `update` can change; `avatar: null` removes the picture. */
 export type AgentPatch = Partial<
-  Pick<Agent, "name" | "description" | "pinned">
+  Pick<Agent, "name" | "description" | "instructions" | "pinned">
 > & { avatar?: string | null };
 export type AgentConfig = {
   name: string;
   description?: string;
+  /** Its 设定; absent takes the introduction, as role cards before the split meant it. */
+  instructions?: string;
   /** Starting avatar, as in `Agent.avatar`. */
   avatar?: string;
   /** The model to start with, or `null` for none; absent picks the first one. */

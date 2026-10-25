@@ -2,6 +2,7 @@ import { ContractError } from "@modules/sdk/errors";
 import { isRecordName } from "@modules/sdk";
 import { attachmentProblem } from "./attachments";
 import type { Agent, AgentConfig, Session } from "./contract";
+import { MAX_INSTRUCTIONS } from "./instructions";
 
 export const object = (value: unknown): value is Record<string, unknown> =>
   typeof value === "object" && value !== null && !Array.isArray(value);
@@ -31,16 +32,21 @@ export function parseRoleCard(raw: string): AgentConfig {
     !text(value.name, 60) ||
     !value.name.trim() ||
     (value.version !== undefined && value.version !== 1) ||
-    (value.description !== undefined && !text(value.description))
+    (value.description !== undefined && !text(value.description)) ||
+    (value.instructions !== undefined &&
+      !text(value.instructions, MAX_INSTRUCTIONS))
   )
     throw new Error(
-      "角色卡格式不支持：需要 name，可选 description、avatar 和 version: 1。",
+      "角色卡格式不支持：需要 name，可选 description、instructions、avatar 和 version: 1。",
     );
   if (value.avatar !== undefined && !validAvatar(value.avatar))
     throw new Error(`角色卡的${AVATAR_PROBLEM}`);
   return {
     name: value.name.trim(),
     description: value.description as string | undefined,
+    ...(value.instructions !== undefined && {
+      instructions: value.instructions as string,
+    }),
     ...(value.avatar !== undefined && { avatar: value.avatar as string }),
   };
 }
@@ -63,6 +69,8 @@ export function restoreAgents(value: unknown): Agent[] {
       !text(a.name, 60) ||
       !a.name.trim() ||
       !text(a.description) ||
+      (a.instructions !== undefined &&
+        !text(a.instructions, MAX_INSTRUCTIONS)) ||
       typeof a.pinned !== "boolean" ||
       !text(a.extensionId) ||
       (a.off !== undefined && !extensionIds(a.off)) ||
@@ -125,6 +133,8 @@ export function restoreAgents(value: unknown): Agent[] {
       ...a
     }) => ({
       ...renameForRecords(a),
+      // Saved before the split, the introduction was what the model was told.
+      instructions: a.instructions ?? a.description,
       // A damaged picture only costs the picture.
       ...(validAvatar(avatar) && { avatar }),
       status: "idle",

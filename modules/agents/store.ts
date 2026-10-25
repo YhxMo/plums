@@ -11,6 +11,7 @@ import {
   text,
   validAvatar,
 } from "./validation";
+import { MAX_INSTRUCTIONS } from "./instructions";
 import { unreadReplies } from "./unread";
 import { putBack, type Removal } from "./undo";
 import type {
@@ -42,7 +43,8 @@ export type ReplyContext = {
   model?: AgentModel;
   /** The Agent's chosen strength; the provider decides whether the model takes it. */
   effort?: Effort;
-  /** The Agent's role description. */
+  name: string;
+  /** The Agent's 设定, without who and when, which the provider adds. */
   instructions: string;
   /** The current session's saved messages, oldest first. */
   history: {
@@ -57,7 +59,6 @@ export type ReplyContext = {
 const readAll = (s: Session, at = Date.now()) => {
   s.lastReadAt = Math.max(at, ...s.messages.map((m) => m.at ?? 0));
 };
-const DEFAULT_DESCRIPTION = "简洁、友好地回答用户的问题。";
 const sameModel = (choice: ModelChoice, model: AgentModel) =>
   choice.provider === model.provider && choice.id === model.model;
 export class AgentStore implements AgentProvider {
@@ -96,7 +97,7 @@ export class AgentStore implements AgentProvider {
       label: "Agent 核心",
       version: "0.0.4",
       description:
-        "回复由此 Agent 选择的模型生成；对话与角色说明会一起发送到该模型服务。",
+        "回复由此 Agent 选择的模型生成；对话与设定会一起发送到该模型服务，介绍不会发送。",
       extensions: this.extensions,
       attachments: true,
     };
@@ -222,7 +223,8 @@ export class AgentStore implements AgentProvider {
     const agent: Agent = {
       id: id(),
       name: clean.name,
-      description: clean.description?.trim() || DEFAULT_DESCRIPTION,
+      description: clean.description?.trim() ?? "",
+      instructions: (clean.instructions ?? clean.description ?? "").trim(),
       ...(clean.avatar && { avatar: clean.avatar }),
       status: "idle",
       pinned: false,
@@ -251,9 +253,13 @@ export class AgentStore implements AgentProvider {
         a.name = patch.name.trim();
       }
       if (patch.description !== undefined) {
-        if (!text(patch.description))
-          throw Error("角色说明不能超过 4000 个字符。");
+        if (!text(patch.description)) throw Error("介绍不能超过 4000 个字符。");
         a.description = patch.description;
+      }
+      if (patch.instructions !== undefined) {
+        if (!text(patch.instructions, MAX_INSTRUCTIONS))
+          throw Error(`设定不能超过 ${MAX_INSTRUCTIONS} 个字符。`);
+        a.instructions = patch.instructions;
       }
       if (patch.pinned !== undefined) a.pinned = patch.pinned;
     });
@@ -444,7 +450,8 @@ export class AgentStore implements AgentProvider {
       const output = await this.reply(input, controller.signal, {
         model,
         ...(a.effort && { effort: a.effort }),
-        instructions: a.description,
+        name: a.name,
+        instructions: a.instructions ?? "",
         history,
         ...(files && { attachments: files }),
       });
