@@ -150,6 +150,21 @@ export function AgentWorkspace({
     else setFiles((current) => ({ ...current, [to]: next }));
   }
   const key = agent ? `${agent.id}:${agent.currentSessionId}` : "";
+  const addFilesNow = useRef(addFiles);
+  addFilesNow.current = addFiles;
+  // Files dragged anywhere in the window join the open conversation;
+  // otherwise the hint says why they cannot.
+  const refusal = !agents.length
+    ? "添加 Agent 后才能拖入附件"
+    : !agent
+      ? "选择一个 Agent 后才能拖入附件"
+      : !api.info.attachments
+        ? "当前 Agent 不接收附件"
+        : rewrite.editing(key)
+          ? "编辑消息时不能添加附件"
+          : null;
+  const dropLabel = refusal ?? `松开以添加附件到「${agent!.name}」的会话`;
+  const dropAdds = !refusal;
   useEffect(() => {
     chrome.publish({
       // The conversation names itself in its own header, on every width.
@@ -171,8 +186,24 @@ export function AgentWorkspace({
             },
           }
         : undefined,
+      drop: {
+        label: dropLabel,
+        add: dropAdds
+          ? (added) => void addFilesNow.current(key, [...added])
+          : undefined,
+      },
     });
-  }, [chrome, agent, agents, detail, mobile, returnToList]);
+  }, [
+    chrome,
+    agent,
+    agents,
+    detail,
+    mobile,
+    returnToList,
+    dropLabel,
+    dropAdds,
+    key,
+  ]);
   function agentAction(
     a: Agent,
     action: AgentAction,

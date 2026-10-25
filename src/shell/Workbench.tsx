@@ -1,4 +1,4 @@
-import { lazy, Suspense, useState, useSyncExternalStore } from "react";
+import { lazy, Suspense, useRef, useState, useSyncExternalStore } from "react";
 import type { Runtime } from "./runtime";
 import { useOperations } from "./useOperations";
 import { useAppearance } from "./useAppearance";
@@ -15,6 +15,7 @@ import { ShellFeedback } from "./ShellFeedback";
 import { WorkspaceArea } from "./WorkspaceArea";
 import { RecoveryWelcome } from "./RecoveryWelcome";
 import { ShellDialogs } from "./ShellDialogs";
+import { WindowDropHint } from "./WindowDrop";
 import { useExtensionManager } from "@/features/extensions/useExtensionManager";
 import { DiagnosticsPanel } from "@/features/extensions/DiagnosticsPanel";
 import { DiagnosticActions } from "@/features/extensions/DiagnosticActions";
@@ -49,11 +50,15 @@ export function Workbench({ runtime }: { runtime: Runtime }) {
     navigation,
     authorization,
   });
+  const root = useRef<HTMLDivElement>(null);
   const [managerLoaded, setManagerLoaded] = useState(false);
   if (!managerLoaded && (navigation.manager.open || management.dialogs.dialog))
     setManagerLoaded(true);
   return (
-    <div className="flex h-dvh min-h-0 overflow-hidden bg-chrome max-md:flex-col">
+    <div
+      ref={root}
+      className="flex h-dvh min-h-0 overflow-hidden bg-chrome max-md:flex-col"
+    >
       {macOverlay && (
         <>
           {/* AppKit owns the buttons. Reserve a row without HTML controls when
@@ -159,6 +164,11 @@ export function Workbench({ runtime }: { runtime: Runtime }) {
         runtime={runtime}
         operations={operations}
         controller={authorization}
+      />
+      {/* The hidden workspace takes no files while management shows. */}
+      <WindowDropHint
+        root={root}
+        drop={navigation.manager.open ? undefined : chrome.drop}
       />
     </div>
   );

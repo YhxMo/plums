@@ -13,6 +13,14 @@ export interface WorkspaceChromeState {
     toggle(source: HTMLElement): void;
     close(): void;
   };
+  /**
+   * What files dragged anywhere over the shown workspace do. Absent leaves
+   * them refused; without `add` they are refused and `label` says why.
+   */
+  readonly drop?: {
+    readonly label: string;
+    add?(files: readonly File[]): void;
+  };
 }
 
 export interface WorkspaceChrome {

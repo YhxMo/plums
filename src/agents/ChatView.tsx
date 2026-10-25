@@ -104,7 +104,6 @@ export function ChatView({
   const more = useRef<HTMLButtonElement>(null);
   const sessions = useRef<HTMLButtonElement>(null);
   const [copied, setCopied] = useState<string>();
-  const [dropping, setDropping] = useState(false);
   // The log follows new messages only while it is at the bottom.
   const motionless = useReducedMotion();
   const { scrollRef, contentRef, isAtBottom, scrollToBottom } =
@@ -209,24 +208,8 @@ export function ChatView({
   const pendingSpacing = spacing("user");
   return (
     <section
-      className={cn("relative flex min-h-0 flex-1 flex-col bg-chat", card)}
+      className={cn("flex min-h-0 flex-1 flex-col bg-chat", card)}
       aria-label={`${agent.name} 的会话`}
-      // Files dropped anywhere on the card, the message box included.
-      onDragOver={(e) => {
-        if (!attach || !e.dataTransfer.types.includes("Files")) return;
-        e.preventDefault();
-        setDropping(true);
-      }}
-      onDragLeave={(e) => {
-        if (!e.currentTarget.contains(e.relatedTarget as Node))
-          setDropping(false);
-      }}
-      onDrop={(e) => {
-        setDropping(false);
-        if (!attach || !e.dataTransfer.files.length) return;
-        e.preventDefault();
-        attach.onAdd([...e.dataTransfer.files]);
-      }}
     >
       {/* Same colour as the messages and no line under it; the shell's
           sidebar button takes the right end on desktop. */}
@@ -404,14 +387,6 @@ export function ChatView({
         editing={editing}
         inputRef={input}
       />
-      {dropping && (
-        <div
-          aria-hidden="true"
-          className="pointer-events-none absolute inset-2 z-20 grid place-items-center rounded-2xl border-2 border-dashed border-brand/60 bg-chat/80 text-sm text-muted-foreground"
-        >
-          松开以添加附件
-        </div>
-      )}
     </section>
   );
 }

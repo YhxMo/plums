@@ -60,6 +60,12 @@ export function useWorkspaceChrome(workspace: Workspace) {
   return {
     title: state.title ?? "",
     back: state.back ? () => invoke(() => state.back!()) : undefined,
+    drop: state.drop && {
+      label: state.drop.label,
+      add:
+        state.drop.add &&
+        ((files: readonly File[]) => invoke(() => state.drop!.add!(files))),
+    },
     custom,
     open: custom ? customOpen : (state.sidebar?.open ?? false),
     label: custom?.label ?? state.sidebar?.label,
