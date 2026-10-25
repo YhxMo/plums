@@ -7,7 +7,7 @@ import {
   restoreAgents,
 } from "../modules/agents/validation";
 import { unreadReplies } from "../modules/agents/unread";
-import type { Agent } from "../modules/agents/contract";
+import { OWNER, speaker, type Agent } from "../modules/agents/contract";
 import { legacyAgent } from "./fixtures/agents";
 
 function deferred() {
@@ -339,6 +339,31 @@ it("stamps each saved message with its own time and restores older messages with
   expect(restoreAgents(legacy)[0].sessions[0].messages[0].at).toBeUndefined();
   for (const bad of ["1000", Number.NaN, null]) {
     legacy[0].sessions[0].messages[0].at = bad;
+    expect(() => restoreAgents(legacy)).toThrow("会话配置损坏");
+  }
+});
+
+it("records who said each message, and reads older messages by their role", async () => {
+  let saved: unknown;
+  const store = new AgentStore(
+    [],
+    async (agents) => {
+      saved = structuredClone(agents);
+    },
+    async (text) => text,
+  );
+  const a = await store.create({ name: "speaker" });
+  await store.send(a.id, "hi");
+  const messages = restoreAgents(saved)[0].sessions[0].messages;
+  expect(messages.map((m) => m.from)).toEqual([OWNER, a.id]);
+  const legacy = structuredClone(saved) as {
+    sessions: { messages: { from?: unknown }[] }[];
+  }[];
+  delete legacy[0].sessions[0].messages[0].from;
+  expect(speaker(restoreAgents(legacy)[0], messages[0])).toBe(OWNER);
+  expect(speaker(restoreAgents(legacy)[0], messages[1])).toBe(a.id);
+  for (const bad of [1, "", "x".repeat(129)]) {
+    legacy[0].sessions[0].messages[0].from = bad;
     expect(() => restoreAgents(legacy)).toThrow("会话配置损坏");
   }
 });

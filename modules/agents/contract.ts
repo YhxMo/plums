@@ -24,6 +24,12 @@ export type Attachment =
 export type Message = {
   id: string;
   role: "user" | "agent";
+  /**
+   * Who said it: a person's id, `OWNER` for the one using this app, or the
+   * id of the Agent that replied. Absent on messages saved before it was
+   * added; `speaker` reads those by their role.
+   */
+  from?: string;
   text: string;
   attachments?: Attachment[];
   /** Send or reply time in ms; absent on messages saved before it was added. */
@@ -64,6 +70,13 @@ export type Agent = {
   currentSessionId: string;
 };
 export type AgentModel = { provider: string; model: string };
+/** The person using this app, as `Message.from` names them. */
+export const OWNER = "me";
+/** Who said `message` in one of `agent`'s conversations. */
+export const speaker = (
+  agent: Pick<Agent, "id">,
+  message: Pick<Message, "role" | "from">,
+) => message.from ?? (message.role === "user" ? OWNER : agent.id);
 /** A model an Agent can use, from one `chat@1` provider. */
 export type ModelChoice = {
   provider: string;

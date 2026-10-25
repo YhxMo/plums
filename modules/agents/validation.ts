@@ -103,7 +103,8 @@ export function restoreAgents(value: unknown): Agent[] {
             (m.role === "user" || m.role === "agent") &&
             text(m.text, MAX_TEXT) &&
             attachmentProblem(m.attachments) === undefined &&
-            (m.at === undefined || Number.isFinite(m.at)),
+            (m.at === undefined || Number.isFinite(m.at)) &&
+            (m.from === undefined || (text(m.from, 128) && m.from !== "")),
         )
       )
         throw new ContractError(

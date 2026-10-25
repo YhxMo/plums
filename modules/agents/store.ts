@@ -14,16 +14,17 @@ import {
 import { MAX_INSTRUCTIONS } from "./instructions";
 import { unreadReplies } from "./unread";
 import { putBack, type Removal } from "./undo";
-import type {
-  Agent,
-  AgentConfig,
-  AgentPatch,
-  Attachment,
-  AgentModel,
-  AgentProvider,
-  AgentProviderInfo,
-  ModelChoice,
-  Session,
+import {
+  OWNER,
+  type Agent,
+  type AgentConfig,
+  type AgentPatch,
+  type Attachment,
+  type AgentModel,
+  type AgentProvider,
+  type AgentProviderInfo,
+  type ModelChoice,
+  type Session,
 } from "./contract";
 
 const id = () => crypto.randomUUID();
@@ -480,11 +481,18 @@ export class AgentStore implements AgentProvider {
             {
               id: id(),
               role: "user",
+              from: OWNER,
               text: input,
               ...(files && { attachments: files }),
               at: sentAt,
             },
-            { id: id(), role: "agent", text: output, at: repliedAt },
+            {
+              id: id(),
+              role: "agent",
+              from: agentId,
+              text: output,
+              at: repliedAt,
+            },
           );
           s.lastMessageAt = repliedAt;
           if (this.viewed === agentId && current.currentSessionId === sessionId)
