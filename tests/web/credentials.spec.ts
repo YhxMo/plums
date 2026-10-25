@@ -660,10 +660,10 @@ for (const width of [375, 1180])
       .getByRole("list", { name: "服务商" })
       .getByRole("listitem", { name: "网关" });
     await expect(provider).toContainText("可用");
-    await expect(provider).toContainText("自定义 · 上下文 1M · 公司账号");
+    await expect(provider).toContainText("自定义，上下文 1M，公司账号");
     await expect(
       provider.getByRole("list", { name: "网关 的模型" }).getByRole("listitem"),
-    ).toHaveText(["model-two · 上下文 200K测试", "model-three测试"]);
+    ).toHaveText(["model-two上下文 200K测试", "model-three测试"]);
     await expect(
       provider.getByRole("button", { name: "测试 model-two", exact: true }),
     ).toBeEnabled();

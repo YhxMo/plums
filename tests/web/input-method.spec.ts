@@ -50,7 +50,7 @@ for (const webkit of [false, true]) {
   }) => {
     await page.goto("/");
     const trigger = page.getByRole("button", {
-      name: "从头添加 Agent",
+      name: "添加 Agent",
       exact: true,
     });
     await trigger.click();

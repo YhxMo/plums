@@ -255,7 +255,7 @@ test("the empty conversation pane drags the window from its top band", async ({
   await page.setViewportSize({ width: 1280, height: 800 });
   await page.goto("/");
   const pane = page.getByRole("main");
-  await expect(pane).toContainText("欢迎使用 Plums");
+  await expect(pane).toContainText("还没有 Agent");
   const box = (await pane.boundingBox())!;
   for (const x of [box.x + 24, box.x + box.width / 2, box.x + box.width - 80])
     expect(await dragsWindow(page, x, box.y + 26)).toBe(true);

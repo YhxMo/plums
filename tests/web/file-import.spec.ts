@@ -1,6 +1,6 @@
 import { zipSync, strToU8 } from "fflate";
 import { expect, test, type Page } from "@playwright/test";
-import { manage, persisted } from "./helpers";
+import { manage, persisted, openAddAgent } from "./helpers";
 
 const starter = "extensions/examples/starter-model";
 /** A package's two files for a chat service; its top level marks that it ran. */
@@ -65,9 +65,7 @@ async function send(page: Page, text: string) {
   await page.getByRole("button", { name: "发送", exact: true }).click();
 }
 async function addAgent(page: Page) {
-  await page
-    .getByRole("button", { name: "从头添加 Agent", exact: true })
-    .click();
+  await openAddAgent(page);
   await page.getByRole("textbox", { name: "名称", exact: true }).fill("作者");
   await page
     .getByRole("dialog")

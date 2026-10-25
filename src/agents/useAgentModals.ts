@@ -4,7 +4,6 @@ import { useAsyncAction } from "@/components/useAsyncAction";
 import { useRoleCardDraft, type RoleCardDraft } from "./useRoleCardDraft";
 
 export type AgentModal =
-  | "add"
   | "create"
   | "import"
   | {

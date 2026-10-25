@@ -73,7 +73,7 @@ for (const width of [375, 1440]) {
       .getByRole("radio", { name: "使用 Agent 界面", exact: true })
       .click();
     await expect(
-      page.getByRole("heading", { name: "欢迎使用 Plums" }),
+      page.getByRole("heading", { name: "还没有 Agent" }),
     ).toBeVisible();
     await openSettings(page);
     await page
@@ -136,7 +136,7 @@ test("workbench save failure, cold detail restoration and lifecycle fallback", a
     .click();
   await page.getByRole("button", { name: "返回工作区", exact: true }).click();
   await expect(
-    page.getByRole("heading", { name: "欢迎使用 Plums" }),
+    page.getByRole("heading", { name: "还没有 Agent" }),
   ).toBeVisible();
 });
 
@@ -198,7 +198,7 @@ test("permission refusal preserves the current UI; replacing the transform provi
   await page.getByRole("button", { name: "暂不授权", exact: true }).click();
   await page.getByRole("button", { name: "返回工作区", exact: true }).click();
   await expect(
-    page.getByRole("heading", { name: "欢迎使用 Plums" }),
+    page.getByRole("heading", { name: "还没有 Agent" }),
   ).toBeVisible();
   await enable(page);
   await page

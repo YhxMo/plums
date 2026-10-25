@@ -154,12 +154,12 @@ test("overlapping React view releases retain the replacement and release subscri
     await until(
       "replacement mount",
       () =>
-        container.textContent?.includes("欢迎使用 Plums") === true &&
+        container.textContent?.includes("还没有 Agent") === true &&
         listeners.size > 0,
     );
     const replacement = {
       nodes: container.childElementCount,
-      visible: container.textContent?.includes("欢迎使用 Plums"),
+      visible: container.textContent?.includes("还没有 Agent"),
       subscriptions: listeners.size,
     };
     const pending = second();

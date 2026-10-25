@@ -1,4 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
+import { openAddAgent } from "./helpers";
 
 /** The echo model repeats the message after its own prefix. */
 const message = [
@@ -22,9 +23,7 @@ const message = [
 async function chat(page: Page, text: string) {
   await page.setViewportSize({ width: 1280, height: 900 });
   await page.goto("/");
-  await page
-    .getByRole("button", { name: "从头添加 Agent", exact: true })
-    .click();
+  await openAddAgent(page);
   await page.getByRole("textbox", { name: "名称", exact: true }).fill("助手");
   await page
     .getByRole("dialog")

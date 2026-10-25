@@ -1,5 +1,11 @@
 import { expect, test, type Page } from "@playwright/test";
-import { addAgent, installByPath, manage, serveModule } from "./helpers";
+import {
+  addAgent,
+  installByPath,
+  manage,
+  serveModule,
+  openAddAgent,
+} from "./helpers";
 
 const memoryPage = (page: Page) =>
   page.getByRole("dialog", { name: "记忆", exact: true });
@@ -14,11 +20,7 @@ async function send(page: Page, text: string) {
 }
 /** Adds another Agent through the add menu. */
 async function addAnother(page: Page, name: string) {
-  await page.getByRole("button", { name: "添加", exact: true }).first().click();
-  await page
-    .getByRole("dialog", { name: "添加", exact: true })
-    .getByRole("button", { name: /^添加 Agent/ })
-    .click();
+  await openAddAgent(page);
   const add = page.getByRole("dialog", { name: "添加 Agent", exact: true });
   await add.getByRole("textbox", { name: "名称", exact: true }).fill(name);
   await add.getByRole("button", { name: "添加", exact: true }).click();

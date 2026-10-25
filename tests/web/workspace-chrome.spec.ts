@@ -114,7 +114,7 @@ for (const failure of ["snapshot", "subscribe", "notification"]) {
     ).toBeVisible();
     await page.getByRole("button", { name: "返回工作区", exact: true }).click();
     await expect(
-      page.getByRole("heading", { name: "欢迎使用 Plums" }),
+      page.getByRole("heading", { name: "还没有 Agent" }),
     ).toBeVisible();
     await expect(
       page.getByRole("banner").filter({ hasText: "工作区故障夹具" }),

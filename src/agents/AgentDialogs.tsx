@@ -1,11 +1,7 @@
-import type { ReactNode } from "react";
 import {
   ChevronRightIcon,
   FileJsonIcon,
-  IdCardIcon,
   LinkIcon,
-  PuzzleIcon,
-  SparklesIcon,
   UploadIcon,
 } from "lucide-react";
 import type {
@@ -30,56 +26,12 @@ import {
   FieldSet,
   FieldLegend,
 } from "@/components/ui/field";
-import {
-  Item,
-  ItemActions,
-  ItemContent,
-  ItemDescription,
-  ItemMedia,
-  ItemTitle,
-} from "@/components/ui/item";
 import { AgentParts } from "./AgentParts";
 import { Avatar } from "./Avatar";
 import { ModelSelect } from "./ModelSelect";
 import { useAgentDraft } from "./draft";
 import { agentParts, switchPart, type Part } from "./parts";
 import type { AgentModals } from "./useAgentModals";
-
-function Choice({
-  icon,
-  title,
-  description,
-  onClick,
-}: {
-  icon: ReactNode;
-  title: string;
-  description: string;
-  onClick: () => void;
-}) {
-  return (
-    <Item
-      asChild
-      variant="outline"
-      className="bg-card text-left hover:bg-muted"
-    >
-      <button onClick={onClick}>
-        <ItemMedia
-          variant="icon"
-          className="size-9 rounded-lg bg-brand-soft text-brand-text"
-        >
-          {icon}
-        </ItemMedia>
-        <ItemContent>
-          <ItemTitle>{title}</ItemTitle>
-          <ItemDescription>{description}</ItemDescription>
-        </ItemContent>
-        <ItemActions>
-          <ChevronRightIcon className="size-4 text-muted-foreground" />
-        </ItemActions>
-      </button>
-    </Item>
-  );
-}
 
 export function AgentDialogs({
   api,
@@ -179,7 +131,7 @@ export function AgentDialogs({
   if (!modal) return null;
   const title =
     typeof modal === "string"
-      ? { add: "添加", create: "添加 Agent", import: "导入角色卡" }[modal]
+      ? { create: "添加 Agent", import: "导入角色卡" }[modal]
       : {
           rename: "重命名 Agent",
           remove: "移除 Agent",
@@ -209,31 +161,7 @@ export function AgentDialogs({
       }}
       className={modal === "create" ? "max-w-[560px]" : undefined}
     >
-      {modal === "add" ? (
-        <DialogBody>
-          <p className="text-muted-foreground">选择添加方式</p>
-          <div className="grid gap-2">
-            <Choice
-              icon={<SparklesIcon />}
-              title="添加 Agent"
-              description="写下设定，选择模型并拼接已安装的扩展"
-              onClick={() => open("create")}
-            />
-            <Choice
-              icon={<IdCardIcon />}
-              title="导入角色卡"
-              description="从文件或链接读取设定与介绍，再按需调整"
-              onClick={() => open("import")}
-            />
-            <Choice
-              icon={<PuzzleIcon />}
-              title="安装扩展"
-              description="添加模型连接器、MCP 或其他能力"
-              onClick={() => detour(onExtensions)}
-            />
-          </div>
-        </DialogBody>
-      ) : modal === "import" ? (
+      {modal === "import" ? (
         <form
           key="import"
           onSubmit={(e) => {

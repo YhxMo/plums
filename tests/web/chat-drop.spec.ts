@@ -90,7 +90,7 @@ test("without an open conversation the hint says why files are refused", async (
   await page.setViewportSize({ width: 375, height: 844 });
   await page.goto("/");
   const refused = { prevented: true, effect: "none" };
-  await expect(page.getByText("欢迎使用 Plums")).toBeVisible();
+  await expect(page.getByText("还没有 Agent")).toBeVisible();
   expect((await drag(page, "main", "x.txt", "hover")).over).toEqual(refused);
   await expect(hint(page)).toContainText("添加 Agent 后才能拖入附件");
   await drag(page, "main", "x.txt", "leave");

@@ -28,25 +28,7 @@ for (const scheme of ["light", "dark"] as const)
     await page.setViewportSize({ width: 1280, height: 800 });
     await page.goto("/");
     for (const name of ["甲", "乙", "丙"]) {
-      const start = page.getByRole("button", {
-        name: "从头添加 Agent",
-        exact: true,
-      });
-      if (await start.isVisible()) await addAgent(page, name);
-      else {
-        await page.getByRole("button", { name: "添加", exact: true }).click();
-        await page
-          .getByRole("dialog")
-          .getByRole("button", { name: /添加 Agent/ })
-          .click();
-        await page
-          .getByRole("textbox", { name: "名称", exact: true })
-          .fill(name);
-        await page
-          .getByRole("dialog")
-          .getByRole("button", { name: "添加", exact: true })
-          .click();
-      }
+      await addAgent(page, name);
       await page.getByRole("dialog").waitFor({ state: "hidden" });
     }
     const list = page.getByRole("complementary", { name: "Agent 列表" });

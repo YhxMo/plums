@@ -259,7 +259,7 @@ test("independent contributions stop, restore, and recover a missing persisted r
   await expect(card(page, pageId)).toContainText("等待条件");
   await workspace(page);
   await expect(
-    page.getByRole("heading", { name: "欢迎使用 Plums" }),
+    page.getByRole("heading", { name: "还没有 Agent" }),
   ).toBeVisible();
   await manage(page);
   // The board keeps its grant, so enabling it again does not ask.

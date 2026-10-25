@@ -99,7 +99,7 @@ for (const theme of ["light", "dark"] as const)
     expect(await fill('nav[aria-label="应用导航"]')).toBe(
       theme === "light"
         ? "rgba(255, 255, 255, 0.3)"
-        : "rgba(255, 255, 255, 0.04)",
+        : "rgba(255, 255, 255, 0.05)",
     );
     // Everything beside it is solid, as the window colour was.
     const content = await page

@@ -4,6 +4,7 @@ import {
   chooseLayout,
   extensionDetail,
   switchAppearance,
+  openAddAgent,
 } from "./helpers";
 import { test, expect } from "@playwright/test";
 
@@ -100,7 +101,7 @@ for (const width of [375, 1280]) {
       .getByRole("button", { name: "停用 workbench", exact: true })
       .click();
     await expect(await extensionDetail(page, workbench)).toContainText(
-      "0 项资源 · 0 个在途任务",
+      "0 项资源，0 个在途任务",
     );
     // Already granted in this run, so it starts without asking again.
     await workbench
@@ -193,9 +194,7 @@ test("dismissible fallback notice, independent extension manager page and topbar
     ),
   ).toBe("default");
 
-  await page
-    .getByRole("button", { name: "从头添加 Agent", exact: true })
-    .click();
+  await openAddAgent(page);
   await page
     .getByRole("textbox", { name: "名称", exact: true })
     .fill("代码助手");
@@ -235,9 +234,7 @@ test("legacy unconfigured workbench default boots into Agents without changing s
   page,
 }) => {
   await page.goto("/");
-  await page
-    .getByRole("button", { name: "从头添加 Agent", exact: true })
-    .click();
+  await openAddAgent(page);
   await page
     .getByRole("textbox", { name: "名称", exact: true })
     .fill("代码助手");
@@ -332,7 +329,7 @@ for (const width of [375, 1180]) {
     expect((await back.boundingBox())!.y).toBeCloseTo(before!.y, 1);
     await back.click();
     await expect(
-      page.getByRole("heading", { name: "欢迎使用 Plums" }),
+      page.getByRole("heading", { name: "还没有 Agent" }),
     ).toBeVisible();
   });
 }

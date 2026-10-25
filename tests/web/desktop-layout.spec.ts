@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { addAgent } from "./helpers";
+import { addAgent, openAddAgent } from "./helpers";
 
 for (const width of [652, 700, 735]) {
   test(`a ${width}px desktop keeps the Agent list beside the conversation`, async ({
@@ -9,8 +9,7 @@ for (const width of [652, 700, 735]) {
     await page.goto("/");
     await addAgent(page, "助手 A");
     const list = page.getByRole("complementary", { name: "Agent 列表" });
-    await list.getByRole("button", { name: "添加", exact: true }).click();
-    await page.getByRole("button", { name: /^添加 Agent 写下/ }).click();
+    await openAddAgent(page);
     await page
       .getByRole("textbox", { name: "名称", exact: true })
       .fill("助手 B");
@@ -89,10 +88,11 @@ for (const width of [940, 1440])
       name: "Agent 详情",
     });
     await expect(drawer).toBeVisible();
-    // Past the slide-in; the inline panel sits inside the sheet's 1px edge.
+    // Past the slide-in; the inline panel sits inside the sheet's hairline
+    // edges, which a 1x screen draws as whole pixels.
     await expect
       .poll(async () => Math.round((await drawer.boundingBox())!.width))
-      .toBe(width > 1100 ? 287 : 288);
+      .toBe(width > 1100 ? 286 : 288);
     // Wide windows move the conversation aside instead of covering it.
     if (width > 1100) {
       const edge = (await drawer.boundingBox())!.x;

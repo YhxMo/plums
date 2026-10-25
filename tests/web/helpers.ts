@@ -35,22 +35,40 @@ export async function openConnections(page: Page) {
     .click();
   return page.getByRole("dialog", { name: "模型连接", exact: true });
 }
-/** Adds an Agent from scratch through the add dialog. */
+/**
+ * Opens adding an Agent: the welcome's button when there are none yet,
+ * otherwise the list's add menu.
+ */
+export async function openAddAgent(page: Page) {
+  const welcome = page
+    .getByRole("main")
+    .getByRole("button", { name: "添加 Agent", exact: true })
+    .filter({ visible: true });
+  const menu = page
+    .getByRole("button", { name: "添加", exact: true })
+    .filter({ visible: true })
+    .first();
+  await expect(welcome.or(menu).first()).toBeVisible();
+  if (await welcome.count()) await welcome.click();
+  else {
+    await menu.click();
+    await page
+      .getByRole("menuitem", { name: "添加 Agent", exact: true })
+      .click();
+  }
+  return page.getByRole("dialog", { name: "添加 Agent", exact: true });
+}
+/** Adds an Agent through the add dialog. */
 export async function addAgent(
   page: Page,
   name: string,
   { description }: { description?: string } = {},
 ) {
-  await page
-    .getByRole("button", { name: "从头添加 Agent", exact: true })
-    .click();
-  await page.getByRole("textbox", { name: "名称", exact: true }).fill(name);
+  const dialog = await openAddAgent(page);
+  await dialog.getByRole("textbox", { name: "名称", exact: true }).fill(name);
   if (description)
-    await page.getByRole("textbox", { name: "介绍" }).fill(description);
-  await page
-    .getByRole("dialog")
-    .getByRole("button", { name: "添加", exact: true })
-    .click();
+    await dialog.getByRole("textbox", { name: "介绍" }).fill(description);
+  await dialog.getByRole("button", { name: "添加", exact: true }).click();
 }
 export async function legacyEntry(page: Page) {
   await manage(page, true);

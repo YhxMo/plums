@@ -7,6 +7,7 @@ import {
   openSettings,
   installByPath,
   serveModule,
+  openAddAgent,
 } from "./helpers";
 import { expect, test, type Page } from "@playwright/test";
 const sidebarToggle = (page: Page) =>
@@ -23,12 +24,14 @@ for (const width of [375, 1180]) {
     await page.setViewportSize({ width, height: 820 });
     await page.goto("/");
     const welcome = page.getByRole("main");
+    // Nothing to explain: a title and the two ways to start.
     await expect(
-      welcome.getByRole("button", { name: /导入角色卡/ }),
+      welcome.getByRole("heading", { name: "还没有 Agent" }),
     ).toBeVisible();
-    await expect(
-      welcome.getByRole("button", { name: /安装扩展/ }),
-    ).toBeVisible();
+    await expect(welcome.getByRole("button")).toHaveText([
+      "添加 Agent",
+      "导入角色卡",
+    ]);
     await add(page, "已有角色");
     await page.reload();
     const existing = page.getByRole("button", {
@@ -38,7 +41,7 @@ for (const width of [375, 1180]) {
     await expect(existing).toBeVisible();
     if (width === 1180) {
       await expect(
-        page.getByRole("heading", { name: "欢迎使用 Plums" }),
+        page.getByRole("heading", { name: "还没有 Agent" }),
       ).toHaveCount(0);
       await expect(welcome.getByRole("img", { name: "Plums" })).toBeVisible();
       await expect(welcome.getByRole("button")).toHaveCount(0);
@@ -68,7 +71,7 @@ for (const width of [375, 1440]) {
     await page.setViewportSize({ width, height: 900 });
     await page.goto("/");
     await expect(
-      page.getByRole("heading", { name: "欢迎使用 Plums" }),
+      page.getByRole("heading", { name: "还没有 Agent" }),
     ).toBeVisible();
     await expect(page.locator("select")).toHaveCount(0);
     await expect(page.getByRole("tab")).toHaveCount(0);
@@ -111,7 +114,7 @@ for (const width of [375, 1440]) {
       .click();
     await page.getByRole("button", { name: "确认删除" }).click();
     await expect(
-      page.getByRole("heading", { name: "欢迎使用 Plums" }),
+      page.getByRole("heading", { name: "还没有 Agent" }),
     ).toBeVisible();
   });
 }
@@ -292,7 +295,7 @@ test("unavailable saved import retains startup and offers removal and retry", as
   );
   await page.goto("/");
   await expect(
-    page.getByRole("heading", { name: "欢迎使用 Plums" }),
+    page.getByRole("heading", { name: "还没有 Agent" }),
   ).toBeVisible();
   await manage(page);
   await expect(
@@ -384,9 +387,7 @@ test("the model is told the 设定, never the introduction, and an edit in detai
 }) => {
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto("/");
-  await page
-    .getByRole("button", { name: "从头添加 Agent", exact: true })
-    .click();
+  await openAddAgent(page);
   const dialog = page.getByRole("dialog");
   await dialog.getByRole("textbox", { name: "名称", exact: true }).fill("译者");
   const instructions = dialog.getByRole("textbox", { name: "设定" });
@@ -460,7 +461,7 @@ test("reinstalling a failed import replaces its path and remains bootable", asyn
   ]);
   await page.reload();
   await expect(
-    page.getByRole("heading", { name: "欢迎使用 Plums" }),
+    page.getByRole("heading", { name: "还没有 Agent" }),
   ).toBeVisible();
   await manage(page);
   await expect(
@@ -493,12 +494,16 @@ for (const theme of ["light", "dark"] as const) {
   }) => {
     await page.emulateMedia({ colorScheme: theme });
     await page.goto("/");
-    const trigger = page
-      .getByRole("button", { name: "添加", exact: true })
-      .first();
+    const trigger = page.getByRole("button", {
+      name: "添加 Agent",
+      exact: true,
+    });
     // Reproduce WebKit pointer activation without first focusing the opener.
     await trigger.evaluate((button: HTMLButtonElement) => button.click());
-    const dialog = page.getByRole("dialog", { name: "添加", exact: true });
+    const dialog = page.getByRole("dialog", {
+      name: "添加 Agent",
+      exact: true,
+    });
     const close = dialog.getByRole("button", { name: "关闭", exact: true });
     // Buttons show keyboard focus as a 3px ring.
     const ring = () =>
@@ -515,18 +520,16 @@ for (const theme of ["light", "dark"] as const) {
       .not.toBe("rgba(0, 0, 0, 0)");
     await page.mouse.move(1, 1);
     expect(await ring()).toBe(false);
-    await page.keyboard.press("Tab");
+    // The dialog opens in its name field; the close button comes before it.
+    await page.keyboard.press("Shift+Tab");
     await expect(close).toBeFocused();
     await expect.poll(ring).toBe(true);
     await page.keyboard.press("Escape");
     await expect(dialog).not.toBeVisible();
     await expect(trigger).toBeFocused();
     await trigger.click();
-    await dialog.getByRole("button", { name: /^添加 Agent/ }).click();
     await expect(
-      page
-        .getByRole("dialog", { name: "添加 Agent", exact: true })
-        .getByRole("textbox", { name: "名称", exact: true }),
+      dialog.getByRole("textbox", { name: "名称", exact: true }),
     ).toBeFocused();
   });
 }
@@ -537,7 +540,7 @@ for (const close of ["Escape", "button"] as const) {
   }) => {
     await page.goto("/");
     const trigger = page.getByRole("button", {
-      name: "从头添加 Agent",
+      name: "添加 Agent",
       exact: true,
     });
     await trigger.evaluate((button) => (button as HTMLButtonElement).click());
@@ -663,10 +666,9 @@ for (const width of [375, 1180]) {
     await expect(page.getByRole("dialog")).not.toBeVisible();
     const fallback =
       width === 375
-        ? page.getByRole("button", {
-            name: "导入角色卡 从文件或链接，了解并添加 Agent 选择角色卡",
-            exact: true,
-          })
+        ? page
+            .getByRole("main")
+            .getByRole("button", { name: "添加 Agent", exact: true })
         : page
             .getByRole("complementary", { name: "Agent 列表", exact: true })
             .getByRole("button", { name: "添加", exact: true })
@@ -709,11 +711,7 @@ test("a pinned Agent moves to the top of the list and back when unpinned", async
 }) => {
   await page.goto("/");
   await add(page, "置顶者");
-  await page.getByRole("button", { name: "添加", exact: true }).first().click();
-  await page
-    .getByRole("dialog")
-    .getByRole("button", { name: /添加 Agent/ })
-    .click();
+  await openAddAgent(page);
   // The newer Agent is the more recently active one, so it comes first.
   await page.getByRole("textbox", { name: "名称", exact: true }).fill("普通");
   await page
@@ -739,11 +737,7 @@ test("each part of an Agent can be switched off, and says what that means", asyn
   page,
 }) => {
   await page.goto("/");
-  await page.getByRole("button", { name: "添加", exact: true }).first().click();
-  await page
-    .getByRole("dialog")
-    .getByRole("button", { name: /添加 Agent/ })
-    .click();
+  await openAddAgent(page);
   const dialog = page.getByRole("dialog", { name: "添加 Agent" });
   await dialog.getByLabel("名称").fill("拼装");
   const provider = dialog.getByRole("switch", {

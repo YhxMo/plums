@@ -395,16 +395,16 @@ export function AgentWorkspace({
         setSelected(id);
         setDetail(false);
       }}
-      onAdd={(source) => open("add", source)}
+      onAdd={(source) => open("create", source)}
+      onImport={(source) => open("import", source)}
       onAction={agentAction}
     />
   );
   const main = !agent ? (
     <EmptyState
       hasAgents={agents.length > 0}
-      onImport={(source) => open("import", source)}
       onAdd={(source) => open("create", source)}
-      onExtensions={() => onExtensions()}
+      onImport={(source) => open("import", source)}
     />
   ) : (
     <ChatView

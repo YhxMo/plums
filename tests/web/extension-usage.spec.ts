@@ -1,4 +1,4 @@
-import { addAgent, manage } from "./helpers";
+import { addAgent, manage, openAddAgent } from "./helpers";
 import { expect, test } from "@playwright/test";
 
 const echo = "回显模型（开发）";
@@ -179,11 +179,7 @@ test("each Agent picks its own model and the model receives the conversation so 
     /echo-b｜第 2 轮｜说明：你是「甲」。今天是 .* 简洁、友好地回答用户的问题。｜最早：我是 nanan｜我是谁？/,
   );
   // A new Agent starts on the first model, apart from 甲's choice.
-  await page.getByRole("button", { name: "添加", exact: true }).first().click();
-  await page
-    .getByRole("dialog", { name: "添加", exact: true })
-    .getByRole("button", { name: /^添加 Agent/ })
-    .click();
+  await openAddAgent(page);
   const add = page.getByRole("dialog", { name: "添加 Agent", exact: true });
   await add.getByRole("textbox", { name: "名称", exact: true }).fill("乙");
   await add.getByRole("button", { name: "添加", exact: true }).click();

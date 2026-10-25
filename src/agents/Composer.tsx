@@ -304,7 +304,9 @@ export function Composer({
             />
           )}
           {busy ? (
-            <Tooltip label={saving ? "正在保存…" : "停止处理"}>
+            // Separate keys: a click on stop must not land on a send button in
+            // the same node once the request ends.
+            <Tooltip key="stop" label={saving ? "正在保存…" : "停止处理"}>
               <InputGroupButton
                 type="button"
                 variant="outline"
@@ -318,7 +320,7 @@ export function Composer({
               </InputGroupButton>
             </Tooltip>
           ) : (
-            <Tooltip label="发送">
+            <Tooltip key="send" label="发送">
               <InputGroupButton
                 type="submit"
                 variant="default"

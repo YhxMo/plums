@@ -1,5 +1,11 @@
 import { expect, test, type Page } from "@playwright/test";
-import { manage, legacyEntry, installByPath, serveModule } from "./helpers";
+import {
+  manage,
+  legacyEntry,
+  installByPath,
+  serveModule,
+  openAddAgent,
+} from "./helpers";
 
 const back = (page: Page) =>
   page.evaluate(() =>
@@ -7,9 +13,7 @@ const back = (page: Page) =>
   );
 
 async function createAgent(page: Page) {
-  await page
-    .getByRole("button", { name: "从头添加 Agent", exact: true })
-    .click();
+  await openAddAgent(page);
   await page
     .getByRole("textbox", { name: "名称", exact: true })
     .fill("Back probe");

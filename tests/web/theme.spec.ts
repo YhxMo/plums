@@ -186,7 +186,7 @@ test("reduced motion keeps entrance animations from moving", async ({
   });
   await page.goto("/");
   await expect(
-    page.getByRole("heading", { name: "欢迎使用 Plums" }),
+    page.getByRole("heading", { name: "还没有 Agent" }),
   ).toBeVisible();
   await page.waitForTimeout(800);
   expect(

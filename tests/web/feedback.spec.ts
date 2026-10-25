@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { addAgent, shellButton } from "./helpers";
+import { addAgent, shellButton, openAddAgent } from "./helpers";
 
 test("no button relies on a native title tooltip", async ({ page }) => {
   await page.goto("/");
@@ -76,10 +76,7 @@ test("focus given back by a closing dialog or menu shows no tooltip", async ({
   await addAgent(page, "甲");
   const add = page.getByRole("button", { name: "添加", exact: true });
   await add.click();
-  await page
-    .getByRole("dialog")
-    .getByRole("button", { name: /添加 Agent/ })
-    .click();
+  await page.getByRole("menuitem", { name: "添加 Agent", exact: true }).click();
   await page.getByRole("textbox", { name: "名称", exact: true }).fill("乙");
   await page
     .getByRole("dialog")
@@ -101,9 +98,7 @@ test("an info button explains on hover, and a click keeps it open", async ({
 }) => {
   await page.setViewportSize({ width: 1180, height: 800 });
   await page.goto("/");
-  await page
-    .getByRole("button", { name: "从头添加 Agent", exact: true })
-    .click();
+  await openAddAgent(page);
   const info = page.getByRole("button", { name: "组成扩展说明", exact: true });
   const text = page.getByRole("dialog", { name: "组成扩展说明", exact: true });
   const away = async () => {

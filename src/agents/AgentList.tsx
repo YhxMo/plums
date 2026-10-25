@@ -17,6 +17,7 @@ import {
 import {
   DropdownMenu,
   DropdownMenuContent,
+  DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import {
@@ -187,12 +188,15 @@ export function AgentList({
   selected,
   onSelect,
   onAdd,
+  onImport,
   onAction,
 }: {
   agents: Agent[];
   selected: string | null;
   onSelect: (id: string) => void;
+  /** Starts adding an Agent from the add menu, which `source` opened. */
   onAdd: (source: HTMLElement) => void;
+  onImport: (source: HTMLElement) => void;
   onAction: (
     agent: Agent,
     action: AgentAction,
@@ -200,6 +204,7 @@ export function AgentList({
   ) => void;
 }) {
   const [query, setQuery] = useState("");
+  const add = useRef<HTMLButtonElement>(null);
   const shown = agents.filter((a) =>
     a.name.toLowerCase().includes(query.toLowerCase()),
   );
@@ -226,29 +231,41 @@ export function AgentList({
           我的 Agent
         </h2>
         {agents.length > 0 && (
-          <InputGroup className="h-[30px] flex-1 rounded-lg border-transparent bg-foreground/6 shadow-none transition-colors max-md:order-3 max-md:h-11 max-md:basis-full dark:bg-foreground/6">
+          <InputGroup className="h-[30px] flex-1 rounded-md border-transparent bg-row-pinned shadow-none max-md:order-3 max-md:h-11 max-md:basis-full dark:bg-row-pinned">
             <InputGroupAddon>
               <SearchIcon />
             </InputGroupAddon>
             <InputGroupInput
               aria-label="搜索 Agent"
-              placeholder="搜索 Agent"
+              placeholder="搜索"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
             />
           </InputGroup>
         )}
-        <Tooltip label="添加 Agent" side="right">
-          <Button
-            variant="ghost"
-            size="icon"
-            className="size-[30px] rounded-lg bg-foreground/6 text-muted-foreground hover:bg-foreground/10 hover:text-foreground max-md:order-2 max-md:size-9 max-md:bg-transparent"
-            aria-label="添加"
-            onClick={(e) => onAdd(e.currentTarget)}
-          >
-            <PlusIcon />
-          </Button>
-        </Tooltip>
+        <DropdownMenu modal={false}>
+          <Tooltip label="添加" side="right">
+            <DropdownMenuTrigger asChild>
+              <Button
+                ref={add}
+                variant="ghost"
+                size="icon"
+                className="size-[30px] rounded-md bg-row-pinned text-foreground hover:bg-subtle aria-expanded:bg-subtle max-md:order-2 max-md:size-9 max-md:bg-transparent"
+                aria-label="添加"
+              >
+                <PlusIcon />
+              </Button>
+            </DropdownMenuTrigger>
+          </Tooltip>
+          <DropdownMenuContent align="start" className="w-48">
+            <DropdownMenuItem onSelect={() => onAdd(add.current!)}>
+              添加 Agent
+            </DropdownMenuItem>
+            <DropdownMenuItem onSelect={() => onImport(add.current!)}>
+              导入角色卡…
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
       <div className="flex min-h-0 flex-1 flex-col overflow-y-auto pb-3 max-md:pb-5">
         {ordered.map((a) => (
