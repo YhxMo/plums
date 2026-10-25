@@ -50,6 +50,34 @@ function Start({
   );
 }
 
+/**
+ * The card in place of a conversation. With no header of its own, a strip
+ * as tall as the conversation header keeps its top dragging the window.
+ */
+function Pane({
+  className,
+  children,
+}: {
+  className: string;
+  children: ReactNode;
+}) {
+  return (
+    <main
+      className={cn(
+        "relative flex flex-1 flex-col items-center justify-center bg-chat p-7",
+        className,
+        card,
+      )}
+    >
+      <div
+        className="absolute inset-x-0 top-0 h-[52px] max-md:hidden"
+        data-tauri-drag-region
+      />
+      {children}
+    </main>
+  );
+}
+
 export function EmptyState({
   hasAgents,
   onImport,
@@ -63,12 +91,7 @@ export function EmptyState({
 }) {
   if (hasAgents)
     return (
-      <main
-        className={cn(
-          "flex flex-1 flex-col items-center justify-center gap-3 bg-chat p-7",
-          card,
-        )}
-      >
+      <Pane className="gap-3">
         <motion.img
           initial={{ opacity: 0, scale: 0.9 }}
           animate={{ opacity: 0.28, scale: 1 }}
@@ -79,15 +102,10 @@ export function EmptyState({
         <p className="text-xs text-muted-foreground">
           从左侧选择一个 Agent 开始对话
         </p>
-      </main>
+      </Pane>
     );
   return (
-    <main
-      className={cn(
-        "flex flex-1 flex-col items-center justify-center overflow-auto bg-chat p-7 max-md:px-5",
-        card,
-      )}
-    >
+    <Pane className="overflow-auto max-md:px-5">
       <motion.div {...rise(0)} className="text-center">
         <img
           src="/brand/plums.png"
@@ -134,6 +152,6 @@ export function EmptyState({
           从头添加 Agent
         </Button>
       </motion.p>
-    </main>
+    </Pane>
   );
 }

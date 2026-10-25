@@ -209,6 +209,56 @@ test("the pane headers and the rail drag the window from anywhere that is not a 
   ).toHaveAttribute("data-tauri-drag-region", "true");
 });
 
+/** Whether a mouse down at this point starts a window drag (Tauri 2.12 drag.js). */
+function dragsWindow(page: Page, x: number, y: number) {
+  return page.evaluate(
+    ([x, y]) => {
+      const clickable = (el: HTMLElement) =>
+        [
+          "A",
+          "BUTTON",
+          "INPUT",
+          "SELECT",
+          "TEXTAREA",
+          "LABEL",
+          "SUMMARY",
+        ].includes(el.tagName) ||
+        (el.hasAttribute("contenteditable") &&
+          el.getAttribute("contenteditable") !== "false") ||
+        (el.hasAttribute("tabindex") && el.getAttribute("tabindex") !== "-1") ||
+        ["button", "link", "menuitem", "tab", "checkbox", "radio", "switch"]
+          .concat("option")
+          .includes(el.getAttribute("role") ?? "");
+      const hit = document.elementFromPoint(x, y) as HTMLElement;
+      for (let el: HTMLElement | null = hit; el; el = el.parentElement) {
+        const region = el.getAttribute("data-tauri-drag-region");
+        if (region === null && clickable(el)) return false;
+        if (region === null) continue;
+        if (region === "false") return false;
+        return region === "deep" || el === hit;
+      }
+      return false;
+    },
+    [x, y],
+  );
+}
+
+test("the empty conversation pane drags the window from its top band", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1280, height: 800 });
+  await page.goto("/");
+  const pane = page.getByRole("main");
+  await expect(pane).toContainText("欢迎使用 Plums");
+  const box = (await pane.boundingBox())!;
+  for (const x of [box.x + 24, box.x + box.width / 2, box.x + box.width - 80])
+    expect(await dragsWindow(page, x, box.y + 26)).toBe(true);
+  // The welcome itself stays plain content.
+  expect(await dragsWindow(page, box.x + box.width / 2, box.y + 200)).toBe(
+    false,
+  );
+});
+
 test("the page behind the shell neither scrolls nor bounces", async ({
   page,
 }) => {
