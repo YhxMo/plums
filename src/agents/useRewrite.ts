@@ -2,6 +2,7 @@ import { useRef, useState } from "react";
 import type { Agent, AgentProvider, Message } from "@modules/agents/contract";
 import type { AgentModals } from "./useAgentModals";
 import type { Editing } from "./Composer";
+import { summary } from "./summary";
 
 /** Messages a rewrite from `index` drops besides the one reply it replaces. */
 function later(messages: readonly Message[], index: number) {
@@ -71,7 +72,8 @@ export function useRewrite({
     editing(key: string): Editing | undefined {
       if (edit?.key !== key) return undefined;
       return {
-        original: edit.message.text,
+        original: summary(edit.message),
+        hasFiles: !!edit.message.attachments?.length,
         onCancel: () => {
           restore(edit);
           setEdit(null);

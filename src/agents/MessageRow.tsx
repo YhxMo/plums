@@ -76,7 +76,7 @@ export function MessageRow({
   const chosen = useRef(false);
   const available = (["copy", "edit", "regenerate", "delete"] as const).filter(
     (a) =>
-      a === "copy" ||
+      (a === "copy" && !!text) ||
       (a === "edit" && user && can?.edit) ||
       (a === "regenerate" && !user && can?.regenerate) ||
       (a === "delete" && can?.delete),
@@ -101,6 +101,23 @@ export function MessageRow({
       )}
     </Bubble>
   );
+  const files = attachments && attachments.length > 0 && (
+    <MessageAttachments attachments={attachments} user={user} />
+  );
+  // Files sent without text stand in for the bubble, menu included.
+  const content =
+    text || !files ? (
+      bubble
+    ) : (
+      <div
+        className={cn(
+          "flex min-w-0 flex-col",
+          user ? "items-end" : "items-start",
+        )}
+      >
+        {files}
+      </div>
+    );
   return (
     <motion.div
       ref={row}
@@ -117,9 +134,7 @@ export function MessageRow({
       )}
     >
       <span className="sr-only">{user ? "你" : agent.name}：</span>
-      {attachments && attachments.length > 0 && (
-        <MessageAttachments attachments={attachments} user={user} />
-      )}
+      {content === bubble && files}
       {message && onAction ? (
         <ContextMenu
           modal={false}
@@ -130,7 +145,7 @@ export function MessageRow({
             disabled={!pointerMenu}
             className="select-text"
           >
-            {bubble}
+            {content}
           </ContextMenuTrigger>
           <ContextMenuContent
             className="min-w-40"
@@ -167,7 +182,7 @@ export function MessageRow({
           </ContextMenuContent>
         </ContextMenu>
       ) : (
-        bubble
+        content
       )}
       {message && onAction && (
         <div

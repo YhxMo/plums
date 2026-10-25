@@ -118,3 +118,24 @@ it("trims the oldest turns first when pictures fill the window", () => {
   expect(users.length).toBeLessThan(10);
   expect(users).not.toContain("问0");
 });
+
+it("a picture sent without text carries no empty text part", () => {
+  for (const endpoint of [openai, anthropic]) {
+    const sent = parse(
+      requestBody(endpoint, {
+        history: [
+          { role: "user", text: "", images: [pic] },
+          { role: "agent", text: "好" },
+        ],
+        input: "",
+        images: [pic],
+      }),
+    );
+    const own = sent.messages.filter((m) => m.role === "user");
+    expect(own).toHaveLength(2);
+    for (const { content } of own) {
+      expect(Array.isArray(content) && content.length).toBe(1);
+      expect((content as { type: string }[])[0].type).toMatch(/^image/);
+    }
+  }
+});

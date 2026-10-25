@@ -117,10 +117,11 @@ function render(
       : `ERROR: Cannot read "${a.name}" (this model does not support image input). Inform the user.`,
   );
   const body = [
-    ...(files.length ? [`${files.map(fenced).join("\n\n")}\n\n`] : []),
-    text,
-    ...lines.map((line) => `\n${line}`),
-  ].join("");
+    [...files.map(fenced), ...(text ? [text] : [])].join("\n\n"),
+    ...lines,
+  ]
+    .filter(Boolean)
+    .join("\n");
   const images: ChatImage[] = keep
     ? pictures.map(({ mime, data }) => ({ mime, data }))
     : [];

@@ -134,3 +134,15 @@ it("counts characters, not bytes, against the text limit", () => {
   expect(decodeText("a.txt", enc(emoji))).toBe(emoji);
   expect(() => decodeText("a.txt", enc(emoji + "😀"))).toThrow("太大");
 });
+
+it("a message of files alone reads as the files with nothing after them", () => {
+  const { input } = prepareChat(
+    [],
+    { text: "", attachments: [file("m.md", "内容")] },
+    false,
+  );
+  expect(input.text).toBe("文件「m.md」：\n```\n内容\n```");
+  expect(
+    prepareChat([], { text: "", attachments: [image("p.png")] }, true).input,
+  ).toEqual({ text: "", images: [{ mime: "image/webp", data: "QUJD" }] });
+});

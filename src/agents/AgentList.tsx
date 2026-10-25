@@ -5,6 +5,7 @@ import { cn } from "cn";
 import type { Agent } from "@modules/agents/contract";
 import { unreadReplies } from "@modules/agents/unread";
 import { formatTime } from "./time";
+import { summary } from "./summary";
 import { Avatar } from "./Avatar";
 import { AgentMenuItems, type AgentAction } from "./AgentMenu";
 import { Tooltip } from "@/components/Tooltip";
@@ -66,10 +67,8 @@ function AgentRow({
   const lastAt = session?.messages.length
     ? (session.messages.at(-1)?.at ?? session.lastMessageAt)
     : undefined;
-  const preview = (session?.messages.at(-1)?.text || a.description).slice(
-    0,
-    PREVIEW,
-  );
+  const last = session?.messages.at(-1);
+  const preview = ((last && summary(last)) || a.description).slice(0, PREVIEW);
   const described = [
     `${id}-preview`,
     lastAt !== undefined && `${id}-time`,

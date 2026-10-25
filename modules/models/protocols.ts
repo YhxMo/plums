@@ -118,13 +118,20 @@ function message(protocol: Protocol, turn: Turn, strip = false) {
   return turn.images?.length
     ? {
         role,
+        // Pictures sent alone have no text part; services refuse an empty one.
         content: [
           ...pictures(protocol, turn.images, strip),
-          { type: "text", text: turn.text },
+          ...(turn.text ? [{ type: "text", text: turn.text }] : []),
         ],
       }
     : { role, content: turn.text };
 }
+
+/** Marks the last part as the end of the cached prefix. */
+const last = (parts: Record<string, unknown>[]) =>
+  parts.map((part, i) =>
+    i === parts.length - 1 ? { ...part, cache_control: cache } : part,
+  );
 
 function body(
   endpoint: Endpoint,
@@ -155,10 +162,10 @@ function body(
         ...history.map((turn) => message(protocol, turn, strip)),
         {
           role: "user",
-          content: [
+          content: last([
             ...pictures(protocol, request.images, strip),
-            { type: "text", text: request.input, cache_control: cache },
-          ],
+            ...(request.input ? [{ type: "text", text: request.input }] : []),
+          ]),
         },
       ],
     });

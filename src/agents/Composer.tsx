@@ -45,7 +45,12 @@ export type Attach = {
 };
 
 /** An own message being edited: its text as sent, and how to leave. */
-export type Editing = { original: string; onCancel: () => void };
+export type Editing = {
+  original: string;
+  /** It keeps files, so its text may be left empty. */
+  hasFiles: boolean;
+  onCancel: () => void;
+};
 
 /** Why this Agent cannot reply here yet, and the one step that fixes it. */
 export type Blocked = { text: string; action: ReactNode };
@@ -104,7 +109,9 @@ export function Composer({
   const levels = chosen?.reasoning;
   // An empty catalog and an unselected model share the same composer state.
   const unpicked = models !== undefined && !!onModel && !chosen;
-  const canSend = !!draft.trim() && !busy && !unpicked && !blocked;
+  // Files may go out without text.
+  const content = editing ? editing.hasFiles : !!attach?.files.length;
+  const canSend = (!!draft.trim() || content) && !busy && !unpicked && !blocked;
   const files = useRef<HTMLInputElement>(null);
   const form = useRef<HTMLFormElement>(null);
   // Input behavior follows the device, not the width of a desktop window.

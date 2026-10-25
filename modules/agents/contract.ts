@@ -108,6 +108,7 @@ export interface AgentProvider {
     action: "create" | "select" | "delete",
     sessionId?: string,
   ): Promise<void>;
+  /** `text` may be empty when attachments go with it. */
   send(id: string, text: string, attachments?: Attachment[]): Promise<void>;
   cancel(id: string): void;
   /**

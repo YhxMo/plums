@@ -380,11 +380,12 @@ export class AgentStore implements AgentProvider {
     /** Replaces the session's messages from index `from` on. */
     rewrite?: { sessionId: string; from: number; replaces: string },
   ) {
-    if (!input.trim() || input.length > MAX_TEXT)
-      throw new Error(`请输入 1–${MAX_TEXT} 个字符。`);
     const problem = attachmentProblem(attachments);
     if (problem) throw new Error(problem);
     const files = attachments?.length ? attachments : undefined;
+    // Files may go out alone; a message needs text or files.
+    if ((!files && !input.trim()) || input.length > MAX_TEXT)
+      throw new Error(`请输入 1–${MAX_TEXT} 个字符，或添加附件。`);
     const filesText = (files ?? []).reduce(
       (sum, a) => sum + (a.kind === "text" ? a.text.length : 0),
       0,
@@ -483,7 +484,7 @@ export class AgentStore implements AgentProvider {
             s.lastReadAt = repliedAt;
           // The first message names the session, unless it was named already.
           if (s.messages.length === 2 && s.title === UNTITLED)
-            s.title = input.slice(0, 24);
+            s.title = (input.trim() ? input : files![0].name).slice(0, 24);
           return (
             rewrite && {
               kind: "messages",
