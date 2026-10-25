@@ -117,6 +117,24 @@ export function Composer({
   // Input behavior follows the device, not the width of a desktop window.
   const enterSends = useMediaQuery("(any-pointer: fine)");
   const canAttach = !!attach && !busy;
+  // Files added by drop, picker or paste bring the box focus, so Enter sends
+  // them; not on touch, where focus opens the keyboard, nor away from
+  // another field being typed in.
+  const conversation = `${agent.id}:${agent.currentSessionId}`;
+  const count = attach?.files.length ?? 0;
+  const counted = useRef({ conversation, count });
+  useEffect(() => {
+    const before = counted.current;
+    counted.current = { conversation, count };
+    if (conversation !== before.conversation || count <= before.count) return;
+    const active = document.activeElement;
+    const typing =
+      active !== inputRef.current &&
+      active?.matches(
+        "textarea, input:not([type=file]), [contenteditable]:not([contenteditable=false])",
+      );
+    if (enterSends && !typing) inputRef.current?.focus();
+  }, [conversation, count, enterSends, inputRef]);
   useEffect(() => {
     if (!canAttach) return;
     const open = (e: KeyboardEvent) => {

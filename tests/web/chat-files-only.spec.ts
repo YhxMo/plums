@@ -9,6 +9,10 @@ test("files go out without text, and show as files, not an empty bubble", async 
   await addAgent(page, "附件助手");
   const send = page.getByRole("button", { name: "发送", exact: true });
   await expect(send).toBeDisabled();
+  const input = page.getByRole("textbox", { name: "消息", exact: true });
+  // Dropped from elsewhere: the message box does not have focus.
+  await page.getByRole("log").click();
+  await expect(input).not.toBeFocused();
   await page.evaluate(() => {
     const data = new DataTransfer();
     data.items.add(new File(["内容"], "笔记.md", { type: "text/markdown" }));
@@ -24,7 +28,9 @@ test("files go out without text, and show as files, not an empty bubble", async 
   await expect(
     page.getByRole("button", { name: "移除 笔记.md", exact: true }),
   ).toBeVisible();
-  await send.click();
+  // The box takes focus with the files, so Enter sends them at once.
+  await expect(input).toBeFocused();
+  await page.keyboard.press("Enter");
   const log = page.getByRole("log");
   await expect(log.locator("p", { hasText: /^echo-a｜/ })).toHaveCount(1);
   await expect(log.getByRole("list", { name: "附件" })).toContainText(
