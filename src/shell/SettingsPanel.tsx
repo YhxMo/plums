@@ -1,9 +1,16 @@
 import type { ReactNode } from "react";
-import { ChevronRightIcon, MoonIcon, SunIcon } from "lucide-react";
+import { ChevronDownIcon, ChevronRightIcon } from "lucide-react";
 import type { ShellDialogsProps } from "./controllers";
-import { Tooltip } from "@/components/Tooltip";
 import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
+import { VERSION } from "./version";
 
 type Props = Pick<ShellDialogsProps["operations"], "busy" | "operate"> &
   Pick<ShellDialogsProps["workspace"], "views" | "activeView"> & {
@@ -13,29 +20,112 @@ type Props = Pick<ShellDialogsProps["operations"], "busy" | "operate"> &
     openAbout(): void;
   };
 
-function Section({ title, children }: { title: string; children: ReactNode }) {
+const BUILTIN = "builtin";
+
+/** One group of rows in one hairline box. */
+function Group({ label, children }: { label: string; children: ReactNode }) {
   return (
-    <section className="grid gap-1.5">
-      <h3 className="px-1 text-xs font-medium text-muted-foreground">
-        {title}
-      </h3>
-      <div className="divide-y rounded-xl bg-muted/50 px-3.5">{children}</div>
-    </section>
+    <ul aria-label={label} className="divide-y rounded-lg border">
+      {children}
+    </ul>
   );
 }
-function Row({ label, children }: { label: ReactNode; children: ReactNode }) {
+function Row({ label, children }: { label: string; children: ReactNode }) {
   return (
-    <div className="flex min-h-12 flex-wrap items-center justify-between gap-x-4 gap-y-2 py-2">
+    <li className="flex min-h-12 items-center justify-between gap-4 py-1.5 pr-2 pl-3">
       <span className="min-w-0 shrink">{label}</span>
       {children}
-    </div>
+    </li>
   );
 }
-const choices = "flex-wrap justify-end rounded-lg bg-muted p-0.5";
-const choice =
-  "h-7 px-3 text-muted-foreground data-[state=on]:bg-card data-[state=on]:text-foreground";
+/** A row that opens a page of its own. */
+function LinkRow({
+  label,
+  value,
+  onClick,
+}: {
+  label: string;
+  value?: string;
+  onClick: () => void;
+}) {
+  return (
+    <li>
+      <button
+        type="button"
+        data-slot="settings-link"
+        className="flex min-h-12 w-full items-center justify-between gap-4 rounded-lg px-3 text-left outline-none hover:bg-muted/60 focus-visible:ring-3 focus-visible:ring-ring/50"
+        onClick={onClick}
+      >
+        {label}
+        <span className="flex items-center gap-1.5 text-muted-foreground">
+          {value}
+          <ChevronRightIcon aria-hidden="true" className="size-4" />
+        </span>
+      </button>
+    </li>
+  );
+}
+/**
+ * A choice that reads as the row's value and opens a menu of the others.
+ * Choosing the current one again still reports it, which confirms it.
+ */
+function Choice({
+  label,
+  value,
+  options,
+  disabled,
+  onChoose,
+}: {
+  label: string;
+  value: string;
+  options: readonly { value: string; label: string; detail?: string }[];
+  disabled?: boolean;
+  onChoose: (value: string) => void;
+}) {
+  const current = options.find((option) => option.value === value);
+  return (
+    <DropdownMenu modal={false}>
+      <DropdownMenuTrigger asChild>
+        <Button
+          variant="ghost"
+          size="sm"
+          // The row's name, then the value shown.
+          aria-label={`${label}，${current?.label ?? "未选择"}`}
+          disabled={disabled}
+          className="text-sm font-normal text-muted-foreground"
+        >
+          {current?.label ?? "未选择"}
+          <ChevronDownIcon data-icon="inline-end" />
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="w-56">
+        <DropdownMenuRadioGroup value={value}>
+          {options.map((option) => (
+            <DropdownMenuRadioItem
+              key={option.value}
+              value={option.value}
+              onSelect={() => onChoose(option.value)}
+            >
+              <span className="grid">
+                {option.label}
+                {option.detail && (
+                  <span className="text-xs text-muted-foreground">
+                    {option.detail}
+                  </span>
+                )}
+              </span>
+            </DropdownMenuRadioItem>
+          ))}
+        </DropdownMenuRadioGroup>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+}
 
-/** Application settings: one labelled row per choice, actions on the right. */
+/**
+ * Application settings in two groups: how the app looks (colour, theme and
+ * interface), then diagnostics and about.
+ */
 export function SettingsPanel({
   busy,
   operate,
@@ -48,116 +138,71 @@ export function SettingsPanel({
 }: Props) {
   return (
     <>
-      <Section title="界面与外观">
-        <Row label="界面布局">
+      <Group label="外观">
+        <Row label="颜色">
           <ToggleGroup
             type="single"
-            aria-label="界面布局"
+            aria-label="颜色"
             spacing={0.5}
-            className={choices}
-            value={activeView ?? ""}
-            // Choosing the current layout again also confirms and closes.
-            onValueChange={(id) => {
-              const next = id || activeView;
-              if (next) void operate(() => selectLayout(next));
+            className="rounded-md bg-muted p-0.5"
+            disabled={busy}
+            value={appearance}
+            onValueChange={(next) => {
+              if (next && next !== appearance) void operate(toggleTheme);
             }}
           >
-            {views.map((view) => (
+            {(
+              [
+                ["light", "浅色"],
+                ["dark", "深色"],
+              ] as const
+            ).map(([value, label]) => (
               <ToggleGroupItem
-                key={view.id}
-                value={view.id}
-                aria-label={`使用 ${view.label}`}
-                className={choice}
+                key={value}
+                value={value}
+                className="h-7 rounded-sm px-3 font-normal text-muted-foreground data-[state=on]:bg-card data-[state=on]:text-foreground"
               >
-                {view.label}
+                {label}
               </ToggleGroupItem>
             ))}
           </ToggleGroup>
         </Row>
-        <Row label="颜色模式">
-          <Button variant="outline" onClick={() => void operate(toggleTheme)}>
-            {appearance === "light" ? <MoonIcon /> : <SunIcon />}
-            {appearance === "light" ? "切换到深色模式" : "切换到浅色模式"}
-          </Button>
-        </Row>
-        <Row label="外观主题">
-          <ToggleGroup
-            type="single"
-            aria-label="扩展主题"
-            spacing={0.5}
-            className={choices}
+        <Row label="主题">
+          <Choice
+            label="主题"
             disabled={busy}
-            value={themeId ?? "builtin"}
-            onValueChange={(id) =>
-              id &&
-              void operate(() => selectTheme(id === "builtin" ? null : id))
+            value={themeId ?? BUILTIN}
+            onChoose={(id) =>
+              void operate(() => selectTheme(id === BUILTIN ? null : id))
             }
-          >
-            <ToggleGroupItem
-              value="builtin"
-              aria-label="使用内置外观"
-              className={choice}
-            >
-              内置外观
-            </ToggleGroupItem>
-            {themes.map((entry) => (
-              <Tooltip
-                key={entry.id}
-                label={`${entry.id}，来自 ${entry.owner}`}
-              >
-                <ToggleGroupItem
-                  value={entry.id}
-                  aria-label={`使用 ${entry.label} ${entry.id}，来自 ${entry.owner}`}
-                  className={choice}
-                >
-                  {entry.label}
-                </ToggleGroupItem>
-              </Tooltip>
-            ))}
-          </ToggleGroup>
+            options={[
+              { value: BUILTIN, label: "内置" },
+              ...themes.map((entry) => ({
+                value: entry.id,
+                label: entry.label,
+                detail: `${entry.id}，来自 ${entry.owner}`,
+              })),
+            ]}
+          />
         </Row>
-      </Section>
-      <p className="-mt-2 px-1 text-xs text-muted-foreground">
-        界面和主题来自已启用的扩展；启用状态会自动保留到下次打开。
-      </p>
-      <Section title="扩展与连接">
-        <Row
-          label={
-            <span className="text-muted-foreground">
-              模型连接器和其他能力都在扩展中配置与启用。
-            </span>
-          }
-        >
-          <Button variant="outline" onClick={() => openManager()}>
-            管理扩展
-            <ChevronRightIcon data-icon="inline-end" />
-          </Button>
+        <Row label="界面">
+          <Choice
+            label="界面"
+            value={activeView ?? ""}
+            onChoose={(id) => void operate(() => selectLayout(id))}
+            options={views.map((view) => ({
+              value: view.id,
+              label: view.label,
+            }))}
+          />
         </Row>
-      </Section>
-      <Section title="关于">
-        <Row label={<span className="text-muted-foreground">版本与说明</span>}>
-          <Button variant="outline" onClick={openAbout}>
-            关于 Plums
-            <ChevronRightIcon data-icon="inline-end" />
-          </Button>
-        </Row>
-      </Section>
-      {import.meta.env.DEV && (
-        <Section title="数据与诊断">
-          <Row
-            label={
-              <span className="text-muted-foreground">
-                数据保存在本机。诊断工具可检查任务、权限与恢复状态。
-              </span>
-            }
-          >
-            <Button variant="outline" onClick={() => openManager(true)}>
-              打开诊断工具
-              <ChevronRightIcon data-icon="inline-end" />
-            </Button>
-          </Row>
-        </Section>
-      )}
+      </Group>
+      <Group label="其他">
+        {import.meta.env.DEV && (
+          <LinkRow label="诊断工具" onClick={() => openManager(true)} />
+        )}
+        <LinkRow label="关于 Plums" value={VERSION} onClick={openAbout} />
+      </Group>
     </>
   );
 }

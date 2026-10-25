@@ -1,7 +1,9 @@
 import { afterEach, expect, it, vi } from "vitest";
 import { createElement, type ComponentProps } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
+import { readFileSync } from "node:fs";
 import { SettingsPanel } from "../src/shell/SettingsPanel";
+import { VERSION } from "../src/shell/version";
 
 afterEach(() => vi.unstubAllEnvs());
 const props: ComponentProps<typeof SettingsPanel> = {
@@ -23,15 +25,22 @@ const props: ComponentProps<typeof SettingsPanel> = {
   openAbout: () => {},
 };
 it.each([false, true])(
-  "only advertises diagnostics when available (DEV=%s)",
+  "groups how the app looks, then diagnostics (DEV=%s) and about",
   (dev) => {
     vi.stubEnv("DEV", dev);
     const html = renderToStaticMarkup(createElement(SettingsPanel, props));
-    expect(html.includes("打开诊断工具")).toBe(dev);
-    expect(html.includes("数据与诊断")).toBe(dev);
-    expect(html).toContain("管理扩展");
-    // What the app menu used to hold now lives here.
-    expect(html).toContain("切换到浅色模式");
+    expect(html.includes("诊断工具")).toBe(dev);
+    expect(html).toContain('aria-label="外观"');
+    expect(html).toContain('aria-label="颜色"');
+    expect(html).toContain("深色");
     expect(html).toContain("关于 Plums");
+    expect(html).toContain(VERSION);
+    // Extensions have their own place on the rail; no detour from here.
+    expect(html).not.toContain("管理扩展");
   },
 );
+
+it("shows the version package.json has", () => {
+  const manifest = JSON.parse(readFileSync("package.json", "utf8"));
+  expect(VERSION).toBe(manifest.version);
+});

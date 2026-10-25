@@ -1,5 +1,5 @@
 import { test, expect } from "@playwright/test";
-import { manage, openSettings, installByPath } from "./helpers";
+import { manage, openSettings, installByPath, pickLayout } from "./helpers";
 
 for (const width of [375, 768, 1440]) {
   test(`author samples install and pause/resume without a chat layout at ${width}`, async ({
@@ -18,9 +18,7 @@ for (const width of [375, 768, 1440]) {
         .click();
     }
     await openSettings(page);
-    await page
-      .getByRole("radio", { name: "使用 计数样板", exact: true })
-      .click();
+    await pickLayout(page, "计数样板");
     await page.getByRole("button", { name: "返回工作区", exact: true }).click();
     const increment = page.getByRole("button", {
       name: "增加计数",

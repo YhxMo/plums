@@ -303,7 +303,9 @@ test("the attach shortcut stays quiet behind the extension manager and under dia
   expect(await chooserOpens()).toBe(false);
   await page.getByRole("button", { name: "返回工作区", exact: true }).click();
   await openSettings(page);
-  await expect(page.getByRole("dialog", { name: "应用设置" })).toBeVisible();
+  await expect(
+    page.getByRole("dialog", { name: "设置", exact: true }),
+  ).toBeVisible();
   expect(await chooserOpens()).toBe(false);
   await page.keyboard.press("Escape");
   await page.getByRole("textbox", { name: "消息", exact: true }).focus();

@@ -1,5 +1,11 @@
 import { expect, test, type Page } from "@playwright/test";
-import { manage, persisted, openSettings, shellButton } from "./helpers";
+import {
+  manage,
+  persisted,
+  openSettings,
+  shellButton,
+  pickLayout,
+} from "./helpers";
 async function enable(page: Page) {
   await manage(page);
   await page
@@ -69,16 +75,12 @@ for (const width of [375, 1440]) {
       page.getByRole("status").filter({ hasText: "已保存" }),
     ).toBeVisible();
     await openSettings(page);
-    await page
-      .getByRole("radio", { name: "使用 Agent 界面", exact: true })
-      .click();
+    await pickLayout(page, "Agent 界面");
     await expect(
       page.getByRole("heading", { name: "还没有 Agent" }),
     ).toBeVisible();
     await openSettings(page);
-    await page
-      .getByRole("radio", { name: "使用 文本处理工作台", exact: true })
-      .click();
+    await pickLayout(page, "文本处理工作台");
     await expect(page.getByRole("textbox", { name: "输入文本" })).toHaveValue(
       "draft after result",
     );

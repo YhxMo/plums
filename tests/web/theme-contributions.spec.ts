@@ -1,8 +1,14 @@
 import { expect, test, type Page } from "@playwright/test";
-import { manage, persisted, openSettings, installByPath } from "./helpers";
+import {
+  manage,
+  persisted,
+  openSettings,
+  installByPath,
+  pickTheme,
+} from "./helpers";
 async function settings(page: Page) {
   await openSettings(page);
-  return page.getByRole("dialog", { name: "应用设置" });
+  return page.getByRole("dialog", { name: "设置", exact: true });
 }
 /** The computed colour a CSS value (such as a variable) resolves to. */
 const resolve = (page: Page, value: string) =>
@@ -32,7 +38,7 @@ for (const width of [320, 375, 768, 1440])
     await install(page, "ocean");
     await install(page, "ink");
     const dialog = await settings(page);
-    await dialog.getByRole("radio", { name: /^使用 海湾/ }).click();
+    await pickTheme(page, "海湾");
     await expect(page.locator("html")).toHaveAttribute(
       "data-theme-id",
       "sample.ocean",
@@ -42,7 +48,7 @@ for (const width of [320, 375, 768, 1440])
     expect(await resolve(page, "var(--chat)")).toBe("rgb(245, 250, 248)");
     expect(await resolve(page, "var(--chrome)")).not.toBe("rgb(238, 238, 240)");
     expect(await resolve(page, "var(--selection)")).toBe("rgb(23, 107, 99)");
-    await dialog.getByRole("radio", { name: /^使用 墨夜/ }).click();
+    await pickTheme(page, "墨夜");
     await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
     // A palette that names them is used as given.
     expect(await resolve(page, "var(--chrome)")).toBe("rgb(26, 29, 50)");
@@ -87,9 +93,7 @@ for (const width of [320, 375, 768, 1440])
       "sample.ink",
     );
     const restored = await settings(page);
-    await restored
-      .getByRole("radio", { name: "使用内置外观", exact: true })
-      .click();
+    await pickTheme(page, "内置");
     await expect(page.locator("html")).not.toHaveAttribute("data-theme-id");
     await restored.getByRole("button", { name: "关闭" }).click();
     await page.reload();
@@ -103,12 +107,12 @@ test("failed theme preference write keeps the applied palette", async ({
   await install(page, "ocean");
   await install(page, "ink");
   const dialog = await settings(page);
-  await dialog.getByRole("radio", { name: /^使用 海湾/ }).click();
+  await pickTheme(page, "海湾");
   await dialog.getByRole("button", { name: "关闭" }).click();
   await manage(page, true);
   await page.getByLabel("注入存储写入失败").check();
   const failed = await settings(page);
-  await failed.getByRole("radio", { name: /^使用 墨夜/ }).click();
+  await pickTheme(page, "墨夜");
   await expect(page.locator("html")).toHaveAttribute(
     "data-theme-id",
     "sample.ocean",

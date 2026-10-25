@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { manage, openSettings } from "./helpers";
+import { manage, openSettings, pickLayout } from "./helpers";
 
 test("React views release cleanly across layout and extension lifecycles", async ({
   page,
@@ -20,9 +20,7 @@ test("React views release cleanly across layout and extension lifecycles", async
     .getByRole("button", { name: "授权并启动", exact: true })
     .click();
   await openSettings(page);
-  await page
-    .getByRole("radio", { name: "使用 Agent 界面", exact: true })
-    .click();
+  await pickLayout(page, "Agent 界面");
   await manage(page);
   await page
     .getByRole("button", { name: "停用 ui.agents", exact: true })

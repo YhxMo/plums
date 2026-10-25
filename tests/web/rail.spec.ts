@@ -5,6 +5,7 @@ import {
   openSettings,
   installByPath,
   serveModule,
+  pickTheme,
 } from "./helpers";
 
 const style = (target: Locator, property: string) =>
@@ -83,7 +84,7 @@ for (const scheme of ["light", "dark"] as const)
     );
     // No app menu and no light/dark switch outside the settings.
     await expect(page.getByRole("button", { name: "应用菜单" })).toHaveCount(0);
-    await expect(page.getByRole("button", { name: /切换到/ })).toHaveCount(0);
+    await expect(page.getByRole("radio", { name: "深色" })).toHaveCount(0);
     await extensions.click();
     await expect(
       page.getByRole("heading", { name: "扩展", exact: true }),
@@ -145,12 +146,12 @@ test("settings holds light/dark, about and the extension manager", async ({
   await page.goto("/");
   const settings = page.getByRole("button", { name: "设置", exact: true });
   await settings.click();
-  const dialog = page.getByRole("dialog", { name: "应用设置" });
+  const dialog = page.getByRole("dialog", { name: "设置", exact: true });
   await page.keyboard.press("Escape");
   await expect(dialog).toBeHidden();
   await expect(settings).toBeFocused();
   await settings.click();
-  await dialog.getByRole("button", { name: "切换到深色模式" }).click();
+  await dialog.getByRole("radio", { name: "深色", exact: true }).click();
   await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
   await dialog.getByRole("button", { name: "关于 Plums" }).click();
   const about = page.getByRole("dialog", { name: "关于 Plums" });
@@ -170,7 +171,9 @@ test("phones keep extensions and settings in the title bar", async ({
   await expect(page.getByRole("navigation", { name: "应用导航" })).toBeHidden();
   await expect(bar.getByRole("button", { name: "应用菜单" })).toHaveCount(0);
   await bar.getByRole("button", { name: "设置", exact: true }).click();
-  await expect(page.getByRole("dialog", { name: "应用设置" })).toBeVisible();
+  await expect(
+    page.getByRole("dialog", { name: "设置", exact: true }),
+  ).toBeVisible();
   await page.keyboard.press("Escape");
   await bar.getByRole("button", { name: "扩展", exact: true }).click();
   await expect(
@@ -267,8 +270,8 @@ test("a contributed theme recolours the rail and the list; without the Agent int
   await page
     .getByRole("button", { name: "启用 sample.theme-ink", exact: true })
     .click();
-  const settings = await openSettings(page);
-  await settings.getByRole("radio", { name: /^使用 墨夜/ }).click();
+  await openSettings(page);
+  await pickTheme(page, "墨夜");
   await page.keyboard.press("Escape");
   await page.getByRole("button", { name: "返回工作区", exact: true }).click();
   const rail = page.getByRole("navigation", { name: "应用导航" });

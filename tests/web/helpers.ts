@@ -18,12 +18,30 @@ export async function manage(page: Page, diagnostics = false) {
 /** Opens application settings from the rail or the phone title bar. */
 export async function openSettings(page: Page) {
   await shellButton(page, "设置").click();
-  return page.getByRole("dialog", { name: "应用设置" });
+  return page.getByRole("dialog", { name: "设置", exact: true });
+}
+/** Picks the interface in the open settings. */
+export async function pickLayout(page: Page, label: string) {
+  await page
+    .getByRole("dialog", { name: "设置", exact: true })
+    .getByRole("button", { name: /^界面，/ })
+    .click();
+  await page.getByRole("menuitemradio", { name: label, exact: true }).click();
+}
+/** Picks a theme, by its label, in the open settings. */
+export async function pickTheme(page: Page, label: string) {
+  await page
+    .getByRole("dialog", { name: "设置", exact: true })
+    .getByRole("button", { name: /^主题，/ })
+    .click();
+  await page
+    .getByRole("menuitemradio", { name: new RegExp(`^${label}`) })
+    .click();
 }
 /** Switches light/dark in settings, then closes them. */
 export async function switchAppearance(page: Page, to: "深色" | "浅色") {
   const dialog = await openSettings(page);
-  await dialog.getByRole("button", { name: `切换到${to}模式` }).click();
+  await dialog.getByRole("radio", { name: to, exact: true }).click();
   await page.keyboard.press("Escape");
   await expect(dialog).toBeHidden();
 }
@@ -97,11 +115,7 @@ export async function chooseLayout(page: Page, id: string) {
     "combo-owner": "组合所有者",
   };
   const dialog = await openSettings(page);
-  const button = dialog.getByRole("radio", {
-    name: `使用 ${names[id]}`,
-    exact: true,
-  });
-  await button.click();
+  await pickLayout(page, names[id]);
   await expect(dialog).not.toBeVisible();
 }
 /** Messages saved for an Agent's first session, read from its stored records. */

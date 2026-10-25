@@ -129,7 +129,9 @@ test("system Back dismisses settings, then authorization, without granting", asy
   const trigger = page.getByRole("button", { name: "设置", exact: true });
   await trigger.click();
   expect(await back(page)).toBe(false);
-  await expect(page.getByRole("dialog", { name: "应用设置" })).toBeHidden();
+  await expect(
+    page.getByRole("dialog", { name: "设置", exact: true }),
+  ).toBeHidden();
   await expect(trigger).toBeFocused();
   const launch = await legacyEntry(page);
   await launch.click();

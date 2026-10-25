@@ -4,6 +4,7 @@ import { ExtensionView } from "./ExtensionView";
 import { Dialog, DialogBody } from "@/components/Dialog";
 import { Button } from "@/components/ui/button";
 import { SettingsPanel } from "./SettingsPanel";
+import { VERSION } from "./version";
 export function ShellDialogs({
   host,
   operations,
@@ -56,7 +57,7 @@ export function ShellDialogs({
   return (
     <Dialog
       key={settings}
-      title={settings === "about" ? "关于 Plums" : "应用设置"}
+      title={settings === "about" ? "关于 Plums" : "设置"}
       returnFocusTo={navigation.dialogTrigger}
       onBack={navigation.back}
       onClose={() => setSettings(null)}
@@ -71,7 +72,7 @@ export function ShellDialogs({
             alt=""
           />
           <div className="grid gap-1">
-            <h3 className="text-xl font-semibold">Plums 0.2.0</h3>
+            <h3 className="text-xl font-semibold">Plums {VERSION}</h3>
             <p>通过扩展组合角色、能力和界面。</p>
           </div>
           <p className="max-w-sm text-xs text-muted-foreground">
@@ -79,7 +80,7 @@ export function ShellDialogs({
           </p>
         </DialogBody>
       ) : (
-        <DialogBody className="gap-5">
+        <DialogBody className="gap-4">
           <SettingsPanel
             busy={busy}
             operate={operate}

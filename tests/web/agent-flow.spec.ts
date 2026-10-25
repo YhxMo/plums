@@ -9,6 +9,7 @@ import {
   serveModule,
   nextStep,
   openAddAgent,
+  pickLayout,
 } from "./helpers";
 import { expect, test, type Page } from "@playwright/test";
 const sidebarToggle = (page: Page) =>
@@ -159,7 +160,7 @@ test("switching light and dark in settings keeps the draft and returns focus", a
   await add(page, "本地助手");
   await page.getByRole("textbox", { name: "消息", exact: true }).fill("draft");
   const dialog = await openSettings(page);
-  await dialog.getByRole("button", { name: "切换到深色模式" }).click();
+  await dialog.getByRole("radio", { name: "深色", exact: true }).click();
   await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
   await page.keyboard.press("Escape");
   await expect(
@@ -588,23 +589,20 @@ test("settings reports rejected layout and theme writes inside the modal and ret
   await manage(page, true);
   await page.getByLabel("注入存储写入失败").check();
   await openSettings(page);
-  const dialog = page.getByRole("dialog", { name: "应用设置", exact: true });
+  const dialog = page.getByRole("dialog", { name: "设置", exact: true });
   const before = await page.locator("html").getAttribute("data-theme");
-  await dialog
-    .getByRole("radio", { name: "使用 Agent 界面", exact: true })
-    .click();
+  const other = before === "light" ? "深色" : "浅色";
+  await pickLayout(page, "Agent 界面");
   await expect(dialog.getByRole("alert")).toContainText("注入的写入故障");
-  await dialog.getByRole("button", { name: /切换到.*模式/ }).click();
+  await dialog.getByRole("radio", { name: other, exact: true }).click();
   await expect(dialog.getByRole("alert")).toContainText("注入的写入故障");
   await expect(page.locator("html")).toHaveAttribute("data-theme", before!);
   await page.keyboard.press("Escape");
   await page.getByLabel("注入存储写入失败").uncheck();
   await openSettings(page);
-  await dialog.getByRole("button", { name: /切换到.*模式/ }).click();
+  await dialog.getByRole("radio", { name: other, exact: true }).click();
   await expect(page.locator("html")).not.toHaveAttribute("data-theme", before!);
-  await dialog
-    .getByRole("radio", { name: "使用 Agent 界面", exact: true })
-    .click();
+  await pickLayout(page, "Agent 界面");
   await expect(dialog).not.toBeVisible();
 });
 

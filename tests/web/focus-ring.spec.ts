@@ -19,7 +19,7 @@ test("focus returned after a click stays quiet until the keyboard is used", asyn
   await page.goto("/");
   const menu = page.getByRole("button", { name: "设置", exact: true });
   await menu.click();
-  const settings = page.getByRole("dialog", { name: "应用设置", exact: true });
+  const settings = page.getByRole("dialog", { name: "设置", exact: true });
   await settings.getByRole("button", { name: "关闭", exact: true }).click();
   await expect(settings).not.toBeVisible();
   await expect(menu).toBeFocused();
