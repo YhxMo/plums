@@ -36,7 +36,7 @@ for (const width of [375, 1180]) {
     await page.getByLabel("笔记草稿").fill("未保存的独立草稿");
     await manage(page);
     await expect(
-      page.getByRole("heading", { name: "扩展与状态" }),
+      page.getByRole("heading", { name: "扩展", exact: true }),
     ).toBeVisible();
     await expect(
       page.getByRole("button", { name: "启用 agents.local", exact: true }),

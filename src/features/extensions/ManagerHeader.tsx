@@ -1,8 +1,7 @@
-import { ArrowLeftIcon, PlusIcon } from "lucide-react";
+import { ArrowLeftIcon } from "lucide-react";
 import type { ManagerHeaderController } from "./controllers";
 import { Tooltip } from "@/components/Tooltip";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 
 export function ManagerHeader({
   controller,
@@ -11,38 +10,35 @@ export function ManagerHeader({
 }) {
   return (
     <div
-      className="shrink-0 border-b px-6 py-3 max-manager:px-4"
+      className="flex h-14 shrink-0 items-center gap-2 border-b pr-4 pl-3"
       data-tauri-drag-region="deep"
     >
-      <div className="mx-auto flex max-w-310 flex-wrap items-center justify-between gap-3">
-        <div className="flex min-w-0 items-center gap-2">
-          <Tooltip label={controller.backLabel}>
-            <Button
-              variant="ghost"
-              size="icon"
-              aria-label={controller.backLabel}
-              onClick={controller.close}
-            >
-              <ArrowLeftIcon />
-            </Button>
-          </Tooltip>
-          <h2
-            ref={controller.heading}
-            tabIndex={-1}
-            className="text-base font-semibold outline-none"
-          >
-            扩展与状态
-          </h2>
-          <Badge variant="secondary">{controller.count}</Badge>
-        </div>
+      <Tooltip label={controller.backLabel}>
         <Button
-          className="max-md:w-full"
-          onClick={(event) => controller.install(event.currentTarget)}
+          variant="ghost"
+          size="icon"
+          aria-label={controller.backLabel}
+          onClick={controller.close}
         >
-          <PlusIcon data-icon="inline-start" />
-          安装扩展
+          <ArrowLeftIcon />
         </Button>
-      </div>
+      </Tooltip>
+      <h2
+        ref={controller.heading}
+        tabIndex={-1}
+        className="text-base font-semibold outline-none"
+      >
+        扩展
+      </h2>
+      <span className="text-xs text-muted-foreground">
+        {controller.count} 个
+      </span>
+      <Button
+        className="ml-auto"
+        onClick={(event) => controller.install(event.currentTarget)}
+      >
+        安装扩展
+      </Button>
     </div>
   );
 }

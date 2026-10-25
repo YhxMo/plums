@@ -110,7 +110,7 @@ for (const failure of ["snapshot", "subscribe", "notification"]) {
     await expect(page.getByRole("alert")).toContainText("chrome");
     await manage(page);
     await expect(
-      page.getByRole("heading", { name: "扩展与状态" }),
+      page.getByRole("heading", { name: "扩展", exact: true }),
     ).toBeVisible();
     await page.getByRole("button", { name: "返回工作区", exact: true }).click();
     await expect(
@@ -253,7 +253,7 @@ for (const width of [375, 1180]) {
     );
     await manage(page);
     await expect(
-      page.getByRole("heading", { name: "扩展与状态", exact: true }),
+      page.getByRole("heading", { name: "扩展", exact: true }),
     ).toBeVisible();
   });
 }

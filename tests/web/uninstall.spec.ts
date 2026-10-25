@@ -52,7 +52,9 @@ test("uninstall preserves extension data and cold reload does not restore import
   await expect(
     page.getByRole("button", { name: "卸载 sample.counter", exact: true }),
   ).toHaveCount(0);
-  await expect(page.getByRole("heading", { name: "扩展与状态" })).toBeFocused();
+  await expect(
+    page.getByRole("heading", { name: "扩展", exact: true }),
+  ).toBeFocused();
   await page.reload();
   await manage(page);
   await expect(

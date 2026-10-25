@@ -56,7 +56,9 @@ test("authorization can be cancelled and restores keyboard focus", async ({
   await expect(dialog).not.toBeVisible();
   await expect(launch).toBeFocused();
   await manage(page);
-  const workbench = page.locator("article").filter({ hasText: "文本工作台" });
+  const workbench = page
+    .locator("[data-extension-id]")
+    .filter({ hasText: "文本工作台" });
   await expect(workbench).toContainText("已停用");
   await expect(await extensionDetail(page, workbench)).toContainText(
     "/services/workbench/",
@@ -77,7 +79,7 @@ for (const width of [375, 1280]) {
     await page.goto("/");
     await manage(page);
     await expect(
-      page.getByRole("heading", { name: "扩展与状态" }),
+      page.getByRole("heading", { name: "扩展", exact: true }),
     ).toBeVisible();
     await page.getByRole("button", { name: "返回工作区" }).click();
     await (await legacyEntry(page)).click();
@@ -95,7 +97,9 @@ for (const width of [375, 1280]) {
     await page.getByRole("button", { name: "返回工作区" }).click();
     await expect(page.getByRole("textbox")).toHaveValue("unsaved draft");
     await manage(page);
-    const workbench = page.locator("article").filter({ hasText: "文本工作台" });
+    const workbench = page
+      .locator("[data-extension-id]")
+      .filter({ hasText: "文本工作台" });
     await expect(workbench).toContainText("运行中");
     await workbench
       .getByRole("button", { name: "停用 workbench", exact: true })
@@ -122,7 +126,7 @@ test("management and authorization fit narrow and intermediate screens", async (
     await page.goto("/");
     await manage(page);
     await expect(
-      page.getByRole("heading", { name: "扩展与状态" }),
+      page.getByRole("heading", { name: "扩展", exact: true }),
     ).toBeInViewport();
     expect(
       await page.evaluate(() =>
@@ -177,7 +181,9 @@ test("dismissible fallback notice, independent extension manager page and topbar
   await expect(fallback).toContainText("工作台 (default)");
   await expect(fallback).toContainText("尚未启用");
   await fallback.getByRole("button", { name: "查看原因", exact: true }).click();
-  await expect(page.getByRole("heading", { name: "扩展与状态" })).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: "扩展", exact: true }),
+  ).toBeVisible();
   await expect(page.locator("[data-workspace]")).toBeHidden();
   await expect(
     page.getByRole("region", { name: "所选扩展详情" }),
@@ -210,7 +216,7 @@ test("dismissible fallback notice, independent extension manager page and topbar
 
   await manage(page);
   await page
-    .locator("#extension-manager article")
+    .locator("#extension-manager [data-extension-id]")
     .filter({ hasText: "Agent 核心" })
     .click();
   // Agent names arrive only through the extension's published users.

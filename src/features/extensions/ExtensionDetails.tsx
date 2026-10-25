@@ -24,7 +24,7 @@ export function DetailSection({
 }) {
   return (
     <section className="mt-4 border-t pt-3.5 first:mt-0 first:border-0 first:pt-0">
-      <h4 className="mb-2.5 flex items-center gap-1 text-sm font-semibold">
+      <h4 className="mb-2.5 flex items-center gap-1 text-xs font-medium text-muted-foreground">
         {title}
         {info && <InfoTip label={title} text={info} />}
       </h4>
@@ -51,27 +51,22 @@ export function ExtensionDetails({
   return (
     <section
       aria-label="所选扩展详情"
-      className={cn(
-        inline
-          ? "mt-3 cursor-default border-t pt-3"
-          : "rounded-xl border bg-card p-5",
-      )}
+      className={cn(inline ? "mt-3 cursor-default border-t pt-3" : undefined)}
       onClick={inline ? (event) => event.stopPropagation() : undefined}
     >
       <header hidden={inline} className="mb-1">
-        <div className="flex items-center justify-between gap-2">
-          <h3 className="text-base font-semibold tracking-tight">
-            {activeSelectedExt.label}
-          </h3>
+        <div className="flex items-center gap-2">
+          <h3 className="text-base font-semibold">{activeSelectedExt.label}</h3>
           <StatusBadge status={extState.status} />
         </div>
-        <code className="mt-1 block text-xs text-muted-foreground">
-          {extId} {extManifest.version}
-        </code>
+        <div className="mt-1.5 flex gap-2.5 text-xs text-muted-foreground">
+          <code>{extId}</code>
+          <span>{extManifest.version}</span>
+        </div>
       </header>
       {extManifest.description && (
         // Author text from the manifest; React renders it as plain text.
-        <p className="mt-3 [overflow-wrap:anywhere] whitespace-pre-line">
+        <p className="mt-4 leading-relaxed [overflow-wrap:anywhere] whitespace-pre-line">
           {extManifest.description}
         </p>
       )}

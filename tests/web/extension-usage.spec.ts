@@ -19,9 +19,9 @@ for (const width of [375, 1280]) {
       .getByRole("button", { name: `查看扩展 ${echo}`, exact: true })
       .click();
     await expect(
-      page.getByRole("heading", { name: "扩展与状态" }),
+      page.getByRole("heading", { name: "扩展", exact: true }),
     ).toBeVisible();
-    const card = page.locator('article[data-extension-id="chat.echo"]');
+    const card = page.locator('[data-extension-id="chat.echo"]');
     await expect(
       card.getByRole("button", { name: echo, exact: true }),
     ).toHaveAttribute("aria-pressed", "true");

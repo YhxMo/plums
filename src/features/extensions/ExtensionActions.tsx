@@ -1,10 +1,3 @@
-import {
-  AppWindowIcon,
-  PowerIcon,
-  PowerOffIcon,
-  Settings2Icon,
-  Trash2Icon,
-} from "lucide-react";
 import type { ExtensionCardModel, ExtensionRowActions } from "./controllers";
 import { Button } from "@/components/ui/button";
 
@@ -27,47 +20,44 @@ export function ExtensionActions({
   const { id } = entry;
   const active = state.status === "active";
   return (
-    <div className="flex flex-wrap items-center justify-end gap-2">
+    <div className="flex flex-wrap items-center justify-end gap-1.5">
       {active &&
         dialogs.map((view) => (
           <Button
             key={view.id}
             variant="outline"
-            size="sm"
+            size="xs"
             aria-label={`打开 ${view.label}`}
             onClick={(event) => actions.openView(view, event.currentTarget)}
           >
-            <AppWindowIcon data-icon="inline-start" />
-            {view.label}
+            {dialogs.length > 1 ? view.label : "打开"}
           </Button>
         ))}
       {manifest.configuration && (
         <Button
           variant="outline"
-          size="sm"
+          size="xs"
           aria-label={`配置 ${id}`}
           disabled={busy}
           onClick={(event) => actions.configure(id, event.currentTarget)}
         >
-          <Settings2Icon data-icon="inline-start" />
           配置
         </Button>
       )}
       {imported && (
         <Button
-          variant="ghost"
-          size="sm"
+          variant="outline"
+          size="xs"
           disabled={busy}
           aria-label={`卸载 ${id}`}
           onClick={(event) => actions.uninstall(id, event.currentTarget)}
         >
-          <Trash2Icon data-icon="inline-start" />
-          卸载（保留数据）
+          卸载
         </Button>
       )}
       <Button
-        variant={active ? "outline" : "secondary"}
-        size="sm"
+        variant="outline"
+        size="xs"
         aria-label={`${active ? "停用" : "启用"} ${id}`}
         disabled={
           busy ||
@@ -76,11 +66,6 @@ export function ExtensionActions({
         }
         onClick={(event) => actions.toggle(extension, event.currentTarget)}
       >
-        {active ? (
-          <PowerOffIcon data-icon="inline-start" />
-        ) : (
-          <PowerIcon data-icon="inline-start" />
-        )}
         {active ? "停用" : state.status === "waiting" ? "恢复" : "启用"}
       </Button>
     </div>

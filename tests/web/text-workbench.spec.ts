@@ -210,12 +210,16 @@ test("permission refusal preserves the current UI; replacing the transform provi
     page.getByRole("status").filter({ hasText: "已保存" }),
   ).toBeVisible();
   await page.getByRole("button", { name: "更换服务", exact: true }).click();
-  await expect(page.getByRole("heading", { name: "扩展与状态" })).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: "扩展", exact: true }),
+  ).toBeVisible();
   await page
     .getByRole("button", { name: "停用 transform.upper", exact: true })
     .click();
   await expect(
-    page.locator("article").filter({ hasText: "ui.workbench-board" }),
+    page
+      .locator("[data-extension-id]")
+      .filter({ hasText: "ui.workbench-board" }),
   ).toContainText("等待条件");
   await page
     .getByRole("button", { name: "启用 transform.reverse", exact: true })
@@ -252,7 +256,9 @@ test("mobile result detail keeps host management above extension layers", async 
   await page.locator(".tw-result").first().click();
   await expect(page.getByRole("dialog", { name: "结果详情" })).toBeVisible();
   await shellButton(page, "扩展").click({ timeout: 2000 });
-  await expect(page.getByRole("heading", { name: "扩展与状态" })).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: "扩展", exact: true }),
+  ).toBeVisible();
   await page.getByRole("button", { name: "返回工作区", exact: true }).click();
   await expect(page.getByRole("dialog", { name: "结果详情" })).toBeVisible();
   await page.getByRole("button", { name: "关闭详情", exact: true }).click();

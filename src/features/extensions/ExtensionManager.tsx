@@ -35,23 +35,23 @@ export function ExtensionManager({
         aria-label="扩展管理"
       >
         <ManagerHeader controller={controller.header} />
-        <div className="min-h-0 flex-1 overflow-auto px-6 pt-4 pb-5 max-manager:px-4">
-          <div className="mx-auto grid max-w-310 grid-cols-[minmax(280px,0.42fr)_minmax(320px,0.58fr)] items-start gap-5 max-manager:grid-cols-1">
-            <div className="min-w-0">
-              <ExtensionList
-                controller={controller.list}
-                selectedDetail={narrow ? details : undefined}
-              />
-            </div>
-            <div className="sticky top-0 flex min-w-0 flex-col gap-3.5 max-manager:static">
-              {!narrow && details}
-              {diagnostics}
-              <RetainedCredentialBindings
-                access={detail.access}
-                operations={detail.operations}
-                installed={controller.list.installed}
-              />
-            </div>
+        {/* The list and the selected extension side by side, each
+            scrolling; narrow windows open the details inside the list. */}
+        <div className="grid min-h-0 flex-1 grid-cols-[minmax(296px,0.45fr)_minmax(0,0.55fr)] max-manager:grid-cols-1 max-manager:overflow-auto">
+          <div className="min-w-0 overflow-auto border-r p-2 max-manager:overflow-visible max-manager:border-r-0">
+            <ExtensionList
+              controller={controller.list}
+              selectedDetail={narrow ? details : undefined}
+            />
+          </div>
+          <div className="flex min-w-0 flex-col gap-3.5 overflow-auto px-6 py-6 max-manager:overflow-visible max-manager:px-4 max-manager:py-3 max-manager:empty:hidden">
+            {!narrow && details}
+            {diagnostics}
+            <RetainedCredentialBindings
+              access={detail.access}
+              operations={detail.operations}
+              installed={controller.list.installed}
+            />
           </div>
         </div>
       </aside>

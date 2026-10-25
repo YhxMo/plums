@@ -22,12 +22,13 @@ export function ExtensionCard({
   const { entry, manifest, state, users, selected: isSelected } = extension;
   const { id } = entry;
   return (
-    <article
+    <li
       key={id}
       data-extension-id={id}
+      data-selected={isSelected}
       className={cn(
-        "mb-2 cursor-pointer rounded-xl border bg-card p-3.5 hover:bg-muted max-md:px-4",
-        isSelected && "bg-muted",
+        "cursor-pointer rounded-md px-3 py-2.5 hover:bg-muted/60",
+        isSelected && "bg-muted hover:bg-muted",
       )}
       onClick={onSelect}
     >
@@ -38,7 +39,7 @@ export function ExtensionCard({
             <button
               type="button"
               data-slot="extension-title"
-              className="min-w-0 truncate text-left text-sm font-semibold outline-none focus-visible:underline"
+              className="min-w-0 truncate text-left text-sm font-medium outline-none focus-visible:underline"
               aria-pressed={isSelected}
               onClick={onSelect}
             >
@@ -46,10 +47,9 @@ export function ExtensionCard({
             </button>
             <StatusBadge status={state.status} />
           </div>
-          <p className="mt-0.5 flex flex-wrap gap-x-1.5 text-xs text-muted-foreground">
-            <code>
-              {id} {manifest.version}
-            </code>
+          <p className="mt-0.5 flex flex-wrap gap-x-2.5 text-xs text-muted-foreground">
+            <code>{id}</code>
+            <span>{manifest.version}</span>
             {users.map((group) =>
               group.users.length ? (
                 <span key={group.owner}>
@@ -70,6 +70,6 @@ export function ExtensionCard({
           请重新启动应用以恢复此扩展。
         </p>
       )}
-    </article>
+    </li>
   );
 }

@@ -142,7 +142,9 @@ test("extension management and open dialogs refuse files without a hint, and the
   await expect(chip(page, "弹窗.txt")).toHaveCount(0);
 
   await manage(page);
-  await expect(page.getByRole("heading", { name: "扩展与状态" })).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: "扩展", exact: true }),
+  ).toBeVisible();
   const overManager = await drag(page, ".pane", "管理.txt");
   expect(overManager.over).toEqual(refused);
   expect(overManager.drop!.prevented).toBe(true);

@@ -86,7 +86,7 @@ for (const scheme of ["light", "dark"] as const)
     await expect(page.getByRole("button", { name: /切换到/ })).toHaveCount(0);
     await extensions.click();
     await expect(
-      page.getByRole("heading", { name: "扩展与状态" }),
+      page.getByRole("heading", { name: "扩展", exact: true }),
     ).toBeVisible();
     await expect(extensions).toHaveAttribute("aria-current", "page");
     await expect(agents).not.toHaveAttribute("aria-current", "page");
@@ -95,7 +95,7 @@ for (const scheme of ["light", "dark"] as const)
     );
     await agents.click();
     await expect(
-      page.getByRole("heading", { name: "扩展与状态" }),
+      page.getByRole("heading", { name: "扩展", exact: true }),
     ).toBeHidden();
   });
 
@@ -173,7 +173,9 @@ test("phones keep extensions and settings in the title bar", async ({
   await expect(page.getByRole("dialog", { name: "应用设置" })).toBeVisible();
   await page.keyboard.press("Escape");
   await bar.getByRole("button", { name: "扩展", exact: true }).click();
-  await expect(page.getByRole("heading", { name: "扩展与状态" })).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: "扩展", exact: true }),
+  ).toBeVisible();
 });
 
 test("dialog views open from their extension's card in management", async ({

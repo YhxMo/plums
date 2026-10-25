@@ -65,9 +65,15 @@ for (const failCleanup of [false, true]) {
     ).toBeVisible();
     await chooseLayout(page, "default");
     await manage(page);
-    const owner = page.locator("article").filter({ hasText: "组合提供者" });
-    const middle = page.locator("article").filter({ hasText: "组合中间层" });
-    const leaf = page.locator("article").filter({ hasText: "组合叶节点" });
+    const owner = page
+      .locator("[data-extension-id]")
+      .filter({ hasText: "组合提供者" });
+    const middle = page
+      .locator("[data-extension-id]")
+      .filter({ hasText: "组合中间层" });
+    const leaf = page
+      .locator("[data-extension-id]")
+      .filter({ hasText: "组合叶节点" });
     await expect(owner).toContainText("清理未完成");
     await expect(middle).toContainText(failCleanup ? "清理未完成" : "等待条件");
     await expect(leaf).toContainText("等待条件");

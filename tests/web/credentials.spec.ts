@@ -734,7 +734,7 @@ for (const width of [375, 1180])
     await manage(page);
     // The connector and the Agent interface both list the Agent.
     for (const id of ["connector.models", "ui.agents"])
-      await expect(
-        page.locator(`article[data-extension-id="${id}"]`),
-      ).toContainText("个 Agent 在使用");
+      await expect(page.locator(`[data-extension-id="${id}"]`)).toContainText(
+        "个 Agent 在使用",
+      );
   });

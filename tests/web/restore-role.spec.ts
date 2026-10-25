@@ -54,7 +54,7 @@ test("invalid saved role fails only the Agent provider and keeps persisted bytes
   await manage(page);
   await expect(
     page
-      .locator("#extension-manager article")
+      .locator("#extension-manager [data-extension-id]")
       .filter({ hasText: "Agent 核心" }),
   ).toContainText("会话配置损坏");
   expect(

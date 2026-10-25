@@ -7,7 +7,7 @@ export const shellButton = (page: Page, name: "扩展" | "设置") =>
     .getByRole("button", { name, exact: true })
     .filter({ visible: true });
 export async function manage(page: Page, diagnostics = false) {
-  const manager = page.getByRole("heading", { name: "扩展与状态" });
+  const manager = page.getByRole("heading", { name: "扩展", exact: true });
   if (!(await manager.isVisible())) await shellButton(page, "扩展").click();
   if (diagnostics) {
     const panel = page.getByRole("button", { name: "诊断与实验" });

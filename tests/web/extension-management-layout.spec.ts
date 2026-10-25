@@ -112,3 +112,43 @@ for (const width of [375, 960]) {
     await expect(input).toHaveValue("返回后继续写");
   });
 }
+
+test("management is one list beside the details: dots for status, grey for the selected row", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1280, height: 800 });
+  await page.goto("/");
+  await manage(page);
+  const manager = page.getByRole("complementary", { name: "扩展管理" });
+  await expect(
+    manager.getByRole("heading", { name: "扩展", exact: true }),
+  ).toBeVisible();
+  await expect(manager.getByText(/^\d+ 个$/)).toBeVisible();
+  const list = manager.getByRole("list", { name: "扩展", exact: true });
+  const row = list.locator('[data-extension-id="agents.local"]');
+  // A row, not a card: no edge or shadow of its own.
+  expect(
+    await row.evaluate((el) => {
+      const style = getComputedStyle(el);
+      return [style.borderTopWidth, style.boxShadow];
+    }),
+  ).toEqual(["0px", "none"]);
+  // Running shows as a green dot and its word, not a badge.
+  const status = row.locator("[data-slot=status]");
+  await expect(status).toHaveText("运行中");
+  expect(
+    await status
+      .locator("[data-slot=status-dot]")
+      .evaluate((el) => getComputedStyle(el).backgroundColor),
+  ).toBe("rgb(48, 164, 108)");
+  await row.getByRole("button", { name: "Agent 核心", exact: true }).click();
+  await expect(row).toHaveAttribute("data-selected", "true");
+  expect(await row.evaluate((el) => getComputedStyle(el).backgroundColor)).toBe(
+    "rgb(240, 240, 240)",
+  );
+  // The details sit beside the list on the page, not in a card.
+  const detail = page.getByRole("region", { name: "所选扩展详情" });
+  expect(
+    await detail.evaluate((el) => getComputedStyle(el).borderTopWidth),
+  ).toBe("0px");
+});

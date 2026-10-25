@@ -16,7 +16,7 @@ export function ExtensionList({
 }) {
   const { actions, busy } = controller;
   return (
-    <div className="mt-1">
+    <div>
       {Object.entries(controller.failures).map(([id, reason]) => (
         <article
           key={id}
@@ -51,25 +51,27 @@ export function ExtensionList({
           </div>
         </article>
       ))}
-      {controller.rows.map((row) => (
-        <ExtensionCard
-          key={row.entry.id}
-          extension={row}
-          onSelect={() => actions.select(row.entry.id)}
-          actions={
-            <ExtensionActions extension={row} actions={actions} busy={busy} />
-          }
-        >
-          {row.manifest.capabilities?.includes("document.read") && (
-            <SelectedDocuments
-              adapter={controller.adapter}
-              owner={extensionOwner(row.entry.id)}
-              enabled={row.state.status === "active"}
-            />
-          )}
-          {row.selected && selectedDetail}
-        </ExtensionCard>
-      ))}
+      <ul aria-label="扩展" className="grid gap-0.5">
+        {controller.rows.map((row) => (
+          <ExtensionCard
+            key={row.entry.id}
+            extension={row}
+            onSelect={() => actions.select(row.entry.id)}
+            actions={
+              <ExtensionActions extension={row} actions={actions} busy={busy} />
+            }
+          >
+            {row.manifest.capabilities?.includes("document.read") && (
+              <SelectedDocuments
+                adapter={controller.adapter}
+                owner={extensionOwner(row.entry.id)}
+                enabled={row.state.status === "active"}
+              />
+            )}
+            {row.selected && selectedDetail}
+          </ExtensionCard>
+        ))}
+      </ul>
     </div>
   );
 }

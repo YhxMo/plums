@@ -7,7 +7,7 @@ const boardId = "ui.workbench-board";
 const nav = (page: Page) =>
   page.getByRole("navigation", { name: "工作台页面" });
 const card = (page: Page, id: string) =>
-  page.locator("article").filter({
+  page.locator("[data-extension-id]").filter({
     has: page.locator("code").filter({ hasText: `${id} ` }),
   });
 

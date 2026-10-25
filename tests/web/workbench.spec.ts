@@ -91,7 +91,7 @@ test("revoking capability suspends consumers, and regrant restores the UI", asyn
   await manage(page, true);
   await page.getByRole("button", { name: "撤销状态写入", exact: true }).click();
   await expect(
-    page.locator("article").filter({ hasText: "文本工作台" }),
+    page.locator("[data-extension-id]").filter({ hasText: "文本工作台" }),
   ).toContainText("等待条件");
   await (await legacyEntry(page)).click();
   await authorize(page);
@@ -311,7 +311,7 @@ test("an async release failure stays visible in the React management path", asyn
   await expect(page.getByRole("heading", { name: "文本工作台" })).toBeVisible();
   await manage(page);
   await expect(
-    page.locator("article").filter({ hasText: "异步释放夹具" }),
+    page.locator("[data-extension-id]").filter({ hasText: "异步释放夹具" }),
   ).toContainText("清理未完成");
   await expect(
     page.getByRole("button", { name: "启用 cleanup.fixture", exact: true }),
