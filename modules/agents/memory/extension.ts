@@ -14,6 +14,7 @@ export type MemoryPageApi = Pick<
   | "add"
   | "update"
   | "remove"
+  | "clearExpired"
   | "setModel"
   | "consolidate"
   | "models"

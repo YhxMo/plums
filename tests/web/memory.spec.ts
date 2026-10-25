@@ -69,18 +69,43 @@ test("an Agent's memory opens from its details, reaches only it, and stops when 
   await expect(
     dialog.getByRole("combobox", { name: "查看谁的记忆" }),
   ).toHaveText(/甲/);
+  await expect(dialog).toContainText("只有它会读到");
   await dialog.getByRole("textbox", { name: "新的记忆" }).fill("对花生过敏");
   await dialog.getByRole("button", { name: "添加", exact: true }).click();
-  // Something that already ended is kept apart and no longer told.
-  await dialog.getByRole("textbox", { name: "新的记忆" }).fill("上周的考试");
-  await dialog
-    .getByLabel("到期（可选，过后不再告诉 Agent）")
-    .fill("2020-01-01T09:00");
-  await dialog.getByRole("button", { name: "添加", exact: true }).click();
+  // Something that already ended is kept apart, folded away and no longer
+  // told; it can be cleared in one go.
+  const expire = async (text: string) => {
+    await dialog.getByRole("textbox", { name: "新的记忆" }).fill(text);
+    const time = dialog.getByRole("button", { name: "设置时间", exact: true });
+    if ((await time.getAttribute("aria-expanded")) !== "true")
+      await time.click();
+    await dialog.getByLabel("到期", { exact: true }).fill("2020-01-01T09:00");
+    await dialog.getByRole("button", { name: "添加", exact: true }).click();
+  };
+  await expire("上周的考试");
+  await expire("去年的旅行");
+  const past = dialog.getByRole("button", { name: "已过期 2 条" });
+  await expect(past).toHaveAttribute("aria-expanded", "false");
+  await expect(dialog.getByRole("list", { name: "已过期的记忆" })).toHaveCount(
+    0,
+  );
+  await past.click();
   await expect(
     dialog.getByRole("list", { name: "已过期的记忆" }),
   ).toContainText("上周的考试");
+  // Expanded, each can still go on its own.
+  await dialog.getByRole("button", { name: "删除：去年的旅行" }).click();
+  await expect(
+    dialog.getByRole("button", { name: "已过期 1 条" }),
+  ).toBeVisible();
+  await dialog.getByRole("button", { name: "全部清除", exact: true }).click();
+  await expect(dialog.getByRole("button", { name: /^已过期/ })).toHaveCount(0);
+  await expect(dialog.getByRole("list", { name: "甲 记得的事" })).toContainText(
+    "对花生过敏",
+  );
+  await expire("上周的考试");
   await page.keyboard.press("Escape");
+  await expect(memoryPage(page)).toHaveCount(0);
   await expect(row).toContainText("记得 1 件事");
   // The avatar opens the shared page, not the Agent's last opened.
   await page
@@ -90,7 +115,13 @@ test("an Agent's memory opens from its details, reaches only it, and stops when 
   await expect(
     memoryPage(page).getByRole("combobox", { name: "查看谁的记忆" }),
   ).toHaveText(/关于我/);
+  await expect(memoryPage(page)).toContainText("所有 Agent 都会读到");
+  // Opened, it starts at its title; Escape then closes it.
+  await expect(
+    memoryPage(page).getByRole("heading", { name: "记忆", exact: true }),
+  ).toBeFocused();
   await page.keyboard.press("Escape");
+  await expect(memoryPage(page)).toHaveCount(0);
   await send(page, "晚饭吃什么");
   await expect(lastReply(page)).toContainText("你记得的事");
   await expect(lastReply(page)).toContainText("对花生过敏");

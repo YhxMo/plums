@@ -1,8 +1,8 @@
 import { useCallback, useState, useSyncExternalStore } from "react";
-import { BrainIcon, RefreshCwIcon } from "lucide-react";
+import { ChevronRightIcon } from "lucide-react";
 import { OWNER, type ModelChoice } from "@modules/agents/contract";
 import type { MemoryPageApi } from "@modules/agents/memory/extension";
-import type { MemoryScope } from "@modules/agents/memory/contract";
+import type { MemoryItem, MemoryScope } from "@modules/agents/memory/contract";
 import { expired, sameScope } from "@modules/agents/memory/items";
 import type { ConsolidationModel } from "@modules/agents/memory/persistence";
 import type { MemoryAgent } from "@modules/agents/memory/store";
@@ -11,13 +11,6 @@ import { Select, type SelectOption } from "@/components/Select";
 import { ActionToast } from "@/components/Toast";
 import { useAsyncAction } from "@/components/useAsyncAction";
 import { Button } from "@/components/ui/button";
-import {
-  Empty,
-  EmptyDescription,
-  EmptyHeader,
-  EmptyMedia,
-  EmptyTitle,
-} from "@/components/ui/empty";
 import { ItemForm, MemoryItems, type ItemFields } from "./MemoryItems";
 
 const SHARED = "";
@@ -95,31 +88,34 @@ export function MemoryPage({ api }: { api: MemoryPageApi }) {
   };
   const update = (id: string, fields: ItemFields) =>
     saved(() => api.update(id, fields), "已保存");
+  const remove = (item: { id: string }) =>
+    void saved(() => api.remove(item.id), "已删除");
   return (
-    <DialogBody className="gap-5">
-      <Select
-        label="查看谁的记忆"
-        value={agent ? agent.id : SHARED}
-        onChange={setView}
-        options={[
-          {
-            value: SHARED,
-            label: "关于我",
-            description: "写给所有 Agent 的资料",
-          },
-          ...snap.agents.map((a) => ({
-            value: a.id,
-            label: a.name,
-            description: "它从对话里记下的事",
-            group: "Agent 记得的事",
-          })),
-        ]}
-      />
-      <p className="text-sm leading-relaxed text-muted-foreground">
-        {agent
-          ? `「${agent.name}」从你们的对话里记下的事，只有它会读到。会话停下 3 分钟、你离开或切换会话后，用下方的模型整理一次。`
-          : "写给所有 Agent 的资料，例如你的称呼、所在城市和偏好；每个 Agent 回复你时都会读到。Agent 不会自动往这里写。"}
-      </p>
+    <DialogBody className="gap-[18px]">
+      <div className="flex items-center gap-3">
+        <Select
+          label="查看谁的记忆"
+          className="w-auto min-w-44"
+          value={agent ? agent.id : SHARED}
+          onChange={setView}
+          options={[
+            {
+              value: SHARED,
+              label: "关于我",
+              description: "写给所有 Agent 的资料",
+            },
+            ...snap.agents.map((a) => ({
+              value: a.id,
+              label: a.name,
+              description: "它从对话里记下的事",
+              group: "Agent 记得的事",
+            })),
+          ]}
+        />
+        <span className="text-xs text-muted-foreground">
+          {agent ? "只有它会读到" : "所有 Agent 都会读到"}
+        </span>
+      </div>
       {agent && (
         <Status
           agent={agent}
@@ -134,52 +130,30 @@ export function MemoryPage({ api }: { api: MemoryPageApi }) {
           now={now}
           busy={busy}
           onUpdate={update}
-          onRemove={(item) => void saved(() => api.remove(item.id), "已删除")}
+          onRemove={remove}
         />
       ) : (
-        <Empty className="gap-2 border border-dashed p-5 md:p-5">
-          <EmptyHeader>
-            <EmptyMedia variant="icon">
-              <BrainIcon />
-            </EmptyMedia>
-            <EmptyTitle className="text-sm">
-              {agent ? "还没有记下什么" : "还没有写下关于你的资料"}
-            </EmptyTitle>
-            <EmptyDescription>
-              {agent
-                ? "和它聊过之后，这里会出现它记下的事。"
-                : "在下面写一条，所有 Agent 都会知道。"}
-            </EmptyDescription>
-          </EmptyHeader>
-        </Empty>
+        <p className="text-sm text-muted-foreground">
+          {agent ? "还没有记下什么" : "还没有写下关于你的资料"}
+        </p>
       )}
       {past.length > 0 && (
-        <section className="grid gap-2" aria-label="已过期">
-          <h3 className="text-xs font-medium text-muted-foreground">已过期</h3>
-          <p className="text-xs leading-relaxed text-muted-foreground">
-            已经不再告诉
-            Agent。下次整理时会删掉，或改写成长期的事；你也可以现在删除，或补充时间让它重新生效。
-          </p>
-          <MemoryItems
-            label="已过期的记忆"
-            items={past}
-            now={now}
-            busy={busy}
-            onUpdate={update}
-            onRemove={(item) => void saved(() => api.remove(item.id), "已删除")}
-          />
-        </section>
-      )}
-      <section className="grid gap-2" aria-label="添加记忆">
-        <h3 className="text-xs font-medium text-muted-foreground">
-          {agent ? `告诉「${agent.name}」一件事` : "写一条关于你的资料"}
-        </h3>
-        <ItemForm
-          submit="添加"
+        <Expired
+          items={past}
+          now={now}
           busy={busy}
-          onSave={(fields) => saved(() => api.add(scope, fields), "已添加")}
+          onUpdate={update}
+          onRemove={remove}
+          onClear={() =>
+            void saved(() => api.clearExpired(scope), "已清除过期的记忆")
+          }
         />
-      </section>
+      )}
+      <ItemForm
+        submit="添加"
+        busy={busy}
+        onSave={(fields) => saved(() => api.add(scope, fields), "已添加")}
+      />
       <ModelSetting
         agent={agent}
         model={snap.model}
@@ -204,6 +178,66 @@ export function MemoryPage({ api }: { api: MemoryPageApi }) {
   );
 }
 
+/**
+ * Items past their time: no longer told, folded into one row that clears
+ * them all; open, each can be edited back into effect or deleted.
+ */
+function Expired({
+  items,
+  now,
+  busy,
+  onUpdate,
+  onRemove,
+  onClear,
+}: {
+  items: readonly MemoryItem[];
+  now: number;
+  busy: boolean;
+  onUpdate: (id: string, fields: ItemFields) => Promise<boolean>;
+  onRemove: (item: MemoryItem) => void;
+  onClear: () => void;
+}) {
+  const [open, setOpen] = useState(false);
+  return (
+    <section className="grid gap-2">
+      <div className="flex h-10 items-center gap-1.5 rounded-lg border pr-2 pl-3">
+        <button
+          type="button"
+          data-slot="expired-toggle"
+          aria-expanded={open}
+          className="flex h-8 flex-1 items-center gap-1.5 rounded-sm text-left text-sm text-muted-foreground outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
+          onClick={() => setOpen((value) => !value)}
+        >
+          <ChevronRightIcon
+            aria-hidden="true"
+            className={open ? "size-4 rotate-90" : "size-4"}
+          />
+          已过期 {items.length} 条
+        </button>
+        <Button
+          variant="ghost"
+          size="sm"
+          className="text-destructive hover:text-destructive"
+          disabled={busy}
+          onClick={onClear}
+        >
+          全部清除
+        </Button>
+      </div>
+      {open && (
+        <MemoryItems
+          label="已过期的记忆"
+          items={items}
+          now={now}
+          busy={busy}
+          onUpdate={onUpdate}
+          onRemove={onRemove}
+        />
+      )}
+    </section>
+  );
+}
+
 function Status({
   agent,
   busy,
@@ -215,7 +249,7 @@ function Status({
 }) {
   if (agent.running)
     return (
-      <p role="status" className="text-sm text-muted-foreground">
+      <p role="status" className="text-xs text-muted-foreground">
         正在整理…
       </p>
     );
@@ -223,16 +257,13 @@ function Status({
   return (
     <div
       role="status"
-      className="flex items-start justify-between gap-3 rounded-lg bg-subtle/60 px-3 py-2.5 text-sm"
+      className="flex items-center justify-between gap-3 text-xs text-muted-foreground"
     >
-      <p
-        className={agent.problem ? "text-destructive" : "text-muted-foreground"}
-      >
-        {agent.problem ?? "有还没整理的对话。"}
+      <p className={agent.problem ? "text-destructive" : undefined}>
+        {agent.problem ?? "有还没整理的对话"}
       </p>
       {agent.pending && (
         <Button variant="outline" size="xs" disabled={busy} onClick={onRetry}>
-          <RefreshCwIcon data-icon="inline-start" />
           {agent.problem ? "重试" : "现在整理"}
         </Button>
       )}
@@ -290,20 +321,18 @@ function ModelSetting({
     target.provider !== agent.model?.provider &&
     models.find((m) => m.provider === target.provider)?.providerLabel;
   return (
-    <section className="grid gap-2" aria-label="整理用的模型">
-      <h3 className="text-xs font-medium text-muted-foreground">
-        {agent ? `整理「${agent.name}」的记忆用的模型` : "整理记忆默认用的模型"}
-      </h3>
-      <Select
-        label={agent ? "这个 Agent 整理记忆用的模型" : "默认整理用的模型"}
-        value={value}
-        disabled={busy}
-        options={options}
-        onChange={(next) => onChange(parseChoice(next))}
-      />
-      <p className="text-xs leading-relaxed text-muted-foreground">
-        每次整理会额外调用一次模型，按所选服务计费；可以选一个便宜的模型。
-      </p>
+    <section className="grid gap-2 border-t pt-3.5" aria-label="整理用的模型">
+      <div className="flex items-center justify-between gap-3 max-form:flex-col max-form:items-stretch">
+        <h3 className="text-sm">整理用的模型</h3>
+        <Select
+          label={agent ? "这个 Agent 整理记忆用的模型" : "默认整理用的模型"}
+          className="w-auto min-w-52"
+          value={value}
+          disabled={busy}
+          options={options}
+          onChange={(next) => onChange(parseChoice(next))}
+        />
+      </div>
       {elsewhere && (
         <p role="note" className="text-xs leading-relaxed text-brand-text">
           整理时，「{agent.name}」的对话会发送到「{elsewhere}

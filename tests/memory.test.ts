@@ -3,7 +3,7 @@ import { Host } from "../modules/extension-host/host";
 import type { ExtensionDefinition } from "../modules/sdk";
 import type { ChatService } from "../extensions/contracts";
 import { agentExtension } from "../modules/agents/provider";
-import type { AgentProvider } from "../modules/agents/contract";
+import { OWNER, type AgentProvider } from "../modules/agents/contract";
 import { memoryExtension } from "../modules/agents/memory/extension";
 import { IDLE, MemoryStore } from "../modules/agents/memory/store";
 import { emptyMemory } from "../modules/agents/memory/persistence";
@@ -296,4 +296,29 @@ it("keeps a new Agent's unconsolidated messages pending across a restart", async
   answer.text = '{"add":[{"text":"对花生过敏"}]}';
   await memory().consolidate(a.id);
   expect(consolidations()[0].input).toContain("我对花生过敏");
+});
+
+it("clears the expired items of one scope at once, and nothing else", async () => {
+  let saved = emptyMemory();
+  const now = Date.UTC(2026, 9, 25, 12);
+  const store = new MemoryStore(
+    emptyMemory(),
+    async (data) => {
+      saved = structuredClone(data);
+    },
+    async () => '{"add":[]}',
+    () => [],
+    async () => {},
+    { now: () => now, timeZone: () => "UTC" },
+  );
+  const mine = { kind: "agent", agent: "a", person: OWNER } as const;
+  const theirs = { kind: "agent", agent: "b", person: OWNER } as const;
+  await store.add(mine, { text: "上周的课", at: now - 7 * 864e5 });
+  await store.add(mine, { text: "已结束的旅行", until: now - 864e5 });
+  await store.add(mine, { text: "对花生过敏" });
+  await store.add(theirs, { text: "别人的旧事", at: now - 864e5 });
+  await store.clearExpired(mine);
+  expect(saved.items.map((item) => item.text).sort()).toEqual(
+    ["别人的旧事", "对花生过敏"].sort(),
+  );
 });

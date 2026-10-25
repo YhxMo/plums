@@ -1,13 +1,8 @@
-import { useState } from "react";
-import { PencilIcon, Trash2Icon } from "lucide-react";
+import { useId, useState } from "react";
+import { ClockIcon, PencilIcon, Trash2Icon } from "lucide-react";
 import type { MemoryItem } from "@modules/agents/memory/contract";
-import {
-  MAX_ITEM_TEXT,
-  expired,
-  formatTime,
-} from "@modules/agents/memory/items";
-import { Tooltip } from "@/components/Tooltip";
-import { Badge } from "@/components/ui/badge";
+import { MAX_ITEM_TEXT, formatTime } from "@modules/agents/memory/items";
+import { InfoTip, Tooltip } from "@/components/Tooltip";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -36,7 +31,10 @@ export function itemTime(item: ItemFields, now: number) {
   return parts.join(" ");
 }
 
-/** Text and, optionally, when it happens and until when it holds. */
+/**
+ * Text and, optionally, when it happens and until when it holds. A new item
+ * is one line, its times behind 设置时间; an item being edited shows all.
+ */
 export function ItemForm({
   item,
   submit,
@@ -54,6 +52,32 @@ export function ItemForm({
   const [text, setText] = useState(item?.text ?? "");
   const [at, setAt] = useState(toInput(item?.at));
   const [until, setUntil] = useState(toInput(item?.until));
+  const [timed, setTimed] = useState(!!item);
+  const untilId = useId();
+  const times = (
+    <div className="grid grid-cols-2 gap-2 max-form:grid-cols-1">
+      <label className="grid gap-1 text-xs text-muted-foreground">
+        时间
+        <Input
+          type="datetime-local"
+          value={at}
+          onChange={(e) => setAt(e.target.value)}
+        />
+      </label>
+      <div className="grid gap-1 text-xs text-muted-foreground">
+        <span className="flex items-center gap-1">
+          <label htmlFor={untilId}>到期</label>
+          <InfoTip label="到期" text="过了这个时间，就不再告诉 Agent。" />
+        </span>
+        <Input
+          id={untilId}
+          type="datetime-local"
+          value={until}
+          onChange={(e) => setUntil(e.target.value)}
+        />
+      </div>
+    </div>
+  );
   return (
     <form
       className="grid gap-2"
@@ -65,48 +89,68 @@ export function ItemForm({
               setText("");
               setAt("");
               setUntil("");
+              setTimed(false);
             }
           },
         );
       }}
     >
-      <Textarea
-        aria-label={item ? "记忆内容" : "新的记忆"}
-        autoFocus={!!item}
-        value={text}
-        maxLength={MAX_ITEM_TEXT}
-        className="min-h-16 text-sm"
-        placeholder="例如：对花生过敏；每周三下午有吉他课"
-        onChange={(e) => setText(e.target.value)}
-      />
-      <div className="grid grid-cols-2 gap-2 max-form:grid-cols-1">
-        <label className="grid gap-1 text-xs text-muted-foreground">
-          时间（可选）
-          <Input
-            type="datetime-local"
-            value={at}
-            onChange={(e) => setAt(e.target.value)}
+      {item ? (
+        <>
+          <Textarea
+            aria-label="记忆内容"
+            autoFocus
+            value={text}
+            maxLength={MAX_ITEM_TEXT}
+            className="min-h-16 text-sm"
+            onChange={(e) => setText(e.target.value)}
           />
-        </label>
-        <label className="grid gap-1 text-xs text-muted-foreground">
-          到期（可选，过后不再告诉 Agent）
-          <Input
-            type="datetime-local"
-            value={until}
-            onChange={(e) => setUntil(e.target.value)}
-          />
-        </label>
-      </div>
-      <div className="flex justify-end gap-2">
-        {onCancel && (
-          <Button type="button" variant="ghost" size="sm" onClick={onCancel}>
-            取消
-          </Button>
-        )}
-        <Button type="submit" size="sm" disabled={busy || !text.trim()}>
-          {submit}
-        </Button>
-      </div>
+          {times}
+          <div className="flex justify-end gap-2">
+            {onCancel && (
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={onCancel}
+              >
+                取消
+              </Button>
+            )}
+            <Button type="submit" size="sm" disabled={busy || !text.trim()}>
+              {submit}
+            </Button>
+          </div>
+        </>
+      ) : (
+        <>
+          <div className="flex gap-2">
+            <Input
+              aria-label="新的记忆"
+              value={text}
+              maxLength={MAX_ITEM_TEXT}
+              placeholder="添加一条，例如：每周三下午有吉他课"
+              onChange={(e) => setText(e.target.value)}
+            />
+            <Tooltip label="设置时间">
+              <Button
+                type="button"
+                variant="outline"
+                size="icon"
+                aria-label="设置时间"
+                aria-expanded={timed}
+                onClick={() => setTimed((open) => !open)}
+              >
+                <ClockIcon />
+              </Button>
+            </Tooltip>
+            <Button type="submit" disabled={busy || !text.trim()}>
+              {submit}
+            </Button>
+          </div>
+          {timed && times}
+        </>
+      )}
     </form>
   );
 }
@@ -159,12 +203,7 @@ export function MemoryItems({
               </p>
               <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground">
                 {itemTime(item, now) && <span>{itemTime(item, now)}</span>}
-                {expired(item, now) && (
-                  <Badge variant="secondary" className="text-muted-foreground">
-                    已过期
-                  </Badge>
-                )}
-                {item.by === "conversation" && <span>从对话中记下</span>}
+                {item.by === "conversation" && <span>来自对话</span>}
               </div>
             </div>
             <div className="flex shrink-0 gap-0.5 transition-opacity pointer-fine:opacity-0 pointer-fine:group-focus-within/item:opacity-100 pointer-fine:group-hover/item:opacity-100">

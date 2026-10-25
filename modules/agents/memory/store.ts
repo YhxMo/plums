@@ -252,6 +252,15 @@ export class MemoryStore implements MemoryService {
       data.items = data.items.filter((item) => item.id !== id);
     });
   }
+  /** Deletes the items of `scope` that have expired, all at once. */
+  clearExpired(scope: MemoryScope) {
+    const now = this.clock.now();
+    return this.change((data) => {
+      data.items = data.items.filter(
+        (item) => !sameScope(item.scope, scope) || !expired(item, now),
+      );
+    });
+  }
   /** Sets the default model (`agent` null) or one Agent's own (`choice` null follows the default). */
   setModel(agent: string | null, choice: ConsolidationModel | null) {
     return this.change((data) => {
