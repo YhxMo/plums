@@ -1,4 +1,10 @@
-import { type ReactNode } from "react";
+import {
+  useEffect,
+  useRef,
+  useState,
+  type PointerEvent,
+  type ReactNode,
+} from "react";
 import { InfoIcon } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "./ui/popover";
 import {
@@ -45,18 +51,66 @@ export function Tooltip({
   );
 }
 
-/** A click/keyboard disclosure; hover labels use Tooltip instead. */
+/**
+ * An explanation behind an info button. A mouse shows it while over the
+ * button, without moving focus; a click, a tap or the keyboard opens it and
+ * keeps it open, focused, until a second press, Escape or a press outside.
+ */
 export function InfoTip({ label, text }: { label: string; text: string }) {
+  const [shown, setShown] = useState<"closed" | "hover" | "kept">("closed");
+  // How it was last opened; focus moves in and back only when kept.
+  const kept = useRef(false);
+  const show = (how: "hover" | "kept") => {
+    kept.current = how === "kept";
+    setShown(how);
+  };
+  const opening = useRef<number>(undefined);
+  const content = useRef<HTMLDivElement>(null);
+  const wait = () => window.clearTimeout(opening.current);
+  useEffect(() => wait, []);
+  const mouse = (event: PointerEvent) => event.pointerType === "mouse";
   return (
-    <Popover>
+    <Popover
+      open={shown !== "closed"}
+      onOpenChange={(open) => !open && setShown("closed")}
+    >
       <PopoverTrigger
         type="button"
         className="inline-grid size-5 place-items-center rounded-full text-muted-foreground transition-colors hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none max-md:size-11"
         aria-label={`${label}说明`}
+        onPointerEnter={(event) => {
+          if (!mouse(event) || shown !== "closed") return;
+          opening.current = window.setTimeout(() => show("hover"), 150);
+        }}
+        onPointerLeave={(event) => {
+          if (!mouse(event)) return;
+          wait();
+          setShown((now) => (now === "hover" ? "closed" : now));
+        }}
+        // The press is handled here; preventing it skips Radix's toggle.
+        onClick={(event) => {
+          event.preventDefault();
+          wait();
+          if (shown === "kept") return setShown("closed");
+          show("kept");
+          // Already open under the pointer: Radix focuses only on opening.
+          if (shown === "hover") content.current?.focus();
+        }}
       >
         <InfoIcon className="size-3.5" />
       </PopoverTrigger>
-      <PopoverContent aria-label={`${label}说明`}>{text}</PopoverContent>
+      <PopoverContent
+        ref={content}
+        aria-label={`${label}说明`}
+        onOpenAutoFocus={(event) => {
+          if (!kept.current) event.preventDefault();
+        }}
+        onCloseAutoFocus={(event) => {
+          if (!kept.current) event.preventDefault();
+        }}
+      >
+        {text}
+      </PopoverContent>
     </Popover>
   );
 }

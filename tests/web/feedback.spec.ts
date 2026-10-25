@@ -95,3 +95,34 @@ test("focus given back by a closing dialog or menu shows no tooltip", async ({
   await page.waitForTimeout(600);
   await expect(page.getByRole("tooltip")).toHaveCount(0);
 });
+
+test("an info button explains on hover, and a click keeps it open", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1180, height: 800 });
+  await page.goto("/");
+  await page
+    .getByRole("button", { name: "从头添加 Agent", exact: true })
+    .click();
+  const info = page.getByRole("button", { name: "组成扩展说明", exact: true });
+  const text = page.getByRole("dialog", { name: "组成扩展说明", exact: true });
+  const away = async () => {
+    const box = (await info.boundingBox())!;
+    await page.mouse.move(box.x - 120, box.y + 160, { steps: 8 });
+  };
+  await info.hover();
+  await expect(text).toBeVisible();
+  // A look under the pointer leaves focus where it was.
+  await expect(text).not.toBeFocused();
+  await away();
+  await expect(text).toBeHidden();
+  // A click keeps it open past the pointer, until Escape.
+  await info.click();
+  await expect(text).toBeFocused();
+  await away();
+  await page.waitForTimeout(300);
+  await expect(text).toBeVisible();
+  await page.keyboard.press("Escape");
+  await expect(text).toBeHidden();
+  await expect(info).toBeFocused();
+});
