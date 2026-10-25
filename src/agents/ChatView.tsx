@@ -1,10 +1,5 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
-import {
-  ArrowDownIcon,
-  ChevronLeftIcon,
-  EllipsisIcon,
-  PanelRightIcon,
-} from "lucide-react";
+import { ArrowDownIcon, ChevronLeftIcon, EllipsisIcon } from "lucide-react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { useStickToBottom } from "use-stick-to-bottom";
 import type {
@@ -31,8 +26,6 @@ import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 
@@ -42,7 +35,6 @@ export function ChatView({
   draft,
   onDraft,
   onBack,
-  onDetail,
   onAction,
   onSession,
   onDeleteSession,
@@ -67,8 +59,6 @@ export function ChatView({
   draft: string;
   onDraft: (value: string) => void;
   onBack: () => void;
-  /** Opens the Agent's details, also when an extension holds the sidebar button. */
-  onDetail: (source: HTMLElement | null) => void;
   /** The Agent's own actions, from the header's more menu. */
   onAction: (action: AgentAction, source: HTMLElement | null) => void;
   onSession: (action: "create" | "select", id?: string) => void;
@@ -283,11 +273,6 @@ export function ChatView({
             </DropdownMenuTrigger>
           </Tooltip>
           <DropdownMenuContent align="end" className="w-44">
-            <DropdownMenuItem onSelect={() => onDetail(more.current)}>
-              <PanelRightIcon />
-              查看 Agent 详情
-            </DropdownMenuItem>
-            <DropdownMenuSeparator />
             <AgentMenuItems
               agent={agent}
               kind="dropdown"

@@ -40,23 +40,14 @@ export function useWorkspaceChrome(workspace: Workspace) {
   const sidebars = workspace.allViews
     .filter((view) => view.presentation === "sidebar")
     .sort((a, b) => b.priority - a.priority || a.id.localeCompare(b.id));
-  const custom =
-    sidebars.find((view) => view.owner === state.contextOwner) ??
-    sidebars.find((view) => view.owner === workspace.current?.owner);
+  // A workspace with its own details keeps the sidebar button for them.
+  const custom = state.sidebar
+    ? undefined
+    : (sidebars.find((view) => view.owner === state.contextOwner) ??
+      sidebars.find((view) => view.owner === workspace.current?.owner));
   useEffect(() => {
     setCustomOpen(false);
   }, [workspace.activeView, custom?.id, custom?.generation]);
-  const customId = custom?.id;
-  const customGeneration = custom?.generation;
-  useEffect(() => {
-    // A newly selected custom sidebar replaces an open built-in sidebar.
-    if (
-      customId !== undefined &&
-      state.sidebar?.open &&
-      state.sidebar.presentation !== "dialog"
-    )
-      invoke(() => state.sidebar!.close());
-  }, [customId, customGeneration, state.sidebar, invoke]);
   return {
     title: state.title ?? "",
     back: state.back ? () => invoke(() => state.back!()) : undefined,

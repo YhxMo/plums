@@ -107,7 +107,7 @@ export default {
 
 开发服务中可按路径安装 `example.workspace-chrome`（`/examples/workspace-chrome/`）和 `example.workspace-context`（`/examples/workspace-context/`）查看标题更新、实体/工作区侧栏优先级、草稿跨管理保留及回调失败回退。打包应用不含这些路径，可下载源码后把文件夹作为扩展包导入；“模拟标题回调失败”会隔离该代工作区，停用后重新启用可恢复。样板只消费公开 ctx.view/ctx.shell，不提供持久业务或平台权限。
 
-完整类型见 [workspace-chrome.ts](../modules/sdk/workspace-chrome.ts)。`contextOwner` 指向当前实体所属扩展；外壳优先查找该扩展的 sidebar 贡献，然后查找当前工作区扩展自己的 sidebar，同一所有者内按 priority 降序和 ID 升序选择。无匹配贡献时使用可选 `sidebar` 中的 label、真实 open 状态、toggle(source) 和 close()。默认 inline 详情与扩展侧栏互斥；移动模态详情声明 `presentation: "dialog"`，转为 inline 后重新协调。不要在外壳另存默认详情开关。
+完整类型见 [workspace-chrome.ts](../modules/sdk/workspace-chrome.ts)。工作区在快照中提供可选 `sidebar`（它自己的详情：label、真实 open 状态、toggle(source) 和 close()）时，右侧栏按钮只开关这份详情，扩展的 sidebar 贡献不接管按钮；详情以侧栏还是弹窗呈现由工作区决定。不要在外壳另存默认详情开关。没有 `sidebar` 的工作区由 `contextOwner`（当前实体所属扩展）选侧栏：外壳优先查找该扩展的 sidebar 贡献，然后查找当前工作区扩展自己的 sidebar，同一所有者内按 priority 降序和 ID 升序选择。默认 Agent 界面发布了详情，因此 Agent 的上下文侧栏目前不显示；计划在 Agent 详情的「组成扩展」里为有 sidebar 贡献的扩展行加入口，在详情内以子页呈现它，随第一个真实面板（如记忆）实现。
 
 工作区存在上一层时，在快照中提供 `back()`；回到根层后发布不含 `back` 的新快照。Android 系统 Back 先处理 IME、顶层弹窗和宿主管理，再调用当前工作区的该方法；方法保留快照对象的接收者。工作区负责保存草稿并在返回后恢复有效焦点，操作抛错时外壳隔离该代视图并保留恢复入口。未提供 `back()` 的既有视图保持原挂载契约，宿主不猜测其业务路由。
 

@@ -175,7 +175,6 @@ export function AgentWorkspace({
         ? {
             label: "Agent 详情",
             open: detail && !!agent,
-            presentation: mobile ? "dialog" : "sidebar",
             close() {
               setDetail(false);
             },
@@ -375,10 +374,6 @@ export function AgentWorkspace({
         api.setEffort &&
         ((effort) => void act(() => api.setEffort!(agent.id, effort)))
       }
-      onDetail={(source) => {
-        detailTrigger.current = source;
-        setDetail(true);
-      }}
       onAction={(action, source) => agentAction(agent, action, source)}
       onSession={(action, id) =>
         void act(() => api.session(agent.id, action, id))

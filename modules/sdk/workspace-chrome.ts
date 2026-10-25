@@ -8,8 +8,6 @@ export interface WorkspaceChromeState {
   readonly sidebar?: {
     readonly label: string;
     readonly open: boolean;
-    /** Dialogs can stay local on narrow screens; inline sidebars are exclusive. */
-    readonly presentation?: "sidebar" | "dialog";
     toggle(source: HTMLElement): void;
     close(): void;
   };

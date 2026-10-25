@@ -123,7 +123,7 @@ for (const failure of ["snapshot", "subscribe", "notification"]) {
 }
 
 for (const scenario of ["resize", "dynamic"]) {
-  test(`contextual and default details stay exclusive after ${scenario}`, async ({
+  test(`an Agent's own details keep the sidebar button after ${scenario}`, async ({
     page,
   }) => {
     await page.setViewportSize({
@@ -163,19 +163,18 @@ for (const scenario of ["resize", "dynamic"]) {
     await install(page, "test.agents");
     await page.getByRole("button", { name: "返回工作区", exact: true }).click();
     await page.getByRole("button", { name: "外部角色", exact: true }).click();
+    const toggle = page.getByRole("button", { name: "展开或收起右侧栏" });
+    const details = page.getByRole("complementary", { name: "Agent 详情" });
     if (scenario === "resize") {
-      // The title bar button belongs to the extension's sidebar here.
-      await page.getByRole("button", { name: "更多操作", exact: true }).click();
-      await page.getByRole("menuitem", { name: "查看 Agent 详情" }).click();
+      // The provider's contribution does not take the button over.
+      await toggle.click();
       await expect(
         page.getByRole("dialog", { name: "Agent 详情" }),
       ).toBeVisible();
       await page.setViewportSize({ width: 1440, height: 900 });
     } else {
-      await page.getByRole("button", { name: "展开或收起右侧栏" }).click();
-      await expect(
-        page.getByRole("complementary", { name: "Agent 详情" }),
-      ).toBeVisible();
+      await toggle.click();
+      await expect(details).toBeVisible();
       await manage(page);
       await page
         .getByRole("button", { name: "打开 侧栏贡献控制", exact: true })
@@ -189,15 +188,13 @@ for (const scenario of ["resize", "dynamic"]) {
         .getByRole("button", { name: "返回工作区", exact: true })
         .click();
     }
-    await expect(
-      page.getByRole("complementary", { name: "Agent 详情" }),
-    ).toHaveCount(0);
-    await page.getByRole("button", { name: "展开或收起右侧栏" }).click();
+    await expect(details).toBeVisible();
+    await toggle.click();
+    await expect(details).toHaveCount(0);
+    await toggle.click();
+    await expect(details).toBeVisible();
     await expect(
       page.getByRole("complementary", { name: "外部角色上下文" }),
-    ).toContainText("扩展专属详情");
-    await expect(
-      page.getByRole("complementary", { name: "Agent 详情" }),
     ).toHaveCount(0);
   });
 }
@@ -306,7 +303,6 @@ for (const width of [375, 700, 1280]) {
     await more.click();
     const menu = page.getByRole("menu", { name: "更多操作" });
     await expect(menu.getByRole("menuitem")).toHaveText([
-      "查看 Agent 详情",
       "置顶",
       "重命名",
       "移除 Agent",
