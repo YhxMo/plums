@@ -141,7 +141,9 @@ export async function startNewDefaults(
 }
 /**
  * Boot-only restoration. Grants return only for the version they were given
- * to; an extension that is no longer installed is skipped.
+ * to; an extension that is no longer installed is skipped. A saved grant adds
+ * to what the app already granted, and only what the extension still
+ * declares: a built-in can drop a capability without a new version.
  */
 export async function restoreComposition(
   host: CompositionHost & Pick<Host, "start" | "grant">,
@@ -152,8 +154,10 @@ export async function restoreComposition(
   for (const { id, version, capabilities } of composition.granted ?? []) {
     if (!installed.includes(id) || host.manifest(id).version !== version)
       continue;
+    const declared = host.manifest(id).capabilities ?? [];
+    const kept = capabilities.filter((cap) => declared.includes(cap));
     try {
-      await host.grant(id, capabilities);
+      await host.grant(id, [...new Set([...host.granted(id), ...kept])]);
     } catch (error) {
       errors.push(`权限恢复失败 ${id}：${String(error)}`);
     }

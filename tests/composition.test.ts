@@ -186,3 +186,37 @@ it("starts a built-in default once when it is new to a saved composition", async
   ]);
   expect(fresh.composition.offered).toEqual(["one"]);
 });
+
+it("restores only saved grants still declared, on top of what the app granted", async () => {
+  const host = setup();
+  host.install({
+    manifest: {
+      id: "store",
+      version: "1",
+      apiVersion: 1,
+      capabilities: ["state.read", "state.batch", "records.list"],
+    },
+    activate() {},
+  });
+  // The app grants its built-in what this version needs.
+  await host.grant("store", ["state.read", "state.batch", "records.list"]);
+  // Saved when the same version still declared state.write.
+  const errors = await restoreComposition(host, {
+    schema: 1,
+    enabled: [{ id: "store", version: "1" }],
+    granted: [
+      {
+        id: "store",
+        version: "1",
+        capabilities: ["state.read", "state.write"],
+      },
+    ],
+  });
+  expect(errors).toEqual([]);
+  expect(host.granted("store").sort()).toEqual([
+    "records.list",
+    "state.batch",
+    "state.read",
+  ]);
+  expect(host.inspect("store").status).toBe("active");
+});
