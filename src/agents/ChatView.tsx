@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { ArrowDownIcon, ChevronLeftIcon, EllipsisIcon } from "lucide-react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
-import { useStickToBottom } from "use-stick-to-bottom";
 import type {
   Agent,
   AgentModel,
@@ -13,6 +12,7 @@ import { cn } from "cn";
 import { Avatar } from "./Avatar";
 import { SessionMenu } from "./SessionMenu";
 import { TypingDots } from "./TypingDots";
+import { useFollowBottom } from "./useFollowBottom";
 import { card } from "./card";
 import { AgentMenuItems, type AgentAction } from "./AgentMenu";
 import { MessageRow, type MessageAction } from "./MessageRow";
@@ -100,29 +100,20 @@ export function ChatView({
   // The log follows new messages only while it is at the bottom.
   const motionless = useReducedMotion();
   const { scrollRef, contentRef, isAtBottom, scrollToBottom } =
-    useStickToBottom({
-      initial: "instant",
-      resize: motionless ? "instant" : "smooth",
-    });
+    useFollowBottom();
   const pending =
     agent.pending?.sessionId === session.id ? agent.pending : undefined;
   // Another session opens at its end, and what the person sends is shown.
   useEffect(() => {
-    void scrollToBottom("instant");
+    scrollToBottom("instant");
   }, [session.id, scrollToBottom]);
   useEffect(() => {
-    if (pending) void scrollToBottom(motionless ? "instant" : "smooth");
+    if (pending) scrollToBottom(motionless ? "instant" : "smooth");
   }, [pending, motionless, scrollToBottom]);
   // So does what an undo or a rewrite brings, unlike a reply arriving
-  // while the person reads further up. Lines entering and leaving change
-  // the height for a moment; that is not the person scrolling away.
+  // while the person reads further up.
   useEffect(() => {
-    if (latest)
-      void scrollToBottom({
-        animation: motionless ? "instant" : "smooth",
-        ignoreEscapes: true,
-        duration: 300,
-      });
+    if (latest) scrollToBottom(motionless ? "instant" : "smooth");
   }, [latest, motionless, scrollToBottom]);
   // Messages seen at the bottom; a reply after them is new until reached.
   const [seen, setSeen] = useState({
@@ -304,7 +295,7 @@ export function ChatView({
         >
           <div
             ref={contentRef}
-            className="flex min-h-full flex-col px-[max(24px,calc((100%-600px)/2))] pt-3 pb-4 max-md:px-3.5"
+            className="flex min-h-full shrink-0 flex-col px-[max(24px,calc((100%-600px)/2))] pt-3 pb-4 max-md:px-3.5"
           >
             {!session.messages.length && (
               <motion.div
@@ -361,7 +352,7 @@ export function ChatView({
                 )}
                 aria-label={unseen ? "新消息，回到最新" : "回到最新"}
                 onClick={() =>
-                  void scrollToBottom(motionless ? "instant" : "smooth")
+                  scrollToBottom(motionless ? "instant" : "smooth")
                 }
               >
                 <ArrowDownIcon />
