@@ -494,7 +494,7 @@ export function AgentWorkspace({
       data-frame="own"
       className={cn(
         "relative flex h-full min-h-0 transition-[padding] duration-200 ease-out",
-        showDetail && wide && "pr-[336px]",
+        showDetail && wide && "pr-[304px]",
       )}
     >
       {!showDetail && feedback}

@@ -76,3 +76,32 @@ test("single-pane mode starts only below the two-column minimum and keeps the dr
     }
   }
 });
+
+for (const width of [940, 1440])
+  test(`the Agent details are a 288px drawer at ${width}px`, async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width, height: 800 });
+    await page.goto("/");
+    await addAgent(page, "详情助手");
+    await page.getByRole("button", { name: "展开或收起右侧栏" }).click();
+    const drawer = page.getByRole(width > 1100 ? "complementary" : "dialog", {
+      name: "Agent 详情",
+    });
+    await expect(drawer).toBeVisible();
+    // Past the slide-in; the inline panel sits inside the sheet's 1px edge.
+    await expect
+      .poll(async () => Math.round((await drawer.boundingBox())!.width))
+      .toBe(width > 1100 ? 287 : 288);
+    // Wide windows move the conversation aside instead of covering it.
+    if (width > 1100) {
+      const edge = (await drawer.boundingBox())!.x;
+      const chat = page.getByRole("region", { name: "详情助手 的会话" });
+      await expect
+        .poll(async () => {
+          const box = (await chat.boundingBox())!;
+          return box.x + box.width <= edge;
+        })
+        .toBe(true);
+    }
+  });
