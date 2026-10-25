@@ -87,3 +87,29 @@ test("views carry a valid icon, and an invalid one becomes a problem instead of 
   expect(views.plain).not.toHaveProperty("icon");
   expect(views.plain).not.toHaveProperty("iconProblem");
 });
+
+test("only a dialog view can be the user's entry, opened from the avatar", async () => {
+  const host = new Host(platform);
+  host.install({
+    manifest: { id: "entries", version: "1", apiVersion: 1 },
+    activate(ctx) {
+      ctx.view({
+        id: "about-me",
+        label: "关于我",
+        presentation: "dialog",
+        entry: "user",
+        mount: () => () => {},
+      });
+      ctx.view({
+        id: "workspace",
+        label: "工作区",
+        entry: "user",
+        mount: () => () => {},
+      });
+    },
+  });
+  await host.start("entries");
+  const views = Object.fromEntries(host.views().map((view) => [view.id, view]));
+  expect(views["about-me"].entry).toBe("user");
+  expect(views.workspace).not.toHaveProperty("entry");
+});

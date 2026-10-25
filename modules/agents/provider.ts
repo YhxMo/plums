@@ -1,10 +1,12 @@
 import type { ExtensionDefinition } from "@modules/sdk";
 import type { ChatService } from "@extensions/contracts";
 import { AgentStore } from "./store";
-import { MAX_MODEL_ID, restoreAgents } from "./validation";
+import { restoreAgents } from "./validation";
+import { chatModels } from "./models";
 import { prepareChat } from "./attachments";
 import { systemPrompt } from "./instructions";
 import { AgentState } from "./persistence";
+import { wireMemory } from "./memory/wire";
 
 /**
  * Agents live in this extension's own storage as an index document plus one
@@ -22,8 +24,9 @@ export function agentExtension(
       version: "0.0.4",
       description:
         "管理 Agent 的角色资料、会话和消息记录，并通过所选模型生成回复。",
-      // Agents open without any model and say how to add one.
-      optional: { chat: 1 },
+      // Agents open without any model and say how to add one, and answer
+      // without memory.
+      optional: { chat: 1, memory: 1 },
       provides: { agents: 1 },
       capabilities: ["state.read", "state.batch", "records.list"],
     },
@@ -42,31 +45,7 @@ export function agentExtension(
         store.sourcesChanged();
       });
       ctx.onDispose(() => unwatch.forEach((stop) => stop()));
-      const models = () =>
-        chats.flatMap(({ id, label, value }) =>
-          value
-            .models()
-            .filter(({ id: model }) => model.length <= MAX_MODEL_ID)
-            .map(
-              ({
-                id: model,
-                label: name,
-                description,
-                group,
-                reasoning,
-                vision,
-              }) => ({
-                provider: id,
-                providerLabel: label,
-                group: group ?? label,
-                id: model,
-                label: name,
-                description,
-                ...(reasoning?.length && { reasoning }),
-                ...(vision && { vision }),
-              }),
-            ),
-        );
+      const models = () => chatModels(chats);
       const state = new AgentState((capability, payload, signal) =>
         ctx.platform(capability, payload, signal),
       );
@@ -84,7 +63,7 @@ export function agentExtension(
         (
           text,
           signal,
-          { model, effort, name, instructions, history, attachments },
+          { agentId, model, effort, name, instructions, history, attachments },
         ) => {
           if (!model)
             throw new Error(
@@ -110,6 +89,10 @@ export function agentExtension(
               (m) => m.provider === model.provider && m.id === model.model,
             )?.vision === true,
           );
+          const now = Date.now();
+          const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+          const agent = store.list().find((a) => a.id === agentId);
+          const sections = agent ? memory.sections(agent, now, timeZone) : [];
           return ctx.task(async () => {
             // A connection stopping mid-reply cancels the call and saves nothing.
             const output = await chat.value.reply(
@@ -118,8 +101,9 @@ export function agentExtension(
                 instructions: systemPrompt({
                   name,
                   instructions,
-                  now: Date.now(),
-                  timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+                  now,
+                  timeZone,
+                  sections,
                 }),
                 history: conversation.history,
                 input: conversation.input.text,
@@ -143,6 +127,7 @@ export function agentExtension(
         () => chats.map(({ id, label }) => ({ id, label })),
       );
       watchModels();
+      const memory = wireMemory(ctx, store);
       // Management lists each Agent under the connection it uses and can
       // switch it on (taking that connection's first model if the Agent uses
       // another) or off. One toggle object lets the host skip republishing
@@ -171,10 +156,12 @@ export function agentExtension(
           store.list().map((agent) => ({
             id: agent.id,
             label: agent.name,
-            uses:
-              agent.model && !agent.off?.includes(agent.model.provider)
+            uses: [
+              ...(agent.model && !agent.off?.includes(agent.model.provider)
                 ? [agent.model.provider]
-                : [],
+                : []),
+              ...memory.used(agent),
+            ],
           })),
           toggle,
         );

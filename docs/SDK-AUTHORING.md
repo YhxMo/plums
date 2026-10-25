@@ -52,7 +52,7 @@ host.serviceNames(); // string[]
 host.manifest(id); // Manifest
 host.inspect(id); // {status, error?: string, desired: boolean, resources: number, tasks: number}
 // status: disabled | waiting | active | stopping | failed | cleanup-failed
-host.views(); // {id, label, owner, generation, presentation, priority, chrome?, icon?, iconProblem?}[]
+host.views(); // {id, label, owner, generation, presentation, entry?, priority, chrome?, icon?, iconProblem?}[]
 host.themes(); // (Theme & {owner, generation})[]，仅开放的 active 贡献
 const close = host.mountView(viewId, root); // () => void | Promise<void>
 ```

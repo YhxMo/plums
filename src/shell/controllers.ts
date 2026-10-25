@@ -21,7 +21,10 @@ export type TitleBarProps = {
 };
 export type NavRailProps = {
   macOverlay: boolean;
-  workspace: Pick<Workspace, "views" | "activeView" | "selectLayout">;
+  workspace: Pick<
+    Workspace,
+    "views" | "allViews" | "activeView" | "selectLayout"
+  >;
   navigation: Pick<
     ShellNavigation,
     "manager" | "setDialog" | "openManager" | "closeManager"

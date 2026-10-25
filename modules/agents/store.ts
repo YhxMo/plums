@@ -41,6 +41,7 @@ const newSession = (): Session => ({
 export type SaveOptions = { signal?: AbortSignal; onCommit?: () => void };
 /** What a reply may draw on besides the new text. */
 export type ReplyContext = {
+  agentId: string;
   model?: AgentModel;
   /** The Agent's chosen strength; the provider decides whether the model takes it. */
   effort?: Effort;
@@ -105,15 +106,30 @@ export class AgentStore implements AgentProvider {
   }
   /** Re-renders Agents after their model connections start, stop or change. */
   sourcesChanged = () => this.emit();
+  /** Memory providers an Agent can switch on or off. */
+  memories: () => readonly Named[] = () => [];
+  /**
+   * Told what memory cares about: a reply was saved, the person left a
+   * conversation, an extension was switched back on, or the Agent is gone.
+   */
+  activity?: (
+    agentId: string,
+    event: "saved" | "left" | "on" | "removed",
+    extensionId?: string,
+  ) => void;
   setOff(agentId: string, extensionId: string, off: boolean) {
     if (!text(extensionId, 64))
       return Promise.reject(new Error("扩展 ID 无效。"));
     return this.change((agents) => {
       const a = this.find(agents, agentId);
+      const was = a.off?.includes(extensionId);
       const rest = (a.off ?? []).filter((id) => id !== extensionId);
       if (off) a.off = [...rest, extensionId];
       else if (rest.length) a.off = rest;
       else delete a.off;
+      return was && !off;
+    }).then((on) => {
+      if (on) this.activity?.(agentId, "on", extensionId);
     });
   }
   setModel(agentId: string, model: AgentModel | null) {
@@ -149,6 +165,8 @@ export class AgentStore implements AgentProvider {
   }
   list = () => this.agents;
   view(agentId: string | null) {
+    if (this.viewed && this.viewed !== agentId)
+      this.activity?.(this.viewed, "left");
     this.viewed = agentId;
     const a = this.agents.find((a) => a.id === agentId);
     const s = a?.sessions.find((s) => s.id === a.currentSessionId);
@@ -277,6 +295,7 @@ export class AgentStore implements AgentProvider {
         agents.splice(index, 1);
       });
       this.removed.delete(agentId);
+      this.activity?.(agentId, "removed");
     } finally {
       this.structural.delete(agentId);
       this.emit();
@@ -310,6 +329,8 @@ export class AgentStore implements AgentProvider {
         if (!a.sessions.some((s) => s.id === sessionId))
           throw new Error("会话不存在。");
         if (action === "select") {
+          if (a.currentSessionId !== sessionId)
+            this.activity?.(agentId, "left");
           a.currentSessionId = sessionId!;
           const s = a.sessions.find((s) => s.id === sessionId)!;
           if (this.viewed === agentId && unreadReplies(s)) readAll(s);
@@ -449,6 +470,7 @@ export class AgentStore implements AgentProvider {
     this.emit();
     try {
       const output = await this.reply(input, controller.signal, {
+        agentId,
         model,
         ...(a.effort && { effort: a.effort }),
         name: a.name,
@@ -518,6 +540,7 @@ export class AgentStore implements AgentProvider {
         },
       );
       if (removal) this.removed.set(agentId, removal);
+      this.activity?.(agentId, "saved");
     } finally {
       this.committing.delete(agentId);
       this.running.delete(agentId);

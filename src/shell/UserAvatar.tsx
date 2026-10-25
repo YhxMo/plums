@@ -1,7 +1,7 @@
 /**
  * The person using the app, at the top of the rail: a blank plum (outline,
- * stem and leaf, no face) in neutral greys. Only a picture for now; the
- * shared-memory extension will make it the entry to what all Agents know.
+ * stem and leaf, no face) in neutral greys. A dialog view with
+ * `entry: "user"`, such as the memory every Agent shares, makes it a button.
  */
 export function UserAvatar() {
   return (

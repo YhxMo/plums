@@ -19,6 +19,10 @@ export function NavRail({
   operations,
 }: NavRailProps) {
   const managerOpen = navigation.manager.open;
+  // An extension may make the avatar the entry to the user's own page.
+  const entry = workspace.allViews
+    .filter((view) => view.entry === "user")
+    .sort((a, b) => a.generation - b.generation)[0];
   return (
     <nav
       aria-label="应用导航"
@@ -33,7 +37,19 @@ export function NavRail({
         data-tauri-drag-region
       />
       <div className="mt-1.5">
-        <UserAvatar />
+        {entry ? (
+          <RailButton
+            label={entry.label}
+            className="size-11 rounded-xl"
+            onClick={(source) =>
+              navigation.setDialog({ id: entry.id, label: entry.label }, source)
+            }
+          >
+            <UserAvatar />
+          </RailButton>
+        ) : (
+          <UserAvatar />
+        )}
       </div>
       <div className="mt-5 flex flex-col gap-2">
         {workspace.views.map((view) => (

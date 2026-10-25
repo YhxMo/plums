@@ -72,6 +72,12 @@ export interface View {
   /** Defaults to workspace for existing extensions. Dialogs open from the extension's card in management; sidebars mount in the right drawer. */
   presentation?: "workspace" | "dialog" | "sidebar";
   /**
+   * `user`: a dialog the shell opens from the user's avatar at the top of
+   * the rail, such as what every Agent knows about them. Ignored on other
+   * presentations; the oldest such view wins.
+   */
+  entry?: "user";
+  /**
    * SVG text for the rail, at most 8 KiB, with a root `<svg>` that has a
    * `viewBox`. Drawn as a one-colour mask the host tints, so only its shape
    * counts; scripts, links and styles in it never run. An invalid icon is

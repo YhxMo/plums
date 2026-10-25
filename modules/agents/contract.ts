@@ -147,6 +147,8 @@ export interface AgentProvider {
   setEffort?(id: string, effort: Effort | null): Promise<void>;
   /** The `chat@1` providers models come from, with models or not. */
   connectors?(): readonly Named[];
+  /** The `memory@1` providers each Agent can switch on or off, as in `setOff`. */
+  memories?(): readonly Named[];
   /** Switches one of the Agent's extensions off or back on for one Agent. */
   setOff?(id: string, extensionId: string, off: boolean): Promise<void>;
   /** Names a session, 1–60 characters; added after agents@1 shipped. */
