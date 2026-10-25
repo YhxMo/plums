@@ -1,6 +1,6 @@
 # Plums 工程状态
 
-核对日期：2026-10-25（Asia/Singapore）。当前只收口 macOS arm64 应用本体，Android 冻结。分支 `feat/ui-refresh`；本候选已分主题提交。2026-10-23 起历史统一使用 `dev.plums.plums` 命名，改写前的包与本地数据仍是旧名，见[历史提交与交付来源](docs/DEVELOPMENT.md#历史提交与交付来源)。
+核对日期：2026-10-26（Asia/Singapore）。当前只收口 macOS arm64 应用本体，Android 冻结。分支 `feat/ui-refresh`；本候选已分主题提交。2026-10-23 起历史统一使用 `dev.plums.plums` 命名，改写前的包与本地数据仍是旧名，见[历史提交与交付来源](docs/DEVELOPMENT.md#历史提交与交付来源)。
 
 [文档导航](docs/README.md) · [当前阶段](docs/spec/milestone.md) · [整体路线](docs/spec/total.md) · [当前交付](evidence/RESULTS.md)
 
@@ -21,24 +21,26 @@
 - **界面细节**：输入框以光标表示焦点、不再整框变色，占位文字避开光标；对话框或菜单关闭后按钮提示不残留；ⓘ 说明悬停即显示；介绍用悬停出现的铅笔编辑；详情抽屉 288px。
 - **消息区滚动**：自有 `useFollowBottom` 取代 `use-stick-to-bottom`，WebKit 中发送后立即到底、等待时保持，撤销与改写后回到最新（[UI](docs/UI.md#列表交互与详情)）。
 - **回复排版与外链**：回复按 Markdown 排版，只有 https 链接可点，经宿主能力 `link.open` 在默认浏览器打开（[UI](docs/UI.md#列表交互与详情)、[平台能力](docs/EXTENSION-CONTRACTS.md#平台能力与可选助手)）。
+- **界面规范改造**：按[设计规范](docs/DESIGN.md)与所有者确认的效果图逐页改造（[当前阶段](docs/spec/milestone.md#第-1-级mac-第一版)第 5a 项）：Radix Gray 与 Orange、12/14/16/20 四种字号、0.5px 线条、只有浮层有阴影、去掉 `motion` 与入场动画；欢迎页与“+”菜单、22px 输入栏、详情、两步添加、经添加页导入（含 PNG 图片角色卡）、记忆已过期折叠与全部清除、扩展管理、设置、模型连接（行为见 [UI](docs/UI.md)）。新增宿主能力 `file.save`（[平台能力](docs/EXTENSION-CONTRACTS.md#平台能力与可选助手)）、角色卡导出与 Agent 整包（`.plums`）导出导入，以及实验接口 `ctx.shell.bundle`／`offerPackages`（[作者指南](docs/SDK-AUTHORING.md)）。另修复：同一提示随对话框换层时沿用旧计时，导致第二次“已重新生成”的“撤销”提前消失。
 - **审查修复**：版本 2–4 模型记录保留已存的输出上限（检查点那次“上限未生效”即因旧升级把 1024 换成了 `null`；已被那个候选保存过的记录不会恢复）；旧 JSON 首次导入在目录不可读时中止并可重试；浏览器批量写逆序回滚；损坏的扩展包可重新导入修复；扩展管理遮住会话时到达的回复计为未读；没有打开会话时，会话卡片顶部也能拖动窗口。
 
 ## 本候选验证
 
 | 范围 | 实际结果 |
 | --- | --- |
-| Web | 记忆界面提交上 `npm run verify:web` 通过（987 单元及构建、发布内容检查、格式、项目边界、行数与 ESLint）；此前各提交各自通过 |
-| 原生逻辑 | `61df274` 上 `npm run verify:native` 通过：IPC、格式、Clippy、90 单元；SQLite 第一步时 debug 应用在真实格式开发数据副本上导入 `host.shell`（修订 11）并在其上保存，版本 1 → 2 的原地升级只有单元验证 |
-| Chromium | 记忆界面提交的源码上 `npm run verify:e2e` 全量 282 项：280 通过，失败的是 `rail.spec.ts` 中断言头像“不是按钮”的浅深两项，按新契约（记忆贡献头像入口）更新后该文件 10 项通过 |
-| WebKit | `eaa1380` 上 16 个相关 spec 共 108 项：106 通过，失败的是 agent-flow 的“dialog close is quiet…”浅深两项（界面改版前已存在）；之后各修复只跑相关 spec，见[抽查记录](evidence/MAC-SPOTCHECK-2026-10-25.md)。剪贴板读回只在 Chromium 检查（Playwright 的 WebKit 没有剪贴板权限） |
-| 浏览器视觉 | Chromium 截图检查浅深两种外观：Markdown 回复（1100px）、带“撤销”的提示、编辑消息横条；回复与草稿另抽查 375px 浅色与 1280px 深色；添加页的设定与介绍、详情的设定与“记忆”行、记忆页（含已过期与整理模型）在 1280px 浅色与深色抽查 |
-| 打包应用 | `2f3ee6e` 候选上所有者抽查对话体验与窗口框架，抽查中发现的问题已修复并重新打包，见[抽查记录](evidence/MAC-SPOTCHECK-2026-10-25.md)；`eb5c68b` 的检查点候选在真实改名前数据副本上完成迁移、消息转为记录、一次真实模型调用（输出上限未生效）、文件夹导入与模型窗口填写，见[打包检查点记录](evidence/MAC-CHECKPOINT-2026-10-24.md)；输入法与焦点的实测仍是改名前候选的[记录](evidence/MAC-INPUT-LAYOUT-2026-10-23.md) |
+| Web | `0220ac9` 上 `npm run verify:web` 通过（1015 单元及构建、发布内容检查、格式、项目边界、行数与 ESLint）；界面改造各提交各自通过 |
+| 原生逻辑 | `40f3fa0`（`file.save`）上 `npm run verify:native` 通过：IPC、格式、Clippy、93 单元；此前 `61df274` 上通过，SQLite 第一步时 debug 应用在真实格式开发数据副本上导入 `host.shell`（修订 11）并在其上保存，版本 1 → 2 的原地升级只有单元验证 |
+| Chromium | `0220ac9` 上 `npm run verify:e2e` 全量 289 项全部通过 |
+| WebKit | 界面改造后未重跑。改造前 `eaa1380` 上 16 个相关 spec 共 108 项：106 通过，失败的是 agent-flow 的“dialog close is quiet…”浅深两项（该测试现改为从名称框反向 Tab 到关闭按钮），见[抽查记录](evidence/MAC-SPOTCHECK-2026-10-25.md)。剪贴板读回只在 Chromium 检查（Playwright 的 WebKit 没有剪贴板权限） |
+| 浏览器视觉 | Chromium 1280px 浅深截图对照效果图：会话、欢迎页、详情、添加两步、导入、记忆、扩展管理、设置，以及导出的角色卡 PNG；模型连接页在浏览器开发服务中连接器停在“等待条件”，未截图，由 e2e 覆盖 |
+| 打包应用 | 界面改造候选 `release/.mac-eibrI5/Plums.app`（`0220ac9` 加 milestone 文档改动）已构建、ad-hoc 签名并以隔离数据启动，未见错误；本会话没有屏幕录制权限，毛玻璃与 0.5px 线条的目视、`file.save` 保存面板与整包导入均未做。此前 `2f3ee6e` 候选上所有者抽查对话体验与窗口框架，抽查中发现的问题已修复并重新打包，见[抽查记录](evidence/MAC-SPOTCHECK-2026-10-25.md)；`eb5c68b` 的检查点候选在真实改名前数据副本上完成迁移、消息转为记录、一次真实模型调用（输出上限未生效）、文件夹导入与模型窗口填写，见[打包检查点记录](evidence/MAC-CHECKPOINT-2026-10-24.md)；输入法与焦点的实测仍是改名前候选的[记录](evidence/MAC-INPUT-LAYOUT-2026-10-23.md) |
 
 ## 未验范围
 
 各子系统文档只记录契约与回归测试，平台和打包应用的未验项统一列在这里；已交付包的受验范围见[交付入口](evidence/RESULTS.md)，Android 冻结期间的待补项见 [Android 工程](docs/ANDROID.md#构建和设备)。
 
 - **审查修复**：输出上限保留、导入重试等只有单元与浏览器回归。
+- **界面规范改造**：打包应用中毛玻璃叠色与 0.5px 线条在 2 倍屏上的效果、`file.save` 的系统保存面板（取消、覆盖同名文件）、角色卡与 `.plums` 在打包应用中的导出导入、WebKit 下的新页面（两步添加、导入、记忆、设置）；酒馆实际读取导出的 PNG 只按规范自测（V2 `chara`），未在酒馆软件中打开。
 - **设定与记忆**：打包应用已实测关于我、一次真实整理（DeepSeek）与重启后跨会话记忆（[记录](evidence/MAC-MEMORY-2026-10-25.md)）；重启后补整理、打包应用中的整理提示与撤销、过期显示、另选整理模型与关闭记忆、WebKit 下的记忆页（含 `datetime-local` 输入）未做；整理提示词在更长对话和更多模型上的效果未评估。
 - **数据迁移**：已有版本 1 库升级到版本 2（只影响开发数据，本机无此类库）、复制失败弹窗。
 - **存储**：断电与写入中途崩溃时的一致性依赖 SQLite，未实测；正常重启与转换前中断不证明这一点。
@@ -52,15 +54,14 @@
 
 当前是[路线阶梯](docs/spec/total.md#路线阶梯)第 1 级（Mac 第一版），顺序与剩余内容只在[当前阶段](docs/spec/milestone.md#第-1-级mac-第一版)维护；自 0.2.0 以来的工作见 git log。
 
-- **当前焦点**：第 5 项 `memory@1` 已实现，打包应用已实测跨会话记忆（剩余未验项见上）。下一步先按[设计规范](docs/DESIGN.md)逐页改造现有界面：所有者已确认逐页效果；同时把添加 Agent 改为“描述”与“模型和扩展”两步，导入角色卡也走这两步；支持图片角色卡，新增角色卡导出（PNG），以及把角色卡和组成它的扩展打成一个文件的整包导出与导入。之后是第 6 项外观与快捷键。
-- **设计规范**：2026-10-25 起界面改动遵循[设计规范](docs/DESIGN.md)；现有界面尚未逐项审查，已知差距包括自定颜色值（未用 Radix 色阶）、多于 4 种字号且有小于 12px 的文字（如 11.5px）、1px 边框、多处入场动画与阴影、部分说明文字与中点分隔符。
-- **遗留**：`modules/agents/store.ts`（约 620 行）、`modules/agents/memory/store.ts`（约 460 行）、`AgentDialogs.tsx`（约 550 行）与 `AgentWorkspace.tsx`（约 530 行）超过 400 行提示线；外壳右侧栏按钮的 18px 偏移与会话卡片几何耦合（窗口框架没有改动卡片几何，仍保留）；`View.icon` 无效原因是英文作者提示，在中文界面中原样显示；WebKit 下 agent-flow 的“dialog close is quiet…”两项失败（Tab 未聚焦弹窗关闭按钮），界面改版前已存在；此前导入的单文件扩展的源码分片（`host.shell` 的 `x-` 文档）不再读取，也不自动清理。
+- **当前焦点**：第 5a 项界面规范改造与导出已实现（含所有者补充的角色卡导出与整包导出导入），等待所有者在上面的打包候选中抽查；之后是第 6 项外观与快捷键。
+- **遗留**：`modules/agents/store.ts`（约 620 行）、`modules/agents/memory/store.ts`（约 470 行）、`AgentWorkspace.tsx`（约 610 行）、`ProviderForm.tsx`（约 610 行）与 `useExtensionManager.ts`（约 440 行）超过 400 行提示线；外壳右侧栏按钮的 18px 偏移与会话卡片几何耦合（窗口框架没有改动卡片几何，仍保留）；`View.icon` 无效原因是英文作者提示，在中文界面中原样显示；拖放提示层仍用 2px 虚线（短暂的状态指示，未按 0.5px 处理）；开发用的文本工作台与示例扩展不在设计规范的检查范围内；此前导入的单文件扩展的源码分片（`host.shell` 的 `x-` 文档）不再读取，也不自动清理。
 
 当前未推送，现有交付包未替换。
 
 ## 当前交付与恢复
 
-记忆实测候选是 `release/.mac-U2abIJ/Plums.app`（`bc9234e`，[记录](evidence/MAC-MEMORY-2026-10-25.md)）；此前的手测候选是 `release/.mac-IuDoPW/Plums.app`（`2f3ee6e`，0.2.0 arm64 debug / ad-hoc，[抽查记录](evidence/MAC-SPOTCHECK-2026-10-25.md)）；`release/.mac-MxLDoZ/Plums.app`（`eb5c68b`）是[检查点记录](evidence/MAC-CHECKPOINT-2026-10-24.md)的来源。直接打开它会使用正式数据目录，并在首次启动时复制改名前的数据；要隔离数据，就用设置了 `HOME` 或 `PLUMS_DATA_DIR` 的命令行启动包内可执行文件。`release/mac-manual-2026-10-23/` 是改名前构建的，启动脚本已失效，不再使用。
+界面改造候选是 `release/.mac-eibrI5/Plums.app`（`0220ac9`，未抽查）；记忆实测候选是 `release/.mac-U2abIJ/Plums.app`（`bc9234e`，[记录](evidence/MAC-MEMORY-2026-10-25.md)）；此前的手测候选是 `release/.mac-IuDoPW/Plums.app`（`2f3ee6e`，0.2.0 arm64 debug / ad-hoc，[抽查记录](evidence/MAC-SPOTCHECK-2026-10-25.md)）；`release/.mac-MxLDoZ/Plums.app`（`eb5c68b`）是[检查点记录](evidence/MAC-CHECKPOINT-2026-10-24.md)的来源。直接打开它会使用正式数据目录，并在首次启动时复制改名前的数据；要隔离数据，就用设置了 `HOME` 或 `PLUMS_DATA_DIR` 的命令行启动包内可执行文件。`release/mac-manual-2026-10-23/` 是改名前构建的，启动脚本已失效，不再使用。
 
 已交付 0.2.0 来自 `6668ce7`，Mac 入口 `release/mac/Plums.app`，本次未替换；Android 包仅保留其原受验范围。[交付证据](evidence/RELEASE-0.2.0-2026-10-20.md)及包旁的 `build-info.json`、`source.patch` 用于核对来源。0.0.4 恢复包保留在 `.cache/archive/releases/mac-uIizKK/mac` 与 `.cache/archive/releases/android-JS89ll/android`；恢复包不自动回滚数据，操作规则见[开发流程](docs/DEVELOPMENT.md#本地交付目录)。
 
