@@ -102,6 +102,9 @@ export function AgentWorkspace({
     agentId: string;
     notice: string;
   } | null>(null);
+  // Counts the person's own rewrites and undos; the conversation then
+  // goes to its newest message, wherever it was scrolled.
+  const [latest, setLatest] = useState(0);
   function offerUndo(agentId: string, text: string) {
     if (!api.undo) return;
     setNotice(text);
@@ -125,7 +128,10 @@ export function AgentWorkspace({
     modals,
     drafts,
     setDrafts,
-    offerUndo,
+    offerUndo(agentId, text) {
+      setLatest((n) => n + 1);
+      offerUndo(agentId, text);
+    },
   });
   const agent = agents.find((a) => a.id === selected);
   // The open conversation is read; replies elsewhere count as unread.
@@ -224,6 +230,7 @@ export function AgentWorkspace({
                 setUndoable(null);
                 void act(async () => {
                   await api.undo!(undoable.agentId);
+                  setLatest((n) => n + 1);
                   setNotice("已恢复");
                 });
               },
@@ -386,6 +393,7 @@ export function AgentWorkspace({
         ((id, source) =>
           open({ action: "renameSession", agent, session: id }, source))
       }
+      latest={latest}
       onCancel={() => api.cancel(agent.id)}
       attach={
         api.info.attachments

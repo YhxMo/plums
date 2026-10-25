@@ -45,6 +45,7 @@ export function ChatView({
   onEffort,
   attach,
   onSend,
+  latest,
   onCancel,
   onEdit,
   onRegenerate,
@@ -73,6 +74,8 @@ export function ChatView({
   /** Absent when the provider takes no attachments. */
   attach?: Attach;
   onSend: () => void;
+  /** Changes after the person's own undo, edit or regenerate. */
+  latest: number;
   onCancel: () => void;
   /** Absent when the provider cannot rewrite a message or a reply. */
   onEdit?: (message: Message) => void;
@@ -110,6 +113,17 @@ export function ChatView({
   useEffect(() => {
     if (pending) void scrollToBottom(motionless ? "instant" : "smooth");
   }, [pending, motionless, scrollToBottom]);
+  // So does what an undo or a rewrite brings, unlike a reply arriving
+  // while the person reads further up. Lines entering and leaving change
+  // the height for a moment; that is not the person scrolling away.
+  useEffect(() => {
+    if (latest)
+      void scrollToBottom({
+        animation: motionless ? "instant" : "smooth",
+        ignoreEscapes: true,
+        duration: 300,
+      });
+  }, [latest, motionless, scrollToBottom]);
   // Messages seen at the bottom; a reply after them is new until reached.
   const [seen, setSeen] = useState({
     session: session.id,
