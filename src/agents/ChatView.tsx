@@ -293,9 +293,11 @@ export function ChatView({
           role="log"
           aria-label="会话消息"
         >
+          {/* Room at the end for the last line's actions, which float below
+              it on desktop. */}
           <div
             ref={contentRef}
-            className="flex min-h-full shrink-0 flex-col px-[max(24px,calc((100%-600px)/2))] pt-3 pb-4 max-md:px-3.5"
+            className="flex min-h-full shrink-0 flex-col px-[max(24px,calc((100%-600px)/2))] pt-3 pb-9 max-md:px-3.5 max-md:pb-4"
           >
             {!session.messages.length && (
               <motion.div

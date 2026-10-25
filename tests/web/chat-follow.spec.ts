@@ -101,3 +101,28 @@ test.describe("on a 2x screen", () => {
     }
   });
 });
+
+test("at the end, the last line's actions show whole above the message box", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1280, height: 600 });
+  await page.goto("/");
+  await addAgent(page, "跟随助手");
+  const input = page.getByRole("textbox", { name: "消息", exact: true });
+  for (let i = 1; i <= 3; i++) {
+    await input.fill(`第${i}条\n${"很长的一段话\n".repeat(6)}`);
+    await page.keyboard.press("Enter");
+    await expect(replies(page)).toHaveCount(i);
+  }
+  await expect.poll(() => atEnd(page)).toBe(true);
+  await replies(page).last().hover();
+  const copy = page
+    .getByRole("log")
+    .getByRole("button", { name: "复制" })
+    .last();
+  await expect(copy).toBeVisible();
+  const log = (await page.getByRole("log").boundingBox())!;
+  const button = (await copy.boundingBox())!;
+  // Clear of the edge, not just touching it.
+  expect(button.y + button.height + 4).toBeLessThanOrEqual(log.y + log.height);
+});
