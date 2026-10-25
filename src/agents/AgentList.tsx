@@ -277,11 +277,6 @@ export function AgentList({
             onAction={(action, source) => onAction(a, action, source)}
           />
         ))}
-        {agents.length === 0 && (
-          <p className="m-3 text-xs text-muted-foreground">
-            添加后，Agent 会出现在这里。
-          </p>
-        )}
         {agents.length > 0 && !shown.length && (
           <p className="m-3 text-xs text-muted-foreground">
             没有找到 Agent。

@@ -58,7 +58,18 @@ export async function openAddAgent(page: Page) {
   }
   return page.getByRole("dialog", { name: "添加 Agent", exact: true });
 }
-/** Adds an Agent through the add dialog. */
+/**
+ * From the first step of adding an Agent, goes on to its model and
+ * extensions; returns that second step.
+ */
+export async function nextStep(page: Page, name: string) {
+  await page
+    .getByRole("dialog", { name: "添加 Agent", exact: true })
+    .getByRole("button", { name: "下一步", exact: true })
+    .click();
+  return page.getByRole("dialog", { name: `${name}的扩展`, exact: true });
+}
+/** Adds an Agent through both steps of the add dialog, keeping the defaults. */
 export async function addAgent(
   page: Page,
   name: string,
@@ -68,7 +79,8 @@ export async function addAgent(
   await dialog.getByRole("textbox", { name: "名称", exact: true }).fill(name);
   if (description)
     await dialog.getByRole("textbox", { name: "介绍" }).fill(description);
-  await dialog.getByRole("button", { name: "添加", exact: true }).click();
+  const compose = await nextStep(page, name);
+  await compose.getByRole("button", { name: "添加", exact: true }).click();
 }
 export async function legacyEntry(page: Page) {
   await manage(page, true);

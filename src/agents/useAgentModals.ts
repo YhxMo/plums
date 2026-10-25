@@ -4,7 +4,9 @@ import { useAsyncAction } from "@/components/useAsyncAction";
 import { useRoleCardDraft, type RoleCardDraft } from "./useRoleCardDraft";
 
 export type AgentModal =
+  /** Adding an Agent: who it is, then its model and extensions. */
   | "create"
+  | "compose"
   | "import"
   | {
       action: "rename" | "remove" | "deleteSession" | "renameSession";

@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { nextStep } from "./helpers";
 
 for (const keyboard of [false, true]) {
   test(`role-card configuration only advances a step, never saves (${keyboard ? "keyboard" : "pointer"})`, async ({
@@ -28,7 +29,7 @@ for (const keyboard of [false, true]) {
         localStorage.getItem("plums:extension.agents.local"),
       ),
     ).toBeNull();
-    await create.getByRole("button", { name: "取消", exact: true }).click();
+    await create.getByRole("button", { name: "关闭", exact: true }).click();
     await page.reload();
     await expect(
       page.getByRole("button", { name: "确认后才添加", exact: true }),
@@ -39,7 +40,11 @@ for (const keyboard of [false, true]) {
     await create
       .getByRole("textbox", { name: "名称", exact: true })
       .fill("最终确认的角色");
-    await create.getByRole("button", { name: "添加", exact: true }).click();
+    await (
+      await nextStep(page, "最终确认的角色")
+    )
+      .getByRole("button", { name: "添加", exact: true })
+      .click();
     await expect(
       page.getByRole("region", { name: "最终确认的角色 的会话", exact: true }),
     ).toBeVisible();

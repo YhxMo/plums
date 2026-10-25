@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { addAgent, openAddAgent } from "./helpers";
+import { addAgent } from "./helpers";
 
 for (const width of [652, 700, 735]) {
   test(`a ${width}px desktop keeps the Agent list beside the conversation`, async ({
@@ -9,14 +9,7 @@ for (const width of [652, 700, 735]) {
     await page.goto("/");
     await addAgent(page, "助手 A");
     const list = page.getByRole("complementary", { name: "Agent 列表" });
-    await openAddAgent(page);
-    await page
-      .getByRole("textbox", { name: "名称", exact: true })
-      .fill("助手 B");
-    await page
-      .getByRole("dialog")
-      .getByRole("button", { name: "添加", exact: true })
-      .click();
+    await addAgent(page, "助手 B");
     await page.setViewportSize({ width, height: 680 });
     await expect(list).toBeVisible();
     const rail = page.getByRole("navigation", { name: "应用导航" });

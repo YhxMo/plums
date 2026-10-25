@@ -4,7 +4,7 @@ import {
   chooseLayout,
   extensionDetail,
   switchAppearance,
-  openAddAgent,
+  addAgent,
 } from "./helpers";
 import { test, expect } from "@playwright/test";
 
@@ -194,14 +194,7 @@ test("dismissible fallback notice, independent extension manager page and topbar
     ),
   ).toBe("default");
 
-  await openAddAgent(page);
-  await page
-    .getByRole("textbox", { name: "名称", exact: true })
-    .fill("代码助手");
-  await page
-    .getByRole("dialog")
-    .getByRole("button", { name: "添加", exact: true })
-    .click();
+  await addAgent(page, "代码助手");
   const sidebarToggle = page.getByRole("button", {
     name: "展开或收起右侧栏",
     exact: true,
@@ -234,14 +227,7 @@ test("legacy unconfigured workbench default boots into Agents without changing s
   page,
 }) => {
   await page.goto("/");
-  await openAddAgent(page);
-  await page
-    .getByRole("textbox", { name: "名称", exact: true })
-    .fill("代码助手");
-  await page
-    .getByRole("dialog")
-    .getByRole("button", { name: "添加", exact: true })
-    .click();
+  await addAgent(page, "代码助手");
   const original = await page.evaluate(() => {
     const key = "plums:host.shell";
     // Agents save to their own state, so the shell may not have written yet.

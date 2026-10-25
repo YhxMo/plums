@@ -1,6 +1,6 @@
 import { zipSync, strToU8 } from "fflate";
 import { expect, test, type Page } from "@playwright/test";
-import { manage, persisted, openAddAgent } from "./helpers";
+import { manage, persisted, addAgent } from "./helpers";
 
 const starter = "extensions/examples/starter-model";
 /** A package's two files for a chat service; its top level marks that it ran. */
@@ -64,14 +64,6 @@ async function send(page: Page, text: string) {
   await page.getByRole("textbox", { name: "消息", exact: true }).fill(text);
   await page.getByRole("button", { name: "发送", exact: true }).click();
 }
-async function addAgent(page: Page) {
-  await openAddAgent(page);
-  await page.getByRole("textbox", { name: "名称", exact: true }).fill("作者");
-  await page
-    .getByRole("dialog")
-    .getByRole("button", { name: "添加", exact: true })
-    .click();
-}
 
 test("an imported folder drives the Agent and stays enabled after reload", async ({
   page,
@@ -101,7 +93,7 @@ test("an imported folder drives the Agent and stays enabled after reload", async
     page.getByRole("region", { name: "所选扩展详情" }),
   ).toContainText("统计字数后回显你的消息，不联网、不保存数据。");
   await useService(page, "starter.model");
-  await addAgent(page);
+  await addAgent(page, "作者");
   await send(page, "你好");
   await expect(page.getByRole("log")).toContainText("你写了 2 个字：你好");
   await persisted(page, "starter.model");
@@ -122,7 +114,7 @@ test("re-importing the same ID replaces the code and requires enabling again", a
   let dialog = await importZip(page, zip(service("author.echo", "一")));
   await dialog.getByRole("button", { name: "导入", exact: true }).click();
   await useService(page, "author.echo");
-  await addAgent(page);
+  await addAgent(page, "作者");
   await send(page, "hi");
   await expect(page.getByRole("log")).toContainText("一：hi");
   dialog = await importZip(page, zip(service("author.echo", "二")));

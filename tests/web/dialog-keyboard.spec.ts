@@ -93,10 +93,10 @@ test("a nested explanation keeps Option-Tab in its scope then restores the paren
   await parent
     .getByRole("textbox", { name: "名称", exact: true })
     .fill("键盘草稿");
-  const tip = parent.getByRole("button", { name: "组成扩展说明", exact: true });
+  const tip = parent.getByRole("button", { name: "设定说明", exact: true });
   await tip.click();
   const explanation = page.getByRole("dialog", {
-    name: "组成扩展说明",
+    name: "设定说明",
     exact: true,
   });
   await expect(explanation).toBeFocused();
@@ -113,7 +113,7 @@ test("a nested explanation keeps Option-Tab in its scope then restores the paren
   await expect(tip).toBeFocused();
   await expect(parent).toBeVisible();
   const first = parent.getByRole("button", { name: "关闭", exact: true });
-  const last = parent.getByRole("button", { name: "添加", exact: true });
+  const last = parent.getByRole("button", { name: "下一步", exact: true });
   await last.focus();
   await page.keyboard.press(tab);
   await expect(first).toBeFocused();

@@ -4,7 +4,7 @@ import {
   legacyEntry,
   installByPath,
   serveModule,
-  openAddAgent,
+  addAgent,
 } from "./helpers";
 
 const back = (page: Page) =>
@@ -13,14 +13,7 @@ const back = (page: Page) =>
   );
 
 async function createAgent(page: Page) {
-  await openAddAgent(page);
-  await page
-    .getByRole("textbox", { name: "名称", exact: true })
-    .fill("Back probe");
-  await page
-    .getByRole("dialog")
-    .getByRole("button", { name: "添加", exact: true })
-    .click();
+  await addAgent(page, "Back probe");
 }
 
 for (const width of [375, 1180]) {

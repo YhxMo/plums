@@ -1,17 +1,12 @@
 import { expect, test, type Page } from "@playwright/test";
-import { openAddAgent } from "./helpers";
+import { addAgent } from "./helpers";
 
 /** The echo model's replies. */
 const reply = /^echo-a｜/;
 async function startChat(page: Page, width: number) {
   await page.setViewportSize({ width, height: 900 });
   await page.goto("/");
-  await openAddAgent(page);
-  await page.getByRole("textbox", { name: "名称", exact: true }).fill("助手");
-  await page
-    .getByRole("dialog")
-    .getByRole("button", { name: "添加", exact: true })
-    .click();
+  await addAgent(page, "助手");
   await page.getByRole("textbox", { name: "消息", exact: true }).fill("hi");
   await page.getByRole("button", { name: "发送", exact: true }).click();
   await expect(

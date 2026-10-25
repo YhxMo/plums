@@ -506,7 +506,6 @@ export function AgentWorkspace({
         if (selected === id) setSelected(null);
       }}
       onSessionDeleted={(id) => offerUndo(id, "已删除会话")}
-      onExtensions={() => onExtensions()}
       onModels={onModels}
     />
   );

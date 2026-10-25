@@ -1,36 +1,18 @@
-import {
-  ChevronRightIcon,
-  FileJsonIcon,
-  LinkIcon,
-  UploadIcon,
-} from "lucide-react";
+import { FileJsonIcon, LinkIcon, UploadIcon } from "lucide-react";
 import type {
   Agent,
   AgentConfig,
   AgentProvider,
 } from "@modules/agents/contract";
 import { parseRoleCard } from "@modules/agents/validation";
-import { MAX_INSTRUCTIONS } from "@modules/agents/instructions";
 import type { Named } from "@modules/sdk";
-import { InfoTip } from "@/components/Tooltip";
 import { Dialog, DialogActions, DialogBody } from "@/components/Dialog";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import {
-  Field,
-  FieldDescription,
-  FieldGroup,
-  FieldLabel,
-  FieldSeparator,
-  FieldSet,
-  FieldLegend,
-} from "@/components/ui/field";
-import { AgentParts } from "./AgentParts";
-import { Avatar } from "./Avatar";
-import { ModelSelect } from "./ModelSelect";
+import { Field, FieldDescription, FieldLabel } from "@/components/ui/field";
+import { ComposeStep, DescribeStep } from "./AddAgent";
 import { useAgentDraft } from "./draft";
-import { agentParts, switchPart, type Part } from "./parts";
 import type { AgentModals } from "./useAgentModals";
 
 export function AgentDialogs({
@@ -40,7 +22,6 @@ export function AgentDialogs({
   onCreated,
   onRemoved,
   onSessionDeleted,
-  onExtensions,
   onModels,
   fallbackFocus,
 }: {
@@ -66,7 +47,6 @@ export function AgentDialogs({
   onRemoved(id: string): void;
   /** After a session of `agentId` is deleted. */
   onSessionDeleted(agentId: string): void;
-  onExtensions(): void;
   onModels?: () => void;
   fallbackFocus(): HTMLElement | null;
 }) {
@@ -87,35 +67,6 @@ export function AgentDialogs({
   } = modals;
   const { raw, url, setRaw, setUrl, reading, readLink, readFile } = roleCard;
   const draft = useAgentDraft();
-  const models = api.modelChoices?.();
-  // Unchosen fields show what the provider would pick on its own.
-  const [first] = models ?? [];
-  const model =
-    draft.model === undefined
-      ? first
-        ? { provider: first.provider, model: first.id }
-        : null
-      : draft.model;
-  const parts = agentParts({
-    provider: api.info.extensions ?? [],
-    ui,
-    api,
-    model,
-    memories: (api.memories?.() ?? []).map((choice) => ({ choice })),
-    off: draft.off,
-  });
-  function switchDraftPart(part: Part, on: boolean) {
-    try {
-      const next = switchPart(part, on, api, model);
-      const off = draft.off.filter((id) => id !== part.choice.id);
-      draft.change({
-        off: next.off ? [...off, part.choice.id] : off,
-        ...(next.model && { model: next.model }),
-      });
-    } catch (error) {
-      setError(error instanceof Error ? error.message : String(error));
-    }
-  }
   async function add(config: AgentConfig) {
     const agent = await api.create(config);
     onCreated(agent);
@@ -131,7 +82,11 @@ export function AgentDialogs({
   if (!modal) return null;
   const title =
     typeof modal === "string"
-      ? { create: "添加 Agent", import: "导入角色卡" }[modal]
+      ? {
+          create: "添加 Agent",
+          compose: `${draft.name.trim()}的扩展`,
+          import: "导入角色卡",
+        }[modal]
       : {
           rename: "重命名 Agent",
           remove: "移除 Agent",
@@ -154,12 +109,14 @@ export function AgentDialogs({
       returnFocusTo={modalTrigger.current}
       fallbackFocus={fallbackFocus}
       title={title}
-      onBack={previous ? back : undefined}
+      // The add steps go back from their footer.
+      onBack={
+        previous && modal !== "create" && modal !== "compose" ? back : undefined
+      }
       onClose={() => {
-        if (modal === "create" && !busy) draft.reset();
+        if ((modal === "create" || modal === "compose") && !busy) draft.reset();
         closeModal();
       }}
-      className={modal === "create" ? "max-w-[560px]" : undefined}
     >
       {modal === "import" ? (
         <form
@@ -274,155 +231,33 @@ export function AgentDialogs({
           </DialogActions>
         </form>
       ) : modal === "create" ? (
-        <form
-          key="create"
-          onSubmit={(e) => {
-            e.preventDefault();
-            void act(() =>
-              add({
-                name: draft.name,
-                description: draft.description,
-                instructions: draft.instructions,
-                ...(draft.avatar && { avatar: draft.avatar }),
-                ...(models && { model }),
-                ...(api.setOff && { off: draft.off }),
-              }),
-            );
-          }}
-        >
-          <DialogBody className="gap-5">
-            <FieldGroup className="gap-4">
-              {draft.avatar && (
-                <div className="flex items-center gap-3 text-sm text-muted-foreground">
-                  <Avatar agent={{ name: draft.name, avatar: draft.avatar }} />
-                  角色卡自带的头像，创建后可在详情中更换。
-                </div>
-              )}
-              <Field>
-                <FieldLabel htmlFor="agent-name">名称</FieldLabel>
-                <Input
-                  id="agent-name"
-                  autoFocus
-                  value={draft.name}
-                  onChange={(e) => draft.change({ name: e.target.value })}
-                  maxLength={60}
-                  placeholder="例如：写作助手"
-                  required
-                />
-              </Field>
-              <Field>
-                <FieldLabel htmlFor="agent-instructions">设定</FieldLabel>
-                <Textarea
-                  id="agent-instructions"
-                  value={draft.instructions}
-                  onChange={(e) =>
-                    draft.change({ instructions: e.target.value })
-                  }
-                  maxLength={MAX_INSTRUCTIONS}
-                  placeholder="它是谁、怎么说话、有哪些边界？"
-                  className="max-h-60 min-h-24"
-                />
-                <FieldDescription>
-                  只发给它的模型，不显示给别人。
-                </FieldDescription>
-              </Field>
-              <Field>
-                <FieldLabel htmlFor="agent-description">
-                  介绍（可选）
-                </FieldLabel>
-                <Textarea
-                  id="agent-description"
-                  value={draft.description}
-                  onChange={(e) =>
-                    draft.change({ description: e.target.value })
-                  }
-                  maxLength={4000}
-                  placeholder="给人看的介绍：它是谁，能帮你做什么？"
-                  className="min-h-16"
-                />
-                <FieldDescription>
-                  显示在列表和详情里，不会发给模型。
-                </FieldDescription>
-              </Field>
-            </FieldGroup>
-            {models && (
-              <>
-                <FieldSeparator />
-                <FieldSet className="gap-2">
-                  <div className="flex items-center justify-between gap-2">
-                    <FieldLegend variant="label" className="mb-0">
-                      模型
-                    </FieldLegend>
-                    {onModels && (
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="xs"
-                        className="-mr-2 text-muted-foreground"
-                        onClick={() => detour(onModels)}
-                      >
-                        {models.length ? "管理模型连接" : "去添加模型连接"}
-                        <ChevronRightIcon data-icon="inline-end" />
-                      </Button>
-                    )}
-                  </div>
-                  <ModelSelect
-                    label="新 Agent 使用的模型"
-                    models={models}
-                    value={model}
-                    onChange={(next) =>
-                      draft.change({
-                        model: next,
-                        // Picking a model switches its connection on.
-                        off: draft.off.filter((id) => id !== next?.provider),
-                      })
-                    }
-                  />
-                </FieldSet>
-              </>
-            )}
-            {parts.length > 0 && (
-              <>
-                <FieldSeparator />
-                <FieldSet className="gap-2">
-                  <div className="flex items-center justify-between gap-2">
-                    <FieldLegend
-                      variant="label"
-                      className="mb-0 flex items-center gap-1"
-                    >
-                      组成扩展
-                      <InfoTip
-                        label="组成扩展"
-                        text="这个 Agent 由这些扩展组成。添加后也能在详情里开关。"
-                      />
-                    </FieldLegend>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="xs"
-                      className="-mr-2 text-muted-foreground"
-                      onClick={() => detour(onExtensions)}
-                    >
-                      扩展管理
-                      <ChevronRightIcon data-icon="inline-end" />
-                    </Button>
-                  </div>
-                  <AgentParts
-                    agentName={draft.name.trim() || "新 Agent"}
-                    parts={parts}
-                    onPart={api.setOff && switchDraftPart}
-                  />
-                </FieldSet>
-              </>
-            )}
-          </DialogBody>
-          <DialogActions>
-            {cancel}
-            <Button type="submit" disabled={busy || !draft.name.trim()}>
-              {busy ? "正在添加…" : "添加"}
-            </Button>
-          </DialogActions>
-        </form>
+        <DescribeStep
+          leave={
+            previous ? (
+              <Button
+                type="button"
+                variant="outline"
+                data-dialog-back
+                onClick={back}
+              >
+                上一步
+              </Button>
+            ) : (
+              cancel
+            )
+          }
+          onNext={() => open("compose")}
+        />
+      ) : modal === "compose" ? (
+        <ComposeStep
+          api={api}
+          ui={ui}
+          busy={busy}
+          onBack={back}
+          onModels={onModels && (() => detour(onModels))}
+          onAdd={(config) => void act(() => add(config))}
+          onError={setError}
+        />
       ) : (
         typeof modal === "object" && (
           <form

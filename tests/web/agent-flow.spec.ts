@@ -7,6 +7,7 @@ import {
   openSettings,
   installByPath,
   serveModule,
+  nextStep,
   openAddAgent,
 } from "./helpers";
 import { expect, test, type Page } from "@playwright/test";
@@ -395,7 +396,11 @@ test("the model is told the 设定, never the introduction, and an edit in detai
   await expect(instructions).toHaveValue("简洁、友好地回答用户的问题。");
   await instructions.fill("只用英文回答。");
   await dialog.getByRole("textbox", { name: /^介绍/ }).fill("给人看的介绍");
-  await dialog.getByRole("button", { name: "添加", exact: true }).click();
+  await (
+    await nextStep(page, "译者")
+  )
+    .getByRole("button", { name: "添加", exact: true })
+    .click();
   const input = page.getByRole("textbox", { name: "消息", exact: true });
   const log = page.getByRole("log");
   await input.fill("第一句");
@@ -711,13 +716,8 @@ test("a pinned Agent moves to the top of the list and back when unpinned", async
 }) => {
   await page.goto("/");
   await add(page, "置顶者");
-  await openAddAgent(page);
   // The newer Agent is the more recently active one, so it comes first.
-  await page.getByRole("textbox", { name: "名称", exact: true }).fill("普通");
-  await page
-    .getByRole("dialog")
-    .getByRole("button", { name: "添加", exact: true })
-    .click();
+  await addAgent(page, "普通");
   const list = page.getByRole("complementary", { name: "Agent 列表" });
   const rows = list.locator('[data-slot="agent-row"]');
   const row = list.getByRole("button", { name: "置顶者", exact: true });
@@ -738,8 +738,8 @@ test("each part of an Agent can be switched off, and says what that means", asyn
 }) => {
   await page.goto("/");
   await openAddAgent(page);
-  const dialog = page.getByRole("dialog", { name: "添加 Agent" });
-  await dialog.getByLabel("名称").fill("拼装");
+  await page.getByRole("dialog").getByLabel("名称").fill("拼装");
+  const dialog = await nextStep(page, "拼装");
   const provider = dialog.getByRole("switch", {
     name: "在 拼装 中使用 Agent 核心",
   });

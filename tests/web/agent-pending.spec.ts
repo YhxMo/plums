@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { answer, manage, slowAgent, openAddAgent } from "./helpers";
+import { answer, manage, slowAgent, addAgent } from "./helpers";
 
 for (const width of [375, 1280])
   test(`a reply hidden by extension management stays unread until returning (${width}px)`, async ({
@@ -96,10 +96,7 @@ test("the list shows typing as a dot, and a reply that arrives elsewhere as unre
   await slowAgent(page, "慢助手");
   const list = page.getByRole("complementary", { name: "Agent 列表" });
   const row = (name: string) => list.getByRole("button", { name, exact: true });
-  await openAddAgent(page);
-  const add = page.getByRole("dialog", { name: "添加 Agent", exact: true });
-  await add.getByRole("textbox", { name: "名称", exact: true }).fill("旁人");
-  await add.getByRole("button", { name: "添加", exact: true }).click();
+  await addAgent(page, "旁人");
   await row("慢助手").click();
   await page
     .getByRole("textbox", { name: "消息", exact: true })
@@ -155,11 +152,8 @@ test("while one session waits, the others and the dialogs stay usable", async ({
     page.getByRole("button", { name: "停止处理", exact: true }),
   ).toHaveCount(0);
   // Adding an Agent does not wait for the reply.
-  await openAddAgent(page);
-  const add = page.getByRole("dialog", { name: "添加 Agent", exact: true });
-  await add.getByRole("textbox", { name: "名称", exact: true }).fill("旁人");
-  await add.getByRole("button", { name: "添加", exact: true }).click();
-  await expect(add).toBeHidden();
+  await addAgent(page, "旁人");
+  await expect(page.getByRole("dialog")).toHaveCount(0);
   await page
     .getByRole("complementary", { name: "Agent 列表" })
     .getByRole("button", { name: "慢助手", exact: true })

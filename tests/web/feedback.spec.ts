@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { addAgent, shellButton, openAddAgent } from "./helpers";
+import { addAgent, nextStep, shellButton, openAddAgent } from "./helpers";
 
 test("no button relies on a native title tooltip", async ({ page }) => {
   await page.goto("/");
@@ -78,8 +78,9 @@ test("focus given back by a closing dialog or menu shows no tooltip", async ({
   await add.click();
   await page.getByRole("menuitem", { name: "添加 Agent", exact: true }).click();
   await page.getByRole("textbox", { name: "名称", exact: true }).fill("乙");
-  await page
-    .getByRole("dialog")
+  await (
+    await nextStep(page, "乙")
+  )
     .getByRole("button", { name: "添加", exact: true })
     .click();
   await expect(page.getByRole("dialog")).toHaveCount(0);
@@ -99,8 +100,8 @@ test("an info button explains on hover, and a click keeps it open", async ({
   await page.setViewportSize({ width: 1180, height: 800 });
   await page.goto("/");
   await openAddAgent(page);
-  const info = page.getByRole("button", { name: "组成扩展说明", exact: true });
-  const text = page.getByRole("dialog", { name: "组成扩展说明", exact: true });
+  const info = page.getByRole("button", { name: "设定说明", exact: true });
+  const text = page.getByRole("dialog", { name: "设定说明", exact: true });
   const away = async () => {
     const box = (await info.boundingBox())!;
     await page.mouse.move(box.x - 120, box.y + 160, { steps: 8 });
