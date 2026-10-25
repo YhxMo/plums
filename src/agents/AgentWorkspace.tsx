@@ -6,11 +6,12 @@ import {
   useState,
   useSyncExternalStore,
 } from "react";
-import type {
-  Agent,
-  AgentPatch,
-  AgentProvider,
-  Attachment,
+import {
+  OWNER,
+  type Agent,
+  type AgentPatch,
+  type AgentProvider,
+  type Attachment,
 } from "@modules/agents/contract";
 import { attachmentProblem } from "@modules/agents/attachments";
 import type { Named, WorkspaceChromeController } from "@modules/sdk";
@@ -38,6 +39,7 @@ import { fallbackFocus } from "./focus";
 import { toAttachment } from "./attachmentFile";
 import { AVATAR_BASE64, AVATAR_SIDE, scaledPicture } from "./imageFile";
 import { agentParts, switchPart, type Part } from "./parts";
+import { reportText, useMemories, type Memories } from "./useMemories";
 
 // The handle is the gap between the list and the conversation card; it only
 // shows a brand-coloured line while used.
@@ -48,6 +50,7 @@ export function AgentWorkspace({
   api,
   chrome,
   ui,
+  memories,
   onExtensions,
   onModels,
   onOpenLink,
@@ -56,6 +59,8 @@ export function AgentWorkspace({
   chrome: WorkspaceChromeController;
   /** This interface, which each Agent can switch off like its other parts. */
   ui?: Named;
+  /** The memory providers, for what each Agent remembers and its page. */
+  memories?: Memories;
   /** Opens extension management, selecting `id` when given. */
   onExtensions: (id?: string) => void;
   /** Opens the page where the user manages model connections. */
@@ -98,10 +103,10 @@ export function AgentWorkspace({
   }, [selected]);
   const modals = useAgentModals();
   const { error, notice, setError, setNotice, open, act, report } = modals;
-  // The removal the current notice can take back, if the provider can.
+  // What the current notice can take back, if anything.
   const [undoable, setUndoable] = useState<{
-    agentId: string;
     notice: string;
+    undo: () => Promise<void>;
   } | null>(null);
   // Counts the person's own rewrites and undos; the conversation then
   // goes to its newest message, wherever it was scrolled.
@@ -109,8 +114,22 @@ export function AgentWorkspace({
   function offerUndo(agentId: string, text: string) {
     if (!api.undo) return;
     setNotice(text);
-    setUndoable({ agentId, notice: text });
+    setUndoable({
+      notice: text,
+      undo: async () => {
+        await api.undo!(agentId);
+        setLatest((n) => n + 1);
+      },
+    });
   }
+  // Each consolidation is announced once, with a way to take it back.
+  const memoryProviders = useMemories(memories, (memory, report) => {
+    const name = agents.find((a) => a.id === report.agent)?.name;
+    if (!name) return;
+    const text = reportText(name, report);
+    setNotice(text);
+    setUndoable({ notice: text, undo: () => memory.value.undo(report.id) });
+  });
   useEffect(
     () =>
       chrome.connect((id) => {
@@ -230,8 +249,7 @@ export function AgentWorkspace({
               onClick: () => {
                 setUndoable(null);
                 void act(async () => {
-                  await api.undo!(undoable.agentId);
-                  setLatest((n) => n + 1);
+                  await undoable.undo();
                   setNotice("已恢复");
                 });
               },
@@ -251,7 +269,23 @@ export function AgentWorkspace({
   ];
   const parts =
     agent &&
-    agentParts({ provider, ui, api, model: agent.model, off: agent.off });
+    agentParts({
+      provider,
+      ui,
+      api,
+      model: agent.model,
+      off: agent.off,
+      memories: (api.memories?.() ?? []).map((choice) => {
+        const memory = memoryProviders.find((m) => m.id === choice.id);
+        return {
+          choice,
+          ...(memory && {
+            count: memory.value.count(agent.id, OWNER),
+            open: () => void memory.value.open(agent.id),
+          }),
+        };
+      }),
+    });
   function switchAgentPart(a: Agent, part: Part, on: boolean) {
     void act(async () => {
       const next = switchPart(part, on, api, a.model);

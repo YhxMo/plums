@@ -17,6 +17,7 @@ export type MemoryPageApi = Pick<
   | "setModel"
   | "consolidate"
   | "models"
+  | "takeFocus"
 >;
 type MountPage = (
   container: HTMLElement,

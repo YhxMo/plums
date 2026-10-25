@@ -103,7 +103,7 @@ for (const [scheme, tile, figure] of [
   ["light", "rgb(217, 222, 229)", "rgb(138, 148, 163)"],
   ["dark", "rgb(74, 77, 82)", "rgb(168, 174, 183)"],
 ] as const)
-  test(`the rail shows the user as a blank grey plum, not a control (${scheme})`, async ({
+  test(`the rail shows the user as a blank grey plum that opens the shared memory (${scheme})`, async ({
     page,
   }) => {
     await page.emulateMedia({ colorScheme: scheme });
@@ -115,9 +115,11 @@ for (const [scheme, tile, figure] of [
     expect(box!.width).toBe(36);
     expect(box!.height).toBe(36);
     await expect(user).toHaveAttribute("aria-hidden", "true");
-    expect(await user.evaluate((el) => el.closest("button,a,[tabindex]"))).toBe(
-      null,
-    );
+    // The built-in memory contributes the user's entry, so the picture is
+    // a button named by that page.
+    expect(
+      await user.evaluate((el) => el.closest("button")?.ariaLabel ?? null),
+    ).toBe("记忆");
     expect(
       await user
         .locator("[data-part=tile]")

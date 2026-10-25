@@ -1,6 +1,7 @@
 import { agentExtension } from "@modules/agents/provider";
 import { textWorkbench } from "@modules/text-workbench/extension";
 import { agentUI } from "./agents/extension";
+import { memoryExtensionWithPage } from "./agents/memory/extension";
 import { modelConnectorWithPage } from "./models/extension";
 import { bootShell, type ShellApplication } from "./shell/runtime";
 
@@ -11,6 +12,12 @@ const development = import.meta.env.DEV;
 export const defaultApplication: ShellApplication = {
   catalog: [
     { id: "agents.local", url: "内置公开服务", label: "Agent 核心" },
+    {
+      id: "memory.local",
+      url: "内置记忆",
+      label: "记忆",
+      views: { memory: "记忆" },
+    },
     {
       id: "connector.models",
       url: "内置模型连接器",
@@ -55,11 +62,13 @@ export const defaultApplication: ShellApplication = {
       legacy: state.agents,
       retireLegacy: () => save({ agents: undefined }),
     }),
+    memoryExtensionWithPage(),
     agentUI(),
     modelConnectorWithPage(),
   ],
   grants: {
     "agents.local": ["state.read", "state.batch", "records.list"],
+    "memory.local": ["state.read", "state.batch", "records.list"],
     "connector.models": [
       "state.read",
       "state.write",
@@ -74,6 +83,7 @@ export const defaultApplication: ShellApplication = {
     // service feeds the text workbench.
     ...(development ? ["transform.upper", "chat.echo"] : []),
     "connector.models",
+    "memory.local",
     "agents.local",
     "ui.agents",
   ],

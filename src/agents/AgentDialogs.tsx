@@ -149,6 +149,7 @@ export function AgentDialogs({
     ui,
     api,
     model,
+    memories: (api.memories?.() ?? []).map((choice) => ({ choice })),
     off: draft.off,
   });
   function switchDraftPart(part: Part, on: boolean) {
@@ -541,7 +542,7 @@ export function AgentDialogs({
               ) : (
                 <p>
                   {modal.action === "remove"
-                    ? `移除「${modal.agent.name}」并删除它在此应用中的本地会话？`
+                    ? `移除「${modal.agent.name}」并删除它在此应用中的本地会话${api.memories?.().some((m) => !modal.agent.off?.includes(m.id)) ? "和记忆" : ""}？`
                     : modal.action === "truncate"
                       ? `这会删除此后的 ${modal.count} 条消息，再等待新的回复。删除后可以在提示中撤销。`
                       : api.undo

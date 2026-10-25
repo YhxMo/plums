@@ -3,7 +3,9 @@ import { MotionConfig } from "motion/react";
 import type { ReactNode } from "react";
 import { createWorkspaceChrome, type ExtensionDefinition } from "@modules/sdk";
 import type { AgentProvider } from "@modules/agents/contract";
+import type { MemoryService } from "@modules/agents/memory/contract";
 import { AgentWorkspace } from "./AgentWorkspace";
+import type { Memories } from "./useMemories";
 
 function mountReactView(
   container: HTMLElement,
@@ -37,10 +39,24 @@ export function agentUI(): ExtensionDefinition {
       description:
         "提供 Agent 列表、对话和详情界面，支持切换会话、选择模型与发送附件。",
       requires: { agents: 1 },
+      // Shows what each Agent remembers and opens its memory page.
+      optional: { memory: 1 },
       capabilities: ["link.open"],
     },
     activate(ctx) {
       const agents = ctx.use<AgentProvider>("agents");
+      const listeners = new Set<() => void>();
+      let found = ctx.providers<MemoryService>("memory", (next) => {
+        found = next;
+        listeners.forEach((listener) => listener());
+      });
+      const memories: Memories = {
+        list: () => found,
+        subscribe(listener) {
+          listeners.add(listener);
+          return () => void listeners.delete(listener);
+        },
+      };
       const chrome = createWorkspaceChrome("agents.agent");
       // This interface first, then the provider it is built on.
       const [ui] = ctx.shell.dependencies();
@@ -57,6 +73,7 @@ export function agentUI(): ExtensionDefinition {
               api={agents}
               chrome={chrome}
               ui={ui}
+              memories={memories}
               onExtensions={(id) => {
                 void (id
                   ? ctx.shell.open("extensions", id)

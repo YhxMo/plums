@@ -13,21 +13,28 @@ export type Part = {
   note?: string;
   /** Set for a `chat@1` connector, whose switch also picks the model. */
   connector?: true;
+  /** Opens the part's own page in place of extension management. */
+  open?: () => void;
 };
+/** A `memory@1` provider as an Agent's part: how much it remembers, and its page. */
+export type MemoryPart = { choice: Named; count?: number; open?: () => void };
 
 /**
- * The provider, the interface showing the Agent and each model connection,
- * all on unless named in `off`; a connection is on when the model is its own.
+ * The provider, the interface showing the Agent, its memories and each model
+ * connection, all on unless named in `off`; a connection is on when the
+ * model is its own.
  */
 export function agentParts({
   provider,
   ui,
   api,
   model,
+  memories = [],
   off = [],
 }: {
   provider: readonly Named[];
   ui?: Named;
+  memories?: readonly MemoryPart[];
   api: Pick<AgentProvider, "connectors" | "modelChoices">;
   model?: AgentModel | null;
   off?: readonly string[];
@@ -51,6 +58,20 @@ export function agentParts({
           },
         ]
       : []),
+    ...memories.map(({ choice, count, open }) => ({
+      choice: {
+        ...choice,
+        description:
+          count === undefined
+            ? "记住你说过的事"
+            : count
+              ? `记得 ${count} 件事`
+              : "还没有记下什么",
+      },
+      on: !off.includes(choice.id),
+      note: "已关闭：它不会记得以前会话里的事",
+      ...(open && { open }),
+    })),
     ...(api.connectors?.() ?? []).map((c) => {
       const own = model?.provider === c.id;
       return {

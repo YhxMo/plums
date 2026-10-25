@@ -17,7 +17,7 @@ export function AgentParts({
   parts: readonly Part[];
   /** Absent for providers that cannot switch parts off. */
   onPart?: (part: Part, on: boolean) => void;
-  /** Opens the extension in management. */
+  /** Opens the extension in management, unless the part has its own page. */
   onOpen?: (id: string) => void;
   disabled?: boolean;
 }) {
@@ -49,13 +49,17 @@ export function AgentParts({
             key={choice.id}
             className="flex min-h-13 items-center gap-3 px-3 py-2 has-[[data-slot=part-open]:hover]:bg-subtle/60"
           >
-            {onOpen ? (
+            {onOpen || part.open ? (
               <button
                 type="button"
                 data-slot="part-open"
                 className="flex min-w-0 flex-1 flex-col items-start rounded-md text-left outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
-                aria-label={`查看扩展 ${choice.label}`}
-                onClick={() => onOpen(choice.id)}
+                aria-label={
+                  part.open
+                    ? `打开 ${choice.label}`
+                    : `查看扩展 ${choice.label}`
+                }
+                onClick={() => (part.open ? part.open() : onOpen!(choice.id))}
               >
                 {name}
               </button>

@@ -57,8 +57,6 @@ export type MemorySnapshot = {
   /** The default consolidation model. */
   model: ConsolidationModel;
   agents: readonly MemoryAgent[];
-  /** The Agent the page was opened for; null for the shared memory. */
-  focus: string | null;
 };
 type Report = MemoryReport & { before: MemoryItem[]; after: MemoryItem[] };
 
@@ -141,23 +139,31 @@ export class MemoryStore implements MemoryService {
   }
   open(agent?: string) {
     this.focus = agent ?? null;
-    this.emit();
     return this.openPage();
+  }
+  /** The Agent the page was last asked to show, once; the avatar opens it on the shared memory. */
+  takeFocus() {
+    const focus = this.focus;
+    this.focus = null;
+    return focus;
   }
 
   connect(source: MemorySource) {
     this.sources.add(source);
     const unwatch = source.subscribe(() => this.emit());
-    // Memory starts with what is said from now on: earlier conversations
-    // are not sent anywhere just because memory was added.
-    const fresh = source
-      .agents()
-      .filter((a) => this.data.marks[a.id] === undefined)
-      .map((a) => [a.id, this.latest(source, a.id)] as const);
-    if (fresh.length)
+    // Memory starts with what is said from now on: the Agents it first
+    // meets keep their earlier conversations to themselves, and an Agent
+    // created later is remembered from its first message.
+    if (this.data.since === undefined) {
+      const since = this.clock.now();
+      const first = source
+        .agents()
+        .map((a) => [a.id, this.latest(source, a.id)] as const);
       void this.change((data) => {
-        for (const [id, mark] of fresh) data.marks[id] ??= mark;
+        data.since ??= since;
+        for (const [id, mark] of first) data.marks[id] ??= mark;
       }).catch(() => {});
+    }
     source.agents().forEach((a, i) => {
       if (this.pending(a.id)) this.schedule(a.id, START_DELAY + i * 1000);
     });
@@ -198,7 +204,6 @@ export class MemoryStore implements MemoryService {
     this.snap ??= {
       items: this.data.items,
       model: this.data.settings.model,
-      focus: this.focus,
       agents: [...this.sources]
         .flatMap((source) => source.agents())
         .map((a) => ({
@@ -329,9 +334,10 @@ export class MemoryStore implements MemoryService {
   private latest(source: MemorySource, agent: string) {
     return source.messages(agent, 0).at(-1)?.at ?? 0;
   }
-  /** Where an Agent's pending messages start: an Agent created after memory has all of them. */
+  /** Messages after this are pending; an Agent without a mark has all since memory met the Agents. */
   private mark(agent: string) {
-    return this.data.marks[agent] ?? 0;
+    const since = this.data.since;
+    return this.data.marks[agent] ?? (since === undefined ? 0 : since - 1);
   }
   private pending(agent: string) {
     const found = this.source(agent);

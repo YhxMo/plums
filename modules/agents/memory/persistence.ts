@@ -30,12 +30,18 @@ export type MemoryData = {
   settings: MemorySettings;
   /** Per Agent, the time of the last message consolidated; later ones are pending. */
   marks: Record<string, number>;
+  /**
+   * When memory first met the Agents. Those it met then start from their
+   * last message; an Agent without a mark is newer and starts here.
+   */
+  since?: number;
 };
 /** Main document; each item is a record in `memories`. */
 type MemoryIndex = {
   version: 1;
   settings: MemorySettings;
   marks: Record<string, number>;
+  since?: number;
 };
 const ITEMS = "memories";
 
@@ -79,7 +85,8 @@ export class MemoryState {
       !object(doc.settings.agents) ||
       !Object.values(doc.settings.agents).every(choice) ||
       !object(doc.marks) ||
-      !Object.values(doc.marks).every(Number.isFinite)
+      !Object.values(doc.marks).every(Number.isFinite) ||
+      (doc.since !== undefined && !Number.isFinite(doc.since))
     )
       throw corrupt();
     const index = doc as MemoryIndex;
@@ -103,6 +110,7 @@ export class MemoryState {
       items,
       settings: structuredClone(index.settings),
       marks: { ...index.marks },
+      ...(index.since !== undefined && { since: index.since }),
     };
   }
 
@@ -121,6 +129,7 @@ export class MemoryState {
       version: 1,
       settings: data.settings,
       marks: data.marks,
+      ...(data.since !== undefined && { since: data.since }),
     };
     const json = JSON.stringify(index);
     const records: RecordWrite[] = [];

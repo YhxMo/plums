@@ -283,3 +283,17 @@ it("consolidates once a conversation rests, or at once when the person leaves it
     vi.useRealTimers();
   }
 });
+
+it("keeps a new Agent's unconsolidated messages pending across a restart", async () => {
+  const { host, agents, memory, consolidations, answer } = await setup();
+  const a = await agents().create({ name: "甲" });
+  await agents().send(a.id, "我对花生过敏");
+  await host.stop("agents.local");
+  await host.stop("memory.local");
+  await host.start("memory.local");
+  await host.start("agents.local");
+  expect(memory().snapshot().agents[0]).toMatchObject({ pending: true });
+  answer.text = '{"add":[{"text":"对花生过敏"}]}';
+  await memory().consolidate(a.id);
+  expect(consolidations()[0].input).toContain("我对花生过敏");
+});
