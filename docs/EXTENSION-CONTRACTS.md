@@ -124,6 +124,8 @@ DI isolate 若仅隔离依赖作用域，就只按该范围表述。进程隔离
 
 `link.open` 在默认浏览器中打开网页链接：扩展声明该能力并获授权后调用 `ctx.platform("link.open", { version: 1, url })`（类型 `LinkOpenRequest`），交给浏览器后即返回。`url` 只能是带主机名的 `https://` 地址，不带用户信息，≤ 2048 字符；TS 宿主核对载荷与授权，Rust 再核对授权与地址后调用 opener，opener 不注册为插件，WebView 没有自己的打开命令。浏览器预览以 `noopener,noreferrer` 打开新标签页；Android 冻结期间未实现，调用返回失败。授权提示为「在浏览器中打开网页链接（仅 https）」；回归见 `tests/link-open.test.ts` 与 `src-tauri/src/links_tests.rs`。
 
+`file.save` 把文件保存到用户选择的位置：扩展声明该能力并获授权后调用 `ctx.platform("file.save", { version: 1, name, data })`（类型 `FileSaveRequest`），`name` 是建议的文件名（不含文件夹，≤ 200 字符，只能以 `.png` 或 `.plums` 结尾），`data` 是文件内容的 base64（解码后 ≤ 32 MB）。打包应用由 Rust 再核对授权、文件名与大小，弹出系统保存面板（macOS 的 NSSavePanel），用户确认后写入所选路径；浏览器预览改为下载。返回 `{ saved: true }`，用户取消时为 `{ saved: false }`；失败时报“文件没有保存。”，不带原生错误码。WebView 拿不到所选路径，也不能写别的位置；Android 尚未实现，返回不可用。回归见 `file-save.test.ts` 与 `files_tests.rs`。
+
 [可选单跳状态迁移助手](STATE-MIGRATION.md)已提供公开 SDK 入口与独立样板：扩展定义业务转换，助手用一次修订号提交保留旧快照；当前不自动迁移默认业务，也不提供通用包升级事务或自动回退。
 
 可选[固定视图树助手](VIEW-TREE.md)供页面路由及开发文本工作台使用；固定树挂载后不能追加子节点，也不承担 Host 自动异步失败回退。

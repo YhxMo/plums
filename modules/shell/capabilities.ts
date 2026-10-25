@@ -13,6 +13,7 @@ export const capabilityLabel = (
     "records.search": "搜索隔离记录",
     "platform.info": "查看平台信息",
     "link.open": "在浏览器中打开网页链接（仅 https）",
+    "file.save": "把文件保存到你选择的位置",
     "document.read": "只读访问本次选择的文档（最多64 KiB）",
     "credential.request": "通过已授权连接发送请求",
     "credential.connect":

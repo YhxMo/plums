@@ -5,7 +5,7 @@ import { lineOf, parseSources } from "./parse-sources.mjs";
 // Every repository source belongs to one layer, and its repository-relative
 // imports must stay in that layer's allowed destinations.
 const sdk = String.raw`modules\/sdk(?:\/|$)`;
-const platform = String.raw`src\/native(?:\/|$)|src\/(?:platform|browser-state|credentials|documents|network|links)(?:\.ts)?$`;
+const platform = String.raw`src\/native(?:\/|$)|src\/(?:platform|browser-state|credentials|documents|network|links|files)(?:\.ts)?$`;
 /** @param {string[]} parts */
 const to = (...parts) => new RegExp(`^(?:${parts.join("|")})`);
 /** @type {Array<[RegExp, RegExp]>} origin -> allowed destination */
@@ -21,7 +21,7 @@ const layers = [
   ],
   [/^extensions\//, to(String.raw`(?:extensions|modules\/sdk)(?:\/|$)`)],
   [
-    /^src\/(?:native\/|(?:platform|browser-state|credentials|documents|network|links)\.ts$)/,
+    /^src\/(?:native\/|(?:platform|browser-state|credentials|documents|network|links|files)\.ts$)/,
     to(sdk, platform),
   ],
   [/^src\/components\//, to(sdk, String.raw`src\/components(?:\/|$)`)],

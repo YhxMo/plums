@@ -185,6 +185,7 @@ export type {
 } from "./credential";
 export type { NetworkReadRequest, NetworkReadResponse } from "./network";
 export type { LinkOpenRequest } from "./links";
+export type { FileSaveRequest, FileSaveResult } from "./files";
 export type {
   DocumentWrite,
   RecordWrite,

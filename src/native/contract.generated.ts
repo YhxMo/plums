@@ -183,6 +183,11 @@ export interface NativeCommands {
     response: null;
     error: string;
   };
+  file_save: {
+    args: { owner: string; name: string; data: string };
+    response: string;
+    error: string;
+  };
   platform_grant: {
     args: { owner: string; capabilities: Array<string> };
     response: null;

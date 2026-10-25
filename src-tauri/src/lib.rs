@@ -8,6 +8,7 @@ mod credential_types;
 mod credentials;
 mod credentials_native;
 mod documents;
+mod files;
 mod ipc;
 #[cfg(desktop)]
 mod legacy_data;
@@ -99,6 +100,7 @@ macro_rules! native_commands {
             network::network_abort,
             network::network_release,
             links::link_open,
+            files::file_save,
             crate::platform_grant,
             crate::platform_call,
             appearance::shell_set_theme
