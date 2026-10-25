@@ -81,3 +81,22 @@ test("text fields keep their box when focused", async ({ page }) => {
   const intro = page.getByRole("textbox", { name: "介绍", exact: true });
   await same(intro, intro);
 });
+
+// The caret stands where text starts; a Chinese placeholder's first stroke
+// would sit under it, so the placeholder alone starts a little later.
+test("placeholders start clear of the caret", async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 800 });
+  await page.goto("/");
+  await addAgent(page, "焦点助手");
+  for (const name of ["消息", "搜索 Agent"]) {
+    const field = page.getByRole("textbox", { name, exact: true });
+    expect(
+      await field.evaluate(
+        (e) => getComputedStyle(e, "::placeholder").textIndent,
+      ),
+    ).toBe("2px");
+    expect(await field.evaluate((e) => getComputedStyle(e).textIndent)).toBe(
+      "0px",
+    );
+  }
+});
