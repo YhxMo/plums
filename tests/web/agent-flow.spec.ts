@@ -341,6 +341,22 @@ test("mobile list failures stay visible and rename cancel restores the operation
   await expect(trigger).toBeFocused();
 });
 
+test("the introduction's edit button is a pencil that shows on hover", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto("/");
+  await add(page, "角色设置");
+  await sidebarToggle(page).click();
+  const edit = page.getByRole("button", { name: "编辑介绍", exact: true });
+  await expect(edit).toHaveText("");
+  await page.mouse.move(10, 890);
+  await expect(edit).toHaveCSS("opacity", "0");
+  // Hovering the introduction, not only the button, brings it out.
+  await edit.locator("xpath=..").hover({ position: { x: 4, y: 4 } });
+  await expect(edit).toHaveCSS("opacity", "1");
+});
+
 for (const width of [375, 1440])
   test(`the introduction is edited in details and persists at ${width}`, async ({
     page,

@@ -11,7 +11,7 @@ import type { Agent } from "@modules/agents/contract";
 import { Avatar } from "./Avatar";
 import { AgentParts } from "./AgentParts";
 import type { Part } from "./parts";
-import { InfoTip } from "@/components/Tooltip";
+import { InfoTip, Tooltip } from "@/components/Tooltip";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -127,22 +127,25 @@ export function DetailPanel({
             </h3>
           </div>
           {editing === null ? (
-            <div className="group/intro flex flex-col items-start gap-1.5">
-              <p className="text-[13px] leading-relaxed whitespace-pre-wrap text-foreground/85 wrap-anywhere">
+            // The pencil comes out under a pointer; touch always shows it.
+            <div className="group/intro flex items-start gap-1">
+              <p className="min-w-0 flex-1 text-[13px] leading-relaxed whitespace-pre-wrap text-foreground/85 wrap-anywhere">
                 {agent.description || (
                   <span className="text-muted-foreground">还没有介绍。</span>
                 )}
               </p>
-              <Button
-                variant="ghost"
-                size="xs"
-                className="-ml-2 text-muted-foreground"
-                disabled={busy}
-                onClick={() => setEditing(agent.description)}
-              >
-                <PencilIcon />
-                编辑介绍
-              </Button>
+              <Tooltip label="编辑介绍">
+                <Button
+                  variant="ghost"
+                  size="icon-xs"
+                  className="-mt-0.5 shrink-0 text-muted-foreground transition-opacity pointer-fine:opacity-0 pointer-fine:group-hover/intro:opacity-100 pointer-fine:group-focus-within/intro:opacity-100"
+                  aria-label="编辑介绍"
+                  disabled={busy}
+                  onClick={() => setEditing(agent.description)}
+                >
+                  <PencilIcon />
+                </Button>
+              </Tooltip>
             </div>
           ) : (
             <form
