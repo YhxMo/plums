@@ -14,6 +14,8 @@ mod legacy_data;
 mod links;
 mod network;
 mod storage;
+#[cfg(target_os = "macos")]
+mod window_frame;
 use serde::Serialize;
 use serde_json::Value;
 use storage::Broker;
@@ -192,25 +194,25 @@ pub fn run() {
             })
             .build(),
     );
+    // Only the size is remembered; the position is left to macOS.
+    #[cfg(desktop)]
+    let builder = builder.plugin(
+        tauri_plugin_window_state::Builder::new()
+            .with_state_flags(tauri_plugin_window_state::StateFlags::SIZE)
+            .build(),
+    );
+    #[cfg(target_os = "macos")]
+    let builder = builder.on_window_event(|window, event| {
+        if window.label() == "main" {
+            window_frame::on_event(window, event);
+        }
+    });
     let builder = builder.invoke_handler(command_handler());
     builder
         .setup(|app| {
             #[cfg(target_os = "macos")]
             if let Some(window) = app.get_webview_window("main") {
-                use objc2_app_kit::{NSControlSize, NSWindow, NSWindowButton};
-                let pointer = window.ns_window()?;
-                // Tauri runs setup on the AppKit thread; the window owns this pointer.
-                let native = unsafe { &*pointer.cast::<NSWindow>() };
-                // Use AppKit's small control specification, not a frame/scale override.
-                for kind in [
-                    NSWindowButton::CloseButton,
-                    NSWindowButton::MiniaturizeButton,
-                    NSWindowButton::ZoomButton,
-                ] {
-                    if let Some(button) = native.standardWindowButton(kind) {
-                        button.setControlSize(NSControlSize::Small);
-                    }
-                }
+                window_frame::setup(&window.as_ref().window());
             }
             let root = match data_dir_override() {
                 Some(root) => root,

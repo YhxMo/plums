@@ -17,7 +17,9 @@ pub async fn shell_set_theme(app: tauri::AppHandle, theme: Theme) -> Result<(), 
             Theme::Light => tauri::Theme::Light,
             Theme::Dark => tauri::Theme::Dark,
         };
+        // The Mac window stays clear so the rail shows the sidebar material.
         let bg = match theme {
+            _ if cfg!(target_os = "macos") => tauri::window::Color(0, 0, 0, 0),
             Theme::Light => tauri::window::Color(247, 247, 248, 255),
             Theme::Dark => tauri::window::Color(30, 30, 30, 255),
         };

@@ -1,4 +1,12 @@
-import { lazy, Suspense, useRef, useState, useSyncExternalStore } from "react";
+import {
+  lazy,
+  Suspense,
+  useLayoutEffect,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from "react";
+import { cn } from "cn";
 import type { Runtime } from "./runtime";
 import { useOperations } from "./useOperations";
 import { useAppearance } from "./useAppearance";
@@ -51,27 +59,32 @@ export function Workbench({ runtime }: { runtime: Runtime }) {
     authorization,
   });
   const root = useRef<HTMLDivElement>(null);
+  useLayoutEffect(() => {
+    if (!macOverlay) return;
+    document.documentElement.dataset.glass = "";
+    return () => {
+      delete document.documentElement.dataset.glass;
+    };
+  }, [macOverlay]);
   const [managerLoaded, setManagerLoaded] = useState(false);
   if (!managerLoaded && (navigation.manager.open || management.dialogs.dialog))
     setManagerLoaded(true);
   return (
     <div
       ref={root}
-      className="flex h-dvh min-h-0 overflow-hidden bg-chrome max-md:flex-col"
+      className={cn(
+        "flex h-dvh min-h-0 overflow-hidden max-md:flex-col",
+        !macOverlay && "bg-chrome",
+      )}
     >
+      {/* AppKit owns the buttons in the rail's top strip; the Mac window is
+          never narrower than the rail layout. A strip keeps the top edge
+          dragging the window above the panes. */}
       {macOverlay && (
-        <>
-          {/* AppKit owns the buttons. Reserve a row without HTML controls when
-              the rail is absent, and keep a drag strip above wide panes. */}
-          <div
-            className="h-9 shrink-0 bg-chrome md:hidden"
-            data-tauri-drag-region
-          />
-          <div
-            className="fixed inset-x-0 top-0 z-40 h-3 max-md:hidden"
-            data-tauri-drag-region
-          />
-        </>
+        <div
+          className="fixed inset-x-0 top-0 z-40 h-3"
+          data-tauri-drag-region
+        />
       )}
       <NavRail
         macOverlay={macOverlay}
@@ -82,7 +95,7 @@ export function Workbench({ runtime }: { runtime: Runtime }) {
       {/* The content is one card floating on the window colour beside the
           rail, unless the view draws its own card there (see `.pane`). */}
       <div
-        className="flex min-h-0 min-w-0 flex-1 flex-col"
+        className="flex min-h-0 min-w-0 flex-1 flex-col bg-chrome"
         data-tauri-drag-region
       >
         <div

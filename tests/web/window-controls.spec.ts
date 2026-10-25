@@ -62,7 +62,7 @@ async function noCustomControls(page: Page) {
 test("Mac rail reserves space for native controls without drawing or driving replacements", async ({
   page,
 }) => {
-  await page.setViewportSize({ width: 960, height: 680 });
+  await page.setViewportSize({ width: 940, height: 640 });
   await native(page);
   await noCustomControls(page);
   const rail = page.getByRole("navigation", { name: "应用导航" });
@@ -80,28 +80,45 @@ test("Mac rail reserves space for native controls without drawing or driving rep
   await noCustomControls(page);
 });
 
-for (const width of [640, 375]) {
-  test(`narrow Mac window (${width}px) keeps native clearance above content`, async ({
+for (const theme of ["light", "dark"] as const)
+  test(`only the Mac rail lets the window's material through (${theme})`, async ({
     page,
   }) => {
-    await page.setViewportSize({ width, height: 680 });
+    await page.emulateMedia({ colorScheme: theme });
+    await page.setViewportSize({ width: 940, height: 640 });
     await native(page);
-    await noCustomControls(page);
-    const pane = (await page.locator(".pane").boundingBox())!;
-    expect(pane.y).toBeGreaterThanOrEqual(36);
-    for (const x of [40, width / 2, width - 20]) {
-      expect(
-        await page.evaluate(
-          (x) =>
-            document
-              .elementFromPoint(x, 20)
-              ?.getAttribute("data-tauri-drag-region"),
-          x,
-        ),
-      ).toBe("true");
-    }
+    const fill = (selector: string) =>
+      page.evaluate(
+        (selector) =>
+          getComputedStyle(document.querySelector(selector)!).backgroundColor,
+        selector,
+      );
+    // The page itself is clear; the rail is a light tint over the material.
+    expect(await fill("html")).toBe("rgba(0, 0, 0, 0)");
+    expect(await fill("body")).toBe("rgba(0, 0, 0, 0)");
+    expect(await fill('nav[aria-label="应用导航"]')).toBe(
+      theme === "light"
+        ? "rgba(255, 255, 255, 0.3)"
+        : "rgba(255, 255, 255, 0.04)",
+    );
+    // Everything beside it is solid, as the window colour was.
+    const content = await page
+      .locator('nav[aria-label="应用导航"] + *')
+      .evaluate((e) => getComputedStyle(e).backgroundColor);
+    expect(content).not.toBe("rgba(0, 0, 0, 0)");
+    expect(content).not.toContain("0.");
   });
-}
+
+test("the browser keeps a solid page with no material behind it", async ({
+  page,
+}) => {
+  await page.goto("/");
+  await expect(shellButton(page, "设置")).toBeVisible();
+  const fill = await page.evaluate(
+    () => getComputedStyle(document.body).backgroundColor,
+  );
+  expect(fill).not.toBe("rgba(0, 0, 0, 0)");
+});
 
 test("top edge stays draggable across wide and restored window sizes", async ({
   page,

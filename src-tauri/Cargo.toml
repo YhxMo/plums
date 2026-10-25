@@ -29,6 +29,8 @@ features = ["sync", "time", "macros"]
 tauri-plugin-single-instance = "=2.5.4"
 # Called only from Rust for `link.open`; not registered as a WebView plugin.
 tauri-plugin-opener = "=2.7.1"
+# Remembers only the main window's size; its commands are not granted to the WebView.
+tauri-plugin-window-state = "=2.5.0"
 # rustls with the operating system verifier; no system proxy, cookies or decompression.
 reqwest = { version = "=0.13.5", default-features = false, features = ["rustls"] }
 

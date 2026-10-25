@@ -36,6 +36,8 @@
   --selection: #e8692f;
   --selection-text: #ffffff;
   --rail-icon: #5a5a5f;
+  /* The Mac app's rail: a tint over the window's sidebar material. */
+  --rail-glass: rgb(255 255 255 / 0.3);
   /* The user's blank plum at the top of the rail. */
   --user: #d9dee5;
   --user-ink: #8a94a3;
@@ -71,6 +73,7 @@
   --selection: #e8692f;
   --selection-text: #ffffff;
   --rail-icon: #b0b0b5;
+  --rail-glass: rgb(255 255 255 / 0.04);
   --user: #4a4d52;
   --user-ink: #a8aeb7;
 }
@@ -86,6 +89,12 @@
   --rail-icon: var(--muted);
   --user: color-mix(in srgb, var(--rail-icon) 22%, var(--chrome));
   --user-ink: color-mix(in srgb, var(--rail-icon) 70%, var(--chrome));
+}
+/* The Mac app's window is clear behind the page: only the rail lets the
+ * native sidebar material through; everything else paints its own fill. */
+:root[data-glass],
+:root[data-glass] body {
+  background: transparent;
 }
 :root[data-theme="dark"] img[src="/brand/plums.png"] {
   content: url("/brand/plums-dark.png");

@@ -22,7 +22,10 @@ export function NavRail({
   return (
     <nav
       aria-label="应用导航"
-      className="flex w-[68px] shrink-0 flex-col items-center border-r max-md:hidden"
+      className={cn(
+        "flex w-[68px] shrink-0 flex-col items-center border-r max-md:hidden",
+        macOverlay && "bg-(--rail-glass)",
+      )}
       data-tauri-drag-region
     >
       <div
