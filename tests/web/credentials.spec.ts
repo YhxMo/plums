@@ -567,6 +567,8 @@ for (const width of [375, 1180])
     await dialog
       .getByRole("textbox", { name: "名称", exact: true })
       .fill("网关");
+    // Notes and the website wait under 高级选项.
+    await dialog.getByRole("button", { name: "高级选项", exact: true }).click();
     await dialog
       .getByRole("textbox", { name: "备注", exact: true })
       .fill("公司账号");
@@ -660,10 +662,13 @@ for (const width of [375, 1180])
       .getByRole("list", { name: "服务商" })
       .getByRole("listitem", { name: "网关" });
     await expect(provider).toContainText("可用");
-    await expect(provider).toContainText("自定义，上下文 1M，公司账号");
+    // Its address and notes; each model with its window and a test.
+    await expect(provider).toContainText("https://gateway.invalid公司账号");
     await expect(
       provider.getByRole("list", { name: "网关 的模型" }).getByRole("listitem"),
-    ).toHaveText(["model-two上下文 200K测试", "model-three测试"]);
+    ).toHaveText(["model-two上下文 200K测试", "model-three上下文 1M测试"]);
+    // Deleting a provider lives in its edit form, not beside 编辑.
+    await expect(provider.getByRole("button", { name: /删除/ })).toHaveCount(0);
     await expect(
       provider.getByRole("button", { name: "测试 model-two", exact: true }),
     ).toBeEnabled();
@@ -718,6 +723,9 @@ for (const width of [375, 1180])
     await provider.getByRole("button", { name: "编辑 网关" }).click();
     await expect(dialog.getByLabel("API Key", { exact: true })).toHaveValue("");
     await expect(dialog).toContainText("已保存");
+    await expect(
+      dialog.getByRole("button", { name: "删除服务商", exact: true }),
+    ).toBeVisible();
     await dialog.getByRole("button", { name: "返回", exact: true }).click();
     // An Agent that picks one of these models is listed in management as a
     // user of the connector as well as of the Agent interface.

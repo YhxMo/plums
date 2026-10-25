@@ -284,13 +284,13 @@ export function ProviderForm({
     });
 
   const keyState = !current
-    ? "只保存在本机，用于向上面的地址发送请求，之后不再显示。"
+    ? "只保存在本机，之后不再显示。"
     : needsKey
       ? current.status === "missing"
-        ? "没有找到已保存的 API Key，请重新填写。"
-        : "地址或格式已改，请重新填写 API Key。"
+        ? "没有找到已保存的 Key，请重新填写。"
+        : "地址或格式已改，请重新填写。"
       : current.status === "ready"
-        ? "已保存。留空保持不变，填写新的 Key 则替换。"
+        ? "已保存，留空不变。"
         : "待核对，可重新填写。";
   return (
     <form
@@ -337,41 +337,16 @@ export function ProviderForm({
               />
             </Field>
           )}
-          <div className="grid grid-cols-2 gap-3 max-form:grid-cols-1">
-            <Field>
-              <FieldLabel htmlFor={`${ids}-name`}>名称</FieldLabel>
-              <Input
-                id={`${ids}-name`}
-                value={draft.name}
-                maxLength={40}
-                required
-                disabled={busy}
-                placeholder="例如：DeepSeek 官方"
-                onChange={(e) => set({ name: e.target.value })}
-              />
-            </Field>
-            <Field>
-              <FieldLabel htmlFor={`${ids}-notes`}>备注</FieldLabel>
-              <Input
-                id={`${ids}-notes`}
-                value={draft.notes}
-                maxLength={80}
-                disabled={busy}
-                placeholder="可选，例如：公司账号"
-                onChange={(e) => set({ notes: e.target.value })}
-              />
-            </Field>
-          </div>
           <Field>
-            <FieldLabel htmlFor={`${ids}-website`}>官网链接</FieldLabel>
+            <FieldLabel htmlFor={`${ids}-name`}>名称</FieldLabel>
             <Input
-              id={`${ids}-website`}
-              value={draft.website}
-              type="url"
-              maxLength={200}
+              id={`${ids}-name`}
+              value={draft.name}
+              maxLength={40}
+              required
               disabled={busy}
-              placeholder="可选，https://"
-              onChange={(e) => set({ website: e.target.value.trim() })}
+              placeholder="例如：DeepSeek 官方"
+              onChange={(e) => set({ name: e.target.value })}
             />
           </Field>
         </FieldSet>
@@ -420,7 +395,7 @@ export function ProviderForm({
             >
               {target
                 ? `对话请求发往 ${target}`
-                : "填写服务商文档中的 Base URL；粘贴完整地址也可以。"}
+                : "服务商文档里的 Base URL，也可以粘贴完整地址。"}
             </FieldDescription>
           </Field>
           <Field>
@@ -516,7 +491,7 @@ export function ProviderForm({
               <span aria-hidden>默认上下文窗口</span>
               <InfoTip
                 label="默认上下文窗口"
-                text="模型能接收的总 token 数。获取列表时按 models.dev 为每个模型填好；没有填的模型用这里的默认值，可按服务商文档调整。每次发送整段对话，服务商会缓存重复的部分；接近上限时一次丢弃较早的一批轮次。"
+                text="模型能接收的总 token 数。获取列表时按 models.dev 填好每个模型；没有填的用这个值。接近上限时丢弃较早的轮次。"
               />
             </FieldTitle>
             <Select
@@ -544,7 +519,30 @@ export function ProviderForm({
               />
             </Button>
           </CollapsibleTrigger>
-          <CollapsibleContent className="pt-2">
+          <CollapsibleContent className="grid gap-3 pt-2">
+            <Field>
+              <FieldLabel htmlFor={`${ids}-notes`}>备注</FieldLabel>
+              <Input
+                id={`${ids}-notes`}
+                value={draft.notes}
+                maxLength={80}
+                disabled={busy}
+                placeholder="例如：公司账号"
+                onChange={(e) => set({ notes: e.target.value })}
+              />
+            </Field>
+            <Field>
+              <FieldLabel htmlFor={`${ids}-website`}>官网链接</FieldLabel>
+              <Input
+                id={`${ids}-website`}
+                value={draft.website}
+                type="url"
+                maxLength={200}
+                disabled={busy}
+                placeholder="https://"
+                onChange={(e) => set({ website: e.target.value.trim() })}
+              />
+            </Field>
             <Field>
               <FieldTitle>
                 <label htmlFor={`${ids}-max-tokens`}>最大输出 token</label>
@@ -582,6 +580,22 @@ export function ProviderForm({
         }}
       />
       <DialogActions>
+        {current && (
+          <Button
+            type="button"
+            variant="ghost"
+            className="mr-auto text-destructive hover:text-destructive"
+            disabled={busy}
+            onClick={() =>
+              void run(async () => {
+                if (await api.remove(current.id)) onDone("已删除。");
+                else setNotice("已取消删除。");
+              })
+            }
+          >
+            删除服务商
+          </Button>
+        )}
         <Button
           type="button"
           variant="outline"

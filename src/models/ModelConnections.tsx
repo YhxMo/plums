@@ -1,11 +1,4 @@
 import { useCallback, useState, useSyncExternalStore } from "react";
-import {
-  PencilIcon,
-  PlusIcon,
-  ServerIcon,
-  Trash2Icon,
-  ZapIcon,
-} from "lucide-react";
 import { cn } from "cn";
 import type { ModelConnectionsApi } from "@modules/models/extension";
 import type { ProviderStatus, ProviderView } from "@modules/models/providers";
@@ -13,15 +6,7 @@ import { tokenLabel } from "@modules/models/protocols";
 import { useAsyncAction } from "@/components/useAsyncAction";
 import { DialogBody } from "@/components/Dialog";
 import { ActionToast } from "@/components/Toast";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import {
-  Empty,
-  EmptyDescription,
-  EmptyHeader,
-  EmptyMedia,
-  EmptyTitle,
-} from "@/components/ui/empty";
 import { ProviderForm } from "./ProviderForm";
 import { useRequestSignal } from "./useRequestSignal";
 
@@ -30,16 +15,10 @@ const statusLabel: Record<ProviderStatus, string> = {
   pending: "待核对",
   disabled: "已停用",
   "delete-pending": "删除待核对",
-  missing: "需要录入密钥",
+  missing: "需要 API Key",
   changed: "地址未确认",
 };
-const statusTone: Partial<Record<ProviderStatus, string>> = {
-  ready: "bg-running/12 text-foreground",
-  missing: "bg-brand-soft text-brand-text",
-  changed: "bg-brand-soft text-brand-text",
-};
-
-/** The user's model providers and their models: add, edit, re-key, test, delete. */
+/** The user's model providers and their models: add, edit (and delete), re-key, test. */
 export function ModelConnections({ api }: { api: ModelConnectionsApi }) {
   const subscribe = useCallback(
     (listener: () => void) => api.subscribe(listener),
@@ -107,136 +86,100 @@ export function ModelConnections({ api }: { api: ModelConnectionsApi }) {
     );
   return (
     <DialogBody>
-      <p className="text-muted-foreground">
-        先添加服务商（请求地址与你自己的 API Key），再添加或获取它提供的模型；在
-        对话输入区为每个 Agent 选择模型。
-      </p>
       {providers.length === 0 ? (
-        <Empty className="gap-3 border border-dashed p-6 md:p-6">
-          <EmptyHeader>
-            <EmptyMedia variant="icon">
-              <ServerIcon />
-            </EmptyMedia>
-            <EmptyTitle className="text-sm">还没有服务商</EmptyTitle>
-            <EmptyDescription>
-              添加一个服务商后，Agent 就能选用它的模型。
-            </EmptyDescription>
-          </EmptyHeader>
-        </Empty>
+        <p className="text-muted-foreground">还没有服务商</p>
       ) : (
-        <ul className="grid gap-3" aria-label="服务商">
-          {providers.map((provider) => (
-            <li
-              key={provider.id}
-              aria-label={provider.name}
-              className="grid gap-3 rounded-xl border bg-card p-3.5"
-            >
-              <div className="flex items-start justify-between gap-3 max-form:flex-col max-form:items-stretch">
-                <div className="grid min-w-0 gap-0.5 text-sm">
-                  <span className="flex flex-wrap items-center gap-x-2 gap-y-1">
-                    <strong className="font-semibold">{provider.name}</strong>
-                    <Badge
-                      variant="secondary"
-                      className={statusTone[provider.status]}
-                    >
-                      {statusLabel[provider.status]}
-                    </Badge>
-                  </span>
-                  <span className="text-xs text-muted-foreground">
-                    {api.presets.find((p) => p.id === provider.preset)?.label ??
-                      "自定义"}
-                    {`，上下文 ${tokenLabel(provider.context)}`}
-                    {provider.notes && `，${provider.notes}`}
-                  </span>
-                  <span className="font-mono text-xs break-all text-muted-foreground">
-                    {provider.base}
-                  </span>
-                </div>
-                <div className="flex shrink-0 gap-2 max-form:*:flex-1">
+        <ul className="grid gap-4" aria-label="服务商">
+          {providers.map((provider) => {
+            const keyless = provider.status === "missing";
+            return (
+              <li
+                key={provider.id}
+                aria-label={provider.name}
+                className="rounded-lg border"
+              >
+                <div className="flex items-center gap-3 p-3">
+                  <div className="grid min-w-0 flex-1 gap-0.5">
+                    <span className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                      <strong className="font-semibold">{provider.name}</strong>
+                      <Status status={provider.status} />
+                    </span>
+                    <span className="font-mono text-xs break-all text-muted-foreground">
+                      {provider.base}
+                    </span>
+                    {provider.notes && (
+                      <span className="text-xs text-muted-foreground">
+                        {provider.notes}
+                      </span>
+                    )}
+                  </div>
                   <Button
-                    variant="outline"
-                    size="sm"
-                    aria-label={`编辑 ${provider.name}`}
+                    variant={keyless ? "default" : "outline"}
+                    size="xs"
+                    aria-label={
+                      keyless
+                        ? `为 ${provider.name} 填写 Key`
+                        : `编辑 ${provider.name}`
+                    }
                     disabled={busy}
                     onClick={() => setEditing(provider.id)}
                   >
-                    <PencilIcon data-icon="inline-start" />
-                    编辑
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="text-destructive hover:text-destructive"
-                    aria-label={`删除 ${provider.name}`}
-                    disabled={busy}
-                    onClick={() =>
-                      void run(async () => {
-                        if (!(await api.remove(provider.id)))
-                          return setNotice("已取消删除。");
-                        setNotice("已删除。");
-                      })
-                    }
-                  >
-                    <Trash2Icon data-icon="inline-start" />
-                    删除
+                    {keyless ? "填写 Key" : "编辑"}
                   </Button>
                 </div>
-              </div>
-              {provider.models.length === 0 ? (
-                <p className="text-xs text-muted-foreground">
-                  还没有模型，点「编辑」添加或获取。
-                </p>
-              ) : (
-                <ul
-                  className="divide-y overflow-hidden rounded-lg border bg-background/60"
-                  aria-label={`${provider.name} 的模型`}
-                >
-                  {provider.models.map((model) => {
-                    const result = results[`${provider.id}/${model}`];
-                    return (
-                      <li
-                        key={model}
-                        className="flex min-h-10 items-center justify-between gap-3 px-3 py-1.5 text-sm"
-                      >
-                        <span className="grid min-w-0 gap-0.5 break-words">
-                          <span>
+                {provider.models.length === 0 ? (
+                  <p className="border-t px-3 py-2.5 text-xs text-muted-foreground">
+                    还没有模型
+                  </p>
+                ) : (
+                  <ul aria-label={`${provider.name} 的模型`}>
+                    {provider.models.map((model) => {
+                      const result = results[`${provider.id}/${model}`];
+                      return (
+                        <li
+                          key={model}
+                          className="flex min-h-10 items-center gap-3 border-t px-3 py-1.5"
+                        >
+                          <span className="grid min-w-0 flex-1 gap-0.5 break-words">
                             {model}
-                            {Object.hasOwn(provider.windows, model) && (
-                              <span className="text-xs text-muted-foreground">
-                                {`上下文 ${tokenLabel(provider.windows[model])}`}
+                            {result && (
+                              <span
+                                role="status"
+                                className={cn(
+                                  "text-xs text-muted-foreground",
+                                  result.startsWith("回复") && "text-running",
+                                )}
+                              >
+                                {result}
                               </span>
                             )}
                           </span>
-                          {result && (
-                            <span
-                              role="status"
-                              className={cn(
-                                "text-xs text-muted-foreground",
-                                result.startsWith("回复") && "text-running",
-                              )}
+                          <span className="shrink-0 text-xs text-muted-foreground">
+                            上下文{" "}
+                            {tokenLabel(
+                              provider.windows[model] ?? provider.context,
+                            )}
+                          </span>
+                          {provider.status === "ready" && (
+                            <Button
+                              variant="ghost"
+                              size="xs"
+                              className="text-muted-foreground max-md:min-h-11"
+                              aria-label={`测试 ${model}`}
+                              disabled={busy}
+                              onClick={() => void test(provider, model)}
                             >
-                              {result}
-                            </span>
+                              测试
+                            </Button>
                           )}
-                        </span>
-                        <Button
-                          variant="ghost"
-                          size="xs"
-                          className="max-md:min-h-11"
-                          aria-label={`测试 ${model}`}
-                          disabled={busy || provider.status !== "ready"}
-                          onClick={() => void test(provider, model)}
-                        >
-                          <ZapIcon data-icon="inline-start" />
-                          测试
-                        </Button>
-                      </li>
-                    );
-                  })}
-                </ul>
-              )}
-            </li>
-          ))}
+                        </li>
+                      );
+                    })}
+                  </ul>
+                )}
+              </li>
+            );
+          })}
         </ul>
       )}
       <ActionToast
@@ -247,10 +190,37 @@ export function ModelConnections({ api }: { api: ModelConnectionsApi }) {
           setNotice("");
         }}
       />
-      <Button disabled={busy} onClick={() => setEditing("")}>
-        <PlusIcon data-icon="inline-start" />
+      <Button
+        variant="outline"
+        className="justify-self-start"
+        disabled={busy}
+        onClick={() => setEditing("")}
+      >
         添加服务商
       </Button>
     </DialogBody>
+  );
+}
+
+/** A provider's state: a dot and its word, orange when it needs a key. */
+function Status({ status }: { status: ProviderStatus }) {
+  const attention = status === "missing" || status === "changed";
+  return (
+    <span
+      className={cn(
+        "inline-flex items-center gap-1 text-xs text-muted-foreground",
+        attention && "text-brand-text",
+      )}
+    >
+      <span
+        aria-hidden="true"
+        className={cn(
+          "size-1.5 rounded-full bg-input",
+          status === "ready" && "bg-running",
+          attention && "bg-brand",
+        )}
+      />
+      {statusLabel[status]}
+    </span>
   );
 }
