@@ -39,7 +39,7 @@
 各子系统文档只记录契约与回归测试，平台和打包应用的未验项统一列在这里；已交付包的受验范围见[交付入口](evidence/RESULTS.md)，Android 冻结期间的待补项见 [Android 工程](docs/ANDROID.md#构建和设备)。
 
 - **审查修复**：输出上限保留、导入重试等只有单元与浏览器回归。
-- **设定与记忆**：只有单元与 Chromium 回归；打包应用中的跨会话记忆、重启后补整理、WebKit 下的记忆页（含 `datetime-local` 输入）与一次获授权的真实整理调用（含另选的整理模型）未做；整理提示词对真实模型的效果未评估。
+- **设定与记忆**：打包应用已实测关于我、一次真实整理（DeepSeek）与重启后跨会话记忆（[记录](evidence/MAC-MEMORY-2026-10-25.md)）；重启后补整理、打包应用中的整理提示与撤销、过期显示、另选整理模型与关闭记忆、WebKit 下的记忆页（含 `datetime-local` 输入）未做；整理提示词在更长对话和更多模型上的效果未评估。
 - **数据迁移**：已有版本 1 库升级到版本 2（只影响开发数据，本机无此类库）、复制失败弹窗。
 - **存储**：断电与写入中途崩溃时的一致性依赖 SQLite，未实测；正常重启与转换前中断不证明这一点。
 - **窗口框架**：换屏（无第二块屏幕）；去掉上限后过大的保存尺寸收回到屏幕以内只有单元测试。
@@ -52,14 +52,14 @@
 
 当前是[路线阶梯](docs/spec/total.md#路线阶梯)第 1 级（Mac 第一版），顺序与剩余内容只在[当前阶段](docs/spec/milestone.md#第-1-级mac-第一版)维护；自 0.2.0 以来的工作见 git log。
 
-- **当前焦点**：第 5 项 `memory@1` 已实现，剩打包应用实测（见未验范围）；之后是第 6 项外观与快捷键。
+- **当前焦点**：第 5 项 `memory@1` 已实现，打包应用已实测跨会话记忆（剩余未验项见上）；下一步是第 6 项外观与快捷键。
 - **遗留**：`modules/agents/store.ts`（约 620 行）、`modules/agents/memory/store.ts`（约 460 行）、`AgentDialogs.tsx`（约 550 行）与 `AgentWorkspace.tsx`（约 530 行）超过 400 行提示线；外壳右侧栏按钮的 18px 偏移与会话卡片几何耦合（窗口框架没有改动卡片几何，仍保留）；`View.icon` 无效原因是英文作者提示，在中文界面中原样显示；WebKit 下 agent-flow 的“dialog close is quiet…”两项失败（Tab 未聚焦弹窗关闭按钮），界面改版前已存在；此前导入的单文件扩展的源码分片（`host.shell` 的 `x-` 文档）不再读取，也不自动清理。
 
 当前未推送，现有交付包未替换。
 
 ## 当前交付与恢复
 
-当前手测候选是 `release/.mac-IuDoPW/Plums.app`（`2f3ee6e`，0.2.0 arm64 debug / ad-hoc，[抽查记录](evidence/MAC-SPOTCHECK-2026-10-25.md)）；`release/.mac-MxLDoZ/Plums.app`（`eb5c68b`）是[检查点记录](evidence/MAC-CHECKPOINT-2026-10-24.md)的来源。直接打开它会使用正式数据目录，并在首次启动时复制改名前的数据；要隔离数据，就用设置了 `HOME` 或 `PLUMS_DATA_DIR` 的命令行启动包内可执行文件。`release/mac-manual-2026-10-23/` 是改名前构建的，启动脚本已失效，不再使用。
+记忆实测候选是 `release/.mac-U2abIJ/Plums.app`（`bc9234e`，[记录](evidence/MAC-MEMORY-2026-10-25.md)）；此前的手测候选是 `release/.mac-IuDoPW/Plums.app`（`2f3ee6e`，0.2.0 arm64 debug / ad-hoc，[抽查记录](evidence/MAC-SPOTCHECK-2026-10-25.md)）；`release/.mac-MxLDoZ/Plums.app`（`eb5c68b`）是[检查点记录](evidence/MAC-CHECKPOINT-2026-10-24.md)的来源。直接打开它会使用正式数据目录，并在首次启动时复制改名前的数据；要隔离数据，就用设置了 `HOME` 或 `PLUMS_DATA_DIR` 的命令行启动包内可执行文件。`release/mac-manual-2026-10-23/` 是改名前构建的，启动脚本已失效，不再使用。
 
 已交付 0.2.0 来自 `6668ce7`，Mac 入口 `release/mac/Plums.app`，本次未替换；Android 包仅保留其原受验范围。[交付证据](evidence/RELEASE-0.2.0-2026-10-20.md)及包旁的 `build-info.json`、`source.patch` 用于核对来源。0.0.4 恢复包保留在 `.cache/archive/releases/mac-uIizKK/mac` 与 `.cache/archive/releases/android-JS89ll/android`；恢复包不自动回滚数据，操作规则见[开发流程](docs/DEVELOPMENT.md#本地交付目录)。
 
