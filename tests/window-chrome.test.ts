@@ -28,6 +28,13 @@ it("opens at 940 × 640 and never narrower than the three-column layout", () => 
   expect(window.minWidth).toBe(parseFloat(breakpoints.md) * 16);
 });
 
+it("caps no window size, so full screen and tiling fill the screen", () => {
+  expect(window).not.toHaveProperty("maxWidth");
+  expect(window).not.toHaveProperty("maxHeight");
+  const source = readFileSync("src-tauri/src/window_frame.rs", "utf8");
+  expect(source).not.toContain("set_max_size");
+});
+
 it("drives no window commands from the WebView beyond dragging", () => {
   for (const command of [
     "close",

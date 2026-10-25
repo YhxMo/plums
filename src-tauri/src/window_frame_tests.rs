@@ -10,20 +10,14 @@ fn the_other_two_buttons_sit_20_pt_after_the_one_before() {
 }
 
 #[test]
-fn the_window_grows_to_four_fifths_of_its_screen_in_whole_points_and_never_below_the_minimum() {
+fn a_remembered_size_fits_the_screen_and_the_minimum() {
     let min = (652.0, 600.0);
-    assert_eq!(largest((1512.0, 982.0), min), (1209.0, 785.0));
-    // A small screen still allows the three columns.
-    assert_eq!(largest((700.0, 600.0), min), (652.0, 600.0));
-}
-
-#[test]
-fn a_remembered_size_is_kept_within_the_limits() {
-    let min = (652.0, 600.0);
-    let max = (1209.0, 785.0);
-    assert_eq!(within((940.0, 640.0), min, max), (940.0, 640.0));
-    assert_eq!(within((1800.0, 1100.0), min, max), (1209.0, 785.0));
-    assert_eq!(within((400.0, 300.0), min, max), (652.0, 600.0));
+    let screen = (1470.0, 956.0);
+    assert_eq!(within((940.0, 640.0), min, screen), (940.0, 640.0));
+    assert_eq!(within((1800.0, 1100.0), min, screen), (1470.0, 956.0));
+    assert_eq!(within((400.0, 300.0), min, screen), (652.0, 600.0));
+    // A screen smaller than the minimum still gets the three columns.
+    assert_eq!(within((900.0, 700.0), min, (640.0, 500.0)), (652.0, 600.0));
 }
 
 #[test]

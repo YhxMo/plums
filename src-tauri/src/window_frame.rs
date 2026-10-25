@@ -1,6 +1,6 @@
 //! The main window's frame on macOS: the native traffic lights at a 20 pt
-//! pitch in the 68 pt rail, and a size between the three-column minimum and
-//! four fifths of the screen.
+//! pitch in the 68 pt rail, and a remembered size that fits its screen. No
+//! maximum is set, so full screen and tiling fill the screen.
 
 use tauri::{LogicalSize, Window, WindowEvent};
 
@@ -21,54 +21,48 @@ fn moves(close: f64, others: [f64; 2]) -> Option<[f64; 2]> {
     (others != target).then_some(target)
 }
 
-/// The largest window on a screen of `screen` logical points.
-fn largest(screen: (f64, f64), min: (f64, f64)) -> (f64, f64) {
+/// A remembered size kept on its screen and never below the minimum.
+fn within(size: (f64, f64), min: (f64, f64), screen: (f64, f64)) -> (f64, f64) {
     (
-        (screen.0 * 0.8).floor().max(min.0),
-        (screen.1 * 0.8).floor().max(min.1),
+        size.0.min(screen.0).max(min.0),
+        size.1.min(screen.1).max(min.1),
     )
 }
 
-/// A size clamped between `min` and `max`.
-fn within(size: (f64, f64), min: (f64, f64), max: (f64, f64)) -> (f64, f64) {
-    (size.0.clamp(min.0, max.0), size.1.clamp(min.1, max.1))
-}
-
-/// Applies the limits for the window's screen and the traffic light pitch;
-/// the remembered size was restored before this runs.
+/// Keeps the restored size on the window's screen and sets the traffic
+/// light pitch; the remembered size was restored before this runs.
 pub fn setup(window: &Window) {
-    limit(window);
+    fit(window);
     respace(window);
 }
 
 /// AppKit puts the buttons back at its own pitch when the window resizes,
-/// enters or leaves full screen, is tiled or changes appearance; a new
-/// screen brings new limits.
+/// enters or leaves full screen, is tiled, changes appearance or screen.
 pub fn on_event(window: &Window, event: &WindowEvent) {
-    match event {
-        WindowEvent::Moved(_) | WindowEvent::ScaleFactorChanged { .. } => {
-            limit(window);
-            respace(window);
-        }
-        WindowEvent::Resized(_) | WindowEvent::Focused(_) | WindowEvent::ThemeChanged(_) => {
-            respace(window)
-        }
-        _ => {}
+    if let WindowEvent::Resized(_)
+    | WindowEvent::Focused(_)
+    | WindowEvent::ThemeChanged(_)
+    | WindowEvent::ScaleFactorChanged { .. } = event
+    {
+        respace(window)
     }
 }
 
-fn limit(window: &Window) {
-    let (Ok(Some(monitor)), Ok(scale)) = (window.current_monitor(), window.scale_factor()) else {
+fn fit(window: &Window) {
+    let (Ok(Some(monitor)), Ok(inner), Ok(scale)) = (
+        window.current_monitor(),
+        window.inner_size(),
+        window.scale_factor(),
+    ) else {
         return;
     };
     let screen = monitor.size().to_logical::<f64>(monitor.scale_factor());
-    let max = largest((screen.width, screen.height), MIN);
-    let _ = window.set_max_size(Some(LogicalSize::new(max.0, max.1)));
-    let Ok(inner) = window.inner_size() else {
-        return;
-    };
     let size = inner.to_logical::<f64>(scale);
-    let kept = within((size.width, size.height), MIN, max);
+    let kept = within(
+        (size.width, size.height),
+        MIN,
+        (screen.width, screen.height),
+    );
     if kept != (size.width, size.height) {
         let _ = window.set_size(LogicalSize::new(kept.0, kept.1));
     }
