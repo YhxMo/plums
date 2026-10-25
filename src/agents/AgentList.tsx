@@ -242,7 +242,7 @@ export function AgentList({
           我的 Agent
         </h2>
         {agents.length > 0 && (
-          <InputGroup className="h-[30px] flex-1 rounded-lg border-transparent bg-foreground/6 shadow-none transition-colors has-[[data-slot=input-group-control]:focus-visible]:border-input has-[[data-slot=input-group-control]:focus-visible]:bg-chat has-[[data-slot=input-group-control]:focus-visible]:ring-0 max-md:order-3 max-md:h-11 max-md:basis-full dark:bg-foreground/6">
+          <InputGroup className="h-[30px] flex-1 rounded-lg border-transparent bg-foreground/6 shadow-none transition-colors max-md:order-3 max-md:h-11 max-md:basis-full dark:bg-foreground/6">
             <InputGroupAddon>
               <SearchIcon />
             </InputGroupAddon>

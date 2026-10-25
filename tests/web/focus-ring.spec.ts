@@ -1,5 +1,5 @@
 import { expect, test, type Locator } from "@playwright/test";
-import { manage } from "./helpers";
+import { addAgent, manage } from "./helpers";
 
 // Controls mark keyboard focus with a 3px ring (box-shadow), not an outline;
 // it fades in, so a shown ring is polled for.
@@ -49,4 +49,35 @@ test("the file picker shows its ring for the keyboard only", async ({
   await page.keyboard.press(tab);
   await expect(input).toBeFocused();
   await expect.poll(() => ringed(pick)).toBe(true);
+});
+
+// A text field shows focus with its caret; the box keeps its border, colour
+// and shadow, so typing somewhere new does not light a frame up.
+test("text fields keep their box when focused", async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 800 });
+  await page.goto("/");
+  await addAgent(page, "焦点助手");
+  const look = (box: Locator) =>
+    box.evaluate((element) => {
+      const style = getComputedStyle(element);
+      return [style.borderColor, style.boxShadow, style.backgroundColor];
+    });
+  async function same(field: Locator, box: Locator) {
+    await field.focus();
+    await expect(field).toBeFocused();
+    // Past any colour transition.
+    await page.waitForTimeout(300);
+    const focused = await look(box);
+    await field.blur();
+    await page.waitForTimeout(300);
+    expect(focused).toEqual(await look(box));
+  }
+  const message = page.getByRole("textbox", { name: "消息", exact: true });
+  await same(message, message.locator("xpath=.."));
+  const search = page.getByRole("textbox", { name: "搜索 Agent" });
+  await same(search, search.locator("xpath=.."));
+  await page.getByRole("button", { name: "展开或收起右侧栏" }).click();
+  await page.getByRole("button", { name: "编辑介绍", exact: true }).click();
+  const intro = page.getByRole("textbox", { name: "介绍", exact: true });
+  await same(intro, intro);
 });
