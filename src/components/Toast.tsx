@@ -34,16 +34,26 @@ export function ActionToast({
   const choose = useEffectEvent(() => action?.onClick());
   const toasterId = useToastLayers((state) => state.layers.at(-1));
   // The toast on screen; moving or clearing it is not the person's dismissal.
-  const shown = useRef<{ id: string; silence: () => void } | null>(null);
+  const shown = useRef<{
+    id: string;
+    layer: string;
+    silence: () => void;
+  } | null>(null);
+  // Counts hidden toasts: one still leaving keeps its id, and sonner would
+  // fold a toast reusing that id into the exit.
+  const hidden = useRef(0);
   const hide = () => {
-    shown.current?.silence();
-    if (shown.current) toast.dismiss(shown.current.id);
+    if (!shown.current) return;
+    shown.current.silence();
+    toast.dismiss(shown.current.id);
     shown.current = null;
+    hidden.current++;
   };
   useEffect(() => {
-    const id = `action:${toasterId ?? "page"}`;
-    if (!message || shown.current?.id !== id) hide();
+    const layer = toasterId ?? "page";
+    if (!message || shown.current?.layer !== layer) hide();
     if (!message) return;
+    const id = `action:${layer}:${hidden.current}`;
     let silent = false;
     const finish = () => {
       if (!silent) done();
@@ -75,7 +85,7 @@ export function ActionToast({
       onAutoClose: finish,
       onDismiss: finish,
     });
-    shown.current = { id, silence: () => (silent = true) };
+    shown.current = { id, layer, silence: () => (silent = true) };
   }, [message, error, toasterId, label]);
   useEffect(() => hide, []);
   return null;

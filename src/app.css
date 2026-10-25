@@ -126,6 +126,12 @@
   }
 }
 
+/* A toast that is closing goes at once, without a fade: a replacement never
+   shows beside the one it replaces. */
+[data-sonner-toast][data-removed="true"] {
+  display: none !important;
+}
+
 @layer components {
   /* The content beside the rail: one card on the window colour, edged by a
      hairline. A view that draws its own card (data-frame="own") gets the
