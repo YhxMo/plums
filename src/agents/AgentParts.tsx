@@ -1,3 +1,4 @@
+import { ChevronRightIcon } from "lucide-react";
 import { cn } from "cn";
 import { Switch } from "@/components/ui/switch";
 import type { Part } from "./parts";
@@ -31,7 +32,17 @@ export function AgentParts({
         const warn = !on && note;
         const name = (
           <>
-            <span className="truncate text-sm font-medium">{choice.label}</span>
+            <span className="flex max-w-full items-center gap-0.5 text-sm font-medium">
+              <span className="truncate">{choice.label}</span>
+              {/* A part with a page of its own leads there. */}
+              {part.open && (
+                <ChevronRightIcon
+                  data-slot="part-chevron"
+                  aria-hidden="true"
+                  className="size-3.5 text-muted-foreground"
+                />
+              )}
+            </span>
             <span
               className={cn(
                 "w-full truncate text-xs text-muted-foreground",

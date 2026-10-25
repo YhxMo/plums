@@ -1,16 +1,11 @@
 import { useRef } from "react";
-import {
-  CameraIcon,
-  ChevronRightIcon,
-  ImageOffIcon,
-  ImagePlusIcon,
-  XIcon,
-} from "lucide-react";
+import { CameraIcon, ImageOffIcon, ImagePlusIcon, XIcon } from "lucide-react";
 import type { Agent } from "@modules/agents/contract";
 import { MAX_INSTRUCTIONS } from "@modules/agents/instructions";
 import { Avatar } from "./Avatar";
 import { AgentParts } from "./AgentParts";
 import { EditableText } from "./EditableText";
+import { INSTRUCTIONS_TIP } from "./tips";
 import type { Part } from "./parts";
 import { InfoTip } from "@/components/Tooltip";
 import { Button } from "@/components/ui/button";
@@ -60,10 +55,9 @@ export function DetailPanel({
       className="flex h-full min-h-0 w-full flex-1 flex-col overflow-hidden bg-popover"
       aria-label="Agent 详情"
     >
-      <header className="flex min-h-12 shrink-0 items-center justify-between pr-2.5 pl-5 max-md:min-h-14 max-md:pl-6">
-        <h2 className="text-sm font-medium text-muted-foreground max-md:text-base">
-          Agent 详情
-        </h2>
+      {/* The drawer's name is for assistive technology; the Agent's own
+          name heads its content. */}
+      <header className="flex h-11 shrink-0 items-center justify-end px-2 max-md:h-14">
         <Button
           variant="ghost"
           size="icon-sm"
@@ -73,7 +67,7 @@ export function DetailPanel({
           <XIcon />
         </Button>
       </header>
-      <div className="flex min-h-0 flex-1 flex-col gap-7 overflow-y-auto px-5 pt-2 pb-6 max-md:px-6">
+      <div className="flex min-h-0 flex-1 flex-col gap-6 overflow-y-auto px-5 pb-5 max-md:px-6">
         <section className="flex flex-col gap-3" aria-label="介绍">
           <div className="flex items-center gap-3">
             {onAvatar ? (
@@ -99,7 +93,7 @@ export function DetailPanel({
                       disabled={busy}
                       className="group/avatar-button relative shrink-0 rounded-[26%] outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
                     >
-                      <Avatar agent={agent} />
+                      <Avatar agent={agent} className="size-12" />
                       <span
                         aria-hidden="true"
                         className="absolute inset-0 grid place-items-center rounded-[26%] bg-black/40 text-white opacity-0 transition-opacity group-hover/avatar-button:opacity-100 group-focus-visible/avatar-button:opacity-100 max-md:opacity-0"
@@ -123,11 +117,11 @@ export function DetailPanel({
                 </DropdownMenu>
               </>
             ) : (
-              <Avatar agent={agent} />
+              <Avatar agent={agent} className="size-12" />
             )}
-            <h3 className="min-w-0 text-base font-semibold wrap-anywhere">
+            <h2 className="min-w-0 text-base font-semibold wrap-anywhere">
               {agent.name}
-            </h3>
+            </h2>
           </div>
           <EditableText
             label="介绍"
@@ -140,13 +134,10 @@ export function DetailPanel({
           />
         </section>
         {agent.instructions !== undefined && onInstructions && (
-          <section className="flex flex-col gap-2.5" aria-label="设定">
-            <h3 className="flex items-center gap-1 text-xs font-medium text-muted-foreground max-md:text-sm">
+          <section className="flex flex-col gap-2" aria-label="设定">
+            <h3 className="flex items-center gap-1 text-xs font-medium text-muted-foreground">
               设定
-              <InfoTip
-                label="设定"
-                text="只发给它的模型，告诉它是谁、怎么说话，不显示给别人。介绍是给人看的，不会发给模型。"
-              />
+              <InfoTip label="设定" text={INSTRUCTIONS_TIP} />
             </h3>
             <EditableText
               label="设定"
@@ -160,14 +151,10 @@ export function DetailPanel({
             />
           </section>
         )}
-        <section className="flex flex-col gap-2.5" aria-label="组成扩展">
+        <section className="flex flex-col gap-2" aria-label="组成扩展">
           <div className="flex items-center justify-between gap-2">
-            <h3 className="flex items-center gap-1 text-xs font-medium text-muted-foreground max-md:text-sm">
+            <h3 className="text-xs font-medium text-muted-foreground">
               组成扩展
-              <InfoTip
-                label="组成扩展"
-                text="这个 Agent 由这些扩展组成。关闭一项只影响这个 Agent。"
-              />
             </h3>
             <Button
               variant="ghost"
@@ -176,7 +163,6 @@ export function DetailPanel({
               onClick={() => onOpenExtension()}
             >
               扩展管理
-              <ChevronRightIcon data-icon="inline-end" />
             </Button>
           </div>
           <AgentParts
