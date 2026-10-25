@@ -161,7 +161,8 @@ export function Composer({
     >
       {/* One row on desktop: attach, text, model, send. Phones give the text
           its own row above the controls. */}
-      <InputGroup className="h-auto flex-wrap items-end gap-x-1 rounded-[18px] border-border bg-transparent p-2 pl-2.5 shadow-none transition-colors duration-200 has-disabled:bg-transparent has-disabled:opacity-100 dark:bg-transparent dark:has-disabled:bg-transparent max-md:p-1.5">
+      {/* 22px round with 30px buttons 7px in: concentric corners. */}
+      <InputGroup className="h-auto flex-wrap items-end gap-x-1 rounded-3xl border-input bg-chat p-[6.5px] pl-2.5 shadow-none has-disabled:bg-chat has-disabled:opacity-100 dark:bg-chat dark:has-disabled:bg-chat max-md:p-1.5">
         {blocked && (
           <div
             role="status"

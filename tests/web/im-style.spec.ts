@@ -356,8 +356,12 @@ for (const width of [1280, 375]) {
     const model = page.getByRole("combobox", { name: "切换模型" });
     const send = page.getByRole("button", { name: "发送", exact: true });
     const card = page.getByRole("group").filter({ has: text });
-    expect(parseFloat(await style(card, "border-top-left-radius"))).toBe(18);
+    // 22px round, edged by a control hairline (Gray 7), on the card colour.
+    expect(parseFloat(await style(card, "border-top-left-radius"))).toBe(22);
     expect(await style(card, "box-shadow")).toMatch(FLAT);
+    expect(await style(card, "border-top-color")).toBe(
+      await resolve(page, "var(--control-border)"),
+    );
     const [t, p, m, s] = await Promise.all([
       text.boundingBox(),
       plus.boundingBox(),
@@ -378,7 +382,15 @@ for (const width of [1280, 375]) {
       // Phones keep the text on its own row above the controls.
       expect(m!.y).toBeGreaterThanOrEqual(t!.y + t!.height - 2);
     }
-    // A circle.
+    // A circle: 30px on desktop, concentric with the card's corners.
+    if (width >= 768) {
+      expect(s!.width).toBe(30);
+      const c = (await card.boundingBox())!;
+      // 22 − 30/2: border and padding, give or take a 1x screen's pixel.
+      expect(
+        Math.abs(c.x + c.width - (s!.x + s!.width) - 7),
+      ).toBeLessThanOrEqual(1);
+    }
     expect(s!.width).toBeLessThanOrEqual(46);
     expect(Math.abs(s!.width - s!.height)).toBeLessThan(2);
     expect(

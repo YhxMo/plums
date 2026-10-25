@@ -58,7 +58,7 @@ export function SessionMenu({
           ref={trigger}
           variant="ghost"
           size="xs"
-          className="h-6 max-w-[50%] min-w-0 shrink-0 gap-0.5 rounded-md bg-muted px-2 text-xs font-normal text-muted-foreground hover:bg-muted hover:text-foreground aria-expanded:text-foreground max-md:bg-transparent"
+          className="h-6 max-w-[50%] min-w-0 shrink-0 gap-0.5 rounded-sm bg-muted px-2 text-xs font-normal text-muted-foreground hover:bg-muted hover:text-foreground aria-expanded:text-foreground max-md:bg-transparent"
           aria-label={`会话：${session.title}`}
         >
           <span className="truncate">{session.title}</span>
@@ -67,7 +67,7 @@ export function SessionMenu({
       </DropdownMenuTrigger>
       <DropdownMenuContent align="start" className="w-60" aria-label="会话">
         {filtering && (
-          <label className="mb-1 flex h-8 items-center gap-1.5 rounded-md bg-foreground/6 px-2 text-muted-foreground">
+          <label className="mb-1 flex h-8 items-center gap-1.5 rounded-md bg-muted px-2 text-muted-foreground">
             <SearchIcon className="size-3.5 shrink-0" />
             <input
               data-menu-filter
