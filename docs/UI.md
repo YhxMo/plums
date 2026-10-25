@@ -1,6 +1,6 @@
 # 默认界面与跨端体验
 
-[架构](ARCHITECTURE.md) · [扩展契约](EXTENSION-CONTRACTS.md) · [验证证据](../evidence/RESULTS.md)
+[架构](ARCHITECTURE.md) · [扩展契约](EXTENSION-CONTRACTS.md) · [设计规范](DESIGN.md) · [验证证据](../evidence/RESULTS.md)
 
 状态：当前有效（2026-10-24 核实）；0.2.0 默认界面说明，验证范围见证据索引。
 
