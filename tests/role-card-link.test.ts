@@ -1,5 +1,5 @@
 import { afterEach, expect, it, vi } from "vitest";
-import { readRoleCardLink } from "../modules/agents/role-card";
+import { MAX_CARD_BYTES, readRoleCardLink } from "../modules/agents/role-card";
 afterEach(() => vi.unstubAllGlobals());
 function source(chunks: Uint8Array[]) {
   vi.stubGlobal("location", {
@@ -24,14 +24,14 @@ function source(chunks: Uint8Array[]) {
 }
 it("stops streaming on actual byte overflow before consuming the remainder", async () => {
   const chunks = [
-    new Uint8Array(16000).fill(32),
-    new Uint8Array(16001).fill(32),
+    new Uint8Array(MAX_CARD_BYTES / 2).fill(32),
+    new Uint8Array(MAX_CARD_BYTES / 2 + 1).fill(32),
     new Uint8Array(100000),
   ];
   const { cancel } = source(chunks);
   await expect(
     readRoleCardLink("/card", new AbortController().signal),
-  ).rejects.toThrow("32 KB");
+  ).rejects.toThrow("20 MB");
   expect(cancel).toHaveBeenCalledOnce();
   expect(chunks).toHaveLength(1);
 });
@@ -41,7 +41,7 @@ it("decodes split UTF-8 and validates normal cards without permitting redirects"
   const { fetcher } = source([...bytes].map((byte) => Uint8Array.of(byte)));
   await expect(
     readRoleCardLink("/card", new AbortController().signal),
-  ).resolves.toBe(raw);
+  ).resolves.toEqual({ text: raw });
   expect(fetcher).toHaveBeenCalledWith(
     new URL("http://localhost/card"),
     expect.objectContaining({ redirect: "error" }),

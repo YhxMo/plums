@@ -1,6 +1,7 @@
 import { deflateSync } from "node:zlib";
 import { expect, test, type Page } from "@playwright/test";
-import { addAgent } from "./helpers";
+import { addAgent, nextStep } from "./helpers";
+import { toBase64, withPngText } from "../../modules/agents/card-png";
 import { plumFor, plumParts } from "../../src/agents/plum";
 
 /** A PNG with a gradient, `w` × `h` pixels. */
@@ -166,8 +167,10 @@ test("an imported role card brings its avatar", async ({ page }) => {
     mimeType: "application/json",
     buffer: Buffer.from(JSON.stringify({ version: 1, name: "带像卡", avatar })),
   });
-  await page
-    .getByRole("dialog")
+  await page.getByRole("button", { name: "下一步", exact: true }).click();
+  await (
+    await nextStep(page, "带像卡")
+  )
     .getByRole("button", { name: "添加", exact: true })
     .click();
   await expect(
@@ -176,4 +179,60 @@ test("an imported role card brings its avatar", async ({ page }) => {
       .locator('[data-slot="avatar-image"]')
       .first(),
   ).toHaveAttribute("src", avatar);
+});
+
+test("a picture card (PNG) fills the add page, its picture becoming the avatar", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1280, height: 800 });
+  await page.goto("/");
+  const card = {
+    spec: "chara_card_v2",
+    spec_version: "2.0",
+    data: {
+      name: "图卡旅伴",
+      description: "熟悉京都的向导。",
+      personality: "耐心。",
+      creator_notes: "带你逛京都。",
+      extensions: {},
+    },
+  };
+  const picture = withPngText(new Uint8Array(png(300, 200)), {
+    chara: toBase64(JSON.stringify(card)),
+  });
+  await page.getByRole("button", { name: "导入角色卡", exact: true }).click();
+  const dialog = page.getByRole("dialog", { name: "导入角色卡" });
+  // Nothing about formats or sizes: one place to choose or drop a card.
+  await expect(dialog).not.toContainText(/JSON|KB|MB/);
+  await page.getByLabel("角色卡文件").setInputFiles({
+    name: "旅伴.png",
+    mimeType: "image/png",
+    buffer: Buffer.from(picture),
+  });
+  await dialog.getByRole("button", { name: "下一步", exact: true }).click();
+  const describe = page.getByRole("dialog", { name: "添加 Agent" });
+  await expect(
+    describe.getByRole("textbox", { name: "名称", exact: true }),
+  ).toHaveValue("图卡旅伴");
+  await expect(
+    describe.getByRole("textbox", { name: "设定", exact: true }),
+  ).toHaveValue("熟悉京都的向导。\n\n耐心。");
+  await expect(
+    describe.getByRole("textbox", { name: "介绍", exact: true }),
+  ).toHaveValue("带你逛京都。");
+  await expect(describe.locator('[data-slot="avatar-image"]')).toHaveAttribute(
+    "src",
+    /^data:image\/(webp|jpeg);base64,/,
+  );
+  await (
+    await nextStep(page, "图卡旅伴")
+  )
+    .getByRole("button", { name: "添加", exact: true })
+    .click();
+  await expect(
+    page
+      .getByRole("region", { name: "图卡旅伴 的会话" })
+      .locator('[data-slot="avatar-image"]')
+      .first(),
+  ).toHaveAttribute("src", /^data:image\/(webp|jpeg);base64,/);
 });

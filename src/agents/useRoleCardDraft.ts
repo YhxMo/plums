@@ -1,8 +1,14 @@
 import { useEffect, useRef, useState } from "react";
-import { readRoleCardFile, readRoleCardLink } from "@modules/agents/role-card";
+import {
+  readRoleCardFile,
+  readRoleCardLink,
+  type RoleCardSource,
+} from "@modules/agents/role-card";
 
 export type RoleCardDraft = {
   raw: string;
+  /** The picture of a picture card, until the text is changed by hand. */
+  picture?: Blob;
   url: string;
   reading: boolean;
   setRaw(value: string): void;
@@ -15,7 +21,7 @@ export type RoleCardDraft = {
 export function useRoleCardDraft(
   setError: (message: string) => void,
 ): RoleCardDraft {
-  const [raw, setRaw] = useState("");
+  const [card, setCard] = useState<RoleCardSource>({ text: "" });
   const [url, setUrl] = useState("");
   const [reading, setReading] = useState(false);
   const readController = useRef<AbortController | null>(null);
@@ -31,8 +37,8 @@ export function useRoleCardDraft(
     setReading(true);
     setError("");
     try {
-      const card = await readRoleCardLink(url, controller.signal);
-      if (readController.current === controller) setRaw(card);
+      const read = await readRoleCardLink(url, controller.signal);
+      if (readController.current === controller) setCard(read);
     } catch (e) {
       if (readController.current === controller && !controller.signal.aborted)
         setError(e instanceof Error ? e.message : String(e));
@@ -44,7 +50,18 @@ export function useRoleCardDraft(
     }
   }
   async function readFile(file: File) {
-    setRaw(await readRoleCardFile(file));
+    setCard(await readRoleCardFile(file));
   }
-  return { raw, url, reading, setRaw, setUrl, readLink, readFile, cancelRead };
+  return {
+    raw: card.text,
+    picture: card.picture,
+    url,
+    reading,
+    // Text typed or pasted is a card of its own, without the picture.
+    setRaw: (text) => setCard({ text }),
+    setUrl,
+    readLink,
+    readFile,
+    cancelRead,
+  };
 }

@@ -25,8 +25,52 @@ export const validAvatar = (value: unknown): value is string =>
   typeof value === "string" && value.length <= MAX_AVATAR && AVATAR.test(value);
 export const AVATAR_PROBLEM =
   "头像须是不超过 40 KB 的 PNG、JPEG 或 WebP 图片。";
+/** Longest introduction a card brings; longer creator notes are cut. */
+const MAX_DESCRIPTION = 4000;
+/**
+ * A Character Card V2 or V3 (the tavern format) as an Agent: its description
+ * and personality become the 设定 and its creator notes the introduction,
+ * unless the card keeps Plums' own fields in `extensions.plums`.
+ */
+function tavernCard(value: Record<string, unknown>): AgentConfig {
+  const data = object(value.data) ? value.data : {};
+  const own =
+    object(data.extensions) && object(data.extensions.plums)
+      ? data.extensions.plums
+      : {};
+  const field = (v: unknown) => (typeof v === "string" ? v.trim() : "");
+  const name = field(data.name).slice(0, 60);
+  if (!name) throw new Error("角色卡没有名字。");
+  const instructions =
+    typeof own.instructions === "string"
+      ? own.instructions
+      : [field(data.description), field(data.personality)]
+          .filter(Boolean)
+          .join("\n\n");
+  if (instructions.length > MAX_INSTRUCTIONS)
+    throw new Error(
+      `角色卡的设定超过 ${MAX_INSTRUCTIONS} 个字，请删短后再导入。`,
+    );
+  const description = (
+    typeof own.description === "string"
+      ? own.description
+      : field(data.creator_notes)
+  ).slice(0, MAX_DESCRIPTION);
+  return { name, description, instructions };
+}
+
 export function parseRoleCard(raw: string): AgentConfig {
-  const value: unknown = JSON.parse(raw);
+  let value: unknown;
+  try {
+    value = JSON.parse(raw);
+  } catch (error) {
+    throw new Error("读不出这张角色卡。", { cause: error });
+  }
+  if (
+    object(value) &&
+    (value.spec === "chara_card_v2" || value.spec === "chara_card_v3")
+  )
+    return tavernCard(value);
   if (
     !object(value) ||
     !text(value.name, 60) ||

@@ -12,8 +12,8 @@ for (const keyboard of [false, true]) {
       name: "确认后才添加",
       description: "可修改的介绍",
     });
-    await page.getByLabel("角色卡内容").fill(raw);
-    const next = page.getByRole("button", { name: "选择模型和扩展" });
+    await page.getByLabel("内容", { exact: true }).fill(raw);
+    const next = page.getByRole("button", { name: "下一步", exact: true });
     if (keyboard) await next.press("Enter");
     else await next.click();
     const create = page.getByRole("dialog", {
@@ -35,8 +35,8 @@ for (const keyboard of [false, true]) {
       page.getByRole("button", { name: "确认后才添加", exact: true }),
     ).toHaveCount(0);
     await page.getByRole("button", { name: /导入角色卡/ }).click();
-    await page.getByLabel("角色卡内容").fill(raw);
-    await page.getByRole("button", { name: "选择模型和扩展" }).click();
+    await page.getByLabel("内容", { exact: true }).fill(raw);
+    await page.getByRole("button", { name: "下一步", exact: true }).click();
     await create
       .getByRole("textbox", { name: "名称", exact: true })
       .fill("最终确认的角色");
@@ -58,8 +58,8 @@ for (const keyboard of [false, true]) {
 async function openImport(page: import("@playwright/test").Page) {
   await page.goto("/");
   await page.getByRole("button", { name: /导入角色卡/ }).click();
-  await page.getByLabel("角色卡内容").fill('{"name":"保留原稿"}');
-  await page.getByLabel("角色卡链接").fill("/cards/controlled.json");
+  await page.getByLabel("内容", { exact: true }).fill('{"name":"保留原稿"}');
+  await page.getByLabel("链接", { exact: true }).fill("/cards/controlled.json");
 }
 
 test("pending role link can close and late response cannot replace draft", async ({
@@ -88,7 +88,7 @@ test("pending role link can close and late response cannot replace draft", async
     release();
   }
   await handled;
-  await expect(page.getByLabel("角色卡内容")).toHaveValue(
+  await expect(page.getByLabel("内容", { exact: true })).toHaveValue(
     '{"name":"保留原稿"}',
   );
 });
@@ -98,13 +98,14 @@ test("role link rejects UTF-8 byte overflow and keeps original input", async ({
 }) => {
   await page.route("**/cards/controlled.json", (route) =>
     route.fulfill({
-      json: { name: "大卡片", extra: "汉".repeat(12000) },
+      contentType: "application/json",
+      body: `{"name":"大卡片","extra":"${"汉".repeat(7_000_000)}"}`,
     }),
   );
   await openImport(page);
   await page.getByRole("button", { name: "读取", exact: true }).click();
-  await expect(page.getByRole("alert")).toContainText("32 KB");
-  await expect(page.getByLabel("角色卡内容")).toHaveValue(
+  await expect(page.getByRole("alert")).toContainText("20 MB");
+  await expect(page.getByLabel("内容", { exact: true })).toHaveValue(
     '{"name":"保留原稿"}',
   );
 });
@@ -121,7 +122,7 @@ test("role link timeout leaves dialog usable and preserves input", async ({
   await expect(
     page.getByRole("button", { name: "取消", exact: true }),
   ).toBeEnabled();
-  await expect(page.getByLabel("角色卡内容")).toHaveValue(
+  await expect(page.getByLabel("内容", { exact: true })).toHaveValue(
     '{"name":"保留原稿"}',
   );
 });
@@ -141,7 +142,7 @@ test("normal same-origin card imports and redirected card stays rejected", async
   await page.getByRole("button", { name: "读取", exact: true }).click();
   await expect(page.getByRole("alert")).toBeVisible();
   expect(followed).toBe(false);
-  await expect(page.getByLabel("角色卡内容")).toHaveValue(
+  await expect(page.getByLabel("内容", { exact: true })).toHaveValue(
     '{"name":"保留原稿"}',
   );
   await page.unroute("**/cards/controlled.json");
@@ -149,9 +150,13 @@ test("normal same-origin card imports and redirected card stays rejected", async
     route.fulfill({ json: { name: "链接角色", description: "正常同源卡" } }),
   );
   await page.getByRole("button", { name: "读取", exact: true }).click();
-  await expect(page.getByLabel("角色卡内容")).toHaveValue(/链接角色/);
-  await page
-    .getByRole("dialog")
+  await expect(page.getByLabel("内容", { exact: true })).toHaveValue(
+    /链接角色/,
+  );
+  await page.getByRole("button", { name: "下一步", exact: true }).click();
+  await (
+    await nextStep(page, "链接角色")
+  )
     .getByRole("button", { name: "添加", exact: true })
     .click();
   await expect(

@@ -135,8 +135,10 @@ test("an imported role card introduces the Agent in the conversation and details
       }),
     ),
   });
-  await page
-    .getByRole("dialog")
+  await page.getByRole("button", { name: "下一步", exact: true }).click();
+  await (
+    await nextStep(page, "写作助手")
+  )
     .getByRole("button", { name: "添加", exact: true })
     .click();
   await expect(

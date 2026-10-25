@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import type { AgentConfig, AgentProvider } from "@modules/agents/contract";
 import { MAX_INSTRUCTIONS } from "@modules/agents/instructions";
 import type { Named } from "@modules/sdk";
@@ -14,6 +14,7 @@ import { ModelSelect } from "./ModelSelect";
 import { useAgentDraft } from "./draft";
 import { agentParts, switchPart, type Part } from "./parts";
 import { DESCRIPTION_TIP, INSTRUCTIONS_TIP } from "./tips";
+import type { RoleCardDraft } from "./useRoleCardDraft";
 
 /** A field's name with its explanation behind ⓘ. */
 function Label({
@@ -233,6 +234,109 @@ export function ComposeStep({
         </Button>
         <Button type="submit" disabled={busy}>
           {busy ? "正在添加…" : "添加"}
+        </Button>
+      </DialogActions>
+    </form>
+  );
+}
+
+/**
+ * Getting a role card, which then fills in the add steps: a picture card
+ * (PNG) or its JSON, chosen, dropped, read from a link in the app or pasted.
+ */
+export function ImportStep({
+  card,
+  busy,
+  leave,
+  onRead,
+  onNext,
+}: {
+  card: RoleCardDraft;
+  busy: boolean;
+  leave: ReactNode;
+  /** Runs a file read, reporting what goes wrong. */
+  onRead: (read: () => Promise<void>) => void;
+  onNext: () => void;
+}) {
+  const { raw, url, setRaw, setUrl, reading, readLink, readFile } = card;
+  const [dragging, setDragging] = useState(false);
+  const idle = !busy && !reading;
+  const read = (file?: File) => {
+    if (file && idle) onRead(() => readFile(file));
+  };
+  return (
+    <form
+      key="import"
+      onSubmit={(e) => {
+        e.preventDefault();
+        if (raw.trim()) onNext();
+      }}
+    >
+      <DialogBody className="gap-[18px]">
+        <label
+          data-dragging={dragging || undefined}
+          onDragOver={(event) => {
+            event.preventDefault();
+            setDragging(true);
+          }}
+          onDragLeave={() => setDragging(false)}
+          onDrop={(event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            setDragging(false);
+            read(event.dataTransfer.files[0]);
+          }}
+          className="flex h-18 w-full cursor-pointer items-center justify-center rounded-lg border border-dashed border-input bg-surface text-sm font-medium hover:bg-muted has-[input:disabled]:cursor-default has-[input:disabled]:opacity-50 has-[input:focus-visible]:ring-3 has-[input:focus-visible]:ring-ring/50 data-dragging:border-ring data-dragging:bg-muted"
+        >
+          选择或拖入角色卡
+          <input
+            className="sr-only"
+            aria-label="角色卡文件"
+            disabled={!idle}
+            type="file"
+            accept=".png,.json,image/png,application/json"
+            onChange={(e) => {
+              read(e.target.files?.[0]);
+              e.target.value = "";
+            }}
+          />
+        </label>
+        <Field>
+          <FieldLabel htmlFor="role-card-url">链接</FieldLabel>
+          <div className="flex gap-2">
+            <Input
+              id="role-card-url"
+              disabled={!idle}
+              value={url}
+              onChange={(e) => setUrl(e.target.value)}
+              placeholder="/cards/example.json"
+            />
+            <Button
+              type="button"
+              variant="outline"
+              disabled={!idle || !url.trim()}
+              onClick={() => void readLink()}
+            >
+              {reading ? "读取中…" : "读取"}
+            </Button>
+          </div>
+        </Field>
+        <Field>
+          <FieldLabel htmlFor="role-card-raw">内容</FieldLabel>
+          <Textarea
+            id="role-card-raw"
+            className="max-h-60 min-h-24 font-mono text-xs"
+            disabled={!idle}
+            value={raw}
+            onChange={(e) => setRaw(e.target.value)}
+            placeholder="粘贴角色卡内容"
+          />
+        </Field>
+      </DialogBody>
+      <DialogActions>
+        {leave}
+        <Button type="submit" disabled={!idle || !raw.trim()}>
+          下一步
         </Button>
       </DialogActions>
     </form>

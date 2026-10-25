@@ -1,4 +1,3 @@
-import { FileJsonIcon, LinkIcon, UploadIcon } from "lucide-react";
 import type {
   Agent,
   AgentConfig,
@@ -7,13 +6,22 @@ import type {
 import { parseRoleCard } from "@modules/agents/validation";
 import type { Named } from "@modules/sdk";
 import { Dialog, DialogActions, DialogBody } from "@/components/Dialog";
-import { Button, buttonVariants } from "@/components/ui/button";
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
-import { Field, FieldDescription, FieldLabel } from "@/components/ui/field";
-import { ComposeStep, DescribeStep } from "./AddAgent";
+import { Field, FieldLabel } from "@/components/ui/field";
+import { ComposeStep, DescribeStep, ImportStep } from "./AddAgent";
+import { AVATAR_BASE64, AVATAR_SIDE, scaledPicture } from "./imageFile";
 import { useAgentDraft } from "./draft";
 import type { AgentModals } from "./useAgentModals";
+
+/** A picture card's image as an avatar, cut square and compressed. */
+async function cardAvatar(picture: Blob) {
+  const { mime, data } = await scaledPicture(
+    new File([picture], "角色卡.png", { type: picture.type }),
+    { side: AVATAR_SIDE, limit: AVATAR_BASE64, crop: true },
+  );
+  return `data:${mime};base64,${data}`;
+}
 
 export function AgentDialogs({
   api,
@@ -65,14 +73,13 @@ export function AgentDialogs({
     act,
     roleCard,
   } = modals;
-  const { raw, url, setRaw, setUrl, reading, readLink, readFile } = roleCard;
   const draft = useAgentDraft();
   async function add(config: AgentConfig) {
     const agent = await api.create(config);
     onCreated(agent);
     setModal(null);
     draft.reset();
-    setRaw("");
+    roleCard.setRaw("");
   }
   /** Leaves for another page; the draft waits for the next add. */
   function detour(go: () => void) {
@@ -119,117 +126,21 @@ export function AgentDialogs({
       }}
     >
       {modal === "import" ? (
-        <form
-          key="import"
-          onSubmit={(e) => {
-            e.preventDefault();
-            void act(() => add(parseRoleCard(raw)));
-          }}
-        >
-          <DialogBody>
-            <p className="text-muted-foreground">
-              角色卡向你介绍这个 Agent 是谁、能帮你做什么。读取后可以直接添加，
-              也可以继续选择模型和扩展。
-            </p>
-            <Field>
-              <span className="text-sm font-medium">角色卡文件</span>
-              <label
-                className={buttonVariants({
-                  variant: "outline",
-                  className:
-                    "h-auto min-h-16 w-full flex-col gap-1 border-dashed py-3 has-[input:disabled]:opacity-50 has-[input:focus-visible]:border-ring has-[input:focus-visible]:ring-3 has-[input:focus-visible]:ring-ring/50",
-                })}
-              >
-                <UploadIcon className="size-5 text-muted-foreground" />
-                <span>选择 JSON 文件</span>
-                <input
-                  className="sr-only"
-                  aria-label="角色卡文件"
-                  disabled={busy || reading}
-                  type="file"
-                  accept=".json,application/json"
-                  onChange={(e) => {
-                    const file = e.target.files?.[0];
-                    if (file)
-                      void act(async () => {
-                        await readFile(file);
-                      });
-                  }}
-                />
-              </label>
-            </Field>
-            <Field>
-              <FieldLabel htmlFor="role-card-url">角色卡链接</FieldLabel>
-              <div className="flex gap-2">
-                <div className="relative flex-1">
-                  <LinkIcon className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground" />
-                  <Input
-                    id="role-card-url"
-                    className="pl-8"
-                    disabled={busy || reading}
-                    value={url}
-                    onChange={(e) => setUrl(e.target.value)}
-                    placeholder="/cards/example.json"
-                  />
-                </div>
-                <Button
-                  type="button"
-                  variant="secondary"
-                  disabled={busy || reading || !url.trim()}
-                  onClick={() => void readLink()}
-                >
-                  {reading ? "读取中…" : "读取"}
-                </Button>
-              </div>
-            </Field>
-            <Field>
-              <FieldLabel htmlFor="role-card-raw">
-                <FileJsonIcon className="size-4 text-muted-foreground" />
-                角色卡内容
-              </FieldLabel>
-              <Textarea
-                id="role-card-raw"
-                className="max-h-60 min-h-28 font-mono text-xs"
-                disabled={busy || reading}
-                value={raw}
-                onChange={(e) => setRaw(e.target.value)}
-                placeholder={
-                  '{"version":1,"name":"我的助手","description":"帮助整理文字","instructions":"你是一名耐心的编辑。"}'
-                }
-                maxLength={32000}
-              />
-              <FieldDescription>
-                支持实验 JSON
-                格式：name、description（介绍）、instructions（设定）、avatar、version:
-                1。没有 instructions 时，介绍会作为设定。
-              </FieldDescription>
-            </Field>
-          </DialogBody>
-          <DialogActions>
-            {cancel}
-            <Button
-              type="button"
-              variant="secondary"
-              disabled={busy || reading || !raw.trim()}
-              onClick={(event) => {
-                event.preventDefault();
-                try {
-                  draft.reset(parseRoleCard(raw));
-                  open("create");
-                } catch (error) {
-                  setError(
-                    error instanceof Error ? error.message : String(error),
-                  );
-                }
-              }}
-            >
-              选择模型和扩展
-            </Button>
-            <Button type="submit" disabled={busy || reading || !raw.trim()}>
-              {busy ? "正在添加…" : "添加"}
-            </Button>
-          </DialogActions>
-        </form>
+        <ImportStep
+          card={roleCard}
+          busy={busy}
+          leave={cancel}
+          onRead={(read) => void act(read)}
+          onNext={() =>
+            void act(async () => {
+              const card = parseRoleCard(roleCard.raw);
+              const avatar =
+                roleCard.picture && (await cardAvatar(roleCard.picture));
+              draft.reset({ ...card, ...(avatar && { avatar }) });
+              open("create");
+            })
+          }
+        />
       ) : modal === "create" ? (
         <DescribeStep
           leave={
