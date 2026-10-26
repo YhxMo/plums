@@ -47,7 +47,7 @@
 
 当前是[路线阶梯](docs/spec/total.md#路线阶梯)第 1 级（Mac 第一版），顺序与剩余内容只在[当前阶段](docs/spec/milestone.md#第-1-级mac-第一版)维护。
 
-- **当前焦点**：第 7 项交付候选与发布准备进行中。已做：许可证（GPL-3.0-or-later 与商业授权，SDK 与示例 MIT）、随包第三方通知、[安装说明](docs/INSTALL.md)、`release:mac` 改为 release 档位（开启 `devtools`，包体 51→20 MB）。空白会话凭公开文档写的连接器已由所有者按链路打通验收（[记录](evidence/CONNECTOR-AUTHOR-2026-10-26.md)，OpenCode Go 因缺会话头拒绝，未得到回复）。第 6a 项扩展列表精简已完成，只有浏览器回归。待做：GitHub 上的自动检查（添加与推送前经所有者同意）；最终候选上用内置连接取模型列表并真实回复一次（需按量计费的服务，先确认目标与输出上限；长上下文、图片与思考强度列为已知限制）；独立审查后按授权替换 `release/mac/`。
+- **当前焦点**：第 7 项交付候选与发布准备进行中。已做：许可证（GPL-3.0-or-later 与商业授权，SDK 与示例 MIT）、随包第三方通知、[安装说明](docs/INSTALL.md)、`release:mac` 改为 release 档位（开启 `devtools`，包体 51→20 MB）。空白会话凭公开文档写的连接器已由所有者按链路打通验收（[记录](evidence/CONNECTOR-AUTHOR-2026-10-26.md)，OpenCode Go 因缺会话头拒绝，未得到回复）。第 6a 项扩展列表精简已完成，只有浏览器回归。GitHub 自动检查（`.github/workflows/ci.yml`）已添加但尚未推送，云端从未运行过，Linux 上的 `verify:web` 与 macOS 云机上的 e2e、原生检查都待首次运行确认。待做：最终候选上用内置连接取模型列表并真实回复一次（需按量计费的服务，先确认目标与输出上限；长上下文、图片与思考强度列为已知限制）；独立审查后按授权替换 `release/mac/`。
 - **之后**：2026-10-26 与所有者对齐了第 1 级之后的路线：群聊（从整合包开始，含花费上限）→ 工具与独立工作 → 共用的 Agent，语音在群聊同期或之后，见[路线阶梯](docs/spec/total.md#路线阶梯)。
 - **遗留**：`modules/agents/store.ts`、`modules/agents/memory/store.ts`、`AgentWorkspace.tsx`、`ProviderForm.tsx` 超过 400 行提示线；应用外壳的导航与管理入口仍由 `Workbench` 固定组装（其中 `modules/agents/store.ts` 与 `Workbench` 随群聊处理，见[第 2 级](docs/spec/total.md#2-群聊)）；`View.icon` 无效原因是英文提示；拖放提示层用 2px 虚线；早先导入的单文件扩展的源码分片（`host.shell` 的 `x-` 文档）不再读取也不自动清理。
 

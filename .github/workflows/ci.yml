@@ -1,0 +1,71 @@
+# Runs the same verification entries as a local commit (docs/DEVELOPMENT.md).
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  web:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npm run verify:web
+
+  e2e:
+    # The app ships for macOS only; its runner already has Google Chrome,
+    # which Playwright uses through the "chrome" channel.
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npm run verify:e2e
+      - if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-results
+          path: .cache/test-results
+          retention-days: 7
+
+  native:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: npm
+      # Pinned so a new Clippy lint does not fail an unchanged tree.
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: 1.98.1
+          components: clippy, rustfmt
+      - uses: actions/cache@v4
+        with:
+          path: |
+            .cache/cargo/registry
+            .cache/cargo/git
+            src-tauri/target
+          key: cargo-${{ runner.os }}-${{ hashFiles('src-tauri/Cargo.lock') }}
+          restore-keys: cargo-${{ runner.os }}-
+      - run: npm ci
+      # Tauri embeds the built frontend when it compiles.
+      - run: npm run build
+      - run: npm run verify:native
