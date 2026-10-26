@@ -5,6 +5,7 @@ import {
   openSettings,
   installByPath,
   serveModule,
+  selectExtension,
   pickTheme,
 } from "./helpers";
 
@@ -43,7 +44,7 @@ async function install(page: Page, id: string) {
   await manage(page);
   await page.getByRole("button", { name: "安装扩展", exact: true }).click();
   await installByPath(page, `/${id}/`);
-  await page.getByRole("button", { name: `启用 ${id}`, exact: true }).click();
+  await page.getByRole("switch", { name: `启用 ${id}`, exact: true }).click();
 }
 
 for (const scheme of ["light", "dark"] as const)
@@ -181,7 +182,7 @@ test("phones keep extensions and settings in the title bar", async ({
   ).toBeVisible();
 });
 
-test("dialog views open from their extension's card in management", async ({
+test("dialog views open from their extension's details in management", async ({
   page,
 }) => {
   await page.setViewportSize({ width: 1280, height: 800 });
@@ -198,6 +199,7 @@ test("dialog views open from their extension's card in management", async ({
   );
   await page.goto("/");
   await install(page, "test.dialog");
+  await selectExtension(page, "test.dialog");
   const open = page.getByRole("button", { name: "打开 连接设置", exact: true });
   await open.click();
   const dialog = page.getByRole("dialog", { name: "连接设置", exact: true });
@@ -207,7 +209,7 @@ test("dialog views open from their extension's card in management", async ({
   await expect(open).toBeFocused();
   // Only an active extension offers its dialogs.
   await page
-    .getByRole("button", { name: "停用 test.dialog", exact: true })
+    .getByRole("switch", { name: "启用 test.dialog", exact: true })
     .click();
   await expect(open).toHaveCount(0);
 });
@@ -268,7 +270,7 @@ test("a contributed theme recolours the rail and the list; without the Agent int
   await page.getByRole("button", { name: "安装扩展", exact: true }).click();
   await installByPath(page, "/samples/theme-ink/");
   await page
-    .getByRole("button", { name: "启用 sample.theme-ink", exact: true })
+    .getByRole("switch", { name: "启用 sample.theme-ink", exact: true })
     .click();
   await openSettings(page);
   await pickTheme(page, "墨夜");
@@ -304,7 +306,7 @@ test("a contributed theme recolours the rail and the list; without the Agent int
   // Stopping the interface removes its rail entry; the shell's stay.
   await manage(page);
   await page
-    .getByRole("button", { name: "停用 ui.agents", exact: true })
+    .getByRole("switch", { name: "启用 ui.agents", exact: true })
     .click();
   const confirm = page.getByRole("dialog");
   if (await confirm.isVisible())

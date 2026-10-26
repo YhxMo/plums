@@ -1,18 +1,19 @@
 import { expect, test, type Page } from "@playwright/test";
-import { manage, installByPath } from "./helpers";
+import { manage, installByPath, selectExtension } from "./helpers";
 async function install(page: Page) {
   await page.goto("/");
   await manage(page, true);
   await page.getByRole("button", { name: "安装扩展", exact: true }).click();
   await installByPath(page, "/examples/counter/");
   await page
-    .getByRole("button", { name: "启用 sample.counter", exact: true })
+    .getByRole("switch", { name: "启用 sample.counter", exact: true })
     .click();
 }
 test("cancel keeps installed extension and returns focus to removal trigger", async ({
   page,
 }) => {
   await install(page);
+  await selectExtension(page, "sample.counter");
   const button = page.getByRole("button", {
     name: "卸载 sample.counter",
     exact: true,
@@ -24,8 +25,8 @@ test("cancel keeps installed extension and returns focus to removal trigger", as
     .click();
   await expect(button).toBeFocused();
   await expect(
-    page.getByRole("button", { name: "停用 sample.counter", exact: true }),
-  ).toBeVisible();
+    page.getByRole("switch", { name: "启用 sample.counter", exact: true }),
+  ).toBeChecked();
 });
 test("uninstall preserves extension data and cold reload does not restore import", async ({
   page,
@@ -40,6 +41,7 @@ test("uninstall preserves extension data and cold reload does not restore import
     (raw) => localStorage.setItem("plums:extension.sample.counter", raw),
     raw,
   );
+  await selectExtension(page, "sample.counter");
   await page
     .getByRole("button", { name: "卸载 sample.counter", exact: true })
     .click();
@@ -71,6 +73,7 @@ test("failed removal save remains retryable and never reports success", async ({
 }) => {
   await install(page);
   await page.getByLabel("注入存储写入失败").check();
+  await selectExtension(page, "sample.counter");
   await page
     .getByRole("button", { name: "卸载 sample.counter", exact: true })
     .click();
@@ -81,9 +84,10 @@ test("failed removal save remains retryable and never reports success", async ({
   await expect(dialog.getByRole("alert")).toContainText("卸载未完成");
   await dialog.getByRole("button", { name: "取消", exact: true }).click();
   await expect(
-    page.getByRole("button", { name: "启用 sample.counter", exact: true }),
-  ).toBeVisible();
+    page.getByRole("switch", { name: "启用 sample.counter", exact: true }),
+  ).not.toBeChecked();
   await page.getByLabel("注入存储写入失败").uncheck();
+  await selectExtension(page, "sample.counter");
   await page
     .getByRole("button", { name: "卸载 sample.counter", exact: true })
     .click();

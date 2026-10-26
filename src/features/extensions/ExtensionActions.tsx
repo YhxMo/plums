@@ -1,6 +1,35 @@
 import type { ExtensionCardModel, ExtensionRowActions } from "./controllers";
 import { Button } from "@/components/ui/button";
+import { Switch } from "@/components/ui/switch";
 
+/** Starts or stops an extension from its row; on only while it runs. */
+export function ExtensionSwitch({
+  extension,
+  actions,
+  busy,
+}: {
+  extension: Pick<ExtensionCardModel, "entry" | "manifest" | "state" | "users">;
+  actions: Pick<ExtensionRowActions, "toggle">;
+  busy: boolean;
+}) {
+  const { entry, state } = extension;
+  return (
+    <Switch
+      checked={state.status === "active"}
+      aria-label={`启用 ${entry.id}`}
+      disabled={
+        busy || state.status === "cleanup-failed" || state.status === "stopping"
+      }
+      onClick={(event) => {
+        // Switching is not selecting the row.
+        event.stopPropagation();
+        actions.toggle(extension, event.currentTarget);
+      }}
+    />
+  );
+}
+
+/** What the selected extension offers besides its switch: its pages, settings and removal. */
 export function ExtensionActions({
   extension,
   actions,
@@ -8,31 +37,28 @@ export function ExtensionActions({
 }: {
   extension: Pick<
     ExtensionCardModel,
-    "entry" | "manifest" | "state" | "imported" | "users" | "dialogs"
+    "entry" | "manifest" | "state" | "imported" | "dialogs"
   >;
-  actions: Pick<
-    ExtensionRowActions,
-    "configure" | "uninstall" | "toggle" | "openView"
-  >;
+  actions: Pick<ExtensionRowActions, "configure" | "uninstall" | "openView">;
   busy: boolean;
 }) {
   const { entry, manifest, state, imported, dialogs } = extension;
   const { id } = entry;
-  const active = state.status === "active";
+  const pages = state.status === "active" ? dialogs : [];
+  if (!pages.length && !manifest.configuration && !imported) return null;
   return (
-    <div className="flex flex-wrap items-center justify-end gap-1.5">
-      {active &&
-        dialogs.map((view) => (
-          <Button
-            key={view.id}
-            variant="outline"
-            size="xs"
-            aria-label={`打开 ${view.label}`}
-            onClick={(event) => actions.openView(view, event.currentTarget)}
-          >
-            {dialogs.length > 1 ? view.label : "打开"}
-          </Button>
-        ))}
+    <div className="mt-3 flex flex-wrap items-center gap-1.5">
+      {pages.map((view) => (
+        <Button
+          key={view.id}
+          variant="outline"
+          size="xs"
+          aria-label={`打开 ${view.label}`}
+          onClick={(event) => actions.openView(view, event.currentTarget)}
+        >
+          {pages.length > 1 ? view.label : "打开"}
+        </Button>
+      ))}
       {manifest.configuration && (
         <Button
           variant="outline"
@@ -55,19 +81,6 @@ export function ExtensionActions({
           卸载
         </Button>
       )}
-      <Button
-        variant="outline"
-        size="xs"
-        aria-label={`${active ? "停用" : "启用"} ${id}`}
-        disabled={
-          busy ||
-          state.status === "cleanup-failed" ||
-          state.status === "stopping"
-        }
-        onClick={(event) => actions.toggle(extension, event.currentTarget)}
-      >
-        {active ? "停用" : state.status === "waiting" ? "恢复" : "启用"}
-      </Button>
     </div>
   );
 }

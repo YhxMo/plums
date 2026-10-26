@@ -181,7 +181,7 @@ test("enabling a workspace with a missing dependency explains the wait in Chines
   await page.reload();
   await manage(page);
   await page
-    .getByRole("button", { name: "启用 ui.agents", exact: true })
+    .getByRole("switch", { name: "启用 ui.agents", exact: true })
     .click();
   const notice = page.getByRole("status").filter({ hasText: "扩展尚未运行" });
   await expect(notice).toContainText("依赖暂不可用：agents@1");
@@ -234,7 +234,7 @@ test("loads and enables an unknown external view through the public catalog and 
   await start(page);
   await manage(page);
   await page
-    .getByRole("button", { name: "启用 external.view", exact: true })
+    .getByRole("switch", { name: "启用 external.view", exact: true })
     .click();
   await page.getByRole("button", { name: "返回工作区", exact: true }).click();
   await chooseLayout(page, "external");
@@ -253,19 +253,19 @@ test("a broken layout with no remaining layout exposes a truthful host recovery 
   await start(page);
   await manage(page);
   await page
-    .getByRole("button", { name: "停用 ui.agents", exact: true })
+    .getByRole("switch", { name: "启用 ui.agents", exact: true })
     .click();
   await page
-    .getByRole("button", { name: "停用 ui.default", exact: true })
+    .getByRole("switch", { name: "启用 ui.default", exact: true })
     .click();
   await page.getByRole("button", { name: "返回工作区", exact: true }).click();
   await expect(page.getByRole("heading", { name: "工作画布" })).toBeVisible();
   await manage(page);
   await page
-    .getByRole("button", { name: "停用 ui.board", exact: true })
+    .getByRole("switch", { name: "启用 ui.board", exact: true })
     .click();
   await page
-    .getByRole("button", { name: "启用 ui.broken", exact: true })
+    .getByRole("switch", { name: "启用 ui.broken", exact: true })
     .click();
   await page.getByRole("button", { name: "返回工作区", exact: true }).click();
   await expect(
@@ -302,7 +302,7 @@ test("an async release failure stays visible in the React management path", asyn
   await start(page);
   await manage(page);
   await page
-    .getByRole("button", { name: "启用 cleanup.fixture", exact: true })
+    .getByRole("switch", { name: "启用 cleanup.fixture", exact: true })
     .click();
   await page.getByRole("button", { name: "返回工作区", exact: true }).click();
   await chooseLayout(page, "cleanup");
@@ -314,6 +314,6 @@ test("an async release failure stays visible in the React management path", asyn
     page.locator("[data-extension-id]").filter({ hasText: "异步释放夹具" }),
   ).toContainText("清理未完成");
   await expect(
-    page.getByRole("button", { name: "启用 cleanup.fixture", exact: true }),
+    page.getByRole("switch", { name: "启用 cleanup.fixture", exact: true }),
   ).toBeDisabled();
 });

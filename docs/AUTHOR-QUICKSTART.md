@@ -67,7 +67,7 @@ export default {
 | 让扩展管理显示谁在用 | `ctx.shell.publishUsers("Agent", [{ id, label, uses }], toggle)`；停用时自动清除 | [页面契约](PAGES.md#让扩展使用宿主入口) |
 | 使用别的扩展提供的服务 | `requires: { "服务名": 版本 }`，`ctx.use("服务名")` 取一个，`ctx.providers("服务名")` 列出全部；没有提供者也要能启用时改用 `optional: { "服务名": 版本 }`，只能用 `ctx.providers` | [事件样板](../extensions/examples/events/main.js) |
 
-**界面**：`id` 在所有扩展中唯一，用你的扩展 ID 即可。默认（`presentation: "workspace"`）在 设置 →「界面布局」中选「使用 + label」后占据整个工作区，取代 Agent 界面，并在窄栏显示 `icon`（可选的单色 SVG，规则见[页面契约](PAGES.md)）；`"dialog"` 在扩展管理里本扩展的卡片上打开，`"sidebar"` 出现在右侧栏。`root` 是一个空容器，应用的字体、颜色和按钮样式会作用于其中的普通元素。
+**界面**：`id` 在所有扩展中唯一，用你的扩展 ID 即可。默认（`presentation: "workspace"`）在 设置 →「界面布局」中选「使用 + label」后占据整个工作区，取代 Agent 界面，并在窄栏显示 `icon`（可选的单色 SVG，规则见[页面契约](PAGES.md)）；`"dialog"` 在扩展管理里本扩展的详情中打开，`"sidebar"` 出现在右侧栏。`root` 是一个空容器，应用的字体、颜色和按钮样式会作用于其中的普通元素。
 
 ```js
 ctx.view({

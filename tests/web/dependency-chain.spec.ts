@@ -47,7 +47,7 @@ for (const failCleanup of [false, true]) {
       "combo.controls",
     ]) {
       await page
-        .getByRole("button", { name: `启用 ${id}`, exact: true })
+        .getByRole("switch", { name: `启用 ${id}`, exact: true })
         .click();
     }
     await page.getByRole("button", { name: "返回工作区", exact: true }).click();
@@ -81,11 +81,11 @@ for (const failCleanup of [false, true]) {
       "0 项资源，0 个在途任务",
     );
     await expect(
-      page.getByRole("button", { name: "启用 combo.provider", exact: true }),
+      page.getByRole("switch", { name: "启用 combo.provider", exact: true }),
     ).toBeDisabled();
     if (failCleanup)
       await expect(
-        page.getByRole("button", { name: "启用 combo.middle", exact: true }),
+        page.getByRole("switch", { name: "启用 combo.middle", exact: true }),
       ).toBeDisabled();
     else
       await expect(await extensionDetail(page, middle)).toContainText(

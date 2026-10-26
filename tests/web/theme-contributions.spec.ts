@@ -27,7 +27,7 @@ async function install(page: Page, name: string) {
   await installByPath(page, `/samples/theme-${name}/`);
   await expect(dialog).not.toBeVisible();
   await page
-    .getByRole("button", { name: `启用 sample.theme-${name}`, exact: true })
+    .getByRole("switch", { name: `启用 sample.theme-${name}`, exact: true })
     .click();
 }
 for (const width of [320, 375, 768, 1440])
@@ -71,7 +71,7 @@ for (const width of [320, 375, 768, 1440])
     );
     await manage(page);
     await page
-      .getByRole("button", { name: "停用 sample.theme-ink", exact: true })
+      .getByRole("switch", { name: "启用 sample.theme-ink", exact: true })
       .click();
     await expect(page.locator("html")).not.toHaveAttribute("data-theme-id");
     await expect(page.locator("html")).toHaveAttribute("data-theme", "light");
@@ -86,7 +86,7 @@ for (const width of [320, 375, 768, 1440])
         .evaluate((el) => el.style.getPropertyValue("--accent")),
     ).toBe("");
     await page
-      .getByRole("button", { name: "启用 sample.theme-ink", exact: true })
+      .getByRole("switch", { name: "启用 sample.theme-ink", exact: true })
       .click();
     await expect(page.locator("html")).toHaveAttribute(
       "data-theme-id",

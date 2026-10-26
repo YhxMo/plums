@@ -41,7 +41,7 @@ test("the way to connect models follows the connectors that offer a page", async
   await step.getByRole("button", { name: "关闭", exact: true }).click();
   await manage(page);
   await page
-    .getByRole("button", { name: "停用 chat.echo", exact: true })
+    .getByRole("switch", { name: "启用 chat.echo", exact: true })
     .click();
   await page.getByRole("button", { name: "返回工作区", exact: true }).click();
   await addAgent(page, "乙");

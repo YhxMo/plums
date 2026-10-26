@@ -38,7 +38,14 @@ export function ExtensionDetails({
   entry: activeSelectedExt,
   operations,
   inline,
-}: ExtensionDetailsProps) {
+  actions,
+  children,
+}: ExtensionDetailsProps & {
+  /** Its pages, settings and removal, below its name. */
+  actions?: ReactNode;
+  /** Further sections, such as the documents it was given. */
+  children?: ReactNode;
+}) {
   const extId = activeSelectedExt.id;
   const extState = host.inspect(extId);
   const extManifest = host.manifest(extId);
@@ -64,6 +71,7 @@ export function ExtensionDetails({
           <span>{extManifest.version}</span>
         </div>
       </header>
+      {actions}
       {extManifest.description && (
         // Author text from the manifest; React renders it as plain text.
         <p className="mt-4 leading-relaxed [overflow-wrap:anywhere] whitespace-pre-line">
@@ -121,6 +129,7 @@ export function ExtensionDetails({
           </ul>
         </DetailSection>
       ))}
+      {children}
       <DetailSection title="服务与权限概览">
         <dl className="grid grid-cols-[88px_1fr] gap-x-3 gap-y-1.5 text-xs [&_dd]:[overflow-wrap:anywhere] [&_dt]:text-muted-foreground">
           <dt>模块位置</dt>

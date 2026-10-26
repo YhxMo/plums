@@ -1,5 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
-import { manage } from "./helpers";
+import { manage, selectExtension } from "./helpers";
 async function seed(page: Page, bad = false) {
   await page.goto("/");
   await page.evaluate((bad) => {
@@ -44,6 +44,7 @@ test("ordinary fields apply, persist on reload, remain isolated and survive unin
   page,
 }) => {
   await seed(page);
+  await selectExtension(page, "sample.counter");
   await page
     .getByRole("button", { name: "配置 sample.counter", exact: true })
     .click();
@@ -51,6 +52,7 @@ test("ordinary fields apply, persist on reload, remain isolated and survive unin
   await dialog.getByLabel("每次增加量").fill("3");
   await dialog.getByRole("button", { name: "保存并应用" }).click();
   await expect(dialog).not.toBeVisible();
+  await selectExtension(page, "sample.panel");
   await page
     .getByRole("button", { name: "配置 sample.panel", exact: true })
     .click();
@@ -64,6 +66,7 @@ test("ordinary fields apply, persist on reload, remain isolated and survive unin
   ).toBeVisible();
   await expect(page.getByRole("status")).toHaveCount(0);
   await manage(page);
+  await selectExtension(page, "sample.panel");
   await page
     .getByRole("button", { name: "配置 sample.panel", exact: true })
     .click();
@@ -73,6 +76,7 @@ test("ordinary fields apply, persist on reload, remain isolated and survive unin
   await page.getByRole("button", { name: "增加计数" }).click();
   await expect(page.getByText("计数：3", { exact: true })).toBeVisible();
   await manage(page);
+  await selectExtension(page, "sample.counter");
   await page
     .getByRole("button", { name: "卸载 sample.counter", exact: true })
     .click();
@@ -92,6 +96,7 @@ test("cancel and failed persistence preserve prior configuration", async ({
   const before = await page.evaluate(() =>
     localStorage.getItem("plums:host.shell"),
   );
+  await selectExtension(page, "sample.counter");
   const trigger = page.getByRole("button", {
     name: "配置 sample.counter",
     exact: true,
@@ -122,6 +127,7 @@ test("incompatible stored configuration waits without overwriting original until
   const before = await page.evaluate(() =>
     localStorage.getItem("plums:host.shell"),
   );
+  await selectExtension(page, "sample.counter");
   await page
     .getByRole("button", { name: "配置 sample.counter", exact: true })
     .click();
@@ -132,6 +138,7 @@ test("incompatible stored configuration waits without overwriting original until
   expect(
     await page.evaluate(() => localStorage.getItem("plums:host.shell")),
   ).toBe(before);
+  await selectExtension(page, "sample.counter");
   await page
     .getByRole("button", { name: "配置 sample.counter", exact: true })
     .click();
@@ -140,6 +147,6 @@ test("incompatible stored configuration waits without overwriting original until
     page.getByRole("dialog", { name: "扩展配置" }),
   ).not.toBeVisible();
   await expect(
-    page.getByRole("button", { name: "停用 sample.counter", exact: true }),
-  ).toBeVisible();
+    page.getByRole("switch", { name: "启用 sample.counter", exact: true }),
+  ).toBeChecked();
 });

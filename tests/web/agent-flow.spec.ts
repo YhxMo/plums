@@ -258,10 +258,10 @@ test("imports persist and an external agent provider drives the default UI", asy
   await page.reload();
   await manage(page);
   await page
-    .getByRole("button", { name: "停用 agents.local", exact: true })
+    .getByRole("switch", { name: "启用 agents.local", exact: true })
     .click();
   await page
-    .getByRole("button", { name: "启用 external.agents", exact: true })
+    .getByRole("switch", { name: "启用 external.agents", exact: true })
     .click();
   await page.getByRole("button", { name: "返回工作区", exact: true }).click();
   // The row shows its introduction until there is a message.
@@ -478,8 +478,8 @@ test("reinstalling a failed import replaces its path and remains bootable", asyn
   ).toBeVisible();
   await manage(page);
   await expect(
-    page.getByRole("button", { name: "启用 recover.extension", exact: true }),
-  ).toBeVisible();
+    page.getByRole("switch", { name: "启用 recover.extension", exact: true }),
+  ).not.toBeChecked();
 });
 
 test("a failed introduction save shows inside the phone details and keeps the edit", async ({
@@ -628,7 +628,7 @@ test("service reply boundary rejects without losing draft and valid output survi
   await page.getByRole("button", { name: "安装扩展", exact: true }).click();
   await installByPath(page, "/boundary-chat/");
   await page
-    .getByRole("button", { name: "启用 chat.boundary", exact: true })
+    .getByRole("switch", { name: "启用 chat.boundary", exact: true })
     .click();
   await page.getByRole("button", { name: "返回工作区", exact: true }).click();
   await page.getByRole("button", { name: "Boundary", exact: true }).click();

@@ -7,9 +7,7 @@ const boardId = "ui.workbench-board";
 const nav = (page: Page) =>
   page.getByRole("navigation", { name: "工作台页面" });
 const card = (page: Page, id: string) =>
-  page.locator("[data-extension-id]").filter({
-    has: page.locator("code").filter({ hasText: `${id} ` }),
-  });
+  page.locator(`[data-extension-id="${id}"]`);
 
 async function install(page: Page, name: string) {
   await page.getByRole("button", { name: "安装扩展", exact: true }).click();
@@ -18,7 +16,7 @@ async function install(page: Page, name: string) {
   await expect(dialog).not.toBeVisible();
 }
 async function enable(page: Page, id: string) {
-  await page.getByRole("button", { name: `启用 ${id}`, exact: true }).click();
+  await page.getByRole("switch", { name: `启用 ${id}`, exact: true }).click();
 }
 async function workspace(page: Page) {
   await page.getByRole("button", { name: "返回工作区", exact: true }).click();
@@ -35,8 +33,8 @@ async function prepare(page: Page) {
   await expect(card(page, pageId)).toContainText("等待条件");
   await enableBoard(page);
   await expect(
-    page.getByRole("button", { name: `停用 ${pageId}`, exact: true }),
-  ).toBeVisible();
+    page.getByRole("switch", { name: `启用 ${pageId}`, exact: true }),
+  ).toBeChecked();
   await workspace(page);
   await nav(page)
     .getByRole("button", { name: "交稿检查", exact: true })
@@ -182,8 +180,8 @@ test("independent contributions stop, restore, and recover a missing persisted r
   // The board's permissions are remembered, so its dependents start again.
   await manage(page);
   await expect(
-    page.getByRole("button", { name: `停用 ${pageId}`, exact: true }),
-  ).toBeVisible();
+    page.getByRole("switch", { name: `启用 ${pageId}`, exact: true }),
+  ).toBeChecked();
   await workspace(page);
   // Dynamic contributions were activation-local; the missing preference survives.
   await expect(
@@ -195,7 +193,7 @@ test("independent contributions stop, restore, and recover a missing persisted r
   await page.getByRole("button", { name: "填入检查示例", exact: true }).click();
   await manage(page);
   await page
-    .getByRole("button", { name: `停用 ${pageId}`, exact: true })
+    .getByRole("switch", { name: `启用 ${pageId}`, exact: true })
     .click();
   await expect(await extensionDetail(page, card(page, pageId))).toContainText(
     "0 项资源，0 个在途任务",
@@ -222,7 +220,7 @@ test("independent contributions stop, restore, and recover a missing persisted r
       .click();
     await manage(page);
     await page
-      .getByRole("button", { name: `停用 ${nodeId}`, exact: true })
+      .getByRole("switch", { name: `启用 ${nodeId}`, exact: true })
       .click();
     await expect(card(page, pageId)).toContainText("等待条件");
     await expect(await extensionDetail(page, card(page, pageId))).toContainText(
@@ -254,7 +252,7 @@ test("independent contributions stop, restore, and recover a missing persisted r
   }
   await manage(page);
   await page
-    .getByRole("button", { name: `停用 ${boardId}`, exact: true })
+    .getByRole("switch", { name: `启用 ${boardId}`, exact: true })
     .click();
   await expect(card(page, pageId)).toContainText("等待条件");
   await workspace(page);

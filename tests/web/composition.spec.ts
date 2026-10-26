@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { manage, persisted, installByPath } from "./helpers";
+import { manage, persisted, installByPath, selectExtension } from "./helpers";
 test("the enabled provider choice is kept for the next start without saving", async ({
   page,
 }) => {
@@ -9,21 +9,21 @@ test("the enabled provider choice is kept for the next start without saving", as
     page.getByRole("button", { name: "保存当前组合", exact: true }),
   ).toHaveCount(0);
   await page
-    .getByRole("button", { name: "停用 transform.upper", exact: true })
+    .getByRole("switch", { name: "启用 transform.upper", exact: true })
     .click();
   await page
-    .getByRole("button", { name: "启用 transform.reverse", exact: true })
+    .getByRole("switch", { name: "启用 transform.reverse", exact: true })
     .click();
   await persisted(page, "transform.reverse");
   await persisted(page, "transform.upper", false);
   await page.reload();
   await manage(page);
   await expect(
-    page.getByRole("button", { name: "停用 transform.reverse", exact: true }),
-  ).toBeVisible();
+    page.getByRole("switch", { name: "启用 transform.reverse", exact: true }),
+  ).toBeChecked();
   await expect(
-    page.getByRole("button", { name: "启用 transform.upper", exact: true }),
-  ).toBeVisible();
+    page.getByRole("switch", { name: "启用 transform.upper", exact: true }),
+  ).not.toBeChecked();
 });
 test("a failed write keeps the previous record and imported uninstall prunes it", async ({
   page,
@@ -31,7 +31,7 @@ test("a failed write keeps the previous record and imported uninstall prunes it"
   await page.goto("/");
   await manage(page, true);
   await page
-    .getByRole("button", { name: "停用 transform.upper", exact: true })
+    .getByRole("switch", { name: "启用 transform.upper", exact: true })
     .click();
   await persisted(page, "transform.upper", false);
   const before = await page.evaluate(() =>
@@ -39,7 +39,7 @@ test("a failed write keeps the previous record and imported uninstall prunes it"
   );
   await page.getByLabel("注入存储写入失败").check();
   await page
-    .getByRole("button", { name: "启用 transform.upper", exact: true })
+    .getByRole("switch", { name: "启用 transform.upper", exact: true })
     .click();
   await expect(page.getByRole("alert")).toContainText("扩展启用状态未保存");
   expect(
@@ -49,14 +49,15 @@ test("a failed write keeps the previous record and imported uninstall prunes it"
   await page.getByRole("button", { name: "安装扩展", exact: true }).click();
   await installByPath(page, "/examples/counter/");
   await page
-    .getByRole("button", { name: "启用 sample.counter", exact: true })
+    .getByRole("switch", { name: "启用 sample.counter", exact: true })
     .click();
   await persisted(page, "sample.counter");
   await page.reload();
   await manage(page);
   await expect(
-    page.getByRole("button", { name: "停用 sample.counter", exact: true }),
-  ).toBeVisible();
+    page.getByRole("switch", { name: "启用 sample.counter", exact: true }),
+  ).toBeChecked();
+  await selectExtension(page, "sample.counter");
   await page
     .getByRole("button", { name: "卸载 sample.counter", exact: true })
     .click();
@@ -77,7 +78,7 @@ test("missing extensions are skipped and a changed version still starts", async 
   await page.goto("/");
   await manage(page);
   await page
-    .getByRole("button", { name: "停用 transform.upper", exact: true })
+    .getByRole("switch", { name: "启用 transform.upper", exact: true })
     .click();
   await persisted(page, "transform.upper", false);
   await page.evaluate(() => {
@@ -92,8 +93,8 @@ test("missing extensions are skipped and a changed version still starts", async 
   await page.reload();
   await manage(page);
   await expect(
-    page.getByRole("button", { name: "停用 transform.upper", exact: true }),
-  ).toBeVisible();
+    page.getByRole("switch", { name: "启用 transform.upper", exact: true }),
+  ).toBeChecked();
   await expect(page.getByRole("alert")).toHaveCount(0);
 });
 test("an unknown composition schema preserves original state and offers recovery", async ({
@@ -102,7 +103,7 @@ test("an unknown composition schema preserves original state and offers recovery
   await page.goto("/");
   await manage(page);
   await page
-    .getByRole("button", { name: "停用 transform.upper", exact: true })
+    .getByRole("switch", { name: "启用 transform.upper", exact: true })
     .click();
   await persisted(page, "transform.upper", false);
   const raw = await page.evaluate(() => {

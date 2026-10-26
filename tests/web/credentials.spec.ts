@@ -1,5 +1,11 @@
 import { expect, test } from "@playwright/test";
-import { addAgent, manage, openConnections, serveModule } from "./helpers";
+import {
+  addAgent,
+  manage,
+  openConnections,
+  serveModule,
+  selectExtension,
+} from "./helpers";
 
 const extensionId = "sample.credential-test";
 const declaration = {
@@ -123,6 +129,7 @@ for (const width of [375, 1180]) {
         expect((await cleanup.boundingBox())!.height).toBeGreaterThanOrEqual(
           44,
         );
+      await selectExtension(page, extensionId);
       await page
         .getByRole("button", { name: `卸载 ${extensionId}`, exact: true })
         .click();
@@ -749,8 +756,10 @@ for (const width of [375, 1180])
       .click();
     await manage(page);
     // The connector and the Agent interface both list the Agent.
-    for (const id of ["connector.models", "ui.agents"])
-      await expect(page.locator(`[data-extension-id="${id}"]`)).toContainText(
-        "个 Agent 在使用",
-      );
+    for (const id of ["connector.models", "ui.agents"]) {
+      await selectExtension(page, id);
+      await expect(
+        page.getByRole("region", { name: "所选扩展详情" }),
+      ).toContainText("模型助手");
+    }
   });

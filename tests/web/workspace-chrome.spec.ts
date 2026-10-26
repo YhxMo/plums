@@ -1,11 +1,17 @@
 import { expect, test, type Page } from "@playwright/test";
-import { addAgent, manage, installByPath, serveModule } from "./helpers";
+import {
+  addAgent,
+  manage,
+  installByPath,
+  selectExtension,
+  serveModule,
+} from "./helpers";
 
 async function install(page: Page, id: string) {
   await manage(page);
   await page.getByRole("button", { name: "安装扩展", exact: true }).click();
   await installByPath(page, `/${id}/`);
-  await page.getByRole("button", { name: `启用 ${id}`, exact: true }).click();
+  await page.getByRole("switch", { name: `启用 ${id}`, exact: true }).click();
 }
 
 test("workspace-owned chrome publishes titles, scopes sidebars, and releases on stop", async ({
@@ -64,7 +70,7 @@ test("workspace-owned chrome publishes titles, scopes sidebars, and releases on 
   ).toHaveCount(0);
   await manage(page);
   await page
-    .getByRole("button", { name: "停用 test.workspace", exact: true })
+    .getByRole("switch", { name: "启用 test.workspace", exact: true })
     .click();
   await page.getByRole("button", { name: "返回工作区", exact: true }).click();
   await expect(topbar.filter({ hasText: "更新后的任务标题" })).toHaveCount(0);
@@ -158,7 +164,7 @@ for (const scenario of ["resize", "dynamic"]) {
     await page.goto("/");
     await manage(page);
     await page
-      .getByRole("button", { name: "停用 agents.local", exact: true })
+      .getByRole("switch", { name: "启用 agents.local", exact: true })
       .click();
     await install(page, "test.agents");
     await page.getByRole("button", { name: "返回工作区", exact: true }).click();
@@ -176,6 +182,7 @@ for (const scenario of ["resize", "dynamic"]) {
       await toggle.click();
       await expect(details).toBeVisible();
       await manage(page);
+      await selectExtension(page, "test.agents");
       await page
         .getByRole("button", { name: "打开 侧栏贡献控制", exact: true })
         .click();
@@ -210,7 +217,7 @@ for (const width of [375, 1180]) {
       await page.getByRole("button", { name: "安装扩展", exact: true }).click();
       await installByPath(page, `/examples/${name}/`);
       await page
-        .getByRole("button", { name: `启用 example.${name}`, exact: true })
+        .getByRole("switch", { name: `启用 example.${name}`, exact: true })
         .click();
     }
     await page.getByRole("button", { name: "返回工作区", exact: true }).click();

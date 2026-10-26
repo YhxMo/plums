@@ -185,7 +185,7 @@ test("a cheaper model consolidates, says where the conversation goes, and the re
   await page.getByRole("button", { name: "安装扩展", exact: true }).click();
   await installByPath(page, "/note-chat/");
   await page
-    .getByRole("button", { name: "启用 chat.note", exact: true })
+    .getByRole("switch", { name: "启用 chat.note", exact: true })
     .click();
   await page.getByRole("button", { name: "返回工作区", exact: true }).click();
   await addAgent(page, "甲");

@@ -46,18 +46,18 @@ async function importZip(page: Page, buffer: Buffer) {
   return dialog;
 }
 async function useService(page: Page, id: string) {
-  const enable = page.getByRole("button", { name: `启用 ${id}`, exact: true });
+  const enable = page.getByRole("switch", { name: `启用 ${id}`, exact: true });
   // The list is rendered once the imported extension shows.
   await expect(enable).toBeVisible();
-  const stop = page.getByRole("button", {
-    name: "停用 chat.echo",
+  const stop = page.getByRole("switch", {
+    name: "启用 chat.echo",
     exact: true,
   });
   if (await stop.isVisible()) await stop.click();
   await enable.click();
   await expect(
-    page.getByRole("button", { name: `停用 ${id}`, exact: true }),
-  ).toBeVisible();
+    page.getByRole("switch", { name: `启用 ${id}`, exact: true }),
+  ).toBeChecked();
   await page.getByRole("button", { name: "返回工作区", exact: true }).click();
 }
 async function send(page: Page, text: string) {
@@ -100,10 +100,7 @@ test("an imported folder drives the Agent and stays enabled after reload", async
   await page.reload();
   await manage(page);
   await expect(
-    page.getByRole("button", {
-      name: "停用 starter.model",
-      exact: true,
-    }),
+    page.getByRole("switch", { name: "启用 starter.model", exact: true }),
   ).toBeVisible();
 });
 
@@ -153,7 +150,7 @@ test("a dropped zip is previewed without running its code, and nothing is saved 
   await dialog.getByRole("button", { name: "返回", exact: true }).click();
   await dialog.getByRole("button", { name: "取消", exact: true }).click();
   await expect(
-    page.getByRole("button", { name: "启用 author.drop", exact: true }),
+    page.getByRole("switch", { name: "启用 author.drop", exact: true }),
   ).toHaveCount(0);
   expect(
     await page.evaluate(() => localStorage.getItem("plums:host.shell#records")),

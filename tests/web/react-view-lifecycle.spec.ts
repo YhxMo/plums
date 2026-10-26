@@ -23,10 +23,10 @@ test("React views release cleanly across layout and extension lifecycles", async
   await pickLayout(page, "Agent 界面");
   await manage(page);
   await page
-    .getByRole("button", { name: "停用 ui.agents", exact: true })
+    .getByRole("switch", { name: "启用 ui.agents", exact: true })
     .click();
   await page
-    .getByRole("button", { name: "启用 ui.agents", exact: true })
+    .getByRole("switch", { name: "启用 ui.agents", exact: true })
     .click();
   await page.getByRole("button", { name: "返回工作区", exact: true }).click();
   await expect(page.locator('button[aria-label="添加"]')).toBeVisible();

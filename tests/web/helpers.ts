@@ -48,10 +48,21 @@ export async function switchAppearance(
   await page.keyboard.press("Escape");
   await expect(dialog).toBeHidden();
 }
-/** Opens the model connections dialog from its extension's card in management. */
+/** Selects an extension in management, so its details show its pages, settings and removal. */
+export async function selectExtension(page: Page, id: string) {
+  await page
+    .locator(`[data-extension-id="${id}"] [data-slot=extension-title]`)
+    .click();
+}
+/** Opens the model connections dialog from its extension's details in management. */
 export async function openConnections(page: Page) {
   await manage(page);
   await page
+    .locator('[data-extension-id="connector.models"]')
+    .getByRole("button", { name: "模型连接", exact: true })
+    .click();
+  await page
+    .getByRole("region", { name: "所选扩展详情" })
     .getByRole("button", { name: "打开 模型连接", exact: true })
     .click();
   return page.getByRole("dialog", { name: "模型连接", exact: true });
@@ -238,7 +249,7 @@ export async function slowAgent(page: Page, name: string) {
   await page.getByRole("button", { name: "安装扩展", exact: true }).click();
   await installByPath(page, "/slow-chat/");
   await page
-    .getByRole("button", { name: "启用 chat.slow", exact: true })
+    .getByRole("switch", { name: "启用 chat.slow", exact: true })
     .click();
   await page.getByRole("button", { name: "返回工作区", exact: true }).click();
   await addAgent(page, name);
@@ -287,6 +298,6 @@ export async function installConnector(page: Page, id: string) {
   await manage(page);
   await page.getByRole("button", { name: "安装扩展", exact: true }).click();
   await installByPath(page, `/${id}/`);
-  await page.getByRole("button", { name: `启用 ${id}`, exact: true }).click();
+  await page.getByRole("switch", { name: `启用 ${id}`, exact: true }).click();
   await page.getByRole("button", { name: "返回工作区", exact: true }).click();
 }

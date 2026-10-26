@@ -14,7 +14,7 @@ for (const width of [375, 768, 1440]) {
       await installByPath(page, `/examples/${name}/`);
       await expect(dialog).not.toBeVisible();
       await page
-        .getByRole("button", { name: `启用 sample.${name}`, exact: true })
+        .getByRole("switch", { name: `启用 sample.${name}`, exact: true })
         .click();
     }
     await openSettings(page);
@@ -30,7 +30,7 @@ for (const width of [375, 768, 1440]) {
     ).toHaveText("计数：1");
     await manage(page);
     await page
-      .getByRole("button", { name: "停用 sample.events", exact: true })
+      .getByRole("switch", { name: "启用 sample.events", exact: true })
       .click();
     await page.getByRole("button", { name: "返回工作区", exact: true }).click();
     await increment.click();
@@ -39,7 +39,7 @@ for (const width of [375, 768, 1440]) {
     ).toHaveText("计数：1");
     await manage(page);
     await page
-      .getByRole("button", { name: "启用 sample.events", exact: true })
+      .getByRole("switch", { name: "启用 sample.events", exact: true })
       .click();
     await page.getByRole("button", { name: "返回工作区", exact: true }).click();
     await increment.click();

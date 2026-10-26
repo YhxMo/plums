@@ -48,7 +48,7 @@ async function installService(page: Page) {
   });
   await dialog.getByRole("button", { name: "导入", exact: true }).click();
   await page
-    .getByRole("button", { name: "启用 author.guide", exact: true })
+    .getByRole("switch", { name: "启用 author.guide", exact: true })
     .click();
   await page.getByRole("button", { name: "返回工作区", exact: true }).click();
 }
@@ -137,7 +137,7 @@ test("an Agent and its extensions go out as one file and come back in clean data
   // Installed, still off until enabled.
   await manage(fresh);
   await expect(
-    fresh.getByRole("button", { name: "启用 author.guide", exact: true }),
+    fresh.getByRole("switch", { name: "启用 author.guide", exact: true }),
   ).toBeVisible();
   await other.close();
 });

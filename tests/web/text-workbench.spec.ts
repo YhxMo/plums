@@ -9,15 +9,15 @@ import {
 async function enable(page: Page) {
   await manage(page);
   await page
-    .getByRole("button", { name: "启用 ui.workbench-board", exact: true })
+    .getByRole("switch", { name: "启用 ui.workbench-board", exact: true })
     .click();
   await page
     .getByRole("dialog")
     .getByRole("button", { name: "授权并启动", exact: true })
     .click();
   await expect(
-    page.getByRole("button", { name: "停用 ui.workbench-board", exact: true }),
-  ).toBeVisible();
+    page.getByRole("switch", { name: "启用 ui.workbench-board", exact: true }),
+  ).toBeChecked();
   await page.getByRole("button", { name: "返回工作区", exact: true }).click();
 }
 for (const width of [375, 1440]) {
@@ -134,7 +134,7 @@ test("workbench save failure, cold detail restoration and lifecycle fallback", a
   );
   await manage(page);
   await page
-    .getByRole("button", { name: "停用 ui.workbench-board", exact: true })
+    .getByRole("switch", { name: "启用 ui.workbench-board", exact: true })
     .click();
   await page.getByRole("button", { name: "返回工作区", exact: true }).click();
   await expect(
@@ -195,7 +195,7 @@ test("permission refusal preserves the current UI; replacing the transform provi
   await page.goto("/");
   await manage(page);
   await page
-    .getByRole("button", { name: "启用 ui.workbench-board", exact: true })
+    .getByRole("switch", { name: "启用 ui.workbench-board", exact: true })
     .click();
   await page.getByRole("button", { name: "暂不授权", exact: true }).click();
   await page.getByRole("button", { name: "返回工作区", exact: true }).click();
@@ -216,15 +216,13 @@ test("permission refusal preserves the current UI; replacing the transform provi
     page.getByRole("heading", { name: "扩展", exact: true }),
   ).toBeVisible();
   await page
-    .getByRole("button", { name: "停用 transform.upper", exact: true })
+    .getByRole("switch", { name: "启用 transform.upper", exact: true })
     .click();
   await expect(
-    page
-      .locator("[data-extension-id]")
-      .filter({ hasText: "ui.workbench-board" }),
+    page.locator('[data-extension-id="ui.workbench-board"]'),
   ).toContainText("等待条件");
   await page
-    .getByRole("button", { name: "启用 transform.reverse", exact: true })
+    .getByRole("switch", { name: "启用 transform.reverse", exact: true })
     .click();
   await page.getByRole("button", { name: "返回工作区", exact: true }).click();
   await expect(page.getByRole("textbox", { name: "输入文本" })).toHaveValue(

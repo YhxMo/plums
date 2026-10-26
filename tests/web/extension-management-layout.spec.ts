@@ -113,7 +113,7 @@ for (const width of [375, 960]) {
   });
 }
 
-test("management is one list beside the details: dots for status, grey for the selected row", async ({
+test("management is one list beside the details: name, purpose and a switch per row, grey for the selected", async ({
   page,
 }) => {
   await page.setViewportSize({ width: 1280, height: 800 });
@@ -133,21 +133,40 @@ test("management is one list beside the details: dots for status, grey for the s
       return [style.borderTopWidth, style.boxShadow];
     }),
   ).toEqual(["0px", "none"]);
-  // Running shows as a green dot and its word, not a badge.
-  const status = row.locator("[data-slot=status]");
+  // Its purpose in one line and its switch; running needs no word, and
+  // the id, version and users wait in the details.
+  await expect(row).toContainText(
+    "管理 Agent 的角色资料、会话和消息记录，并通过所选模型生成回复。",
+  );
+  await expect(
+    row.getByRole("switch", { name: "启用 agents.local", exact: true }),
+  ).toBeChecked();
+  await expect(row.locator("[data-slot=status]")).toHaveCount(0);
+  await expect(row.locator("code")).toHaveCount(0);
+  await expect(row.getByRole("button")).toHaveCount(1);
+  await row.getByRole("button", { name: "Agent 核心", exact: true }).click();
+  await expect(row).toHaveAttribute("data-selected", "true");
+  expect(await row.evaluate((el) => getComputedStyle(el).backgroundColor)).toBe(
+    "rgb(240, 240, 240)",
+  );
+  // The details sit beside the list on the page, not in a card, and
+  // carry the id, the running status and what else it offers.
+  const detail = page.getByRole("region", { name: "所选扩展详情" });
+  await expect(detail.locator("code")).toHaveText("agents.local");
+  const status = detail.locator("[data-slot=status]");
   await expect(status).toHaveText("运行中");
   expect(
     await status
       .locator("[data-slot=status-dot]")
       .evaluate((el) => getComputedStyle(el).backgroundColor),
   ).toBe("rgb(48, 164, 108)");
-  await row.getByRole("button", { name: "Agent 核心", exact: true }).click();
-  await expect(row).toHaveAttribute("data-selected", "true");
-  expect(await row.evaluate((el) => getComputedStyle(el).backgroundColor)).toBe(
-    "rgb(240, 240, 240)",
-  );
-  // The details sit beside the list on the page, not in a card.
-  const detail = page.getByRole("region", { name: "所选扩展详情" });
+  await list
+    .locator('[data-extension-id="memory.local"]')
+    .getByRole("button")
+    .click();
+  await expect(
+    detail.getByRole("button", { name: "打开 记忆", exact: true }),
+  ).toBeVisible();
   expect(
     await detail.evaluate((el) => getComputedStyle(el).borderTopWidth),
   ).toBe("0px");

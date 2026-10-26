@@ -96,7 +96,7 @@ for (const throws of [false, true]) {
     await page.getByRole("button", { name: "安装扩展", exact: true }).click();
     await installByPath(page, "/back-probe/");
     await page
-      .getByRole("button", { name: "启用 back.probe", exact: true })
+      .getByRole("switch", { name: "启用 back.probe", exact: true })
       .click();
     await page.getByRole("button", { name: "返回工作区" }).click();
     expect(await back(page)).toBe(false);
@@ -107,10 +107,10 @@ for (const throws of [false, true]) {
       await expect(page.locator("output")).toHaveText("receiver preserved");
       await manage(page);
       await page
-        .getByRole("button", { name: "停用 back.probe", exact: true })
+        .getByRole("switch", { name: "启用 back.probe", exact: true })
         .click();
       await expect(
-        page.getByRole("button", { name: "启用 back.probe", exact: true }),
+        page.getByRole("switch", { name: "启用 back.probe", exact: true }),
       ).toBeEnabled();
       await expect(page.locator("output")).toHaveCount(0);
       expect(await back(page)).toBe(false);

@@ -46,7 +46,7 @@ export type ManagerHeaderController = Pick<
 >;
 export type ExtensionListController = Pick<
   Management["list"],
-  "rows" | "failures" | "busy" | "adapter" | "actions"
+  "rows" | "failures" | "busy" | "actions"
 >;
 export type ExtensionDialogController = Pick<
   Management["dialogs"],

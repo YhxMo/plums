@@ -59,16 +59,16 @@ test("authorization can be cancelled and restores keyboard focus", async ({
   const workbench = page
     .locator("[data-extension-id]")
     .filter({ hasText: "文本工作台" });
-  await expect(workbench).toContainText("已停用");
+  await expect(workbench.getByRole("switch")).not.toBeChecked();
   await expect(await extensionDetail(page, workbench)).toContainText(
     "/services/workbench/",
   );
   await workbench
-    .getByRole("button", { name: "启用 workbench", exact: true })
+    .getByRole("switch", { name: "启用 workbench", exact: true })
     .click();
   await expect(dialog).toBeVisible();
   await dialog.getByRole("button", { name: "暂不授权" }).click();
-  await expect(workbench).toContainText("已停用");
+  await expect(workbench.getByRole("switch")).not.toBeChecked();
 });
 
 for (const width of [375, 1280]) {
@@ -100,19 +100,19 @@ for (const width of [375, 1280]) {
     const workbench = page
       .locator("[data-extension-id]")
       .filter({ hasText: "文本工作台" });
-    await expect(workbench).toContainText("运行中");
+    await expect(workbench.getByRole("switch")).toBeChecked();
     await workbench
-      .getByRole("button", { name: "停用 workbench", exact: true })
+      .getByRole("switch", { name: "启用 workbench", exact: true })
       .click();
     await expect(await extensionDetail(page, workbench)).toContainText(
       "0 项资源，0 个在途任务",
     );
     // Already granted in this run, so it starts without asking again.
     await workbench
-      .getByRole("button", { name: "启用 workbench", exact: true })
+      .getByRole("switch", { name: "启用 workbench", exact: true })
       .click();
     await expect(page.getByRole("dialog")).toHaveCount(0);
-    await expect(workbench).toContainText("运行中");
+    await expect(workbench.getByRole("switch")).toBeChecked();
     await page.getByRole("button", { name: "返回工作区" }).click();
     await expect(page.locator("[data-output]")).toHaveText("FULL JOURNEY");
   });
@@ -283,7 +283,7 @@ test("deliberately selected workbench keeps its preference and diagnoses unavail
   await chooseLayout(page, "default");
   await manage(page);
   await page
-    .getByRole("button", { name: "停用 ui.default", exact: true })
+    .getByRole("switch", { name: "启用 ui.default", exact: true })
     .click();
   await page.reload();
   const fallback = page.getByRole("status").filter({ hasText: "所选界面" });

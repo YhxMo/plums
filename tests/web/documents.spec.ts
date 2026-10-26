@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { manage } from "./helpers";
+import { manage, selectExtension } from "./helpers";
 for (const width of [375, 768, 1440]) {
   test(`document management recovers unknown empty selection at ${width}`, async ({
     page,
@@ -45,12 +45,13 @@ for (const width of [375, 768, 1440]) {
     await page.goto("/");
     await manage(page);
     await page
-      .getByRole("button", { name: "启用 sample.documents", exact: true })
+      .getByRole("switch", { name: "启用 sample.documents", exact: true })
       .click();
     await page
       .getByRole("dialog")
       .getByRole("button", { name: "授权并启动", exact: true })
       .click();
+    await selectExtension(page, "sample.documents");
     const panel = page.getByRole("region", { name: "文档只读授权" });
     await panel
       .getByRole("button", { name: "选择单个文档", exact: true })

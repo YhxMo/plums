@@ -5,6 +5,9 @@ import type { ExtensionManagerController } from "./controllers";
 import { ManagerHeader } from "./ManagerHeader";
 import { ExtensionList } from "./ExtensionList";
 import { ExtensionDetails } from "./ExtensionDetails";
+import { ExtensionActions } from "./ExtensionActions";
+import { SelectedDocuments } from "./SelectedDocuments";
+import { extensionOwner } from "@modules/sdk";
 import { ExtensionDialogs } from "./ExtensionDialogs";
 import { RetainedCredentialBindings } from "./CredentialBindings";
 
@@ -15,8 +18,9 @@ export function ExtensionManager({
   controller: ExtensionManagerController;
   diagnostics: ReactNode;
 }) {
-  const { detail } = controller;
+  const { detail, list } = controller;
   const narrow = useMediaQuery(below("manager"));
+  const row = list.rows.find((candidate) => candidate.selected);
   const details = detail.entry && (
     <ExtensionDetails
       host={detail.host}
@@ -24,7 +28,24 @@ export function ExtensionManager({
       entry={detail.entry}
       operations={detail.operations}
       inline={narrow}
-    />
+      actions={
+        row && (
+          <ExtensionActions
+            extension={row}
+            actions={list.actions}
+            busy={list.busy}
+          />
+        )
+      }
+    >
+      {row?.manifest.capabilities?.includes("document.read") && (
+        <SelectedDocuments
+          adapter={list.adapter}
+          owner={extensionOwner(row.entry.id)}
+          enabled={row.state.status === "active"}
+        />
+      )}
+    </ExtensionDetails>
   );
   return (
     <>
@@ -40,7 +61,7 @@ export function ExtensionManager({
         <div className="grid min-h-0 flex-1 grid-cols-[minmax(296px,0.45fr)_minmax(0,0.55fr)] max-manager:grid-cols-1 max-manager:overflow-auto">
           <div className="min-w-0 overflow-auto border-r p-2 max-manager:overflow-visible max-manager:border-r-0">
             <ExtensionList
-              controller={controller.list}
+              controller={list}
               selectedDetail={narrow ? details : undefined}
             />
           </div>

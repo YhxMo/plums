@@ -1,10 +1,8 @@
 import type { ReactNode } from "react";
 import { TriangleAlertIcon } from "lucide-react";
 import type { ExtensionListController } from "./controllers";
-import { extensionOwner } from "@modules/sdk";
-import { SelectedDocuments } from "./SelectedDocuments";
 import { ExtensionCard } from "./ExtensionCard";
-import { ExtensionActions } from "./ExtensionActions";
+import { ExtensionSwitch } from "./ExtensionActions";
 import { Button } from "@/components/ui/button";
 
 export function ExtensionList({
@@ -51,23 +49,16 @@ export function ExtensionList({
           </div>
         </article>
       ))}
-      <ul aria-label="扩展" className="grid gap-0.5">
+      <ul aria-label="扩展" className="grid grid-cols-1 gap-0.5">
         {controller.rows.map((row) => (
           <ExtensionCard
             key={row.entry.id}
             extension={row}
             onSelect={() => actions.select(row.entry.id)}
-            actions={
-              <ExtensionActions extension={row} actions={actions} busy={busy} />
+            toggle={
+              <ExtensionSwitch extension={row} actions={actions} busy={busy} />
             }
           >
-            {row.manifest.capabilities?.includes("document.read") && (
-              <SelectedDocuments
-                adapter={controller.adapter}
-                owner={extensionOwner(row.entry.id)}
-                enabled={row.state.status === "active"}
-              />
-            )}
             {row.selected && selectedDetail}
           </ExtensionCard>
         ))}

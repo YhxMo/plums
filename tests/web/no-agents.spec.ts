@@ -39,7 +39,7 @@ for (const width of [375, 1180]) {
       page.getByRole("heading", { name: "扩展", exact: true }),
     ).toBeVisible();
     await expect(
-      page.getByRole("button", { name: "启用 agents.local", exact: true }),
+      page.getByRole("switch", { name: "启用 agents.local", exact: true }),
     ).toHaveCount(0);
     await page.getByRole("button", { name: "返回工作区", exact: true }).click();
     await expect(page.getByLabel("笔记草稿")).toHaveValue("未保存的独立草稿");
@@ -56,7 +56,7 @@ for (const width of [375, 1180]) {
       ),
     ).toEqual({ externalFormat: true });
     await manage(page);
-    await page.getByRole("button", { name: "停用 notes", exact: true }).click();
+    await page.getByRole("switch", { name: "启用 notes", exact: true }).click();
     await page.getByRole("button", { name: "返回工作区", exact: true }).click();
     await expect(
       page.getByRole("heading", { name: "当前没有可显示的界面。" }),
@@ -67,7 +67,7 @@ for (const width of [375, 1180]) {
     await page
       .getByRole("button", { name: "查看本地扩展", exact: true })
       .click();
-    await page.getByRole("button", { name: "启用 notes", exact: true }).click();
+    await page.getByRole("switch", { name: "启用 notes", exact: true }).click();
     await page.getByRole("button", { name: "返回工作区", exact: true }).click();
     await expect(page.getByLabel("笔记草稿")).toHaveValue("未保存的独立草稿");
     expect(errors).toEqual([]);
