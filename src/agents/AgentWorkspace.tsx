@@ -84,6 +84,11 @@ export function AgentWorkspace({
   const wide = useMediaQuery(atLeast("wide"));
   const [selected, setSelected] = useState<string | null>(null);
   const [detail, setDetail] = useState(false);
+  /** The Agent whose settings dialog is open, and what opened it. */
+  const [settings, setSettings] = useState<{
+    id: string;
+    source: HTMLElement | null;
+  } | null>(null);
   const workspaceRoot = useRef<HTMLDivElement>(null);
   const detailTrigger = useRef<HTMLElement | null>(null);
   const returnToAgent = useRef<string | null>(null);
@@ -225,7 +230,10 @@ export function AgentWorkspace({
       void act(async () => {
         if (await exportRoleCard(a, files)) setNotice("已导出角色卡");
       });
-    else if (action === "bundle")
+    else if (action === "settings") {
+      setDetail(false);
+      setSettings({ id: a.id, source: source ?? null });
+    } else if (action === "bundle")
       open({ action, agent: a, parts: partIds(a) }, source);
     else open({ action, agent: a }, source);
   }
@@ -234,8 +242,7 @@ export function AgentWorkspace({
   const provider = api.info.extensions ?? [
     { id: agent?.extensionId ?? "", label: api.info.label },
   ];
-  const parts =
-    agent &&
+  const partsOf = (agent: Agent) =>
     agentParts({
       provider,
       ui,
@@ -272,10 +279,11 @@ export function AgentWorkspace({
     });
     return saved;
   }
-  const detailContent = agent && (
+  /** An Agent's details: in the drawer with its own close button, or in the settings dialog. */
+  const detailsOf = (agent: Agent, close: () => void, drawer: boolean) => (
     <DetailPanel
       agent={agent}
-      parts={parts!}
+      parts={partsOf(agent)}
       onPart={api.setOff && ((part, on) => switchAgentPart(agent, part, on))}
       onDescription={(description) => saveText(agent.id, { description })}
       onInstructions={
@@ -294,9 +302,9 @@ export function AgentWorkspace({
           await api.update(agent.id, { avatar: `data:${mime};base64,${data}` });
         })
       }
-      onClose={() => setDetail(false)}
+      onClose={drawer ? close : undefined}
       onOpenExtension={(id) => {
-        setDetail(false);
+        close();
         onExtensions(id);
       }}
     />
@@ -324,7 +332,7 @@ export function AgentWorkspace({
     <ChatView
       agent={agent}
       blocked={replyBlocker(agent, {
-        parts: parts!,
+        parts: partsOf(agent),
         ui,
         models: api.setModel && models,
         onSelect: (id) => void act(() => api.session(agent.id, "select", id)),
@@ -413,7 +421,7 @@ export function AgentWorkspace({
   );
   // Details pop out above the conversation: a bottom sheet on phones, a
   // non-modal drawer on desktop so the chat stays usable beside them.
-  const details = showDetail && (
+  const details = showDetail && agent && (
     <Dialog
       title="Agent 详情"
       sheet={mobile ? "bottom" : "right"}
@@ -422,13 +430,29 @@ export function AgentWorkspace({
       onClose={() => setDetail(false)}
     >
       {feedback}
-      {detailContent}
+      {detailsOf(agent, () => setDetail(false), true)}
     </Dialog>
   );
+  const settingsAgent = settings && agents.find((a) => a.id === settings.id);
+  // Settings open over everything, for any row, without switching the chat.
+  const settingsDialog = settingsAgent && (
+    <Dialog
+      title="Agent 设置"
+      sheet={mobile ? "bottom" : undefined}
+      returnFocusTo={settings.source}
+      fallbackFocus={focusFallback}
+      onClose={() => setSettings(null)}
+    >
+      {feedback}
+      {detailsOf(settingsAgent, () => setSettings(null), false)}
+    </Dialog>
+  );
+  // The undo toast shows in the topmost layer that is open.
+  const outside = !showDetail && !settingsAgent;
   if (mobile)
     return (
       <div ref={workspaceRoot} className="relative flex h-full min-h-0 bg-chat">
-        {!showDetail && feedback}
+        {outside && feedback}
         {/* Phones show the list or one conversation, never both. */}
         {agent || !agents.length ? (
           <div className="flex min-h-0 w-full flex-col">{main}</div>
@@ -436,6 +460,7 @@ export function AgentWorkspace({
           list
         )}
         {details}
+        {settingsDialog}
         {dialogs}
       </div>
     );
@@ -447,7 +472,7 @@ export function AgentWorkspace({
         showDetail && wide && "pr-[304px]",
       )}
     >
-      {!showDetail && feedback}
+      {outside && feedback}
       <ResizablePanelGroup orientation="horizontal" className="min-h-0">
         <ResizablePanel
           id="agent-list"
@@ -468,6 +493,7 @@ export function AgentWorkspace({
         </ResizablePanel>
       </ResizablePanelGroup>
       {details}
+      {settingsDialog}
       {dialogs}
     </div>
   );

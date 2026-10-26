@@ -222,8 +222,8 @@ test("mobile details trap focus, and the session menu and list rename work", asy
   await expect(sessions(page, "未命名会话")).toBeFocused();
   await page.getByRole("button", { name: "返回 Agent 列表" }).click();
   await page
-    .getByRole("button", { name: "编程助手 的操作", exact: true })
-    .click();
+    .getByRole("button", { name: "编程助手", exact: true })
+    .click({ button: "right" });
   await page.getByRole("menuitem", { name: "重命名", exact: true }).click();
   await page
     .getByRole("textbox", { name: "名称", exact: true })
@@ -324,7 +324,7 @@ test("unavailable saved import retains startup and offers removal and retry", as
   ).toEqual([]);
 });
 
-test("mobile list failures stay visible and rename cancel restores the operation trigger", async ({
+test("mobile list failures stay visible and rename cancel returns focus to the row", async ({
   page,
 }) => {
   await page.setViewportSize({ width: 375, height: 812 });
@@ -334,15 +334,13 @@ test("mobile list failures stay visible and rename cancel restores the operation
   await page.getByLabel("注入存储写入失败").check();
   await page.getByRole("button", { name: "返回工作区", exact: true }).click();
   await page.getByRole("button", { name: "返回 Agent 列表" }).click();
-  const trigger = page.getByRole("button", {
-    name: "编程助手 的操作",
-    exact: true,
-  });
-  await trigger.click();
+  // The row's right-click (long press on touch) menu holds its actions.
+  const trigger = page.getByRole("button", { name: "编程助手", exact: true });
+  await trigger.click({ button: "right" });
   await page.getByRole("menuitem", { name: "置顶", exact: true }).click();
   await expect(page.getByRole("alert")).toContainText("注入的写入故障");
   await expect(page.getByRole("alert")).toBeHidden({ timeout: 15000 });
-  await trigger.click();
+  await trigger.click({ button: "right" });
   await page.getByRole("menuitem", { name: "重命名", exact: true }).click();
   await page.keyboard.press("Escape");
   await expect(trigger).toBeFocused();
@@ -665,8 +663,8 @@ for (const width of [375, 1180]) {
     if (width === 375)
       await page.getByRole("button", { name: "返回 Agent 列表" }).click();
     await page
-      .getByRole("button", { name: "编程助手 的操作", exact: true })
-      .click();
+      .getByRole("button", { name: "编程助手", exact: true })
+      .click({ button: "right" });
     await page
       .getByRole("menuitem", { name: "移除 Agent", exact: true })
       .click();
@@ -726,8 +724,8 @@ test("a pinned Agent moves to the top of the list and back when unpinned", async
   const row = list.getByRole("button", { name: "置顶者", exact: true });
   await expect(rows.first()).toHaveAccessibleName("普通");
   await page
-    .getByRole("button", { name: "置顶者 的操作", exact: true })
-    .click();
+    .getByRole("button", { name: "置顶者", exact: true })
+    .click({ button: "right" });
   await page.getByRole("menuitem", { name: "置顶", exact: true }).click();
   await expect(rows.first()).toHaveAccessibleName("置顶者");
   await expect(rows).toHaveCount(2);

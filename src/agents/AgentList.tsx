@@ -1,5 +1,5 @@
 import { useId, useRef, useState } from "react";
-import { EllipsisIcon, PlusIcon, SearchIcon } from "lucide-react";
+import { PlusIcon, SearchIcon } from "lucide-react";
 import { cn } from "cn";
 import type { Agent } from "@modules/agents/contract";
 import { unreadReplies } from "@modules/agents/unread";
@@ -47,7 +47,7 @@ function AgentRow({
   onSelect: () => void;
   onAction: (action: AgentAction, source: HTMLElement | null) => void;
 }) {
-  const more = useRef<HTMLButtonElement>(null);
+  const row = useRef<HTMLButtonElement>(null);
   const id = useId();
   const typing = !!a.pending;
   const unread = a.sessions.reduce((sum, s) => sum + unreadReplies(s), 0);
@@ -69,7 +69,7 @@ function AgentRow({
   ]
     .filter(Boolean)
     .join(" ");
-  const act = (action: AgentAction) => onAction(action, more.current);
+  const act = (action: AgentAction) => onAction(action, row.current);
   // Secondary text on the selected row is White A11: 90% of its text colour.
   const quiet = selected
     ? "text-selection-foreground/90"
@@ -94,6 +94,7 @@ function AgentRow({
           data-pinned={a.pinned}
         >
           <button
+            ref={row}
             data-slot="agent-row"
             className="relative flex h-full min-w-0 flex-1 items-center gap-[11px] px-3.5 text-left outline-none focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:ring-inset"
             data-agent-id={a.id}
@@ -119,10 +120,7 @@ function AgentRow({
                 </strong>
                 <span
                   id={`${id}-time`}
-                  className={cn(
-                    "min-w-7 shrink-0 text-right text-xs transition-opacity md:pointer-fine:group-hover/row:opacity-0 md:pointer-fine:group-focus-within/row:opacity-0 md:pointer-fine:group-has-aria-expanded/row:opacity-0",
-                    quiet,
-                  )}
+                  className={cn("min-w-7 shrink-0 text-right text-xs", quiet)}
                 >
                   {lastAt !== undefined && formatTime(lastAt, undefined, true)}
                 </span>
@@ -138,7 +136,7 @@ function AgentRow({
                   <span
                     aria-hidden="true"
                     className={cn(
-                      "grid h-[18px] min-w-[18px] shrink-0 place-items-center rounded-full px-1.5 text-xs leading-none font-semibold tabular-nums transition-opacity md:pointer-fine:group-hover/row:opacity-0 md:pointer-fine:group-focus-within/row:opacity-0 md:pointer-fine:group-has-aria-expanded/row:opacity-0",
+                      "grid h-[18px] min-w-[18px] shrink-0 place-items-center rounded-full px-1.5 text-xs leading-none font-semibold tabular-nums",
                       selected
                         ? "bg-selection-foreground text-selection"
                         : "bg-brand text-primary-foreground",
@@ -153,27 +151,6 @@ function AgentRow({
               </span>
             </span>
           </button>
-          <DropdownMenu modal={false}>
-            <DropdownMenuTrigger asChild>
-              <Button
-                ref={more}
-                variant="ghost"
-                size="icon-sm"
-                // Its own tint shows over every row tone.
-                className="relative mr-1 shrink-0 text-current hover:bg-foreground/10 aria-expanded:bg-foreground/10 group-data-[selected=true]/row:hover:bg-selection-foreground/15 group-data-[selected=true]/row:hover:text-selection-foreground group-data-[selected=true]/row:aria-expanded:bg-selection-foreground/15 dark:hover:bg-foreground/10 pointer-fine:opacity-0 pointer-fine:group-hover/row:opacity-100 pointer-fine:group-focus-within/row:opacity-100 pointer-fine:aria-expanded:opacity-100 md:pointer-fine:absolute md:pointer-fine:top-1/2 md:pointer-fine:right-2 md:pointer-fine:m-0 md:pointer-fine:-translate-y-1/2"
-                aria-label={`${a.name} 的操作`}
-              >
-                <EllipsisIcon />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent
-              align="end"
-              className="w-44"
-              aria-label={`${a.name} 的操作菜单`}
-            >
-              <AgentMenuItems agent={a} kind="dropdown" onAction={act} />
-            </DropdownMenuContent>
-          </DropdownMenu>
         </div>
       </ContextMenuTrigger>
       <ContextMenuContent className="w-44" aria-label={`${a.name} 的操作菜单`}>

@@ -45,7 +45,8 @@ export function DetailPanel({
   onAvatar?: (file: File | null) => void;
   /** Opens extension management, selecting `id` when given. */
   onOpenExtension: (id?: string) => void;
-  onClose: () => void;
+  /** Absent inside a dialog, whose title bar closes it. */
+  onClose?: () => void;
 }) {
   // Only a save in progress holds the details; a pending reply does not.
   const busy = agent.status === "busy" && !agent.pending;
@@ -57,16 +58,18 @@ export function DetailPanel({
     >
       {/* The drawer's name is for assistive technology; the Agent's own
           name heads its content. */}
-      <header className="flex h-11 shrink-0 items-center justify-end px-2 max-md:h-14">
-        <Button
-          variant="ghost"
-          size="icon-sm"
-          aria-label="收起详情"
-          onClick={onClose}
-        >
-          <XIcon />
-        </Button>
-      </header>
+      {onClose && (
+        <header className="flex h-11 shrink-0 items-center justify-end px-2 max-md:h-14">
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            aria-label="收起详情"
+            onClick={onClose}
+          >
+            <XIcon />
+          </Button>
+        </header>
+      )}
       <div className="flex min-h-0 flex-1 flex-col gap-6 overflow-y-auto px-5 pb-5 max-md:px-6">
         <section className="flex flex-col gap-3" aria-label="介绍">
           <div className="flex items-center gap-3">

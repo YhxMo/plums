@@ -5,6 +5,7 @@ import {
   PencilIcon,
   PinIcon,
   PinOffIcon,
+  Settings2Icon,
   Trash2Icon,
 } from "lucide-react";
 import type { Agent } from "@modules/agents/contract";
@@ -17,7 +18,8 @@ import {
   ContextMenuSeparator,
 } from "@/components/ui/context-menu";
 
-export type AgentAction = "pin" | "rename" | "export" | "bundle" | "remove";
+export type AgentAction =
+  "settings" | "pin" | "rename" | "export" | "bundle" | "remove";
 
 /** The same Agent actions for its dropdown and its right-click menu. */
 export function AgentMenuItems({
@@ -43,6 +45,7 @@ export function AgentMenuItems({
   );
   return (
     <>
+      {item("settings", <Settings2Icon />, "Agent 设置…")}
       {item(
         "pin",
         agent.pinned ? <PinOffIcon /> : <PinIcon />,

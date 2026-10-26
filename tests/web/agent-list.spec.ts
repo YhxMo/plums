@@ -32,7 +32,9 @@ for (const scheme of ["light", "dark"] as const)
       await page.getByRole("dialog").waitFor({ state: "hidden" });
     }
     const list = page.getByRole("complementary", { name: "Agent 列表" });
-    await list.getByRole("button", { name: "丙 的操作", exact: true }).click();
+    await list
+      .getByRole("button", { name: "丙", exact: true })
+      .click({ button: "right" });
     await page.getByRole("menuitem", { name: "置顶", exact: true }).click();
     await list.getByRole("button", { name: "乙", exact: true }).click();
     const row = (name: string) =>
@@ -84,3 +86,43 @@ for (const scheme of ["light", "dark"] as const)
       list.getByRole("button", { name: "甲", exact: true }),
     ).toHaveAccessibleDescription(/^echo-a｜第 1 轮.* \d{2}:\d{2}$/);
   });
+
+test("Agent 设置 opens any row's details in a dialog without switching the chat", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1280, height: 800 });
+  await page.goto("/");
+  for (const name of ["甲", "乙"]) {
+    await addAgent(page, name, { description: `${name}的介绍` });
+    await page.getByRole("dialog").waitFor({ state: "hidden" });
+  }
+  const list = page.getByRole("complementary", { name: "Agent 列表" });
+  const other = list.getByRole("button", { name: "甲", exact: true });
+  await expect(
+    list.getByRole("button", { name: "乙", exact: true }),
+  ).toHaveAttribute("aria-current", "true");
+  // Rows have no … button; their actions are in the right-click menu.
+  await expect(list.getByRole("button", { name: /的操作$/ })).toHaveCount(0);
+  await other.click({ button: "right" });
+  await page
+    .getByRole("menuitem", { name: "Agent 设置…", exact: true })
+    .click();
+  const settings = page.getByRole("dialog", {
+    name: "Agent 设置",
+    exact: true,
+  });
+  await expect(settings).toBeVisible();
+  await expect(settings).toContainText("甲的介绍");
+  await page.keyboard.press("Escape");
+  await expect(settings).toBeHidden();
+  await expect(other).toBeFocused();
+  await expect(
+    list.getByRole("button", { name: "乙", exact: true }),
+  ).toHaveAttribute("aria-current", "true");
+  // The conversation's … menu offers the same for the open Agent.
+  await page.getByRole("button", { name: "更多操作", exact: true }).click();
+  await page
+    .getByRole("menuitem", { name: "Agent 设置…", exact: true })
+    .click();
+  await expect(settings).toContainText("乙的介绍");
+});
