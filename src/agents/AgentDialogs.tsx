@@ -4,14 +4,14 @@ import type {
   AgentProvider,
 } from "@modules/agents/contract";
 import { parseRoleCard } from "@modules/agents/validation";
-import type { BundleExtension, Named, PackageOutcome } from "@modules/sdk";
+import type { Named } from "@modules/sdk";
 import { Dialog, DialogActions, DialogBody } from "@/components/Dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Field, FieldLabel } from "@/components/ui/field";
 import { ComposeStep, DescribeStep, ImportStep } from "./AddAgent";
 import { ExportBundle } from "./ExportBundle";
-import { bundleNotes } from "@modules/agents/agent-bundle";
+import { exportBundle, importBundle, type AgentFiles } from "./agentFiles";
 import { AVATAR_BASE64, AVATAR_SIDE, scaledPicture } from "./imageFile";
 import { useAgentDraft } from "./draft";
 import type { AgentModals } from "./useAgentModals";
@@ -33,9 +33,7 @@ export function AgentDialogs({
   onRemoved,
   onSessionDeleted,
   onModels,
-  onBundle,
-  onOffer,
-  onSaveFile,
+  files,
   onNotice,
   fallbackFocus,
 }: {
@@ -62,14 +60,7 @@ export function AgentDialogs({
   /** After a session of `agentId` is deleted. */
   onSessionDeleted(agentId: string): void;
   onModels?: () => void;
-  /** The installed extensions among `ids`, with third-party packages. */
-  onBundle: (ids: string[]) => Promise<BundleExtension[]>;
-  /** Offers a bundle's packages for installation, one answer each in order. */
-  onOffer: (
-    packages: { manifest: string; main: string }[],
-  ) => Promise<PackageOutcome[]>;
-  /** Saves a file where the person chooses. */
-  onSaveFile: (name: string, data: string) => Promise<{ saved: boolean }>;
+  files: AgentFiles;
   /** Says what was done, outside the dialog. */
   onNotice: (text: string) => void;
   fallbackFocus(): HTMLElement | null;
@@ -156,19 +147,7 @@ export function AgentDialogs({
               const { bundle } = roleCard;
               // A whole-Agent file: its packages are offered first, and
               // whatever stays missing is said in the next step.
-              const outcomes = bundle?.packages.length
-                ? (await onOffer(bundle.packages)).map((outcome, i) => ({
-                    ...outcome,
-                    id: bundle.packages[i].id,
-                  }))
-                : [];
-              const notes = bundle
-                ? bundleNotes(
-                    bundle.extensions,
-                    await onBundle(bundle.extensions.map(({ id }) => id)),
-                    outcomes,
-                  )
-                : [];
+              const notes = bundle ? await importBundle(bundle, files) : [];
               draft.reset({ ...card, ...(avatar && { avatar }) });
               if (bundle) draft.change({ off: bundle.off, notes });
               open("create");
@@ -205,14 +184,21 @@ export function AgentDialogs({
         />
       ) : typeof modal === "object" && modal.action === "bundle" ? (
         <ExportBundle
-          agent={modal.agent}
           parts={modal.parts}
           busy={busy}
           leave={cancel}
-          onBundle={onBundle}
-          onExport={(name, data) =>
+          files={files}
+          onExport={(extensions) =>
             void act(async () => {
-              if (!(await onSaveFile(name, data)).saved) return;
+              if (
+                !(await exportBundle(
+                  modal.agent,
+                  modal.parts,
+                  extensions,
+                  files,
+                ))
+              )
+                return;
               setModal(null);
               onNotice("已导出 Agent 和扩展");
             })

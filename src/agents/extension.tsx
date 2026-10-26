@@ -86,15 +86,16 @@ export function agentUI(): ExtensionDefinition {
               onOpenLink={(url) =>
                 ctx.platform("link.open", { version: 1, url })
               }
-              onSaveFile={(name, data) =>
-                ctx.platform("file.save", {
-                  version: 1,
-                  name,
-                  data,
-                }) as Promise<FileSaveResult>
-              }
-              onBundle={(ids) => ctx.shell.bundle(ids)}
-              onOffer={(packages) => ctx.shell.offerPackages(packages)}
+              files={{
+                save: (name, data) =>
+                  ctx.platform("file.save", {
+                    version: 1,
+                    name,
+                    data,
+                  }) as Promise<FileSaveResult>,
+                bundle: (ids) => ctx.shell.bundle(ids),
+                offer: (packages) => ctx.shell.offerPackages(packages),
+              }}
             />,
             true,
           );

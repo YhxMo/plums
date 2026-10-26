@@ -1,11 +1,8 @@
 import { useEffect, useEffectEvent, useState } from "react";
-import type { Agent } from "@modules/agents/contract";
-import { writeBundle } from "@modules/agents/agent-bundle";
-import { bytesToBase64 } from "@modules/agents/card-png";
 import type { BundleExtension } from "@modules/sdk";
 import { DialogActions, DialogBody } from "@/components/Dialog";
 import { Button } from "@/components/ui/button";
-import { fileName, roleCardPng } from "./cardFile";
+import type { AgentFiles } from "./agentFiles";
 
 /**
  * Packs an Agent with the extensions it is made of into one `.plums` file.
@@ -13,24 +10,22 @@ import { fileName, roleCardPng } from "./cardFile";
  * listed first with their author and licence; built-in ones go by name only.
  */
 export function ExportBundle({
-  agent,
   parts,
   busy,
   leave,
-  onBundle,
+  files,
   onExport,
 }: {
-  agent: Agent;
   /** IDs of the extensions the Agent is made of. */
   parts: string[];
   busy: boolean;
   leave: React.ReactNode;
-  onBundle: (ids: string[]) => Promise<BundleExtension[]>;
-  /** Saves the file; resolves after the person has chosen where. */
-  onExport: (name: string, data: string) => void;
+  files: Pick<AgentFiles, "bundle">;
+  /** Packs and saves the Agent with the installed ones among `parts`. */
+  onExport: (extensions: BundleExtension[]) => void;
 }) {
   const [found, setFound] = useState<BundleExtension[] | Error>();
-  const read = useEffectEvent((ids: string[]) => onBundle(ids));
+  const read = useEffectEvent((ids: string[]) => files.bundle(ids));
   useEffect(() => {
     let current = true;
     read(parts).then(
@@ -96,23 +91,7 @@ export function ExportBundle({
       </DialogBody>
       <DialogActions>
         {leave}
-        <Button
-          type="button"
-          disabled={busy}
-          onClick={() =>
-            void roleCardPng(agent)
-              .then((card) =>
-                writeBundle({
-                  card,
-                  extensions: found,
-                  off: (agent.off ?? []).filter((id) => parts.includes(id)),
-                }),
-              )
-              .then((bundle) =>
-                onExport(fileName(agent.name, ".plums"), bytesToBase64(bundle)),
-              )
-          }
-        >
+        <Button type="button" disabled={busy} onClick={() => onExport(found)}>
           导出
         </Button>
       </DialogActions>

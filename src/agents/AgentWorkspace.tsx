@@ -11,24 +11,14 @@ import {
   type Agent,
   type AgentPatch,
   type AgentProvider,
-  type Attachment,
 } from "@modules/agents/contract";
-import { attachmentProblem } from "@modules/agents/attachments";
-import type {
-  BundleExtension,
-  Named,
-  PackageOutcome,
-  WorkspaceChromeController,
-} from "@modules/sdk";
+import type { Named, WorkspaceChromeController } from "@modules/sdk";
 import { cn } from "cn";
 import { AgentList } from "./AgentList";
 import { ChatView } from "./ChatView";
-import type { Blocked } from "./Composer";
 import { DetailPanel } from "./DetailPanel";
 import { EmptyState } from "./EmptyState";
 import { Dialog } from "@/components/Dialog";
-import { Button } from "@/components/ui/button";
-import { ActionToast } from "@/components/Toast";
 import { useMediaQuery } from "@/components/useMediaQuery";
 import { atLeast, below } from "@/components/breakpoints";
 import {
@@ -41,11 +31,13 @@ import { useAgentModals } from "./useAgentModals";
 import { AgentDialogs } from "./AgentDialogs";
 import type { AgentAction } from "./AgentMenu";
 import { fallbackFocus } from "./focus";
-import { toAttachment } from "./attachmentFile";
 import { AVATAR_BASE64, AVATAR_SIDE, scaledPicture } from "./imageFile";
 import { agentParts, switchPart, type Part } from "./parts";
 import { reportText, useMemories, type Memories } from "./useMemories";
-import { roleCardFile } from "./cardFile";
+import { exportRoleCard, type AgentFiles } from "./agentFiles";
+import { useDrafts } from "./useDrafts";
+import { useUndoNotice } from "./useUndoNotice";
+import { replyBlocker } from "./blocker";
 
 // The handle is the gap between the list and the conversation card; it only
 // shows a brand-coloured line while used.
@@ -60,9 +52,7 @@ export function AgentWorkspace({
   onExtensions,
   onModels,
   onOpenLink,
-  onSaveFile,
-  onBundle,
-  onOffer,
+  files,
 }: {
   api: AgentProvider;
   chrome: WorkspaceChromeController;
@@ -76,14 +66,8 @@ export function AgentWorkspace({
   onModels?: () => void;
   /** Hands an https link to the browser. */
   onOpenLink: (url: string) => Promise<unknown>;
-  /** Saves a file where the person chooses; base64 bytes. */
-  onSaveFile: (name: string, data: string) => Promise<{ saved: boolean }>;
-  /** The installed extensions among `ids`, for a whole-Agent file. */
-  onBundle: (ids: string[]) => Promise<BundleExtension[]>;
-  /** Offers a whole-Agent file's packages for installation. */
-  onOffer: (
-    packages: { manifest: string; main: string }[],
-  ) => Promise<PackageOutcome[]>;
+  /** Role cards and whole-Agent files out of and into the app. */
+  files: AgentFiles;
 }) {
   const subscribe = useCallback(
     (listener: () => void) => api.subscribe(listener),
@@ -119,33 +103,25 @@ export function AgentWorkspace({
     returnToAgent.current = null;
   }, [selected]);
   const modals = useAgentModals();
-  const { error, notice, setError, setNotice, open, act, report } = modals;
-  // What the current notice can take back, if anything.
-  const [undoable, setUndoable] = useState<{
-    notice: string;
-    undo: () => Promise<void>;
-  } | null>(null);
+  const { setError, setNotice, open, act, report } = modals;
+  const undoNotice = useUndoNotice(modals);
   // Counts the person's own rewrites and undos; the conversation then
   // goes to its newest message, wherever it was scrolled.
   const [latest, setLatest] = useState(0);
   function offerUndo(agentId: string, text: string) {
     if (!api.undo) return;
-    setNotice(text);
-    setUndoable({
-      notice: text,
-      undo: async () => {
-        await api.undo!(agentId);
-        setLatest((n) => n + 1);
-      },
+    undoNotice.offer(text, async () => {
+      await api.undo!(agentId);
+      setLatest((n) => n + 1);
     });
   }
   // Each consolidation is announced once, with a way to take it back.
   const memoryProviders = useMemories(memories, (memory, report) => {
     const name = agents.find((a) => a.id === report.agent)?.name;
     if (!name) return;
-    const text = reportText(name, report);
-    setNotice(text);
-    setUndoable({ notice: text, undo: () => memory.value.undo(report.id) });
+    undoNotice.offer(reportText(name, report), () =>
+      memory.value.undo(report.id),
+    );
   });
   useEffect(
     () =>
@@ -155,16 +131,13 @@ export function AgentWorkspace({
       }),
     [chrome],
   );
-  const [drafts, setDrafts] = useState<Record<string, string>>({});
-  // Files waiting to be sent, kept per conversation like the text.
-  const [files, setFiles] = useState<Record<string, Attachment[]>>({});
-  const filesNow = useRef(files);
-  filesNow.current = files;
+  const drafts = useDrafts({ api, report, setError });
+  const { addFiles } = drafts;
   const rewrite = useRewrite({
     api,
     modals,
-    drafts,
-    setDrafts,
+    drafts: drafts.drafts,
+    setDrafts: drafts.setDrafts,
     offerUndo(agentId, text) {
       setLatest((n) => n + 1);
       offerUndo(agentId, text);
@@ -177,24 +150,7 @@ export function AgentWorkspace({
     api.view?.(viewing);
     return () => api.view?.(null);
   }, [api, viewing]);
-  async function addFiles(to: string, added: File[]) {
-    const read: Attachment[] = [];
-    for (const file of added) {
-      try {
-        read.push(await toAttachment(file));
-      } catch (error) {
-        setError(error instanceof Error ? error.message : "无法添加文件。");
-      }
-    }
-    if (!read.length) return;
-    const next = [...(filesNow.current[to] ?? []), ...read];
-    const problem = attachmentProblem(next);
-    if (problem) setError(problem);
-    else setFiles((current) => ({ ...current, [to]: next }));
-  }
   const key = agent ? `${agent.id}:${agent.currentSessionId}` : "";
-  const addFilesNow = useRef(addFiles);
-  addFilesNow.current = addFiles;
   // Files dragged anywhere in the window join the open conversation;
   // otherwise the hint says why they cannot.
   const refusal = !agents.length
@@ -232,9 +188,7 @@ export function AgentWorkspace({
         : undefined,
       drop: {
         label: dropLabel,
-        add: dropAdds
-          ? (added) => void addFilesNow.current(key, [...added])
-          : undefined,
+        add: dropAdds ? (added) => addFiles(key, added) : undefined,
       },
     });
   }, [
@@ -247,6 +201,7 @@ export function AgentWorkspace({
     dropLabel,
     dropAdds,
     key,
+    addFiles,
   ]);
   /** The extensions an Agent is made of: provider, interface, memory, its model's connection. */
   const partIds = (a: Agent) =>
@@ -268,38 +223,13 @@ export function AgentWorkspace({
       void act(() => api.update(a.id, { pinned: !a.pinned }));
     else if (action === "export")
       void act(async () => {
-        const { name, data } = await roleCardFile(a);
-        if ((await onSaveFile(name, data)).saved) setNotice("已导出角色卡");
+        if (await exportRoleCard(a, files)) setNotice("已导出角色卡");
       });
     else if (action === "bundle")
       open({ action, agent: a, parts: partIds(a) }, source);
     else open({ action, agent: a }, source);
   }
-  const feedback = (
-    <ActionToast
-      error={error}
-      notice={notice}
-      action={
-        undoable && notice === undoable.notice
-          ? {
-              label: "撤销",
-              onClick: () => {
-                setUndoable(null);
-                void act(async () => {
-                  await undoable.undo();
-                  setNotice("已恢复");
-                });
-              },
-            }
-          : undefined
-      }
-      onDone={() => {
-        setError("");
-        setNotice("");
-        setUndoable(null);
-      }}
-    />
-  );
+  const feedback = undoNotice.toast;
   // Providers predating `extensions` are shown as the one extension they are.
   const provider = api.info.extensions ?? [
     { id: agent?.extensionId ?? "", label: api.info.label },
@@ -333,61 +263,6 @@ export function AgentWorkspace({
     });
   }
   const models = api.modelChoices?.();
-  /** The first thing stopping this Agent from replying here, if any. */
-  function blocker(a: Agent): Blocked | undefined {
-    // One reply at a time per Agent; the session waiting for it is a click away.
-    const waiting = a.pending?.sessionId;
-    if (waiting && waiting !== a.currentSessionId)
-      return {
-        text: `正在等「${a.sessions.find((s) => s.id === waiting)?.title}」里的回复，回复后才能再发一条。`,
-        action: (
-          <Button
-            type="button"
-            size="sm"
-            onClick={() => void act(() => api.session(a.id, "select", waiting))}
-          >
-            查看
-          </Button>
-        ),
-      };
-    const off = (part?: Part) => part && !part.on;
-    const turnOn = (part: Part) => (
-      <Button
-        type="button"
-        size="sm"
-        onClick={() => switchAgentPart(a, part, true)}
-      >
-        开启
-      </Button>
-    );
-    const [core] = parts!;
-    const view = ui && parts!.find((p) => p.choice.id === ui.id);
-    if (off(view))
-      return {
-        text: `此 Agent 已关闭「${view!.choice.label}」，开启后才能在这里对话。`,
-        action: turnOn(view!),
-      };
-    if (off(core))
-      return {
-        text: `此 Agent 已关闭「${core.choice.label}」，开启后它才会回复。`,
-        action: turnOn(core),
-      };
-    if (!models || !api.setModel) return undefined;
-    const picked =
-      a.model &&
-      models.some(
-        (m) => m.provider === a.model!.provider && m.id === a.model!.model,
-      );
-    // Nothing picked yet: the message box shows the model picker itself.
-    if (!picked) return undefined;
-    const connection = parts!.find((p) => p.choice.id === a.model!.provider);
-    if (off(connection))
-      return {
-        text: `此 Agent 已关闭「${connection!.choice.label}」，开启后它才会回复。`,
-        action: turnOn(connection!),
-      };
-    return undefined;
-  }
   /** Saves text edited in the details; resolves true once saved. */
   async function saveText(agentId: string, patch: AgentPatch) {
     let saved = false;
@@ -448,9 +323,15 @@ export function AgentWorkspace({
   ) : (
     <ChatView
       agent={agent}
-      blocked={blocker(agent)}
-      draft={drafts[key] ?? ""}
-      onDraft={(value) => setDrafts((d) => ({ ...d, [key]: value }))}
+      blocked={replyBlocker(agent, {
+        parts: parts!,
+        ui,
+        models: api.setModel && models,
+        onSelect: (id) => void act(() => api.session(agent.id, "select", id)),
+        onTurnOn: (part) => switchAgentPart(agent, part, true),
+      })}
+      draft={drafts.text(key)}
+      onDraft={(value) => drafts.setText(key, value)}
       onBack={returnToList}
       models={models}
       onModels={onModels}
@@ -479,35 +360,15 @@ export function AgentWorkspace({
       attach={
         api.info.attachments
           ? {
-              files: files[key] ?? [],
-              onAdd: (added) => void addFiles(key, added),
-              onRemove: (index) =>
-                setFiles((f) => ({
-                  ...f,
-                  [key]: (f[key] ?? []).filter((_, i) => i !== index),
-                })),
+              files: drafts.files(key),
+              onAdd: (added) => drafts.addFiles(key, added),
+              onRemove: (index) => drafts.removeFile(key, index),
             }
           : undefined
       }
       editing={rewrite.editing(key)}
       onSend={() => {
-        if (rewrite.send(agent, key)) return;
-        const input = drafts[key] ?? "";
-        const attached = files[key] ?? [];
-        // The sent text shows as a pending bubble; a failed send puts it
-        // back unless the user has started a new draft.
-        setDrafts((d) => ({ ...d, [key]: "" }));
-        setFiles((f) => ({ ...f, [key]: [] }));
-        // A reply can take minutes; dialogs need not wait for it.
-        void report(async () => {
-          try {
-            await api.send(agent.id, input, attached);
-          } catch (error) {
-            setDrafts((d) => (d[key] ? d : { ...d, [key]: input }));
-            setFiles((f) => (f[key]?.length ? f : { ...f, [key]: attached }));
-            throw error;
-          }
-        });
+        if (!rewrite.send(agent, key)) drafts.send(key, agent.id);
       }}
       onEdit={
         rewrite.start && ((message) => rewrite.start!(agent, key, message))
@@ -546,9 +407,7 @@ export function AgentWorkspace({
       }}
       onSessionDeleted={(id) => offerUndo(id, "已删除会话")}
       onModels={onModels}
-      onBundle={onBundle}
-      onOffer={onOffer}
-      onSaveFile={onSaveFile}
+      files={files}
       onNotice={setNotice}
     />
   );
