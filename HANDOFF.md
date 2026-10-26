@@ -31,6 +31,7 @@
 
 各子系统文档只记录契约与回归测试，平台和打包应用的未验项统一列在这里；已交付包的受验范围见[交付入口](evidence/RESULTS.md)；Android 冻结方式见[整体路线](docs/spec/total.md#平台范围先做好-mac-应用本体)。
 
+- **release 档位包**：只确认能启动、数据写入 `HOME` 下的平台目录且忽略 `PLUMS_DATA_DIR`；界面渲染、右键“检查元素”与日常路径未在该档位上走过，此前的打包实测均为 debug 包。
 - **最近的界面调整**：设置弹窗、去掉行“…”、消息操作右对齐、列表拖入导入只有浏览器回归；WKWebView 中的 HTML 拖放（列表导入与会话附件分区）未在打包应用中验证。
 - **外观与快捷键**：WebKit 下的新分段控件未专门抽查；Windows/Linux 的菜单与窗口底色随系统更新、Android 的“跟随系统”均未实现。
 - **界面规范改造**：毛玻璃叠色与 0.5px 线条在 2 倍屏上的效果、`file.save` 保存面板（取消、覆盖同名）、打包应用中 `.plums` 导出导入、WebKit 下的新页面；导出 PNG 未在酒馆软件中打开。
@@ -46,11 +47,11 @@
 
 当前是[路线阶梯](docs/spec/total.md#路线阶梯)第 1 级（Mac 第一版），顺序与剩余内容只在[当前阶段](docs/spec/milestone.md#第-1-级mac-第一版)维护。
 
-- **当前焦点**：第 7 项交付候选与发布准备进行中。已做：许可证（GPL-3.0-or-later 与商业授权，SDK 与示例 MIT）、随包第三方通知、[安装说明](docs/INSTALL.md)。待做且需所有者参与：真实服务兼容调用（先确认目标、次数与输出上限）、所有者凭公开文档写连接器并完成一次真实调用、是否改为 release 构建档位后再对外分发（`release:mac` 现只构建 debug）、独立审查后按授权替换 `release/mac/`。
+- **当前焦点**：第 7 项交付候选与发布准备进行中。已做：许可证（GPL-3.0-or-later 与商业授权，SDK 与示例 MIT）、随包第三方通知、[安装说明](docs/INSTALL.md)、`release:mac` 改为 release 档位（开启 `devtools`，包体 51→20 MB）。待做且需所有者参与：真实服务兼容调用（先确认目标、次数与输出上限）、所有者凭公开文档写连接器并完成一次真实调用、独立审查后按授权替换 `release/mac/`。
 - **遗留**：`modules/agents/store.ts`、`modules/agents/memory/store.ts`、`AgentWorkspace.tsx`、`ProviderForm.tsx` 超过 400 行提示线；应用外壳的导航与管理入口仍由 `Workbench` 固定组装；`View.icon` 无效原因是英文提示；拖放提示层用 2px 虚线；早先导入的单文件扩展的源码分片（`host.shell` 的 `x-` 文档）不再读取也不自动清理。
 
 ## 当前交付与恢复
 
-保留的候选：`release/.mac-W3z2Hk`（`0eff9d8`，最新）、`release/.mac-mrL1Q8`（`1f366f6`）、`release/.mac-Xv7o0u`（第 6 项实测用包，基于 `82b9138`），均为 0.2.0 arm64 debug / ad-hoc；更早的候选已删除，证据记录中的源码提交可重建。直接打开候选会使用正式数据目录；隔离数据须用设置了 `HOME` 或 `PLUMS_DATA_DIR` 的命令行启动包内可执行文件。新候选一律 `npm run release:mac -- --stage`。
+保留的候选：`release/.mac-PwMf81`（release 档位，最新，源码见包内 `build-info.json`）、`release/.mac-W3z2Hk`（`0eff9d8`）、`release/.mac-mrL1Q8`（`1f366f6`）、`release/.mac-Xv7o0u`（第 6 项实测用包，基于 `82b9138`），均为 0.2.0 arm64 ad-hoc，除最新一份外为 debug；更早的候选已删除，证据记录中的源码提交可重建。直接打开候选会使用正式数据目录；隔离数据须用设置了 `HOME`（debug 包也可用 `PLUMS_DATA_DIR`）的命令行启动包内可执行文件。新候选一律 `npm run release:mac -- --stage`。
 
 已交付 0.2.0 来自 `40a7382`，Mac 入口 `release/mac/Plums.app`，未替换；Android 包仅保留原受验范围。[交付证据](evidence/RELEASE-0.2.0-2026-10-20.md)及包旁的 `build-info.json`、`source.patch` 用于核对来源。0.0.4 恢复包在 `.cache/archive/releases/mac-uIizKK/mac` 与 `.cache/archive/releases/android-JS89ll/android`，不自动回滚数据，规则见[开发流程](docs/DEVELOPMENT.md#本地交付目录)。

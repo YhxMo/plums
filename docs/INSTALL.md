@@ -48,7 +48,7 @@ xattr -dr com.apple.quarantine /Applications/Plums.app
 
 ## 已知限制
 
-- 现有的包是 debug 构建（0.2.0），体积和速度不代表正式版；`PLUMS_DATA_DIR` 只在这类包里生效。
+- 0.2.0 及更早的包是 debug 构建，体积和速度不代表正式版；之后的包是 release 构建。
 - 没有公证，首次打开需要上面的步骤。
 - 屏幕阅读器（VoiceOver）没有做验收，不保证可用。
 - 扩展是本地可信代码，与应用在同一个 WebView 中运行，没有安全沙箱，只安装你信任来源的扩展，见[信任边界](../README.md#信任边界)。

@@ -102,7 +102,7 @@ revision = receipt.revision; // 下次写入用它
 - **导入时报错**：通常是 `manifest` 不合法，例如缺少 `id`、`version` 或 `apiVersion: 1`，或者 ID 与内置扩展重复。
 - **启用后显示「激活失败」**：`activate` 抛出了错误，在扩展管理中选中它查看原因。
 - **显示「等待条件」**：你需要的服务没有任何扩展在提供，或者权限尚未确认。
-- **看日志**：Mac debug 版在窗口内右键 → 检查元素；Android debug 版用电脑 Chrome 打开 `chrome://inspect`。
+- **看日志**：Mac 版在窗口内右键 → 检查元素；Android debug 版用电脑 Chrome 打开 `chrome://inspect`。
 
 ## 5. 目前的限制
 

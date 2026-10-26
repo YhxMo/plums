@@ -49,7 +49,6 @@ run(
   [
     "scripts/tauri.mjs",
     "build",
-    "--debug",
     "--bundles",
     "app",
     "--config",
@@ -70,7 +69,7 @@ const target = resolve(
   root,
   process.env.CARGO_TARGET_DIR ?? "src-tauri/target",
 );
-const built = join(target, "debug/bundle/macos", name);
+const built = join(target, "release/bundle/macos", name);
 run("ditto", [built, app]);
 run("codesign", ["--verify", "--deep", "--strict", app]);
 
@@ -123,7 +122,7 @@ const metadata = {
     "-archs",
     join(app, "Contents/MacOS", info.CFBundleExecutable),
   ]).trim(),
-  profile: "debug",
+  profile: "release",
   signing: "ad-hoc",
   source: {
     commit: run("git", ["rev-parse", "HEAD"]).trim(),
@@ -140,7 +139,7 @@ writeFileSync(
 );
 writeFileSync(
   join(stage, "README.md"),
-  `# Plums Mac 本地预览\n\n打开 \`${name}\`。版本 ${metadata.version}，${metadata.architecture}，debug 本地临时签名；SDK 仍为实验接口。\n\n来源和文件校验见 build-info.json，未提交差异见 source.patch。实际运行范围以项目 evidence/RESULTS.md 的对应源码记录为准。\n`,
+  `# Plums Mac 本地预览\n\n打开 \`${name}\`。版本 ${metadata.version}，${metadata.architecture}，release 构建，本地临时签名；SDK 仍为实验接口。\n\n来源和文件校验见 build-info.json，未提交差异见 source.patch。实际运行范围以项目 evidence/RESULTS.md 的对应源码记录为准。\n`,
 );
 
 if (args[0] === "--stage") {

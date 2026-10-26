@@ -100,7 +100,7 @@ Mac API Key 使用独立凭据文件，不需要创建本地签名身份。当�
 
 供本地查看的应用包统一放在仓库根 `release/`。此目录仅保存当前交付产物、精炼使用说明与校验清单，按 `/release/` 忽略并从源码盘点中排除；应用数据、缓存、原始日志、测试签名私钥及私人配置不进入交付目录。
 
-Mac使用 `npm run release:mac` 统一构建普通debug包、ad-hoc签名、复制内容核对、文件校验及旧包归档；当前入口为 `release/mac/Plums.app`。同目录 build-info.json记录实际包标识、版本、架构、签名和文件校验，source.patch保存基线提交上的公开工作区差异；构建和签名通过不自动代表原生用户路径通过。Android当前包独立放在release/android，保留其受验来源，不因Mac更新而改写为同版验证。
+Mac使用 `npm run release:mac` 统一构建 release 档位包（开启 Tauri `devtools` 特性，保留右键“检查元素”供扩展作者看日志）、ad-hoc签名、复制内容核对、文件校验及旧包归档；当前入口为 `release/mac/Plums.app`。同目录 build-info.json记录实际包标识、版本、架构、签名和文件校验，source.patch保存基线提交上的公开工作区差异；构建和签名通过不自动代表原生用户路径通过。Android当前包独立放在release/android，保留其受验来源，不因Mac更新而改写为同版验证。
 
 需要先验收再交付时，执行 `npm run release:mac -- --stage`，读取命令输出的候选目录并在独立数据下启动其中的 app。通过验收和独立审查后，先关闭当前应用，再执行 `npm run release:mac -- --publish <候选目录>`，只移动这份受验包，不重新构建。省略参数直接构建并发布。候选与当前目录必须分开；发布保留整份旧平台目录，替换失败恢复旧入口并保留候选。此处是本地包替换，不是业务数据迁移或跨平台原子升级。
 
@@ -112,7 +112,7 @@ Mac使用 `npm run release:mac` 统一构建普通debug包、ad-hoc签名、复�
 
 - 确认没有构建或应用占用后，可删除 Rust 的 `build/deps/incremental/.fingerprint/examples`、`dist/`、图标生成暂存和测试报告。后续构建按原命令重新生成，首次原生编译会更慢。
 - 保留 `node_modules/`、Cargo/npm 下载缓存，避免无谓重装。
-- 开发命令把 `PLUMS_DATA_DIR` 指向 `.dev-data/` 以隔离数据；该变量只在 debug 构建（含 Mac 本地预览包）生效。桌面版单实例，开发进程与已打开的预览包不能同时运行。正式数据目录与改名前旧数据的迁移见[架构](ARCHITECTURE.md#应用数据目录)。
+- 开发命令把 `PLUMS_DATA_DIR` 指向 `.dev-data/` 以隔离数据；该变量只在 debug 构建（开发进程与 0.2.0 及更早的本地包）生效；`release:mac` 产出的 release 包须改用 `HOME` 隔离。桌面版单实例，开发进程与已打开的预览包不能同时运行。正式数据目录与改名前旧数据的迁移见[架构](ARCHITECTURE.md#应用数据目录)。
 - `release/`、有效候选及其来源文件、历史应用备份、真实运行数据、隔离模拟器与 `goal.md` 不属于构建垃圾。测试完成后删除该次验收专用假数据、临时脚本、测试包与缓存；不按目录年龄批量删除未知数据。真实未验项保留在 HANDOFF 的未验范围，过期过程不继续归档。
 
 当前状态和版本从 README、HANDOFF 及 RESULTS 查阅；入口文档不复制多轮 PID、临时路径和交付时间线。项目清单、链接及隐私模式由 `check:project` 检查，原始日志／截图继续忽略。
