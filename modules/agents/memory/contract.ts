@@ -84,6 +84,12 @@ export interface MemoryService {
   /** Puts back what one consolidation changed, while its items stay as it left them. */
   undo(report: string): Promise<void>;
   subscribe(listener: () => void): () => void;
-  /** Shows the memory page: one Agent's, or the shared one. */
-  open(agent?: string): Promise<void>;
+  /**
+   * Where the person sees and edits memory, apart from the service itself;
+   * absent when the provider has no page, such as without an interface.
+   */
+  readonly page?: {
+    /** Shows the page: one Agent's memory, or the shared one. */
+    open(agent?: string): Promise<void>;
+  };
 }

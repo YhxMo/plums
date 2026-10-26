@@ -18,11 +18,12 @@ export type MemoryPageApi = Pick<
   | "setModel"
   | "consolidate"
   | "models"
-  | "takeFocus"
 >;
 type MountPage = (
   container: HTMLElement,
   api: MemoryPageApi,
+  /** The Agent whose memory to show first; null for the shared memory. */
+  focus: string | null,
 ) => () => void | Promise<void>;
 
 /**
@@ -72,16 +73,29 @@ export function memoryExtension({
           );
         },
         () => chatModels(chats),
-        () => ctx.shell.open("view", MEMORY_PAGE),
       );
-      if (mountPage)
+      if (mountPage) {
+        // The Agent asked for by the last `open`, taken by the next mount;
+        // the avatar opens the page on the shared memory.
+        let focus: string | null = null;
+        store.page = {
+          open(agent) {
+            focus = agent ?? null;
+            return ctx.shell.open("view", MEMORY_PAGE);
+          },
+        };
         ctx.view({
           id: MEMORY_PAGE,
           label: "记忆",
           presentation: "dialog",
           entry: "user",
-          mount: (container) => mountPage(container, store),
+          mount(container) {
+            const first = focus;
+            focus = null;
+            return mountPage(container, store, first);
+          },
         });
+      }
       ctx.provide("memory", 1, store);
       ctx.onDispose(() => store.close());
     },

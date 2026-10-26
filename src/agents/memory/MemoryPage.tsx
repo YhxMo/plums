@@ -59,13 +59,20 @@ const parseChoice = (value: string): ConsolidationModel | null => {
  * avatar) and each Agent's own (opened from its details), with the model
  * that consolidates and whether that sends the conversation elsewhere.
  */
-export function MemoryPage({ api }: { api: MemoryPageApi }) {
+export function MemoryPage({
+  api,
+  focus,
+}: {
+  api: MemoryPageApi;
+  /** The Agent to show first; null for the shared memory. */
+  focus: string | null;
+}) {
   const subscribe = useCallback(
     (listener: () => void) => api.subscribe(listener),
     [api],
   );
   const snap = useSyncExternalStore(subscribe, api.snapshot);
-  const [view, setView] = useState(() => api.takeFocus() ?? SHARED);
+  const [view, setView] = useState(focus ?? SHARED);
   const { busy, error, notice, setError, setNotice, run } = useAsyncAction();
   const now = Date.now();
   const agent = snap.agents.find((a) => a.id === view);

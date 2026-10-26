@@ -84,7 +84,7 @@
 
 [memory/contract.ts](../modules/agents/memory/contract.ts) 定义扩展层 `memory@1`，与 `agents@1` 同归 Agent 扩展所有。记忆条目按作用域分开：`person`（关于某人、所有 Agent 共享，即“关于我”）与 `agent`（某个 Agent 关于某人记得的事）；以后 Agent 自身的记忆作为新的作用域加入。每条可带 `at`（事情发生的时间）与 `until`（之后不再成立的时间，缺省取 `at`），过了即不再使用。
 
-提供者公开 `info`、`context({ agent, person, now, timeZone })`（只返回这个人的共享资料与这个 Agent 关于此人的记忆，作为提示词段落）、`connect(source)`（读取 Agent 提供者的会话，返回断开函数）、`notify(agent, "saved" | "left" | "on" | "removed")`、`count`、`reports()` 与 `undo(id)`（最近一次整理改了什么、在条目未再变化时放回）、`subscribe` 与 `open(agent?)`（打开记忆页）。`agents.local` 以 `optional` 声明 `memory@1`：每个记忆提供者是 Agent「组成扩展」中的一行开关（记在 `off` 中，默认开启）；发送时只向开启的记忆要段落、只把开启的 Agent 交给它读，回复保存、离开会话或切换会话、重新开启与移除 Agent 时通知它。重新开启后从当时的最后一条消息之后开始记，关闭期间说的话不被记住。
+提供者公开 `info`、`context({ agent, person, now, timeZone })`（只返回这个人的共享资料与这个 Agent 关于此人的记忆，作为提示词段落）、`connect(source)`（读取 Agent 提供者的会话，返回断开函数）、`notify(agent, "saved" | "left" | "on" | "removed")`、`count`、`reports()` 与 `undo(id)`（最近一次整理改了什么、在条目未再变化时放回）与 `subscribe`；记忆页与服务分开，是可选的 `page.open(agent?)`（打开某个 Agent 的或共享的记忆页），没有界面的提供者（如无界面运行）不提供 `page`，界面据此不显示“打开”。`agents.local` 以 `optional` 声明 `memory@1`：每个记忆提供者是 Agent「组成扩展」中的一行开关（记在 `off` 中，默认开启）；发送时只向开启的记忆要段落、只把开启的 Agent 交给它读，回复保存、离开会话或切换会话、重新开启与移除 Agent 时通知它。重新开启后从当时的最后一条消息之后开始记，关闭期间说的话不被记住。
 
 内置提供者 `memory.local`（界面名称“记忆”）以 `optional` 声明 `chat@1`，不持有密钥。会话停下 3 分钟、离开或切换会话时，用整理模型读上次整理之后的新消息（只有文字，附件写作“[图片] 名称”，每条最多 2000 字、每次最多 24000 字取最新的部分），连同已有记忆（编号列出，过期的标出）一起请求一次，模型只返回新增、修改、删除的 JSON（参照 mem0 的四种操作与短编号，相对时间按消息时间换算，参照 Graphiti）；结果整批校验，任何一处不合格就整批丢弃，这批消息保持待整理。整理模型默认跟随各 Agent 自己的模型，可在记忆页设全局默认或为单个 Agent 指定；所选模型不可用时不改用别的模型，只说明原因并等待重试。首次接入时，已有 Agent 的旧对话不整理，从之后的消息开始；之后新建的 Agent 从第一条消息开始。主文档存设置与每个 Agent 已整理到的时间，每条记忆是集合 `memories` 中的一条记录，一起写入一次 `state.batch`；损坏的条目被忽略、原数据保留。移除 Agent 同时删除它的记忆。
 

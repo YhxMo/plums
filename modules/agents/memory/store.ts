@@ -20,6 +20,7 @@ import {
 } from "./consolidate";
 import { MAX_ITEM_TEXT, expired, memorySections, sameScope } from "./items";
 import type { ConsolidationModel, MemoryData } from "./persistence";
+import { ConsolidationSchedule } from "./schedule";
 
 /** How long a conversation rests before what was said is consolidated. */
 export const IDLE = 3 * 60_000;
@@ -88,14 +89,14 @@ export class MemoryStore implements MemoryService {
   };
   private data: MemoryData;
   private sources = new Set<MemorySource>();
-  private timers = new Map<string, ReturnType<typeof setTimeout>>();
+  private schedule = new ConsolidationSchedule((agent) =>
+    this.consolidateNow(agent),
+  );
   private problems = new Map<string, string>();
   private running: string | null = null;
   private recent: Report[] = [];
-  private focus: string | null = null;
   private listeners = new Set<() => void>();
   private writes: Promise<unknown> = Promise.resolve();
-  private runs: Promise<unknown> = Promise.resolve();
   private stop = new AbortController();
   private snap: MemorySnapshot | undefined;
   constructor(
@@ -104,7 +105,6 @@ export class MemoryStore implements MemoryService {
     private ask: Ask,
     /** Models a consolidation can use. */
     readonly models: () => readonly ModelChoice[],
-    private openPage: () => Promise<void>,
     private clock = {
       now: () => Date.now(),
       timeZone: () => Intl.DateTimeFormat().resolvedOptions().timeZone,
@@ -115,6 +115,8 @@ export class MemoryStore implements MemoryService {
 
   /** Re-renders after model connections start, stop or change. */
   sourcesChanged = () => this.emit();
+  /** The page, set by the extension when it has one. */
+  page?: MemoryService["page"];
   context(request: Parameters<MemoryService["context"]>[0]) {
     return memorySections(this.data.items, request);
   }
@@ -137,17 +139,6 @@ export class MemoryStore implements MemoryService {
     this.snap = undefined;
     this.listeners.forEach((listener) => listener());
   }
-  open(agent?: string) {
-    this.focus = agent ?? null;
-    return this.openPage();
-  }
-  /** The Agent the page was last asked to show, once; the avatar opens it on the shared memory. */
-  takeFocus() {
-    const focus = this.focus;
-    this.focus = null;
-    return focus;
-  }
-
   connect(source: MemorySource) {
     this.sources.add(source);
     const unwatch = source.subscribe(() => this.emit());
@@ -165,7 +156,7 @@ export class MemoryStore implements MemoryService {
       }).catch(() => {});
     }
     source.agents().forEach((a, i) => {
-      if (this.pending(a.id)) this.schedule(a.id, START_DELAY + i * 1000);
+      if (this.pending(a.id)) this.schedule.later(a.id, START_DELAY + i * 1000);
     });
     this.emit();
     return () => {
@@ -176,15 +167,14 @@ export class MemoryStore implements MemoryService {
   }
   notify(agent: string, event: "saved" | "left" | "on" | "removed") {
     if (event === "saved") {
-      this.schedule(agent, IDLE);
+      this.schedule.later(agent, IDLE);
       return this.emit();
     }
     if (event === "left") {
-      if (this.timers.has(agent)) this.schedule(agent, 0);
+      if (this.schedule.waiting(agent)) this.schedule.later(agent, 0);
       return;
     }
-    clearTimeout(this.timers.get(agent));
-    this.timers.delete(agent);
+    this.schedule.cancel(agent);
     const found = this.source(agent);
     const mark = found ? this.latest(found.source, agent) : this.clock.now();
     void this.change((data) => {
@@ -274,9 +264,7 @@ export class MemoryStore implements MemoryService {
   }
   /** Consolidates an Agent's pending messages now. */
   consolidate(agent: string) {
-    clearTimeout(this.timers.get(agent));
-    this.timers.delete(agent);
-    return this.run(agent);
+    return this.schedule.now(agent);
   }
   undo(reportId: string) {
     const report = this.recent.find((r) => r.id === reportId);
@@ -297,9 +285,7 @@ export class MemoryStore implements MemoryService {
   }
   async close() {
     this.stop.abort();
-    this.timers.forEach(clearTimeout);
-    this.timers.clear();
-    await Promise.all([this.writes, this.runs]).catch(() => {});
+    await Promise.all([this.writes, this.schedule.stop()]).catch(() => {});
     this.listeners.clear();
   }
 
@@ -356,21 +342,6 @@ export class MemoryStore implements MemoryService {
         .messages(agent, this.mark(agent))
         .some((message) => message.role === "user")
     );
-  }
-  private schedule(agent: string, delay: number) {
-    clearTimeout(this.timers.get(agent));
-    this.timers.set(
-      agent,
-      setTimeout(() => {
-        this.timers.delete(agent);
-        void this.run(agent);
-      }, delay),
-    );
-  }
-  private run(agent: string) {
-    const next = this.runs.then(() => this.consolidateNow(agent));
-    this.runs = next.catch(() => {});
-    return next;
   }
   /** The model this Agent's consolidation uses, or why there is none. */
   private target(agent: string, own?: AgentModel) {

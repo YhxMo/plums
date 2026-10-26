@@ -316,7 +316,9 @@ export function AgentWorkspace({
           choice,
           ...(memory && {
             count: memory.value.count(agent.id, OWNER),
-            open: () => void memory.value.open(agent.id),
+            ...(memory.value.page && {
+              open: () => void memory.value.page!.open(agent.id),
+            }),
           }),
         };
       }),

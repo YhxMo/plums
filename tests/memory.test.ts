@@ -7,7 +7,10 @@ import { OWNER, type AgentProvider } from "../modules/agents/contract";
 import { memoryExtension } from "../modules/agents/memory/extension";
 import { IDLE, MemoryStore } from "../modules/agents/memory/store";
 import { emptyMemory } from "../modules/agents/memory/persistence";
-import type { MemoryMessage } from "../modules/agents/memory/contract";
+import type {
+  MemoryMessage,
+  MemoryService,
+} from "../modules/agents/memory/contract";
 import { CONSOLIDATION_INSTRUCTIONS } from "../modules/agents/memory/consolidate";
 import { memoryPlatform } from "./fixtures/agents";
 
@@ -240,7 +243,6 @@ it("consolidates once a conversation rests, or at once when the person leaves it
           description: "",
         },
       ],
-      async () => {},
       { now: () => 10, timeZone: () => "Asia/Singapore" },
     );
     store.connect({
@@ -308,7 +310,6 @@ it("clears the expired items of one scope at once, and nothing else", async () =
     },
     async () => '{"add":[]}',
     () => [],
-    async () => {},
     { now: () => now, timeZone: () => "UTC" },
   );
   const mine = { kind: "agent", agent: "a", person: OWNER } as const;
@@ -321,4 +322,44 @@ it("clears the expired items of one scope at once, and nothing else", async () =
   expect(saved.items.map((item) => item.text).sort()).toEqual(
     ["别人的旧事", "对花生过敏"].sort(),
   );
+});
+
+it("keeps its page apart from the service: none without an interface, else opened on the Agent asked for", async () => {
+  const headless = await setup();
+  expect(headless.memory().page).toBeUndefined();
+
+  const platform = memoryPlatform();
+  const host = new Host(platform.platform);
+  const focused: (string | null)[] = [];
+  host.install(
+    memoryExtension({
+      mountPage(_container, _api, focus) {
+        focused.push(focus);
+        return () => {};
+      },
+    }),
+  );
+  await host.grant("memory.local", [
+    "state.read",
+    "state.batch",
+    "records.list",
+  ]);
+  await host.start("memory.local");
+  const opened: (string | undefined)[] = [];
+  host.connectShell({
+    async open(_action, _owner, target) {
+      opened.push(target);
+    },
+    readPage: () => undefined,
+    savePage: async () => {},
+  });
+  const memory = host.peekService<MemoryService>("memory", 1)!;
+  await memory.page!.open("a");
+  expect(opened).toEqual(["memory"]);
+  // The page never touches its container here.
+  const root = {} as HTMLElement;
+  await host.mountView("memory", root)();
+  // Opened from the avatar, by the shell alone: the shared memory.
+  await host.mountView("memory", root)();
+  expect(focused).toEqual(["a", null]);
 });
