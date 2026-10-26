@@ -16,6 +16,8 @@ function Pane({
 }) {
   return (
     <main
+      // The window's drop hint covers this card, not the list beside it.
+      data-drop-area
       className={cn(
         "relative flex flex-1 flex-col items-center justify-center bg-chat p-7",
         className,

@@ -30,6 +30,7 @@ import { useRewrite } from "./useRewrite";
 import { useAgentModals } from "./useAgentModals";
 import { AgentDialogs } from "./AgentDialogs";
 import type { AgentAction } from "./AgentMenu";
+import { ImportDrop } from "./ImportDrop";
 import { fallbackFocus } from "./focus";
 import { AVATAR_BASE64, AVATAR_SIDE, scaledPicture } from "./imageFile";
 import { agentParts, switchPart, type Part } from "./parts";
@@ -309,18 +310,25 @@ export function AgentWorkspace({
       }}
     />
   );
+  // A role card dropped on the list opens the import, read as if chosen.
+  function importFile(file: File) {
+    open("import", null);
+    void act(() => modals.roleCard.readFile(file));
+  }
   const list = (
-    <AgentList
-      agents={agents}
-      selected={selected}
-      onSelect={(id) => {
-        setSelected(id);
-        setDetail(false);
-      }}
-      onAdd={(source) => open("create", source)}
-      onImport={(source) => open("import", source)}
-      onAction={agentAction}
-    />
+    <ImportDrop onImport={importFile} onRefuse={setError}>
+      <AgentList
+        agents={agents}
+        selected={selected}
+        onSelect={(id) => {
+          setSelected(id);
+          setDetail(false);
+        }}
+        onAdd={(source) => open("create", source)}
+        onImport={(source) => open("import", source)}
+        onAction={agentAction}
+      />
+    </ImportDrop>
   );
   const main = !agent ? (
     <EmptyState

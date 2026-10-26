@@ -202,6 +202,8 @@ export function ChatView({
   const pendingSpacing = spacing("user");
   return (
     <section
+      // The window's drop hint covers this card, not the list beside it.
+      data-drop-area
       className={cn("flex min-h-0 flex-1 flex-col bg-chat", card)}
       aria-label={`${agent.name} 的会话`}
     >

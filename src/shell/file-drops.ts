@@ -21,16 +21,20 @@ export function refuseStrayFileDrops(target: Window) {
   target.addEventListener("drop", refuse);
 }
 
+/** Marks the part of a workspace its drop belongs to, for the hint to cover. */
+export const DROP_AREA = "data-drop-area";
+
 /**
  * Hands files dragged anywhere inside `root` to the shown workspace. A drop
  * zone of its own (such as a dialog's) takes them first; dialogs and menus
  * portalled outside `root` never pass them on. `onHover` reports the drop
- * the dragged files would get, or null once they leave or land.
+ * the dragged files would get and the marked area they are over, if any, or
+ * null once they leave or land.
  */
 export function forwardFileDrops(
   root: HTMLElement,
   current: () => WindowDrop | undefined,
-  onHover: (drop: WindowDrop | null) => void,
+  onHover: (drop: WindowDrop | null, area?: Element | null) => void,
 ) {
   const document = root.ownerDocument;
   // Entering the next element comes before leaving the last one, so the
@@ -50,7 +54,10 @@ export function forwardFileDrops(
   };
   const over = (event: DragEvent) => {
     const drop = target(event);
-    onHover(drop ?? null);
+    onHover(
+      drop ?? null,
+      drop && (event.target as Element).closest?.(`[${DROP_AREA}]`),
+    );
     if (!drop) return;
     event.preventDefault();
     event.dataTransfer!.dropEffect = drop.add ? "copy" : "none";
