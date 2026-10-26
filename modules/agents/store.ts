@@ -1,6 +1,5 @@
 import type { Named } from "@modules/sdk";
 import type { Effort } from "@extensions/contracts";
-import { LIMITS, attachmentProblem, imageSize } from "./attachments";
 import {
   AVATAR_PROBLEM,
   EFFORTS,
@@ -15,28 +14,24 @@ import { MAX_INSTRUCTIONS } from "./instructions";
 import { unreadReplies } from "./unread";
 import { putBack, type Removal } from "./undo";
 import {
-  OWNER,
-  type Agent,
-  type AgentConfig,
-  type AgentPatch,
-  type Attachment,
-  type AgentModel,
-  type AgentProvider,
-  type AgentProviderInfo,
-  type ModelChoice,
-  type Session,
+  checkImages,
+  checkMessage,
+  newSession,
+  readAll,
+  recordExchange,
+} from "./sessions";
+import { ReplyTasks } from "./replies";
+import type {
+  Agent,
+  AgentConfig,
+  AgentPatch,
+  Attachment,
+  AgentModel,
+  AgentProvider,
+  AgentProviderInfo,
+  ModelChoice,
 } from "./contract";
 
-const id = () => crypto.randomUUID();
-/** A new session's title, until its first message names it. */
-const UNTITLED = "未命名会话";
-const newSession = (): Session => ({
-  id: id(),
-  title: UNTITLED,
-  createdAt: Date.now(),
-  lastMessageAt: Date.now(),
-  messages: [],
-});
 /** Extension-owned model; writes publish only after a successful receipt. */
 export type SaveOptions = { signal?: AbortSignal; onCommit?: () => void };
 /** What a reply may draw on besides the new text. */
@@ -57,19 +52,13 @@ export type ReplyContext = {
   /** Files and pictures sent with the new message. */
   attachments?: Attachment[];
 };
-/** Marks a session read up to `at`, and every message in it, even one stamped ahead of this clock. */
-const readAll = (s: Session, at = Date.now()) => {
-  s.lastReadAt = Math.max(at, ...s.messages.map((m) => m.at ?? 0));
-};
 const sameModel = (choice: ModelChoice, model: AgentModel) =>
   choice.provider === model.provider && choice.id === model.model;
 export class AgentStore implements AgentProvider {
   private agents: Agent[];
   private listeners = new Set<() => void>();
-  private running = new Map<string, AbortController>();
-  private pending = new Map<string, NonNullable<Agent["pending"]>>();
+  private replies = new ReplyTasks();
   private structural = new Set<string>();
-  private committing = new Set<string>();
   /** Each Agent's last removal, which `undo` can put back until restart. */
   private removed = new Map<string, Removal>();
   /** The Agent on screen, as told by `view`. */
@@ -188,9 +177,9 @@ export class AgentStore implements AgentProvider {
     this.agents = this.agents.map((a) => ({
       ...a,
       status:
-        this.running.has(a.id) || this.structural.has(a.id) ? "busy" : "idle",
-      canCancel: this.running.has(a.id) && !this.committing.has(a.id),
-      pending: this.pending.get(a.id),
+        this.replies.has(a.id) || this.structural.has(a.id) ? "busy" : "idle",
+      canCancel: this.replies.canCancel(a.id),
+      pending: this.replies.pending(a.id),
     }));
     this.listeners.forEach((l) => l());
   }
@@ -240,7 +229,7 @@ export class AgentStore implements AgentProvider {
           };
     const session = newSession();
     const agent: Agent = {
-      id: id(),
+      id: crypto.randomUUID(),
       name: clean.name,
       description: clean.description?.trim() ?? "",
       instructions: (clean.instructions ?? clean.description ?? "").trim(),
@@ -284,7 +273,7 @@ export class AgentStore implements AgentProvider {
     });
   }
   async remove(agentId: string) {
-    if (this.running.has(agentId) || this.structural.has(agentId))
+    if (this.replies.has(agentId) || this.structural.has(agentId))
       throw new Error("请等待保存或先停止当前任务，再移除 Agent。");
     this.structural.add(agentId);
     this.emit();
@@ -309,10 +298,7 @@ export class AgentStore implements AgentProvider {
     if (this.structural.has(agentId))
       return Promise.reject(new Error("请等待保存完成，再切换会话。"));
     // Other sessions stay usable while one waits for its reply.
-    if (
-      action === "delete" &&
-      this.pending.get(agentId)?.sessionId === sessionId
-    )
+    if (action === "delete" && this.replies.waitsIn(agentId, sessionId))
       return Promise.reject(
         new Error("正在等待这个会话的回复，请等它回复或先停止，再删除。"),
       );
@@ -401,6 +387,10 @@ export class AgentStore implements AgentProvider {
     if (!messages || index < 0) throw new Error("消息不存在。");
     return { messages, index };
   }
+  /**
+   * Asks the Agent's model, then saves the message and its reply together:
+   * stopping before the save leaves nothing behind, as if never sent.
+   */
   private async ask(
     agentId: string,
     input: string,
@@ -408,19 +398,8 @@ export class AgentStore implements AgentProvider {
     /** Replaces the session's messages from index `from` on. */
     rewrite?: { sessionId: string; from: number; replaces: string },
   ) {
-    const problem = attachmentProblem(attachments);
-    if (problem) throw new Error(problem);
-    const files = attachments?.length ? attachments : undefined;
-    // Files may go out alone; a message needs text or files.
-    if ((!files && !input.trim()) || input.length > MAX_TEXT)
-      throw new Error(`请输入 1–${MAX_TEXT} 个字符，或添加附件。`);
-    const filesText = (files ?? []).reduce(
-      (sum, a) => sum + (a.kind === "text" ? a.text.length : 0),
-      0,
-    );
-    if (input.length + filesText > MAX_TEXT)
-      throw new Error("文字与文件合计过长，请减少文件或缩短文字。");
-    if (this.running.has(agentId))
+    const files = checkMessage(input, attachments);
+    if (this.replies.has(agentId))
       throw new Error(
         "正在等待此 Agent 的另一条回复，请等它回复或先停止，再发送。",
       );
@@ -430,6 +409,88 @@ export class AgentStore implements AgentProvider {
     const blocked = this.saveBlocked();
     if (blocked) throw new Error(blocked);
     const a = this.find(this.agents, agentId);
+    this.checkParts(a);
+    const sessionId = rewrite?.sessionId ?? a.currentSessionId;
+    const all = a.sessions.find((s) => s.id === sessionId)?.messages;
+    if (!all) throw new Error("会话不存在。");
+    const saved = rewrite ? all.slice(0, rewrite.from) : all;
+    // A rewrite applies only to the conversation it was asked from.
+    const asked = all.map((m) => m.id).join();
+    checkImages(saved, files);
+    const sentAt = Date.now();
+    const signal = this.replies.start(agentId, {
+      sessionId,
+      text: input,
+      ...(files && { attachments: files }),
+      ...(rewrite && { replaces: rewrite.replaces }),
+    });
+    this.emit();
+    try {
+      const output = await this.reply(input, signal, {
+        agentId,
+        model: a.model,
+        ...(a.effort && { effort: a.effort }),
+        name: a.name,
+        instructions: a.instructions ?? "",
+        history: saved.map(({ role, text, attachments }) => ({
+          role,
+          text,
+          ...(attachments && { attachments }),
+        })),
+        ...(files && { attachments: files }),
+      });
+      signal.throwIfAborted();
+      if (!text(output, MAX_TEXT))
+        throw new Error(
+          `模型必须返回不超过 ${MAX_TEXT} 个字符的文本；本次结果未保存。`,
+        );
+      const removal = await this.change(
+        (agents): Removal | undefined => {
+          signal.throwIfAborted();
+          const current = this.find(agents, agentId);
+          const s = current.sessions.find((s) => s.id === sessionId);
+          if (!s) throw new Error("会话已被移除。");
+          const before = s.messages;
+          if (rewrite) {
+            if (before.map((m) => m.id).join() !== asked)
+              throw new Error("会话已有新的变化，这次回复未保存。");
+            s.messages = before.slice(0, rewrite.from);
+          }
+          recordExchange(s, {
+            agentId,
+            input,
+            files,
+            output,
+            sentAt,
+            read:
+              this.viewed === agentId && current.currentSessionId === sessionId,
+          });
+          return (
+            rewrite && {
+              kind: "messages",
+              sessionId,
+              before,
+              after: s.messages.map((m) => m.id),
+            }
+          );
+        },
+        {
+          signal,
+          onCommit: () => {
+            this.replies.committing(agentId);
+            this.emit();
+          },
+        },
+      );
+      if (removal) this.removed.set(agentId, removal);
+      this.activity?.(agentId, "saved");
+    } finally {
+      this.replies.finish(agentId);
+      this.emit();
+    }
+  }
+  /** Throws when the Agent has switched off the provider or its model's connection. */
+  private checkParts(a: Agent) {
     const off = (id: string) => a.off?.includes(id);
     const label = (id: string, known: readonly Named[]) =>
       known.find((e) => e.id === id)?.label ?? id;
@@ -441,112 +502,6 @@ export class AgentStore implements AgentProvider {
       throw new Error(
         `此 Agent 已关闭「${label(a.model.provider, this.connectors())}」，在详情的组成扩展中开启后才能回复。`,
       );
-    const model = a.model;
-    const sessionId = rewrite?.sessionId ?? a.currentSessionId;
-    const all = a.sessions.find((s) => s.id === sessionId)?.messages;
-    if (!all) throw new Error("会话不存在。");
-    const saved = rewrite ? all.slice(0, rewrite.from) : all;
-    // A rewrite applies only to the conversation it was asked from.
-    const asked = all.map((m) => m.id).join();
-    if (
-      imageSize(saved) + imageSize([{ attachments: files }]) >
-      LIMITS.sessionImages
-    )
-      throw new Error("此会话的图片已达上限，请新建会话或删除带图片的消息。");
-    const history = saved.map(({ role, text, attachments }) => ({
-      role,
-      text,
-      ...(attachments && { attachments }),
-    }));
-    const sentAt = Date.now();
-    const controller = new AbortController();
-    this.running.set(agentId, controller);
-    this.pending.set(agentId, {
-      sessionId,
-      text: input,
-      ...(files && { attachments: files }),
-      ...(rewrite && { replaces: rewrite.replaces }),
-    });
-    this.emit();
-    try {
-      const output = await this.reply(input, controller.signal, {
-        agentId,
-        model,
-        ...(a.effort && { effort: a.effort }),
-        name: a.name,
-        instructions: a.instructions ?? "",
-        history,
-        ...(files && { attachments: files }),
-      });
-      controller.signal.throwIfAborted();
-      if (!text(output, MAX_TEXT))
-        throw new Error(
-          `模型必须返回不超过 ${MAX_TEXT} 个字符的文本；本次结果未保存。`,
-        );
-      const removal = await this.change(
-        (agents): Removal | undefined => {
-          controller.signal.throwIfAborted();
-          const current = this.find(agents, agentId);
-          const s = current.sessions.find((s) => s.id === sessionId);
-          if (!s) throw new Error("会话已被移除。");
-          const before = s.messages;
-          if (rewrite) {
-            if (before.map((m) => m.id).join() !== asked)
-              throw new Error("会话已有新的变化，这次回复未保存。");
-            s.messages = before.slice(0, rewrite.from);
-          }
-          // Sending reads what came before; the reply sorts after all of
-          // it, also within the same millisecond.
-          readAll(s, sentAt);
-          const repliedAt = Math.max(Date.now(), s.lastReadAt! + 1);
-          s.messages.push(
-            {
-              id: id(),
-              role: "user",
-              from: OWNER,
-              text: input,
-              ...(files && { attachments: files }),
-              at: sentAt,
-            },
-            {
-              id: id(),
-              role: "agent",
-              from: agentId,
-              text: output,
-              at: repliedAt,
-            },
-          );
-          s.lastMessageAt = repliedAt;
-          if (this.viewed === agentId && current.currentSessionId === sessionId)
-            s.lastReadAt = repliedAt;
-          // The first message names the session, unless it was named already.
-          if (s.messages.length === 2 && s.title === UNTITLED)
-            s.title = (input.trim() ? input : files![0].name).slice(0, 24);
-          return (
-            rewrite && {
-              kind: "messages",
-              sessionId,
-              before,
-              after: s.messages.map((m) => m.id),
-            }
-          );
-        },
-        {
-          signal: controller.signal,
-          onCommit: () => {
-            this.committing.add(agentId);
-            this.emit();
-          },
-        },
-      );
-      if (removal) this.removed.set(agentId, removal);
-      this.activity?.(agentId, "saved");
-    } finally {
-      this.committing.delete(agentId);
-      this.running.delete(agentId);
-      this.pending.delete(agentId);
-      this.emit();
-    }
   }
   renameSession(agentId: string, sessionId: string, title: string) {
     const name = title.trim();
@@ -562,7 +517,7 @@ export class AgentStore implements AgentProvider {
   }
   removeMessage(agentId: string, sessionId: string, messageId: string) {
     if (
-      this.pending.get(agentId)?.sessionId === sessionId ||
+      this.replies.waitsIn(agentId, sessionId) ||
       this.structural.has(agentId)
     )
       return Promise.reject(
@@ -590,7 +545,7 @@ export class AgentStore implements AgentProvider {
     if (!removal) return Promise.reject(new Error("没有可撤销的删除。"));
     const waiting =
       removal.kind === "messages" &&
-      this.pending.get(agentId)?.sessionId === removal.sessionId;
+      this.replies.waitsIn(agentId, removal.sessionId);
     if (waiting || this.structural.has(agentId))
       return Promise.reject(
         new Error("请等待回复完成或先停止当前任务，再撤销。"),
@@ -613,11 +568,11 @@ export class AgentStore implements AgentProvider {
       });
   }
   cancel(agentId: string) {
-    if (!this.committing.has(agentId)) this.running.get(agentId)?.abort();
+    this.replies.cancel(agentId);
   }
   async close() {
     this.closed = true;
-    this.running.forEach((c) => c.abort());
+    this.replies.cancelAll();
     await this.queue;
     this.listeners.clear();
   }
