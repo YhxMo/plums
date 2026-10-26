@@ -86,7 +86,7 @@ export function MessageRow({
     <Bubble
       className={cn(
         "m-0 min-w-0 wrap-anywhere",
-        "max-w-[75%] rounded-[18px] px-[13px] py-2 text-sm leading-[22px] max-md:max-w-[85%] max-md:text-base",
+        "max-w-full rounded-[18px] px-[13px] py-2 text-sm leading-[22px] max-md:max-w-[85%] max-md:text-base",
         user
           ? "rounded-br-[5px] bg-brand whitespace-pre-wrap text-primary-foreground"
           : "rounded-bl-[5px] bg-bubble text-foreground",
@@ -129,88 +129,97 @@ export function MessageRow({
     >
       <span className="sr-only">{user ? "你" : agent.name}：</span>
       {content === bubble && files}
-      {message && onAction ? (
-        <ContextMenu
-          modal={false}
-          onOpenChange={(open) => open && (chosen.current = false)}
-        >
-          <ContextMenuTrigger
-            asChild
-            disabled={!pointerMenu}
-            className="select-text"
+      {/* Holds the bubble's width, so the actions below line up with its
+          right edge on either side. */}
+      <div
+        className={cn(
+          "relative flex max-w-[75%] min-w-0 flex-col max-md:max-w-[85%]",
+          user ? "items-end" : "items-start",
+        )}
+      >
+        {message && onAction ? (
+          <ContextMenu
+            modal={false}
+            onOpenChange={(open) => open && (chosen.current = false)}
           >
-            {content}
-          </ContextMenuTrigger>
-          <ContextMenuContent
-            className="min-w-40"
-            aria-label="消息操作"
-            onCloseAutoFocus={(event) => {
-              event.preventDefault();
-              // Escape returns to the message's own buttons; a chosen action
-              // keeps the focus it moved.
-              if (!chosen.current)
-                row.current
-                  ?.querySelector<HTMLElement>("[data-message-id] button")
-                  ?.focus();
-            }}
+            <ContextMenuTrigger
+              asChild
+              disabled={!pointerMenu}
+              className="select-text"
+            >
+              {content}
+            </ContextMenuTrigger>
+            <ContextMenuContent
+              className="min-w-40"
+              aria-label="消息操作"
+              onCloseAutoFocus={(event) => {
+                event.preventDefault();
+                // Escape returns to the message's own buttons; a chosen action
+                // keeps the focus it moved.
+                if (!chosen.current)
+                  row.current
+                    ?.querySelector<HTMLElement>("[data-message-id] button")
+                    ?.focus();
+              }}
+            >
+              {available.map((action) => {
+                const { label, icon: Icon } = actions[action];
+                return (
+                  <span key={action} className="contents">
+                    {action === "delete" && <ContextMenuSeparator />}
+                    <ContextMenuItem
+                      variant={action === "delete" ? "destructive" : "default"}
+                      disabled={action !== "copy" && busy}
+                      onSelect={() => {
+                        chosen.current = true;
+                        onAction(action, message);
+                      }}
+                    >
+                      <Icon />
+                      {label}
+                    </ContextMenuItem>
+                  </span>
+                );
+              })}
+            </ContextMenuContent>
+          </ContextMenu>
+        ) : (
+          content
+        )}
+        {message && onAction && (
+          <div
+            className={cn(
+              // Hidden actions float in the gap below instead of spacing lines apart.
+              "absolute top-full right-0 flex opacity-0 transition-opacity group-focus-within/row:opacity-100 group-hover/row:opacity-100 group-has-data-[state=open]/row:opacity-100 max-md:hidden",
+            )}
+            data-message-id={message.id}
           >
             {available.map((action) => {
               const { label, icon: Icon } = actions[action];
+              const shown = action === "copy" && copied ? "已复制" : label;
               return (
-                <span key={action} className="contents">
-                  {action === "delete" && <ContextMenuSeparator />}
-                  <ContextMenuItem
-                    variant={action === "delete" ? "destructive" : "default"}
+                // Below, so the tip never covers the message it acts on.
+                <Tooltip key={action} label={shown} side="bottom">
+                  <Button
+                    variant="ghost"
+                    size="icon-xs"
+                    className="text-muted-foreground/80 hover:text-foreground [&_svg:not([class*='size-'])]:size-3.5"
+                    aria-label={shown}
                     disabled={action !== "copy" && busy}
-                    onSelect={() => {
-                      chosen.current = true;
-                      onAction(action, message);
-                    }}
+                    onClick={() => onAction(action, message)}
                   >
-                    <Icon />
-                    {label}
-                  </ContextMenuItem>
-                </span>
+                    {action === "copy" && copied ? (
+                      <CheckIcon className="text-running" />
+                    ) : (
+                      <Icon />
+                    )}
+                  </Button>
+                </Tooltip>
               );
             })}
-          </ContextMenuContent>
-        </ContextMenu>
-      ) : (
-        content
-      )}
-      {message && onAction && (
-        <div
-          className={cn(
-            // Hidden actions float in the gap below instead of spacing lines apart.
-            "absolute top-full flex opacity-0 transition-opacity group-focus-within/row:opacity-100 group-hover/row:opacity-100 group-has-data-[state=open]/row:opacity-100 max-md:hidden",
-            user ? "right-0" : "left-0",
-          )}
-          data-message-id={message.id}
-        >
-          {available.map((action) => {
-            const { label, icon: Icon } = actions[action];
-            const shown = action === "copy" && copied ? "已复制" : label;
-            return (
-              <Tooltip key={action} label={shown}>
-                <Button
-                  variant="ghost"
-                  size="icon-xs"
-                  className="text-muted-foreground/80 hover:text-foreground [&_svg:not([class*='size-'])]:size-3.5"
-                  aria-label={shown}
-                  disabled={action !== "copy" && busy}
-                  onClick={() => onAction(action, message)}
-                >
-                  {action === "copy" && copied ? (
-                    <CheckIcon className="text-running" />
-                  ) : (
-                    <Icon />
-                  )}
-                </Button>
-              </Tooltip>
-            );
-          })}
-        </div>
-      )}
+          </div>
+        )}
+      </div>
     </div>
   );
 }

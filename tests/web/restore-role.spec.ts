@@ -107,13 +107,15 @@ test("valid saved roles restore with correct attribution after reload", async ({
       .getByRole("log")
       .locator('[data-slot="context-menu-trigger"]')
       .filter({ hasText: /^saved question$/ })
-      .locator("..");
+      // The bubble sits in a box that holds its width, inside the row.
+      .locator("xpath=../..");
     await expect(question.locator(":scope > span")).toHaveText("你：");
     const answer = page
       .getByRole("log")
       .locator('[data-slot="context-menu-trigger"]')
       .filter({ hasText: /^saved answer$/ })
-      .locator("..");
+      // The bubble sits in a box that holds its width, inside the row.
+      .locator("xpath=../..");
     await expect(answer.locator(":scope > span")).toHaveText("RestoreRole：");
     if (attempt === 0) await page.reload();
   }

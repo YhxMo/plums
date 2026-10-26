@@ -98,3 +98,24 @@ test("phones keep the chat layout without hover actions or a pointer menu", asyn
     ),
   ).toBe("#fcfcfc");
 });
+
+test("a reply's actions sit under its bubble's right edge", async ({
+  page,
+}) => {
+  await startChat(page, 1280);
+  const log = page.getByRole("log");
+  await log.locator("p", { hasText: reply }).hover();
+  const actions = log
+    .locator("[data-message-id]")
+    .filter({ has: page.getByRole("button", { name: "重新生成" }) });
+  await expect(actions).toBeVisible();
+  // The bubble is the element the actions float under.
+  const bubble = (await actions
+    .locator("xpath=preceding-sibling::*[1]")
+    .boundingBox())!;
+  const row = (await actions.boundingBox())!;
+  expect(
+    Math.abs(row.x + row.width - (bubble.x + bubble.width)),
+  ).toBeLessThanOrEqual(1);
+  expect(row.y).toBeGreaterThanOrEqual(bubble.y + bubble.height - 1);
+});
