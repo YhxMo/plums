@@ -63,3 +63,29 @@ test("adding an Agent takes two steps: who it is, then its model and extensions"
     page.getByRole("region", { name: "写作助手 的会话", exact: true }),
   ).toBeVisible();
 });
+
+test("a long single-line role card stays inside the import dialog", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1280, height: 800 });
+  await page.goto("/");
+  await page.getByRole("button", { name: "导入角色卡", exact: true }).click();
+  const raw = page.getByRole("textbox", { name: "内容", exact: true });
+  // Latin text has no break opportunities; CJK text would wrap anyway.
+  await raw.fill(
+    JSON.stringify({ name: "长卡", description: "a".repeat(300) }),
+  );
+  const dialog = page.getByRole("dialog");
+  // Nothing but a one-line input scrolls sideways; the text wraps in its box.
+  const widths = await dialog.evaluate((root) =>
+    [root, ...root.querySelectorAll("*")]
+      .filter((e) => e.tagName !== "INPUT")
+      .filter((e) => e.scrollWidth > e.clientWidth + 1)
+      .map((e) => e.getAttribute("data-slot") ?? e.tagName),
+  );
+  expect(widths).toEqual([]);
+  const box = (await dialog.boundingBox())!;
+  const field = (await raw.boundingBox())!;
+  expect(field.x).toBeGreaterThanOrEqual(box.x);
+  expect(field.x + field.width).toBeLessThanOrEqual(box.x + box.width);
+});
