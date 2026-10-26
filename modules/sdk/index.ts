@@ -121,9 +121,8 @@ export type BundleExtension = {
   license?: string;
   package?: { manifest: string; main: string };
 };
-/** What became of a package offered for installation. */
+/** What became of a package offered for installation; one per package, in order. */
 export type PackageOutcome = {
-  id: string;
   outcome: "installed" | "replaced" | "kept" | "declined" | "refused";
   reason?: string;
 };

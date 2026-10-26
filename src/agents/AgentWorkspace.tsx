@@ -247,12 +247,16 @@ export function AgentWorkspace({
     key,
   ]);
   /** The extensions an Agent is made of: provider, interface, memory, its model's connection. */
-  const partIds = (a: Agent) => [
-    ...(api.info.extensions ?? []).map((p) => p.id),
-    ...(ui ? [ui.id] : []),
-    ...(api.memories?.() ?? []).map((m) => m.id),
-    ...(a.model ? [a.model.provider] : []),
-  ];
+  const partIds = (a: Agent) =>
+    agentParts({
+      provider: api.info.extensions ?? [],
+      ui,
+      api,
+      model: a.model,
+      memories: (api.memories?.() ?? []).map((choice) => ({ choice })),
+    })
+      .filter((p) => !p.connector || p.choice.id === a.model?.provider)
+      .map((p) => p.choice.id);
   function agentAction(
     a: Agent,
     action: AgentAction,

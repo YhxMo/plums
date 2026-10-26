@@ -27,37 +27,10 @@ pub fn file_name(name: &str) -> Result<&str, &'static str> {
 
 /// Standard base64 with padding.
 pub fn decode(data: &str) -> Result<Vec<u8>, &'static str> {
-    let invalid = "invalid-request";
-    let bytes = data.as_bytes();
-    if !bytes.len().is_multiple_of(4) {
-        return Err(invalid);
-    }
-    let value = |c: u8| -> Result<u32, &'static str> {
-        Ok(match c {
-            b'A'..=b'Z' => c - b'A',
-            b'a'..=b'z' => c - b'a' + 26,
-            b'0'..=b'9' => c - b'0' + 52,
-            b'+' => 62,
-            b'/' => 63,
-            _ => return Err(invalid),
-        } as u32)
-    };
-    let mut out = Vec::with_capacity(bytes.len() / 4 * 3);
-    let quads = bytes.chunks(4).count();
-    for (i, quad) in bytes.chunks(4).enumerate() {
-        let pad = quad.iter().rev().take_while(|&&c| c == b'=').count();
-        if pad > 2 || (pad > 0 && i + 1 != quads) || quad[..4 - pad].contains(&b'=') {
-            return Err(invalid);
-        }
-        let mut n = 0u32;
-        for &c in &quad[..4 - pad] {
-            n = (n << 6) | value(c)?;
-        }
-        n <<= 6 * pad as u32;
-        let decoded = [(n >> 16) as u8, (n >> 8) as u8, n as u8];
-        out.extend_from_slice(&decoded[..3 - pad]);
-    }
-    Ok(out)
+    use base64::Engine;
+    base64::engine::general_purpose::STANDARD
+        .decode(data)
+        .map_err(|_| "invalid-request")
 }
 
 #[cfg(target_os = "macos")]

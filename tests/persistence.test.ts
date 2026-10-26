@@ -235,9 +235,9 @@ it("lends a bundle imported packages, built-ins by version only, and offers pack
   events.addEventListener("offer-packages", (event) => {
     event.preventDefault();
     const { packages, settle } = (event as CustomEvent).detail;
-    settle(packages.map(() => ({ id: "x.y", outcome: "declined" })));
+    settle(packages.map(() => ({ outcome: "declined" })));
   });
   await expect(
     bridge.offerPackages!("ui.agents", [{ manifest: "{}", main: "" }]),
-  ).resolves.toEqual([{ id: "x.y", outcome: "declined" }]);
+  ).resolves.toEqual([{ outcome: "declined" }]);
 });

@@ -31,7 +31,7 @@ const parts = [
 ];
 
 it("packs the card, which parts it uses and switched off, and only third-party code", async () => {
-  const zip = writeBundle({
+  const zip = await writeBundle({
     card: withRoleCard(tinyPng(), agent),
     extensions: parts,
     off: ["memory.local"],

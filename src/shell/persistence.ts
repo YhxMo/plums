@@ -83,34 +83,35 @@ export function createShellBridge(
     label: (id) => entries.find((entry) => entry.id === id)?.label ?? id,
     async bundle(ids) {
       if (!source) return [];
-      const found: BundleExtension[] = [];
-      for (const id of ids) {
-        const manifest = source.manifest(id);
-        if (!manifest) continue;
-        const imported = persistence
-          .current()
-          .imports.find((entry) => entry.id === id);
-        const label =
-          imported?.label ??
-          entries.find((entry) => entry.id === id)?.label ??
-          manifest.name ??
-          id;
-        const pkg =
-          imported && isPackageImport(imported.url)
-            ? await source.packages.read(imported.url)
-            : undefined;
-        found.push({
-          id,
-          version: manifest.version,
-          label,
-          ...(manifest.author && { author: manifest.author }),
-          ...(manifest.license && { license: manifest.license }),
-          ...(pkg && {
-            package: { manifest: pkg.manifestText, main: pkg.main },
-          }),
-        });
-      }
-      return found;
+      const found = await Promise.all(
+        ids.map(async (id): Promise<BundleExtension | undefined> => {
+          const manifest = source.manifest(id);
+          if (!manifest) return undefined;
+          const imported = persistence
+            .current()
+            .imports.find((entry) => entry.id === id);
+          const label =
+            imported?.label ??
+            entries.find((entry) => entry.id === id)?.label ??
+            manifest.name ??
+            id;
+          const pkg =
+            imported && isPackageImport(imported.url)
+              ? await source.packages.read(imported.url)
+              : undefined;
+          return {
+            id,
+            version: manifest.version,
+            label,
+            ...(manifest.author && { author: manifest.author }),
+            ...(manifest.license && { license: manifest.license }),
+            ...(pkg && {
+              package: { manifest: pkg.manifestText, main: pkg.main },
+            }),
+          };
+        }),
+      );
+      return found.filter((entry) => entry !== undefined);
     },
     // Extension management shows each package and asks; with nobody to ask,
     // nothing is installed.

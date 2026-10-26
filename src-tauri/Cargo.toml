@@ -18,6 +18,7 @@ serde_json = "1"
 uuid = { version = "=1.28.0", features = ["v4"] }
 url = "=2.5.8"
 http = "=1.5.0"
+base64 = "=0.22.1"
 # SQLite compiled into the app, so every platform uses the same version.
 rusqlite = { version = "=0.40.2", features = ["bundled"] }
 

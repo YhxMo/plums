@@ -151,7 +151,7 @@ test("a bundle part this app lacks stays off and says why; a declined package in
     new Uint8Array(readFileSync("public/brand/plums.png")),
     { name: "缺件", description: "", instructions: "" },
   );
-  const bytes = writeBundle({
+  const bytes = await writeBundle({
     card,
     extensions: [
       { id: "agents.local", version: "0.0.4" },

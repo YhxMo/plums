@@ -100,18 +100,17 @@ export function ExportBundle({
           type="button"
           disabled={busy}
           onClick={() =>
-            void roleCardPng(agent).then((card) =>
-              onExport(
-                fileName(agent.name, ".plums"),
-                bytesToBase64(
-                  writeBundle({
-                    card,
-                    extensions: found,
-                    off: (agent.off ?? []).filter((id) => parts.includes(id)),
-                  }),
-                ),
-              ),
-            )
+            void roleCardPng(agent)
+              .then((card) =>
+                writeBundle({
+                  card,
+                  extensions: found,
+                  off: (agent.off ?? []).filter((id) => parts.includes(id)),
+                }),
+              )
+              .then((bundle) =>
+                onExport(fileName(agent.name, ".plums"), bytesToBase64(bundle)),
+              )
           }
         >
           导出

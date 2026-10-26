@@ -2711,6 +2711,7 @@ dependencies = [
 name = "plums"
 version = "0.2.0"
 dependencies = [
+ "base64 0.22.1",
  "http",
  "objc2",
  "objc2-app-kit",

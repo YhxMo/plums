@@ -1,4 +1,4 @@
-import { strToU8, unzipSync, zipSync } from "fflate";
+import { MAX_SAVE_BYTES } from "@modules/sdk/files";
 import { identifier } from "@modules/sdk/validation";
 import { readRoleCardFile, type RoleCardSource } from "./role-card";
 
@@ -15,8 +15,8 @@ import { readRoleCardFile, type RoleCardSource } from "./role-card";
  *   extensions/<id>/main.js
  */
 export const BUNDLE_VERSION = 1;
-/** Largest bundle read; file.save writes at most this much too. */
-export const MAX_BUNDLE_BYTES = 32 * 1024 * 1024;
+/** Largest bundle read: what file.save can write. */
+export const MAX_BUNDLE_BYTES = MAX_SAVE_BYTES;
 
 /** An extension of the Agent, as the bundle lists it. */
 export type BundleEntry = { id: string; version: string; packaged: boolean };
@@ -31,8 +31,11 @@ export type ReadBundle = {
 
 const NOT_A_BUNDLE = "这个文件不是 Plums 的 Agent 文件。";
 
-/** Packs an Agent: its card, its parts (with packages for third-party ones) and what it has off. */
-export function writeBundle({
+/**
+ * Packs an Agent: its card, its parts (with packages for third-party ones)
+ * and what it has off. fflate loads only when a bundle is written or read.
+ */
+export async function writeBundle({
   card,
   extensions,
   off,
@@ -44,7 +47,8 @@ export function writeBundle({
     package?: BundlePackage;
   }[];
   off: readonly string[];
-}): Uint8Array<ArrayBuffer> {
+}): Promise<Uint8Array<ArrayBuffer>> {
+  const { strToU8, zipSync } = await import("fflate");
   const files: Record<string, Uint8Array> = {
     "card.png": card,
     "agent.json": strToU8(
@@ -89,7 +93,10 @@ const isEntry = (value: unknown): value is BundleEntry => {
 /** Reads a bundle; no extension code runs, packages are only text. */
 export async function readBundle(file: Blob): Promise<ReadBundle> {
   if (file.size > MAX_BUNDLE_BYTES)
-    throw new Error("Agent 文件不能超过 32 MB。");
+    throw new Error(
+      `Agent 文件不能超过 ${MAX_BUNDLE_BYTES / 1024 / 1024} MB。`,
+    );
+  const { unzipSync } = await import("fflate");
   let files: Record<string, Uint8Array>;
   try {
     files = unzipSync(new Uint8Array(await file.arrayBuffer()), {
