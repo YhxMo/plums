@@ -41,8 +41,8 @@ import { replyBlocker } from "./blocker";
 
 // The handle is the gap between the list and the conversation card; it only
 // shows a brand-coloured line while used.
-const handle =
-  "w-2 bg-transparent after:w-0.5 after:rounded-full after:transition-colors hover:after:bg-brand/50 data-[separator=active]:after:bg-brand";
+/** The 8px gap is the handle; the pointer alone shows it can be dragged. */
+const handle = "w-2 bg-transparent";
 
 export function AgentWorkspace({
   api,
