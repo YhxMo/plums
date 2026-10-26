@@ -1,7 +1,7 @@
 [package]
 name = "plums"
 version = "0.2.0"
-license = "MIT"
+license = "GPL-3.0-or-later"
 edition = "2021"
 
 [lib]
