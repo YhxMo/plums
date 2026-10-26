@@ -13,7 +13,7 @@ const ModelConnections = lazy(() =>
 /** The built-in model connector with its React connection page. */
 export const modelConnectorWithPage = () =>
   modelConnector({
-    mountPage(container, api) {
+    mountPage(container, api, close) {
       const element = document.createElement("div");
       container.append(element);
       const root = createRoot(element);
@@ -22,7 +22,7 @@ export const modelConnectorWithPage = () =>
       root.render(
         <LayerContainer value={element}>
           <Suspense fallback={null}>
-            <ModelConnections api={api} />
+            <ModelConnections api={api} onDone={close} />
           </Suspense>
         </LayerContainer>,
       );

@@ -68,6 +68,12 @@ export interface Platform {
   ): Promise<unknown>;
 }
 
+/** What the shell gives a view it mounts. */
+export interface ViewContext {
+  /** Closes the dialog showing the view; absent outside a dialog. */
+  close?(): void;
+}
+
 export interface View {
   id: string;
   label: string;
@@ -92,7 +98,7 @@ export interface View {
   chrome?: WorkspaceChrome;
   beforeLeave?: () => Promise<void>;
   /** A rejected disposer remains cleanup-failed; the host does not blindly retry it. */
-  mount(root: HTMLElement): () => void | Promise<void>;
+  mount(root: HTMLElement, context?: ViewContext): () => void | Promise<void>;
 }
 
 export type ShellAction = "extensions" | "settings" | "diagnostics" | "view";

@@ -7,7 +7,12 @@ import {
   resolveConfiguration,
   type Configuration,
 } from "@modules/sdk/configuration";
-import type { ExtensionDefinition, Platform, ShellBridge } from "@modules/sdk";
+import type {
+  ExtensionDefinition,
+  Platform,
+  ShellBridge,
+  ViewContext,
+} from "@modules/sdk";
 import { extensionOwner } from "@modules/sdk";
 
 type Status =
@@ -213,14 +218,18 @@ export class Host {
   async leaveView(id: string) {
     await this.registry.views.get(id)?.beforeLeave?.();
   }
-  mountView(id: string, root: HTMLElement): () => void | Promise<void> {
+  mountView(
+    id: string,
+    root: HTMLElement,
+    context?: ViewContext,
+  ): () => void | Promise<void> {
     const view = this.registry.views.get(id);
     if (!view || this.record(view.owner).status !== "active")
       throw hostError(`View unavailable: ${id}`);
     const record = this.record(view.owner);
     const scope = record.scope!;
     scope.assertOpen();
-    const unmount = view.mount(root);
+    const unmount = view.mount(root, context);
     let closed = false;
     let failure: Error | undefined;
     let pending: Promise<void> | undefined;

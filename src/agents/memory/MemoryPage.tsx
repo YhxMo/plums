@@ -6,7 +6,7 @@ import type { MemoryItem, MemoryScope } from "@modules/agents/memory/contract";
 import { expired, sameScope } from "@modules/agents/memory/items";
 import type { ConsolidationModel } from "@modules/agents/memory/persistence";
 import type { MemoryAgent } from "@modules/agents/memory/store";
-import { DialogBody } from "@/components/Dialog";
+import { DialogActions, DialogBody } from "@/components/Dialog";
 import { Select, type SelectOption } from "@/components/Select";
 import { ActionToast } from "@/components/Toast";
 import { useAsyncAction } from "@/components/useAsyncAction";
@@ -62,10 +62,13 @@ const parseChoice = (value: string): ConsolidationModel | null => {
 export function MemoryPage({
   api,
   focus,
+  onDone,
 }: {
   api: MemoryPageApi;
   /** The Agent to show first; null for the shared memory. */
   focus: string | null;
+  /** Closes the dialog; the page ends in a button for it. */
+  onDone?: () => void;
 }) {
   const subscribe = useCallback(
     (listener: () => void) => api.subscribe(listener),
@@ -98,90 +101,97 @@ export function MemoryPage({
   const remove = (item: { id: string }) =>
     void saved(() => api.remove(item.id), "已删除");
   return (
-    <DialogBody className="gap-[18px]">
-      <div className="flex items-center gap-3">
-        <Select
-          label="查看谁的记忆"
-          className="w-auto min-w-44"
-          value={agent ? agent.id : SHARED}
-          onChange={setView}
-          options={[
-            {
-              value: SHARED,
-              label: "关于我",
-              description: "写给所有 Agent 的资料",
-            },
-            ...snap.agents.map((a) => ({
-              value: a.id,
-              label: a.name,
-              description: "它从对话里记下的事",
-              group: "Agent 记得的事",
-            })),
-          ]}
+    <>
+      <DialogBody className="gap-[18px]">
+        <div className="flex items-center gap-3">
+          <Select
+            label="查看谁的记忆"
+            className="w-auto min-w-44"
+            value={agent ? agent.id : SHARED}
+            onChange={setView}
+            options={[
+              {
+                value: SHARED,
+                label: "关于我",
+                description: "写给所有 Agent 的资料",
+              },
+              ...snap.agents.map((a) => ({
+                value: a.id,
+                label: a.name,
+                description: "它从对话里记下的事",
+                group: "Agent 记得的事",
+              })),
+            ]}
+          />
+          <span className="text-xs text-muted-foreground">
+            {agent ? "只有它会读到" : "所有 Agent 都会读到"}
+          </span>
+        </div>
+        {agent && (
+          <Status
+            agent={agent}
+            busy={busy}
+            onRetry={() => void run(() => api.consolidate(agent.id))}
+          />
+        )}
+        {current.length ? (
+          <MemoryItems
+            label={agent ? `${agent.name} 记得的事` : "关于我"}
+            items={current}
+            now={now}
+            busy={busy}
+            onUpdate={update}
+            onRemove={remove}
+          />
+        ) : (
+          <p className="text-sm text-muted-foreground">
+            {agent ? "还没有记下什么" : "还没有写下关于你的资料"}
+          </p>
+        )}
+        {past.length > 0 && (
+          <Expired
+            items={past}
+            now={now}
+            busy={busy}
+            onUpdate={update}
+            onRemove={remove}
+            onClear={() =>
+              void saved(() => api.clearExpired(scope), "已清除过期的记忆")
+            }
+          />
+        )}
+        <ItemForm
+          submit="添加"
+          busy={busy}
+          onSave={(fields) => saved(() => api.add(scope, fields), "已添加")}
         />
-        <span className="text-xs text-muted-foreground">
-          {agent ? "只有它会读到" : "所有 Agent 都会读到"}
-        </span>
-      </div>
-      {agent && (
-        <Status
+        <ModelSetting
           agent={agent}
+          model={snap.model}
+          models={models}
           busy={busy}
-          onRetry={() => void run(() => api.consolidate(agent.id))}
-        />
-      )}
-      {current.length ? (
-        <MemoryItems
-          label={agent ? `${agent.name} 记得的事` : "关于我"}
-          items={current}
-          now={now}
-          busy={busy}
-          onUpdate={update}
-          onRemove={remove}
-        />
-      ) : (
-        <p className="text-sm text-muted-foreground">
-          {agent ? "还没有记下什么" : "还没有写下关于你的资料"}
-        </p>
-      )}
-      {past.length > 0 && (
-        <Expired
-          items={past}
-          now={now}
-          busy={busy}
-          onUpdate={update}
-          onRemove={remove}
-          onClear={() =>
-            void saved(() => api.clearExpired(scope), "已清除过期的记忆")
+          onChange={(choice) =>
+            void run(async () => {
+              await api.setModel(agent?.id ?? null, choice);
+              setNotice("已更新整理用的模型");
+            })
           }
         />
+        <ActionToast
+          error={error}
+          notice={notice}
+          onDone={() => {
+            setError("");
+            setNotice("");
+          }}
+        />
+      </DialogBody>
+      {onDone && (
+        <DialogActions>
+          <Button onClick={onDone}>完成</Button>
+        </DialogActions>
       )}
-      <ItemForm
-        submit="添加"
-        busy={busy}
-        onSave={(fields) => saved(() => api.add(scope, fields), "已添加")}
-      />
-      <ModelSetting
-        agent={agent}
-        model={snap.model}
-        models={models}
-        busy={busy}
-        onChange={(choice) =>
-          void run(async () => {
-            await api.setModel(agent?.id ?? null, choice);
-            setNotice("已更新整理用的模型");
-          })
-        }
-      />
-      <ActionToast
-        error={error}
-        notice={notice}
-        onDone={() => {
-          setError("");
-          setNotice("");
-        }}
-      />
-    </DialogBody>
+    </>
   );
 }
 

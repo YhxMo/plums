@@ -62,6 +62,8 @@ export type ModelConnectionsApi = Pick<
 type MountPage = (
   container: HTMLElement,
   api: ModelConnectionsApi,
+  /** Closes the dialog showing the page. */
+  close?: () => void,
 ) => () => void | Promise<void>;
 
 const pictures = (value: unknown) =>
@@ -362,7 +364,8 @@ export function modelConnector({
         id: MODEL_PAGE,
         label: "模型连接",
         presentation: "dialog",
-        mount: (container) => mountPage(container, api),
+        mount: (container, context) =>
+          mountPage(container, api, context?.close),
       });
     },
   };

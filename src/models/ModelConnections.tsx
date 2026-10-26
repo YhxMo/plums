@@ -4,7 +4,7 @@ import type { ModelConnectionsApi } from "@modules/models/extension";
 import type { ProviderStatus, ProviderView } from "@modules/models/providers";
 import { tokenLabel } from "@modules/models/protocols";
 import { useAsyncAction } from "@/components/useAsyncAction";
-import { DialogBody } from "@/components/Dialog";
+import { DialogActions, DialogBody } from "@/components/Dialog";
 import { ActionToast } from "@/components/Toast";
 import { Button } from "@/components/ui/button";
 import { ProviderForm } from "./ProviderForm";
@@ -19,7 +19,14 @@ const statusLabel: Record<ProviderStatus, string> = {
   changed: "地址未确认",
 };
 /** The user's model providers and their models: add, edit (and delete), re-key, test. */
-export function ModelConnections({ api }: { api: ModelConnectionsApi }) {
+export function ModelConnections({
+  api,
+  onDone,
+}: {
+  api: ModelConnectionsApi;
+  /** Closes the dialog; the list ends in a button for it. */
+  onDone?: () => void;
+}) {
   const subscribe = useCallback(
     (listener: () => void) => api.subscribe(listener),
     [api],
@@ -84,7 +91,7 @@ export function ModelConnections({ api }: { api: ModelConnectionsApi }) {
         }}
       />
     );
-  return (
+  const list = (
     <DialogBody>
       {providers.length === 0 ? (
         <p className="text-muted-foreground">还没有服务商</p>
@@ -199,6 +206,17 @@ export function ModelConnections({ api }: { api: ModelConnectionsApi }) {
         添加服务商
       </Button>
     </DialogBody>
+  );
+  // Changes save as they are made, so the list only needs a way out.
+  return onDone ? (
+    <>
+      {list}
+      <DialogActions>
+        <Button onClick={onDone}>完成</Button>
+      </DialogActions>
+    </>
+  ) : (
+    list
   );
 }
 

@@ -24,6 +24,8 @@ type MountPage = (
   api: MemoryPageApi,
   /** The Agent whose memory to show first; null for the shared memory. */
   focus: string | null,
+  /** Closes the dialog showing the page. */
+  close?: () => void,
 ) => () => void | Promise<void>;
 
 /**
@@ -89,10 +91,10 @@ export function memoryExtension({
           label: "记忆",
           presentation: "dialog",
           entry: "user",
-          mount(container) {
+          mount(container, context) {
             const first = focus;
             focus = null;
-            return mountPage(container, store, first);
+            return mountPage(container, store, first, context?.close);
           },
         });
       }

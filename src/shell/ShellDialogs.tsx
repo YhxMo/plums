@@ -1,7 +1,7 @@
 import { preservedMessage } from "./messages";
 import type { ShellDialogsProps } from "./controllers";
 import { ExtensionView } from "./ExtensionView";
-import { Dialog, DialogBody } from "@/components/Dialog";
+import { Dialog, DialogActions, DialogBody } from "@/components/Dialog";
 import { Button } from "@/components/ui/button";
 import { SettingsPanel } from "./SettingsPanel";
 import { VERSION } from "./version";
@@ -38,6 +38,7 @@ export function ShellDialogs({
             host={host}
             id={view.id}
             generation={view.generation}
+            onClose={() => setSettings(null)}
           />
         ) : (
           <DialogBody>
@@ -93,6 +94,9 @@ export function ShellDialogs({
           />
         </DialogBody>
       )}
+      <DialogActions>
+        <Button onClick={() => setSettings(null)}>完成</Button>
+      </DialogActions>
     </Dialog>
   );
 }
