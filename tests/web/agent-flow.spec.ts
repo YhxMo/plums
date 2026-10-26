@@ -595,6 +595,9 @@ test("settings reports rejected layout and theme writes inside the modal and ret
   await pickLayout(page, "Agent 界面");
   await expect(dialog.getByRole("alert")).toContainText("注入的写入故障");
   await dialog.getByRole("radio", { name: other, exact: true }).click();
+  // The same message again replaces the toast; the one leaving may still
+  // be in the page for a frame, so wait until only one is left.
+  await expect(dialog.getByRole("alert")).toHaveCount(1);
   await expect(dialog.getByRole("alert")).toContainText("注入的写入故障");
   await expect(page.locator("html")).toHaveAttribute("data-theme", before!);
   await page.keyboard.press("Escape");

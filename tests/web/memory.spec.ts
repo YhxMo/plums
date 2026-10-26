@@ -212,3 +212,36 @@ test("a cheaper model consolidates, says where the conversation goes, and the re
   await page.getByRole("button", { name: "撤销", exact: true }).click();
   await expect(dialog.getByText("还没有记下什么")).toBeVisible();
 });
+
+test("Escape closes the memory page at once, even over the open Agent details", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await page.goto("/");
+  await addAgent(page, "甲");
+  await details(page).click();
+  await expect(
+    page.getByRole("complementary", { name: "Agent 详情" }),
+  ).toBeVisible();
+  // The page mounts in its own React root; Escape pressed as soon as its
+  // title takes focus, before the layers re-render, still reaches it.
+  await page.evaluate(async () => {
+    document
+      .querySelector<HTMLElement>(
+        'nav[aria-label="应用导航"] button[aria-label="记忆"]',
+      )!
+      .click();
+    for (let i = 0; i < 200; i++) {
+      const focused = document.activeElement;
+      if (focused?.matches("[data-slot=dialog-title]")) {
+        focused.dispatchEvent(
+          new KeyboardEvent("keydown", { key: "Escape", bubbles: true }),
+        );
+        return;
+      }
+      await new Promise((done) => setTimeout(done, 0));
+    }
+    throw new Error("the memory page did not take focus");
+  });
+  await expect(memoryPage(page)).toHaveCount(0);
+});

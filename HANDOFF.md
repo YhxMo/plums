@@ -30,7 +30,7 @@
 | --- | --- |
 | Web | 边界整理后的工作区上 `npm run verify:web` 通过（1017 单元及构建、发布内容检查、格式、项目边界、行数与 ESLint）；此前 `0220ac9` 与界面改造各提交各自通过 |
 | 原生逻辑 | `40f3fa0`（`file.save`）上 `npm run verify:native` 通过：IPC、格式、Clippy、93 单元；此前 `61df274` 上通过，SQLite 第一步时 debug 应用在真实格式开发数据副本上导入 `host.shell`（修订 11）并在其上保存，版本 1 → 2 的原地升级只有单元验证 |
-| Chromium | 边界整理后 `npm run verify:e2e` 290 项中 289 项通过；失败的 `memory.spec.ts` 第二次 Escape 是改动前就有的竞态（`956d15f` 上重复 6 次失败 3 次，见下方遗留）。`0220ac9` 上全量 289 项全部通过 |
+| Chromium | 边界整理与 Escape 修复后 `npm run verify:e2e` 全量 291 项全部通过；修复前 `memory.spec.ts` 在 `956d15f` 上重复 6 次失败 3 次，修复后 Escape 相关三个 spec 各重复 3 次共 66 项通过。`0220ac9` 上全量 289 项全部通过 |
 | WebKit | 界面改造后未重跑。改造前 `eaa1380` 上 16 个相关 spec 共 108 项：106 通过，失败的是 agent-flow 的“dialog close is quiet…”浅深两项（该测试现改为从名称框反向 Tab 到关闭按钮），见[抽查记录](evidence/MAC-SPOTCHECK-2026-10-25.md)。剪贴板读回只在 Chromium 检查（Playwright 的 WebKit 没有剪贴板权限） |
 | 浏览器视觉 | Chromium 1280px 浅深截图对照效果图：会话、欢迎页、详情、添加两步、导入、记忆、扩展管理、设置，以及导出的角色卡 PNG；模型连接页在浏览器开发服务中连接器停在“等待条件”，未截图，由 e2e 覆盖 |
 | 打包应用 | 界面改造候选 `release/.mac-eibrI5/Plums.app`（`0220ac9`）已构建并以隔离数据启动，未见错误；所有者在正式数据上打开时提示“权限恢复失败 agents.local”（旧组合记录的 `state.write`），`80afb30` 修复后重建为 `release/.mac-0JyPeB`；本会话没有屏幕录制权限，毛玻璃与 0.5px 线条的目视、`file.save` 保存面板与整包导入均未做。此前 `2f3ee6e` 候选上所有者抽查对话体验与窗口框架，抽查中发现的问题已修复并重新打包，见[抽查记录](evidence/MAC-SPOTCHECK-2026-10-25.md)；`eb5c68b` 的检查点候选在真实改名前数据副本上完成迁移、消息转为记录、一次真实模型调用（输出上限未生效）、文件夹导入与模型窗口填写，见[打包检查点记录](evidence/MAC-CHECKPOINT-2026-10-24.md)；输入法与焦点的实测仍是改名前候选的[记录](evidence/MAC-INPUT-LAYOUT-2026-10-23.md) |
@@ -55,8 +55,8 @@
 当前是[路线阶梯](docs/spec/total.md#路线阶梯)第 1 级（Mac 第一版），顺序与剩余内容只在[当前阶段](docs/spec/milestone.md#第-1-级mac-第一版)维护；自 0.2.0 以来的工作见 git log。
 
 - **当前焦点**：第 5a 项界面规范改造与导出已实现（含所有者补充的角色卡导出与整包导出导入），等待所有者在上面的打包候选中抽查；之后是第 6 项外观与快捷键。
-- **边界整理**：`AgentStore` 拆出消息写入（`sessions.ts`）与在途回复（`replies.ts`），群聊前要做的“送达与生成分开”记在[路线第 2 级](docs/spec/total.md#2-群聊)；Agent 界面的草稿与附件、导入导出、回复阻挡与可撤销提示，扩展管理的整包确认，记忆的整理计时各自成为独立模块；记忆页从 `memory@1` 服务中分出为可选 `page`；外壳不再读取工作区 DOM，改由工作区状态声明 `frame: "own"`，卡片几何由共用的 `--pane-gap`、`--pane-header` 给出。行为不变，只有单元与浏览器回归，打包应用未重验。
-- **遗留**：`modules/agents/store.ts`（约 580 行）、`modules/agents/memory/store.ts`（约 440 行）、`AgentWorkspace.tsx`（约 470 行）与 `ProviderForm.tsx`（约 610 行）超过 400 行提示线；最外层导航、窗口框架与管理入口仍由 `Workbench` 固定组装，工作区可替换不等于整个应用外壳可替换；弹层刚打开、尚未重新渲染时按 Escape 会丢失：Radix 只在层自认最高后才挂监听，本地补丁又让旧的最高层让位（在另一个 React 根中打开记忆页时可复现，`memory.spec.ts` 因此间歇失败），修法是让 `react-dismissable-layer` 补丁对每个层都挂监听、按实时层栈判断，尚未实施；`View.icon` 无效原因是英文作者提示，在中文界面中原样显示；拖放提示层仍用 2px 虚线（短暂的状态指示，未按 0.5px 处理）；开发用的文本工作台与示例扩展不在设计规范的检查范围内；此前导入的单文件扩展的源码分片（`host.shell` 的 `x-` 文档）不再读取，也不自动清理。
+- **边界整理**：`AgentStore` 拆出消息写入（`sessions.ts`）与在途回复（`replies.ts`），群聊前要做的“送达与生成分开”记在[路线第 2 级](docs/spec/total.md#2-群聊)；Agent 界面的草稿与附件、导入导出、回复阻挡与可撤销提示，扩展管理的整包确认，记忆的整理计时各自成为独立模块；记忆页从 `memory@1` 服务中分出为可选 `page`；外壳不再读取工作区 DOM，改由工作区状态声明 `frame: "own"`，卡片几何由共用的 `--pane-gap`、`--pane-header` 给出。行为不变，只有单元与浏览器回归，打包应用未重验。另修复：弹层刚打开、尚未重新渲染时按 Escape 会丢失（记忆页打开在 Agent 详情之上时可复现，`memory.spec.ts` 此前因此间歇失败），Radix 补丁改为每层都监听、按实时层栈决定（[上游依赖补丁](docs/DEVELOPMENT.md#上游依赖补丁)）。
+- **遗留**：`modules/agents/store.ts`（约 580 行）、`modules/agents/memory/store.ts`（约 440 行）、`AgentWorkspace.tsx`（约 470 行）与 `ProviderForm.tsx`（约 610 行）超过 400 行提示线；最外层导航、窗口框架与管理入口仍由 `Workbench` 固定组装，工作区可替换不等于整个应用外壳可替换；`View.icon` 无效原因是英文作者提示，在中文界面中原样显示；拖放提示层仍用 2px 虚线（短暂的状态指示，未按 0.5px 处理）；开发用的文本工作台与示例扩展不在设计规范的检查范围内；此前导入的单文件扩展的源码分片（`host.shell` 的 `x-` 文档）不再读取，也不自动清理。
 
 当前未推送，现有交付包未替换。
 

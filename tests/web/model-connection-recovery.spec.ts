@@ -569,16 +569,15 @@ test("Escape during Popover registration does not dismiss the parent Dialog", as
     "data-escape-during-registration",
     "true",
   );
-  await expect(dialog).toBeVisible();
+  // The Popover just registered is the highest layer, so that Escape closes
+  // it, and only it.
   const popover = dialog.getByRole("dialog", {
     name: "服务商说明",
     exact: true,
   });
-  await expect(popover).toBeFocused();
-  await page.keyboard.press("Escape");
   await expect(popover).toBeHidden();
-  await expect(info).toBeFocused();
   await expect(dialog).toBeVisible();
+  await expect(info).toBeFocused();
   await page.keyboard.press("Escape");
   await expect(dialog).toBeHidden();
 });
