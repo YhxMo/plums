@@ -135,17 +135,14 @@ test("each Agent picks its own model and the model receives the conversation so 
   await emptyBox.press("Enter");
   await emptyBox.evaluate((input) => input.closest("form")!.requestSubmit());
   await expect(page.getByRole("log")).not.toContainText("先写好");
-  // The browser preview cannot hold keys, so the connector page is unavailable.
+  // The browser preview cannot run the built-in connector, so no running
+  // connector has a page to add models on: connecting leads to the extensions.
   await page.getByRole("button", { name: "切换模型", exact: true }).click();
   await page.getByRole("menuitem", { name: "连接模型", exact: true }).click();
-  const dialog = page.getByRole("dialog", { name: "模型连接" });
-  await dialog.getByRole("button", { name: "查看扩展", exact: true }).click();
   await page
     .getByRole("button", { name: "启用 chat.echo", exact: true })
     .click();
-  // Management opened from the connections page returns there.
-  await page.getByRole("button", { name: "返回模型连接", exact: true }).click();
-  await dialog.getByRole("button", { name: "关闭", exact: true }).click();
+  await page.getByRole("button", { name: "返回工作区", exact: true }).click();
   // Nothing picked: the same message box shows, with the picker saying so.
   const box = page.getByRole("textbox", { name: "消息", exact: true });
   await expect(box).toHaveValue("先写好");
@@ -229,11 +226,14 @@ for (const width of [375, 700]) {
     await expect(box).toHaveValue("尚未连接也能准备草稿");
     await picker.click();
     await page.getByRole("menuitem", { name: "连接模型", exact: true }).click();
-    const dialog = page.getByRole("dialog", { name: "模型连接" });
-    await expect(dialog).toBeVisible();
-    await dialog.getByRole("button", { name: "关闭", exact: true }).click();
+    await expect(
+      page.getByRole("heading", { name: "扩展", exact: true }),
+    ).toBeVisible();
+    await page
+      .getByRole("button", { name: "返回工作区", exact: true })
+      .filter({ visible: true })
+      .click();
     await expect(box).toHaveValue("尚未连接也能准备草稿");
-    await expect(picker).toBeFocused();
     expect(
       await page.evaluate(() => document.documentElement.scrollWidth),
     ).toBe(width);

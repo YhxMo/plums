@@ -17,7 +17,7 @@ import type {
 import { MAX_TEXT } from "@modules/agents/validation";
 import { DraftAttachments } from "./AttachmentView";
 import { EffortSelect } from "./EffortSelect";
-import { ModelSelect } from "./ModelSelect";
+import { ModelSelect, type ModelPage } from "./ModelSelect";
 import { Tooltip } from "@/components/Tooltip";
 import { useMediaQuery } from "@/components/useMediaQuery";
 import { appleKeyboard } from "@/components/keyboard";
@@ -63,7 +63,7 @@ export function Composer({
   onSend,
   onCancel,
   models,
-  onModels,
+  modelPages,
   onModel,
   onEffort,
   attach,
@@ -79,7 +79,7 @@ export function Composer({
   onCancel: () => void;
   /** Absent for providers without per-Agent models. */
   models?: readonly ModelChoice[];
-  onModels?: () => void;
+  modelPages?: readonly ModelPage[];
   onModel?: (model: AgentModel | null) => void;
   /** Absent for providers that do not keep a thinking strength. */
   onEffort?: (effort: Effort | null) => void;
@@ -293,7 +293,7 @@ export function Composer({
               value={agent.model}
               disabled={busy}
               onChange={onModel}
-              onConnect={onModels}
+              connect={modelPages}
             />
           )}
           {levels && onEffort && (

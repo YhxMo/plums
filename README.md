@@ -46,7 +46,7 @@ npm run dev
 npm run native -- dev --no-watch
 ```
 
-从对话输入栏的模型菜单打开「管理模型连接」，点「添加服务商」并填写 API Key，再为 Agent 选择模型（详见[模型连接](docs/MODELS.md)）。开发数据写在项目内的 `.dev-data/`，不会碰到其他应用的资料。
+添加 Agent 时在第二步点「添加模型连接」，点「添加服务商」并填写 API Key，再为 Agent 选择模型（详见[模型连接](docs/MODELS.md)）。开发数据写在项目内的 `.dev-data/`，不会碰到其他应用的资料。
 
 构建本地 Mac 应用（安装、升级与首次打开见[安装说明](docs/INSTALL.md)）：
 

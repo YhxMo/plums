@@ -124,7 +124,12 @@ export function agentExtension(
         ctx.shell.dependencies(),
         models,
         () => state.blocked(),
-        () => chats.map(({ id, label }) => ({ id, label })),
+        () =>
+          chats.map(({ id, label, value }) => ({
+            id,
+            label,
+            ...(typeof value.manage === "string" && { manage: value.manage }),
+          })),
       );
       watchModels();
       const memory = wireMemory(ctx, store);

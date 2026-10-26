@@ -77,6 +77,8 @@ export const speaker = (
   agent: Pick<Agent, "id">,
   message: Pick<Message, "role" | "from">,
 ) => message.from ?? (message.role === "user" ? OWNER : agent.id);
+/** A `chat@1` provider, with the page where its models are managed if it has one. */
+export type Connector = Named & { manage?: string };
 /** A model an Agent can use, from one `chat@1` provider. */
 export type ModelChoice = {
   provider: string;
@@ -146,7 +148,7 @@ export interface AgentProvider {
   /** Sets how much an Agent's model thinks, or clears it; added after agents@1 shipped. */
   setEffort?(id: string, effort: Effort | null): Promise<void>;
   /** The `chat@1` providers models come from, with models or not. */
-  connectors?(): readonly Named[];
+  connectors?(): readonly Connector[];
   /** The `memory@1` providers each Agent can switch on or off, as in `setOff`. */
   memories?(): readonly Named[];
   /** Switches one of the Agent's extensions off or back on for one Agent. */

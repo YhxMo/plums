@@ -18,6 +18,7 @@ import { AgentList } from "./AgentList";
 import { ChatView } from "./ChatView";
 import { DetailPanel } from "./DetailPanel";
 import { EmptyState } from "./EmptyState";
+import type { ModelPage } from "./ModelSelect";
 import { Dialog, DialogDone } from "@/components/Dialog";
 import { useMediaQuery } from "@/components/useMediaQuery";
 import { atLeast, below } from "@/components/breakpoints";
@@ -44,6 +45,17 @@ import { replyBlocker } from "./blocker";
 /** The 8px gap is the handle; the pointer alone shows it can be dragged. */
 const handle = "w-2 bg-transparent";
 
+/** Each connector's own page for its models. */
+function pagesFor(
+  api: AgentProvider,
+  onModels?: (page: string | null) => void,
+): readonly ModelPage[] | undefined {
+  if (!onModels) return undefined;
+  return (api.connectors?.() ?? []).flatMap(({ label, manage }) =>
+    manage ? [{ label, open: () => onModels(manage) }] : [],
+  );
+}
+
 export function AgentWorkspace({
   api,
   chrome,
@@ -63,7 +75,8 @@ export function AgentWorkspace({
   /** Opens extension management, selecting `id` when given. */
   onExtensions: (id?: string) => void;
   /** Opens the page where the user manages model connections. */
-  onModels?: () => void;
+  /** Opens a connector's page for its models, or the extensions for `null`. */
+  onModels?: (page: string | null) => void;
   /** Hands an https link to the browser. */
   onOpenLink: (url: string) => Promise<unknown>;
   /** Role cards and whole-Agent files out of and into the app. */
@@ -285,6 +298,7 @@ export function AgentWorkspace({
     });
   }
   const models = api.modelChoices?.();
+  const modelPages = pagesFor(api, onModels);
   /** Saves text edited in the details; resolves true once saved. */
   async function saveText(agentId: string, patch: AgentPatch) {
     let saved = false;
@@ -365,7 +379,12 @@ export function AgentWorkspace({
       onDraft={(value) => drafts.setText(key, value)}
       onBack={returnToList}
       models={models}
-      onModels={onModels}
+      modelPages={
+        // The composer can leave for the extensions; its draft stays.
+        modelPages?.length || !onModels
+          ? modelPages
+          : [{ label: "扩展", open: () => onModels(null) }]
+      }
       onModel={
         api.setModel &&
         ((model) => void act(() => api.setModel!(agent.id, model)))
@@ -437,7 +456,7 @@ export function AgentWorkspace({
         if (selected === id) setSelected(null);
       }}
       onSessionDeleted={(id) => offerUndo(id, "已删除会话")}
-      onModels={onModels}
+      modelPages={modelPages?.length ? modelPages : undefined}
       files={files}
       onNotice={setNotice}
     />

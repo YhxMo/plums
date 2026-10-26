@@ -15,6 +15,7 @@ import { ExportBundle } from "./ExportBundle";
 import { exportBundle, importBundle, type AgentFiles } from "./agentFiles";
 import { AVATAR_BASE64, AVATAR_SIDE, scaledPicture } from "./imageFile";
 import { useAgentDraft } from "./draft";
+import type { ModelPage } from "./ModelSelect";
 import type { AgentModals } from "./useAgentModals";
 
 /** A picture card's image as an avatar, cut square and compressed. */
@@ -33,7 +34,7 @@ export function AgentDialogs({
   onCreated,
   onRemoved,
   onSessionDeleted,
-  onModels,
+  modelPages,
   files,
   onNotice,
   fallbackFocus,
@@ -60,7 +61,7 @@ export function AgentDialogs({
   onRemoved(id: string): void;
   /** After a session of `agentId` is deleted. */
   onSessionDeleted(agentId: string): void;
-  onModels?: () => void;
+  modelPages?: readonly ModelPage[];
   files: AgentFiles;
   /** Says what was done, outside the dialog. */
   onNotice: (text: string) => void;
@@ -183,7 +184,7 @@ export function AgentDialogs({
           ui={ui}
           busy={busy}
           onBack={back}
-          onModels={onModels}
+          modelPages={modelPages}
           onAdd={(config) => void act(() => add(config))}
           onError={setError}
         />

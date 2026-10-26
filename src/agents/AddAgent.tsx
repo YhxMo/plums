@@ -5,12 +5,17 @@ import type { Named } from "@modules/sdk";
 import { DialogActions, DialogBody } from "@/components/Dialog";
 import { InfoTip } from "@/components/Tooltip";
 import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Field, FieldLabel } from "@/components/ui/field";
 import { AgentParts } from "./AgentParts";
 import { Avatar } from "./Avatar";
-import { ModelSelect } from "./ModelSelect";
+import { ModelPageItems, ModelSelect, type ModelPage } from "./ModelSelect";
 import { useAgentDraft } from "./draft";
 import { agentParts, switchPart, type Part } from "./parts";
 import { DESCRIPTION_TIP, INSTRUCTIONS_TIP } from "./tips";
@@ -110,6 +115,36 @@ export function DescribeStep({
   );
 }
 
+/** Opens the one page to add models on, or lets the user pick among several. */
+function ConnectButton({
+  pages,
+  children,
+}: {
+  pages: readonly ModelPage[];
+  children: ReactNode;
+}) {
+  const button = (
+    <Button
+      type="button"
+      variant="ghost"
+      size="xs"
+      className="-mr-2 text-muted-foreground"
+      onClick={pages.length === 1 ? pages[0].open : undefined}
+    >
+      {children}
+    </Button>
+  );
+  if (pages.length === 1) return button;
+  return (
+    <DropdownMenu modal={false}>
+      <DropdownMenuTrigger asChild>{button}</DropdownMenuTrigger>
+      <DropdownMenuContent align="end">
+        <ModelPageItems pages={pages} />
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+}
+
 /**
  * The second step: the model the Agent replies with and the installed
  * extensions it is composed of, each switched on as the default set has it.
@@ -119,7 +154,7 @@ export function ComposeStep({
   ui,
   busy,
   onBack,
-  onModels,
+  modelPages,
   onAdd,
   onError,
 }: {
@@ -128,8 +163,8 @@ export function ComposeStep({
   ui?: Named;
   busy: boolean;
   onBack: () => void;
-  /** Opens the model connections over this step, which stays as it is. */
-  onModels?: () => void;
+  /** Pages to add models on, opened over this step, which stays as it is. */
+  modelPages?: readonly ModelPage[];
   onAdd: (config: AgentConfig) => void;
   onError: (message: string) => void;
 }) {
@@ -184,16 +219,10 @@ export function ComposeStep({
           <Field>
             <span className="flex items-center justify-between gap-2">
               <span className="text-sm font-medium">模型</span>
-              {onModels && (
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="xs"
-                  className="-mr-2 text-muted-foreground"
-                  onClick={onModels}
-                >
+              {modelPages && (
+                <ConnectButton pages={modelPages}>
                   {models.length ? "管理模型连接" : "添加模型连接"}
-                </Button>
+                </ConnectButton>
               )}
             </span>
             <ModelSelect

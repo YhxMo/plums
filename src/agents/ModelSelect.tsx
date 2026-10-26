@@ -10,6 +10,22 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 
+/** Where models are added: a connector's own page, or the extensions when none has one. */
+export type ModelPage = { label: string; open: () => void };
+
+/** The pages to add models on, one item each, or a single 「连接模型」. */
+export function ModelPageItems({ pages }: { pages: readonly ModelPage[] }) {
+  return pages.length === 1 ? (
+    <DropdownMenuItem onSelect={pages[0].open}>连接模型</DropdownMenuItem>
+  ) : (
+    pages.map((page, i) => (
+      <DropdownMenuItem key={i} onSelect={page.open}>
+        {page.label}
+      </DropdownMenuItem>
+    ))
+  );
+}
+
 const key = (model: AgentModel) => `${model.provider}\n${model.model}`;
 const choiceKey = (m: ModelChoice) =>
   key({ provider: m.provider, model: m.id });
@@ -20,7 +36,7 @@ export function ModelSelect({
   models,
   value,
   onChange,
-  onConnect,
+  connect,
   disabled,
   compact,
 }: {
@@ -28,8 +44,8 @@ export function ModelSelect({
   models: readonly ModelChoice[];
   value: AgentModel | null | undefined;
   onChange: (model: AgentModel | null) => void;
-  /** An empty composer picker can open model connections without replacing the input. */
-  onConnect?: () => void;
+  /** An empty composer picker can open these without replacing the input. */
+  connect?: readonly ModelPage[];
   disabled?: boolean;
   /** A borderless picker for a toolbar, without the explanation below. */
   compact?: boolean;
@@ -37,7 +53,7 @@ export function ModelSelect({
   const current = value ? key(value) : "";
   const choice = models.find((m) => choiceKey(m) === current);
   const missing = !!value && !choice;
-  if (compact && !models.length && onConnect)
+  if (compact && !models.length && connect)
     return (
       <DropdownMenu modal={false}>
         <DropdownMenuTrigger asChild>
@@ -54,7 +70,7 @@ export function ModelSelect({
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent side="top" align="start">
-          <DropdownMenuItem onSelect={onConnect}>连接模型</DropdownMenuItem>
+          <ModelPageItems pages={connect} />
         </DropdownMenuContent>
       </DropdownMenu>
     );

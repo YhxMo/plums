@@ -332,6 +332,7 @@ export function modelConnector({
         });
       const service: ChatService = {
         name: "模型连接",
+        manage: MODEL_PAGE,
         models,
         subscribe: (listener) => store.subscribe(listener),
         reply,

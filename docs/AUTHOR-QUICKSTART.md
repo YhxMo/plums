@@ -55,7 +55,7 @@ export default {
 
 | 想做的事 | 怎么写 | 参考 |
 | --- | --- | --- |
-| 提供 Agent 可选的模型 | `provides: { chat: 1 }`，`ctx.provide` 一个含 `name`、`models()`、`subscribe`、`reply(request, signal)` 的对象 | 起步模板、[回显模型](../extensions/services/echo-chat/main.js)（仅开发构建）、[接口](../extensions/contracts.d.ts)、[模型连接](MODELS.md#chat1) |
+| 提供 Agent 可选的模型 | `provides: { chat: 1 }`，`ctx.provide` 一个含 `name`、`models()`、`subscribe`、`reply(request, signal)` 的对象；有自己的添加模型页面时用 `manage` 给出该 `dialog` 视图的 id，Agent 界面会从“添加模型连接”打开它 | 起步模板、[回显模型](../extensions/services/echo-chat/main.js)（仅开发构建）、[接口](../extensions/contracts.d.ts)、[模型连接](MODELS.md#chat1) |
 | 添加一个界面 | `ctx.view(...)`，见下方示例 | [界面契约](EXTENSION-CONTRACTS.md#ui-组合与替换) |
 | 保存数据 | 声明 `capabilities: ["state.read", "state.write"]`，见下方示例 | [状态规则](SDK-AUTHORING.md#状态取消与演进) |
 | 保存很多条目（如聊天记录）并搜索 | 声明 `state.batch` 与 `records.list`，要搜索再加 `records.search` | [批量写与记录](SDK-AUTHORING.md#状态取消与演进) |

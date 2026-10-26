@@ -29,6 +29,7 @@ import type {
   AgentModel,
   AgentProvider,
   AgentProviderInfo,
+  Connector,
   ModelChoice,
 } from "./contract";
 
@@ -79,7 +80,7 @@ export class AgentStore implements AgentProvider {
     readonly modelChoices: () => readonly ModelChoice[] = () => [],
     /** Why saving cannot succeed now, checked before asking a model. */
     private saveBlocked: () => string | undefined = () => undefined,
-    readonly connectors: () => readonly Named[] = () => [],
+    readonly connectors: () => readonly Connector[] = () => [],
   ) {
     this.agents = initial;
   }

@@ -58,6 +58,12 @@ export interface ChatTurn {
 /** `chat@1`: multi-turn replies from a model the user picked for an Agent. */
 export interface ChatService {
   name: string;
+  /**
+   * The id of this provider's own `dialog` view where the user adds or
+   * changes its models; Agents offer it when models are to be connected.
+   * Added after chat@1 shipped.
+   */
+  manage?: string;
   models(): readonly ChatModel[];
   subscribe(listener: () => void): () => void;
   /**

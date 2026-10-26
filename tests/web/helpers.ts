@@ -252,3 +252,41 @@ export async function slowAgent(page: Page, name: string) {
 /** Lets the slow model answer the message it holds. */
 export const answer = (page: Page) =>
   page.evaluate(() => (window as unknown as { answer(): void }).answer());
+
+/** Serves a model connector with no models and its own page for adding them. */
+export async function connectorWithPage(page: Page, id: string, label: string) {
+  await serveModule(
+    page,
+    id,
+    `export default {
+  manifest: { id: "${id}", name: "${label}", version: "1", apiVersion: 1, provides: { chat: 1 } },
+  activate(ctx) {
+    ctx.view({
+      id: "${id}.page",
+      label: "${label}",
+      presentation: "dialog",
+      mount(root) {
+        root.append("在这里填写${label}的密钥");
+        return () => {};
+      },
+    });
+    ctx.provide("chat", 1, {
+      name: "${label}",
+      manage: "${id}.page",
+      models: () => [],
+      subscribe: () => () => {},
+      reply: async () => "",
+    });
+  },
+};`,
+  );
+}
+
+/** Installs and starts a connector served by `connectorWithPage`, then returns to the workspace. */
+export async function installConnector(page: Page, id: string) {
+  await manage(page);
+  await page.getByRole("button", { name: "安装扩展", exact: true }).click();
+  await installByPath(page, `/${id}/`);
+  await page.getByRole("button", { name: `启用 ${id}`, exact: true }).click();
+  await page.getByRole("button", { name: "返回工作区", exact: true }).click();
+}

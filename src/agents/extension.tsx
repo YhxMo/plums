@@ -82,7 +82,11 @@ export function agentUI(): ExtensionDefinition {
                   ? ctx.shell.open("extensions", id)
                   : ctx.shell.open("extensions"));
               }}
-              onModels={() => void ctx.shell.open("view", "model-connections")}
+              onModels={(page) => {
+                void (page
+                  ? ctx.shell.open("view", page)
+                  : ctx.shell.open("extensions"));
+              }}
               onOpenLink={(url) =>
                 ctx.platform("link.open", { version: 1, url })
               }

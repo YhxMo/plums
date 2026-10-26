@@ -1,5 +1,11 @@
 import { expect, test } from "@playwright/test";
-import { addAgent, nextStep, openAddAgent } from "./helpers";
+import {
+  addAgent,
+  connectorWithPage,
+  installConnector,
+  nextStep,
+  openAddAgent,
+} from "./helpers";
 
 test("adding an Agent takes two steps: who it is, then its model and extensions", async ({
   page,
@@ -90,11 +96,13 @@ test("a long single-line role card stays inside the import dialog", async ({
   expect(field.x + field.width).toBeLessThanOrEqual(box.x + box.width);
 });
 
-test("closing the model connections opened from adding an Agent returns to that step", async ({
+test("closing a connector's page opened from adding an Agent returns to that step", async ({
   page,
 }) => {
   await page.setViewportSize({ width: 1280, height: 800 });
+  await connectorWithPage(page, "chat.paged", "另一家的连接");
   await page.goto("/");
+  await installConnector(page, "chat.paged");
   const describe = await openAddAgent(page);
   await describe
     .getByRole("textbox", { name: "名称", exact: true })
@@ -105,7 +113,7 @@ test("closing the model connections opened from adding an Agent returns to that 
     .click();
   await compose.getByRole("button", { name: /模型连接$/ }).click();
   const connections = page.getByRole("dialog", {
-    name: "模型连接",
+    name: "另一家的连接",
     exact: true,
   });
   await expect(connections).toBeVisible();

@@ -17,6 +17,7 @@ import { AgentMenuItems, type AgentAction } from "./AgentMenu";
 import { MessageRow, type MessageAction } from "./MessageRow";
 import { Composer, type Attach, type Blocked, type Editing } from "./Composer";
 import { copyText } from "./clipboard";
+import type { ModelPage } from "./ModelSelect";
 import { formatTime, TIME_GAP } from "./time";
 import { Tooltip } from "@/components/Tooltip";
 import { useMediaQuery } from "@/components/useMediaQuery";
@@ -39,7 +40,7 @@ export function ChatView({
   onDeleteSession,
   onRenameSession,
   models,
-  onModels,
+  modelPages,
   onModel,
   onEffort,
   attach,
@@ -67,7 +68,7 @@ export function ChatView({
   onRenameSession?: (id: string, source: HTMLElement | null) => void;
   /** Absent for providers without per-Agent models. */
   models?: readonly ModelChoice[];
-  onModels?: () => void;
+  modelPages?: readonly ModelPage[];
   onModel?: (model: AgentModel | null) => void;
   onEffort?: (effort: Effort | null) => void;
   /** Absent when the provider takes no attachments. */
@@ -335,7 +336,7 @@ export function ChatView({
         onSend={onSend}
         onCancel={onCancel}
         models={models}
-        onModels={onModels}
+        modelPages={modelPages}
         onModel={onModel}
         onEffort={onEffort}
         attach={editing ? undefined : attach}

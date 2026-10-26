@@ -378,3 +378,29 @@ it("refuses attachments that are malformed, too many, or past the session's pict
   await expect(agents().send(a.id, "再来", [big])).rejects.toThrow("上限");
   expect(agents().list()[0].sessions[0].messages).toHaveLength(40);
 });
+
+it("names each connector's own page for managing its models, when it has one", async () => {
+  const { host, agents } = await setup();
+  host.install({
+    manifest: {
+      id: "chat.b",
+      apiVersion: 1,
+      version: "1",
+      provides: { chat: 1 },
+    },
+    activate(ctx) {
+      ctx.provide("chat", 1, {
+        name: "chat.b",
+        manage: "chat.b.page",
+        models: () => [],
+        subscribe: () => () => {},
+        reply: async () => "",
+      } satisfies ChatService);
+    },
+  });
+  await host.start("chat.b");
+  expect(agents().connectors!()).toEqual([
+    { id: "chat.a", label: "chat.a" },
+    { id: "chat.b", label: "chat.b", manage: "chat.b.page" },
+  ]);
+});
