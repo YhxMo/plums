@@ -1,6 +1,6 @@
 # Plums 工程状态
 
-核对日期：2026-10-26。当前只收口 macOS arm64 应用本体，Android 冻结。分支 `feat/ui-refresh` @ `edf2103`（之后只有文档与移出 Android 工程文件的提交），已推送为 GitHub [YhxMo/plums](https://github.com/YhxMo/plums) 的 `main`。2026-10-23 起统一使用 `dev.plums.plums` 命名，此前构建的包与本地数据仍是旧名，迁移见[应用数据目录](docs/ARCHITECTURE.md#应用数据目录)。
+核对日期：2026-10-26。当前只收口 macOS arm64 应用本体，Android 冻结。开发在 `main` 上进行，跟踪 GitHub [YhxMo/plums](https://github.com/YhxMo/plums) 的 `main`；最近一次界面改动的打包候选来自 `edf2103`，之后只有文档、README 与移出 Android 工程文件的提交。2026-10-23 起统一使用 `dev.plums.plums` 命名，此前构建的包与本地数据仍是旧名，迁移见[应用数据目录](docs/ARCHITECTURE.md#应用数据目录)。
 
 [文档导航](docs/README.md) · [当前阶段](docs/spec/milestone.md) · [整体路线](docs/spec/total.md) · [当前交付](evidence/RESULTS.md)
 
