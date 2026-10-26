@@ -32,7 +32,8 @@ function menuOpener() {
 /**
  * A modal dialog that is open while mounted. Focus starts at the title,
  * and on close returns to the opener while it is still shown, else to
- * `fallbackFocus`. `onBack` adds a back button for a dialog reached from
+ * `fallbackFocus`, unless `focusAfterClose` names the element that should
+ * take it (a new conversation's input, say). `onBack` adds a back button for a dialog reached from
  * another step. `sheet` slides in from the bottom (phones) or the right
  * without a title bar, for content that brings its own; the right one is a
  * non-modal drawer that leaves the page usable and stays open until closed.
@@ -44,6 +45,7 @@ export function Dialog({
   onBack,
   returnFocusTo,
   fallbackFocus,
+  focusAfterClose,
   sheet,
   className,
 }: {
@@ -53,6 +55,8 @@ export function Dialog({
   onBack?: () => void;
   returnFocusTo?: HTMLElement | null;
   fallbackFocus?: () => HTMLElement | null;
+  /** Asked when it closes: an element it returns takes focus instead of the opener. */
+  focusAfterClose?: () => HTMLElement | null;
   sheet?: "bottom" | "right";
   className?: string;
 }) {
@@ -75,6 +79,11 @@ export function Dialog({
     showCloseButton: false,
     onCloseAutoFocus(event: Event) {
       event.preventDefault();
+      const target = focusAfterClose?.();
+      if (target) {
+        target.focus();
+        return;
+      }
       const active = opener.current;
       if (active?.isConnected && active.getClientRects().length) active.focus();
       else fallback.current?.()?.focus();

@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { nextStep, openAddAgent } from "./helpers";
+import { addAgent, nextStep, openAddAgent } from "./helpers";
 
 test("adding an Agent takes two steps: who it is, then its model and extensions", async ({
   page,
@@ -122,4 +122,35 @@ test("closing the model connections opened from adding an Agent returns to that 
   await expect(
     compose.getByRole("switch", { name: "在 写作助手 中使用 Agent 核心" }),
   ).not.toBeChecked();
+});
+
+test("after adding an Agent focus rests on the workspace, not on the add button or the input", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1280, height: 800 });
+  await page.goto("/");
+  await addAgent(page, "甲");
+  await expect(page.getByRole("dialog")).toHaveCount(0);
+  await addAgent(page, "乙");
+  await expect(page.getByRole("dialog")).toHaveCount(0);
+  await expect(page.locator('[data-slot="agent-workspace"]')).toBeFocused();
+  await expect(page.getByRole("tooltip")).toHaveCount(0);
+});
+
+test("removing an Agent leaves focus on the workspace too", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1280, height: 800 });
+  await page.goto("/");
+  await addAgent(page, "甲");
+  await addAgent(page, "乙");
+  await page
+    .getByRole("complementary", { name: "Agent 列表" })
+    .getByRole("button", { name: "乙", exact: true })
+    .click({ button: "right" });
+  await page.getByRole("menuitem", { name: "移除 Agent", exact: true }).click();
+  await page.getByRole("button", { name: "确认删除" }).click();
+  await expect(page.getByRole("dialog")).toHaveCount(0);
+  await expect(page.locator('[data-slot="agent-workspace"]')).toBeFocused();
+  await expect(page.getByRole("tooltip")).toHaveCount(0);
 });

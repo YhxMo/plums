@@ -31,7 +31,6 @@ import { useAgentModals } from "./useAgentModals";
 import { AgentDialogs } from "./AgentDialogs";
 import type { AgentAction } from "./AgentMenu";
 import { ImportDrop } from "./ImportDrop";
-import { fallbackFocus } from "./focus";
 import { AVATAR_BASE64, AVATAR_SIDE, scaledPicture } from "./imageFile";
 import { agentParts, switchPart, type Part } from "./parts";
 import { reportText, useMemories, type Memories } from "./useMemories";
@@ -94,7 +93,9 @@ export function AgentWorkspace({
   const search = useRef<HTMLInputElement>(null);
   const detailTrigger = useRef<HTMLElement | null>(null);
   const returnToAgent = useRef<string | null>(null);
-  const focusFallback = () => fallbackFocus(workspaceRoot.current);
+  // Where focus rests when what it was on has gone: the whole workspace, not
+  // one of its controls.
+  const focusFallback = () => workspaceRoot.current;
   const returnToList = useCallback(() => {
     returnToAgent.current = selected;
     setSelected(null);
@@ -106,7 +107,7 @@ export function AgentWorkspace({
       `[data-agent-id="${CSS.escape(returnToAgent.current)}"]`,
     );
     if (target?.getClientRects().length) target.focus();
-    else fallbackFocus(workspaceRoot.current)?.focus();
+    else workspaceRoot.current?.focus();
     returnToAgent.current = null;
   }, [selected]);
   const modals = useAgentModals();
@@ -428,6 +429,7 @@ export function AgentWorkspace({
       ui={ui}
       modals={modals}
       fallbackFocus={focusFallback}
+      overall={focusFallback}
       onCreated={(agent) => {
         setSelected(agent.id);
         setDetail(false);
@@ -473,7 +475,12 @@ export function AgentWorkspace({
   const outside = !showDetail && !settingsAgent;
   if (mobile)
     return (
-      <div ref={workspaceRoot} className="relative flex h-full min-h-0 bg-chat">
+      <div
+        ref={workspaceRoot}
+        data-slot="agent-workspace"
+        tabIndex={-1}
+        className="relative flex h-full min-h-0 bg-chat outline-none"
+      >
         {outside && feedback}
         {/* Phones show the list or one conversation, never both. */}
         {agent || !agents.length ? (
@@ -489,8 +496,10 @@ export function AgentWorkspace({
   return (
     <div
       ref={workspaceRoot}
+      data-slot="agent-workspace"
+      tabIndex={-1}
       className={cn(
-        "relative flex h-full min-h-0 transition-[padding] duration-200 ease-out",
+        "relative flex h-full min-h-0 outline-none transition-[padding] duration-200 ease-out",
         showDetail && wide && "pr-[304px]",
       )}
     >

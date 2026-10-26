@@ -654,7 +654,7 @@ test("service reply boundary rejects without losing draft and valid output survi
 });
 
 for (const width of [375, 1180]) {
-  test(`removing a dialog opener restores an operable fallback at ${width}`, async ({
+  test(`removing a dialog opener leaves focus on the workspace at ${width}`, async ({
     page,
   }) => {
     await page.setViewportSize({ width, height: 820 });
@@ -670,16 +670,12 @@ for (const width of [375, 1180]) {
       .click();
     await page.getByRole("button", { name: "确认删除", exact: true }).click();
     await expect(page.getByRole("dialog")).not.toBeVisible();
-    const fallback =
-      width === 375
-        ? page
-            .getByRole("main")
-            .getByRole("button", { name: "添加 Agent", exact: true })
-        : page
-            .getByRole("complementary", { name: "Agent 列表", exact: true })
-            .getByRole("button", { name: "添加", exact: true })
-            .first();
-    await expect(fallback).toBeFocused();
+    await expect(page.locator('[data-slot="agent-workspace"]')).toBeFocused();
+    // From there the keyboard reaches the controls in order.
+    await page.keyboard.press("Tab");
+    await expect(
+      page.locator('[data-slot="agent-workspace"] :focus-visible'),
+    ).toHaveCount(1);
   });
 }
 

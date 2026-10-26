@@ -1,3 +1,4 @@
+import { useRef } from "react";
 import type {
   Agent,
   AgentConfig,
@@ -36,6 +37,7 @@ export function AgentDialogs({
   files,
   onNotice,
   fallbackFocus,
+  overall,
 }: {
   api: AgentProvider;
   ui?: Named;
@@ -64,6 +66,8 @@ export function AgentDialogs({
   /** Says what was done, outside the dialog. */
   onNotice: (text: string) => void;
   fallbackFocus(): HTMLElement | null;
+  /** The workspace as a whole, where focus goes once something is added. */
+  overall(): HTMLElement | null;
 }) {
   const {
     modal,
@@ -81,8 +85,11 @@ export function AgentDialogs({
     roleCard,
   } = modals;
   const draft = useAgentDraft();
+  // The button that opened adding has done its part once an Agent exists.
+  const created = useRef(false);
   async function add(config: AgentConfig) {
     const agent = await api.create(config);
+    created.current = true;
     onCreated(agent);
     setModal(null);
     draft.reset();
@@ -118,6 +125,11 @@ export function AgentDialogs({
     <Dialog
       returnFocusTo={modalTrigger.current}
       fallbackFocus={fallbackFocus}
+      focusAfterClose={() => {
+        const target = created.current ? overall() : null;
+        created.current = false;
+        return target;
+      }}
       title={title}
       // The add steps go back from their footer.
       onBack={

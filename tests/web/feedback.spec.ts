@@ -84,7 +84,8 @@ test("focus given back by a closing dialog or menu shows no tooltip", async ({
     .getByRole("button", { name: "添加", exact: true })
     .click();
   await expect(page.getByRole("dialog")).toHaveCount(0);
-  await expect(add).toBeFocused();
+  // Adding is done, so focus rests on the workspace, not on the button.
+  await expect(page.locator('[data-slot="agent-workspace"]')).toBeFocused();
   const more = page.getByRole("button", { name: "更多操作" });
   await more.click();
   await page.getByRole("menuitem", { name: "置顶" }).click();
