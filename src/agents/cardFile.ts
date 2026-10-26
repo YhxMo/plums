@@ -17,30 +17,25 @@ function load(src: string) {
 
 /** The Agent's picture, or its plum, as a square PNG. */
 async function picture(agent: Pick<Agent, "name" | "avatar">) {
+  // A data URL: the native CSP lets images load from 'self' and data: only.
   const url =
     agent.avatar ??
-    URL.createObjectURL(
-      new Blob([plumSvg(agent.name)], { type: "image/svg+xml" }),
-    );
-  try {
-    const image = await load(url);
-    const canvas = document.createElement("canvas");
-    canvas.width = canvas.height = SIDE;
-    const context = canvas.getContext("2d");
-    if (!context) throw new Error("无法生成角色卡图片。");
-    // Cover the square, centred, as the avatar is shown.
-    const scale = SIDE / Math.min(image.width, image.height);
-    const w = image.width * scale;
-    const h = image.height * scale;
-    context.drawImage(image, (SIDE - w) / 2, (SIDE - h) / 2, w, h);
-    const blob = await new Promise<Blob | null>((done) =>
-      canvas.toBlob(done, "image/png"),
-    );
-    if (!blob) throw new Error("无法生成角色卡图片。");
-    return new Uint8Array(await blob.arrayBuffer());
-  } finally {
-    if (!agent.avatar) URL.revokeObjectURL(url);
-  }
+    `data:image/svg+xml;charset=utf-8,${encodeURIComponent(plumSvg(agent.name))}`;
+  const image = await load(url);
+  const canvas = document.createElement("canvas");
+  canvas.width = canvas.height = SIDE;
+  const context = canvas.getContext("2d");
+  if (!context) throw new Error("无法生成角色卡图片。");
+  // Cover the square, centred, as the avatar is shown.
+  const scale = SIDE / Math.min(image.width, image.height);
+  const w = image.width * scale;
+  const h = image.height * scale;
+  context.drawImage(image, (SIDE - w) / 2, (SIDE - h) / 2, w, h);
+  const blob = await new Promise<Blob | null>((done) =>
+    canvas.toBlob(done, "image/png"),
+  );
+  if (!blob) throw new Error("无法生成角色卡图片。");
+  return new Uint8Array(await blob.arrayBuffer());
 }
 
 /** A file name from the Agent's name, without characters folders use. */
