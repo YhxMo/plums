@@ -25,9 +25,6 @@
     "check:project": "node scripts/check-project.mjs",
     "snapshot": "node scripts/snapshot.mjs",
     "icons": "node scripts/icons.mjs",
-    "android:init": "node scripts/android.mjs init",
-    "android:prepare": "node scripts/android.mjs prepare",
-    "android:build": "node scripts/android.mjs build",
     "ipc:generate": "node scripts/ipc.mjs",
     "ipc:check": "node scripts/ipc.mjs --check",
     "postinstall": "patch-package --error-on-fail"

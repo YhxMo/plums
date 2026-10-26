@@ -89,7 +89,7 @@ Rust 命令与 wire 类型是 IPC 的来源：[ipc.rs](../src-tauri/src/ipc.rs) 
 
 当前采用 Tauri 2、React/TypeScript/Vite 与 Rust 平台层。Tauri 原生插件随应用构建，动态扩展是 SDK/Host 加载的可信 ESM；公开 `ctx.platform` 经平台适配器桥接原生能力。新增原生能力需要重新打包，导入扩展包不需要重新构建应用。远程分发、非可信执行和其他平台的加载政策仍待验证，范围见[整体路线](spec/total.md#支持范围与未决项)。
 
-Android 系统栏与键盘 Insets 由 [MainActivity 模板](../native/android/MainActivity.kt) 适配，[外观插件](../native/android/AppearancePlugin.kt) 同步系统栏颜色；两者不进入扩展宿主。该平台当前冻结，生成工程与恢复构建方式见 [Android 工程](ANDROID.md)。
+Android 当前冻结，工程文件已移出主线（见[整体路线](spec/total.md#平台范围先做好-mac-应用本体)）。
 
 角色卡、模型协议与具体 A2A 协作流程归扩展；通用契约只表达参与者、状态、权限、取消及资源所有权。后续跨平台、角色与合作验收按[整体路线](spec/total.md)推进，不预建业务编排内核。
 

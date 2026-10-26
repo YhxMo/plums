@@ -35,4 +35,4 @@ networkSources: ["https://models.dev"],
 
 ## 回归测试
 
-`tests/network-read.test.ts`（声明校验、授权文案、原生调用参数、拒绝时零调用、需授权、按 id 取消、停用释放）、`src-tauri/src/network_tests.rs`（URL 形状、上限、同一扩展并发与提前取消）、`tests/android-project.test.ts`（生成工程注册 `NetworkPlugin`）。
+`tests/network-read.test.ts`（声明校验、授权文案、原生调用参数、拒绝时零调用、需授权、按 id 取消、停用释放）、`src-tauri/src/network_tests.rs`（URL 形状、上限、同一扩展并发与提前取消）。

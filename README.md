@@ -45,7 +45,7 @@ npm run verify                      # Web + 原生全部检查
 npm run native -- build --debug --bundles app
 ```
 
-实验数据写入项目内 `.dev-data/`，不接触既有应用资料或凭据。Android 构建、Mac 本地打包与交付目录见 [Android 工程](docs/ANDROID.md) 和[开发流程](docs/DEVELOPMENT.md#本地交付目录)；当前交付包见 [HANDOFF](HANDOFF.md)。
+实验数据写入项目内 `.dev-data/`，不接触既有应用资料或凭据。Mac 本地打包与交付目录见[开发流程](docs/DEVELOPMENT.md#本地交付目录)；当前交付包见 [HANDOFF](HANDOFF.md)。
 
 ## 写一个扩展
 

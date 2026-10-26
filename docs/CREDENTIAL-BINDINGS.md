@@ -101,6 +101,6 @@ Mac 沿用现有 JSON 格式和密钥引用，不迁移或重新录入已有文�
 
 浏览器测试模拟原生回执，覆盖两处输入框的显隐、无意提交防护、清空/保存复位及不回读旧密钥；InfoTip 的标准 Popover 覆盖点击、取消按压、键盘与嵌套弹窗焦点。打包应用与平台结果见 [HANDOFF](../HANDOFF.md#未验范围)。
 
-实现入口为 [SDK 声明](../modules/sdk/credential-bindings.ts)、[原生绑定状态](../src-tauri/src/credential_bindings.rs)、[原生管理命令](../src-tauri/src/credentials.rs)、[原生秘密适配](../src-tauri/src/credentials_native.rs)、[Android 秘密适配](../native/android/CredentialsPlugin.kt)和[宿主管理组件](../src/features/extensions/CredentialBindings.tsx)。底座不包含模型协议或业务循环。
+实现入口为 [SDK 声明](../modules/sdk/credential-bindings.ts)、[原生绑定状态](../src-tauri/src/credential_bindings.rs)、[原生管理命令](../src-tauri/src/credentials.rs)、[原生秘密适配](../src-tauri/src/credentials_native.rs)和[宿主管理组件](../src/features/extensions/CredentialBindings.tsx)。底座不包含模型协议或业务循环。
 
 管理命令属于宿主管理面，不是扩展的公开 ctx 平台能力。当前可信 ESM 与宿主共享 WebView，原生桥接不构成恶意扩展隔离；正常扩展调用仍经 owner/alias 契约处理。

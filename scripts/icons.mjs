@@ -131,66 +131,6 @@ export function buildDarkIcon(lightPng) {
   return encodePng(image);
 }
 
-/**
- * Adaptive-icon foreground: only the orange mark, without the macOS tile and
- * shadow, centred at `share` of the canvas so launcher masks never crop it
- * (the guaranteed visible zone is 66 of 108 dp).
- * @param {Buffer} sourcePng
- * @param {number} size
- */
-export function buildAndroidForeground(sourcePng, size, share = 0.46) {
-  const source = decodePng(sourcePng);
-  const { width, height } = source;
-  // Separate the mark from the near-white tile: its alpha follows how far a
-  // pixel moved from white toward orange, then the colour is un-blended.
-  const mark = new Float64Array(width * height * 4);
-  let [left, top, right, bottom] = [width, height, -1, -1];
-  for (let y = 0; y < height; y++)
-    for (let x = 0; x < width; x++) {
-      const i = (y * width + x) * 4;
-      const [r, , b, a] = source.pixels.subarray(i, i + 4);
-      const alpha = Math.min(1, Math.max(0, (r - b - 12) / 150)) * (a / 255);
-      if (alpha <= 0) continue;
-      for (let c = 0; c < 3; c++) {
-        const value = (source.pixels[i + c] - (1 - alpha) * 255) / alpha;
-        mark[i + c] = Math.min(255, Math.max(0, value)) * alpha;
-      }
-      mark[i + 3] = alpha;
-      // Faint glow does not count toward the mark's extent.
-      if (alpha < 0.25) continue;
-      left = Math.min(left, x);
-      top = Math.min(top, y);
-      right = Math.max(right, x);
-      bottom = Math.max(bottom, y);
-    }
-  if (right < 0) throw new Error("The icon source has no orange mark");
-  const extent = Math.max(right - left + 1, bottom - top + 1);
-  const scale = (size * share) / extent;
-  const offsetX = (size - (right - left + 1) * scale) / 2 - left * scale;
-  const offsetY = (size - (bottom - top + 1) * scale) / 2 - top * scale;
-  // Area-average downsampling of premultiplied colour.
-  const sums = new Float64Array(size * size * 5);
-  for (let y = top; y <= bottom; y++)
-    for (let x = left; x <= right; x++) {
-      const i = (y * width + x) * 4;
-      const tx = Math.floor(x * scale + offsetX);
-      const ty = Math.floor(y * scale + offsetY);
-      const o = (ty * size + tx) * 5;
-      for (let c = 0; c < 4; c++) sums[o + c] += mark[i + c];
-      sums[o + 4]++;
-    }
-  const pixels = Buffer.alloc(size * size * 4);
-  for (let p = 0; p < size * size; p++) {
-    const alpha = sums[p * 5 + 4] ? sums[p * 5 + 3] / sums[p * 5 + 4] : 0;
-    if (!alpha) continue;
-    const covered = sums[p * 5 + 3];
-    for (let c = 0; c < 3; c++)
-      pixels[p * 4 + c] = Math.round(sums[p * 5 + c] / covered);
-    pixels[p * 4 + 3] = Math.round(alpha * 255);
-  }
-  return encodePng({ width: size, height: size, pixels });
-}
-
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
   const root = fileURLToPath(new URL("../", import.meta.url));
   const output = join(root, ".cache/icon-generation");
@@ -210,40 +150,15 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
     throw new Error(
       `Icon generation failed: ${result.status ?? result.signal}`,
     );
-  for (const name of ["icon.png", "icon.icns", "android"])
+  for (const name of ["icon.png", "icon.icns"])
     cpSync(join(output, name), join(root, "src-tauri/icons", name), {
       recursive: true,
     });
-  for (const name of [
-    "mipmap-anydpi-v26/ic_launcher.xml",
-    "values/ic_launcher_background.xml",
-  ]) {
-    const path = join(root, "src-tauri/icons/android", name);
-    writeFileSync(path, readFileSync(path, "utf8").trimEnd() + "\n");
-  }
-  const foregroundSizes = {
-    "mipmap-mdpi": 108,
-    "mipmap-hdpi": 162,
-    "mipmap-xhdpi": 216,
-    "mipmap-xxhdpi": 324,
-    "mipmap-xxxhdpi": 432,
-  };
-  const source = readFileSync(join(root, "src-tauri/icons/source.png"));
-  for (const [density, size] of Object.entries(foregroundSizes))
-    writeFileSync(
-      join(
-        root,
-        "src-tauri/icons/android",
-        density,
-        "ic_launcher_foreground.png",
-      ),
-      buildAndroidForeground(source, size),
-    );
   mkdirSync(join(root, "public/brand"), { recursive: true });
   cpSync(join(output, "128x128.png"), join(root, "public/brand/plums.png"));
   writeFileSync(
     join(root, "public/brand/plums-dark.png"),
     buildDarkIcon(readFileSync(join(root, "public/brand/plums.png"))),
   );
-  console.log("Updated macOS, Android and web icons from source.png.");
+  console.log("Updated macOS and web icons from source.png.");
 }
