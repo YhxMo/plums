@@ -167,3 +167,25 @@ test("while one session waits, the others and the dialogs stay usable", async ({
     page.getByRole("button", { name: "会话：先问这个", exact: true }),
   ).toBeVisible();
 });
+
+test("an empty conversation shows nothing, and the first message sits on top at once", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1280, height: 800 });
+  await slowAgent(page, "第一条");
+  const log = page.getByRole("log");
+  // The Agent's name is in the header; the log itself starts empty.
+  await expect(log).toHaveText("");
+  await expect(log.getByRole("img")).toHaveCount(0);
+  const input = page.getByRole("textbox", { name: "消息", exact: true });
+  await input.fill("你好");
+  await page.getByRole("button", { name: "发送", exact: true }).click();
+  const bubble = log.getByText("你好", { exact: true });
+  await expect(bubble).toBeVisible();
+  const top = async () =>
+    (await bubble.boundingBox())!.y - (await log.boundingBox())!.y;
+  expect(await top()).toBeLessThan(80);
+  await answer(page);
+  await expect(log).toContainText("答：你好");
+  expect(await top()).toBeLessThan(80);
+});

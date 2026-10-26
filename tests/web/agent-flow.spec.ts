@@ -120,7 +120,7 @@ for (const width of [375, 1440]) {
     ).toBeVisible();
   });
 }
-test("an imported role card introduces the Agent in the conversation and details", async ({
+test("an imported role card introduces the Agent in the list and details", async ({
   page,
 }) => {
   await page.goto("/");
@@ -145,7 +145,10 @@ test("an imported role card introduces the Agent in the conversation and details
   await expect(
     page.getByRole("region", { name: "写作助手 的会话", exact: true }),
   ).toBeVisible();
-  await expect(page.getByRole("log")).toContainText("协助理解文稿边界");
+  // The introduction shows in the list row and the details, not the chat.
+  await expect(
+    page.getByRole("complementary", { name: "Agent 列表" }),
+  ).toContainText("协助理解文稿边界");
   await sidebarToggle(page).click();
   const details = page.getByRole("complementary", { name: "Agent 详情" });
   await expect(details).toContainText("协助理解文稿边界");
@@ -261,8 +264,11 @@ test("imports persist and an external agent provider drives the default UI", asy
     .getByRole("button", { name: "启用 external.agents", exact: true })
     .click();
   await page.getByRole("button", { name: "返回工作区", exact: true }).click();
+  // The row shows its introduction until there is a message.
+  await expect(
+    page.getByRole("complementary", { name: "Agent 列表" }),
+  ).toContainText("独立作者的角色说明");
   await page.getByRole("button", { name: "外部角色", exact: true }).click();
-  await expect(page.getByRole("log")).toContainText("独立作者的角色说明");
   await page
     .getByRole("textbox", { name: "消息", exact: true })
     .fill("contract");
@@ -380,8 +386,9 @@ for (const width of [375, 1440])
     ).toHaveCount(0);
     await page.getByRole("button", { name: "收起详情" }).click();
     await page.reload();
-    await page.getByRole("button", { name: "角色设置", exact: true }).click();
-    await expect(page.getByRole("log")).toContainText("新的角色边界与工作方式");
+    await expect(
+      page.getByRole("complementary", { name: "Agent 列表" }),
+    ).toContainText("新的角色边界与工作方式");
   });
 
 test("the model is told the 设定, never the introduction, and an edit in details takes effect", async ({

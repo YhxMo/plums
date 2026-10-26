@@ -9,11 +9,6 @@ import {
 } from "@/components/ui/avatar";
 import { plumFor, plumParts, plumShape } from "./plum";
 
-const sizes = {
-  normal: "size-10",
-  large: "size-16",
-} as const;
-
 /** A flat plum on a rounded tile, in the colours the name picks. */
 function PlumMark({ name }: { name: string }) {
   const plum = plumFor(name);
@@ -66,23 +61,17 @@ function PlumMark({ name }: { name: string }) {
  */
 export function Avatar({
   agent,
-  size = "normal",
   dot,
   className,
 }: {
   agent: Pick<Agent, "name" | "avatar">;
-  size?: keyof typeof sizes;
   dot?: "typing" | "online";
   className?: string;
 }) {
   return (
     <AvatarRoot
       aria-hidden="true"
-      className={cn(
-        sizes[size],
-        "rounded-[27%] after:rounded-[27%]",
-        className,
-      )}
+      className={cn("size-10 rounded-[27%] after:rounded-[27%]", className)}
     >
       {agent.avatar && (
         <AvatarImage src={agent.avatar} alt="" className="rounded-[27%]" />

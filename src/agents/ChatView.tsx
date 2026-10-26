@@ -291,17 +291,6 @@ export function ChatView({
             ref={contentRef}
             className="flex min-h-full shrink-0 flex-col px-[max(24px,calc((100%-600px)/2))] pt-3 pb-9 max-md:px-3.5 max-md:pb-4"
           >
-            {!session.messages.length && (
-              <div className="my-auto flex flex-col items-center gap-3 text-center">
-                <Avatar agent={agent} size="large" />
-                <h2 className="text-xl font-semibold">{agent.name}</h2>
-                {agent.description && (
-                  <p className="line-clamp-4 max-w-md text-sm leading-relaxed whitespace-pre-wrap text-muted-foreground wrap-anywhere">
-                    {agent.description}
-                  </p>
-                )}
-              </div>
-            )}
             {lines}
             {/* The pending turn gives way to the saved one at once; the reply
             arrives whole, with no placeholder before it. */}
