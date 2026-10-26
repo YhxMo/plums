@@ -579,3 +579,22 @@ it("removing an Agent removes its avatar and messages", async () => {
   expect(records(owner, "avatars")).toEqual([]);
   expect(records(owner, `session:${session}`)).toEqual([]);
 });
+
+it("restores a message put back by undo to its place after a restart", async () => {
+  const { platform } = memoryPlatform();
+  const host = await start(platform);
+  const agent = await provider(host).create({ name: "撤销后重启" });
+  await provider(host).send(agent.id, "一");
+  await provider(host).send(agent.id, "二");
+  const session = provider(host).list()[0].sessions[0];
+  await provider(host).removeMessage!(
+    agent.id,
+    session.id,
+    session.messages[1].id,
+  );
+  await provider(host).undo!(agent.id);
+  const order = ["一", "回复：一", "二", "回复：二"];
+  expect(texts(provider(host).list()[0])).toEqual(order);
+  const restarted = await start(platform);
+  expect(texts(provider(restarted).list()[0])).toEqual(order);
+});

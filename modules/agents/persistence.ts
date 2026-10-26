@@ -5,6 +5,7 @@ import {
   type RecordWrite,
   type StateBatch,
   type StateBatchReceipt,
+  type StoredRecord,
   type StoredState,
 } from "@modules/sdk";
 import type { Agent, Message, Session } from "./contract";
@@ -85,7 +86,7 @@ export class AgentState {
     throw corrupt();
   }
   private async list(collection: string) {
-    const records: RecordPage["records"] = [];
+    const records: StoredRecord[] = [];
     let after: string | null = null;
     do {
       const page = (await this.call("records.list", {
@@ -120,7 +121,10 @@ export class AgentState {
                   ]),
                 ),
               );
-              return { ...session, messages: stored.map((m) => m.value) };
+              return {
+                ...session,
+                messages: chain(stored).map((m) => m.value),
+              };
             }),
           );
           return { ...entry, sessions } as Record<string, unknown>;
@@ -381,6 +385,24 @@ export class AgentState {
       })),
     };
   }
+}
+
+/**
+ * A session's records in conversation order, following each one's `parent`:
+ * storage order is insertion order, and a message put back by undo is
+ * inserted again after the rest. Records off the chain keep storage order.
+ */
+function chain(records: StoredRecord[]) {
+  const next = new Map<string | null, StoredRecord>();
+  for (const record of records)
+    if (!next.has(record.parent)) next.set(record.parent, record);
+  const ordered: StoredRecord[] = [];
+  const seen = new Set<string>();
+  for (let at = next.get(null); at && !seen.has(at.id); at = next.get(at.id)) {
+    seen.add(at.id);
+    ordered.push(at);
+  }
+  return [...ordered, ...records.filter((record) => !seen.has(record.id))];
 }
 
 /** A message as stored, with its place after `parent`. */
