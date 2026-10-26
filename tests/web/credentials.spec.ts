@@ -58,6 +58,8 @@ for (const width of [375, 1180]) {
             },
           };
           w.__TAURI_INTERNALS__ = {
+            transformCallback: () => 1,
+            unregisterCallback: () => {},
             invoke: async (
               command: string,
               args: {
@@ -182,6 +184,8 @@ test("connector key entry saves the typed key natively and recovers an unknown s
       },
     };
     w.__TAURI_INTERNALS__ = {
+      transformCallback: () => 1,
+      unregisterCallback: () => {},
       invoke: async (
         command: string,
         args: {
@@ -328,6 +332,8 @@ test("rebinding shows and saves the address the extension now declares", async (
         },
       };
       w.__TAURI_INTERNALS__ = {
+        transformCallback: () => 1,
+        unregisterCallback: () => {},
         invoke: async (command: string, args: { capability?: string }) => {
           if (command === "credential_supported") return true;
           if (
@@ -395,6 +401,8 @@ for (const width of [375, 1180])
       (w as unknown as { __states: () => string }).__states = () =>
         JSON.stringify([...states, ...items]);
       w.__TAURI_INTERNALS__ = {
+        transformCallback: () => 1,
+        unregisterCallback: () => {},
         invoke: async (command: string, args: Record<string, unknown>) => {
           if (command === "credential_supported") return true;
           if (command === "credential_inventory") return records;

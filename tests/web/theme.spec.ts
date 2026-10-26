@@ -16,14 +16,36 @@ for (const scheme of ["light", "dark"] as const) {
     await page.goto("/");
     const dialog = await openSettings(page);
     await expect(
-      dialog.getByRole("radio", {
-        name: scheme === "light" ? "浅色" : "深色",
-        exact: true,
-      }),
+      dialog.getByRole("radio", { name: "跟随系统", exact: true }),
     ).toBeChecked();
     await expect(page.locator("html")).toHaveAttribute("data-theme", scheme);
   });
 }
+
+test("following the system tracks a change while open; a fixed choice does not", async ({
+  page,
+}) => {
+  await page.emulateMedia({ colorScheme: "light" });
+  await page.goto("/");
+  const html = page.locator("html");
+  await expect(html).toHaveAttribute("data-theme", "light");
+  await page.emulateMedia({ colorScheme: "dark" });
+  await expect(html).toHaveAttribute("data-theme", "dark");
+  await switchAppearance(page, "浅色");
+  await page.emulateMedia({ colorScheme: "dark" });
+  await page.emulateMedia({ colorScheme: "light" });
+  await page.emulateMedia({ colorScheme: "dark" });
+  await expect(html).toHaveAttribute("data-theme", "light");
+  await page.reload();
+  await expect(html).toHaveAttribute("data-theme", "light");
+  await switchAppearance(page, "跟随系统");
+  await expect(html).toHaveAttribute("data-theme", "dark");
+  await page.reload();
+  const dialog = await openSettings(page);
+  await expect(
+    dialog.getByRole("radio", { name: "跟随系统", exact: true }),
+  ).toBeChecked();
+});
 
 for (const width of [375, 1440]) {
   test(`theme changes preserve drafts and survive layout selection and reload at ${width}px`, async ({

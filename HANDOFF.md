@@ -21,17 +21,18 @@
 
 | 范围 | 实际结果 |
 | --- | --- |
-| Web | `edf2103` 上 `npm run verify:web` 通过 |
-| 原生逻辑 | `40f3fa0` 上 `npm run verify:native` 通过；之后没有原生改动 |
-| Chromium | `edf2103` 上 `npm run verify:e2e` 全部通过。`chat-follow.spec.ts` 的“on a 2x screen › a sent message reaches the end…”会间歇失败，去掉本次改动后同样复现（重复 3 次失败 1 次），尚未修 |
+| Web | `edf2103` 上 `npm run verify:web` 通过；第 6 项改动（基于 `82b9138`）上 `npm run verify:web` 通过 |
+| 原生逻辑 | 第 6 项改动上 `npm run verify:native` 通过（含菜单命令表单元测试）；此前为 `40f3fa0` |
+| Chromium | 第 6 项改动上 `npm run verify:e2e` 303 项全部通过。`chat-follow.spec.ts` 的“on a 2x screen › a sent message reaches the end…”会间歇失败，`edf2103` 上去掉当时改动后同样复现（重复 3 次失败 1 次），尚未修；第 6 项这一轮未出现 |
 | WebKit | 界面改造后未重跑；改造前 `eaa1380` 的结果见[抽查记录](evidence/MAC-SPOTCHECK-2026-10-25.md) |
-| 打包应用 | 审查修复（撤销后重启的消息顺序、默认头像导出、头像残留、导入框长文本）所有者在 `0343426` 包中实测通过。`86f8857` 包所有者手测中、未回报；`edf2103` 包已构建、未抽查。更早的实测见[抽查](evidence/MAC-SPOTCHECK-2026-10-25.md)、[检查点](evidence/MAC-CHECKPOINT-2026-10-24.md)、[记忆](evidence/MAC-MEMORY-2026-10-25.md)、[输入法](evidence/MAC-INPUT-LAYOUT-2026-10-23.md)记录 |
+| 打包应用 | 第 6 项（菜单与 ⌘, / ⌘N / ⌘F、跟随系统的实时切换、弹窗与扩展管理中命令不触发）所有者在 `release/.mac-Xv7o0u` 中实测通过。审查修复（撤销后重启的消息顺序、默认头像导出、头像残留、导入框长文本）所有者在 `0343426` 包中实测通过。`86f8857` 包所有者手测中、未回报；`edf2103` 包已构建、未抽查。更早的实测见[抽查](evidence/MAC-SPOTCHECK-2026-10-25.md)、[检查点](evidence/MAC-CHECKPOINT-2026-10-24.md)、[记忆](evidence/MAC-MEMORY-2026-10-25.md)、[输入法](evidence/MAC-INPUT-LAYOUT-2026-10-23.md)记录 |
 
 ## 未验范围
 
 各子系统文档只记录契约与回归测试，平台和打包应用的未验项统一列在这里；已交付包的受验范围见[交付入口](evidence/RESULTS.md)；Android 冻结方式见[整体路线](docs/spec/total.md#平台范围先做好-mac-应用本体)。
 
 - **最近的界面调整**：设置弹窗、去掉行“…”、消息操作右对齐、列表拖入导入只有浏览器回归；WKWebView 中的 HTML 拖放（列表导入与会话附件分区）未在打包应用中验证。
+- **外观与快捷键**：WebKit 下的新分段控件未专门抽查；Windows/Linux 的菜单与窗口底色随系统更新、Android 的“跟随系统”均未实现。
 - **界面规范改造**：毛玻璃叠色与 0.5px 线条在 2 倍屏上的效果、`file.save` 保存面板（取消、覆盖同名）、打包应用中 `.plums` 导出导入、WebKit 下的新页面；导出 PNG 未在酒馆软件中打开。
 - **边界整理**：`AgentStore`、Agent 界面与记忆的模块拆分行为不变，只有单元与浏览器回归。
 - **设定与记忆**：重启后补整理、整理提示与撤销、过期显示、另选整理模型与关闭记忆、WebKit 下的记忆页（含 `datetime-local`）；整理提示词在更长对话和更多模型上的效果未评估。
@@ -45,11 +46,11 @@
 
 当前是[路线阶梯](docs/spec/total.md#路线阶梯)第 1 级（Mac 第一版），顺序与剩余内容只在[当前阶段](docs/spec/milestone.md#第-1-级mac-第一版)维护。
 
-- **当前焦点**：等所有者在打包候选中手测并回报；之后是第 6 项外观与快捷键。
+- **当前焦点**：第 6 项外观与快捷键已完成；之后是第 7 项交付候选与发布准备。
 - **遗留**：`modules/agents/store.ts`、`modules/agents/memory/store.ts`、`AgentWorkspace.tsx`、`ProviderForm.tsx` 超过 400 行提示线；应用外壳的导航与管理入口仍由 `Workbench` 固定组装；`View.icon` 无效原因是英文提示；拖放提示层用 2px 虚线；早先导入的单文件扩展的源码分片（`host.shell` 的 `x-` 文档）不再读取也不自动清理。
 
 ## 当前交付与恢复
 
-保留的候选：`release/.mac-KlOFGp`（`edf2103`，最新）、`release/.mac-v5XHrD`（`86f8857`）、`release/.mac-fSDXo2`（`0343426`），均为 0.2.0 arm64 debug / ad-hoc；更早的候选已删除，证据记录中的源码提交可重建。直接打开候选会使用正式数据目录；隔离数据须用设置了 `HOME` 或 `PLUMS_DATA_DIR` 的命令行启动包内可执行文件。新候选一律 `npm run release:mac -- --stage`。
+保留的候选：`release/.mac-Xv7o0u`（第 6 项改动，基于 `82b9138`，最新）、`release/.mac-KlOFGp`（`edf2103`）、`release/.mac-v5XHrD`（`86f8857`）、`release/.mac-fSDXo2`（`0343426`），均为 0.2.0 arm64 debug / ad-hoc；更早的候选已删除，证据记录中的源码提交可重建。直接打开候选会使用正式数据目录；隔离数据须用设置了 `HOME` 或 `PLUMS_DATA_DIR` 的命令行启动包内可执行文件。新候选一律 `npm run release:mac -- --stage`。
 
 已交付 0.2.0 来自 `40a7382`，Mac 入口 `release/mac/Plums.app`，未替换；Android 包仅保留原受验范围。[交付证据](evidence/RELEASE-0.2.0-2026-10-20.md)及包旁的 `build-info.json`、`source.patch` 用于核对来源。0.0.4 恢复包在 `.cache/archive/releases/mac-uIizKK/mac` 与 `.cache/archive/releases/android-JS89ll/android`，不自动回滚数据，规则见[开发流程](docs/DEVELOPMENT.md#本地交付目录)。

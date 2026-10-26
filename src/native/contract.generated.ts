@@ -248,7 +248,7 @@ export interface NativeCommands {
     };
   };
   shell_set_theme: {
-    args: { theme: "light" | "dark" };
+    args: { theme: "system" | "light" | "dark" };
     response: null;
     error: string;
   };

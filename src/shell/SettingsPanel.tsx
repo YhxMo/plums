@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import { ChevronDownIcon, ChevronRightIcon } from "lucide-react";
 import type { ShellDialogsProps } from "./controllers";
+import type { AppearancePreference } from "./useAppearance";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -132,7 +133,7 @@ export function SettingsPanel({
   views,
   activeView,
   selectLayout,
-  appearance: { appearance, themes, themeId, selectTheme, toggleTheme },
+  appearance: { selected, themes, themeId, selectTheme, selectAppearance },
   openManager,
   openAbout,
 }: Props) {
@@ -146,13 +147,17 @@ export function SettingsPanel({
             spacing={0.5}
             className="rounded-md bg-muted p-0.5"
             disabled={busy}
-            value={appearance}
+            value={selected}
             onValueChange={(next) => {
-              if (next && next !== appearance) void operate(toggleTheme);
+              if (next && next !== selected)
+                void operate(() =>
+                  selectAppearance(next as AppearancePreference),
+                );
             }}
           >
             {(
               [
+                ["system", "跟随系统"],
                 ["light", "浅色"],
                 ["dark", "深色"],
               ] as const

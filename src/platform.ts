@@ -4,6 +4,7 @@ import { NetworkAccess } from "./network";
 import { openLink } from "./links";
 import { saveFile } from "./files";
 import { isTauri } from "@tauri-apps/api/core";
+import { listen } from "@tauri-apps/api/event";
 import { invokeNative } from "./native/invoke";
 import { BrowserState } from "./browser-state";
 import {
@@ -38,8 +39,13 @@ export class PlatformAdapter implements Platform {
   readonly network = new NetworkAccess();
   private readonly browserState = new BrowserState();
   failWrites = false;
-  async setTheme(theme: Appearance) {
+  /** `system` hands the window's colour back to the OS. */
+  async setTheme(theme: Appearance | "system") {
     await invokeNative("shell_set_theme", { theme });
+  }
+  /** Commands the native menu sends; resolves to the function that stops listening. */
+  onCommand(handler: (command: string) => void) {
+    return listen<string>("app-command", (event) => handler(event.payload));
   }
   private readonly grants = new Map<string, Set<string>>();
   private readonly documentAccess = new DocumentAccess(

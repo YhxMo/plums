@@ -102,6 +102,8 @@ async function setup(
       w.isTauri = true;
       w.modelRecovery = controls;
       w.__TAURI_INTERNALS__ = {
+        transformCallback: () => 1,
+        unregisterCallback: () => {},
         async invoke(command: string, args: Record<string, unknown>) {
           if (command === "credential_supported") return true;
           if (command === "document_supported") return false;

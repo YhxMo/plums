@@ -38,8 +38,11 @@ export async function pickTheme(page: Page, label: string) {
     .getByRole("menuitemradio", { name: new RegExp(`^${label}`) })
     .click();
 }
-/** Switches light/dark in settings, then closes them. */
-export async function switchAppearance(page: Page, to: "深色" | "浅色") {
+/** Switches the colour in settings, then closes them. */
+export async function switchAppearance(
+  page: Page,
+  to: "跟随系统" | "深色" | "浅色",
+) {
   const dialog = await openSettings(page);
   await dialog.getByRole("radio", { name: to, exact: true }).click();
   await page.keyboard.press("Escape");

@@ -13,6 +13,8 @@ mod ipc;
 #[cfg(desktop)]
 mod legacy_data;
 mod links;
+#[cfg(desktop)]
+mod menu;
 mod network;
 mod storage;
 #[cfg(target_os = "macos")]
@@ -196,6 +198,8 @@ pub fn run() {
             })
             .build(),
     );
+    #[cfg(desktop)]
+    let builder = builder.menu(menu::build).on_menu_event(menu::on_event);
     // Only the size is remembered; the position is left to macOS.
     #[cfg(desktop)]
     let builder = builder.plugin(

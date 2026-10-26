@@ -14,6 +14,7 @@ import { useWorkspace } from "./useWorkspace";
 import { useWorkspaceChrome } from "./useWorkspaceChrome";
 import { useShellNavigation } from "./useShellNavigation";
 import { useSystemBack } from "./useSystemBack";
+import { useAppCommands } from "./useAppCommands";
 import { useExperiments } from "@/features/extensions/useExperiments";
 import { AuthorizationDialog, useAuthorization } from "./AuthorizationDialog";
 import { TitleBar } from "./TitleBar";
@@ -46,6 +47,16 @@ export function Workbench({ runtime }: { runtime: Runtime }) {
   const workspace = useWorkspace(runtime, operations, !navigation.manager.open);
   const chrome = useWorkspaceChrome(workspace);
   useSystemBack(navigation, chrome);
+  useAppCommands(
+    runtime,
+    (command) => {
+      // A dialog covers the workspace and the menu's commands alike.
+      if (document.querySelector('[role="dialog"][aria-modal="true"]')) return;
+      if (command === "settings") navigation.openDialog("settings");
+      else if (!navigation.manager.open) chrome.commands[command]?.();
+    },
+    operations.setError,
+  );
   const authorization = useAuthorization();
   const experiments = useExperiments(
     runtime,

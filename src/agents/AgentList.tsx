@@ -1,4 +1,4 @@
-import { useId, useRef, useState } from "react";
+import { useId, useRef, useState, type RefObject } from "react";
 import { PlusIcon, SearchIcon } from "lucide-react";
 import { cn } from "cn";
 import type { Agent } from "@modules/agents/contract";
@@ -167,6 +167,7 @@ export function AgentList({
   onAdd,
   onImport,
   onAction,
+  searchRef,
 }: {
   agents: Agent[];
   selected: string | null;
@@ -179,6 +180,8 @@ export function AgentList({
     action: AgentAction,
     source: HTMLElement | null,
   ) => void;
+  /** The search box, for the workspace's find command. */
+  searchRef: RefObject<HTMLInputElement | null>;
 }) {
   const [query, setQuery] = useState("");
   const add = useRef<HTMLButtonElement>(null);
@@ -213,6 +216,7 @@ export function AgentList({
               <SearchIcon />
             </InputGroupAddon>
             <InputGroupInput
+              ref={searchRef}
               aria-label="搜索 Agent"
               placeholder="搜索"
               value={query}

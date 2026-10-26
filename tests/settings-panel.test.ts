@@ -15,11 +15,11 @@ const props: ComponentProps<typeof SettingsPanel> = {
   activeView: "",
   selectLayout: async () => {},
   appearance: {
-    appearance: "dark",
+    selected: "dark",
     themes: [],
     themeId: null,
     selectTheme: async () => {},
-    toggleTheme: async () => {},
+    selectAppearance: async () => {},
   },
   openManager: () => {},
   openAbout: () => {},
@@ -32,7 +32,8 @@ it.each([false, true])(
     expect(html.includes("诊断工具")).toBe(dev);
     expect(html).toContain('aria-label="外观"');
     expect(html).toContain('aria-label="颜色"');
-    expect(html).toContain("深色");
+    for (const label of ["跟随系统", "浅色", "深色"])
+      expect(html).toContain(label);
     expect(html).toContain("关于 Plums");
     expect(html).toContain(VERSION);
     // Extensions have their own place on the rail; no detour from here.

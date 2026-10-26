@@ -71,15 +71,20 @@ it.each([
   prepareRuntime({ version: 1, ...value });
   expect((await boot()).initial.layout).toBe(layout);
 });
-it.each([true, false])("falls back to the media theme (%s)", async (dark) => {
-  prepareRuntime({ version: 1, theme: "invalid" });
-  vi.stubGlobal(
-    "matchMedia",
-    vi.fn(() => ({ matches: dark })),
-  );
-  expect((await boot()).initial.theme).toBe(dark ? "dark" : "light");
-  expect(matchMedia).toHaveBeenCalledWith("(prefers-color-scheme: dark)");
-});
+it.each(["system", "light", "dark"])(
+  "keeps the saved appearance preference %s",
+  async (theme) => {
+    prepareRuntime({ version: 1, theme });
+    expect((await boot()).initial.theme).toBe(theme);
+  },
+);
+it.each([undefined, "invalid", 3])(
+  "follows the system when the saved preference is %j",
+  async (theme) => {
+    prepareRuntime({ version: 1, theme });
+    expect((await boot()).initial.theme).toBe("system");
+  },
+);
 it("accepts absent state and preserves composition recovery with the original snapshot", async () => {
   runtimeFixture.saved = null;
   expect((await boot()).initial.layout).toBe("agents");

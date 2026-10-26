@@ -58,6 +58,10 @@ export function useWorkspaceChrome(workspace: Workspace) {
         state.drop.add &&
         ((files: readonly File[]) => invoke(() => state.drop!.add!(files))),
     },
+    commands: {
+      new: state.commands?.new && (() => invoke(state.commands!.new!)),
+      find: state.commands?.find && (() => invoke(state.commands!.find!)),
+    },
     custom,
     open: custom ? customOpen : (state.sidebar?.open ?? false),
     label: custom?.label ?? state.sidebar?.label,

@@ -18,7 +18,7 @@ export type Preferences = Record<string, unknown> & {
   version: 1;
   layout: string;
   layoutIntent?: unknown;
-  theme: "light" | "dark";
+  theme: "system" | "light" | "dark";
   themeId: string | null;
   imports: ImportedExtension[];
   configurations: Record<string, unknown>;
@@ -88,9 +88,7 @@ export function parsePersistedState(input: unknown): Preferences {
     theme:
       value.theme === "light" || value.theme === "dark"
         ? value.theme
-        : matchMedia("(prefers-color-scheme: dark)").matches
-          ? "dark"
-          : "light",
+        : "system",
     themeId: typeof value.themeId === "string" ? value.themeId : null,
     imports,
     configurations,

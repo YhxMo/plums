@@ -76,7 +76,7 @@ it.each([
   await runtime.save({ layout: "retry" });
   expect(runtimeFixture.write.mock.calls[1][0]).toMatchObject({
     revision: 7,
-    value: { theme: "light", layout: "retry" },
+    value: { theme: "system", layout: "retry" },
   });
 });
 it("latches an unknown receipt and refuses queued and subsequent writes", async () => {
@@ -103,7 +103,7 @@ it("does not publish a failed patch or discard opaque persisted fields", async (
   await runtime.save({ themeId: "retry" });
   expect(runtimeFixture.write.mock.calls[1][0]).toMatchObject({
     revision: 7,
-    value: { ...opaque, theme: "light", themeId: "retry" },
+    value: { ...opaque, theme: "system", themeId: "retry" },
   });
 });
 it("current publishes only after a receipt and remains unchanged on rejection", async () => {

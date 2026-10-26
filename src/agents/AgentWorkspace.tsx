@@ -91,6 +91,7 @@ export function AgentWorkspace({
     source: HTMLElement | null;
   } | null>(null);
   const workspaceRoot = useRef<HTMLDivElement>(null);
+  const search = useRef<HTMLInputElement>(null);
   const detailTrigger = useRef<HTMLElement | null>(null);
   const returnToAgent = useRef<string | null>(null);
   const focusFallback = () => fallbackFocus(workspaceRoot.current);
@@ -110,6 +111,11 @@ export function AgentWorkspace({
   }, [selected]);
   const modals = useAgentModals();
   const { setError, setNotice, open, act, report } = modals;
+  // The menu's command is published once and reaches the current dialog state.
+  const startCreate = useRef(() => {});
+  useLayoutEffect(() => {
+    startCreate.current = () => open("create", null);
+  });
   const undoNotice = useUndoNotice(modals);
   // Counts the person's own rewrites and undos; the conversation then
   // goes to its newest message, wherever it was scrolled.
@@ -195,6 +201,13 @@ export function AgentWorkspace({
       drop: {
         label: dropLabel,
         add: dropAdds ? (added) => addFiles(key, added) : undefined,
+      },
+      commands: {
+        new: () => startCreate.current(),
+        find() {
+          search.current?.focus();
+          search.current?.select();
+        },
       },
     });
   }, [
@@ -327,6 +340,7 @@ export function AgentWorkspace({
         onAdd={(source) => open("create", source)}
         onImport={(source) => open("import", source)}
         onAction={agentAction}
+        searchRef={search}
       />
     </ImportDrop>
   );

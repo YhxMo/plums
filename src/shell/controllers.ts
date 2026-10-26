@@ -51,7 +51,7 @@ export type ShellDialogsProps = {
   >;
   appearance: Pick<
     Appearance,
-    "appearance" | "themes" | "themeId" | "selectTheme" | "toggleTheme"
+    "selected" | "themes" | "themeId" | "selectTheme" | "selectAppearance"
   >;
   navigation: Pick<
     ShellNavigation,

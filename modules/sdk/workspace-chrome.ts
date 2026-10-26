@@ -26,6 +26,17 @@ export interface WorkspaceChromeState {
     readonly label: string;
     add?(files: readonly File[]): void;
   };
+  /**
+   * What the application menu's workspace commands do here (⌘N, ⌘F). Only
+   * the shown workspace is asked, and only when no dialog covers it; a
+   * command left out does nothing.
+   */
+  readonly commands?: {
+    /** Start making this workspace's kind of entity. */
+    new?(): void;
+    /** Move to this workspace's search. */
+    find?(): void;
+  };
 }
 
 export interface WorkspaceChrome {
