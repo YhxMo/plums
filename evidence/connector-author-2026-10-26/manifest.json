@@ -1,0 +1,24 @@
+{
+  "id": "example.opencode-go-chat",
+  "version": "0.1.0",
+  "apiVersion": 1,
+  "name": "OpenCode Go",
+  "author": "Plums 外部作者测试",
+  "license": "MIT",
+  "description": "通过 OpenCode Go 订阅的 OpenAI 兼容接口（Chat Completions）为 Agent 提供 DeepSeek、GLM、Kimi、MiniMax 等模型。\n在扩展详情的「连接与凭据」中填写 OpenCode Go 的 API Key（在 opencode.ai 控制台获取）。扩展读不到密钥。\nDeepSeek 模型需要在 OpenCode 控制台的 Settings › Privacy › Regions 中启用 Global。",
+  "provides": {
+    "chat": 1
+  },
+  "capabilities": ["credential.request"],
+  "credentialBindings": {
+    "chat": {
+      "label": "OpenCode Go（Chat Completions）",
+      "target": "https://opencode.ai/inference/go/openai/v1/chat/completions",
+      "contentType": "application/json",
+      "headers": {
+        "User-Agent": "plums-opencode-go/0.1.0"
+      },
+      "authentication": { "type": "bearer" }
+    }
+  }
+}
