@@ -20,12 +20,16 @@ test.beforeEach(async ({ page }) => {
   await page.goto("/");
 });
 
-test("settings and about end in 完成", async ({ page }) => {
+test("settings end in 完成; about, with nothing to change, does not", async ({
+  page,
+}) => {
   await done(await openSettings(page));
   await expect(shellButton(page, "设置")).toBeFocused();
   const settings = await openSettings(page);
   await settings.getByRole("button", { name: /^关于 Plums/ }).click();
-  await done(page.getByRole("dialog", { name: "关于 Plums", exact: true }));
+  const about = page.getByRole("dialog", { name: "关于 Plums", exact: true });
+  await expect(about.getByRole("heading", { name: /^Plums / })).toBeVisible();
+  await expect(about.getByRole("button", { name: "完成" })).toHaveCount(0);
 });
 
 test("Agent 设置 ends in 完成", async ({ page }) => {

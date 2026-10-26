@@ -94,9 +94,12 @@ export function ShellDialogs({
           />
         </DialogBody>
       )}
-      <DialogActions>
-        <Button onClick={() => setSettings(null)}>完成</Button>
-      </DialogActions>
+      {/* About only shows; nothing there needs finishing. */}
+      {settings !== "about" && (
+        <DialogActions>
+          <Button onClick={() => setSettings(null)}>完成</Button>
+        </DialogActions>
+      )}
     </Dialog>
   );
 }

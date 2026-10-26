@@ -22,7 +22,7 @@
 
 `ctx.view` 新增可选字段：
 
-- `mount(root, context)`：外壳在弹窗里挂载 dialog 视图时传入 `context.close()`，视图可用它放自己的“完成”按钮（见[设计规范](DESIGN.md#信息与交互)）；工作区与侧栏挂载时没有 `close`，只接受 `mount(root)` 的旧视图不受影响。
+- `mount(root, context)`：外壳在弹窗里挂载 dialog 视图时传入 `context.close()`，视图可用它放自己的“完成”按钮；工作区与侧栏挂载时没有 `close`，只接受 `mount(root)` 的旧视图不受影响。
 - `presentation: "workspace" | "dialog" | "sidebar"`：旧扩展默认 workspace；dialog 在扩展管理中所属扩展的卡片上以“打开 label”按钮出现（扩展启用时），不绑定特定业务 ID；扩展也可用 `ctx.shell.open("view", viewId)` 自行打开。dialog 视图另可声明 `entry: "user"`：外壳把窄栏顶部的用户头像变成打开它的按钮（名称取 `label`），用于“关于我”这类属于使用者本人的页面；有多个时取最早注册的一个，其他 presentation 上的 `entry` 被忽略。
 - `icon: string`：窄栏图标，一段 SVG 文本。根元素必须是带四个数字 `viewBox` 的 `<svg>`，UTF-8 不超过 8 KiB（`modules/sdk/view-icon.ts`）。宿主只把它当单色形状：以 `data:` URL 作 CSS `mask-image`、用当前文字色填充，当前项为 `--selection`、其余为 `--rail-icon`，因此 SVG 自带的颜色、样式、脚本、事件属性和外链都不生效或不执行；缺少 `xmlns` 时宿主补上。镂空用 `fill-rule="evenodd"`。注册时校验一次，不合格不影响视图本身：窄栏改用通用工作区图标，扩展管理详情的“界面图标”一行写明原因。不提供时同样使用通用图标。内置 Agent 界面也通过这个字段提供自己的对话气泡图标。
 - `priority: number`：没有有效选中布局时，较高优先级优先，同级按 ID 排序。默认值 0。内置 Agent 布局声明 100；显式选中其他布局仍优先。
