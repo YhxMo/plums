@@ -47,7 +47,7 @@
 
 当前是[路线阶梯](docs/spec/total.md#路线阶梯)第 1 级（Mac 第一版），顺序与剩余内容只在[当前阶段](docs/spec/milestone.md#第-1-级mac-第一版)维护。
 
-- **当前焦点**：第 7 项交付候选与发布准备进行中。已做：许可证（GPL-3.0-or-later 与商业授权，SDK 与示例 MIT）、随包第三方通知、[安装说明](docs/INSTALL.md)、`release:mac` 改为 release 档位（开启 `devtools`，包体 51→20 MB）。待做且需所有者参与：真实服务兼容调用（先确认目标、次数与输出上限）、所有者凭公开文档写连接器并完成一次真实调用、独立审查后按授权替换 `release/mac/`。
+- **当前焦点**：第 7 项交付候选与发布准备进行中。已做：许可证（GPL-3.0-or-later 与商业授权，SDK 与示例 MIT）、随包第三方通知、[安装说明](docs/INSTALL.md)、`release:mac` 改为 release 档位（开启 `devtools`，包体 51→20 MB）。进行中：空白会话只凭公开文档写 Gemini 原生接口连接器（[退出条件](docs/spec/total.md#1-认识你的联系人)已改）。待做且需所有者参与：真实服务兼容调用（先确认目标、次数与输出上限）、用该连接器完成一次真实调用（需所有者的密钥与授权）、独立审查后按授权替换 `release/mac/`。
 - **遗留**：`modules/agents/store.ts`、`modules/agents/memory/store.ts`、`AgentWorkspace.tsx`、`ProviderForm.tsx` 超过 400 行提示线；应用外壳的导航与管理入口仍由 `Workbench` 固定组装；`View.icon` 无效原因是英文提示；拖放提示层用 2px 虚线；早先导入的单文件扩展的源码分片（`host.shell` 的 `x-` 文档）不再读取也不自动清理。
 
 ## 当前交付与恢复
