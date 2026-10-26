@@ -45,7 +45,6 @@ export function AgentMenuItems({
   );
   return (
     <>
-      {item("settings", <Settings2Icon />, "Agent 设置…")}
       {item(
         "pin",
         agent.pinned ? <PinOffIcon /> : <PinIcon />,
@@ -54,6 +53,7 @@ export function AgentMenuItems({
       {item("rename", <PencilIcon />, "重命名")}
       {item("export", <ImageDownIcon />, "导出角色卡…")}
       {item("bundle", <PackageIcon />, "导出 Agent 和扩展…")}
+      {item("settings", <Settings2Icon />, "Agent 设置…")}
       <Separator />
       {item("remove", <Trash2Icon />, "移除 Agent")}
     </>

@@ -303,11 +303,11 @@ for (const width of [375, 700, 1280]) {
     await more.click();
     const menu = page.getByRole("menu", { name: "更多操作" });
     await expect(menu.getByRole("menuitem")).toHaveText([
-      "Agent 设置…",
       "置顶",
       "重命名",
       "导出角色卡…",
       "导出 Agent 和扩展…",
+      "Agent 设置…",
       "移除 Agent",
     ]);
     await menu.getByRole("menuitem", { name: "重命名" }).click();
