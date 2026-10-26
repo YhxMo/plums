@@ -1,68 +1,81 @@
+<p align="center">
+  <img src="./public/brand/plums.png" width="96" alt="Plums 图标：橙色梅子">
+</p>
+
 <h1 align="center">Plums</h1>
 
-<p align="center">用扩展拼出来、能像联系人一样相处的 Agent。</p>
+<p align="center">像通讯录里的联系人一样相处的 AI Agent，每一部分都由可替换的扩展组成。</p>
+
+<p align="center">
+  <img src="https://img.shields.io/badge/%E7%8A%B6%E6%80%81-0.2.0%20%E6%97%A9%E6%9C%9F%E5%8E%9F%E5%9E%8B-F59E0B?style=flat-square" alt="状态：0.2.0 早期原型"> <img src="https://img.shields.io/badge/%E5%B9%B3%E5%8F%B0-macOS%20arm64-4B5563?style=flat-square" alt="平台：macOS arm64"> <a href="https://v2.tauri.app/"><img src="https://img.shields.io/badge/Tauri-2-3776AB?style=flat-square" alt="Tauri 2"></a> <img src="https://img.shields.io/badge/React-19-3776AB?style=flat-square" alt="React 19"> <img src="https://img.shields.io/badge/Rust-%E5%8E%9F%E7%94%9F%E5%B1%82-3776AB?style=flat-square" alt="Rust 原生层"> <a href="./LICENSE"><img src="https://img.shields.io/badge/License-MIT-22C55E?style=flat-square" alt="License: MIT"></a>
+</p>
+
+> **当前状态**：macOS（Apple 芯片）上的早期原型，还没有可下载的安装包，需要从源码构建；和模型对话需要你自己的 API Key；扩展接口仍是实验版本，会变。
 
 ## 这是什么
 
-在 Plums 里，Agent 像通讯录里的人：一对一聊天，以后还能拉进群聊、让它独立做事、让别人加它为好友。每个 Agent 由可替换的扩展组成：模型、记忆、发言规则、角色卡、界面都可以换。
+在 Plums 里，每个 Agent 像通讯录里的一个人：你和它一对一聊天，它会记得你告诉过它的事。以后还会支持拉进群聊、让它独立做事、让别人加它为好友。
 
-支撑这些的是一个可以被扩展自由组装的应用本体。本体只负责通用机制：扩展的加载与生命周期、依赖、注册与释放、权限、凭据作用域、状态持久化和诊断。服务、界面、业务流程、模型适配、角色卡解析，以及新的扩展点，都由扩展提供。
-
-整个应用界面也是扩展：主题、布局、导航、页面和交互方式都可以被替换，内核不固定聊天布局。默认安装提供一个 Agent 对话界面，但它只是默认组合之一。目标是面向普通用户开箱即用，同时让开发者只凭公开 SDK 和文档就能写扩展。
-
-技术栈：Tauri 2、React/TypeScript 前端与 Rust 平台层；当前只做好 macOS 应用本体，之后再扩展到 Android、iOS、Windows、Linux。
+Agent 的每一部分都可以换：用哪个模型、怎么记忆、长什么样，都由扩展提供。整个应用界面本身也是扩展，主题、布局和页面都能替换。
 
 ## 现在能做什么
 
-当前是 0.2.0 debug 原型，SDK 仍是实验版本，接口会变。
+- **创建 Agent**：自己创建，或导入角色卡（JSON 或带数据的 PNG）；给它写介绍和只发给模型的设定，可以有多个会话、置顶。
+- **接入你的模型**：在「模型连接」里添加 DeepSeek、OpenAI、Anthropic、Kimi 等服务或兼容接口，每个 Agent 各选一个模型。密钥只保存在本机，由原生层注入请求，网页界面读不到。
+- **像联系人一样聊天**：回复整条送达，切走时有未读提示；支持 Markdown、拖入图片和文件、编辑与重新生成、撤销删除。
+- **记忆**：点左上角头像写下“关于我”，所有 Agent 都会读到；每个 Agent 会在会话停下后整理它记下的事，带时间的事过期后不再提起。都可以查看、修改、删除或关闭。
+- **导出与分享**：把 Agent 导出为角色卡图片，或连同设定打包成 `.plums` 文件再导入。
+- **管理扩展**：查看每个扩展的来源、权限与资源，启用、停用、卸载，或拖入扩展包导入。
 
-- **默认 Agent 界面**：创建或导入角色卡、置顶、多会话；详情显示给人看的介绍、只发给模型的设定和组成这个 Agent 的扩展。每个 Agent 选择自己的模型：在「模型连接」中添加 DeepSeek、OpenAI、Anthropic、Kimi 等服务或兼容接口（需自己的 API Key），对话会带上最近的上下文与设定；也可导入自己写的扩展。
-- **记忆**：点窄栏顶部的头像写下“关于我”，所有 Agent 都会读到；每个 Agent 在会话停下后用所选模型（可另选便宜的模型）整理它从对话里记下的事，带时间的事过期后不再告诉它。都可以查看、修改和删除，也能为某个 Agent 关掉。
-- **扩展管理**：查看扩展的来源、能力、权限与资源，启用、停用、卸载；选择或拖入扩展包（含 `manifest.json` 与 `main.js` 的文件夹或 zip）导入，开发时也可按同源扩展文件夹路径安装。
-- **界面与主题扩展**：可通过公开契约替换布局、页面、导航和主题，见 [PAGES](docs/PAGES.md)、[THEMES](docs/THEMES.md)。文本工作台、画布等示例只供源码开发与测试，打包默认组合只有 Agent 核心、记忆、模型连接和 Agent 界面。
-- **平台能力样板**：会话内只读打开所选文档（[说明](docs/SELECTED-DOCUMENT.md)）；在应用内填写模型 API Key 并配置连接（[说明](docs/CREDENTIAL-BINDINGS.md)），密钥只保存在本机，由原生层注入请求。
-- **尚未实现**：群聊、Agent 独立工作与好友、MCP 连接器、扩展市场、按扩展隔离。
-
-接下来按[整体计划](docs/spec/total.md#路线阶梯)的四级阶梯推进：认识你的联系人（Mac 第一版）→ 群聊 → 独立工作 → 共用的 Agent；正在做的事见[当前阶段](docs/spec/milestone.md)。
+还没有：群聊、Agent 独立工作与好友、MCP、扩展市场、按扩展隔离。路线见[整体计划](docs/spec/total.md#路线阶梯)。
 
 ## 快速开始
 
-需要 Node.js 20.19+ 或 22.12+。
+需要 Node.js 20.19+ 或 22.12+。先在浏览器里看看界面：
 
 ```sh
 npm ci
-npm test
 npm run dev
 ```
 
-浏览器打开 `http://127.0.0.1:1420`。从“添加”创建本地 Agent，或导入 JSON 角色卡；左侧窄栏底部（手机在顶栏）的“扩展”与“设置”分别打开扩展管理与应用设置，诊断在设置中。浏览器预览使用 localStorage，不能代表原生能力。
+打开 `http://127.0.0.1:1420`，从“添加”创建一个 Agent 或导入角色卡。浏览器预览不能保存 API Key，开发模式下可以选不联网的“回显模型”试用对话。
 
-原生开发需要 Rust 与对应平台工具链：
+要连接真实模型，需要原生窗口（另需 [Rust](https://www.rust-lang.org/tools/install) 与 Xcode 命令行工具）：
 
 ```sh
-npm run native -- dev --no-watch    # 原生开发窗口
-npm run verify                      # Web + 原生全部检查
+npm run native -- dev --no-watch
+```
+
+从对话输入栏的模型菜单打开「管理模型连接」，点「添加服务商」并填写 API Key，再为 Agent 选择模型（详见[模型连接](docs/MODELS.md)）。开发数据写在项目内的 `.dev-data/`，不会碰到其他应用的资料。
+
+构建本地 Mac 应用：
+
+```sh
 npm run native -- build --debug --bundles app
 ```
 
-实验数据写入项目内 `.dev-data/`，不接触既有应用资料或凭据。Mac 本地打包与交付目录见[开发流程](docs/DEVELOPMENT.md#本地交付目录)；当前交付包见 [HANDOFF](HANDOFF.md)。
-
 ## 写一个扩展
 
-扩展是一个 ESM 模块，默认导出 `manifest`（ID、版本、配置、提供与依赖的服务、所需能力）和 `activate(ctx)`。通过 `ctx.provide`/`ctx.use` 提供或使用服务，`ctx.view` 挂载界面，`ctx.platform` 调用平台能力，`ctx.onDispose` 登记清理。第一次写扩展见[作者入门](docs/AUTHOR-QUICKSTART.md)，开发样板与进阶规则见 [SDK-AUTHORING](docs/SDK-AUTHORING.md)，完整契约见 [EXTENSION-CONTRACTS](docs/EXTENSION-CONTRACTS.md)。
+扩展是一个 ESM 模块，默认导出 `manifest`（ID、版本、提供与依赖的服务、所需能力）和 `activate(ctx)`。通过 `ctx.provide` / `ctx.use` 提供或使用服务，`ctx.view` 挂载界面，`ctx.platform` 调用平台能力，`ctx.onDispose` 登记清理。
+
+| 想做什么 | 读哪篇 |
+| --- | --- |
+| 第一次写扩展 | [作者入门](docs/AUTHOR-QUICKSTART.md) |
+| 开发样板与进阶规则 | [SDK-AUTHORING](docs/SDK-AUTHORING.md) |
+| 查完整契约 | [EXTENSION-CONTRACTS](docs/EXTENSION-CONTRACTS.md) |
+| 替换页面与主题 | [PAGES](docs/PAGES.md)、[THEMES](docs/THEMES.md) |
+| 了解整体结构 | [架构](docs/ARCHITECTURE.md) |
+
+全部文档见[文档导航](docs/README.md)。
 
 ## 信任边界
 
 扩展是本地可信代码，与宿主在同一个 WebView 中运行，没有安全沙箱。能力声明、应用内授权与 Rust 侧状态作用域约束的是正常调用路径；恶意扩展仍可能直接访问 DOM 或原生桥接。导入时确认前只读取扩展清单、不执行代码；确认导入后代码即在应用内执行。只安装你信任来源的扩展。开放扩展市场之前，项目会先实现按扩展隔离与来源签名。
 
+## 参与开发
+
+改动前请先读[开发流程](docs/DEVELOPMENT.md)。提交前运行 `npm run verify:web`；改了原生代码再加 `npm run verify:native`，改了界面或用户路径再加 `npm run verify:e2e`。工程现状见 [HANDOFF](HANDOFF.md)。
+
 ## 许可证
 
-项目以 [MIT](LICENSE) 许可发布；第三方依赖各自的许可证与版权声明须保留。
-
-## 文档
-
-- [文档导航](docs/README.md)：所有当前文档的索引
-- [HANDOFF](HANDOFF.md)：工程状态与交付包
-- [架构](docs/ARCHITECTURE.md)、[开发流程](docs/DEVELOPMENT.md)
-
-第三方依赖通过锁文件固定，必要许可证与版权声明须保留。平台技术资料以 [Tauri 2](https://v2.tauri.app/) 官方文档为准。
+[MIT](LICENSE)。第三方依赖各自的许可证与版权声明须保留。
