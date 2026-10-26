@@ -114,12 +114,3 @@ Mac使用 `npm run release:mac` 统一构建普通debug包、ad-hoc签名、复�
 - `release/`、有效候选及其来源文件、历史应用备份、真实运行数据、隔离模拟器与 `goal.md` 不属于构建垃圾。测试完成后删除该次验收专用假数据、临时脚本、测试包与缓存；不按目录年龄批量删除未知数据。真实未验项保留在 HANDOFF 的未验范围，过期过程不继续归档。
 
 当前状态和版本从 README、HANDOFF 及 RESULTS 查阅；入口文档不复制多轮 PID、临时路径和交付时间线。项目清单、链接及隐私模式由 `check:project` 检查，原始日志／截图继续忽略。
-
-## 历史提交与交付来源
-
-旧交付记录使用构建时的原始提交标识。查找当前历史中的对应版本时，使用[提交映射](history-commit-map.json)：键是任一次历史改写前的完整提交 ID，值是当前提交。历史改写过两次：
-
-- 第一次清理文档与许可证，映射两侧的运行代码、测试、锁文件和图标一致。
-- 2026-10-23 统一命名：`dev.plums.m1` → `dev.plums.plums`，crate `plums-m1` / `plums_m1_lib` → `plums` / `plums_lib`，应用数据子目录 `m1-experiment` → `data`，开发数据 `.m1-data` → `.dev-data`，`evidence/m1/` → `evidence/`；Android 旧模板摘要同步换算。`evidence/` 记录的内容与真实产物文件名（如 `plums-m1-0.0.4-android-arm64-debug.apk`、`Contents/MacOS/plums-m1`）保持原样。
-
-在此之前构建的交付包（含 `release/mac/` 的 0.2.0）仍使用 `dev.plums.m1` 与 `m1-experiment` 数据目录，包旁 `build-info.json` 记录原始提交。原交付包、源码清单和产物摘要仍以原始记录为准。改写前的全部引用备份在 `.cache/archive/pre-rename-2026-10-23.bundle`。

@@ -12,8 +12,8 @@ import {
   parseConsolidation,
 } from "../modules/agents/memory/consolidate";
 
-const zone = "Asia/Singapore";
-const at = (iso: string) => new Date(`${iso}+08:00`).getTime();
+const zone = "Asia/Tokyo";
+const at = (iso: string) => new Date(`${iso}+09:00`).getTime();
 const now = at("2026-10-25T19:30:00");
 let n = 0;
 const item = (fields: Partial<MemoryItem>): MemoryItem => ({
@@ -28,7 +28,7 @@ const item = (fields: Partial<MemoryItem>): MemoryItem => ({
 
 it("gives an Agent only the shared items and its own about that person, minus the expired", () => {
   const items = [
-    item({ text: "叫小叶", scope: { kind: "person", person: "me" } }),
+    item({ text: "叫小明", scope: { kind: "person", person: "me" } }),
     item({ text: "对花生过敏" }),
     item({
       text: "另一个 Agent 的记忆",
@@ -49,7 +49,7 @@ it("gives an Agent only the shared items and its own about that person, minus th
     timeZone: zone,
   });
   expect(sections).toEqual([
-    { title: "关于对方", text: "对方写给所有 Agent 的资料：\n- 叫小叶" },
+    { title: "关于对方", text: "对方写给所有 Agent 的资料：\n- 叫小明" },
     {
       title: "你记得的事",
       text: "你从以往的对话里记得这些，可能已经过时；和对方新说的不一致时，以新说的为准：\n- 对花生过敏\n- 下周三有吉他课（10月28日（周三） 14:00，还有 3 天）",
@@ -112,7 +112,7 @@ it("shows the model numbered items, marks the expired and puts times in the pers
   ];
   const input = consolidationInput({
     name: "助手",
-    shared: [item({ text: "叫小叶", scope: { kind: "person", person: "me" } })],
+    shared: [item({ text: "叫小明", scope: { kind: "person", person: "me" } })],
     own,
     messages: [
       {
@@ -138,7 +138,7 @@ it("shows the model numbered items, marks the expired and puts times in the pers
   expect(input).toContain(
     "[1] 对花生过敏\n[2] 周五考试（at 2026-10-23T09:00，已过期）",
   );
-  expect(input).toContain("- 叫小叶");
+  expect(input).toContain("- 叫小明");
   expect(input).toContain(
     "[2026-10-25 19:20] 对方：我下周三下午两点有吉他课\n[2026-10-25 19:21] 助手：好的",
   );

@@ -1,69 +1,55 @@
 # Plums 工程状态
 
-核对日期：2026-10-26（Asia/Singapore）。当前只收口 macOS arm64 应用本体，Android 冻结。分支 `feat/ui-refresh`；本候选已分主题提交。2026-10-23 起历史统一使用 `dev.plums.plums` 命名，改写前的包与本地数据仍是旧名，见[历史提交与交付来源](docs/DEVELOPMENT.md#历史提交与交付来源)。
+核对日期：2026-10-26。当前只收口 macOS arm64 应用本体，Android 冻结。分支 `feat/ui-refresh` @ `edf2103`（之后只有文档提交），未推送。2026-10-23 起统一使用 `dev.plums.plums` 命名，此前构建的包与本地数据仍是旧名，迁移见[应用数据目录](docs/ARCHITECTURE.md#应用数据目录)。
 
 [文档导航](docs/README.md) · [当前阶段](docs/spec/milestone.md) · [整体路线](docs/spec/total.md) · [当前交付](evidence/RESULTS.md)
 
 ## 当前开发候选
 
-相对已交付 0.2.0 的主要变化；行为细节只在所链接的文档维护。
+相对已交付 0.2.0 的主要变化，逐项改动见 git log，行为只在所链接的文档维护。
 
-- **命名与数据目录**：标识符改为 `dev.plums.plums`，桌面首次启动复制改名前的旧数据（[规则](docs/ARCHITECTURE.md#应用数据目录)）；Rust 单元测试与 debug 二进制在假 HOME 下的实际复制已验证。
-- **API Key 存储**：改为数据根内 0600 的 `credential-secrets.json`，不使用 Keychain（[凭据契约](docs/CREDENTIAL-BINDINGS.md#填写与存储)）。
-- **输入与弹窗**：密钥输入可显隐、中文输入法组词不触发发送或关闭、Option-Tab 焦点循环与 Escape 逐层关闭（[UI](docs/UI.md#列表交互与详情)；Radix 补丁见[开发流程](docs/DEVELOPMENT.md#上游依赖补丁)）。
-- **扩展管理**：768px 起列表与详情两栏，补齐内置扩展的用途介绍（[UI](docs/UI.md#菜单外观与扩展管理)）。
-- **默认组合**：打包只含 Agent 核心、记忆、模型连接和 Agent 界面；文本工作台、回显模型等只在开发目录。
-- **设定与记忆**：介绍只给人看，设定只发给模型（拆分前的 Agent 原介绍同时作为设定）；内置记忆在会话停下后整理，头像打开“关于我”，「组成扩展」的“记忆”行打开每个 Agent 的记忆页（[契约](docs/EXTENSION-CONTRACTS.md#记忆服务契约)、[UI](docs/UI.md#列表交互与详情)）。
-- **联系人式回复**：回复整条送达，等待时会话头部显示“正在输入”、列表头像为橙色状态点；切走后到达的回复显示未读数并随会话保存；停止即撤回、不留消息（[UI](docs/UI.md#列表交互与详情)）。
+- **命名与数据**：`dev.plums.plums`，首次启动复制改名前的数据（[规则](docs/ARCHITECTURE.md#应用数据目录)）；API Key 存于数据根内 0600 文件，不用 Keychain（[凭据契约](docs/CREDENTIAL-BINDINGS.md#填写与存储)）。
+- **默认组合**：打包只含 Agent 核心、记忆、模型连接与 Agent 界面；文本工作台、回显模型只在开发目录。
+- **Agent 与对话**：介绍与设定分开、内置记忆、联系人式整条回复与未读、拖放附件与撤销、编辑与重新生成、Markdown 回复与 `link.open`（[UI](docs/UI.md#列表交互与详情)、[契约](docs/EXTENSION-CONTRACTS.md)）。
+- **界面规范改造**：第 5a 项按[设计规范](docs/DESIGN.md)完成，含 `file.save`、角色卡与 `.plums` 导出导入（[作者指南](docs/SDK-AUTHORING.md)）；所有者手测中又调整了列表行操作、“Agent 设置…”弹窗、消息操作位置与列表拖入导入（[UI](docs/UI.md)）。
 
-- **对话操作**：文件拖到窗口任何位置都加入打开的会话（工作区外壳接口 `drop`），没有可加入的会话时提示原因，拖放不会让窗口打开该文件；只有附件也能发送；删除消息或会话后可撤销；自己的消息可编辑、回复可重新生成，会删掉更多消息时先确认，完成后可撤销（[UI](docs/UI.md#列表交互与详情)、[Agent 服务契约](docs/EXTENSION-CONTRACTS.md#agent-服务契约)）。
-- **窗口框架**：常规尺寸红绿灯以 20pt 间距放在 68pt 窄栏顶部，只有窄栏透出系统侧栏材质；默认 940×640、最小 652×600、不设上限，只记住尺寸（[UI](docs/UI.md#列表交互与详情)）。
-- **界面细节**：输入框以光标表示焦点、不再整框变色，占位文字避开光标；对话框或菜单关闭后按钮提示不残留；ⓘ 说明悬停即显示；介绍用悬停出现的铅笔编辑；详情抽屉 288px；列表行去掉“…”按钮，行操作由右键或长按打开，菜单新增“Agent 设置…”以弹窗打开任一 Agent 的详情；列表与会话间的分隔条不再显示品牌色细线；消息的操作图标对齐气泡右缘，提示显示在图标下方；拖到列表上的角色卡或 `.plums` 打开导入，拖到会话卡片上的文件才成为附件，提示只覆盖所在区域。
-- **消息区滚动**：自有 `useFollowBottom` 取代 `use-stick-to-bottom`，WebKit 中发送后立即到底、等待时保持，撤销与改写后回到最新（[UI](docs/UI.md#列表交互与详情)）。
-- **回复排版与外链**：回复按 Markdown 排版，只有 https 链接可点，经宿主能力 `link.open` 在默认浏览器打开（[UI](docs/UI.md#列表交互与详情)、[平台能力](docs/EXTENSION-CONTRACTS.md#平台能力与可选助手)）。
-- **界面规范改造**：按[设计规范](docs/DESIGN.md)与所有者确认的效果图逐页改造（[当前阶段](docs/spec/milestone.md#第-1-级mac-第一版)第 5a 项）：Radix Gray 与 Orange、12/14/16/20 四种字号、0.5px 线条、只有浮层有阴影、去掉 `motion` 与入场动画；欢迎页与“+”菜单、22px 输入栏、详情、两步添加、经添加页导入（含 PNG 图片角色卡）、记忆已过期折叠与全部清除、扩展管理、设置、模型连接（行为见 [UI](docs/UI.md)）。新增宿主能力 `file.save`（[平台能力](docs/EXTENSION-CONTRACTS.md#平台能力与可选助手)）、角色卡导出与 Agent 整包（`.plums`）导出导入，以及实验接口 `ctx.shell.bundle`／`offerPackages`（[作者指南](docs/SDK-AUTHORING.md)）。另修复：同一提示随对话框换层时沿用旧计时，导致第二次“已重新生成”的“撤销”提前消失。
-- **审查修复**：版本 2–4 模型记录保留已存的输出上限（检查点那次“上限未生效”即因旧升级把 1024 换成了 `null`；已被那个候选保存过的记录不会恢复）；旧 JSON 首次导入在目录不可读时中止并可重试；浏览器批量写逆序回滚；损坏的扩展包可重新导入修复；扩展管理遮住会话时到达的回复计为未读；没有打开会话时，会话卡片顶部也能拖动窗口；撤销删除的消息在重启后按 `parent` 回到原位（此前排到会话末尾）；默认头像的 Agent 在原生应用中可导出（默认头像改用 `data:` 图片，原生 CSP 不允许 `blob:`）；导入带头像的角色卡后再新建 Agent 不再沿用那张头像；多行输入框中不可断开的长文本在框内换行，不再撑宽导入对话框。
+## 尚未落定
+
+- **右侧栏放什么**：所有者要保留右上角按钮，内容待定（设想过展开该 Agent 的其他会话与 md 文档等标签页）。定下来之前按钮仍开关详情抽屉，与菜单里的“Agent 设置…”弹窗渲染同一个 `DetailPanel`；定下后再撤掉抽屉，不要提前删按钮。
 
 ## 本候选验证
 
 | 范围 | 实际结果 |
 | --- | --- |
-| Web | 边界整理后的工作区上 `npm run verify:web` 通过（1017 单元及构建、发布内容检查、格式、项目边界、行数与 ESLint）；此前 `0220ac9` 与界面改造各提交各自通过 |
-| 原生逻辑 | `40f3fa0`（`file.save`）上 `npm run verify:native` 通过：IPC、格式、Clippy、93 单元；此前 `61df274` 上通过，SQLite 第一步时 debug 应用在真实格式开发数据副本上导入 `host.shell`（修订 11）并在其上保存，版本 1 → 2 的原地升级只有单元验证 |
-| Chromium | 边界整理与 Escape 修复后 `npm run verify:e2e` 全量 291 项全部通过；修复前 `memory.spec.ts` 在 `956d15f` 上重复 6 次失败 3 次，修复后 Escape 相关三个 spec 各重复 3 次共 66 项通过。`0220ac9` 上全量 289 项全部通过 |
-| WebKit | 界面改造后未重跑。改造前 `eaa1380` 上 16 个相关 spec 共 108 项：106 通过，失败的是 agent-flow 的“dialog close is quiet…”浅深两项（该测试现改为从名称框反向 Tab 到关闭按钮），见[抽查记录](evidence/MAC-SPOTCHECK-2026-10-25.md)。剪贴板读回只在 Chromium 检查（Playwright 的 WebKit 没有剪贴板权限） |
-| 浏览器视觉 | Chromium 1280px 浅深截图对照效果图：会话、欢迎页、详情、添加两步、导入、记忆、扩展管理、设置，以及导出的角色卡 PNG；模型连接页在浏览器开发服务中连接器停在“等待条件”，未截图，由 e2e 覆盖 |
-| 打包应用 | 最新候选 `release/.mac-KlOFGp/Plums.app`（`edf2103`）已构建、未抽查；所有者正在 `release/.mac-v5XHrD`（`86f8857`）中手测设置弹窗、去掉行“…”、操作图标右对齐与列表拖入导入；审查修复在 `release/.mac-fSDXo2`（`0343426`）中实测通过。更早的界面改造候选在旧数据上曾提示“权限恢复失败 agents.local”，已由 `80afb30` 修复；毛玻璃与 0.5px 线条的目视、`file.save` 保存面板与整包导入仍未做。此前 `2f3ee6e` 候选上所有者抽查对话体验与窗口框架，抽查中发现的问题已修复并重新打包，见[抽查记录](evidence/MAC-SPOTCHECK-2026-10-25.md)；`eb5c68b` 的检查点候选在真实改名前数据副本上完成迁移、消息转为记录、一次真实模型调用（输出上限未生效）、文件夹导入与模型窗口填写，见[打包检查点记录](evidence/MAC-CHECKPOINT-2026-10-24.md)；输入法与焦点的实测仍是改名前候选的[记录](evidence/MAC-INPUT-LAYOUT-2026-10-23.md) |
+| Web | `edf2103` 上 `npm run verify:web` 通过 |
+| 原生逻辑 | `40f3fa0` 上 `npm run verify:native` 通过；之后没有原生改动 |
+| Chromium | `edf2103` 上 `npm run verify:e2e` 全部通过。`chat-follow.spec.ts` 的“on a 2x screen › a sent message reaches the end…”会间歇失败，去掉本次改动后同样复现（重复 3 次失败 1 次），尚未修 |
+| WebKit | 界面改造后未重跑；改造前 `eaa1380` 的结果见[抽查记录](evidence/MAC-SPOTCHECK-2026-10-25.md) |
+| 打包应用 | 审查修复（撤销后重启的消息顺序、默认头像导出、头像残留、导入框长文本）所有者在 `0343426` 包中实测通过。`86f8857` 包所有者手测中、未回报；`edf2103` 包已构建、未抽查。更早的实测见[抽查](evidence/MAC-SPOTCHECK-2026-10-25.md)、[检查点](evidence/MAC-CHECKPOINT-2026-10-24.md)、[记忆](evidence/MAC-MEMORY-2026-10-25.md)、[输入法](evidence/MAC-INPUT-LAYOUT-2026-10-23.md)记录 |
 
 ## 未验范围
 
 各子系统文档只记录契约与回归测试，平台和打包应用的未验项统一列在这里；已交付包的受验范围见[交付入口](evidence/RESULTS.md)，Android 冻结期间的待补项见 [Android 工程](docs/ANDROID.md#构建和设备)。
 
-- **审查修复**：输出上限保留、导入重试等只有单元与浏览器回归。撤销后重启的消息顺序、默认头像导出、新建 Agent 的头像残留与导入框长文本，所有者已在 `release/.mac-fSDXo2`（`0343426`）中实测通过；之后的界面改动（设置弹窗、去掉行“…”、操作图标右对齐、列表拖入导入）只有浏览器回归，WebKit 中的拖放未在打包应用中验证。
-- **界面规范改造**：打包应用中毛玻璃叠色与 0.5px 线条在 2 倍屏上的效果、`file.save` 的系统保存面板（取消、覆盖同名文件）、角色卡与 `.plums` 在打包应用中的导出导入、WebKit 下的新页面（两步添加、导入、记忆、设置）；酒馆实际读取导出的 PNG 只按规范自测（V2 `chara`），未在酒馆软件中打开。
-- **设定与记忆**：打包应用已实测关于我、一次真实整理（DeepSeek）与重启后跨会话记忆（[记录](evidence/MAC-MEMORY-2026-10-25.md)）；重启后补整理、打包应用中的整理提示与撤销、过期显示、另选整理模型与关闭记忆、WebKit 下的记忆页（含 `datetime-local` 输入）未做；整理提示词在更长对话和更多模型上的效果未评估。
-- **数据迁移**：已有版本 1 库升级到版本 2（只影响开发数据，本机无此类库）、复制失败弹窗。
-- **存储**：断电与写入中途崩溃时的一致性依赖 SQLite，未实测；正常重启与转换前中断不证明这一点。
-- **窗口框架**：换屏（无第二块屏幕）；去掉上限后过大的保存尺寸收回到屏幕以内只有单元测试。
-- **窗口与界面**：Mac 窗口按钮避让依 `platform.info`、点击后归还焦点无焦点环（WKWebView）、明暗抽查与 WKWebView 遮罩绘制、应用内启动耗时；VoiceOver 第一版不验收，列为已知限制。
-- **模型与凭据**：带输出上限的真实调用；在当前版本中新填写密钥后的调用（检查点用的是迁移过来的密钥）；长上下文、图片和思考强度的服务兼容；统一日志无密钥未被正面证明（当时扫描时段无该进程条目）。实际账户调用须先确认目标、次数和输出上限。
-- **平台能力**：会话内文档选择（NSOpenPanel 与文件读取）未在当前源码的打包应用中重验；`link.open` 只在 macOS 打包应用中实测。
+- **最近的界面调整**：设置弹窗、去掉行“…”、消息操作右对齐、列表拖入导入只有浏览器回归；WKWebView 中的 HTML 拖放（列表导入与会话附件分区）未在打包应用中验证。
+- **界面规范改造**：毛玻璃叠色与 0.5px 线条在 2 倍屏上的效果、`file.save` 保存面板（取消、覆盖同名）、打包应用中 `.plums` 导出导入、WebKit 下的新页面；导出 PNG 未在酒馆软件中打开。
+- **边界整理**：`AgentStore`、Agent 界面与记忆的模块拆分行为不变，只有单元与浏览器回归。
+- **设定与记忆**：重启后补整理、整理提示与撤销、过期显示、另选整理模型与关闭记忆、WebKit 下的记忆页（含 `datetime-local`）；整理提示词在更长对话和更多模型上的效果未评估。
+- **数据与存储**：版本 1 库升级到版本 2（本机无此类库）、复制失败弹窗；断电与写入中途崩溃的一致性。
+- **窗口**：换屏（无第二块屏幕）；过大保存尺寸收回屏幕只有单元测试；窗口按钮避让、WKWebView 焦点环与遮罩、明暗抽查、启动耗时；VoiceOver 第一版不验收。
+- **模型与凭据**：带输出上限的真实调用、当前版本新填密钥后的调用、长上下文与图片和思考强度的兼容；统一日志无密钥未被正面证明。实际账户调用须先确认目标、次数和输出上限。
+- **平台能力**：会话内文档选择未在当前源码的打包应用中重验；`link.open` 只在 macOS 打包应用中实测。
 - **分发**：正式签名与公证。
 
 ## 进行中与下一步
 
-当前是[路线阶梯](docs/spec/total.md#路线阶梯)第 1 级（Mac 第一版），顺序与剩余内容只在[当前阶段](docs/spec/milestone.md#第-1-级mac-第一版)维护；自 0.2.0 以来的工作见 git log。
+当前是[路线阶梯](docs/spec/total.md#路线阶梯)第 1 级（Mac 第一版），顺序与剩余内容只在[当前阶段](docs/spec/milestone.md#第-1-级mac-第一版)维护。
 
-- **当前焦点**：第 5a 项界面规范改造与导出已实现（含所有者补充的角色卡导出与整包导出导入），等待所有者在上面的打包候选中抽查；之后是第 6 项外观与快捷键。
-- **边界整理**：`AgentStore` 拆出消息写入（`sessions.ts`）与在途回复（`replies.ts`），群聊前要做的“送达与生成分开”记在[路线第 2 级](docs/spec/total.md#2-群聊)；Agent 界面的草稿与附件、导入导出、回复阻挡与可撤销提示，扩展管理的整包确认，记忆的整理计时各自成为独立模块；记忆页从 `memory@1` 服务中分出为可选 `page`；外壳不再读取工作区 DOM，改由工作区状态声明 `frame: "own"`，卡片几何由共用的 `--pane-gap`、`--pane-header` 给出。行为不变，只有单元与浏览器回归，打包应用未重验。另修复：弹层刚打开、尚未重新渲染时按 Escape 会丢失（记忆页打开在 Agent 详情之上时可复现，`memory.spec.ts` 此前因此间歇失败），Radix 补丁改为每层都监听、按实时层栈决定（[上游依赖补丁](docs/DEVELOPMENT.md#上游依赖补丁)）。
-- **遗留**：`modules/agents/store.ts`（约 580 行）、`modules/agents/memory/store.ts`（约 440 行）、`AgentWorkspace.tsx`（约 470 行）与 `ProviderForm.tsx`（约 610 行）超过 400 行提示线；最外层导航、窗口框架与管理入口仍由 `Workbench` 固定组装，工作区可替换不等于整个应用外壳可替换；`View.icon` 无效原因是英文作者提示，在中文界面中原样显示；拖放提示层仍用 2px 虚线（短暂的状态指示，未按 0.5px 处理）；开发用的文本工作台与示例扩展不在设计规范的检查范围内；此前导入的单文件扩展的源码分片（`host.shell` 的 `x-` 文档）不再读取，也不自动清理。
-
-当前未推送，现有交付包未替换。
+- **当前焦点**：等所有者在打包候选中手测并回报；之后是第 6 项外观与快捷键。
+- **遗留**：`modules/agents/store.ts`、`modules/agents/memory/store.ts`、`AgentWorkspace.tsx`、`ProviderForm.tsx` 超过 400 行提示线；应用外壳的导航与管理入口仍由 `Workbench` 固定组装；`View.icon` 无效原因是英文提示；拖放提示层用 2px 虚线；早先导入的单文件扩展的源码分片（`host.shell` 的 `x-` 文档）不再读取也不自动清理。
 
 ## 当前交付与恢复
 
-保留的候选是 `release/.mac-KlOFGp/Plums.app`（`edf2103`，最新）、`release/.mac-v5XHrD/Plums.app`（`86f8857`，所有者手测中）与 `release/.mac-fSDXo2/Plums.app`（`0343426`，审查修复已实测），均为 0.2.0 arm64 debug / ad-hoc；更早的候选与 `release/mac-manual-2026-10-23/` 已删除，各证据记录中的源码提交仍可重建。直接打开候选会使用正式数据目录，并在首次启动时复制改名前的数据；要隔离数据，就用设置了 `HOME` 或 `PLUMS_DATA_DIR` 的命令行启动包内可执行文件。
+保留的候选：`release/.mac-KlOFGp`（`edf2103`，最新）、`release/.mac-v5XHrD`（`86f8857`）、`release/.mac-fSDXo2`（`0343426`），均为 0.2.0 arm64 debug / ad-hoc；更早的候选已删除，证据记录中的源码提交可重建。直接打开候选会使用正式数据目录；隔离数据须用设置了 `HOME` 或 `PLUMS_DATA_DIR` 的命令行启动包内可执行文件。新候选一律 `npm run release:mac -- --stage`。
 
-已交付 0.2.0 来自 `6668ce7`，Mac 入口 `release/mac/Plums.app`，本次未替换；Android 包仅保留其原受验范围。[交付证据](evidence/RELEASE-0.2.0-2026-10-20.md)及包旁的 `build-info.json`、`source.patch` 用于核对来源。0.0.4 恢复包保留在 `.cache/archive/releases/mac-uIizKK/mac` 与 `.cache/archive/releases/android-JS89ll/android`；恢复包不自动回滚数据，操作规则见[开发流程](docs/DEVELOPMENT.md#本地交付目录)。
-
-既有交付的原始提交与当前历史的对应关系见[开发流程](docs/DEVELOPMENT.md#历史提交与交付来源)。
+已交付 0.2.0 来自 `40a7382`，Mac 入口 `release/mac/Plums.app`，未替换；Android 包仅保留原受验范围。[交付证据](evidence/RELEASE-0.2.0-2026-10-20.md)及包旁的 `build-info.json`、`source.patch` 用于核对来源。0.0.4 恢复包在 `.cache/archive/releases/mac-uIizKK/mac` 与 `.cache/archive/releases/android-JS89ll/android`，不自动回滚数据，规则见[开发流程](docs/DEVELOPMENT.md#本地交付目录)。

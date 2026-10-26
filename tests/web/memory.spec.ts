@@ -37,20 +37,20 @@ test("the avatar opens what every Agent knows about you, and each Agent reads it
   await expect(
     dialog.getByRole("combobox", { name: "查看谁的记忆" }),
   ).toHaveText(/关于我/);
-  await dialog.getByRole("textbox", { name: "新的记忆" }).fill("我叫小叶");
+  await dialog.getByRole("textbox", { name: "新的记忆" }).fill("我叫小明");
   await dialog.getByRole("button", { name: "添加", exact: true }).click();
   await expect(dialog.getByRole("list", { name: "关于我" })).toContainText(
-    "我叫小叶",
+    "我叫小明",
   );
   await page.keyboard.press("Escape");
   await send(page, "你好");
   await expect(lastReply(page)).toContainText(
-    "关于对方 对方写给所有 Agent 的资料： - 我叫小叶",
+    "关于对方 对方写给所有 Agent 的资料： - 我叫小明",
   );
   await page.reload();
   await page.getByRole("button", { name: "甲", exact: true }).click();
   await send(page, "还记得吗");
-  await expect(lastReply(page)).toContainText("我叫小叶");
+  await expect(lastReply(page)).toContainText("我叫小明");
 });
 
 test("an Agent's memory opens from its details, reaches only it, and stops when switched off", async ({

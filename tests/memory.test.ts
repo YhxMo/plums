@@ -82,7 +82,7 @@ it("learns from a conversation and tells only that Agent what it learned", async
   const { agents, memory, replies, consolidations, answer } = await setup();
   const a = await agents().create({ name: "甲", instructions: "设定甲" });
   const b = await agents().create({ name: "乙" });
-  await memory().add({ kind: "person", person: "me" }, { text: "叫小叶" });
+  await memory().add({ kind: "person", person: "me" }, { text: "叫小明" });
   await agents().send(a.id, "我对花生过敏");
   answer.text =
     '```json\n{"add":[{"text":"对花生过敏"}],"update":[],"delete":[]}\n```';
@@ -102,9 +102,9 @@ it("learns from a conversation and tells only that Agent what it learned", async
   await agents().send(b.id, "你好");
   const [, toA, toB] = replies();
   expect(toA.instructions).toMatch(
-    /设定甲\n\n## 关于对方\n.*\n- 叫小叶\n\n## 你记得的事\n.*\n- 对花生过敏$/s,
+    /设定甲\n\n## 关于对方\n.*\n- 叫小明\n\n## 你记得的事\n.*\n- 对花生过敏$/s,
   );
-  expect(toB.instructions).toContain("叫小叶");
+  expect(toB.instructions).toContain("叫小明");
   expect(toB.instructions).not.toContain("花生");
 });
 
@@ -184,8 +184,8 @@ it("keeps memory across restarts, and does not learn conversations from before i
   expect(consolidations()).toHaveLength(0);
   // Two messages within one millisecond are rare outside tests.
   await new Promise((resolve) => setTimeout(resolve, 5));
-  await agents().send(old.id, "我叫小叶");
-  answer.text = '{"add":[{"text":"叫小叶"}]}';
+  await agents().send(old.id, "我叫小明");
+  answer.text = '{"add":[{"text":"叫小明"}]}';
   await memory().consolidate(old.id);
   expect(consolidations()[0].input).not.toContain("很久以前");
   await host.stop("agents.local");
@@ -196,7 +196,7 @@ it("keeps memory across restarts, and does not learn conversations from before i
     memory()
       .snapshot()
       .items.map((i) => i.text),
-  ).toEqual(["叫小叶"]);
+  ).toEqual(["叫小明"]);
   expect(agents().list()[0].id).toBe(old.id);
 });
 
@@ -243,7 +243,7 @@ it("consolidates once a conversation rests, or at once when the person leaves it
           description: "",
         },
       ],
-      { now: () => 10, timeZone: () => "Asia/Singapore" },
+      { now: () => 10, timeZone: () => "Asia/Tokyo" },
     );
     store.connect({
       agents: () => [

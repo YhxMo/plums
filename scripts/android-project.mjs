@@ -75,23 +75,23 @@ org.gradle.workers.max=4
  */
 const previousTemplates = {
   Credentials: new Set([
-    // 0e5d114: prompt failures reported as cancelled.
+    // 224fc52: prompt failures reported as cancelled.
     "e59629add7a0c82ca54085ff7d47cd66df92677ef106a3f348be44c4ddec6e58",
-    // 135c149: before bound requests.
+    // ca6c031: before bound requests.
     "b1f134a606380b32065e35750e559d85f6047038bd1d8c8d06c37c1d329f015d",
-    // 4657f25: 4096-byte request limit.
+    // f4c432d: 4096-byte request limit.
     "90bf5a0de6c9ad8b56162d2df63409e7b888ad31227bbfc241bf9b33a4fd842f",
-    // 45a03dc: 8192-byte response, POST only.
+    // 9b313fb: 8192-byte response, POST only.
     "98635e13fc5f026f1752502e9ac07f19ff5fa0179e6626573add1e81be865610",
-    // e06aeb7: 64 KiB request, 30 s total.
+    // bc102d6: 64 KiB request, 30 s total.
     "855ba65873f58ce845b6890bc69784eb7c39ee094491af520705eae2a42c3c0d",
-    // 6fc58eb: 8 MiB request, key typed in a native dialog.
+    // 916d5fa: 8 MiB request, key typed in a native dialog.
     "45b5d08536d1d8102089b836d41e9ff91527953ad70df327270546d9b8ceb07e",
   ]),
   Network: new Set([
-    // a027edf: cancel before connecting did not stop the read.
+    // 44ec836: cancel before connecting did not stop the read.
     "fa669a57c644385193584f45968c1cab144b2679fa04271138ec68dd4b1d3c54",
-    // 741bf25: a failed TLS handshake reported as not sent.
+    // b5734b3: a failed TLS handshake reported as not sent.
     "a6ddda691bf027f9cda20c56f6cafb92c6eb584dd590194487e650310c216865",
   ]),
 };

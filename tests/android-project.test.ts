@@ -11,20 +11,6 @@ import { join, dirname } from "node:path";
 import { afterEach, expect, test } from "vitest";
 import { prepareAndroid } from "../scripts/android-project.mjs";
 
-const commitMap: Record<string, string> = JSON.parse(
-  readFileSync(
-    new URL("../docs/history-commit-map.json", import.meta.url),
-    "utf8",
-  ),
-);
-function historicalCommit(prefix: string) {
-  const matches = Object.entries(commitMap).filter(([old]) =>
-    old.startsWith(prefix),
-  );
-  expect(matches).toHaveLength(1);
-  return matches[0][1];
-}
-
 const roots: string[] = [];
 function fixture() {
   const root = mkdtempSync(join(tmpdir(), "plums-android-"));
@@ -264,19 +250,16 @@ test("preparation replaces only known earlier credential plugin templates", () =
     "utf8",
   ).replace("{{PACKAGE}}", "dev.plums.plums");
   for (const commit of [
-    "0e5d114",
-    "135c149",
-    "4657f25",
-    "45a03dc",
-    "e06aeb7",
-    "6fc58eb",
+    "224fc52",
+    "ca6c031",
+    "f4c432d",
+    "9b313fb",
+    "bc102d6",
+    "916d5fa",
   ]) {
     const previous = execFileSync(
       "git",
-      [
-        "show",
-        `${historicalCommit(commit)}:native/android/CredentialsPlugin.kt`,
-      ],
+      ["show", `${commit}:native/android/CredentialsPlugin.kt`],
       { cwd: process.cwd(), encoding: "utf8" },
     ).replace("{{PACKAGE}}", "dev.plums.plums");
     writeFileSync(plugin, previous);
@@ -299,10 +282,10 @@ test("preparation replaces only known earlier network plugin templates", () => {
     join(root, "native/android/NetworkPlugin.kt"),
     "utf8",
   ).replace("{{PACKAGE}}", "dev.plums.plums");
-  for (const commit of ["a027edf", "741bf25"]) {
+  for (const commit of ["44ec836", "b5734b3"]) {
     const previous = execFileSync(
       "git",
-      ["show", `${historicalCommit(commit)}:native/android/NetworkPlugin.kt`],
+      ["show", `${commit}:native/android/NetworkPlugin.kt`],
       { cwd: process.cwd(), encoding: "utf8" },
     ).replace("{{PACKAGE}}", "dev.plums.plums");
     writeFileSync(plugin, previous);
