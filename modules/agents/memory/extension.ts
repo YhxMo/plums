@@ -1,4 +1,4 @@
-import type { ExtensionDefinition } from "@modules/sdk";
+import type { ExtensionDefinition, ViewContext } from "@modules/sdk";
 import type { ChatService } from "@extensions/contracts";
 import { chatModels } from "@modules/agents/models";
 import { MemoryState } from "./persistence";
@@ -24,8 +24,7 @@ type MountPage = (
   api: MemoryPageApi,
   /** The Agent whose memory to show first; null for the shared memory. */
   focus: string | null,
-  /** Closes the dialog showing the page. */
-  close?: () => void,
+  context?: ViewContext,
 ) => () => void | Promise<void>;
 
 /**
@@ -94,7 +93,7 @@ export function memoryExtension({
           mount(container, context) {
             const first = focus;
             focus = null;
-            return mountPage(container, store, first, context?.close);
+            return mountPage(container, store, first, context);
           },
         });
       }

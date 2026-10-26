@@ -4,7 +4,7 @@ import type { ModelConnectionsApi } from "@modules/models/extension";
 import type { ProviderStatus, ProviderView } from "@modules/models/providers";
 import { tokenLabel } from "@modules/models/protocols";
 import { useAsyncAction } from "@/components/useAsyncAction";
-import { DialogActions, DialogBody } from "@/components/Dialog";
+import { DialogBody, DialogDone } from "@/components/Dialog";
 import { ActionToast } from "@/components/Toast";
 import { Button } from "@/components/ui/button";
 import { ProviderForm } from "./ProviderForm";
@@ -208,15 +208,11 @@ export function ModelConnections({
     </DialogBody>
   );
   // Changes save as they are made, so the list only needs a way out.
-  return onDone ? (
+  return (
     <>
       {list}
-      <DialogActions>
-        <Button onClick={onDone}>完成</Button>
-      </DialogActions>
+      <DialogDone onDone={onDone} />
     </>
-  ) : (
-    list
   );
 }
 

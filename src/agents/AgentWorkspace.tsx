@@ -18,8 +18,7 @@ import { AgentList } from "./AgentList";
 import { ChatView } from "./ChatView";
 import { DetailPanel } from "./DetailPanel";
 import { EmptyState } from "./EmptyState";
-import { Dialog, DialogActions } from "@/components/Dialog";
-import { Button } from "@/components/ui/button";
+import { Dialog, DialogDone } from "@/components/Dialog";
 import { useMediaQuery } from "@/components/useMediaQuery";
 import { atLeast, below } from "@/components/breakpoints";
 import {
@@ -108,7 +107,7 @@ export function AgentWorkspace({
       `[data-agent-id="${CSS.escape(returnToAgent.current)}"]`,
     );
     if (target?.getClientRects().length) target.focus();
-    else workspaceRoot.current?.focus();
+    else focusFallback()?.focus();
     returnToAgent.current = null;
   }, [selected]);
   const modals = useAgentModals();
@@ -430,7 +429,6 @@ export function AgentWorkspace({
       ui={ui}
       modals={modals}
       fallbackFocus={focusFallback}
-      overall={focusFallback}
       onCreated={(agent) => {
         setSelected(agent.id);
         setDetail(false);
@@ -471,9 +469,7 @@ export function AgentWorkspace({
       {feedback}
       {detailsOf(settingsAgent, () => setSettings(null), false)}
       {/* Edits save in place, so the dialog only needs a way out. */}
-      <DialogActions>
-        <Button onClick={() => setSettings(null)}>完成</Button>
-      </DialogActions>
+      <DialogDone onDone={() => setSettings(null)} />
     </Dialog>
   );
   // The undo toast shows in the topmost layer that is open.

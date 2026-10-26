@@ -11,7 +11,7 @@ const MemoryPage = lazy(() =>
 /** The built-in memory with its React page. */
 export const memoryExtensionWithPage = () =>
   memoryExtension({
-    mountPage(container, api, focus, close) {
+    mountPage(container, api, focus, context) {
       const element = document.createElement("div");
       container.append(element);
       const root = createRoot(element);
@@ -20,7 +20,7 @@ export const memoryExtensionWithPage = () =>
       root.render(
         <LayerContainer value={element}>
           <Suspense fallback={null}>
-            <MemoryPage api={api} focus={focus} onDone={close} />
+            <MemoryPage api={api} focus={focus} onDone={context?.close} />
           </Suspense>
         </LayerContainer>,
       );

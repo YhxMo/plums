@@ -1,7 +1,7 @@
 import { preservedMessage } from "./messages";
 import type { ShellDialogsProps } from "./controllers";
 import { ExtensionView } from "./ExtensionView";
-import { Dialog, DialogActions, DialogBody } from "@/components/Dialog";
+import { Dialog, DialogBody, DialogDone } from "@/components/Dialog";
 import { Button } from "@/components/ui/button";
 import { SettingsPanel } from "./SettingsPanel";
 import { VERSION } from "./version";
@@ -21,6 +21,7 @@ export function ShellDialogs({
     setSettings(null);
   }
   if (!settings) return null;
+  const close = () => setSettings(null);
   if (typeof settings === "object") {
     const view = workspace.allViews.find(
       (view) => view.presentation === "dialog" && view.id === settings.id,
@@ -31,14 +32,14 @@ export function ShellDialogs({
         title={view?.label ?? settings.label}
         returnFocusTo={navigation.dialogTrigger}
         onBack={navigation.back}
-        onClose={() => setSettings(null)}
+        onClose={close}
       >
         {view ? (
           <ExtensionView
             host={host}
             id={view.id}
             generation={view.generation}
-            onClose={() => setSettings(null)}
+            onClose={close}
           />
         ) : (
           <DialogBody>
@@ -61,7 +62,7 @@ export function ShellDialogs({
       title={settings === "about" ? "关于 Plums" : "设置"}
       returnFocusTo={navigation.dialogTrigger}
       onBack={navigation.back}
-      onClose={() => setSettings(null)}
+      onClose={close}
     >
       {settings === "about" ? (
         <DialogBody className="justify-items-center py-8 text-center">
@@ -95,11 +96,7 @@ export function ShellDialogs({
         </DialogBody>
       )}
       {/* About only shows; nothing there needs finishing. */}
-      {settings !== "about" && (
-        <DialogActions>
-          <Button onClick={() => setSettings(null)}>完成</Button>
-        </DialogActions>
-      )}
+      <DialogDone onDone={settings === "about" ? undefined : close} />
     </Dialog>
   );
 }

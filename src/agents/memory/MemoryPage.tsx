@@ -6,7 +6,7 @@ import type { MemoryItem, MemoryScope } from "@modules/agents/memory/contract";
 import { expired, sameScope } from "@modules/agents/memory/items";
 import type { ConsolidationModel } from "@modules/agents/memory/persistence";
 import type { MemoryAgent } from "@modules/agents/memory/store";
-import { DialogActions, DialogBody } from "@/components/Dialog";
+import { DialogBody, DialogDone } from "@/components/Dialog";
 import { Select, type SelectOption } from "@/components/Select";
 import { ActionToast } from "@/components/Toast";
 import { useAsyncAction } from "@/components/useAsyncAction";
@@ -186,11 +186,7 @@ export function MemoryPage({
           }}
         />
       </DialogBody>
-      {onDone && (
-        <DialogActions>
-          <Button onClick={onDone}>完成</Button>
-        </DialogActions>
-      )}
+      <DialogDone onDone={onDone} />
     </>
   );
 }

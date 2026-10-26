@@ -15,14 +15,12 @@ async function done(dialog: Locator) {
   await expect(dialog).toBeHidden();
 }
 
-test.beforeEach(async ({ page }) => {
-  await page.setViewportSize({ width: 1280, height: 800 });
-  await page.goto("/");
-});
+test.use({ viewport: { width: 1280, height: 800 } });
 
 test("settings end in 完成; about, with nothing to change, does not", async ({
   page,
 }) => {
+  await page.goto("/");
   await done(await openSettings(page));
   await expect(shellButton(page, "设置")).toBeFocused();
   const settings = await openSettings(page);
@@ -33,6 +31,7 @@ test("settings end in 完成; about, with nothing to change, does not", async ({
 });
 
 test("Agent 设置 ends in 完成", async ({ page }) => {
+  await page.goto("/");
   await addAgent(page, "甲");
   await page
     .getByRole("complementary", { name: "Agent 列表" })
@@ -85,6 +84,7 @@ test.describe("in the app window", () => {
 });
 
 test("the memory page ends in 完成", async ({ page }) => {
+  await page.goto("/");
   await addAgent(page, "甲");
   await page
     .getByRole("navigation", { name: "应用导航" })

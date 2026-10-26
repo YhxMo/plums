@@ -37,7 +37,6 @@ export function AgentDialogs({
   files,
   onNotice,
   fallbackFocus,
-  overall,
 }: {
   api: AgentProvider;
   ui?: Named;
@@ -65,9 +64,8 @@ export function AgentDialogs({
   files: AgentFiles;
   /** Says what was done, outside the dialog. */
   onNotice: (text: string) => void;
+  /** Where focus goes when its opener is gone, or once something is added. */
   fallbackFocus(): HTMLElement | null;
-  /** The workspace as a whole, where focus goes once something is added. */
-  overall(): HTMLElement | null;
 }) {
   const {
     modal,
@@ -126,7 +124,7 @@ export function AgentDialogs({
       returnFocusTo={modalTrigger.current}
       fallbackFocus={fallbackFocus}
       focusAfterClose={() => {
-        const target = created.current ? overall() : null;
+        const target = created.current ? fallbackFocus() : null;
         created.current = false;
         return target;
       }}

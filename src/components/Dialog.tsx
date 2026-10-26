@@ -33,8 +33,8 @@ function menuOpener() {
  * A modal dialog that is open while mounted. Focus starts at the title,
  * and on close returns to the opener while it is still shown, else to
  * `fallbackFocus`, unless `focusAfterClose` names the element that should
- * take it (a new conversation's input, say). `onBack` adds a back button for a dialog reached from
- * another step. `sheet` slides in from the bottom (phones) or the right
+ * take it (the workspace once an Agent is added, say). `onBack` adds a back
+ * button for a dialog reached from another step. `sheet` slides in from the bottom (phones) or the right
  * without a title bar, for content that brings its own; the right one is a
  * non-modal drawer that leaves the page usable and stays open until closed.
  */
@@ -182,6 +182,17 @@ export function DialogBody({ className, ...props }: ComponentProps<"div">) {
       className={cn("grid gap-4 px-5 py-4 text-sm leading-relaxed", className)}
       {...props}
     />
+  );
+}
+
+/** The way out of a window whose changes apply at once; nothing without `onDone`. */
+export function DialogDone({ onDone }: { onDone?: () => void }) {
+  return (
+    onDone && (
+      <DialogActions>
+        <Button onClick={onDone}>完成</Button>
+      </DialogActions>
+    )
   );
 }
 

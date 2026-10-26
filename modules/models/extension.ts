@@ -2,6 +2,7 @@ import type {
   CredentialResponse,
   ExtensionDefinition,
   NetworkReadResponse,
+  ViewContext,
 } from "@modules/sdk";
 import type { ChatService } from "@extensions/contracts";
 import { ProviderStore, limits, modelId, presetOf } from "./providers";
@@ -62,8 +63,7 @@ export type ModelConnectionsApi = Pick<
 type MountPage = (
   container: HTMLElement,
   api: ModelConnectionsApi,
-  /** Closes the dialog showing the page. */
-  close?: () => void,
+  context?: ViewContext,
 ) => () => void | Promise<void>;
 
 const pictures = (value: unknown) =>
@@ -364,8 +364,7 @@ export function modelConnector({
         id: MODEL_PAGE,
         label: "模型连接",
         presentation: "dialog",
-        mount: (container, context) =>
-          mountPage(container, api, context?.close),
+        mount: (container, context) => mountPage(container, api, context),
       });
     },
   };
