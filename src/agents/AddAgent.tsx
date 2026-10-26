@@ -128,7 +128,7 @@ export function ComposeStep({
   ui?: Named;
   busy: boolean;
   onBack: () => void;
-  /** Leaves for the model connections; the draft waits. */
+  /** Opens the model connections over this step, which stays as it is. */
   onModels?: () => void;
   onAdd: (config: AgentConfig) => void;
   onError: (message: string) => void;

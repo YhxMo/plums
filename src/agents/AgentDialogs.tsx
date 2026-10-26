@@ -88,11 +88,6 @@ export function AgentDialogs({
     draft.reset();
     roleCard.setRaw("");
   }
-  /** Leaves for another page; the draft waits for the next add. */
-  function detour(go: () => void) {
-    setModal(null);
-    go();
-  }
   if (!modal) return null;
   const title =
     typeof modal === "string"
@@ -178,7 +173,7 @@ export function AgentDialogs({
           ui={ui}
           busy={busy}
           onBack={back}
-          onModels={onModels && (() => detour(onModels))}
+          onModels={onModels}
           onAdd={(config) => void act(() => add(config))}
           onError={setError}
         />

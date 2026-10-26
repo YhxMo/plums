@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { openAddAgent } from "./helpers";
+import { nextStep, openAddAgent } from "./helpers";
 
 test("adding an Agent takes two steps: who it is, then its model and extensions", async ({
   page,
@@ -88,4 +88,38 @@ test("a long single-line role card stays inside the import dialog", async ({
   const field = (await raw.boundingBox())!;
   expect(field.x).toBeGreaterThanOrEqual(box.x);
   expect(field.x + field.width).toBeLessThanOrEqual(box.x + box.width);
+});
+
+test("closing the model connections opened from adding an Agent returns to that step", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1280, height: 800 });
+  await page.goto("/");
+  const describe = await openAddAgent(page);
+  await describe
+    .getByRole("textbox", { name: "名称", exact: true })
+    .fill("写作助手");
+  const compose = await nextStep(page, "写作助手");
+  await compose
+    .getByRole("switch", { name: "在 写作助手 中使用 Agent 核心" })
+    .click();
+  await compose.getByRole("button", { name: /模型连接$/ }).click();
+  const connections = page.getByRole("dialog", {
+    name: "模型连接",
+    exact: true,
+  });
+  await expect(connections).toBeVisible();
+  await page.keyboard.press("Escape");
+  await expect(connections).toBeHidden();
+  await expect(
+    compose.getByRole("button", { name: /模型连接$/ }),
+  ).toBeFocused();
+  await compose.getByRole("button", { name: /模型连接$/ }).click();
+  await connections.getByRole("button", { name: "关闭", exact: true }).click();
+  await expect(connections).toBeHidden();
+  // The step comes back as it was left, not the bare list behind it.
+  await expect(compose).toBeVisible();
+  await expect(
+    compose.getByRole("switch", { name: "在 写作助手 中使用 Agent 核心" }),
+  ).not.toBeChecked();
 });
