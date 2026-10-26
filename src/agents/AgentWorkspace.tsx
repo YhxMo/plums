@@ -212,6 +212,8 @@ export function AgentWorkspace({
     chrome.publish({
       // The conversation names itself in its own header, on every width.
       title: "",
+      // List and conversation are cards of their own beside the rail.
+      frame: mobile ? undefined : "own",
       back: mobile && agent ? returnToList : undefined,
       contextOwner: agent?.extensionId,
       sidebar: agents.length
@@ -581,7 +583,6 @@ export function AgentWorkspace({
   return (
     <div
       ref={workspaceRoot}
-      data-frame="own"
       className={cn(
         "relative flex h-full min-h-0 transition-[padding] duration-200 ease-out",
         showDetail && wide && "pr-[304px]",

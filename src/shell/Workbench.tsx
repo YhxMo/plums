@@ -99,14 +99,14 @@ export function Workbench({ runtime }: { runtime: Runtime }) {
         navigation={navigation}
       />
       {/* The content is one card floating on the window colour beside the
-          rail, unless the view draws its own card there (see `.pane`). */}
+          rail, unless the view says it draws its own (see `.pane`). */}
       <div
         className="flex min-h-0 min-w-0 flex-1 flex-col bg-chrome"
         data-tauri-drag-region
       >
         <div
           className="pane relative flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden"
-          data-manager={navigation.manager.open}
+          data-frame={navigation.manager.open ? undefined : chrome.frame}
         >
           {/* Desktop keeps the sidebar button in the pane's top-right corner; headers leave room for it. */}
           {!navigation.manager.open && (

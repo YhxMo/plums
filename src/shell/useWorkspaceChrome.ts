@@ -50,6 +50,7 @@ export function useWorkspaceChrome(workspace: Workspace) {
   }, [workspace.activeView, custom?.id, custom?.generation]);
   return {
     title: state.title ?? "",
+    frame: state.frame === "own" ? ("own" as const) : undefined,
     back: state.back ? () => invoke(() => state.back!()) : undefined,
     drop: state.drop && {
       label: state.drop.label,

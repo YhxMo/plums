@@ -1,6 +1,13 @@
 /** Chrome belongs to a workspace, not to the application-wide window. */
 export interface WorkspaceChromeState {
   readonly title?: string;
+  /**
+   * `own`: the view draws its own cards in the content area, inset by
+   * `--pane-gap` with a `--pane-header` tall header at the top right, so
+   * the shell leaves the area bare and centres its sidebar button on that
+   * header. Absent: the shell frames the view in one card.
+   */
+  readonly frame?: "own";
   /** Return one level inside the active workspace; absent at its root. */
   readonly back?: () => void;
   /** Extension providing the current workspace entity's contextual sidebar. */

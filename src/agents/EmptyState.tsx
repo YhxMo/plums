@@ -23,7 +23,7 @@ function Pane({
       )}
     >
       <div
-        className="absolute inset-x-0 top-0 h-[52px] max-md:hidden"
+        className="absolute inset-x-0 top-0 h-(--pane-header) max-md:hidden"
         data-tauri-drag-region
       />
       {children}

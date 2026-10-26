@@ -132,22 +132,31 @@
   display: none !important;
 }
 
+/* The content area's geometry, shared by the shell and views that draw
+   their own cards (WorkspaceChromeState.frame): how far cards sit in from
+   the window, and how tall their header is. */
+:root {
+  --pane-gap: 8px;
+  --pane-header: 52px;
+}
+
 @layer components {
   /* The content beside the rail: one card on the window colour, edged by a
-     hairline. A view that draws its own card (data-frame="own") gets the
-     bare area. */
+     hairline. A view that draws its own cards (frame "own") gets the bare
+     area. */
   .pane {
-    @apply md:m-2 md:rounded-xl md:border md:bg-chat;
+    @apply md:m-(--pane-gap) md:rounded-xl md:border md:bg-chat;
   }
-  /* Centred on the 48px title bar; own-frame views get it centred on their
-     card's 52px header, 8px in from the window. */
+  /* The sidebar button sits centred in a header-tall square at the top
+     right: the 48px title bar's, or the own cards' header. The square
+     itself lets clicks and window drags through. */
   .pane-toggle {
-    @apply top-2 right-2;
+    @apply pointer-events-none top-0 right-0 flex size-12 items-center justify-center *:pointer-events-auto;
   }
-  .pane[data-manager="false"]:has([data-frame="own"]) {
+  .pane[data-frame="own"] {
     @apply md:m-0 md:rounded-none md:border-0 md:bg-transparent;
     .pane-toggle {
-      @apply top-[18px] right-[18px];
+      @apply top-(--pane-gap) right-(--pane-gap) size-(--pane-header);
     }
   }
 }

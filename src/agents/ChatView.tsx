@@ -208,7 +208,7 @@ export function ChatView({
       {/* Same colour as the messages and no line under it; the shell's
           sidebar button takes the right end on desktop. */}
       <header
-        className="flex h-[52px] shrink-0 items-center gap-2 pr-12 pl-5 max-md:h-14 max-md:pr-3 max-md:pl-1"
+        className="flex h-(--pane-header) shrink-0 items-center gap-2 pr-12 pl-5 max-md:h-14 max-md:pr-3 max-md:pl-1"
         data-tauri-drag-region="deep"
       >
         <Button

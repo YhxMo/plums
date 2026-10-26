@@ -219,7 +219,7 @@ export function AgentList({
       aria-label="Agent 列表"
     >
       <div
-        className="flex min-h-12 items-center gap-1.5 pr-2.5 pl-3 md:h-[52px] max-md:flex-wrap max-md:px-5 max-md:pt-4 max-md:pb-3"
+        className="flex min-h-12 items-center gap-1.5 pr-2.5 pl-3 md:h-(--pane-header) max-md:flex-wrap max-md:px-5 max-md:pt-4 max-md:pb-3"
         data-tauri-drag-region="deep"
       >
         <h2

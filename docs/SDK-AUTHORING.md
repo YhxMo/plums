@@ -109,6 +109,8 @@ export default {
 
 完整类型见 [workspace-chrome.ts](../modules/sdk/workspace-chrome.ts)。工作区在快照中提供可选 `sidebar`（它自己的详情：label、真实 open 状态、toggle(source) 和 close()）时，右侧栏按钮只开关这份详情，扩展的 sidebar 贡献不接管按钮；详情以侧栏还是弹窗呈现由工作区决定。不要在外壳另存默认详情开关。没有 `sidebar` 的工作区由 `contextOwner`（当前实体所属扩展）选侧栏：外壳优先查找该扩展的 sidebar 贡献，然后查找当前工作区扩展自己的 sidebar，同一所有者内按 priority 降序和 ID 升序选择。默认 Agent 界面发布了详情，因此 Agent 的上下文侧栏目前不显示；计划在 Agent 详情的「组成扩展」里为有 sidebar 贡献的扩展行加入口，在详情内以子页呈现它，随第一个真实面板（如记忆）实现。
 
+工作区自己画卡片时，在快照中提供 `frame: "own"`：外壳不再给内容区画卡片，并把右侧栏按钮放在距窗口 `--pane-gap`、高 `--pane-header` 的方块中居中，视图的卡片按这两个 CSS 变量留边并设定右上方头部高度。外壳不读取视图的 DOM 来判断这一点；不提供时外壳照常画一张卡片。
+
 工作区存在上一层时，在快照中提供 `back()`；回到根层后发布不含 `back` 的新快照。Android 系统 Back 先处理 IME、顶层弹窗和宿主管理，再调用当前工作区的该方法；方法保留快照对象的接收者。工作区负责保存草稿并在返回后恢复有效焦点，操作抛错时外壳隔离该代视图并保留恢复入口。未提供 `back()` 的既有视图保持原挂载契约，宿主不猜测其业务路由。
 
 可选 `navigation` 包含实体类型 `entityType` 和 `reveal(id)`。调用方先匹配类型，再导航；宿主目前不消费此字段；扩展若使用它，须先核对 `entityType` 再调用，不能把 Agent ID 传给其他业务。仓库内 TypeScript 视图可用 `createWorkspaceChrome(entityType)`、`publish(state)` 和 `connect(handler)` 组装同一接口；挂载时连接处理器，释放时执行 connect 返回的清理函数，旧挂载的迟到清理不会断开替代处理器。未提供 chrome 的已有视图继续按原挂载契约工作。

@@ -98,3 +98,31 @@ for (const width of [940, 1440])
         .toBe(true);
     }
   });
+
+test("the sidebar button sits centred on the conversation card's header, also after extension management", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 960, height: 680 });
+  await page.goto("/");
+  await addAgent(page, "居中助手");
+  const toggle = page.getByRole("button", { name: "展开或收起右侧栏" });
+  const chat = page.getByRole("region", { name: "居中助手 的会话" });
+  const header = chat.locator("header").first();
+  const button = (await toggle.boundingBox())!;
+  const card = (await chat.boundingBox())!;
+  const bar = (await header.boundingBox())!;
+  // Centred on the header (within the hairline edge), as far in from the
+  // card's right edge as from its top.
+  const centre = (box: { y: number; height: number }) => box.y + box.height / 2;
+  expect(Math.abs(centre(button) - centre(bar))).toBeLessThanOrEqual(1);
+  expect(card.x + card.width - button.x - button.width).toBeCloseTo(
+    button.y - card.y,
+    0,
+  );
+  // Management is framed by the shell; leaving it puts the button back.
+  await page.getByRole("button", { name: "扩展", exact: true }).click();
+  await expect(toggle).toBeHidden();
+  await page.getByRole("button", { name: "返回" }).first().click();
+  await expect(toggle).toBeVisible();
+  expect((await toggle.boundingBox())!.y).toBeCloseTo(button.y, 0);
+});
