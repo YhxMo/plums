@@ -66,6 +66,9 @@ jobs:
           key: cargo-${{ runner.os }}-${{ hashFiles('src-tauri/Cargo.lock') }}
           restore-keys: cargo-${{ runner.os }}-
       - run: npm ci
+      # ipc:check runs cargo offline, so the crates must be fetched first,
+      # into the CARGO_HOME the project scripts use.
+      - run: node scripts/cargo.mjs fetch --locked
       # Tauri embeds the built frontend when it compiles.
       - run: npm run build
       - run: npm run verify:native
