@@ -61,6 +61,8 @@ npm run verify:native
 
 `ipc:generate` 运行已有工具链中的 Rust example，输出 `src/native/contract.generated.ts`，不启动应用或访问应用数据；依赖使用锁文件和本地缓存。`ipc:check` 只比较编译导出与登记文件，漂移即失败，不覆盖文件。缺少 Rust／缓存时先补工具条件，不能手改生成文件来通过检查。
 
+`THIRD-PARTY-NOTICES.txt` 列出随 Mac 包分发的第三方依赖（前端生产依赖的闭包与 `aarch64-apple-darwin` 上链接的 Rust crate）及其许可证全文，由 `scripts/notices.mjs` 按 `package.json`、`Cargo.lock` 与已安装依赖生成，随应用和 `LICENSE` 一起放进包的 `Contents/Resources`。增删或升级依赖后运行 `npm run notices` 并提交；`npm run notices:check`（含在 `verify:native` 中，需要 Rust 工具链）发现文件过期即失败。个别包的发布件不带许可证文件，条目标为“no file”并给出源码仓库。复制进仓库自身源码的第三方内容（目前是 `src/components/ui` 中的 shadcn/ui）在脚本里手工登记。
+
 新增命令使用 `ipc_command!` 声明实际函数，并加入 `lib.rs` 的 `native_commands!` 清单；原生注入参数保留在 Rust 签名中。新增 wire DTO 使用 `wire_object!`／`wire_enum!` 的当前受支持形状，不另写一份 TS 数据模型。声明、注册和导出共享同一名字；只改单侧名字会在 Rust 编译、生成漂移或 TS 调用检查失败。宏没有通用 schema 或运行时响应校验职责，未知结构需先补明确的序列化与失败样本。
 
 生产代码通过 `src/native/invoke.ts` 调用，项目门禁检查直接／别名／namespace／动态导入的桥接绕行；原生环境判断仍可导入 `isTauri`。`tests/ipc-types.ts` 由 `tsc` 检查改名、参数名／类型、漏必填参数、响应缺字段和错误状态等反例。Rust IPC 测试核对注册集合、注入参数排除、可选参数与 serde wire 名称；`native-adapter.test.ts` 保留取消和无回执反例。普通包与设备验收仍独立进行。

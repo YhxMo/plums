@@ -29,6 +29,12 @@
 | [THEMES](THEMES.md) | 贡献语义主题颜色与外观偏好 |
 | [SELECTED-DOCUMENT](SELECTED-DOCUMENT.md) | 接入选中文档只读句柄与会话授权 |
 
+## 安装与使用
+
+| 文档 | 何时读 |
+| --- | --- |
+| [INSTALL](INSTALL.md) | 在 Mac 上首次打开、升级、回退、卸载，以及已知限制 |
+
 ## 平台、凭据与业务
 
 | 文档 | 何时读 |

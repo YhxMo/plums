@@ -40,17 +40,17 @@
 - **窗口**：换屏（无第二块屏幕）；过大保存尺寸收回屏幕只有单元测试；窗口按钮避让、WKWebView 焦点环与遮罩、明暗抽查、启动耗时；VoiceOver 第一版不验收。
 - **模型与凭据**：带输出上限的真实调用、当前版本新填密钥后的调用、长上下文与图片和思考强度的兼容；统一日志无密钥未被正面证明。实际账户调用须先确认目标、次数和输出上限。
 - **平台能力**：会话内文档选择未在当前源码的打包应用中重验；`link.open` 只在 macOS 打包应用中实测。
-- **分发**：正式签名与公证。
+- **分发**：正式签名与公证；首次打开说明中的“仍要打开”路径未在带隔离标记的真实下载包上逐步走过（只确认 `spctl` 对 ad-hoc 包评估为 rejected）；第三方通知中 16 个发布件不带许可证文件的包只给出许可证标识与源码仓库。
 
 ## 进行中与下一步
 
 当前是[路线阶梯](docs/spec/total.md#路线阶梯)第 1 级（Mac 第一版），顺序与剩余内容只在[当前阶段](docs/spec/milestone.md#第-1-级mac-第一版)维护。
 
-- **当前焦点**：第 6 项外观与快捷键已完成；之后是第 7 项交付候选与发布准备。
+- **当前焦点**：第 7 项交付候选与发布准备进行中。已做：许可证（GPL-3.0-or-later 与商业授权，SDK 与示例 MIT）、随包第三方通知、[安装说明](docs/INSTALL.md)。待做且需所有者参与：真实服务兼容调用（先确认目标、次数与输出上限）、所有者凭公开文档写连接器并完成一次真实调用、是否改为 release 构建档位后再对外分发（`release:mac` 现只构建 debug）、独立审查后按授权替换 `release/mac/`。
 - **遗留**：`modules/agents/store.ts`、`modules/agents/memory/store.ts`、`AgentWorkspace.tsx`、`ProviderForm.tsx` 超过 400 行提示线；应用外壳的导航与管理入口仍由 `Workbench` 固定组装；`View.icon` 无效原因是英文提示；拖放提示层用 2px 虚线；早先导入的单文件扩展的源码分片（`host.shell` 的 `x-` 文档）不再读取也不自动清理。
 
 ## 当前交付与恢复
 
-保留的候选：`release/.mac-Xv7o0u`（第 6 项改动，基于 `82b9138`，最新）、`release/.mac-KlOFGp`（`edf2103`）、`release/.mac-v5XHrD`（`86f8857`）、`release/.mac-fSDXo2`（`0343426`），均为 0.2.0 arm64 debug / ad-hoc；更早的候选已删除，证据记录中的源码提交可重建。直接打开候选会使用正式数据目录；隔离数据须用设置了 `HOME` 或 `PLUMS_DATA_DIR` 的命令行启动包内可执行文件。新候选一律 `npm run release:mac -- --stage`。
+保留的候选：`release/.mac-YXmd9Z`（第 7 项的第三方通知与许可证随包，最新，未抽查）、`release/.mac-Xv7o0u`（第 6 项改动，基于 `82b9138`）、`release/.mac-KlOFGp`（`edf2103`）、`release/.mac-v5XHrD`（`86f8857`）、`release/.mac-fSDXo2`（`0343426`），均为 0.2.0 arm64 debug / ad-hoc；更早的候选已删除，证据记录中的源码提交可重建。直接打开候选会使用正式数据目录；隔离数据须用设置了 `HOME` 或 `PLUMS_DATA_DIR` 的命令行启动包内可执行文件。新候选一律 `npm run release:mac -- --stage`。
 
 已交付 0.2.0 来自 `40a7382`，Mac 入口 `release/mac/Plums.app`，未替换；Android 包仅保留原受验范围。[交付证据](evidence/RELEASE-0.2.0-2026-10-20.md)及包旁的 `build-info.json`、`source.patch` 用于核对来源。0.0.4 恢复包在 `.cache/archive/releases/mac-uIizKK/mac` 与 `.cache/archive/releases/android-JS89ll/android`，不自动回滚数据，规则见[开发流程](docs/DEVELOPMENT.md#本地交付目录)。
