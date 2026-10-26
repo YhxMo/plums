@@ -8,11 +8,12 @@
 
 ## 作者接口
 
-扩展 manifest 声明 `capabilities: ['credential.request']`，并由宿主授权。激活后调用 `ctx.platform('credential.request', { version: 1, binding: 'text', body }, signal?)` 发送；或 `{ version: 1, binding, method: 'GET', path: '/v1/models' }` 读取同一站点的另一路径（如模型列表）。类型 `CredentialRequest`、`CredentialResponse`、`CredentialFailureOutcome` 由 SDK 导出；`platform` 返回 unknown，作者按契约校验响应。
+扩展 manifest 声明 `capabilities: ['credential.request']`，并由宿主授权。激活后调用 `ctx.platform('credential.request', { version: 1, binding: 'text', body }, signal?)` 发送；或 `{ version: 1, binding, method: 'GET', path: '/v1/models' }` 读取同一站点的另一路径（如模型列表）。类型 `CredentialRequest`、`CredentialResponse`、`CredentialFailureOutcome` 定义在 [SDK](../modules/sdk/credential.ts)；发送的 `body` 与响应的 `body` 都是字符串，JSON 由扩展自己序列化和解析；`platform` 返回 unknown，作者按契约校验响应。
 
 - 发送只接受 version/binding/body 三个字段；body UTF-8 不超过 8 MiB（足够容纳 1M token 的上下文）。读取只接受 version/binding/method/path，`method` 固定 `GET`，`path` 是以 `/` 开头、最多 256 字符、每段只含字母数字与 `-._~` 的路径（不得有空段、`.`、`..`、查询或片段），原生层用绑定目标的协议与主机拼出地址并再校验一次。不得传 owner、URL、头或原始凭据。调用者身份由 Host 转为 `extension.<id>`，绑定只在该 owner 内解析。
 - 成功响应为 `{ status, body }`：状态 200–599 且排除 3xx，正文为合法 UTF-8 且不超过 2 MiB（容得下服务商的模型列表）。HTTP 4xx/5xx 交给扩展解释，不自动重试。不返回响应头或凭据；远端正文仍可能回显秘密，目标须可信。
-- 失败为带 `code` 与 `outcome` 的 Error，`outcome` 为 `not-dispatched`（可证明未开始网络 I/O）或 `unknown`（可能已到达远端）。浏览器预览不提供此能力，扩展保持 `waiting`。
+- 失败为带 `code` 与 `outcome` 的 Error，`outcome` 为 `not-dispatched`（可证明未开始网络 I/O）或 `unknown`（可能已到达远端）。浏览器预览不提供此能力，扩展保持 `waiting`；作者在本地只能用假 `ctx` 测试自己的请求组装与响应解析，真实路径须导入 Mac 应用。
+- 宿主不替扩展排队：同一扩展已有请求在途时，第二个请求立即以 `busy`（`not-dispatched`）失败。会被并发调用的扩展（如为多个 Agent 回复的 `chat@1` 提供者）应自己串行排队。
 
 ## 已实现的最小安全集
 
@@ -37,7 +38,7 @@
 | 网络 I/O 开始后（连接/TLS 失败、超时、取消、3xx、响应超限或非 UTF-8、交付前授权或绑定已变化、桥接失败） | `unknown` | 远端可能已处理；不自动重试 |
 | 已验证的完整响应 | `{ status, body }` | 4xx/5xx 保留给扩展 |
 
-适配器为常见代码提供中文说明（如 `not-ready` 提示重新填写 API Key）。unknown 提示用户先核对，再决定是否重试。
+适配器把常见代码的中文说明写在 Error 的 `message` 里（如 `not-ready` 提示重新填写 API Key），可以直接展示给用户。unknown 提示用户先核对，再决定是否重试。
 
 ## 回归测试
 

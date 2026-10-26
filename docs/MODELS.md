@@ -74,7 +74,7 @@ Agent 可以按模型选择思考强度（关闭、低、中、高、最大）�
 
 ## `chat@1`
 
-契约在 [`extensions/contracts.d.ts`](../extensions/contracts.d.ts)：`models()` 列出可选模型（`id`、`label`、`description`，可选 `group` 作为选择器中的分组标题，缺省为提供者名称；`id` 至多 256 个字符，更长的不提供给 Agent），`subscribe` 通知列表变化，`reply({ model, instructions?, history, input, images?, effort? }, signal)` 返回回复文本（`images` 与历史轮次的 `images` 仅给列出 `vision` 的模型），失败带 `outcome`。第三方扩展可以提供自己的 `chat@1`，模型选择器会一并列出；Agent 的回复只来自所选模型。
+契约在 [`extensions/contracts.d.ts`](../extensions/contracts.d.ts)：`models()` 列出可选模型（`id`、`label`、`description`，可选 `group` 作为选择器中的分组标题，缺省为提供者名称；`id` 至多 256 个字符，更长的不提供给 Agent），`subscribe` 通知列表变化，`reply({ model, instructions?, history, input, images?, effort? }, signal)` 返回回复文本（`images` 与历史轮次的 `images` 仅给列出 `vision` 的模型）。内置 Agent 核心发送的 `history` 以用户轮次开头、用户与 agent 交替，附件以文字写进 `text`；`reply` 不带会话 id。失败抛出 Error：Agent 界面原样显示 `message`，所以写成给用户看的中文；`outcome` 沿用平台取值，只有能证明请求没发出时用 `not-dispatched`，其余（含服务返回 4xx/5xx）用 `unknown`。平台每个扩展同时只发一个凭据请求，提供者须自己为并发的 `reply` 排队（见[请求契约](CREDENTIAL-REQUEST.md#作者接口)）。第三方扩展可以提供自己的 `chat@1`，模型选择器会一并列出；Agent 的回复只来自所选模型。
 
 ## 迁移与限制
 
