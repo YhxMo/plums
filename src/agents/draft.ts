@@ -21,10 +21,13 @@ export type AgentDraft = {
   notes: { id: string; text: string }[];
 };
 
+/** Every field, so a reset clears what the previous draft set. */
 const empty: AgentDraft = {
   name: "",
   description: "",
   instructions: DEFAULT_INSTRUCTIONS,
+  avatar: undefined,
+  model: undefined,
   off: [],
   notes: [],
 };
@@ -41,7 +44,6 @@ export const useAgentDraft = create<
   reset: (card) =>
     set({
       ...empty,
-      model: undefined,
       ...(card && {
         name: card.name,
         description: card.description ?? "",
