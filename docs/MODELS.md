@@ -2,88 +2,80 @@
 
 [源码](../modules/models/) · [连接页面](../src/models/ModelConnections.tsx) · [服务商表单](../src/models/ProviderForm.tsx) · [扩展自建连接](CREDENTIAL-BINDINGS.md#扩展自建连接) · [凭据请求契约](CREDENTIAL-REQUEST.md)
 
-状态：当前有效（2026-10-24 核实）；内置模型连接器、获取模型列表（含按 models.dev 填写每个模型的上下文窗口）与按 Agent 选模型、带上下文发送已实现，回归见[回归测试](#回归测试)；真实服务调用等平台结果见 [HANDOFF](../HANDOFF.md#未验范围)。
+状态：当前有效（2026-10-27 核实）；内置模型连接器 `connector.models`、获取模型列表（按 models.dev 填写上下文窗口）、按 Agent 选模型与带上下文发送。打包应用的结果见 [HANDOFF](../HANDOFF.md#未验范围)。服务商配置与模型发现参考 CC Switch，逐模型思考方式与附件交互参考 OpenCode。
 
 ## 用户路径
 
-两层结构：**服务商**持有请求地址与 API Key，**模型**是该服务商下的模型名，可从服务获取或手动填写。应用不预置任何模型名。
+两层结构：**服务商**持有请求地址与 API Key，**模型**是服务商下的模型名，可从服务获取或手动填写；应用不预置模型名。
 
-1. 在添加 Agent 第二步点「添加模型连接」或「管理模型连接」（没有模型时也可从对话输入区的模型菜单点「连接模型」，或在扩展管理中选中模型连接、在详情里点「打开」），点「添加服务商」。
-2. 基本信息：预设服务商（DeepSeek、OpenAI、Anthropic、Kimi、通义千问、智谱 GLM、OpenRouter 或「自定义」）与名称；备注和官网链接（都可选）收在「高级选项」里。
-3. 连接：请求地址填服务商文档里的 Base URL（预设已填好，可改；粘贴完整的 `…/chat/completions` 或 `…/v1/messages` 也会自动还原），下方显示对话请求实际发往的地址；「自定义」另选 API 格式（OpenAI Chat Completions / Anthropic Messages）。API Key 直接在表单的密码框中粘贴（首尾空白自动去掉），只保存在本机、之后不再显示；表单显示保存状态与预设服务商创建密钥的地址。没有系统面板，也不会要求 Mac 登录密码。
-4. 模型：点「获取模型列表」，勾选服务列出的模型后「添加所选」；也可手动填写。已经手动添加的模型不再计入所选数量；所选数量超过剩余名额时，需取消部分选择或移除已添加的模型后才能添加。列表同时显示 models.dev 给出的上下文窗口，添加时一并填入该模型的窗口，每个模型的窗口在列表中可改，选「默认」则跟随服务商的默认窗口。新服务商或改了地址时，获取前会先用填写的 API Key 保存服务商。
-5. 默认上下文窗口：没有自己窗口的模型使用它，按服务商文档选模型能接收的总 token 数（预设已填，Anthropic 为 1M，DeepSeek、OpenAI 等为 128K，Kimi 为 256K），可选 32K–2M。高级选项：备注、官网链接与最大输出 token（默认留空由服务决定）。保存后增删模型、改名称、备注或预算时 API Key 留空即保持不变；改地址或 API 格式必须重新填写，填写新的 Key 即替换。配置记录已保存、但连接状态刷新失败时，显示「配置已保存，连接状态待核对」，可继续编辑同一条记录；保存或删除的确定结果不被刷新失败覆盖，真实写入失败仍保留原错误。新地址的密钥已保存而记录确认未提交时，服务商显示「地址未确认」，不发送请求，填写密钥再次保存即在同一连接上更新。新服务商的密钥已保存而记录确认未提交时，下一次新建服务商沿用这条没有服务商使用的连接，不另占连接名额，也不弹出删除确认。
-6. 每个 Agent 在对话输入区选自己的模型（按服务商分组），不同 Agent 可用不同服务商或模型；新建 Agent 默认选第一个可用模型。
+1. 入口：添加 Agent 第二步的「添加模型连接」或「管理模型连接」、输入区模型菜单的「连接模型」，或扩展管理中模型连接的详情「打开」；点「添加服务商」。
+2. 基本信息：预设（DeepSeek、OpenAI、Anthropic、Kimi、通义千问、智谱 GLM、OpenRouter 或「自定义」）与名称；备注、官网链接与最大输出 token（默认留空，由服务决定）在「高级选项」。
+3. 连接：请求地址填 Base URL（预设已填；粘贴完整的 `…/chat/completions` 或 `…/v1/messages` 会自动还原），下方显示实际发往的地址；「自定义」另选 API 格式（OpenAI Chat Completions／Anthropic Messages）。API Key 在密码框粘贴（首尾空白去掉），只存本机、之后不再显示，没有系统面板或 Mac 密码提示。
+4. 模型：「获取模型列表」后勾选并「添加所选」，或手动填写；每个服务商最多 32 个模型。列表同时显示 models.dev 的上下文窗口，添加时一并填入，可逐个修改或选「默认」跟随服务商。新服务商或改了地址时，获取前先用填写的 Key 保存服务商。
+5. 默认上下文窗口：没有自己窗口的模型使用它（预设已填：Anthropic 1M，DeepSeek、OpenAI 等 128K，Kimi 256K；可选 32K–2M）。保存后增删模型、改名称或备注时 Key 留空即不变；改地址或 API 格式须重新填写 Key。
+6. 每个 Agent 在输入区选自己的模型（按服务商分组）；新建 Agent 默认选第一个可用模型。
 
-连接页面不放开头说明，每个服务商一个细边框块：名称与状态（圆点加文字，缺少 Key 时为橙色“需要 API Key”）、Base URL 与备注，右侧是「编辑」，缺少 Key 时换成「填写 Key」，同样打开表单；下方逐行列出模型、它的上下文窗口和「测试」（只在可用时出现，发一条极短消息检查连通）。删除服务商在编辑表单底部的「删除服务商」。
+连接页面每个服务商一个细边框块：名称与状态（缺少 Key 时为橙色“需要 API Key”）、Base URL 与备注、「编辑」（缺 Key 时为「填写 Key」），下方逐行列出模型、上下文窗口与「测试」（发一条极短消息检查连通）。删除服务商在编辑表单底部。测试与获取列表最多等 60 秒；关闭窗口取消该窗口的请求，已提交的记录保留。
 
-保存回执不确定时，连接器暂停新增、编辑、删除和模型请求，连接页面显示「重新读取连接」。成功重新读取服务商记录、修订号和凭据状态后，返回列表供用户核对；读取失败则继续锁定，不复用任何疑似闲置凭据。只有确认未被服务商引用的凭据才能复用。保存、删除和恢复按顺序执行；请求在异步核对后重新解析当前模型，避免发送已经移除的模型。对应回归见 `tests/model-write-recovery.test.ts`。
+**写入不确定时**：配置已保存但状态刷新失败时显示「配置已保存，连接状态待核对」；新地址的密钥已保存而记录确认未提交时，服务商显示「地址未确认」、不发送请求。保存回执不确定时暂停新增、编辑、删除与模型请求，显示「重新读取连接」，成功重读后才恢复，读取失败继续锁定；只有确认未被引用的凭据才复用。
 
-测试与获取模型列表最多等待 60 秒。关闭模型连接窗口会取消该窗口的请求；已提交的服务商记录保留，尚在保存时关闭则保存结束后不再启动模型读取。共享的 models.dev 目录读取按下述缓存策略继续，不随单个窗口取消。
-
-浏览器预览不能保存密钥，连接器保持等待；开发构建另有不联网的 `chat.echo`（回显模型）用于检查按 Agent 选模型与上下文。
+浏览器预览不能保存密钥；开发构建另有不联网的回显模型 `chat.echo`。
 
 ## 组成
 
-| 层                                 | 归属                        | 说明                                                                                                                                                                                                                                            |
-| ---------------------------------- | --------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 密钥、目标确认、发送确认、限额     | 应用层                      | `credential.connect` 按协议模板建连接；密钥只写不读，改地址须同时填写密钥；请求 ≤ 8 MiB、总计 10 分钟、响应 ≤ 2 MiB；可 GET 同一站点的路径读取模型列表                                                                                                                                             |
-| 协议、预设、服务商记录、上下文裁剪 | 内置扩展 `connector.models` | 记录存在扩展自己的 `state.*`（`{ version: 7, providers }`；每个服务商：名称、备注、官网、预设、协议、Base URL、模型名列表（≤ 32）、各模型自己的上下文窗口 `windows`（模型名 → token，只含列表中的模型，删除模型时一并删除）、各模型自己的思考方式 `thinking`（见上，version 6 及以前读取时为空）、最大输出（`null` 由服务决定，或 1–128,000 且小于每个窗口）、默认上下文窗口 16,000–2,000,000 token；version 5 及以前读取时 `windows` 为空、version 6 及以前读取时 `thinking` 为空，version 2/3 读取时补上预设的上下文窗口，version 4 及以前的上下文轮数读取时丢弃，已有最大输出原值保留（包括 1024），仅新建连接默认 `null`；最多 16 个服务商，每个对应一条凭据连接，连接目标是由 Base URL 推出的对话地址）；提供 `chat@1`，模型 id 为 `<服务商 id>/<模型名>` |
-| 会话历史、设定、模型选择           | Agent 扩展 `agents.local`   | 发送时取当前会话已保存的消息作为历史，名字、当天日期与设定拼成指令，交给所选 `chat@1` 提供者                                                                                                                                                                |
+| 层 | 归属 | 说明 |
+| --- | --- | --- |
+| 密钥、目标确认、发送确认、限额 | 应用层 | `credential.connect` 按协议模板建连接；密钥只写不读；请求 ≤ 8 MiB、总计 10 分钟、响应 ≤ 2 MiB；可 GET 同站点的路径读取模型列表 |
+| 协议、预设、服务商记录、上下文裁剪 | `connector.models` | 记录存于扩展自己的状态（`{ version: 7, providers }`）：名称、备注、官网、预设、协议、Base URL、模型名（≤ 32）、逐模型窗口 `windows` 与思考方式 `thinking`、最大输出（`null` 或 1–128,000 且小于每个窗口）、默认窗口（16K–2M）；最多 16 个服务商，每个对应一条凭据连接。读取旧版本记录时换算，下次保存写成版本 7。提供 `chat@1`，模型 id 为 `<服务商 id>/<模型名>` |
+| 会话历史、设定、模型选择 | `agents.local` | 取当前会话已保存的消息作为历史，系统提示词交给所选 `chat@1` 提供者 |
 
 ## 协议
 
-| 协议                 | 请求                                                                                     | 认证                                              |
-| -------------------- | ---------------------------------------------------------------------------------------- | ------------------------------------------------- |
-| `openai-chat`        | Chat Completions：`model`、`stream: false`，设了最大输出才带 `max_tokens`，指令作为首条 `system` 消息 | `Authorization: Bearer`                           |
-| `anthropic-messages` | Messages：`model`、`max_tokens`（协议必填：未设时取上下文窗口的 1/4，至多 32K），指令放在 `system` 字段 | `x-api-key`，固定 `anthropic-version: 2023-06-01` |
+| 协议 | 请求 | 认证 |
+| --- | --- | --- |
+| `openai-chat` | Chat Completions：`model`、`stream: false`，设了最大输出才带 `max_tokens`，指令为首条 `system` 消息 | `Authorization: Bearer` |
+| `anthropic-messages` | Messages：`model`、`max_tokens`（必填：未设时取窗口的 1/4，至多 32K），指令放在 `system` | `x-api-key`，固定 `anthropic-version: 2023-06-01` |
 
-对话地址：OpenAI 兼容为 `<Base URL>/chat/completions`；Anthropic 为 `<Base URL>/v1/messages`（Base URL 已以 `/vN` 结尾时为 `/messages`）。
+- **地址**：OpenAI 兼容为 `<Base URL>/chat/completions`；Anthropic 为 `<Base URL>/v1/messages`（Base URL 以 `/vN` 结尾时为 `/messages`）。DeepSeek 预设额外带 `thinking: { type: "disabled" }`，其他服务不加非标准字段。
+- **模型列表**：Base URL 以 `/vN` 结尾时取 `…/models`，否则 OpenAI 兼容依次试 `…/models` 与 `…/v1/models`、Anthropic 试 `…/v1/models`；带兼容子路径（如 `/anthropic`）时去掉再试。读取 `data[].id` 或 `models[].slug|id`，去重排序；401/403 提示核对密钥。
+- **上下文窗口**：取自 [models.dev](https://models.dev)（服务商的列表接口一般不返回窗口）。连接器声明 `network.read` 与来源 `https://models.dev`，与模型列表同时读 `api.json`（不带密钥，见[公开网络读取](NETWORK-READ.md)），在内存中保留 1 小时；列表返回后最多再等 5 秒，未读完先显示不带窗口的列表。先找地址相同的服务（比较 host 与去掉版本段和接口段后的路径），按模型名精确、忽略大小写、去掉 `厂商/` 前缀与 `:变体`、`[1m]` 后匹配；找不到时取 `canonical_model_id` 指向的厂商条目，GPT 系列至多 272K。结果超出 16K–2M 的不用。
+- **回复校验**：只接受 HTTP 200 的完整文本。OpenAI 兼容要求唯一 choice、`finish_reason: "stop"`、无工具调用；Anthropic 要求 `end_turn` 或 `stop_sequence`、无 `tool_use`，跳过思考块。截断时提示调大或清空最大输出；其他状态码不透传上游正文。平台失败保留 `not-dispatched`／`not-committed`／`unknown`，unknown 提示可能已计费，不自动重试。
 
-模型列表按 API 格式依次尝试：Base URL 以 `/vN` 结尾时取 `…/models`，否则 OpenAI 兼容取 `…/models` 再 `…/v1/models`、Anthropic 取 `…/v1/models`；带 `/anthropic`、`/api/coding` 等兼容子路径时再去掉子路径重试。读取 `data[].id` 或 `models[].slug|id`，去重排序；401/403 提示核对密钥，全部找不到时提示手动填写。
+### 上下文与缓存
 
-上下文窗口取自公开目录 [models.dev](https://models.dev)：服务商的模型列表接口一般不返回窗口。连接器声明 `network.read` 与来源 `https://models.dev`，与模型列表同时读取 `https://models.dev/api.json`（约 6 MB，不带密钥，见[公开网络读取](NETWORK-READ.md)），成功后在内存中保留 1 小时。列表返回后最多再等 5 秒，未读完则先显示不带窗口的列表，读取继续进行（关闭表单不中断，扩展停用才取消），下次获取即可填入；读取失败只是不填窗口，下次重试。查找顺序：先找地址相同的服务（比较 host 与路径，去掉末尾的 `v1`/`v4`/`v1beta` 等版本段与 `chat/completions`、`messages`、`responses`，其余路径须一致，所以同一域名下的不同套餐分开），在其中按模型名精确、忽略大小写、去掉 `厂商/` 前缀与 `:变体`、`[1m]` 后匹配；找不到或没有窗口时，取其他服务以 `canonical_model_id` 指向的模型厂商条目（厂商不唯一则放弃）。这一步取到的 GPT 系列窗口最多 272K（许多转售服务用 ChatGPT 订阅额度，上限更低）。结果超出 16K–2M 的不用。应用不预置模型名或逐模型窗口表。
-
-DeepSeek 预设额外附带 `thinking: { type: "disabled" }`，其他服务不加非标准字段。
+- 每次发送当前会话的完整历史（以用户消息开头的整轮），不设轮数上限。OpenAI 兼容服务自动缓存前缀；Anthropic 在指令与最后一条用户消息上加 `cache_control: { type: "ephemeral" }`。
+- 预算为模型窗口减去留给回复的 token（设了最大输出用它，否则取窗口的 1/4、至多 32K），并受 8 MiB 请求上限约束。历史超过预算的 90% 时一次丢弃最早的若干整轮、降到 60% 以下，丢弃点只由此前的历史决定，前缀稳定、缓存继续命中。token 按偏高估算（ASCII 每 2.5 字符 1 个，其他每字 1 个）。只剩指令与当前输入仍超限时不发送（`not-dispatched`），提示缩短或调大窗口。总结早期对话将由扩展提供，取代直接丢弃。
 
 ### 思考强度
 
-Agent 可以按模型选择思考强度（关闭、低、中、高、最大），连接器按官方文档确认过的组合在 `chat@1` 的 `ChatModel.reasoning` 里列出每个模型可用的档位，没有列出的不显示控件，也不发送。默认依据服务商、协议与模型名判断（`modules/models/reasoning.ts`）；用户可在服务商表单里逐个模型改写（见下），仅作用于该模型：
+Agent 可按模型选择思考强度；连接器在 `ChatModel.reasoning` 里列出每个模型可用的档位，没列出的不显示控件、不发送。默认按服务商、协议与模型名判断（`modules/models/reasoning.ts`）：
 
 | 服务与模型 | 可选档位 | 请求字段 |
 | --- | --- | --- |
-| Anthropic 协议，Claude 4.6 及以后（含 5 系列） | 低、中、高、最大 | `thinking: { type: "adaptive" }` 加 `output_config: { effort }`；这些模型总在思考，不提供「关闭」 |
-| Anthropic 协议，Claude 4.5 及更早、3.7 Sonnet | 关闭、低、中、高、最大 | `thinking: { type: "enabled", budget_tokens }`，预算 2K / 8K / 16K / 24K token，且不超过 `max_tokens` 减 4096，余量不足 1024 则不发送；「关闭」不带 `thinking` |
-| DeepSeek 预设 | 关闭、低、高、最大 | 关闭为 `thinking: { type: "disabled" }`；其余为 `thinking: { type: "enabled" }` 加 `reasoning_effort`（`low` / `high` / `max`，文档中中档与极高档会被服务端映射到 `high`，故不单列） |
+| Anthropic，Claude 4.6 及以后 | 低、中、高、最大 | `thinking: { type: "adaptive" }` 加 `output_config: { effort }`；总在思考，不提供「关闭」 |
+| Anthropic，Claude 4.5 及更早、3.7 Sonnet | 关闭、低、中、高、最大 | `thinking: { type: "enabled", budget_tokens }`，预算 2K／8K／16K／24K，且不超过 `max_tokens` 减 4096，余量不足 1024 不发送 |
+| DeepSeek 预设 | 关闭、低、高、最大 | 关闭为 `thinking: { type: "disabled" }`，其余为 `{ type: "enabled" }` 加 `reasoning_effort`（`low`／`high`／`max`） |
 | OpenAI 预设，`o*`、`gpt-5*`（非 chat 变体） | 低、中、高 | `reasoning_effort` |
-| 其他服务商与自定义地址 | 无 | 暂未核对到文档，不显示强度控件 |
+| 其他服务与自定义地址 | 无 | 未核对文档，不显示 |
 
-**逐模型改写**：服务商表单的每个模型行有「思考强度」选择，可覆盖内置默认，也能给规则未覆盖的服务开启：「自动」（按上表，括号里显示结果）、「不显示」（此模型不提供强度），或按 API 格式列出的几种方式——OpenAI 兼容格式有「低/中/高（OpenAI 兼容，`reasoning_effort`）」与「关闭/低/高/最大（DeepSeek 式）」，Anthropic 格式有「低/中/高/最大（Claude 自适应）」与「关闭/低/中/高/最大（Claude 思考预算）」；请求字段与上表对应行相同，服务是否支持需自行确认。选择存为服务商记录的 `thinking`（模型名 → `adaptive`／`budget`／`deepseek`／`openai`／`none`，只含列表中的模型，删除模型时一并删除，不属于该 API 格式的方式保存时被拒绝，读取到的也按规则处理）。
-
-未选择强度时请求与以前完全相同（DeepSeek 仍带预设的 `disabled`）。强度是 Agent 的设置，换到不支持它的模型后保留记录但不发送，界面显示为默认。Anthropic 的强度参与提示缓存前缀，同一会话中途调整强度会让一次缓存未命中。思考内容不展示，Anthropic 的思考块在读取回复时跳过。真实服务的接受情况需要用真实密钥验证，目前只有请求体的单元测试。
+服务商表单的每个模型行可改写：「自动」（按上表）、「不显示」，或按 API 格式列出的方式（OpenAI 兼容：`reasoning_effort` 式、DeepSeek 式；Anthropic：自适应、思考预算），存为 `thinking`（`adaptive`／`budget`／`deepseek`／`openai`／`none`），不属于该格式的方式保存时被拒绝。未选择强度时请求不变。强度是 Agent 的设置，换到不支持的模型后保留但不发送。同一会话中途改强度会让 Anthropic 的缓存未命中一次。思考内容不展示。
 
 ### 附件与图片
 
-消息可带文本文件和图片（`modules/agents/attachments.ts`）。文本文件（UTF-8、无 NUL、解码后 ≤ 200K 个字符；读取前另设 800 KB 的字节上限，汉字按字符而不是按字节计）在发送时以固定格式放在消息正文之前：`文件「名」：`、围栏（反引号数比内容中最长的反引号串多一个，至少三个）、内容；同一条消息每次得到相同前缀，历史中的旧附件按同格式保留，缓存继续命中。图片在界面端缩放到长边 ≤ 1568 px、WebP（不支持则 JPEG）编码并降质到 base64 ≤ 400K 字符，一条消息最多 5 个附件、其中图片 ≤ 4 张；附件内联存入消息，每个会话的图片合计 ≤ 8M 个 base64 字符，超出时拒绝发送并提示新建会话。
-
-只有 `ChatModel.vision` 为真的模型才收到图片，`vision` 由 `modules/models/vision.ts` 按协议与模型名判断（Anthropic 协议的 `claude-*`；OpenAI 兼容协议的 GPT-4o／4.1／4.5／4-turbo／5、o1／o3／o4、Gemini、Claude、Grok 4、Qwen-VL、QVQ、GLM-*V、Pixtral、LLaVA 及名称含 vision 者），未识别的名称按只读文本处理；这是按名称的规则，没有逐个服务核对，选择器因此不会对未收录的读图模型开放图片。不读图片的模型：图片照常能添加（输入栏的「图片和文件」不因模型置灰），发送时历史与新消息里的每张图片都换成一行 `ERROR: Cannot read "文件名" (this model does not support image input). Inform the user.`，图片字节不上传，由模型向使用者解释。读图片的模型：最近 3 条带图的用户消息（含当前输入）随请求发送，更早的换成一行 `[图片：文件名]`。请求体中 OpenAI 兼容用 `image_url` 的 data URL 块，Anthropic 用 `image` 的 base64 源，图片都在文字之前；只发图片、没有文字时不带空的文字块（服务会拒绝），Anthropic 的 `cache_control` 落在本条最后一块上。预算：每张图片按 1600 token 计，不把 base64 当文字计 token，字节上限（8 MiB）仍按 base64 实际长度计。真实服务是否接受这些图片块尚未用真实密钥验证。
-
-与一般 Agent 一样，每次发送当前会话的完整历史（以用户消息开头的整轮，丢弃开头的孤立回复），不设轮数上限。服务商的提示缓存按前缀命中：OpenAI 兼容服务（OpenAI、DeepSeek、Kimi、通义、智谱等）自动缓存；Anthropic 协议在指令与最后一条用户消息上加 `cache_control: { type: "ephemeral" }`（5 分钟），下一次请求重复的整段对话按缓存价计费。超过预算（该模型的上下文窗口减去留给回复的 token——设了最大输出用它，否则取窗口的 1/4、至多 32K——以及 8 MiB 请求上限）时不逐轮滑动：历史超过预算的 90% 时一次丢弃最早的若干整轮，降到 60% 以下，此后多次请求前缀不变、缓存继续命中；丢弃点只由此前的历史决定，同一会话重复计算结果相同。说明与当前输入过长时再额外丢弃。token 按偏高的估算（ASCII 每 2.5 字符 1 个、其他字符每字 1 个）计算，不调用分词器；只剩说明与当前输入仍超限则不发送（`not-dispatched`），提示缩短或调大上下文窗口。压缩（总结早期对话）与长期记忆将由扩展提供，取代直接丢弃。
-
-只接受 HTTP 200 的完整文本：OpenAI 兼容要求唯一 choice、`finish_reason: "stop"`、无工具调用；Anthropic 要求 `end_turn` 或 `stop_sequence`、无 `tool_use`，跳过思考块。截断提示调大或清空最大输出；401/403 提示检查密钥与模型权限；其他状态码不透传上游正文。平台失败保留 `not-dispatched` / `not-committed` / `unknown`，unknown 提示可能已计费，不自动重试。
+- **文本文件**（`modules/agents/attachments.ts`）：UTF-8、无 NUL、≤ 200K 字符（读取前另限 800 KB）；发送时以 `文件「名」：` 加围栏（反引号数比内容最长的多一个）放在正文之前，同一条消息每次得到相同前缀。
+- **图片**：界面端缩放到长边 ≤ 1568 px，WebP（不支持则 JPEG）编码、base64 ≤ 400K 字符；一条消息最多 5 个附件，其中图片 ≤ 4 张；每个会话的图片合计 ≤ 8M 个 base64 字符，超出时提示新建会话。
+- **读图**：只有 `ChatModel.vision` 为真的模型收到图片；`modules/models/vision.ts` 按协议与模型名判断（Anthropic 的 `claude-*`；OpenAI 兼容的 GPT-4o／4.1／4.5／4-turbo／5、o1／o3／o4、Gemini、Claude、Grok 4、Qwen-VL、QVQ、GLM-*V、Pixtral、LLaVA 与名称含 vision 者），未识别的按只读文本处理。不读图的模型照常能添加图片，发送时每张换成 `ERROR: Cannot read "文件名" (this model does not support image input). Inform the user.`。读图的模型只随请求发送最近 3 条带图的用户消息，更早的换成 `[图片：文件名]`。OpenAI 兼容用 `image_url` 的 data URL 块，Anthropic 用 `image` 的 base64 源，图片在文字之前；只有图片时不带空文字块。每张图片按 1600 token 计入预算。
 
 ## `chat@1`
 
-契约在 [`extensions/contracts.d.ts`](../extensions/contracts.d.ts)：`models()` 列出可选模型（`id`、`label`、`description`，可选 `group` 作为选择器中的分组标题，缺省为提供者名称；`id` 至多 256 个字符，更长的不提供给 Agent），`subscribe` 通知列表变化，可选的 `manage` 是提供者自己的 `dialog` 视图 id，Agent 界面需要连接模型时打开它（内置连接器为 `model-connections`，界面不写死任何连接器），`reply({ model, instructions?, history, input, images?, effort? }, signal)` 返回回复文本（`images` 与历史轮次的 `images` 仅给列出 `vision` 的模型）。内置 Agent 核心发送的 `history` 以用户轮次开头、用户与 agent 交替，附件以文字写进 `text`；`reply` 不带会话 id。失败抛出 Error：Agent 界面原样显示 `message`，所以写成给用户看的中文；`outcome` 沿用平台取值，只有能证明请求没发出时用 `not-dispatched`，其余（含服务返回 4xx/5xx）用 `unknown`。平台每个扩展同时只发一个凭据请求，提供者须自己为并发的 `reply` 排队（见[请求契约](CREDENTIAL-REQUEST.md#作者接口)）。第三方扩展可以提供自己的 `chat@1`，模型选择器会一并列出；Agent 的回复只来自所选模型。
+契约在 [`extensions/contracts.d.ts`](../extensions/contracts.d.ts)：
 
-## 迁移与限制
-
-替代旧 `connector.deepseek`：旧扩展及其凭据绑定不再加载，原密钥需要在新页面重新录入一次（旧绑定可在扩展管理「卸载后保留的凭据」或对应条目删除）。`connector.models` 是默认扩展，更新后首次启动自动开启。版本 2 的记录（保存完整地址、两个「自定义」预设）读取时换算为 Base URL 与单个「自定义」，下次保存写成版本 7。回复整条送达、不流式：Agent 像联系人一样回复，等待时界面显示“正在输入”（见 [UI](UI.md#会话)）；不支持工具调用；图片只作输入（见上）；长期记忆（跨会话事实）是后续的 `memory@1`，见[整体计划](spec/total.md)。
+- `models()` 列出可选模型（`id` 至多 256 字符、`label`、`description`，可选 `group` 作为选择器分组标题，可选 `reasoning` 与 `vision`）；`subscribe` 通知列表变化。
+- 可选 `manage` 是提供者自己的 `dialog` 视图 id，Agent 界面需要连接模型时打开它（内置为 `model-connections`，界面不写死任何连接器）。
+- `reply({ model, instructions?, history, input, images?, effort? }, signal)` 返回回复文本。内置 Agent 核心发送的 `history` 以用户轮次开头、交替，附件以文字写进 `text`；不带会话 id（第 2 级加入）。
+- 失败抛出 Error：界面原样显示 `message`，所以写成给用户看的中文；`outcome` 只有能证明请求没发出时用 `not-dispatched`，其余（含服务返回 4xx/5xx）用 `unknown`。平台每个扩展同时只发一个凭据请求，提供者须自己为并发的 `reply` 排队（[请求契约](CREDENTIAL-REQUEST.md#作者接口)）。
+- 第三方扩展可提供自己的 `chat@1`，模型选择器一并列出。回复整条送达、不流式，不支持工具调用，图片只作输入。
 
 ## 回归测试
 
-`tests/model-protocols.test.ts`（两种协议组装、裁剪、响应校验）、`tests/model-addresses.test.ts`（Base URL 还原、对话地址、模型列表候选路径与解析）、`tests/model-catalog.test.ts`（models.dev 地址匹配、厂商回退、GPT 上限、名称归一）、`tests/model-connector.test.ts`（表单密钥只交给原生、缺少或格式不符的密钥不保存、服务商与模型列表、只改模型不需密钥、删除、请求路由、单个模型测试、获取模型列表、版本 2/3/4 换算后保留输出上限并用于请求与保存、损坏数据保留、刷新失败不覆盖保存/删除回执或原写入错误）、`tests/model-windows.test.ts`（models.dev 窗口填入、目录缓存与失败重试、目录慢时列表不等待、按模型窗口裁剪、移除模型清理窗口、版本 5 换算）、`tests/agent-models.test.ts`（按 Agent 选模型、只取当前会话、指令、停用提示、持久化）、`tests/credential-connect.test.ts`（模板组装、只写密钥与 owner 隔离）；浏览器测试 `tests/web/extension-usage.spec.ts` 用回显模型检查两个 Agent 选不同模型且第二问带上第一问，`tests/web/credentials.spec.ts` 用假原生桥在 375 与 1180 宽度检查添加自定义服务商、粘贴完整地址、填写 API Key（密码框，密钥只进入原生保存、不进扩展记录、编辑时不回显）、获取并勾选模型（显示并填入 models.dev 的窗口，不带密钥读取声明的来源）、调整默认窗口、按模板组装连接，新 Agent 在扩展管理中同时列在连接器与 Agent 界面下，且无横向溢出；`tests/web/model-connection-recovery.spec.ts` 经假原生桥覆盖已保存服务商不重复创建、关闭窗口取消测试与模型列表请求并释放请求槽、保存中关闭不再读取，以及手动添加与勾选混用时的去重和容量检查。
-
-## 设计参考
-
-服务商配置与模型发现的设计参考 CC Switch。逐模型思考方式与附件交互的设计参考 OpenCode。
+单元：`model-protocols`（协议组装、裁剪、响应校验）、`model-addresses`（地址还原与模型列表路径）、`model-catalog`（models.dev 匹配）、`model-connector`（密钥只交给原生、服务商与模型、旧版本换算、写入失败）、`model-windows`（窗口填入与缓存）、`model-write-recovery`（不确定回执的锁定与重读）、`agent-models`（按 Agent 选模型与上下文）、`credential-connect`（模板组装与只写密钥）。浏览器：`extension-usage.spec.ts`（两个 Agent 选不同模型）、`credentials.spec.ts`（添加服务商、填写 Key、获取并勾选模型，375 与 1180 宽度）、`model-connection-recovery.spec.ts`（关闭窗口取消请求、去重与容量）、`model-pages.spec.ts`（按连接器的 `manage` 打开页面）。
