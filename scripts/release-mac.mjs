@@ -11,7 +11,7 @@ import {
 } from "node:fs";
 import { join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { publishDirectory } from "./publish-directory.mjs";
+import { candidateProblems, publishDirectory } from "./publish-directory.mjs";
 import { projectFiles } from "./project-files.mjs";
 import { writeSourcePatch } from "./source-patch.mjs";
 
@@ -22,6 +22,21 @@ const args = process.argv.slice(2);
 if (args[0] === "--publish" && args.length === 2) {
   const candidate = resolve(args[1]);
   const info = JSON.parse(readFileSync(join(candidate, "build-info.json")));
+  const { commit } = info.source;
+  let changed = null;
+  try {
+    run("git", ["merge-base", "--is-ancestor", commit, "HEAD"]);
+    changed = run("git", ["diff", "--name-only", commit, "HEAD"])
+      .split("\n")
+      .filter(Boolean);
+  } catch {
+    // Not an ancestor of HEAD: changed stays null.
+  }
+  const problems = candidateProblems({
+    patch: readFileSync(join(candidate, info.source.patch), "utf8"),
+    changed,
+  });
+  if (problems.length) throw new Error(problems.join("; "));
   run("codesign", [
     "--verify",
     "--deep",

@@ -10,7 +10,10 @@ import {
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, expect, test } from "vitest";
-import { publishDirectory } from "../scripts/publish-directory.mjs";
+import {
+  candidateProblems,
+  publishDirectory,
+} from "../scripts/publish-directory.mjs";
 const roots: string[] = [];
 afterEach(() =>
   roots
@@ -65,4 +68,26 @@ test("missing and overlapping candidates never move the current delivery", () =>
   ])
     expect(() => publishDirectory(stage, f.current, f.archives)).toThrow();
   expect(readFileSync(join(f.current, "app"), "utf8")).toBe("previous");
+});
+
+test("a candidate is published only if no packaged source changed since it was built", () => {
+  const ok = {
+    patch: "",
+    changed: ["HANDOFF.md", "evidence/X.md", "docs/a.md"],
+  };
+  expect(candidateProblems(ok)).toEqual([]);
+  expect(candidateProblems({ ...ok, patch: "diff --git a/x b/x" })).toEqual([
+    "the candidate was built from uncommitted changes",
+  ]);
+  expect(
+    candidateProblems({
+      ...ok,
+      changed: ["evidence/X.md", "src/features/extensions/ExtensionCard.tsx"],
+    }),
+  ).toEqual([
+    "source changed since the candidate was built: src/features/extensions/ExtensionCard.tsx",
+  ]);
+  expect(candidateProblems({ ...ok, changed: null })).toEqual([
+    "the candidate's commit is not part of the current history",
+  ]);
 });

@@ -42,3 +42,28 @@ export function publishDirectory(
   }
   return { current, archived: backup ?? null };
 }
+
+/** Files that never reach the package: notes, docs and evidence.
+ * @param {string} path
+ */
+const unpackaged = (path) =>
+  path.endsWith(".md") ||
+  path.startsWith("docs/") ||
+  path.startsWith("evidence/");
+
+/**
+ * Why a built candidate must not be published: it was built from
+ * uncommitted changes, or packaged source changed since its commit.
+ * @param {{ patch: string, changed: string[] | null }} candidate
+ *   `changed` lists files changed from its commit to HEAD, or is null
+ *   when its commit is not an ancestor of HEAD.
+ */
+export function candidateProblems({ patch, changed }) {
+  if (patch.trim()) return ["the candidate was built from uncommitted changes"];
+  if (!changed)
+    return ["the candidate's commit is not part of the current history"];
+  const source = changed.filter((path) => !unpackaged(path));
+  return source.length
+    ? [`source changed since the candidate was built: ${source.join(", ")}`]
+    : [];
+}
