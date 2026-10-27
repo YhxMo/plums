@@ -53,6 +53,6 @@
 
 ## 当前交付与恢复
 
-保留的候选：`release/.mac-aUL9Cb`（`6830c27`，release 档位，最新）、`release/.mac-W3z2Hk`（`0eff9d8`）、`release/.mac-mrL1Q8`（`1f366f6`）、`release/.mac-Xv7o0u`（第 6 项实测用包，基于 `82b9138`），均为 0.2.0 arm64 ad-hoc，除最新一份外为 debug；更早的候选已删除，证据记录中的源码提交可重建。直接打开候选会使用正式数据目录；隔离数据须用设置了 `HOME`（debug 包也可用 `PLUMS_DATA_DIR`）的命令行启动包内可执行文件。新候选一律 `npm run release:mac -- --stage`。
+保留的候选：`release/.mac-vXOQwS`（`4fb2f19`，release 档位，最新，含扩展列表精简，待所有者抽查与真实回复）、`release/.mac-aUL9Cb`（`6830c27`，release 档位）、`release/.mac-W3z2Hk`（`0eff9d8`）、`release/.mac-mrL1Q8`（`1f366f6`）、`release/.mac-Xv7o0u`（第 6 项实测用包，基于 `82b9138`），均为 0.2.0 arm64 ad-hoc，除最新两份外为 debug；更早的候选已删除，证据记录中的源码提交可重建。直接打开候选会使用正式数据目录；隔离数据须用设置了 `HOME`（debug 包也可用 `PLUMS_DATA_DIR`）的命令行启动包内可执行文件。新候选一律 `npm run release:mac -- --stage`。
 
 已交付 0.2.0 来自 `40a7382`，Mac 入口 `release/mac/Plums.app`，未替换；Android 包仅保留原受验范围。[交付证据](evidence/RELEASE-0.2.0-2026-10-20.md)及包旁的 `build-info.json`、`source.patch` 用于核对来源。0.0.4 恢复包在 `.cache/archive/releases/mac-uIizKK/mac` 与 `.cache/archive/releases/android-JS89ll/android`，不自动回滚数据，规则见[开发流程](docs/DEVELOPMENT.md#本地交付目录)。
