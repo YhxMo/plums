@@ -20,7 +20,7 @@ Mac 0.3.0（源码 `9d2327d`，release ad-hoc，AGPL-3.0-or-later 加商业授�
 
 ## 交付验证
 
-自动化、打包实测、独立审查与按所有者决定收窄的退出条件见[交付证据](evidence/RELEASE-0.3.0-2026-10-27.md)。`chat-follow.spec.ts` 的“on a 2x screen › a sent message reaches the end…”会间歇失败（`edf2103` 上重复 3 次失败 1 次），尚未修；WebKit 回归在界面改造后未重跑，改造前的结果见[抽查记录](evidence/MAC-SPOTCHECK-2026-10-25.md)。
+自动化、打包实测、独立审查与按所有者决定收窄的退出条件见[交付证据](evidence/RELEASE-0.3.0-2026-10-27.md)。`chat-follow.spec.ts` 的“on a 2x screen › a sent message reaches the end…”会间歇失败（`edf2103` 上重复 3 次失败 1 次），尚未修；WebKit 回归在界面改造后未重跑。
 
 ## 未验范围
 
