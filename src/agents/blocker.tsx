@@ -32,14 +32,14 @@ export function replyBlocker(
     return {
       text: `正在等「${a.sessions.find((s) => s.id === waiting)?.title}」里的回复，回复后才能再发一条。`,
       action: (
-        <Button type="button" size="sm" onClick={() => onSelect(waiting)}>
+        <Button type="button" onClick={() => onSelect(waiting)}>
           查看
         </Button>
       ),
     };
   const off = (part?: Part) => part && !part.on;
   const turnOn = (part: Part) => (
-    <Button type="button" size="sm" onClick={() => onTurnOn(part)}>
+    <Button type="button" onClick={() => onTurnOn(part)}>
       开启
     </Button>
   );

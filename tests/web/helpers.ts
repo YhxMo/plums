@@ -48,8 +48,10 @@ export async function switchAppearance(
   await page.keyboard.press("Escape");
   await expect(dialog).toBeHidden();
 }
-/** Selects an extension in management, so its details show its pages, settings and removal. */
+/** Opens an extension's details in management: its pages, settings and removal. */
 export async function selectExtension(page: Page, id: string) {
+  if (await page.getByRole("region", { name: "所选扩展详情" }).count())
+    await closeDetails(page);
   await page
     .locator(`[data-extension-id="${id}"] [data-slot=extension-title]`)
     .click();
@@ -153,6 +155,20 @@ export function firstSessionMessageCount(page: Page, agent: string) {
 export async function extensionDetail(page: Page, card: Locator) {
   await card.click({ position: { x: 6, y: 6 } });
   return page.getByRole("region", { name: "所选扩展详情" });
+}
+/** Leaves management for the workspace, closing any details left open. */
+export async function backToWorkspace(page: Page) {
+  if (await page.getByRole("region", { name: "所选扩展详情" }).count())
+    await closeDetails(page);
+  await page.getByRole("button", { name: "返回工作区", exact: true }).click();
+}
+/** Closes an extension's details, which cover the page while open. */
+export async function closeDetails(page: Page) {
+  await page
+    .getByRole("dialog")
+    .filter({ has: page.getByRole("region", { name: "所选扩展详情" }) })
+    .getByRole("button", { name: "完成", exact: true })
+    .click();
 }
 
 /** The conversation names itself in its own header; the title bar never repeats it. */

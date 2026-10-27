@@ -1,6 +1,12 @@
 import { zipSync, strToU8 } from "fflate";
 import { expect, test, type Page } from "@playwright/test";
-import { manage, persisted, addAgent } from "./helpers";
+import {
+  manage,
+  persisted,
+  addAgent,
+  backToWorkspace,
+  closeDetails,
+} from "./helpers";
 
 const starter = "extensions/examples/starter-model";
 /** A package's two files for a chat service; its top level marks that it ran. */
@@ -46,6 +52,9 @@ async function importZip(page: Page, buffer: Buffer) {
   return dialog;
 }
 async function useService(page: Page, id: string) {
+  // The cards' switches are reachable once no details cover them.
+  if (await page.getByRole("region", { name: "所选扩展详情" }).count())
+    await closeDetails(page);
   const enable = page.getByRole("switch", { name: `启用 ${id}`, exact: true });
   // The list is rendered once the imported extension shows.
   await expect(enable).toBeVisible();
@@ -53,12 +62,12 @@ async function useService(page: Page, id: string) {
     name: "启用 chat.echo",
     exact: true,
   });
-  if (await stop.isVisible()) await stop.click();
+  if ((await stop.count()) && (await stop.isChecked())) await stop.click();
   await enable.click();
   await expect(
     page.getByRole("switch", { name: `启用 ${id}`, exact: true }),
   ).toBeChecked();
-  await page.getByRole("button", { name: "返回工作区", exact: true }).click();
+  await backToWorkspace(page);
 }
 async function send(page: Page, text: string) {
   await page.getByRole("textbox", { name: "消息", exact: true }).fill(text);

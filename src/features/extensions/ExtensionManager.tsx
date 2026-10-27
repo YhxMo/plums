@@ -1,13 +1,12 @@
 import type { ReactNode } from "react";
-import { useMediaQuery } from "@/components/useMediaQuery";
-import { below } from "@/components/breakpoints";
+import { extensionOwner } from "@modules/sdk";
+import { Dialog, DialogBody, DialogDone } from "@/components/Dialog";
 import type { ExtensionManagerController } from "./controllers";
 import { ManagerHeader } from "./ManagerHeader";
 import { ExtensionList } from "./ExtensionList";
 import { ExtensionDetails } from "./ExtensionDetails";
-import { ExtensionActions } from "./ExtensionActions";
+import { ExtensionActions, ExtensionSwitch } from "./ExtensionActions";
 import { SelectedDocuments } from "./SelectedDocuments";
-import { extensionOwner } from "@modules/sdk";
 import { ExtensionDialogs } from "./ExtensionDialogs";
 import { RetainedCredentialBindings } from "./CredentialBindings";
 
@@ -19,34 +18,9 @@ export function ExtensionManager({
   diagnostics: ReactNode;
 }) {
   const { detail, list } = controller;
-  const narrow = useMediaQuery(below("manager"));
-  const row = list.rows.find((candidate) => candidate.selected);
-  const details = detail.entry && (
-    <ExtensionDetails
-      host={detail.host}
-      access={detail.access}
-      entry={detail.entry}
-      operations={detail.operations}
-      inline={narrow}
-      actions={
-        row && (
-          <ExtensionActions
-            extension={row}
-            actions={list.actions}
-            busy={list.busy}
-          />
-        )
-      }
-    >
-      {row?.manifest.capabilities?.includes("document.read") && (
-        <SelectedDocuments
-          adapter={list.adapter}
-          owner={extensionOwner(row.entry.id)}
-          enabled={row.state.status === "active"}
-        />
-      )}
-    </ExtensionDetails>
-  );
+  const row =
+    detail.entry &&
+    list.rows.find((candidate) => candidate.entry.id === detail.entry!.id);
   return (
     <>
       <aside
@@ -56,26 +30,59 @@ export function ExtensionManager({
         aria-label="扩展管理"
       >
         <ManagerHeader controller={controller.header} />
-        {/* The list and the selected extension side by side, each
-            scrolling; narrow windows open the details inside the list. */}
-        <div className="grid min-h-0 flex-1 grid-cols-[minmax(296px,0.45fr)_minmax(0,0.55fr)] max-manager:grid-cols-1 max-manager:overflow-auto">
-          <div className="min-w-0 overflow-auto border-r p-2 max-manager:overflow-visible max-manager:border-r-0">
-            <ExtensionList
-              controller={list}
-              selectedDetail={narrow ? details : undefined}
-            />
-          </div>
-          <div className="flex min-w-0 flex-col gap-3.5 overflow-auto px-6 py-6 max-manager:overflow-visible max-manager:px-4 max-manager:py-3 max-manager:empty:hidden">
-            {!narrow && details}
-            {diagnostics}
-            <RetainedCredentialBindings
-              access={detail.access}
-              operations={detail.operations}
-              installed={controller.list.installed}
-            />
-          </div>
+        {/* Every extension as a card; its details open over the page. */}
+        <div className="grid min-h-0 flex-1 content-start gap-6 overflow-auto p-4">
+          <ExtensionList controller={list} />
+          {diagnostics}
+          <RetainedCredentialBindings
+            access={detail.access}
+            operations={detail.operations}
+            installed={list.installed}
+          />
         </div>
       </aside>
+      {controller.visible && detail.entry && row && (
+        <Dialog
+          key={detail.entry.id}
+          title={detail.entry.label}
+          returnFocusTo={detail.trigger}
+          fallbackFocus={() => controller.header.heading.current}
+          onClose={detail.close}
+        >
+          <DialogBody>
+            <ExtensionDetails
+              host={detail.host}
+              access={detail.access}
+              entry={detail.entry}
+              operations={detail.operations}
+              toggle={
+                <ExtensionSwitch
+                  extension={row}
+                  actions={list.actions}
+                  busy={list.busy}
+                />
+              }
+              actions={
+                <ExtensionActions
+                  extension={row}
+                  actions={list.actions}
+                  busy={list.busy}
+                />
+              }
+            >
+              {row.manifest.capabilities?.includes("document.read") && (
+                <SelectedDocuments
+                  adapter={list.adapter}
+                  owner={extensionOwner(row.entry.id)}
+                  enabled={row.state.status === "active"}
+                />
+              )}
+            </ExtensionDetails>
+          </DialogBody>
+          {/* Switches here apply at once, so it only needs a way out. */}
+          <DialogDone onDone={detail.close} />
+        </Dialog>
+      )}
       <ExtensionDialogs
         controller={controller.dialogs}
         host={detail.host}

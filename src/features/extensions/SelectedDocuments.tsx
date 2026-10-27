@@ -122,7 +122,6 @@ export function SelectedDocuments({
           <div className="flex flex-wrap gap-2">
             <Button
               variant="outline"
-              size="sm"
               disabled={!enabled || pending}
               onClick={() => void select(false)}
             >
@@ -130,7 +129,6 @@ export function SelectedDocuments({
             </Button>
             <Button
               variant="outline"
-              size="sm"
               disabled={!enabled || pending}
               onClick={() => void select(true)}
             >
@@ -139,7 +137,6 @@ export function SelectedDocuments({
             {pending && (
               <Button
                 variant="outline"
-                size="sm"
                 disabled={!controller.current}
                 onClick={() => controller.current?.abort()}
               >
@@ -148,7 +145,6 @@ export function SelectedDocuments({
             )}
             <Button
               variant="outline"
-              size="sm"
               disabled={!enabled || pending}
               onClick={() => void revoke()}
             >
@@ -168,7 +164,6 @@ export function SelectedDocuments({
                   </span>
                   <Button
                     variant="outline"
-                    size="sm"
                     disabled={pending || !enabled}
                     aria-label={`撤销 ${item.name}`}
                     onClick={() => void revoke(item.handle)}

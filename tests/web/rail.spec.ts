@@ -204,13 +204,25 @@ test("dialog views open from their extension's details in management", async ({
   await open.click();
   const dialog = page.getByRole("dialog", { name: "连接设置", exact: true });
   await expect(dialog).toContainText("对话框内容");
+  // The page took the details' place, so closing it returns to the card.
   await page.keyboard.press("Escape");
   await expect(dialog).toBeHidden();
-  await expect(open).toBeFocused();
+  await expect(page.getByRole("region", { name: "所选扩展详情" })).toHaveCount(
+    0,
+  );
+  await expect(
+    page.locator(
+      '[data-extension-id="test.dialog"] [data-slot=extension-title]',
+    ),
+  ).toBeFocused();
   // Only an active extension offers its dialogs.
   await page
     .getByRole("switch", { name: "启用 test.dialog", exact: true })
     .click();
+  await selectExtension(page, "test.dialog");
+  await expect(
+    page.getByRole("region", { name: "所选扩展详情" }),
+  ).toBeVisible();
   await expect(open).toHaveCount(0);
 });
 

@@ -48,7 +48,6 @@ export function ShellFeedback({
               </AlertDescription>
               <Button
                 variant="ghost"
-                size="sm"
                 onClick={() => {
                   navigation.openManager(
                     false,

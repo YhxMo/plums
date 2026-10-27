@@ -108,16 +108,11 @@ export function ItemForm({
           {times}
           <div className="flex justify-end gap-2">
             {onCancel && (
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                onClick={onCancel}
-              >
+              <Button type="button" variant="ghost" onClick={onCancel}>
                 取消
               </Button>
             )}
-            <Button type="submit" size="sm" disabled={busy || !text.trim()}>
+            <Button type="submit" disabled={busy || !text.trim()}>
               {submit}
             </Button>
           </div>

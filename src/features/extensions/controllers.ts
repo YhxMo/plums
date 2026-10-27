@@ -22,15 +22,12 @@ export type ExtensionCardModel = {
   manifest: ReturnType<Host["manifest"]>;
   state: ReturnType<Host["inspect"]>;
   users: ReturnType<Host["users"]>;
-  selected: boolean;
   imported: boolean;
-  /** Its dialog views, which open from its card. */
+  /** Its dialog views, which open from its details. */
   dialogs: { id: string; label: string }[];
 };
 export type ExtensionDetailsProps = {
   host: Pick<Host, "inspect" | "manifest" | "users" | "toggleUser" | "views">;
-  /** Shown inside the selected card on narrow screens. */
-  inline?: boolean;
   access: CredentialAccess;
   entry: ImportedExtension;
   operations: CredentialOperations;

@@ -2,7 +2,7 @@ import type { ExtensionCardModel, ExtensionRowActions } from "./controllers";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 
-/** Starts or stops an extension from its row; on only while it runs. */
+/** Starts or stops an extension from its card or details; on only while it runs. */
 export function ExtensionSwitch({
   extension,
   actions,
@@ -21,7 +21,7 @@ export function ExtensionSwitch({
         busy || state.status === "cleanup-failed" || state.status === "stopping"
       }
       onClick={(event) => {
-        // Switching is not selecting the row.
+        // Switching on a card does not open its details.
         event.stopPropagation();
         actions.toggle(extension, event.currentTarget);
       }}

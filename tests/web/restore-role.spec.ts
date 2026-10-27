@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { manage } from "./helpers";
+import { closeDetails, extensionDetail, manage } from "./helpers";
 
 function state(role: unknown) {
   return JSON.stringify({
@@ -52,11 +52,13 @@ test("invalid saved role fails only the Agent provider and keeps persisted bytes
   await expect(alert).toContainText("agents.local");
   await expect(alert).toContainText("会话配置损坏");
   await manage(page);
-  await expect(
-    page
-      .locator("#extension-manager [data-extension-id]")
-      .filter({ hasText: "Agent 核心" }),
-  ).toContainText("会话配置损坏");
+  const card = page.locator(
+    '#extension-manager [data-extension-id="agents.local"]',
+  );
+  await expect(card).toContainText("激活失败");
+  // The card names the state; its details give the reason.
+  await expect(await extensionDetail(page, card)).toContainText("会话配置损坏");
+  await closeDetails(page);
   expect(
     await page.evaluate(() => [
       localStorage.getItem("plums:host.shell"),

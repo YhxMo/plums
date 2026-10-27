@@ -78,15 +78,10 @@ export function EditableText({
         onChange={(e) => setEditing(e.target.value)}
       />
       <div className="flex justify-end gap-2">
-        <Button
-          type="button"
-          variant="ghost"
-          size="sm"
-          onClick={() => setEditing(null)}
-        >
+        <Button type="button" variant="ghost" onClick={() => setEditing(null)}>
           取消
         </Button>
-        <Button type="submit" size="sm" disabled={disabled}>
+        <Button type="submit" disabled={disabled}>
           保存
         </Button>
       </div>

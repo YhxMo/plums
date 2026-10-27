@@ -313,7 +313,7 @@ export function ChatView({
           <div className="absolute bottom-3 left-1/2 -translate-x-1/2">
             <Button
               variant="outline"
-              size={unseen ? "sm" : "icon-sm"}
+              size={unseen ? "default" : "icon-sm"}
               className={cn(
                 // Solid in both themes: it floats over bubbles.
                 "rounded-full bg-popover shadow-float hover:bg-muted dark:bg-popover dark:hover:bg-muted",

@@ -443,7 +443,6 @@ export function ProviderForm({
             <Button
               type="button"
               variant="outline"
-              size="sm"
               disabled={busy || !target}
               onClick={() => void fetchModels()}
             >
@@ -509,7 +508,6 @@ export function ProviderForm({
             <Button
               type="button"
               variant="ghost"
-              size="sm"
               className="group -ml-2 text-muted-foreground"
             >
               高级选项

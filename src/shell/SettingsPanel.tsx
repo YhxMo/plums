@@ -89,7 +89,6 @@ function Choice({
       <DropdownMenuTrigger asChild>
         <Button
           variant="ghost"
-          size="sm"
           // The row's name, then the value shown.
           aria-label={`${label}，${current?.label ?? "未选择"}`}
           disabled={disabled}

@@ -229,7 +229,6 @@ function Expired({
         </button>
         <Button
           variant="ghost"
-          size="sm"
           className="text-destructive hover:text-destructive"
           disabled={busy}
           onClick={onClear}

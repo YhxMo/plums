@@ -5,6 +5,7 @@ import {
   openSettings,
   installByPath,
   pickTheme,
+  closeDetails,
 } from "./helpers";
 async function settings(page: Page) {
   await openSettings(page);
@@ -110,6 +111,8 @@ test("failed theme preference write keeps the applied palette", async ({
   await pickTheme(page, "海湾");
   await dialog.getByRole("button", { name: "关闭" }).click();
   await manage(page, true);
+  if (await page.getByRole("region", { name: "所选扩展详情" }).count())
+    await closeDetails(page);
   await page.getByLabel("注入存储写入失败").check();
   const failed = await settings(page);
   await pickTheme(page, "墨夜");

@@ -5,6 +5,7 @@ import {
   openSettings,
   switchAppearance,
   pickLayout,
+  closeDetails,
 } from "./helpers";
 import { expect, test } from "@playwright/test";
 
@@ -173,6 +174,8 @@ test("a rejected preference write keeps the current theme and reports the failur
   await page.goto("/");
   await manage(page);
   await page.getByText("诊断与实验", { exact: true }).click();
+  if (await page.getByRole("region", { name: "所选扩展详情" }).count())
+    await closeDetails(page);
   await page.getByLabel("注入存储写入失败").check();
   const dialog = await openSettings(page);
   await dialog.getByRole("radio", { name: "深色", exact: true }).click();

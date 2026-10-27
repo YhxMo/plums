@@ -5,6 +5,8 @@ import {
   extensionDetail,
   switchAppearance,
   addAgent,
+  closeDetails,
+  backToWorkspace,
 } from "./helpers";
 import { test, expect } from "@playwright/test";
 
@@ -63,6 +65,7 @@ test("authorization can be cancelled and restores keyboard focus", async ({
   await expect(await extensionDetail(page, workbench)).toContainText(
     "/services/workbench/",
   );
+  await closeDetails(page);
   await workbench
     .getByRole("switch", { name: "启用 workbench", exact: true })
     .click();
@@ -107,6 +110,7 @@ for (const width of [375, 1280]) {
     await expect(await extensionDetail(page, workbench)).toContainText(
       "0 项资源，0 个在途任务",
     );
+    await closeDetails(page);
     // Already granted in this run, so it starts without asking again.
     await workbench
       .getByRole("switch", { name: "启用 workbench", exact: true })
@@ -181,14 +185,16 @@ test("dismissible fallback notice, independent extension manager page and topbar
   await expect(fallback).toContainText("工作台 (default)");
   await expect(fallback).toContainText("尚未启用");
   await fallback.getByRole("button", { name: "查看原因", exact: true }).click();
+  // Management opens with the named extension's details over it.
+  await expect(
+    page.getByRole("region", { name: "所选扩展详情" }),
+  ).toContainText("ui.default");
+  await closeDetails(page);
   await expect(
     page.getByRole("heading", { name: "扩展", exact: true }),
   ).toBeVisible();
   await expect(page.locator("[data-workspace]")).toBeHidden();
-  await expect(
-    page.getByRole("region", { name: "所选扩展详情" }),
-  ).toContainText("ui.default");
-  await page.getByRole("button", { name: "返回工作区", exact: true }).click();
+  await backToWorkspace(page);
   await expect(page.locator("[data-workspace]")).toBeVisible();
   await fallback
     .getByRole("button", { name: "关闭所选界面提示", exact: true })
@@ -225,7 +231,7 @@ test("dismissible fallback notice, independent extension manager page and topbar
   await expect(
     detail.getByRole("listitem").filter({ hasText: "代码助手" }),
   ).toBeVisible();
-  await page.getByRole("button", { name: "返回工作区", exact: true }).click();
+  await backToWorkspace(page);
   await expect(page.locator("[data-workspace]")).toBeVisible();
 });
 

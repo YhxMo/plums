@@ -1,16 +1,14 @@
-import type { ReactNode } from "react";
 import { TriangleAlertIcon } from "lucide-react";
 import type { ExtensionListController } from "./controllers";
 import { ExtensionCard } from "./ExtensionCard";
 import { ExtensionSwitch } from "./ExtensionActions";
 import { Button } from "@/components/ui/button";
 
+/** Load failures first, then every installed extension as a card. */
 export function ExtensionList({
   controller,
-  selectedDetail,
 }: {
   controller: ExtensionListController;
-  selectedDetail?: ReactNode;
 }) {
   const { actions, busy } = controller;
   return (
@@ -30,7 +28,6 @@ export function ExtensionList({
           <div className="flex flex-wrap gap-2">
             <Button
               variant="outline"
-              size="sm"
               disabled={busy}
               aria-label={`重试加载 ${id}`}
               onClick={() => void actions.retry(id)}
@@ -39,7 +36,6 @@ export function ExtensionList({
             </Button>
             <Button
               variant="ghost"
-              size="sm"
               disabled={busy}
               aria-label={`移除路径 ${id}`}
               onClick={() => void actions.removeFailure(id)}
@@ -49,18 +45,19 @@ export function ExtensionList({
           </div>
         </article>
       ))}
-      <ul aria-label="扩展" className="grid grid-cols-1 gap-0.5">
+      <ul
+        aria-label="扩展"
+        className="grid grid-cols-[repeat(auto-fill,minmax(min(15rem,100%),1fr))] gap-2"
+      >
         {controller.rows.map((row) => (
           <ExtensionCard
             key={row.entry.id}
             extension={row}
-            onSelect={() => actions.select(row.entry.id)}
+            onOpen={(source) => actions.select(row.entry.id, source)}
             toggle={
               <ExtensionSwitch extension={row} actions={actions} busy={busy} />
             }
-          >
-            {row.selected && selectedDetail}
-          </ExtensionCard>
+          />
         ))}
       </ul>
     </div>

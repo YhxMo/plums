@@ -47,9 +47,9 @@ export function useExtensionManager(
   const { value, run } = useExtensionState(runtime);
   const { manager, closeManager } = navigation;
   const { busy, operate, setError, setNotice } = operations;
-  const [selectedId, setSelectedId] = useState(
-    () => catalog.find((entry) => host.ids().includes(entry.id))?.id ?? "",
-  );
+  // The extension whose details are open, and the card that opened them.
+  const [selectedId, setSelectedId] = useState("");
+  const detailTrigger = useRef<HTMLElement | null>(null);
   const [dialog, setDialog] = useState<ManagementDialog>(null);
   const [failedImports, setFailedImports] = useState(
     runtime.initial.failedImports,
@@ -57,16 +57,11 @@ export function useExtensionManager(
   const heading = useRef<HTMLHeadingElement>(null);
   const removed = useRef(false);
   useEffect(() => {
-    if (!manager.open) return;
-    const target = manager.targetId;
-    if (target) setSelectedId(target);
-    heading.current?.focus();
-    if (target)
-      requestAnimationFrame(() =>
-        document
-          .querySelector(`[data-extension-id="${CSS.escape(target)}"]`)
-          ?.scrollIntoView({ block: "nearest" }),
-      );
+    // Asked for one extension: its details open over the page.
+    const target = manager.open ? (manager.targetId ?? "") : "";
+    detailTrigger.current = null;
+    setSelectedId(target);
+    if (manager.open) heading.current?.focus();
   }, [manager.open, manager.targetId]);
   // Enabling, stopping and granting are kept for the next start as they happen.
   useEffect(() => {
@@ -92,8 +87,7 @@ export function useExtensionManager(
     }
   }, [dialog]);
   const installed = catalog.filter((entry) => host.ids().includes(entry.id));
-  const selected =
-    installed.find((entry) => entry.id === selectedId) ?? installed[0];
+  const selected = installed.find((entry) => entry.id === selectedId);
   const reportNotRunning = (id: string) => {
     const info = host.inspect(id);
     const notice = waitingNotice(info.status, stateMessage(info));
@@ -106,6 +100,13 @@ export function useExtensionManager(
       return next;
     });
   const close = () => setDialog(null);
+  const cardTitle = (id: string) =>
+    document.querySelector<HTMLElement>(
+      `[data-extension-id="${CSS.escape(id)}"] [data-slot=extension-title]`,
+    );
+  /** Moves focus to a newly installed extension, whose switch is next to it. */
+  const focusCard = (id: string) =>
+    requestAnimationFrame(() => cardTitle(id)?.focus());
   const offer = usePackageOffers(runtime, {
     imports: value.imports,
     busy,
@@ -126,7 +127,7 @@ export function useExtensionManager(
       ),
     );
     clearFailure(result.entry.id);
-    setSelectedId(result.entry.id);
+    focusCard(result.entry.id);
     return result;
   }
   const prepareUninstall = (owner: string, declared: boolean) =>
@@ -147,7 +148,6 @@ export function useExtensionManager(
       manifest: host.manifest(entry.id),
       state: host.inspect(entry.id),
       users: host.users(entry.id),
-      selected: selected?.id === entry.id,
       imported: value.imports.some((item) => item.id === entry.id),
       dialogs: own.filter((view) => view.presentation === "dialog"),
     };
@@ -169,10 +169,23 @@ export function useExtensionManager(
       busy,
       adapter: runtime.adapter,
       actions: {
-        select: setSelectedId,
-        /** Opens a dialog view over management, like model connections. */
-        openView: (view: { id: string; label: string }, source: HTMLElement) =>
-          navigation.setDialog(view, source),
+        /** Opens an extension's details from its card. */
+        select: (id: string, source: HTMLElement) => {
+          detailTrigger.current = source;
+          setSelectedId(id);
+        },
+        /**
+         * Opens a dialog view over management, like model connections,
+         * in place of the details; closing it returns to the card.
+         */
+        openView: (
+          view: { id: string; label: string },
+          source: HTMLElement,
+        ) => {
+          const card = cardTitle(selectedId) ?? source;
+          setSelectedId("");
+          navigation.setDialog(view, card);
+        },
         configure: (id: string, source: HTMLElement) =>
           open("configure", id, source),
         uninstall: (id: string, source: HTMLElement) =>
@@ -236,6 +249,8 @@ export function useExtensionManager(
       access: runtime.adapter.credentials,
       operations,
       entry: selected,
+      trigger: detailTrigger.current,
+      close: () => setSelectedId(""),
     },
     dialogs: {
       dialog,
@@ -250,6 +265,7 @@ export function useExtensionManager(
           );
           clearFailure(entry.id);
           close();
+          focusCard(entry.id);
           setNotice(
             "扩展路径已保存。请检查来源与能力，再启用扩展；下次启动会重新加载。",
           );

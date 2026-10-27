@@ -1,4 +1,4 @@
-import { addAgent, manage } from "./helpers";
+import { addAgent, manage, backToWorkspace } from "./helpers";
 import { expect, test } from "@playwright/test";
 
 const echo = "回显模型（开发）";
@@ -18,13 +18,8 @@ for (const width of [375, 1280]) {
     await page
       .getByRole("button", { name: `查看扩展 ${echo}`, exact: true })
       .click();
-    await expect(
-      page.getByRole("heading", { name: "扩展", exact: true }),
-    ).toBeVisible();
-    const card = page.locator('[data-extension-id="chat.echo"]');
-    await expect(
-      card.getByRole("button", { name: echo, exact: true }),
-    ).toHaveAttribute("aria-pressed", "true");
+    // Management opens with that extension's details over it.
+    await expect(page.getByRole("dialog", { name: echo })).toBeVisible();
     const detail = page.getByRole("region", { name: "所选扩展详情" });
     await expect(detail).toBeInViewport();
     await expect(detail).toContainText("chat.echo");
@@ -36,30 +31,30 @@ for (const width of [375, 1280]) {
     // Switched off for the Agent without stopping the extension...
     await on.click();
     await expect(on).toHaveAttribute("aria-pressed", "false");
-    await expect(card.getByRole("switch")).toBeChecked();
+    await expect(detail.getByRole("switch")).toBeChecked();
     // ...and back on again.
     await on.click();
     await expect(on).toHaveAttribute("aria-pressed", "true");
     // Stopping an extension in use asks first and names who uses it.
-    await card
+    await detail
       .getByRole("switch", { name: "启用 chat.echo", exact: true })
       .click();
     const confirm = page.getByRole("dialog", { name: `停用 ${echo}` });
     await expect(confirm).toContainText("「写作助手」正在使用此扩展");
     await confirm.getByRole("button", { name: "取消", exact: true }).click();
-    await expect(card.getByRole("switch")).toBeChecked();
-    await card
+    await expect(detail.getByRole("switch")).toBeChecked();
+    await detail
       .getByRole("switch", { name: "启用 chat.echo", exact: true })
       .click();
     await confirm.getByRole("button", { name: "停用", exact: true }).click();
     // A stopped model keeps the Agent's choice, so its details still say
     // who relies on it, and the Agent resumes once it is started again.
-    await expect(card.getByRole("switch")).not.toBeChecked();
+    await expect(detail.getByRole("switch")).not.toBeChecked();
     await expect(detail).toContainText("写作助手");
-    await card
+    await detail
       .getByRole("switch", { name: "启用 chat.echo", exact: true })
       .click();
-    await expect(card.getByRole("switch")).toBeChecked();
+    await expect(detail.getByRole("switch")).toBeChecked();
   });
 }
 
@@ -116,7 +111,7 @@ test("each Agent picks its own model and the model receives the conversation so 
   await page
     .getByRole("switch", { name: "启用 chat.echo", exact: true })
     .click();
-  await page.getByRole("button", { name: "返回工作区", exact: true }).click();
+  await backToWorkspace(page);
   await addAgent(page, "甲");
   const emptyBox = page.getByRole("textbox", { name: "消息", exact: true });
   await expect(emptyBox).toHaveAttribute(
@@ -140,7 +135,7 @@ test("each Agent picks its own model and the model receives the conversation so 
   await page
     .getByRole("switch", { name: "启用 chat.echo", exact: true })
     .click();
-  await page.getByRole("button", { name: "返回工作区", exact: true }).click();
+  await backToWorkspace(page);
   // Nothing picked: the same message box shows, with the picker saying so.
   const box = page.getByRole("textbox", { name: "消息", exact: true });
   await expect(box).toHaveValue("先写好");
@@ -203,7 +198,7 @@ for (const width of [375, 700]) {
     await page
       .getByRole("switch", { name: "启用 chat.echo", exact: true })
       .click();
-    await page.getByRole("button", { name: "返回工作区", exact: true }).click();
+    await backToWorkspace(page);
     await addAgent(page, "未接入");
     const box = page.getByRole("textbox", { name: "消息", exact: true });
     await expect(box).toBeVisible();

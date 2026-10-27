@@ -1,79 +1,56 @@
 import type { ReactNode } from "react";
-import { cn } from "cn";
 import type { ExtensionCardModel } from "./controllers";
-import { stateMessage } from "@/shell/messages";
 import { StatusBadge } from "./StatusBadge";
 
-/** States worth a word in the list; running and switched off show only the switch. */
+/** States worth a word on the card; running and switched off show only the switch. */
 const NOTEWORTHY = new Set(["failed", "cleanup-failed", "waiting", "stopping"]);
 
 /**
- * One extension in the list: its name, the first line of what it is for,
- * and its switch. Everything else is in its details.
+ * One extension on the page: its name, what it is for in two lines and its
+ * switch. Pressing the card opens the details, where everything else is.
  */
 export function ExtensionCard({
   extension,
-  onSelect,
+  onOpen,
   toggle,
-  children,
 }: {
-  extension: Pick<
-    ExtensionCardModel,
-    "entry" | "manifest" | "state" | "selected"
-  >;
-  onSelect(): void;
+  extension: Pick<ExtensionCardModel, "entry" | "manifest" | "state">;
+  onOpen(source: HTMLElement): void;
   /** The switch that starts or stops it. */
   toggle: ReactNode;
-  children?: ReactNode;
 }) {
-  const { entry, manifest, state, selected: isSelected } = extension;
-  const { id } = entry;
-  const summary = manifest.description?.trim().split("\n")[0];
+  const { entry, manifest, state } = extension;
+  const summary = manifest.description?.trim();
   return (
+    // The right padding sits on each child, so the switch's wider hit
+    // area stays inside the card instead of overflowing it.
     <li
-      key={id}
-      data-extension-id={id}
-      data-selected={isSelected}
-      // The right padding sits on each child, so the switch's wider hit
-      // area stays inside the row instead of overflowing it.
-      className={cn(
-        "cursor-pointer rounded-md py-2.5 pl-3 *:pr-3 hover:bg-muted/60",
-        isSelected && "bg-muted hover:bg-muted",
-      )}
-      onClick={onSelect}
+      data-extension-id={entry.id}
+      className="flex min-h-24 cursor-pointer flex-col gap-1 rounded-lg border py-3 pl-3 *:pr-3 hover:bg-muted/60 has-[[data-slot=extension-title]:focus-visible]:ring-3 has-[[data-slot=extension-title]:focus-visible]:ring-ring/50"
+      // Pointer users press anywhere; the title is the control for keyboards.
+      onClick={(event) =>
+        onOpen(
+          event.currentTarget.querySelector<HTMLElement>(
+            "[data-slot=extension-title]",
+          )!,
+        )
+      }
     >
-      <div className="flex items-center gap-3">
-        <div className="min-w-0 flex-1">
-          <div className="flex min-w-0 items-center gap-2">
-            {/* data-slot keeps the plain-button look for extension DOM off it. */}
-            <button
-              type="button"
-              data-slot="extension-title"
-              className="min-w-0 truncate text-left text-sm font-medium outline-none focus-visible:underline"
-              aria-pressed={isSelected}
-              onClick={onSelect}
-            >
-              {entry.label}
-            </button>
-            {NOTEWORTHY.has(state.status) && (
-              <StatusBadge status={state.status} />
-            )}
-          </div>
-          {summary && (
-            <p className="mt-0.5 truncate text-xs text-muted-foreground">
-              {summary}
-            </p>
-          )}
-        </div>
+      <div className="flex items-start gap-3">
+        <button
+          type="button"
+          data-slot="extension-title"
+          aria-haspopup="dialog"
+          className="min-w-0 flex-1 truncate text-left text-sm font-medium outline-none"
+        >
+          {entry.label}
+        </button>
         {toggle}
       </div>
-      {state.error && (
-        <p className="mt-2 text-xs text-destructive">{stateMessage(state)}</p>
-      )}
-      {children}
-      {state.status === "cleanup-failed" && (
-        <p className="mt-2 text-xs text-destructive">
-          请重新启动应用以恢复此扩展。
+      {NOTEWORTHY.has(state.status) && <StatusBadge status={state.status} />}
+      {summary && (
+        <p className="line-clamp-2 text-xs leading-relaxed text-muted-foreground [overflow-wrap:anywhere]">
+          {summary}
         </p>
       )}
     </li>

@@ -5,6 +5,7 @@ import {
   openSettings,
   shellButton,
   pickLayout,
+  closeDetails,
 } from "./helpers";
 async function enable(page: Page) {
   await manage(page);
@@ -123,6 +124,8 @@ test("workbench save failure, cold detail restoration and lifecycle fallback", a
     "cold recovery",
   );
   await manage(page, true);
+  if (await page.getByRole("region", { name: "所选扩展详情" }).count())
+    await closeDetails(page);
   await page.getByLabel("注入存储写入失败").check();
   await page.getByRole("button", { name: "返回工作区", exact: true }).click();
   await page.getByRole("button", { name: "执行转换", exact: true }).click();
@@ -164,6 +167,8 @@ test("navigation preference failure cannot redirect a detail edit to another ite
   await page.getByRole("button", { name: "查看结果", exact: true }).click();
   await page.locator(".tw-result").first().click();
   await manage(page, true);
+  if (await page.getByRole("region", { name: "所选扩展详情" }).count())
+    await closeDetails(page);
   await page.getByLabel("注入存储写入失败").check();
   await page.getByRole("button", { name: "返回工作区", exact: true }).click();
   await page.locator(".tw-item").filter({ hasText: /^B/ }).click();
@@ -174,6 +179,8 @@ test("navigation preference failure cannot redirect a detail edit to another ite
     page.locator(".tw-item").filter({ hasText: /^A/ }),
   ).toHaveAttribute("aria-pressed", "true");
   await manage(page, true);
+  if (await page.getByRole("region", { name: "所选扩展详情" }).count())
+    await closeDetails(page);
   await page.getByLabel("注入存储写入失败").uncheck();
   await page.getByRole("button", { name: "返回工作区", exact: true }).click();
   await page.getByRole("button", { name: "再编辑", exact: true }).click();

@@ -5,6 +5,7 @@ import {
   openConnections,
   serveModule,
   selectExtension,
+  backToWorkspace,
 } from "./helpers";
 
 const extensionId = "sample.credential-test";
@@ -747,7 +748,7 @@ for (const width of [375, 1180])
     await page.keyboard.press("Escape");
     await expect(dialog).toBeHidden();
     // The dialog opened over management, which is still shown beneath it.
-    await page.getByRole("button", { name: "返回工作区", exact: true }).click();
+    await backToWorkspace(page);
     await addAgent(page, "模型助手");
     await page.getByRole("combobox", { name: "切换模型", exact: true }).click();
     await page

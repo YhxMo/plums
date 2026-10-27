@@ -1,4 +1,11 @@
-import { manage, legacyEntry, chooseLayout, extensionDetail } from "./helpers";
+import {
+  manage,
+  legacyEntry,
+  chooseLayout,
+  extensionDetail,
+  closeDetails,
+  backToWorkspace,
+} from "./helpers";
 import { readFileSync } from "node:fs";
 import { test, expect } from "@playwright/test";
 import { catalog, definitions } from "../fixtures/dependency-chain.js";
@@ -50,7 +57,7 @@ for (const failCleanup of [false, true]) {
         .getByRole("switch", { name: `启用 ${id}`, exact: true })
         .click();
     }
-    await page.getByRole("button", { name: "返回工作区", exact: true }).click();
+    await backToWorkspace(page);
     await chooseLayout(page, "combo-controls");
     await page.getByRole("button", { name: "发送组合事件" }).click();
     await expect(
@@ -80,6 +87,7 @@ for (const failCleanup of [false, true]) {
     await expect(await extensionDetail(page, leaf)).toContainText(
       "0 项资源，0 个在途任务",
     );
+    await closeDetails(page);
     await expect(
       page.getByRole("switch", { name: "启用 combo.provider", exact: true }),
     ).toBeDisabled();
@@ -91,7 +99,7 @@ for (const failCleanup of [false, true]) {
       await expect(await extensionDetail(page, middle)).toContainText(
         "0 项资源，0 个在途任务",
       );
-    await page.getByRole("button", { name: "返回工作区", exact: true }).click();
+    await backToWorkspace(page);
     await chooseLayout(page, "combo-controls");
     await page.getByRole("button", { name: "发送组合事件" }).click();
     await expect(

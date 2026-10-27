@@ -1,5 +1,10 @@
 import { expect, test, type Page } from "@playwright/test";
-import { manage, installByPath, selectExtension } from "./helpers";
+import {
+  manage,
+  installByPath,
+  selectExtension,
+  closeDetails,
+} from "./helpers";
 async function install(page: Page) {
   await page.goto("/");
   await manage(page, true);
@@ -72,6 +77,8 @@ test("failed removal save remains retryable and never reports success", async ({
   page,
 }) => {
   await install(page);
+  if (await page.getByRole("region", { name: "所选扩展详情" }).count())
+    await closeDetails(page);
   await page.getByLabel("注入存储写入失败").check();
   await selectExtension(page, "sample.counter");
   await page
@@ -86,6 +93,8 @@ test("failed removal save remains retryable and never reports success", async ({
   await expect(
     page.getByRole("switch", { name: "启用 sample.counter", exact: true }),
   ).not.toBeChecked();
+  if (await page.getByRole("region", { name: "所选扩展详情" }).count())
+    await closeDetails(page);
   await page.getByLabel("注入存储写入失败").uncheck();
   await selectExtension(page, "sample.counter");
   await page

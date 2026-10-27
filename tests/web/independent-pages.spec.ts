@@ -1,5 +1,12 @@
 import { expect, test, type Page } from "@playwright/test";
-import { manage, extensionDetail, persisted, installByPath } from "./helpers";
+import {
+  manage,
+  extensionDetail,
+  persisted,
+  installByPath,
+  closeDetails,
+  backToWorkspace,
+} from "./helpers";
 
 const nodeId = "example.local-text-node";
 const pageId = "example.local-proof-pages";
@@ -19,7 +26,7 @@ async function enable(page: Page, id: string) {
   await page.getByRole("switch", { name: `启用 ${id}`, exact: true }).click();
 }
 async function workspace(page: Page) {
-  await page.getByRole("button", { name: "返回工作区", exact: true }).click();
+  await backToWorkspace(page);
 }
 async function prepare(page: Page) {
   await page.goto("/");
@@ -198,6 +205,7 @@ test("independent contributions stop, restore, and recover a missing persisted r
   await expect(await extensionDetail(page, card(page, pageId))).toContainText(
     "0 项资源，0 个在途任务",
   );
+  await closeDetails(page);
   await workspace(page);
   await expect(
     nav(page).getByRole("button", { name: "交稿检查", exact: true }),
@@ -226,9 +234,11 @@ test("independent contributions stop, restore, and recover a missing persisted r
     await expect(await extensionDetail(page, card(page, pageId))).toContainText(
       "0 项资源，0 个在途任务",
     );
+    await closeDetails(page);
     await expect(await extensionDetail(page, card(page, nodeId))).toContainText(
       "0 项资源，0 个在途任务",
     );
+    await closeDetails(page);
     await workspace(page);
     await expect(
       nav(page).getByRole("button", { name: "交稿检查", exact: true }),

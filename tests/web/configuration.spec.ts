@@ -1,5 +1,10 @@
 import { expect, test, type Page } from "@playwright/test";
-import { manage, selectExtension } from "./helpers";
+import {
+  manage,
+  selectExtension,
+  closeDetails,
+  backToWorkspace,
+} from "./helpers";
 async function seed(page: Page, bad = false) {
   await page.goto("/");
   await page.evaluate((bad) => {
@@ -72,7 +77,7 @@ test("ordinary fields apply, persist on reload, remain isolated and survive unin
     .click();
   await page.getByLabel("显示计数").check();
   await page.getByRole("button", { name: "保存并应用" }).click();
-  await page.getByRole("button", { name: "返回工作区", exact: true }).click();
+  await backToWorkspace(page);
   await page.getByRole("button", { name: "增加计数" }).click();
   await expect(page.getByText("计数：3", { exact: true })).toBeVisible();
   await manage(page);
@@ -106,7 +111,10 @@ test("cancel and failed persistence preserve prior configuration", async ({
   await dialog.getByLabel("每次增加量").fill("9");
   await dialog.getByRole("button", { name: "取消", exact: true }).click();
   await expect(trigger).toBeFocused();
+  if (await page.getByRole("region", { name: "所选扩展详情" }).count())
+    await closeDetails(page);
   await page.getByLabel("注入存储写入失败").check();
+  await selectExtension(page, "sample.counter");
   await trigger.click();
   await dialog.getByLabel("每次增加量").fill("4");
   await dialog.getByRole("button", { name: "保存并应用" }).click();
@@ -119,11 +127,14 @@ test("incompatible stored configuration waits without overwriting original until
   page,
 }) => {
   await seed(page, true);
+  // The card says it is waiting; its details say why.
+  await selectExtension(page, "sample.counter");
   await expect(
     page.getByText("扩展配置无效：扩展配置损坏，原数据已保留。", {
       exact: true,
     }),
   ).toBeVisible();
+  await closeDetails(page);
   const before = await page.evaluate(() =>
     localStorage.getItem("plums:host.shell"),
   );
@@ -131,7 +142,7 @@ test("incompatible stored configuration waits without overwriting original until
   await page
     .getByRole("button", { name: "配置 sample.counter", exact: true })
     .click();
-  await expect(page.getByRole("dialog")).toContainText(
+  await expect(page.getByRole("dialog", { name: "扩展配置" })).toContainText(
     "原配置无效：扩展配置损坏，原数据已保留。",
   );
   await page.getByRole("button", { name: "取消", exact: true }).click();

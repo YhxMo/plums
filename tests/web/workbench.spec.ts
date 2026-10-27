@@ -5,6 +5,7 @@ import {
   shellButton,
   switchAppearance,
   serveModule,
+  closeDetails,
 } from "./helpers";
 import { test, expect, type Page } from "@playwright/test";
 async function authorize(page: Page) {
@@ -72,6 +73,8 @@ test("failed storage preserves prior state and can retry", async ({ page }) => {
   await start(page);
   await run(page, "saved", "SAVED");
   await manage(page, true);
+  if (await page.getByRole("region", { name: "所选扩展详情" }).count())
+    await closeDetails(page);
   await page.getByLabel("注入存储写入失败").check();
   await page.getByRole("button", { name: "返回工作区", exact: true }).click();
   await page.getByRole("textbox").fill("failed");
@@ -79,6 +82,8 @@ test("failed storage preserves prior state and can retry", async ({ page }) => {
   await expect(page.locator("[data-error]")).toContainText("注入的写入故障");
   await expect(page.locator("[data-output]")).toHaveText("SAVED");
   await manage(page, true);
+  if (await page.getByRole("region", { name: "所选扩展详情" }).count())
+    await closeDetails(page);
   await page.getByLabel("注入存储写入失败").uncheck();
   await page.getByRole("button", { name: "返回工作区", exact: true }).click();
   await run(page, "retry", "RETRY");

@@ -1,7 +1,7 @@
 import type { ExtensionDetailsProps } from "./controllers";
 import type { ReactNode } from "react";
 import { CheckIcon, PlusIcon } from "lucide-react";
-import { cn } from "cn";
+import { stateMessage } from "@/shell/messages";
 import { capabilityLabel } from "@modules/shell/capabilities";
 import { CredentialBindings } from "./CredentialBindings";
 import { sourceLabel } from "@modules/shell/extension-package";
@@ -37,11 +37,13 @@ export function ExtensionDetails({
   access,
   entry: activeSelectedExt,
   operations,
-  inline,
+  toggle,
   actions,
   children,
 }: ExtensionDetailsProps & {
-  /** Its pages, settings and removal, below its name. */
+  /** Its switch, beside its status. */
+  toggle?: ReactNode;
+  /** Its pages, settings and removal, below its status. */
   actions?: ReactNode;
   /** Further sections, such as the documents it was given. */
   children?: ReactNode;
@@ -56,21 +58,26 @@ export function ExtensionDetails({
     .views()
     .filter((view) => view.owner === extId && view.iconProblem);
   return (
-    <section
-      aria-label="所选扩展详情"
-      className={cn(inline ? "mt-3 cursor-default border-t pt-3" : undefined)}
-      onClick={inline ? (event) => event.stopPropagation() : undefined}
-    >
-      <header hidden={inline} className="mb-1">
-        <div className="flex items-center gap-2">
-          <h3 className="text-base font-semibold">{activeSelectedExt.label}</h3>
+    // The dialog around it carries the name.
+    <section aria-label="所选扩展详情">
+      <header className="flex items-center gap-3">
+        <div className="flex min-w-0 flex-1 flex-wrap items-center gap-x-2.5 gap-y-1 text-xs text-muted-foreground">
           <StatusBadge status={extState.status} />
-        </div>
-        <div className="mt-1.5 flex gap-2.5 text-xs text-muted-foreground">
-          <code>{extId}</code>
+          <code className="[overflow-wrap:anywhere]">{extId}</code>
           <span>{extManifest.version}</span>
         </div>
+        {toggle}
       </header>
+      {extState.error && (
+        <p className="mt-2 text-xs text-destructive">
+          {stateMessage(extState)}
+        </p>
+      )}
+      {extState.status === "cleanup-failed" && (
+        <p className="mt-2 text-xs text-destructive">
+          请重新启动应用以恢复此扩展。
+        </p>
+      )}
       {actions}
       {extManifest.description && (
         // Author text from the manifest; React renders it as plain text.

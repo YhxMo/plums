@@ -1,5 +1,11 @@
 import { expect, test } from "@playwright/test";
-import { manage, persisted, installByPath, selectExtension } from "./helpers";
+import {
+  manage,
+  persisted,
+  installByPath,
+  selectExtension,
+  closeDetails,
+} from "./helpers";
 test("the enabled provider choice is kept for the next start without saving", async ({
   page,
 }) => {
@@ -37,6 +43,8 @@ test("a failed write keeps the previous record and imported uninstall prunes it"
   const before = await page.evaluate(() =>
     localStorage.getItem("plums:host.shell"),
   );
+  if (await page.getByRole("region", { name: "所选扩展详情" }).count())
+    await closeDetails(page);
   await page.getByLabel("注入存储写入失败").check();
   await page
     .getByRole("switch", { name: "启用 transform.upper", exact: true })
@@ -45,6 +53,8 @@ test("a failed write keeps the previous record and imported uninstall prunes it"
   expect(
     await page.evaluate(() => localStorage.getItem("plums:host.shell")),
   ).toBe(before);
+  if (await page.getByRole("region", { name: "所选扩展详情" }).count())
+    await closeDetails(page);
   await page.getByLabel("注入存储写入失败").uncheck();
   await page.getByRole("button", { name: "安装扩展", exact: true }).click();
   await installByPath(page, "/examples/counter/");

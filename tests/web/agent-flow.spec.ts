@@ -10,6 +10,7 @@ import {
   nextStep,
   openAddAgent,
   pickLayout,
+  closeDetails,
 } from "./helpers";
 import { expect, test, type Page } from "@playwright/test";
 const sidebarToggle = (page: Page) =>
@@ -180,6 +181,8 @@ test("agent save failure retains draft and can recover without duplicate message
   await page.goto("/");
   await add(page, "恢复助手");
   await manage(page, true);
+  if (await page.getByRole("region", { name: "所选扩展详情" }).count())
+    await closeDetails(page);
   await page.getByLabel("注入存储写入失败").check();
   await page.getByRole("button", { name: "返回工作区", exact: true }).click();
   const input = page.getByRole("textbox", { name: "消息", exact: true });
@@ -189,6 +192,8 @@ test("agent save failure retains draft and can recover without duplicate message
   await expect(input).toHaveValue("retain this draft");
   await expect(page.getByRole("log")).not.toContainText("retain this draft");
   await manage(page, true);
+  if (await page.getByRole("region", { name: "所选扩展详情" }).count())
+    await closeDetails(page);
   await page.getByLabel("注入存储写入失败").uncheck();
   await page.getByRole("button", { name: "返回工作区", exact: true }).click();
   await page.getByRole("button", { name: "发送", exact: true }).click();
@@ -337,6 +342,8 @@ test("mobile list failures stay visible and rename cancel returns focus to the r
   await page.goto("/");
   await add(page);
   await manage(page, true);
+  if (await page.getByRole("region", { name: "所选扩展详情" }).count())
+    await closeDetails(page);
   await page.getByLabel("注入存储写入失败").check();
   await page.getByRole("button", { name: "返回工作区", exact: true }).click();
   await page.getByRole("button", { name: "返回 Agent 列表" }).click();
@@ -489,6 +496,8 @@ test("a failed introduction save shows inside the phone details and keeps the ed
   await page.goto("/");
   await add(page);
   await manage(page, true);
+  if (await page.getByRole("region", { name: "所选扩展详情" }).count())
+    await closeDetails(page);
   await page.getByLabel("注入存储写入失败").check();
   await page.getByRole("button", { name: "返回工作区", exact: true }).click();
   await page.getByRole("button", { name: "展开或收起右侧栏" }).click();
@@ -592,6 +601,8 @@ test("settings reports rejected layout and theme writes inside the modal and ret
 }) => {
   await page.goto("/");
   await manage(page, true);
+  if (await page.getByRole("region", { name: "所选扩展详情" }).count())
+    await closeDetails(page);
   await page.getByLabel("注入存储写入失败").check();
   await openSettings(page);
   const dialog = page.getByRole("dialog", { name: "设置", exact: true });
@@ -606,6 +617,8 @@ test("settings reports rejected layout and theme writes inside the modal and ret
   await expect(dialog.getByRole("alert")).toContainText("注入的写入故障");
   await expect(page.locator("html")).toHaveAttribute("data-theme", before!);
   await page.keyboard.press("Escape");
+  if (await page.getByRole("region", { name: "所选扩展详情" }).count())
+    await closeDetails(page);
   await page.getByLabel("注入存储写入失败").uncheck();
   await openSettings(page);
   await dialog.getByRole("radio", { name: other, exact: true }).click();

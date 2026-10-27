@@ -60,7 +60,6 @@ export function ModelSelect({
           <Button
             type="button"
             variant="ghost"
-            size="sm"
             aria-label={label}
             disabled={disabled}
             className="gap-1.5 text-sm font-normal text-foreground/80"
