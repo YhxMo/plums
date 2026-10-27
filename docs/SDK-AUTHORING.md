@@ -59,7 +59,7 @@ const close = host.mountView(viewId, root); // () => void | Promise<void>
 
 管理查询未知 ID 会抛错；公开服务通过另一个声明 requires 的扩展 ctx.use 获取，管理者不直接读取内部服务表。管理操作 start/stop/grant/uninstall 串行执行；install 是同步登记。Platform 为注入适配器，测试可以实现 SDK 中的接口，不能把模拟结果当原生证据。
 
-外壳的“卸载（保留数据）”顺序与失败处理见[扩展契约](EXTENSION-CONTRACTS.md#最小作者与管理入口)。升级需保留旧模块与数据、核对兼容，再停用/卸载/重装；业务迁移可使用[可选状态助手](STATE-MIGRATION.md)，包升级事务和自动数据删除待实现。ESM 由环境缓存，同 URL 重新 import 不保证新代码；新版本使用新 URL 并记录来源。
+外壳的“卸载（保留数据）”顺序与失败处理见[扩展契约](EXTENSION-CONTRACTS.md#生命周期与失败行为)。升级需保留旧模块与数据、核对兼容，再停用/卸载/重装；业务迁移可使用[可选状态助手](STATE-MIGRATION.md)，包升级事务和自动数据删除待实现。ESM 由环境缓存，同 URL 重新 import 不保证新代码；新版本使用新 URL 并记录来源。
 
 ## 页面与公开宿主入口
 
@@ -144,7 +144,7 @@ ctx.task 跟踪异步任务，使用传入 signal 合作式取消；ctx.onDispos
 
 ## 其他能力
 
-组合保存、非敏感配置、凭据请求与自建连接、状态迁移、视图树、事件服务和会话内文档访问的契约见[扩展契约](EXTENSION-CONTRACTS.md#本地组合)及其链接的专题文档。
+组合保存、非敏感配置、凭据请求与自建连接、状态迁移、视图树、事件服务和会话内文档访问的契约见[扩展契约](EXTENSION-CONTRACTS.md#平台能力与可选助手)及其链接的专题文档。
 
 ## 公开主题样板
 
