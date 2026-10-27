@@ -116,7 +116,7 @@ DI isolate 若仅隔离依赖作用域，就只按该范围表述。进程隔离
 
 ## 非敏感扩展配置
 
-扩展通过 `manifest.configuration` 声明带默认值的字段，`activate` 读取只读的 `ctx.configuration`；生命周期、坏值保留与迁移限制见 [配置契约](EXTENSION-CONFIGURATION.md)，扩展管理中的编辑行为见 [UI](UI.md#非敏感扩展配置)。
+扩展通过 `manifest.configuration` 声明带默认值的字段，`activate` 读取只读的 `ctx.configuration`；生命周期、坏值保留与迁移限制见 [配置契约](EXTENSION-CONFIGURATION.md)，扩展管理中的入口见 [UI](UI.md#扩展管理)。
 
 ## 平台能力与可选助手
 

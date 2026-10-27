@@ -10,8 +10,8 @@ Mac 0.3.0（源码 `9d2327d`，release ad-hoc，AGPL-3.0-or-later 加商业授�
 
 - **命名与数据**：`dev.plums.plums`，首次启动复制改名前的数据（[规则](docs/ARCHITECTURE.md#应用数据目录)）；API Key 存于数据根内 0600 文件，不用 Keychain（[凭据契约](docs/CREDENTIAL-BINDINGS.md#填写与存储)）。
 - **默认组合**：打包只含 Agent 核心、记忆、模型连接与 Agent 界面；文本工作台、回显模型只在开发目录。
-- **Agent 与对话**：介绍与设定分开、内置记忆、联系人式整条回复与未读、拖放附件与撤销、编辑与重新生成、Markdown 回复与 `link.open`（[UI](docs/UI.md#列表交互与详情)、[契约](docs/EXTENSION-CONTRACTS.md)）。
-- **界面规范改造**：按[设计规范](docs/DESIGN.md)改造，含 `file.save`、角色卡与 `.plums` 导出导入（[作者指南](docs/SDK-AUTHORING.md)）；“Agent 设置…”弹窗、列表拖入导入；扩展管理是卡片页加详情窗口，卡片上写出使用它的 Agent；按钮高 28px、文字 12px（[UI](docs/UI.md#菜单外观与扩展管理)）。
+- **Agent 与对话**：介绍与设定分开、内置记忆、联系人式整条回复与未读、拖放附件与撤销、编辑与重新生成、Markdown 回复与 `link.open`（[UI](docs/UI.md#会话)、[契约](docs/EXTENSION-CONTRACTS.md)）。
+- **界面规范改造**：按[设计规范](docs/DESIGN.md)改造，含 `file.save`、角色卡与 `.plums` 导出导入（[作者指南](docs/SDK-AUTHORING.md)）；“Agent 设置…”弹窗、列表拖入导入；扩展管理是卡片页加详情窗口，卡片上写出使用它的 Agent；按钮高 28px、文字 12px（[UI](docs/UI.md#扩展管理)）。
 - **发布与工程**：release 档位（保留检查元素）、随包许可证与第三方通知、[安装说明](docs/INSTALL.md)、GitHub 自动检查（`.github/workflows/ci.yml`）、发布前核对候选来源（[开发流程](docs/DEVELOPMENT.md#本地交付目录)）。
 
 ## 尚未落定
