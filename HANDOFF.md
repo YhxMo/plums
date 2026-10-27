@@ -1,6 +1,6 @@
 # Plums 工程状态
 
-核对日期：2026-10-27。当前只收口 macOS arm64 应用本体，Android 冻结。开发在 `main` 上进行，跟踪 GitHub [YhxMo/plums](https://github.com/YhxMo/plums) 的 `main`；版本号已升到 0.3.0，等待按最终源码出包；最近的打包候选来自 `bed3f49`（扩展卡片页），之后加了卡片上的使用者一行、发布前的来源核对与文档。2026-10-23 起统一使用 `dev.plums.plums` 命名，此前构建的包与本地数据仍是旧名，迁移见[应用数据目录](docs/ARCHITECTURE.md#应用数据目录)。
+核对日期：2026-10-27。当前只收口 macOS arm64 应用本体，Android 冻结。开发在 `main` 上进行，跟踪 GitHub [YhxMo/plums](https://github.com/YhxMo/plums) 的 `main`；0.3.0 的最终候选来自 `9d2327d`，待所有者实测后发布。2026-10-23 起统一使用 `dev.plums.plums` 命名，此前构建的包与本地数据仍是旧名，迁移见[应用数据目录](docs/ARCHITECTURE.md#应用数据目录)。
 
 [文档导航](docs/README.md) · [当前阶段](docs/spec/milestone.md) · [整体路线](docs/spec/total.md) · [当前交付](evidence/RESULTS.md)
 
@@ -53,6 +53,6 @@
 
 ## 当前交付与恢复
 
-保留的候选：`release/.mac-BOsbmQ`（`bed3f49`，release 档位，最新，扩展卡片页与较小的按钮，待所有者抽查与真实回复）、`release/.mac-vXOQwS`（`4fb2f19`，首版扩展列表，已被取代，所有者不再使用后可删）、`release/.mac-aUL9Cb`（`6830c27`，release 档位）、`release/.mac-W3z2Hk`（`0eff9d8`）、`release/.mac-mrL1Q8`（`1f366f6`）、`release/.mac-Xv7o0u`（第 6 项实测用包，基于 `82b9138`），均为 0.2.0 arm64 ad-hoc，除最新三份外为 debug；更早的候选已删除，证据记录中的源码提交可重建。直接打开候选会使用正式数据目录；隔离数据须用设置了 `HOME`（debug 包也可用 `PLUMS_DATA_DIR`）的命令行启动包内可执行文件。新候选一律 `npm run release:mac -- --stage`。
+保留的候选：`release/.mac-GgRaQt`（`9d2327d`，0.3.0，release 档位，最终候选：独立审查后的修复、AGPL，待所有者真实回复、卡片页与输入法实测后发布）、`release/.mac-BOsbmQ`（`bed3f49`，已被取代）、`release/.mac-vXOQwS`（`4fb2f19`，首版扩展列表，已被取代，所有者不再使用后可删）、`release/.mac-aUL9Cb`（`6830c27`，release 档位）、`release/.mac-W3z2Hk`（`0eff9d8`）、`release/.mac-mrL1Q8`（`1f366f6`）、`release/.mac-Xv7o0u`（第 6 项实测用包，基于 `82b9138`），均为 0.2.0 arm64 ad-hoc，除最新三份外为 debug；更早的候选已删除，证据记录中的源码提交可重建。直接打开候选会使用正式数据目录；隔离数据须用设置了 `HOME`（debug 包也可用 `PLUMS_DATA_DIR`）的命令行启动包内可执行文件。新候选一律 `npm run release:mac -- --stage`。
 
 已交付 0.2.0 来自 `6668ce7`（本地标签 `v0.2.0`；历史改写后对应 `40a7382`，见[交付证据](evidence/RELEASE-0.2.0-2026-10-20.md#来源)），Mac 入口 `release/mac/Plums.app`，未替换；Android 包仅保留原受验范围。[交付证据](evidence/RELEASE-0.2.0-2026-10-20.md)及包旁的 `build-info.json`、`source.patch` 用于核对来源。0.0.4 恢复包在 `.cache/archive/releases/mac-uIizKK/mac` 与 `.cache/archive/releases/android-JS89ll/android`，不自动回滚数据，规则见[开发流程](docs/DEVELOPMENT.md#本地交付目录)。
