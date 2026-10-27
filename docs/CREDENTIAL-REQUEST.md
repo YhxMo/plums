@@ -19,15 +19,15 @@
 
 | 项目 | 实现 |
 | --- | --- |
-| 秘密 | 只在原生层读取并注入一个请求头：Mac 从数据根的 `credential-secrets.json`（0600）读取后构造头并清零缓冲，不经钥匙串、不触发系统提示；Android 在凭据插件内用 Keystore 解密。秘密不返回 WebView、不写日志或状态；HTTP 栈与 JVM 内部副本不承诺归零 |
-| 传输 | Mac：`reqwest =0.13.5` + rustls，证书由 `rustls-platform-verifier` 交给系统校验，仅 HTTPS。Android：`HttpsURLConnection`，系统默认信任 |
+| 秘密 | 只在原生层读取并注入一个请求头：Mac 从数据根的 `credential-secrets.json`（0600）读取后构造头并清零缓冲，不经钥匙串、不触发系统提示。秘密不返回 WebView、不写日志或状态；HTTP 栈内部副本不承诺归零 |
+| 传输 | Mac：`reqwest =0.13.5` + rustls，证书由 `rustls-platform-verifier` 交给系统校验，仅 HTTPS |
 | 目标 | 发送只 POST 到绑定保存的精确 HTTPS URL；读取只 GET 同一协议与主机下的受限路径，不带正文与 Content-Type；扩展不能改写主机、头或认证 |
-| 网络 | 不跟随重定向（3xx 报 unknown `redirect`）；不用系统/环境代理；不发 cookie；不隐式解压（Android 显式 `Accept-Encoding: identity`）。保存了代理路由的绑定拒绝发送（`proxy-unsupported`） |
+| 网络 | 不跟随重定向（3xx 报 unknown `redirect`）；不用系统/环境代理；不发 cookie；不隐式解压。保存了代理路由的绑定拒绝发送（`proxy-unsupported`） |
 | 时限与限额 | 连接 10 秒、总计 10 分钟（长上下文或长回复要等几分钟，可随时取消）；请求 8 MiB、响应 2 MiB（声明长度或累计读取超限即停止）；每个 owner 同时 1 个请求，否则 `busy` |
 | 发送确认 | 用户在显示目标的表单中保存密钥（或核对后确认已保存），即确认向该绑定修订的目标发送，包括同一站点的读取（如模型列表）；确认随绑定记录保存、重启后仍有效。修改网络配置会提升修订，下次发送前原生面板展示扩展、来源、目标、POST、内容类型与认证头名再确认一次，取消即 `not-confirmed`，保存确认失败时只在本次运行内有效。撤销、卸载或替换扩展使确认失效 |
 | 取消与撤销 | WebView 取消通过请求 ID 通知原生中断连接；授权变更、停用（`release`）、删除或卸载前的禁用会取消在途请求。发送前与交付前都重新检查授权和绑定修订，变化则不交付（`stale`） |
 
-原生命令为 `credential_request`、`credential_abort`、`credential_release`；Android 由 `CredentialsPlugin` 的 `request`/`cancel` 执行同一政策。
+原生命令为 `credential_request`、`credential_abort`、`credential_release`。Android 的 Kotlin 适配随平台冻结移出主线（见 Git 历史），Rust 中按平台编译的注册分支保留。
 
 ## 失败边界
 

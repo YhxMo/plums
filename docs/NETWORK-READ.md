@@ -1,6 +1,6 @@
 # 公开网络读取
 
-状态：当前有效（2026-10-24 核实）；`network.read` 已在 TS 宿主、Mac（Rust）与 Android（Kotlin）源码实现，回归见[回归测试](#回归测试)；内置模型连接器用它读取 models.dev。打包应用的实际结果见[交付入口](../evidence/RESULTS.md)与 [HANDOFF](../HANDOFF.md#未验范围)。
+状态：当前有效（2026-10-24 核实）；`network.read` 已在 TS 宿主与 Mac（Rust）实现（Android 的 Kotlin 适配随平台冻结移出主线（见 Git 历史），Rust 中按平台编译的注册分支保留），回归见[回归测试](#回归测试)；内置模型连接器用它读取 models.dev。打包应用的实际结果见[交付入口](../evidence/RESULTS.md)与 [HANDOFF](../HANDOFF.md#未验范围)。
 
 扩展读取不需要密钥的公开资源（如公开的模型目录）时使用本能力。它不带任何凭据，与[凭据代用请求](CREDENTIAL-REQUEST.md)分开：需要 API Key 的请求一律走凭据请求。
 
@@ -23,7 +23,7 @@ networkSources: ["https://models.dev"],
 | --- | --- |
 | 方法与内容 | 只 `GET`，不发送请求体；不带 Cookie、凭据、自定义请求头 |
 | 网络路径 | 不用系统代理，不跟随重定向（3xx 记为失败），不用缓存 |
-| 大小与时间 | 响应（解压后）≤ 16 MiB、须为 UTF-8；总计 60 秒（Android 连接 10 秒） |
+| 大小与时间 | 响应（解压后）≤ 16 MiB、须为 UTF-8；总计 60 秒 |
 | 并发 | 每个扩展同时一条读取；停用或撤权时取消在途读取，撤权后完成的结果不交付 |
 | 检查位置 | TS 宿主核对载荷、授权与声明来源；原生再核对 URL 形状与授权 |
 
