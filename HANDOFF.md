@@ -52,4 +52,4 @@ Mac 0.3.0（源码 `9d2327d`，release ad-hoc，AGPL-3.0-or-later 加商业授�
 
 Mac 入口 `release/mac/Plums.app` 为 0.3.0（`9d2327d`），包旁的 `build-info.json`、`source.patch` 用于核对来源。被替换的 0.2.0（`6668ce7`，本地与远端标签 `v0.2.0`；历史改写后对应 `40a7382`，见[来源更正](evidence/RELEASE-0.2.0-2026-10-20.md#来源更正)）存档于 `.cache/archive/releases/mac-VIqa8V/mac`；回退到它可直接读到升级前的旧目录数据，规则见[安装说明](docs/INSTALL.md#回退)。Android 包仍是 0.2.0，仅保留原受验范围。0.0.4 恢复包在 `.cache/archive/releases/mac-uIizKK/mac` 与 `.cache/archive/releases/android-JS89ll/android`，不自动回滚数据，规则见[开发流程](docs/DEVELOPMENT.md#本地交付目录)。
 
-`release/` 下仍保留的旧候选：`.mac-BOsbmQ`（`bed3f49`）、`.mac-vXOQwS`（`4fb2f19`）、`.mac-aUL9Cb`（`6830c27`）、`.mac-W3z2Hk`（`0eff9d8`）、`.mac-mrL1Q8`（`1f366f6`）、`.mac-Xv7o0u`（基于 `82b9138`），都已被 0.3.0 取代，经所有者同意后可删。新候选一律 `npm run release:mac -- --stage`，发布用 `--publish <候选目录>`；隔离数据须用设置了 `HOME` 的命令行启动包内可执行文件。
+旧候选已于 2026-10-27 删除，源码提交可重建。新候选一律 `npm run release:mac -- --stage`，发布用 `--publish <候选目录>`；隔离数据须用设置了 `HOME` 的命令行启动包内可执行文件。`release/.android-82714a1` 来源未记录，待所有者确认后处理。
