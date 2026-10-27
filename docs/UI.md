@@ -93,7 +93,7 @@
 ## 所有权与公开契约
 
 - `ui.agents` 经公开 `ctx.view` 挂载；`agents.local` 以版本服务 `agents@1` 提供业务，`ui.agents` 用 `ctx.use` 获取，内核与 SDK 没有聊天专用 API（[Agent 服务契约](EXTENSION-CONTRACTS.md#agent-服务契约)）。默认界面只读提供者的公开快照、订阅与操作；提供者未实现可选操作（如 `removeMessage`、`undo`）时界面不显示对应入口。第三方可替换该服务或贡献完全不同的界面。
-- 会话标题、扩展所有者与默认详情的状态经当前视图的 `View.chrome` 发布（[作者指南](SDK-AUTHORING.md#工作区标题与上下文侧栏)）；`WorkspaceChrome.navigation` 仍是实验字段、外壳暂无消费者。状态所有权见[架构](ARCHITECTURE.md#当前前端的状态所有权)。
+- 会话标题、扩展所有者与默认详情的状态经当前视图的 `View.chrome` 发布（[作者指南](SDK-AUTHORING.md#工作区标题与上下文侧栏)）；`WorkspaceChrome.navigation` 仍是实验字段、外壳暂无消费者。状态所有权见[架构](ARCHITECTURE.md#前端的状态所有权)。
 - Agent 界面的组合、弹窗与草稿位于 [src/agents](../src/agents/)；角色、会话与卡片解析在扩展层，`src/application.ts` 接线默认组合与内置授权，外壳只保存不透明业务字段。
 - 外壳始终保留扩展管理、授权与无布局恢复入口。共享 WebView 的可信模式不构成防恶意代码或界面伪装的沙箱。
 

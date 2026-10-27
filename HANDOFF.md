@@ -1,6 +1,6 @@
 # Plums 工程状态
 
-核对日期：2026-10-27。第 1 级（Mac 第一版）已以 0.3.0 交付，下一步是第 2 级的计划；当前只做 macOS arm64 应用本体，Android 冻结。开发在 `main` 上进行，跟踪 GitHub [YhxMo/plums](https://github.com/YhxMo/plums) 的 `main`。2026-10-23 起统一使用 `dev.plums.plums` 命名，此前构建的包与本地数据仍是旧名，迁移见[应用数据目录](docs/ARCHITECTURE.md#应用数据目录)。
+核对日期：2026-10-27。第 1 级（Mac 第一版）已以 0.3.0 交付，下一步是第 2 级的计划；当前只做 macOS arm64 应用本体，Android 冻结。开发在 `main` 上进行，跟踪 GitHub [YhxMo/plums](https://github.com/YhxMo/plums) 的 `main`。2026-10-23 起统一使用 `dev.plums.plums` 命名，此前构建的包与本地数据仍是旧名，迁移见[应用数据目录](docs/ARCHITECTURE.md#平台与数据目录)。
 
 [文档导航](docs/README.md) · [当前阶段](docs/spec/milestone.md) · [整体路线](docs/spec/total.md) · [当前交付](evidence/RESULTS.md)
 
@@ -8,7 +8,7 @@
 
 Mac 0.3.0（源码 `9d2327d`，release ad-hoc，AGPL-3.0-or-later 加商业授权，SDK 与示例 MIT），[交付证据](evidence/RELEASE-0.3.0-2026-10-27.md)。相对 0.2.0 的主要变化如下，逐项改动见 `git log v0.2.0..9d2327d`，行为只在所链接的文档维护。
 
-- **命名与数据**：`dev.plums.plums`，首次启动复制改名前的数据（[规则](docs/ARCHITECTURE.md#应用数据目录)）；API Key 存于数据根内 0600 文件，不用 Keychain（[凭据契约](docs/CREDENTIAL-BINDINGS.md#填写与存储)）。
+- **命名与数据**：`dev.plums.plums`，首次启动复制改名前的数据（[规则](docs/ARCHITECTURE.md#平台与数据目录)）；API Key 存于数据根内 0600 文件，不用 Keychain（[凭据契约](docs/CREDENTIAL-BINDINGS.md#填写与存储)）。
 - **默认组合**：打包只含 Agent 核心、记忆、模型连接与 Agent 界面；文本工作台、回显模型只在开发目录。
 - **Agent 与对话**：介绍与设定分开、内置记忆、联系人式整条回复与未读、拖放附件与撤销、编辑与重新生成、Markdown 回复与 `link.open`（[UI](docs/UI.md#会话)、[契约](docs/EXTENSION-CONTRACTS.md)）。
 - **界面规范改造**：按[设计规范](docs/DESIGN.md)改造，含 `file.save`、角色卡与 `.plums` 导出导入（[作者指南](docs/SDK-AUTHORING.md)）；“Agent 设置…”弹窗、列表拖入导入；扩展管理是卡片页加详情窗口，卡片上写出使用它的 Agent；按钮高 28px、文字 12px（[UI](docs/UI.md#扩展管理)）。

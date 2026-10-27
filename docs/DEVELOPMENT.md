@@ -35,7 +35,7 @@ ESLint 使用 flat config，对全部 JS/TS/TSX 启用推荐规则、typescript-
 
 `check:size` 扫描项目源码清单的 TS、TSX、JS、MJS、Rust、Kotlin 和 CSS，以物理行数计数（末尾换行不增加空行），阈值见[脚本](../scripts/check-size.mjs)。超过 400 行的文件只列出提醒，改动时留意是否仍是单一职责；超过 800 行才失败。拆分以可维护性为准：按职责拆，不为凑行数把内聚的代码拆散或压缩写法。清单包含测试，生成输出沿用项目清单的排除规则。
 
-启动与声明校验复用 `modules/sdk/validation.ts` 和 `ContractError`，错误码、字段路径、中文映射与等待原因的分工见[架构](ARCHITECTURE.md#当前前端的状态所有权)。
+启动与声明校验复用 `modules/sdk/validation.ts` 和 `ContractError`，错误码、字段路径、中文映射与等待原因的分工见[架构](ARCHITECTURE.md#前端的状态所有权)。
 
 ## 界面组件
 
@@ -112,7 +112,7 @@ Mac使用 `npm run release:mac` 统一构建 release 档位包（开启 Tauri `d
 
 - 确认没有构建或应用占用后，可删除 Rust 的 `build/deps/incremental/.fingerprint/examples`、`dist/`、图标生成暂存和测试报告。后续构建按原命令重新生成，首次原生编译会更慢。
 - 保留 `node_modules/`、Cargo/npm 下载缓存，避免无谓重装。
-- 开发命令把 `PLUMS_DATA_DIR` 指向 `.dev-data/` 以隔离数据；该变量只在 debug 构建（开发进程与 0.2.0 及更早的本地包）生效；`release:mac` 产出的 release 包须改用 `HOME` 隔离。桌面版单实例，开发进程与已打开的预览包不能同时运行。正式数据目录与改名前旧数据的迁移见[架构](ARCHITECTURE.md#应用数据目录)。
+- 开发命令把 `PLUMS_DATA_DIR` 指向 `.dev-data/` 以隔离数据；该变量只在 debug 构建（开发进程与 0.2.0 及更早的本地包）生效；`release:mac` 产出的 release 包须改用 `HOME` 隔离。桌面版单实例，开发进程与已打开的预览包不能同时运行。正式数据目录与改名前旧数据的迁移见[架构](ARCHITECTURE.md#平台与数据目录)。
 - `release/`、有效候选及其来源文件、历史应用备份、真实运行数据、隔离模拟器与 `goal.md` 不属于构建垃圾。测试完成后删除该次验收专用假数据、临时脚本、测试包与缓存；不按目录年龄批量删除未知数据。真实未验项保留在 HANDOFF 的未验范围，过期过程不继续归档。
 
 当前状态和版本从 README、HANDOFF 及 RESULTS 查阅；入口文档不复制多轮 PID、临时路径和交付时间线。项目清单、链接及隐私模式由 `check:project` 检查，原始日志／截图继续忽略。

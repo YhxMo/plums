@@ -1,6 +1,6 @@
 # 安装、升级与回退（macOS）
 
-[文档导航](README.md) · [应用数据目录](ARCHITECTURE.md#应用数据目录) · [开发流程](DEVELOPMENT.md#本地交付目录)
+[文档导航](README.md) · [应用数据目录](ARCHITECTURE.md#平台与数据目录) · [开发流程](DEVELOPMENT.md#本地交付目录)
 
 更新日期：2026-10-26。只适用于 Apple Silicon（arm64）的 Mac 包；Intel Mac、Windows、Linux 与手机没有对应的包。开发与实测都在 macOS 27 上，其他系统版本未验证。
 

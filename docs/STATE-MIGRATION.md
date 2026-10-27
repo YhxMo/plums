@@ -25,7 +25,7 @@ migrate 收到源 data 的深拷贝，负责源业务 schema 校验和转换；v
 | 转换期间进程终止 | 尚未派发写入的原文件应保留；不等于回滚已经派发的提交 |
 | 目标需要业务回退 | 显式调用 restorePreviousState，按确认 revision 恢复并保留当前目标，见下节，历史裁剪和通用升级事务待实现 |
 
-助手整段运行由 ctx.task 跟踪，操作信号与生命周期合并。原生派发后的提交段继承既有语义。存储层的事务、提交失败结果（`state-sync` 为 unknown，其他为 not-committed）与旧文件导入见[应用数据目录](ARCHITECTURE.md#应用数据目录)。
+助手整段运行由 ctx.task 跟踪，操作信号与生命周期合并。原生派发后的提交段继承既有语义。存储层的事务、提交失败结果（`state-sync` 为 unknown，其他为 not-committed）与旧文件导入见[应用数据目录](ARCHITECTURE.md#平台与数据目录)。
 
 ## 独立作者样板与运行
 
