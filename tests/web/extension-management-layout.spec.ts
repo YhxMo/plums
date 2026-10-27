@@ -139,3 +139,31 @@ test("a card is its name, purpose and switch; the details hold the rest", async 
     detail.getByRole("button", { name: "打开 记忆", exact: true }),
   ).toBeVisible();
 });
+
+test("a card says how many Agents use it and names them in one line", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 940, height: 640 });
+  await page.goto("/");
+  await addAgent(page, "写作助手");
+  await addAgent(page, "一个名字很长很长很长很长的翻译助手");
+  await manage(page);
+  const echo = page.locator('[data-extension-id="chat.echo"]');
+  const users = echo.locator("[data-slot=extension-users]");
+  // The count comes first, so a cut-off list still shows it.
+  await expect(users).toHaveText(
+    "2 个 Agent：写作助手、一个名字很长很长很长很长的翻译助手",
+  );
+  expect(
+    await users.evaluate((el) => [
+      getComputedStyle(el).textOverflow,
+      el.scrollWidth > el.clientWidth,
+    ]),
+  ).toEqual(["ellipsis", true]);
+  // Nothing relies on the upper-case service, so its card says nothing.
+  await expect(
+    page.locator(
+      '[data-extension-id="transform.upper"] [data-slot=extension-users]',
+    ),
+  ).toHaveCount(0);
+});
