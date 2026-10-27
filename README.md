@@ -7,7 +7,7 @@
 <p align="center">像通讯录里的联系人一样相处的 AI Agent，每一部分都由可替换的扩展组成。</p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/%E7%8A%B6%E6%80%81-0.3.0%20%E6%97%A9%E6%9C%9F%E5%8E%9F%E5%9E%8B-F59E0B?style=flat-square" alt="状态：0.3.0 早期原型"> <img src="https://img.shields.io/badge/%E5%B9%B3%E5%8F%B0-macOS%20arm64-4B5563?style=flat-square" alt="平台：macOS arm64"> <a href="https://v2.tauri.app/"><img src="https://img.shields.io/badge/Tauri-2-3776AB?style=flat-square" alt="Tauri 2"></a> <img src="https://img.shields.io/badge/React-19-3776AB?style=flat-square" alt="React 19"> <img src="https://img.shields.io/badge/Rust-%E5%8E%9F%E7%94%9F%E5%B1%82-3776AB?style=flat-square" alt="Rust 原生层"> <a href="./LICENSE"><img src="https://img.shields.io/badge/License-GPL--3.0%20%2B%20%E5%95%86%E4%B8%9A%E6%8E%88%E6%9D%83-22C55E?style=flat-square" alt="License: GPL-3.0 + 商业授权"></a>
+  <img src="https://img.shields.io/badge/%E7%8A%B6%E6%80%81-0.3.0%20%E6%97%A9%E6%9C%9F%E5%8E%9F%E5%9E%8B-F59E0B?style=flat-square" alt="状态：0.3.0 早期原型"> <img src="https://img.shields.io/badge/%E5%B9%B3%E5%8F%B0-macOS%20arm64-4B5563?style=flat-square" alt="平台：macOS arm64"> <a href="https://v2.tauri.app/"><img src="https://img.shields.io/badge/Tauri-2-3776AB?style=flat-square" alt="Tauri 2"></a> <img src="https://img.shields.io/badge/React-19-3776AB?style=flat-square" alt="React 19"> <img src="https://img.shields.io/badge/Rust-%E5%8E%9F%E7%94%9F%E5%B1%82-3776AB?style=flat-square" alt="Rust 原生层"> <a href="./LICENSE"><img src="https://img.shields.io/badge/License-AGPL--3.0%20%2B%20%E5%95%86%E4%B8%9A%E6%8E%88%E6%9D%83-22C55E?style=flat-square" alt="License: AGPL-3.0 + 商业授权"></a>
 </p>
 
 > **当前状态**：macOS（Apple 芯片）上的早期原型，还没有可下载的安装包，需要从源码构建；和模型对话需要你自己的 API Key；扩展接口仍是实验版本，会变。
@@ -80,8 +80,8 @@ npm run native -- build --debug --bundles app
 
 双许可：
 
-- **开源使用**：按 [GPL-3.0-or-later](LICENSE) 免费使用与修改；分发修改版或把本项目集成进其他产品时，须以同一协议开源整份衍生作品。
+- **开源使用**：按 [AGPL-3.0-or-later](LICENSE) 免费使用与修改；分发修改版或把本项目集成进其他产品时，须以同一协议开源整份衍生作品；在服务器上运行修改版供他人通过网络使用时，也须把对应源码提供给这些使用者。
 - **商业授权**：要在闭源产品中集成或分发，须另行取得商业授权，由单独签订的协议约定。
 - **扩展 SDK 与示例**：[`modules/sdk`](modules/sdk/LICENSE) 和 [`extensions/examples`](extensions/examples/LICENSE) 按 MIT，为 Plums 写扩展不受上面两条约束。
 
-此次变更之前已公开的提交仍按当时的 MIT 条款提供。第三方依赖各自的许可证与版权声明须保留。
+改用 AGPL 之前已公开的提交仍按当时的条款提供（更早的为 MIT，之后的为 GPL-3.0-or-later）。第三方依赖各自的许可证与版权声明须保留。
