@@ -1,6 +1,6 @@
 # Plums 工程状态
 
-核对日期：2026-10-26。当前只收口 macOS arm64 应用本体，Android 冻结。开发在 `main` 上进行，跟踪 GitHub [YhxMo/plums](https://github.com/YhxMo/plums) 的 `main`；最近一次界面改动的打包候选来自 `edf2103`，之后只有文档、README 与移出 Android 工程文件的提交。2026-10-23 起统一使用 `dev.plums.plums` 命名，此前构建的包与本地数据仍是旧名，迁移见[应用数据目录](docs/ARCHITECTURE.md#应用数据目录)。
+核对日期：2026-10-27。当前只收口 macOS arm64 应用本体，Android 冻结。开发在 `main` 上进行，跟踪 GitHub [YhxMo/plums](https://github.com/YhxMo/plums) 的 `main`；版本号已升到 0.3.0，等待按最终源码出包；最近的打包候选来自 `bed3f49`（扩展卡片页），之后加了卡片上的使用者一行、发布前的来源核对与文档。2026-10-23 起统一使用 `dev.plums.plums` 命名，此前构建的包与本地数据仍是旧名，迁移见[应用数据目录](docs/ARCHITECTURE.md#应用数据目录)。
 
 [文档导航](docs/README.md) · [当前阶段](docs/spec/milestone.md) · [整体路线](docs/spec/total.md) · [当前交付](evidence/RESULTS.md)
 
@@ -21,9 +21,9 @@
 
 | 范围 | 实际结果 |
 | --- | --- |
-| Web | `edf2103` 上 `npm run verify:web` 通过；第 6 项改动（基于 `82b9138`）上 `npm run verify:web` 通过 |
-| 原生逻辑 | 第 6 项改动上 `npm run verify:native` 通过（含菜单命令表单元测试）；此前为 `40f3fa0` |
-| Chromium | 第 6 项改动上 `npm run verify:e2e` 303 项全部通过。`chat-follow.spec.ts` 的“on a 2x screen › a sent message reaches the end…”会间歇失败，`edf2103` 上去掉当时改动后同样复现（重复 3 次失败 1 次），尚未修；第 6 项这一轮未出现 |
+| Web | 0.3.0 版本号改动上 `npm run verify:web` 通过；GitHub 自动检查最近一次全绿在 `3852f7d`，之后的提交尚未推送 |
+| 原生逻辑 | 0.3.0 版本号改动上 `npm run verify:native` 通过；此前为第 6 项改动与 `3852f7d` 的云端运行 |
+| Chromium | `0e71dca` 上完整 e2e 312 项全部通过（本机）。`chat-follow.spec.ts` 的“on a 2x screen › a sent message reaches the end…”会间歇失败，`edf2103` 上去掉当时改动后同样复现（重复 3 次失败 1 次），尚未修；近几轮未出现 |
 | WebKit | 界面改造后未重跑；改造前 `eaa1380` 的结果见[抽查记录](evidence/MAC-SPOTCHECK-2026-10-25.md) |
 | 打包应用 | 第 6 项（菜单与 ⌘, / ⌘N / ⌘F、跟随系统的实时切换、弹窗与扩展管理中命令不触发）所有者在 `release/.mac-Xv7o0u` 中实测通过。审查修复（撤销后重启的消息顺序、默认头像导出、头像残留、导入框长文本）所有者在 `0343426` 包中实测通过。更早的实测见[抽查](evidence/MAC-SPOTCHECK-2026-10-25.md)、[检查点](evidence/MAC-CHECKPOINT-2026-10-24.md)、[记忆](evidence/MAC-MEMORY-2026-10-25.md)、[输入法](evidence/MAC-INPUT-LAYOUT-2026-10-23.md)记录 |
 
@@ -55,4 +55,4 @@
 
 保留的候选：`release/.mac-BOsbmQ`（`bed3f49`，release 档位，最新，扩展卡片页与较小的按钮，待所有者抽查与真实回复）、`release/.mac-vXOQwS`（`4fb2f19`，首版扩展列表，已被取代，所有者不再使用后可删）、`release/.mac-aUL9Cb`（`6830c27`，release 档位）、`release/.mac-W3z2Hk`（`0eff9d8`）、`release/.mac-mrL1Q8`（`1f366f6`）、`release/.mac-Xv7o0u`（第 6 项实测用包，基于 `82b9138`），均为 0.2.0 arm64 ad-hoc，除最新三份外为 debug；更早的候选已删除，证据记录中的源码提交可重建。直接打开候选会使用正式数据目录；隔离数据须用设置了 `HOME`（debug 包也可用 `PLUMS_DATA_DIR`）的命令行启动包内可执行文件。新候选一律 `npm run release:mac -- --stage`。
 
-已交付 0.2.0 来自 `40a7382`，Mac 入口 `release/mac/Plums.app`，未替换；Android 包仅保留原受验范围。[交付证据](evidence/RELEASE-0.2.0-2026-10-20.md)及包旁的 `build-info.json`、`source.patch` 用于核对来源。0.0.4 恢复包在 `.cache/archive/releases/mac-uIizKK/mac` 与 `.cache/archive/releases/android-JS89ll/android`，不自动回滚数据，规则见[开发流程](docs/DEVELOPMENT.md#本地交付目录)。
+已交付 0.2.0 来自 `6668ce7`（本地标签 `v0.2.0`；历史改写后对应 `40a7382`，见[交付证据](evidence/RELEASE-0.2.0-2026-10-20.md#来源)），Mac 入口 `release/mac/Plums.app`，未替换；Android 包仅保留原受验范围。[交付证据](evidence/RELEASE-0.2.0-2026-10-20.md)及包旁的 `build-info.json`、`source.patch` 用于核对来源。0.0.4 恢复包在 `.cache/archive/releases/mac-uIizKK/mac` 与 `.cache/archive/releases/android-JS89ll/android`，不自动回滚数据，规则见[开发流程](docs/DEVELOPMENT.md#本地交付目录)。

@@ -156,7 +156,7 @@ test("settings holds light/dark, about and the extension manager", async ({
   await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
   await dialog.getByRole("button", { name: "关于 Plums" }).click();
   const about = page.getByRole("dialog", { name: "关于 Plums" });
-  await expect(about).toContainText("Plums 0.2.0");
+  await expect(about).toContainText("Plums 0.3.0");
   // About returns to the settings it was opened from.
   await about.getByRole("button", { name: "返回" }).click();
   await expect(dialog).toBeVisible();
