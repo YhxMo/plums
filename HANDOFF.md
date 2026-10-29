@@ -1,6 +1,6 @@
 # Plums 工程状态
 
-核对日期：2026-10-27。第 1 级（Mac 第一版）已以 0.3.0 交付，下一步是第 2 级的计划；当前只做 macOS arm64 应用本体，Android 冻结。开发在 `main` 上进行，跟踪 GitHub [YhxMo/plums](https://github.com/YhxMo/plums) 的 `main`。2026-10-23 起统一使用 `dev.plums.plums` 命名，此前构建的包与本地数据仍是旧名，迁移见[应用数据目录](docs/ARCHITECTURE.md#平台与数据目录)。
+核对日期：2026-10-29。第 1 级（Mac 第一版）已以 0.3.0 交付，下一步是第 2 级的计划；当前只做 macOS arm64 应用本体，Android 冻结。本分支 `codex/ci-docs-e2e` 基于 GitHub [YhxMo/plums](https://github.com/YhxMo/plums) 的 `main`（`cf9898f`），仅处理 CI 与浏览器测试同步，未纳入其他本地开发分支。2026-10-23 起统一使用 `dev.plums.plums` 命名，此前构建的包与本地数据仍是旧名，迁移见[应用数据目录](docs/ARCHITECTURE.md#平台与数据目录)。
 
 [文档导航](docs/README.md) · [当前阶段](docs/spec/milestone.md) · [整体路线](docs/spec/total.md) · [当前交付](evidence/RESULTS.md)
 
@@ -20,7 +20,11 @@ Mac 0.3.0（源码 `9d2327d`，release ad-hoc，AGPL-3.0-or-later 加商业授�
 
 ## 交付验证
 
-自动化、打包实测、独立审查与按所有者决定收窄的退出条件见[交付证据](evidence/RELEASE-0.3.0-2026-10-27.md)。`chat-follow.spec.ts` 的“on a 2x screen › a sent message reaches the end…”会间歇失败（`edf2103` 上重复 3 次失败 1 次），尚未修；WebKit 回归在界面改造后未重跑。
+0.3.0 的自动化、打包实测、独立审查与退出条件见[交付证据](evidence/RELEASE-0.3.0-2026-10-27.md)。当前 CI 修复以独立分支验证，云端结果见[该分支的 Actions](https://github.com/YhxMo/plums/actions?query=branch%3Acodex%2Fci-docs-e2e)；未构建或替换应用包。
+
+- **本地检查**：`verify:web` 的 1028 项单元测试及各检查通过，`verify:e2e` 的 312 项 Chromium 测试通过；聊天跟随、2x 屏、窄屏快捷键与附件路径各重复 10 次，40 项通过。`actionlint .github/workflows/ci.yml`、`check:project` 与 `git diff --check` 通过。CI 分流规则见[开发流程](docs/DEVELOPMENT.md#验证入口)。原生代码未改，未重跑原生检查。
+- **键盘同步**：受控延迟复现了添加弹窗关闭后恢复焦点与下一次输入竞争，旧创建助手过早返回，新助手等待关闭与焦点恢复；发送等待按钮可用并对准输入框。附件测试等待菜单关闭与焦点返回，保留原文件选择器断言。原云端附件超时在本机未复现，云端验证以分支 CI 结果为准；失败现保留 trace。历史 2x 跟随间歇问题的原始触发条件未单独定位。
+- **WebKit**：相关 7 项通过 6 项；`agent-add.spec.ts` 中从模型连接页返回创建步骤时的焦点断言失败，用 GitHub 基线的原测试与原助手同样失败。两个原 CI 失败路径在 WebKit 上均通过，连接页焦点问题另待修复；完整 WebKit 套件未跑。
 
 ## 未验范围
 

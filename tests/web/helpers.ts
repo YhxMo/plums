@@ -115,6 +115,10 @@ export async function addAgent(
     await dialog.getByRole("textbox", { name: "介绍" }).fill(description);
   const compose = await nextStep(page, name);
   await compose.getByRole("button", { name: "添加", exact: true }).click();
+  await expect(compose).toBeHidden();
+  // Radix restores focus after unmount. Do not let that pending restoration
+  // take focus away from the next keyboard action.
+  await expect(page.locator('[data-slot="agent-workspace"]')).toBeFocused();
 }
 export async function legacyEntry(page: Page) {
   await manage(page, true);

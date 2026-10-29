@@ -2,12 +2,13 @@
 
 [文档导航](README.md) · [验收矩阵](ACCEPTANCE.md) · [整体计划](spec/total.md)
 
-状态：当前有效（2026-10-27 核实）；工作规则见 [AGENTS](../AGENTS.md)，本页是命令、门禁与交付的细节，命令以 [package.json](../package.json) 为准。运行数据、缓存与原始日志用隔离目录，不进入提交。
+状态：当前有效（2026-10-29 核实）；工作规则见 [AGENTS](../AGENTS.md)，本页是命令、门禁与交付的细节，命令以 [package.json](../package.json) 为准。运行数据、缓存与原始日志用隔离目录，不进入提交。
 
 ## 验证入口
 
 - **门禁**：提交前运行 `npm run verify:web`（构建与类型、单元、Prettier、项目清单与导入边界、文件行数、ESLint）。原生改动加 `npm run verify:native`（IPC 契约、Rust 格式、Clippy、原生单元、第三方通知）；`npm run verify` 串联两者。浏览器回归 `npm run verify:e2e` 不在默认门禁中，界面与用户路径改动时运行。缺少工具或命令失败都单独记录，不算通过。
-- **CI**：推送到 `main` 与拉取请求时，GitHub Actions（[ci.yml](../.github/workflows/ci.yml)）在 Ubuntu 上运行 `verify:web`，在 macOS 上分别运行 `verify:e2e` 与 `verify:native`（先构建前端供 Tauri 嵌入；Rust 固定为 1.98.1，升级工具链时同步修改）。云端通过不代替打包应用与真机验证。
+- **CI 文档检查**：推送到 `main` 与拉取请求时，[ci.yml](../.github/workflows/ci.yml) 先运行 `check:project` 与改动范围的 `git diff --check`，无需安装依赖。只有根目录、`docs/`、`evidence/` 下的 Markdown 变化时，到此结束。判断覆盖整次 push 或 PR 相对合并基点的差异，重命名同时检查原路径；测试夹具中的 Markdown 不算文档。
+- **CI 代码检查**：其他路径或混合改动继续在 Ubuntu 上运行 `verify:web`，在 macOS 上运行 `verify:e2e` 与 `verify:native`（先构建前端供 Tauri 嵌入；Rust 固定为 1.98.1，升级时同步修改）。保留工作流触发，只按作业跳过，避免必需检查停留在 Pending。浏览器失败时上传截图与 trace，保留 7 天。云端通过不代替打包应用与真机验证。
 - **本机**：Playwright 用 1 个 worker（Chrome channel），自起隔离 dev server，1420 端口被占用时失败而不复用；只有快速迭代可设 `PLUMS_E2E_REUSE_SERVER=1`，该结果不作为证据。Rust 构建与测试设 `CARGO_BUILD_JOBS=1 RUST_TEST_THREADS=1`。Mac 界面改动另跑相关 WebKit 回归，清空默认 channel：
 
   ```sh

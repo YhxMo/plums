@@ -91,7 +91,10 @@ test.describe("on a 2x screen", () => {
     const input = page.getByRole("textbox", { name: "消息", exact: true });
     for (let i = 1; i <= 3; i++) {
       await input.fill(`第${i}条\n${"很长的一段话\n".repeat(8)}`);
-      await page.keyboard.press("Enter");
+      await expect(
+        page.getByRole("button", { name: "发送", exact: true }),
+      ).toBeEnabled();
+      await input.press("Enter");
       await expect.poll(() => atEnd(page), { timeout: 800 }).toBe(true);
       await page.waitForTimeout(600);
       expect(await atEnd(page)).toBe(true);
@@ -111,7 +114,10 @@ test("at the end, the last line's actions show whole above the message box", asy
   const input = page.getByRole("textbox", { name: "消息", exact: true });
   for (let i = 1; i <= 3; i++) {
     await input.fill(`第${i}条\n${"很长的一段话\n".repeat(6)}`);
-    await page.keyboard.press("Enter");
+    await expect(
+      page.getByRole("button", { name: "发送", exact: true }),
+    ).toBeEnabled();
+    await input.press("Enter");
     await expect(replies(page)).toHaveCount(i);
   }
   await expect.poll(() => atEnd(page)).toBe(true);
