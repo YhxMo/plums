@@ -9,6 +9,7 @@ export default defineConfig({
     baseURL: "http://127.0.0.1:1420",
     channel: process.env.PLAYWRIGHT_CHANNEL ?? "chrome",
     screenshot: "only-on-failure",
+    trace: "retain-on-failure",
   },
   webServer: {
     command: "npm run dev",

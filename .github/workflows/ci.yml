@@ -14,7 +14,28 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  docs:
+    runs-on: ubuntu-latest
+    outputs:
+      code: ${{ steps.changes.outputs.code }}
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+      - id: changes
+        run: node scripts/ci-changes.mjs
+        env:
+          CI_BASE: ${{ github.event.pull_request.base.sha || github.event.before }}
+          CI_HEAD: ${{ github.sha }}
+          CI_EVENT: ${{ github.event_name }}
+      - run: npm run check:project
+
   web:
+    needs: docs
+    if: needs.docs.outputs.code == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
@@ -26,6 +47,8 @@ jobs:
       - run: npm run verify:web
 
   e2e:
+    needs: docs
+    if: needs.docs.outputs.code == 'true'
     # The app ships for macOS only; its runner already has Google Chrome,
     # which Playwright uses through the "chrome" channel.
     runs-on: macos-latest
@@ -45,6 +68,8 @@ jobs:
           retention-days: 7
 
   native:
+    needs: docs
+    if: needs.docs.outputs.code == 'true'
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@v5

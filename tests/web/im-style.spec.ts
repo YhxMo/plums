@@ -8,9 +8,8 @@ test("a narrow desktop keeps attachment shortcuts and Enter-to-send", async ({
   await page.goto("/");
   await addAgent(page, "半屏助手");
   const input = page.getByRole("textbox", { name: "消息", exact: true });
-  await input.focus();
   const chooser = page.waitForEvent("filechooser");
-  await page.keyboard.press("ControlOrMeta+U");
+  await input.press("ControlOrMeta+U");
   await chooser;
   await input.fill("第一行");
   await input.press("Shift+Enter");
@@ -488,10 +487,11 @@ for (const width of [1280, 375]) {
       page.getByRole("menuitem", { name: /图片和文件/ }),
     ).toBeEnabled();
     await page.keyboard.press("Escape");
+    await expect(page.getByRole("menu")).toBeHidden();
+    await expect(plus).toBeFocused();
     if (width >= 768) {
-      await text.focus();
       const chooser = page.waitForEvent("filechooser");
-      await page.keyboard.press("ControlOrMeta+U");
+      await text.press("ControlOrMeta+U");
       await chooser;
     }
     await page.getByLabel("选择文件").setInputFiles({
